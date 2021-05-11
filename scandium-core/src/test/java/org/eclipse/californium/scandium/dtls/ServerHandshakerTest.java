@@ -56,6 +56,7 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -104,7 +105,7 @@ public class ServerHandshakerTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build();
 		config = DtlsConnectorConfig.builder()
 				.setSniEnabled(true)
-				.setIdentity(privateKey, certificateChain, CertificateType.X_509)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, certificateChain, CertificateType.X_509))
 				.setAdvancedCertificateVerifier(verifier)
 				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
 				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
@@ -224,7 +225,7 @@ public class ServerHandshakerTest {
 		// only as well as a pre-shared key based cipher
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
 		config = DtlsConnectorConfig.builder()
-				.setIdentity(privateKey, DtlsTestTools.getPublicKey())
+				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, DtlsTestTools.getPublicKey()))
 				.setSupportedCipherSuites(
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)

@@ -24,6 +24,7 @@ import static org.eclipse.californium.scandium.ConnectorHelper.MAX_TIME_TO_WAIT_
 import static org.eclipse.californium.scandium.ConnectorHelper.SCOPED_CLIENT_IDENTITY;
 import static org.eclipse.californium.scandium.ConnectorHelper.SCOPED_CLIENT_IDENTITY_SECRET;
 import static org.eclipse.californium.scandium.ConnectorHelper.SERVERNAME;
+import static org.eclipse.californium.scandium.ConnectorHelper.SERVERNAME2;
 import static org.eclipse.californium.scandium.ConnectorHelper.expand;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
@@ -77,6 +78,7 @@ import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -89,11 +91,16 @@ import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.Before;
@@ -263,6 +270,11 @@ public class DTLSConnectorHandshakeTest {
 				if (verifier instanceof AsyncNewAdvancedCertificateVerifier) {
 					((AsyncNewAdvancedCertificateVerifier) verifier).setDelay(0);
 				}
+				CertificateProvider provider = builder.getIncompleteConfig()
+						.getCertificateIdentityProvider();
+				if (provider instanceof AsyncCertificateProvider) {
+					((AsyncCertificateProvider) provider).setDelay(0);
+				}
 			}
 		}, new BuilderSetup() {
 
@@ -281,6 +293,11 @@ public class DTLSConnectorHandshakeTest {
 						.getAdvancedCertificateVerifier();
 				if (verifier instanceof AsyncNewAdvancedCertificateVerifier) {
 					((AsyncNewAdvancedCertificateVerifier) verifier).setDelay(1);
+				}
+				CertificateProvider provider = builder.getIncompleteConfig()
+						.getCertificateIdentityProvider();
+				if (provider instanceof AsyncCertificateProvider) {
+					((AsyncCertificateProvider) provider).setDelay(1);
 				}
 			}
 		});
@@ -376,6 +393,10 @@ public class DTLSConnectorHandshakeTest {
 				.setClientAuthenticationRequired(clientAuthRequired).setClientAuthenticationWanted(clientAuthWanted)
 				.setConnectionIdGenerator(cidGenerator).setLoggingTag("server").setSniEnabled(enableSni)
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		if (enableSni) {
+			builder.setCertificateIdentityProvider(new KeyManagerCertificateProvider(DtlsTestTools.SERVER_NAME,
+					DtlsTestTools.getServerKeyManager(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
+		}
 		startServer(builder);
 	}
 
@@ -401,12 +422,12 @@ public class DTLSConnectorHandshakeTest {
 		serverHelper.startServer(builder);
 	}
 
-	private void startClientPsk(boolean enableSni, String hostname, ConnectionIdGenerator cidGenerator,
+	private DTLSSession startClientPsk(boolean enableSni, String hostname, ConnectionIdGenerator cidGenerator,
 			AdvancedPskStore pskStore) throws Exception {
-		startClientPsk(enableSni, hostname, cidGenerator, pskStore, null);
+		return startClientPsk(enableSni, hostname, cidGenerator, pskStore, null);
 	}
 
-	private void startClientPsk(boolean enableSni, String hostname, ConnectionIdGenerator cidGenerator,
+	private DTLSSession startClientPsk(boolean enableSni, String hostname, ConnectionIdGenerator cidGenerator,
 			AdvancedPskStore pskStore, CipherSuite cipherSuite) throws Exception {
 		AsyncAdvancedPskStore clientPskStore = new AsyncAdvancedPskStore(pskStore);
 		clientsPskStores.add(clientPskStore);
@@ -415,14 +436,14 @@ public class DTLSConnectorHandshakeTest {
 		if (cipherSuite != null) {
 			builder.setRecommendedCipherSuitesOnly(false).setSupportedCipherSuites(cipherSuite);
 		}
-		startClient(enableSni, hostname, builder);
+		return startClient(enableSni, hostname, builder);
 	}
 
-	private void startClientRpk(boolean enableSni, boolean anonymous, String hostname) throws Exception {
-		startClientRpk(enableSni, anonymous, hostname, null);
+	private DTLSSession startClientRpk(boolean enableSni, boolean anonymous, String hostname) throws Exception {
+		return startClientRpk(enableSni, anonymous, hostname, null);
 	}
 
-	private void startClientRpk(boolean enableSni, boolean anonymous, String hostname, CipherSuite cipherSuite)
+	private DTLSSession startClientRpk(boolean enableSni, boolean anonymous, String hostname, CipherSuite cipherSuite)
 			throws Exception {
 		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
 				.builder().setTrustAllRPKs().build();
@@ -436,24 +457,24 @@ public class DTLSConnectorHandshakeTest {
 			if (clientPublicKey == null) {
 				clientPublicKey = DtlsTestTools.getClientPublicKey();
 			}
-			builder.setIdentity(clientPrivateKey, clientPublicKey);
+			builder.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientPublicKey));
 		}
 		if (cipherSuite != null) {
 			builder.setRecommendedCipherSuitesOnly(false).setSupportedCipherSuites(cipherSuite);
 		}
-		startClient(enableSni, hostname, builder);
+		return startClient(enableSni, hostname, builder);
 	}
 
-	private void startClientX509(boolean enableSni, boolean anonymous, String hostname) throws Exception {
-		startClientX509(enableSni, anonymous, hostname, null);
+	private DTLSSession startClientX509(boolean enableSni, boolean anonymous, String hostname) throws Exception {
+		return startClientX509(enableSni, anonymous, hostname, null);
 	}
 
-	private void startClientX509(boolean enableSni, boolean anonymous, String hostname, CipherSuite cipherSuite)
+	private DTLSSession startClientX509(boolean enableSni, boolean anonymous, String hostname, CipherSuite cipherSuite)
 			throws Exception {
-		startClientX509(enableSni, anonymous, hostname, cipherSuite, new X509Certificate[0]);
+		return startClientX509(enableSni, anonymous, hostname, cipherSuite, new X509Certificate[0]);
 	}
 
-	private void startClientX509(boolean enableSni, boolean anonymous, String hostname, CipherSuite cipherSuite, X509Certificate... trusts)
+	private DTLSSession startClientX509(boolean enableSni, boolean anonymous, String hostname, CipherSuite cipherSuite, X509Certificate... trusts)
 			throws Exception {
 		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
 				.builder().setTrustedCertificates(trusts).build();
@@ -461,21 +482,25 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setAdvancedCertificateVerifier(clientCertificateVerifier);
 		if (!anonymous) {
-			if (clientPrivateKey == null) {
-				clientPrivateKey = DtlsTestTools.getClientPrivateKey();
+			if (enableSni) {
+				builder.setCertificateIdentityProvider(new KeyManagerCertificateProvider(DtlsTestTools.getClientKeyManager()));
+			} else {
+				if (clientPrivateKey == null) {
+					clientPrivateKey = DtlsTestTools.getClientPrivateKey();
+				}
+				if (clientCertificateChain == null) {
+					clientCertificateChain = DtlsTestTools.getClientCertificateChain();
+				}
+				builder.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain));
 			}
-			if (clientCertificateChain == null) {
-				clientCertificateChain = DtlsTestTools.getClientCertificateChain();
-			}
-			builder.setIdentity(clientPrivateKey, clientCertificateChain);
 		}
 		if (cipherSuite != null) {
 			builder.setRecommendedCipherSuitesOnly(false).setSupportedCipherSuites(cipherSuite);
 		}
-		startClient(enableSni, hostname, builder);
+		return startClient(enableSni, hostname, builder);
 	}
 
-	private void startClient(boolean enableSni, String hostname, DtlsConnectorConfig.Builder builder) throws Exception {
+	private DTLSSession startClient(boolean enableSni, String hostname, DtlsConnectorConfig.Builder builder) throws Exception {
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		builder.setAddress(clientEndpoint).setLoggingTag("client").setReceiverThreadCount(1).setConnectionThreadCount(1)
 				.setSniEnabled(enableSni).setClientOnly().setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
@@ -492,6 +517,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(session, is(notNullValue()));
 		ConnectorHelper.assertPrincipalHasAdditionalInfo(session.getPeerIdentity(), KEY_SERVER_NAME,
 				ConnectorHelper.SERVERNAME);
+		return session;
 	}
 
 	private void startClientFailing(DtlsConnectorConfig.Builder builder, EndpointContext destination) throws Exception {
@@ -659,49 +685,66 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509HandshakeClientWithSniAndServerWithSni() throws Exception {
 		startServer(true, true, false, null);
-		startClientX509(true, false, null);
+		DTLSSession session = startClientX509(true, false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
 	public void testX509HandshakeClientWithoutSniAndServerWithoutSni() throws Exception {
 		startServer(false, true, false, null);
-		startClientX509(false, false, null);
+		DTLSSession session = startClientX509(false, false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
 	public void testX509HandshakeWithServernameClientWithSniAndServerWithSni() throws Exception {
 		startServer(true, true, false, null);
-		startClientX509(true, false, SERVERNAME);
+		DTLSSession session = startClientX509(true, false, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
 		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
+	}
+
+	@Test
+	public void testX509HandshakeWithServername2ClientWithSniAndServerWithSni() throws Exception {
+		startServer(true, true, false, null);
+		DTLSSession session = startClientX509(true, false, SERVERNAME2);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
+		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME2));
+		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa"));
 	}
 
 	@Test
 	public void testX509HandshakeWithServernameClientWithoutSniAndServerWithoutSni() throws Exception {
 		startServer(false, true, false, null);
-		startClientX509(false, false, SERVERNAME);
+		DTLSSession session = startClientX509(false, false, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
@@ -751,45 +794,49 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509HandshakeNoneAuthClientWithSniAndServerWithSni() throws Exception {
 		startServer(true, false, false, null);
-		startClientX509(true, false, null);
+		DTLSSession session = startClientX509(true, false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
 	public void testX509HandshakeNoneAuthClientWithoutSniAndServerWithoutSni() throws Exception {
 		startServer(false, false, false, null);
-		startClientX509(false, false, null);
+		DTLSSession session = startClientX509(false, false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
 	public void testX509HandshakeNoneAuthWithServernameClientWithSniAndServerWithSni() throws Exception {
 		startServer(true, false, false, null);
-		startClientX509(true, false, SERVERNAME);
+		DTLSSession session = startClientX509(true, false, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
 		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
 	public void testX509HandshakeNoneAuthWithServernameClientWithoutSniAndServerWithoutSni() throws Exception {
 		startServer(false, false, false, null);
-		startClientX509(false, false, SERVERNAME);
+		DTLSSession session = startClientX509(false, false, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
@@ -817,51 +864,57 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509HandshakeAuthWanted() throws Exception {
 		startServer(false, false, true, null);
-		startClientX509(false, false, null);
+		DTLSSession session = startClientX509(false, false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
 	public void testX509HandshakeAuthWantedAnonymClient() throws Exception {
 		startServer(false, false, true, null);
-		startClientX509(false, true, null);
+		DTLSSession session = startClientX509(false, true, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
 	}
 
 	@Test
 	public void testX509MixedCertificateChainHandshakeAuthWantedAnonymClient() throws Exception {
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientAuthenticationWanted(true)
-				.setIdentity(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain())
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setClientAuthenticationWanted(true)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain()))
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
-		startClientX509(false, true, null);
+		DTLSSession session = startClientX509(false, true, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa"));
 	}
 
 	@Test
 	public void testX509TrustServerCertificate() throws Exception {
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientAuthenticationWanted(true)
-				.setIdentity(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain())
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setClientAuthenticationWanted(true)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain()))
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
-		startClientX509(false, false, null, null, DtlsTestTools.getServerRsaCertificateChain()[0]);
+		DTLSSession session = startClientX509(false, false, null, null, DtlsTestTools.getServerRsaCertificateChain()[0]);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa"));
 	}
 
 	@Test
@@ -1301,18 +1354,32 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("X25519 requires JVM support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
 		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
 
-		Credentials credentials = TestCertificatesTools.getCredentials("clienteddsa");
-		clientPrivateKey = credentials.getPrivateKey();
-		clientCertificateChain = credentials.getCertificateChain();
-
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
-		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
+		defaults.add(0, SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
 		DtlsConnectorConfig.Builder builderServer = DtlsConnectorConfig.builder()
-				.setSupportedSignatureAlgorithms(defaults).setApplicationLevelInfoSupplier(clientInfoSupplier);
+				.setSupportedSignatureAlgorithms(defaults)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier)
+				.setCertificateIdentityProvider(new KeyManagerCertificateProvider(
+				DtlsTestTools.getServerKeyManager(), CertificateType.X_509));
 		startServer(builderServer);
-		startClientX509(false, false, null, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+
+		Credentials credentials = TestCertificatesTools.getCredentials("clienteddsa");
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllCertificates().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(credentials.getPrivateKey(), credentials.getCertificateChain()))
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setSupportedGroups(SupportedGroup.X25519, SupportedGroup.secp256r1)
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+
+		DTLSSession session = startClient(false, null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
 				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(session.getPeerIdentity().getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-eddsa"));
 	}
 
 	@Test
@@ -1325,7 +1392,7 @@ public class DTLSConnectorHandshakeTest {
 
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain())
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain()))
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
@@ -1349,7 +1416,7 @@ public class DTLSConnectorHandshakeTest {
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
 		builder = DtlsConnectorConfig.builder().setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain())
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain()))
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
@@ -1466,7 +1533,7 @@ public class DTLSConnectorHandshakeTest {
 
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getServerCertificateChain());
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getServerCertificateChain()));
 
 		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
 
@@ -1623,7 +1690,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setDefaultHandshakeMode(DtlsEndpointContext.HANDSHAKE_MODE_NONE)
 				.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey());
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey()));
 
 		EndpointContext endpointContext = new AddressEndpointContext(serverHelper.serverEndpoint);
 		startClientFailing(builder, endpointContext);
@@ -1650,7 +1717,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setDefaultHandshakeMode(DtlsEndpointContext.HANDSHAKE_MODE_AUTO)
 				.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey());
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey()));
 
 		EndpointContext endpointContext = new AddressEndpointContext(serverHelper.serverEndpoint);
 		startClientFailing(builder, MapBasedEndpointContext.addEntries(endpointContext,

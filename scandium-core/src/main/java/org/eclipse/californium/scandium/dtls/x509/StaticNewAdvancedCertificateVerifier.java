@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 2.5
  */
-public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertificateVerifier {
+public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertificateVerifier, ConfigurationHelperSetup {
 
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
@@ -112,6 +112,11 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 				: Arrays.copyOf(trustedCertificates, trustedCertificates.length);
 		this.trustedRPKs = trustedRPKs == null ? null : new HashSet<>(Arrays.asList(trustedRPKs));
 		this.supportedCertificateTypes = Collections.unmodifiableList(supportedCertificateTypes);
+	}
+
+	@Override
+	public void setupConfigurationHelper(CertificateConfigurationHelper helper) {
+		helper.addConfigurationDefaultsForTrusts(trustedCertificates);
 	}
 
 	@Override

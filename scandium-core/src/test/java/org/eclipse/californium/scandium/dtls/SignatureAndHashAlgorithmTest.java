@@ -16,10 +16,14 @@
 package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -27,9 +31,12 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
@@ -132,6 +139,44 @@ public class SignatureAndHashAlgorithmTest {
 		exception.expectMessage(containsString("UNKNOWN"));
 		SignatureAndHashAlgorithm algo = new SignatureAndHashAlgorithm(80, 64);
 		algo.getThreadLocalSignature().currentWithCause();
+	}
+
+	@Test
+	public void testValueOf() throws GeneralSecurityException {
+		SignatureAndHashAlgorithm algorithm = SignatureAndHashAlgorithm.valueOf("SHA384withRSA");
+		assertNotNull(algorithm);
+		assertThat(algorithm.getHash(), is(HashAlgorithm.SHA384));
+		assertThat(algorithm.getSignature(), is(SignatureAlgorithm.RSA));
+	}
+
+	@Test
+	public void testGetSignatureAlgorithms() throws GeneralSecurityException {
+		List<SignatureAndHashAlgorithm> algorithms = SignatureAndHashAlgorithm.getSignatureAlgorithms(DtlsTestTools.getServerRsaCertificateChainAsList());
+		assertThat(algorithms.size(), is(2));
+		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+	}
+
+	@Test
+	public void testEnsureSignatureAlgorithm() throws GeneralSecurityException {
+		List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>();
+		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, DtlsTestTools.getPublicKey());
+		assertThat(algorithms.size(), is(1));
+		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, DtlsTestTools.getServerRsaCertificateChain()[1].getPublicKey());
+		assertThat(algorithms.size(), is(2));
+		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+	}
+
+	@Test
+	public void testEnsureSignatureAlgorithmForEdDsa() throws GeneralSecurityException {
+		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+		List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>();
+		Credentials credentials = DtlsTestTools.getCredentials("clienteddsa");
+		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, credentials.getPubicKey());
+		assertThat(algorithms.size(), is(1));
+		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519));
 	}
 
 	private void signAndVerify(Signature signature, KeyPair pair) throws GeneralSecurityException {

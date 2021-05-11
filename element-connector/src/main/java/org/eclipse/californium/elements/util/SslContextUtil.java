@@ -1253,7 +1253,8 @@ public class SslContextUtil {
 	}
 
 	/**
-	 * Credentials. Pair of private key and certificate trustedChain.
+	 * Credentials. Pair of private key and public key or certificate trust
+	 * chain. Or trusted certificates.
 	 */
 	public static class Credentials {
 
@@ -1266,7 +1267,7 @@ public class SslContextUtil {
 		 */
 		private final PublicKey publicKey;
 		/**
-		 * Certificate trustedChain.
+		 * Certificate trust chain.
 		 */
 		private final X509Certificate[] chain;
 		/**
@@ -1333,18 +1334,28 @@ public class SslContextUtil {
 		}
 
 		/**
-		 * Get certificate trustedChain.
+		 * Get certificate trust chain.
 		 * 
-		 * @return certificate trustedChain
+		 * @return certificate trust chain
 		 */
 		public X509Certificate[] getCertificateChain() {
 			return chain;
 		}
 
 		/**
-		 * Get certificate trusts.
+		 * Get certificate trust chain as list.
 		 * 
-		 * @return certificate trusts
+		 * @return certificate trust chain as list
+		 * @since 3.0
+		 */
+		public List<X509Certificate> getCertificateChainAsList() {
+			return chain == null ? null : Arrays.asList(chain);
+		}
+
+		/**
+		 * Get trusted certificates.
+		 * 
+		 * @return trusted certificates
 		 */
 		public Certificate[] getTrustedCertificates() {
 			return trusts;

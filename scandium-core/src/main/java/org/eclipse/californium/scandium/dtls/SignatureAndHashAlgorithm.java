@@ -357,13 +357,13 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Ensure, that the defaults list contains a signature and hash algorithms
-	 * usable by the public key.
+	 * Ensure, that the list contains a signature and hash algorithms usable by
+	 * the public key.
 	 * 
 	 * Adds a signature and hash algorithms usable by the public key to the
-	 * defaults list, if missing.
+	 * list, if missing.
 	 * 
-	 * @param defaults list of default algorithms. If not already supported, a
+	 * @param algorithms list of default algorithms. If not already supported, a
 	 *            signature and hash algorithms usable by the public key is
 	 *            added to this list.
 	 * @param publicKey publicKey. May be {@code null}.
@@ -372,17 +372,19 @@ public final class SignatureAndHashAlgorithm {
 	 *             public key
 	 * @since 3.0
 	 */
-	public static void ensureDefaultSignatureAlgorithm(List<SignatureAndHashAlgorithm> defaults, PublicKey publicKey) {
+	public static void ensureSignatureAlgorithm(List<SignatureAndHashAlgorithm> algorithms, PublicKey publicKey) {
 		if (publicKey == null) {
 			throw new NullPointerException("Public key must not be null!");
 		}
-		if (getSupportedSignatureAlgorithm(DEFAULT, publicKey) != null) {
+		SignatureAndHashAlgorithm signAndHash = getSupportedSignatureAlgorithm(DEFAULT, publicKey);
+		if (signAndHash != null) {
+			ListUtils.addIfAbsent(algorithms, signAndHash);
 			return;
 		}
-		if (defaults == null) {
+		if (algorithms == null) {
 			throw new NullPointerException("The defaults list must not be null!");
 		}
-		if (getSupportedSignatureAlgorithm(defaults, publicKey) != null) {
+		if (getSupportedSignatureAlgorithm(algorithms, publicKey) != null) {
 			return;
 		}
 		boolean keyAlgorithmSupported = false;
@@ -390,19 +392,17 @@ public final class SignatureAndHashAlgorithm {
 			if (signatureAlgorithm.isSupported(publicKey.getAlgorithm())) {
 				keyAlgorithmSupported = true;
 				if (signatureAlgorithm.isIntrinsic) {
-					SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(HashAlgorithm.INTRINSIC,
-							signatureAlgorithm);
+					signAndHash = new SignatureAndHashAlgorithm(HashAlgorithm.INTRINSIC, signatureAlgorithm);
 					if (signAndHash.isSupported(publicKey)) {
-						ListUtils.addIfAbsent(defaults, signAndHash);
+						ListUtils.addIfAbsent(algorithms, signAndHash);
 						return;
 					}
 				} else {
 					for (HashAlgorithm hashAlgorithm : HashAlgorithm.values()) {
 						if (hashAlgorithm != HashAlgorithm.INTRINSIC && hashAlgorithm.isRecommended()) {
-							SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm,
-									signatureAlgorithm);
+							signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 							if (signAndHash.isSupported(publicKey)) {
-								ListUtils.addIfAbsent(defaults, signAndHash);
+								ListUtils.addIfAbsent(algorithms, signAndHash);
 								return;
 							}
 						}

@@ -95,6 +95,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
@@ -106,6 +107,7 @@ import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVe
 public class ConnectorHelper {
 
 	static final String	SERVERNAME							= "my.test.server";
+	static final String	SERVERNAME2							= "my.test.server2";
 	static final String	SCOPED_CLIENT_IDENTITY				= "My_client_identity";
 	static final String	SCOPED_CLIENT_IDENTITY_SECRET		= "mySecretPSK";
 	static final String	CLIENT_IDENTITY						= "Client_identity";
@@ -196,9 +198,11 @@ public class ConnectorHelper {
 
 		ensurePskStore(builder);
 
-		if (incompleteConfig.getPrivateKey() == null) {
-			builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
-					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+		if (incompleteConfig.getCertificateIdentityProvider() == null) {
+			builder.setCertificateIdentityProvider(
+					new SingleCertificateProvider(
+					DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
+					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
 		}
 
 		if (incompleteConfig.getSupportedCipherSuites() == null) {
@@ -341,7 +345,7 @@ public class ConnectorHelper {
 				.setAddress(bindAddress)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
 				.setAdvancedCertificateVerifier(clientCertificateVerifier);
 	}
 

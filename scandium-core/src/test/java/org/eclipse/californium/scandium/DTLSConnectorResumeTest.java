@@ -86,7 +86,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
+import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -124,12 +126,14 @@ public class DTLSConnectorResumeTest {
 
 	static ConnectorHelper serverHelper;
 	static AsyncAdvancedPskStore serverPskStore;
+	static AsyncCertificateProvider serverCertificateProvider;
 	static AsyncNewAdvancedCertificateVerifier serverCertificateVerifier;
 	static AsyncResumptionVerifier serverResumptionVerifier;
 	static ExecutorService executor;
 	static PrivateKey clientPrivateKey;
 	static X509Certificate[] clientCertificateChain;
 	static AsyncAdvancedPskStore clientPskStore;
+	static AsyncCertificateProvider clientCertificateProvider;
 	static AsyncNewAdvancedCertificateVerifier clientCertificateVerifier;
 	static AdvancedMultiPskStore clientInMemoryPskStore;
 	static AtomicReference<AdditionalInfo> applicationInfo = new AtomicReference<>();
@@ -309,13 +313,14 @@ public class DTLSConnectorResumeTest {
 
 			@Override
 			public void setup(Builder builder) {
+				clientCertificateProvider.setDelay(0);
 				clientCertificateVerifier.setDelay(0);
+				serverCertificateProvider.setDelay(0);
 				serverCertificateVerifier.setDelay(0);
 				serverResumptionVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
-						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.X_509)
-						.setAdvancedCertificateVerifier(clientCertificateVerifier)
-						.setTrustCertificateTypes(CertificateType.X_509);
+						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain, CertificateType.X_509))
+						.setAdvancedCertificateVerifier(clientCertificateVerifier);
 			}
 		}, new TypedBuilderSetup() {
 
@@ -330,14 +335,15 @@ public class DTLSConnectorResumeTest {
 
 			@Override
 			public void setup(Builder builder) {
+				clientCertificateProvider.setDelay(100);
 				clientCertificateVerifier.setDelay(100);
+				serverCertificateProvider.setDelay(100);
 				serverCertificateVerifier.setDelay(100);
 				serverResumptionVerifier.setDelay(100);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setEnableMultiHandshakeMessageRecords(true)
-						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.X_509)
-						.setAdvancedCertificateVerifier(clientCertificateVerifier)
-						.setTrustCertificateTypes(CertificateType.X_509);
+						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain, CertificateType.X_509))
+						.setAdvancedCertificateVerifier(clientCertificateVerifier);
 			}
 		}, new TypedBuilderSetup() {
 
@@ -352,12 +358,13 @@ public class DTLSConnectorResumeTest {
 
 			@Override
 			public void setup(Builder builder) {
+				clientCertificateProvider.setDelay(0);
 				clientCertificateVerifier.setDelay(0);
+				serverCertificateProvider.setDelay(0);
 				serverCertificateVerifier.setDelay(0);
 				serverResumptionVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
-						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
-						.setTrustCertificateTypes(CertificateType.RAW_PUBLIC_KEY)
+						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY))
 						.setAdvancedCertificateVerifier(clientCertificateVerifier)
 						.setEnableMultiHandshakeMessageRecords(true);
 			}
@@ -374,12 +381,13 @@ public class DTLSConnectorResumeTest {
 
 			@Override
 			public void setup(Builder builder) {
+				clientCertificateProvider.setDelay(100);
 				clientCertificateVerifier.setDelay(100);
+				serverCertificateProvider.setDelay(100);
 				serverCertificateVerifier.setDelay(100);
 				serverResumptionVerifier.setDelay(100);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
-						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
-						.setTrustCertificateTypes(CertificateType.RAW_PUBLIC_KEY)
+						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY))
 						.setAdvancedCertificateVerifier(clientCertificateVerifier)
 						.setEnableMultiHandshakeMessageRecords(true);
 			}
@@ -419,11 +427,15 @@ public class DTLSConnectorResumeTest {
 				.build();
 		serverResumptionVerifier = new AsyncResumptionVerifier();
 
+		serverCertificateProvider = new AsyncCertificateProvider(DtlsTestTools.getPrivateKey(),
+				DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setSniEnabled(true)
 				.setApplicationLevelInfoSupplier(supplier)
 				.setAdvancedCertificateVerifier(serverCertificateVerifier)
 				.setAdvancedPskStore(serverPskStore)
+				.setCertificateIdentityProvider(serverCertificateProvider)
 				.setResumptionVerifier(serverResumptionVerifier);
 
 		serverHelper = new ConnectorHelper(true);
@@ -433,14 +445,17 @@ public class DTLSConnectorResumeTest {
 		clientCertificateChain = DtlsTestTools.getClientCertificateChain();
 
 		clientInMemoryPskStore = new AdvancedMultiPskStore();
-		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
-		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, CLIENT_IDENTITY,
+				CLIENT_IDENTITY_SECRET.getBytes());
+		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME, SCOPED_CLIENT_IDENTITY,
+				SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY,
+				SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
 		clientPskStore = new AsyncAdvancedPskStore(clientInMemoryPskStore);
 		clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier.builder()
-				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
-				.setTrustAllRPKs()
-				.build();
+				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
+		clientCertificateProvider = new AsyncCertificateProvider(clientPrivateKey, clientCertificateChain,
+				CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 	}
 
 	@AfterClass
@@ -452,6 +467,14 @@ public class DTLSConnectorResumeTest {
 		if (serverPskStore != null) {
 			serverPskStore.shutdown();
 			serverPskStore = null;
+		}
+		if (clientCertificateProvider != null) {
+			clientCertificateProvider.shutdown();
+			clientCertificateProvider = null;
+		}
+		if (serverCertificateProvider != null) {
+			serverCertificateProvider.shutdown();
+			serverCertificateProvider = null;
 		}
 		if (clientCertificateVerifier != null) {
 			clientCertificateVerifier.shutdown();
@@ -525,6 +548,7 @@ public class DTLSConnectorResumeTest {
 				.setConnectionThreadCount(2)
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		clientPskStore.setResultHandler(null);
+		clientCertificateProvider.setResultHandler(null);
 		clientCertificateVerifier.setResultHandler(null);
 		clientPrincipalType = builderSetup.getPrincipalType();
 		builderSetup.setup(builder);

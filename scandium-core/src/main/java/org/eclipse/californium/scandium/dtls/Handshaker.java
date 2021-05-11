@@ -86,6 +86,7 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
+import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
@@ -105,7 +106,9 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -273,24 +276,47 @@ public abstract class Handshaker implements Destroyable {
 	 * Current partial reassembled handshake message.
 	 */
 	private ReassemblingHandshakeMessage reassembledMessage;
-
-	/** The handshaker's private key. */
-	protected final PrivateKey privateKey;
-
-	/** The handshaker's public key. */
-	protected final PublicKey publicKey;
-
-	/** The chain of certificates asserting this handshaker's identity */
-	protected final List<X509Certificate> certificateChain;
+	/**
+	 * The handshaker's certificate identity provider.
+	 * 
+	 * @since 3.0
+	 */
+	protected final CertificateProvider certificateIdentityProvider;
+	/**
+	 * The handshaker's private key.
+	 * 
+	 * Only available after certificate identity is provided. May be
+	 * {@code null}, if no matching identity is available.
+	 */
+	protected PrivateKey privateKey;
+	/**
+	 * The handshaker's public key.
+	 * 
+	 * Only available after certificate identity is provided. May be
+	 * {@code null}, if no matching identity is available.
+	 */
+	protected PublicKey publicKey;
+	/**
+	 * The chain of certificates asserting this handshaker's identity.
+	 * 
+	 * Only available after certificate identity is provided. May be
+	 * {@code null}, if no matching identity is available.
+	 */
+	protected List<X509Certificate> certificateChain;
 	/**
 	 * The certificate path of the other peer.
 	 * 
-	 * @since 3.0 (renamed certPath)
+	 * Only available after certificate verification. Optionally truncated to
+	 * trusted issuer.
+	 * 
+	 * @since 3.0 (renamed, was peerCertPath)
 	 */
 	private CertPath otherPeersCertPath;
 	/**
 	 * The public key of the other peer
 	 * 
+	 * May be {@code null}, if other peer sends a empty certificate.
+	 *  
 	 * @since 3.0
 	 */
 	protected PublicKey otherPeersPublicKey;
@@ -312,7 +338,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Support Server Name Indication TLS extension.
 	 */
-	protected boolean sniEnabled;
+	protected final boolean sniEnabled;
 
 	/**
 	 * Send the extended master secret extension.
@@ -396,13 +422,23 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private HandshakeState[] expectedStates;
 
-	private boolean eccExpected = false;
-	private boolean changeCipherSuiteMessageExpected = false;
-	private boolean contextEstablished = false;
-	private boolean handshakeAborted = false;
-	private boolean handshakeFailed = false;
-	private boolean pskRequestPending = false;
-	private boolean certificateVerificationPending = false;
+	private boolean eccExpected;
+	private boolean changeCipherSuiteMessageExpected;
+	private boolean contextEstablished;
+	private boolean handshakeAborted;
+	private boolean handshakeFailed;
+	private boolean pskRequestPending;
+	private boolean certificateVerificationPending;
+	private boolean certificateIdentityPending;
+	/**
+	 * {@code true}, if the certificate identity request has completed,
+	 * {@code false}, otherwise. Gets {@code true}, even if no matching identity
+	 * is available.
+	 * 
+	 * @since 3.0
+	 */
+	protected boolean certificateIdentityAvailable;
+
 	/**
 	 * Other secret for ECDHE-PSK cipher suites.
 	 * <a href="https://tools.ietf.org/html/rfc5489#page-4" target="_blank"> RFC 5489, other
@@ -421,6 +457,9 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.3
 	 */
 	private Object customArgument;
+	/**
+	 * Application level info supplier. may be {@code null}.
+	 */
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
 	// Constructor ////////////////////////////////////////////////////
@@ -484,9 +523,7 @@ public abstract class Handshaker implements Destroyable {
 		this.extendedMasterSecretMode = config.getExtendedMasterSecretMode();
 		this.useTruncatedCertificatePathForVerification = config.useTruncatedCertificatePathForValidation();
 		this.useEarlyStopRetransmission = config.isEarlyStopRetransmission();
-		this.privateKey = config.getPrivateKey();
-		this.publicKey = config.getPublicKey();
-		this.certificateChain = config.getCertificateChain();
+		this.certificateIdentityProvider = config.getCertificateIdentityProvider();
 		this.certificateVerifier = config.getAdvancedCertificateVerifier();
 		this.advancedPskStore = config.getAdvancedPskStore();
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
@@ -1037,6 +1074,8 @@ public abstract class Handshaker implements Destroyable {
 			processPskSecretResult((PskSecretResult) handshakeResult);
 		} else if (handshakeResult instanceof CertificateVerificationResult) {
 			processCertificateVerificationResult((CertificateVerificationResult) handshakeResult);
+		} else if (handshakeResult instanceof CertificateIdentityResult) {
+			processCertificateIdentityResult((CertificateIdentityResult) handshakeResult);
 		}
 		if (changeCipherSuiteMessageExpected) {
 			processNextMessages(null);
@@ -1158,22 +1197,59 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Set custom argument for {@link ApplicationLevelInfoSupplier}.
-	 * 
-	 * @param result handshake result with custom argument.
-	 * @since 3.0
-	 */
-	protected void setCustomArgument(HandshakeResult result) {
-		this.customArgument = result.getCustomArgument();
-	}
-
-	/**
 	 * Do the handshaker specific processing of successful verified certificates
 	 * 
 	 * @throws HandshakeException if an error occurs
 	 * @since 2.5
 	 */
 	protected abstract void processCertificateVerified() throws HandshakeException;
+
+	/**
+	 * Process the certificate identity.
+	 * 
+	 * @param result certificate identity
+	 * @throws HandshakeException if an error occurs
+	 * @throws IllegalStateException if no call is pending (see
+	 *             {@link #certificateIdentityPending}), or the handshaker
+	 *             {@link #isDestroyed()}.
+	 * @since 3.0
+	 */
+	protected void processCertificateIdentityResult(CertificateIdentityResult result) throws HandshakeException {
+		if (!certificateIdentityPending) {
+			throw new IllegalStateException("certificate identity not pending!");
+		}
+		ensureUndestroyed();
+		certificateIdentityPending = false;
+		LOGGER.info("Process result of certificate identity.");
+		this.privateKey = result.getPrivateKey();
+		this.publicKey = result.getPublicKey();
+		this.certificateChain = result.getCertificateChain();
+		certificateIdentityAvailable = true;
+		processCertificateIdentityAvailable();
+	}
+
+	/**
+	 * Do the handshaker specific processing of certificate identity.
+	 * 
+	 * @throws HandshakeException if an error occurs
+	 * @since 3.0
+	 */
+	protected abstract void processCertificateIdentityAvailable() throws HandshakeException;
+
+	/**
+	 * Set custom argument for {@link ApplicationLevelInfoSupplier}.
+	 * 
+	 * A {@code null} custom argument will not overwrite a already set one.
+	 * 
+	 * @param result handshake result with custom argument.
+	 * @since 3.0
+	 */
+	protected void setCustomArgument(HandshakeResult result) {
+		Object customArgument = result.getCustomArgument();
+		if (customArgument != null) {
+			this.customArgument = customArgument;
+		}
+	}
 
 	/**
 	 * Checks, if a internal API call is pending.
@@ -1187,7 +1263,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 3.0
 	 */
 	protected boolean hasPendingApiCall() {
-		return certificateVerificationPending || pskRequestPending;
+		return certificateIdentityPending || certificateVerificationPending || pskRequestPending;
 	}
 
 	/**
@@ -1196,8 +1272,11 @@ public abstract class Handshaker implements Destroyable {
 	 * Sets the {@link DTLSSession#setPeerIdentity(Principal)}, if the
 	 * certificate chain or public key of the other peer is also already
 	 * verified.
+	 * 
+	 * @return the value of {@link #otherPeersCertificateVerified} 
+	 * @since 3.0
 	 */
-	protected void setOtherPeersSignatureVerified() {
+	protected boolean setOtherPeersSignatureVerified() {
 		otherPeersSignatureVerified = true;
 		if (otherPeersCertificateVerified) {
 			if (otherPeersCertPath != null) {
@@ -1206,6 +1285,7 @@ public abstract class Handshaker implements Destroyable {
 				getSession().setPeerIdentity(new RawPublicKeyIdentity(otherPeersPublicKey));
 			}
 		}
+		return otherPeersCertificateVerified;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -1390,7 +1470,7 @@ public abstract class Handshaker implements Destroyable {
 			throw new NullPointerException("seed must not be null!");
 		}
 		DTLSSession session = getSession();
-		ServerNames serverNames = sniEnabled ? session.getServerNames() : null;
+		ServerNames serverNames = getServerNames();
 		String hmacAlgorithm = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		pskRequestPending = true;
 		masterSecretSeed = seed;
@@ -1547,6 +1627,18 @@ public abstract class Handshaker implements Destroyable {
 	HandshakeParameter getParameter() {
 		DTLSSession session = getSession();
 		return new HandshakeParameter(session.getKeyExchange(), session.receiveCertificateType());
+	}
+
+	/**
+	 * Gets the effective server names.
+	 * 
+	 * @return the effective server names, or {@code null}, if disabled or not
+	 *         available.
+	 * @see #sniEnabled
+	 * @since 3.0
+	 */
+	public final ServerNames getServerNames() {
+		return sniEnabled ? getSession().getServerNames() : null;
 	}
 
 	/**
@@ -1919,7 +2011,7 @@ public abstract class Handshaker implements Destroyable {
 						timeout = true;
 					}
 				}
-				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed,{}. Retransmission {} of {}.",
+				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed,{} Retransmission {} of {}.",
 						flight.getFlightNumber(), flight.getNumberOfMessages(), peerToLog, message, flight.getTries(),
 						maxRetransmissions);
 				if (hasPendingApiCall()) {
@@ -1936,9 +2028,8 @@ public abstract class Handshaker implements Destroyable {
 							"Handshake flight " + flight.getFlightNumber() + " failed!" + message,
 							flight.getFlightNumber()));
 				} else {
-					handshaker.handshakeFailed(
-							new DtlsException("Handshake flight " + flight.getFlightNumber() + " failed!" + message,
-									cause));
+					handshaker.handshakeFailed(new DtlsException(
+							"Handshake flight " + flight.getFlightNumber() + " failed!" + message, cause));
 				}
 			}
 		}
@@ -2312,6 +2403,39 @@ public abstract class Handshaker implements Destroyable {
 		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, !isClient(), useTruncatedCertificatePathForVerification, message);
 		if (verificationResult != null) {
 			processCertificateVerificationResult(verificationResult);
+		}
+	}
+
+	/**
+	 * Request the certificate based identity.
+	 * 
+	 * @param issuers list of trusted issuers
+	 * @param serverNames indicated server names
+	 * @param signatureAndHashAlgorithms list of supported signatures and hash
+	 *            algorithms
+	 * @param curves ec-curves (supported groups). May be {@code null}.
+	 * @return {@code true}, if the certificate based identity is available,
+	 *         {@code false}, if the certificate based identity is requested.
+	 * @throws HandshakeException if any of the checks fails
+	 * @since 3.0
+	 */
+	public boolean requestCertificateIdentity(List<X500Principal> issuers, ServerNames serverNames,
+			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves)
+			throws HandshakeException {
+		certificateIdentityPending = true;
+		CertificateIdentityResult result;
+		if (certificateIdentityProvider == null) {
+			result = new CertificateIdentityResult(connection.getConnectionId(), null);
+		} else {
+			LOGGER.info("Start certificate identity.");
+			result = certificateIdentityProvider.requestCertificateIdentity(connection.getConnectionId(), isClient(),
+					issuers, serverNames, signatureAndHashAlgorithms, curves);
+		}
+		if (result != null) {
+			processCertificateIdentityResult(result);
+			return false;
+		} else {
+			return true;
 		}
 	}
 

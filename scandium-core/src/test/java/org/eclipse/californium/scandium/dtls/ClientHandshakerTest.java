@@ -44,6 +44,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
@@ -242,10 +243,10 @@ public class ClientHandshakerTest {
 
 		DtlsConnectorConfig.Builder builder = 
 				DtlsConnectorConfig.builder()
-					.setIdentity(
+					.setCertificateIdentityProvider(new SingleCertificateProvider(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),
-						CertificateType.X_509)
+						CertificateType.X_509))
 					.setSniEnabled(sniEnabled);
 
 		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
@@ -261,6 +262,7 @@ public class ClientHandshakerTest {
 		DtlsConnectorConfig config = builder.build();
 		Connection connection = new Connection(config.getAddress());
 		connection.setConnectorContext(new SyncExecutor(), null);
+		connection.setConnectionId(ConnectionId.EMPTY);
 		handshaker = new ClientHandshaker(
 				virtualHost,
 				recordLayer,

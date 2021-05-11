@@ -41,6 +41,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * The resuming server handshaker executes an abbreviated handshake when
@@ -88,10 +89,19 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	// Members ////////////////////////////////////////////////////////
 	private final ResumptionVerifier resumptionHandler;
 
+	/**
+	 * Pending client hello, waiting for result of {@link ResumptionVerifier}.
+	 * 
+	 * @since 3.0
+	 */
 	private ClientHello pendingClientHello;
 
-	// flag to indicate if we must do a full handshake or an abbreviated one
-	private boolean fullHandshake = false;
+	/**
+	 * Flag to indicate if we must do a full handshake or an abbreviated one
+	 * 
+	 * @since 3.0
+	 */
+	private boolean fullHandshake;
 
 	/** The handshake hash used in the Finished messages. */
 	private byte[] handshakeHash;
@@ -157,6 +167,10 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	/**
 	 * Check, if a session for the session id is available and valid.
 	 * 
+	 * Calls
+	 * {@link #processResumptionVerificationResult(ResumptionVerificationResult)}
+	 * on available resumption result.
+	 * 
 	 * @param clientHello the client's hello message.
 	 * @throws HandshakeException if the server's handshake records creation
 	 *             fails
@@ -177,10 +191,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			LOGGER.debug("Process client hello synchronous");
 			processResumptionVerificationResult(result);
 		} else {
-			// Dummy flight for handshake timeout!
-			DTLSFlight flight = createFlight();
-			flight.setResponseStarted();
-			sendFlight(flight);
+			startInitialTimeout();
 		}
 	}
 
@@ -315,10 +326,14 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					"Disabled extended master secret extension in client hello, switch to full-handshake with peer [{}]!",
 					peerToLog);
 			return false;
-		} else if (sniEnabled && !Objects.equals(session.getServerNames(), clientHello.getServerNames())) {
-			LOGGER.debug("SNI {} changed by client hello {}, switch to full-handshake with peer [{}]!",
-					session.getServerNames(), clientHello.getServerNames(), peerToLog);
-			return false;
+		} else if (sniEnabled) {
+			ServerNames serverNames = getServerNames();
+			ServerNames clientServerNames = clientHello.getServerNames();
+			if (!Objects.equals(serverNames, clientServerNames)) {
+				LOGGER.debug("SNI {} changed by client hello {}, switch to full-handshake with peer [{}]!", serverNames,
+						clientServerNames, peerToLog);
+				return false;
+			}
 		}
 		return true;
 	}

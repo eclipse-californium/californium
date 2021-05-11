@@ -119,6 +119,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
@@ -183,7 +184,7 @@ public class DTLSConnectorTest {
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
-			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
+			.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
 			.setAdvancedCertificateVerifier(verifier)
 			.setAdvancedPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
@@ -242,7 +243,7 @@ public class DTLSConnectorTest {
 				.setLoggingTag("client")
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
 				.setAdvancedCertificateVerifier(verifier);
 	}
 
@@ -1093,7 +1094,7 @@ public class DTLSConnectorTest {
 			DtlsConnectorConfig.Builder serverConfig = DtlsConnectorConfig.builder()
 					.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 					.setLoggingTag("server")
-					.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY)
+					.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY))
 					.setClientAuthenticationRequired(false);
 			serverHelper.startServer(serverConfig);
 			serverHelper.givenAnEstablishedSession(client, true);

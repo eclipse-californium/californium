@@ -57,6 +57,8 @@ The `ApplicationLevelInfoSupplier.getInfo()` supports now to return `null` in or
 
 The `ResumingServerHandshaker` supports now a none-blocking `ResumptionVerifier` and a fall-back to a full handshake.
 
+The `CertificateProvider` introduces the possibility to use multiple certificates.
+
 The `SignatureAndHashAlgorithm` supports now `isRecommended` to address the upcoming 
 [draft-ietf-tls-md5-sha1-deprecate](https://datatracker.ietf.org/doc/draft-ietf-tls-md5-sha1-deprecate/).
 
@@ -141,6 +143,8 @@ are removed and must be replaced by
 
 15) To support [RFC 7627, Extended Master Secret](https://tools.ietf.org/html/rfc7627), a parameter `useExtendedMasterSecret` is added to
 `AdvancedPskStore.requestPskSecretResult`.
+
+16) Change `DtlsConnectorConfig.getPrivateKey`, `getPublicKey`, and `getCertificateChain` are replaced by the introduced `CertificateProvider`. `DtlsConnectorConfig.getCertificateIdentityProvider` is added to access the `CertificateProvider`. The `SingleCertificateProvider` is provided, if only  a single certificate based identity is required. The related setters in the `DtlsConnectorConfig.Builder` are replaced also by `setCertificateIdentityProvider`.
 
 ### Californium-Core:
 
