@@ -152,17 +152,14 @@ public final class Connection {
 	/**
 	 * Set connector's context.
 	 * 
-	 * @param executor executor to be used for {@link SerialExecutor}
+	 * @param executor executor to be used for {@link SerialExecutor}.
 	 * @param listener connection listener.
 	 * @return this connection
-	 * @throws NullPointerException if the executor is {@code null}
 	 * @throws IllegalStateException if the connection is already executing
 	 * @since 3.0 (combines previous setExecutor and setExecutionListener) 
 	 */
 	public Connection setConnectorContext(Executor executor, ConnectionListener listener) {
-		if (executor == null) {
-			throw new NullPointerException("Executor must not be null!");
-		} else if (isExecuting()) {
+		if (isExecuting()) {
 			throw new IllegalStateException("Executor already available!");
 		}
 		this.serialExecutor = new SerialExecutor(executor);
