@@ -648,6 +648,8 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	@WipAPI
 	@Override
 	public int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
+		int size = connections.size();
+		int progress = size / 20;
 		int count = 0;
 		DatagramWriter writer = new DatagramWriter(4096);
 		long startNanos = ClockUtil.nanoRealtime();
@@ -667,6 +669,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					} else {
 						writer.reset();
 					}
+					if (progress > 100 && (count % progress) == 0) {
+						LOGGER.info("{}written {} connetions of {}", tag, count, size);
+					} 
 				}
 			}
 		}
