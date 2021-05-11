@@ -86,14 +86,10 @@ public class TestCertificatesTools {
 			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
 					TRUST_STORE_URI, null, TRUST_STORE_PASSWORD);
 
-			KeyManager[] manager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			if (manager != null && manager.length > 0) {
-				serverKeyManager = (X509ExtendedKeyManager) manager[0];
-			}
+			KeyManager[] manager = SslContextUtil.loadKeyManager(EDDSA_KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			serverKeyManager = getX509KeyManager(manager);
 			manager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "client", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			if (manager != null && manager.length > 0) {
-				clientKeyManager = (X509ExtendedKeyManager) manager[0];
-			}
+			clientKeyManager = getX509KeyManager(manager);
 
 			trustedCertificates = SslContextUtil.asX509Certificates(certificates);
 			certificates = SslContextUtil.loadTrustedCertificates(
@@ -457,4 +453,14 @@ public class TestCertificatesTools {
 		return diff.toString();
 	}
 
+	private static X509ExtendedKeyManager getX509KeyManager(KeyManager[] managers) {
+		if (managers != null) {
+			for (KeyManager manager : managers) {
+				if (manager instanceof X509ExtendedKeyManager) {
+					return (X509ExtendedKeyManager) manager;
+				}
+			}
+		}
+		return null;
+	}
 }

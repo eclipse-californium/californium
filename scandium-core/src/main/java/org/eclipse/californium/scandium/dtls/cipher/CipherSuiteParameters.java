@@ -173,6 +173,28 @@ public class CipherSuiteParameters {
 		this.format = format;
 	}
 
+	/**
+	 * Create common cipher suites and parameters.
+	 * 
+	 * @param publicKey peer's public key. Maybe {@code null}.
+	 * @param certificateChain peer's certificate chain. Maybe {@code null}.
+	 * @param others other parameters
+	 * @since 3.0
+	 */
+	public CipherSuiteParameters(PublicKey publicKey, List<X509Certificate> certificateChain,
+			CipherSuiteParameters others) {
+		this.publicKey = publicKey;
+		this.certificateChain = certificateChain;
+		this.clientAuthenticationRequired = others.clientAuthenticationRequired;
+		this.clientAuthenticationWanted = others.clientAuthenticationWanted;
+		this.cipherSuites = others.cipherSuites;
+		this.serverCertTypes = others.serverCertTypes;
+		this.clientCertTypes = others.clientCertTypes;
+		this.supportedGroups = others.supportedGroups;
+		this.signatures = others.signatures;
+		this.format = others.format;
+	}
+
 	public List<CipherSuite> getCipherSuites() {
 		return cipherSuites;
 	}

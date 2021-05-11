@@ -40,6 +40,7 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
@@ -155,10 +156,10 @@ public class ConnectorUtil {
 					new AdvancedSinglePskStore(OpenSslUtil.OPENSSL_PSK_IDENTITY, OpenSslUtil.OPENSSL_PSK_SECRET));
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(suites)) {
-			if (credentials != null && dtlsBuilder.getIncompleteConfig().getPrivateKey() == null) {
+			if (credentials != null && dtlsBuilder.getIncompleteConfig().getCertificateIdentityProvider() == null) {
 				Credentials credentials = rsa ? this.credentialsRsa : this.credentials;
-				dtlsBuilder.setIdentity(credentials.getPrivateKey(), credentials.getCertificateChain(),
-						CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY);
+				dtlsBuilder.setCertificateIdentityProvider(new SingleCertificateProvider(credentials.getPrivateKey(), credentials.getCertificateChain(),
+						CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
 				Builder builder = StaticNewAdvancedCertificateVerifier.builder();
 				if (TRUST_CA.equals(trust)) {
 					builder.setTrustedCertificates(trustCa);

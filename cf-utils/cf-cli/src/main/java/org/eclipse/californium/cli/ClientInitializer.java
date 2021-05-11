@@ -59,6 +59,7 @@ import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -362,9 +363,9 @@ public class ClientInitializer {
 			if (clientConfig.authentication != null && clientConfig.authentication.credentials != null) {
 				Credentials identity = clientConfig.authentication.credentials;
 				if (certificateTypes.contains(CertificateType.X_509)) {
-					dtlsConfig.setIdentity(identity.getPrivateKey(), identity.getCertificateChain(), certificateTypes);
+					dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(identity.getPrivateKey(), identity.getCertificateChain(), certificateTypes));
 				} else if (certificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
-					dtlsConfig.setIdentity(identity.getPrivateKey(), identity.getPubicKey());
+					dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(identity.getPrivateKey(), identity.getPubicKey()));
 				}
 			}
 

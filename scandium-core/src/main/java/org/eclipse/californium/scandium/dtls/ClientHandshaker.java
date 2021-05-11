@@ -160,20 +160,29 @@ public class ClientHandshaker extends Handshaker {
 	private boolean probe;
 
 	/**
+	 * Indicates received server hello done.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean receivedServerHelloDone;
+
+	/**
 	 * The server's key exchange message
 	 * 
 	 * @since 2.3
 	 */
-	protected ECDHServerKeyExchange serverKeyExchange;
+	private ECDHServerKeyExchange serverKeyExchange;
 
 	/**
-	 * The client's hello handshake message. Store it, to add the cookie in the
-	 * second flight.
+	 * The client's hello handshake message.
+	 * 
+	 * Store it, to add the cookie in the second flight.
 	 */
-	protected ClientHello clientHello = null;
+	protected ClientHello clientHello;
 
 	/**
 	 * The client's flight 5.
+	 * 
 	 * @since 3.0
 	 */
 	protected DTLSFlight flight5;
@@ -192,7 +201,13 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected final List<SupportedGroup> supportedGroups;
 
+	/**
+	 * Maximum fragment length code.
+	 */
 	protected final Integer maxFragmentLengthCode;
+	/**
+	 * Truncate certificate path.
+	 */
 	protected final boolean truncateCertificatePath;
 
 	/**
@@ -213,13 +228,15 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected final List<CertificateType> supportedServerCertificateTypes;
 
-	/** The server's {@link CertificateRequest}. Optional. */
-	protected CertificateRequest certificateRequest = null;
+	/** 
+	 * The server's {@link CertificateRequest}. Optional.
+	 */
+	private CertificateRequest certificateRequest;
 
-	/** The hash of all received handshake messages sent in the finished message. */
-	protected byte[] handshakeHash = null;
-
-	protected ServerNames indicatedServerNames;
+	/**
+	 * The hash of all received handshake messages sent in the finished message.
+	 */
+	protected byte[] handshakeHash;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -275,9 +292,10 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case SERVER_KEY_EXCHANGE:
+			
 			switch (getSession().getKeyExchange()) {
 			case EC_DIFFIE_HELLMAN:
-				receivedServerKeyExchange((EcdhEcdsaServerKeyExchange) message);
+				receivedEcdhEcdsaServerKeyExchange((EcdhEcdsaServerKeyExchange) message);
 				break;
 
 			case PSK:
@@ -285,7 +303,7 @@ public class ClientHandshaker extends Handshaker {
 				break;
 
 			case ECDHE_PSK:
-				serverKeyExchange =(EcdhPskServerKeyExchange) message;
+				serverKeyExchange = (EcdhPskServerKeyExchange) message;
 				break;
 
 			default:
@@ -296,12 +314,11 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case CERTIFICATE_REQUEST:
-			// save for later, will be handled by server hello done
-			certificateRequest = (CertificateRequest) message;
+			receivedCertificateRequest((CertificateRequest) message);
 			break;
 
 		case SERVER_HELLO_DONE:
-			receivedServerHelloDone((ServerHelloDone) message);
+			receivedServerHelloDone();
 			break;
 
 		case FINISHED:
@@ -309,8 +326,8 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		default:
-			throw new HandshakeException(
-					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), peerToLog),
+			throw new HandshakeException(String.format("Received unexpected handshake message [%s] from peer %s",
+					message.getMessageType(), peerToLog),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 	}
@@ -335,8 +352,7 @@ public class ClientHandshaker extends Handshaker {
 	 * flooding of a client. The client answers with the same
 	 * {@link ClientHello} as before with the additional cookie.
 	 * 
-	 * @param message
-	 *            the server's {@link HelloVerifyRequest}.
+	 * @param message the server's {@link HelloVerifyRequest}.
 	 */
 	protected void receivedHelloVerifyRequest(HelloVerifyRequest message) {
 		// HelloVerifyRequest and messages before are not included in the handshake hash
@@ -500,8 +516,9 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param message the server's {@link ServerKeyExchange} message.
 	 * @throws HandshakeException if the message can't be verified
+	 * @since 3.0 (renamed, was receivedServerKeyExchange)
 	 */
-	private void receivedServerKeyExchange(EcdhEcdsaServerKeyExchange message) throws HandshakeException {
+	private void receivedEcdhEcdsaServerKeyExchange(EcdhEcdsaServerKeyExchange message) throws HandshakeException {
 		message.verifySignature(otherPeersPublicKey, clientRandom, serverRandom);
 		// server identity has been proven
 		serverKeyExchange = message;
@@ -509,17 +526,71 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	/**
-	 * The ServerHelloDone message is sent by the server to indicate the end of
-	 * the ServerHello and associated messages. The client starts to fetch all
-	 * required credentials. If these credentials are available, the processing
-	 * is continued with {@link #processMasterSecret()}.
+	 * Process received certificate request message.
 	 * 
-	 * @throws HandshakeException if the server's hello done can not be
-	 *             processed.
+	 * Determine a matching client certificate to prepare for the client's
+	 * certificate message. Calls {@link #processCertificateIdentityAvailable()}
+	 * on available identity result.
+	 * 
+	 * @param message certificate request message
+	 * @throws HandshakeException if an exception occurred
+	 * @since 3.0
+	 */
+	private void receivedCertificateRequest(CertificateRequest message) throws HandshakeException {
+		// save for later, will be handled by server hello done
+		certificateRequest = message;
+		requestCertificateIdentity(certificateRequest.getCertificateAuthorities(),
+				getServerNames(), certificateRequest.getSupportedSignatureAlgorithms(), null);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Continues process of server's certificate request when the certificate
+	 * identity result is available. if the server hello done is already
+	 * received, the left necessary messages (depending on server's previous
+	 * flight) are prepared and Starts to create the next flight calling
+	 * {@link #processServerHelloDone()}.
+	 * 
+	 * @since 3.0
+	 */
+	@Override
+	protected void processCertificateIdentityAvailable() throws HandshakeException {
+		if (receivedServerHelloDone) {
+			processServerHelloDone();
+		}
+	}
+
+	/**
+	 * Process received server hello done message.
+	 * 
+	 * Starts to create the client's response flight calling
+	 * {@link #processServerHelloDone()}, if either no client certificate is
+	 * requested or the client certificate is already available.
+	 * 
+	 * @throws HandshakeException if an exception occurred
+	 * @since 3.0
+	 */
+	private void receivedServerHelloDone() throws HandshakeException {
+		receivedServerHelloDone = true;
+		if (certificateRequest == null || certificateIdentityAvailable) {
+			processServerHelloDone();
+		}
+	}
+
+	/**
+	 * The client starts to create the response flight.
+	 * 
+	 * Requires the client's certificate to be available.
+	 * 
+	 * Depending on the cipher suite, the PSK credentials are fetched. Calls
+	 * {@link #processMasterSecret(SecretKey)} on available PSK credentials.
+	 * 
 	 * @throws GeneralSecurityException if the client's handshake records cannot
 	 *             be created
+	 * @since 3.0 (renamed, was receivedServerHelloDone)
 	 */
-	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException {
+	private void processServerHelloDone() throws HandshakeException {
 		flightNumber += 2;
 
 		flight5 = createFlight();
@@ -607,7 +678,7 @@ public class ClientHandshaker extends Handshaker {
 	@Override
 	protected void processMasterSecret() throws HandshakeException {
 		if (!isExpectedStates(SEVER_CERTIFICATE) || otherPeersCertificateVerified) {
-			processServerHelloDone();
+			completeProcessingServerHelloDone();
 		}
 	}
 
@@ -624,19 +695,20 @@ public class ClientHandshaker extends Handshaker {
 	@Override
 	protected void processCertificateVerified() throws HandshakeException {
 		if (hasMasterSecret()) {
-			processServerHelloDone();
+			completeProcessingServerHelloDone();
 		}
 	}
 
 	/**
-	 * Process received server hello done, when PSK credentials are available or
-	 * the certificates are verified.
+	 * Complete the client's response flight, when PSK credentials are available or
+	 * the certificate is verified.
 	 * 
 	 * @throws HandshakeException if an exception occurred processing the server
 	 *             hello done
-	 * @since 2.5
+	 * @since 3.0 (renamed, was processServerHelloDone)
 	 */
-	protected void processServerHelloDone() throws HandshakeException {
+	protected void completeProcessingServerHelloDone() throws HandshakeException {
+
 		DTLSSession session = getSession();
 		if (session.getCipherSuite().isEccBased()) {
 			expectEcc();
@@ -757,8 +829,9 @@ public class ClientHandshaker extends Handshaker {
 
 		handshakeStarted();
 
-		ClientHello startMessage = new ClientHello(maxProtocolVersion, supportedCipherSuites, supportedSignatureAlgorithms,
-				supportedClientCertificateTypes, supportedServerCertificateTypes, supportedGroups);
+		ClientHello startMessage = new ClientHello(maxProtocolVersion, supportedCipherSuites,
+				supportedSignatureAlgorithms, supportedClientCertificateTypes, supportedServerCertificateTypes,
+				supportedGroups);
 
 		if (CipherSuite.containsEccBasedCipherSuite(startMessage.getCipherSuites())) {
 			expectEcc();
@@ -799,21 +872,17 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected void addRecordSizeLimit(final ClientHello helloMessage) {
 		if (recordSizeLimit != null) {
-			RecordSizeLimitExtension  ext = new RecordSizeLimitExtension(recordSizeLimit); 
+			RecordSizeLimitExtension ext = new RecordSizeLimitExtension(recordSizeLimit);
 			helloMessage.addExtension(ext);
-			LOGGER.debug(
-					"Indicating record size limit [{}] to server [{}]",
-					recordSizeLimit, peerToLog);
+			LOGGER.debug("Indicating record size limit [{}] to server [{}]", recordSizeLimit, peerToLog);
 		}
 	}
 
 	protected void addMaxFragmentLength(final ClientHello helloMessage) {
 		if (maxFragmentLengthCode != null) {
-			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
+			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode);
 			helloMessage.addExtension(ext);
-			LOGGER.debug(
-					"Indicating max. fragment length [{}] to server [{}]",
-					maxFragmentLengthCode, peerToLog);
+			LOGGER.debug("Indicating max. fragment length [{}] to server [{}]", maxFragmentLengthCode, peerToLog);
 		}
 	}
 
@@ -833,10 +902,10 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	protected void addServerNameIndication(final ClientHello helloMessage) {
-
-		if (sniEnabled && getSession().getServerNames() != null) {
+		ServerNames serverNames = getServerNames();
+		if (serverNames != null) {
 			LOGGER.debug("adding SNI extension to CLIENT_HELLO message [{}]", getSession().getHostName());
-			helloMessage.addExtension(ServerNameExtension.forServerNames(getSession().getServerNames()));
+			helloMessage.addExtension(ServerNameExtension.forServerNames(serverNames));
 		}
 	}
 
@@ -851,7 +920,7 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected PskPublicInformation getPskClientIdentity() throws HandshakeException {
 
-		ServerNames serverName = sniEnabled ? getSession().getServerNames() : null;
+		ServerNames serverName = getServerNames();
 		if (serverName != null && !getSession().isSniSupported()) {
 			LOGGER.warn(
 					"client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
@@ -864,8 +933,8 @@ public class ClientHandshaker extends Handshaker {
 				throw new HandshakeException(String.format("No Identity found for peer [address: %s, virtual host: %s]",
 						peerToLog, getSession().getHostName()), alert);
 			} else {
-				throw new HandshakeException(
-						String.format("No Identity found for peer [address: %s]", peerToLog), alert);
+				throw new HandshakeException(String.format("No Identity found for peer [address: %s]", peerToLog),
+						alert);
 			}
 		}
 		return pskIdentity;
@@ -890,5 +959,4 @@ public class ClientHandshaker extends Handshaker {
 	public boolean isRemovingConnection() {
 		return !probe && super.isRemovingConnection();
 	}
-
 }

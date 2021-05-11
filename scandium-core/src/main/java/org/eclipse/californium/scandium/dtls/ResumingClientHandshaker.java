@@ -179,23 +179,24 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	}
 
 	/**
+	 * Check, if the server want an abbreviated or full handshake.
+	 * 
 	 * Stores the negotiated security parameters.
 	 * 
-	 * @param message
-	 *            the {@link ServerHello} message.
-	 * @throws HandshakeException if the ServerHello message cannot be processed,
-	 * 	e.g. because the server selected an unknown or unsupported cipher suite
+	 * @param message the {@link ServerHello} message.
+	 * @throws HandshakeException if the ServerHello message cannot be
+	 *             processed, e.g. because the server selected an unknown or
+	 *             unsupported cipher suite
 	 */
 	protected void receivedServerHello(ServerHello message) throws HandshakeException {
 		DTLSSession session = getSession();
-		if (!session.getSessionIdentifier().equals(message.getSessionId()))
-		{
+		if (!session.getSessionIdentifier().equals(message.getSessionId())) {
 			LOGGER.debug(
 					"Server [{}] refuses to resume session [{}], performing full handshake instead...",
 					peerToLog, session.getSessionIdentifier());
 			// Server refuse to resume the session, go for a full handshake
 			fullHandshake  = true;
-			SecretUtil.destroy(getDtlsContext());
+			SecretUtil.destroy(session);
 			super.receivedServerHello(message);
 		} else if (!message.getCompressionMethod().equals(session.getCompressionMethod())) {
 			throw new HandshakeException(
@@ -300,6 +301,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		addMaxFragmentLength(message);
 		addServerNameIndication(message);
 
+		// keep client_hello for a hello_verify_request.
 		clientHello = message;
 
 		flightNumber = 1;

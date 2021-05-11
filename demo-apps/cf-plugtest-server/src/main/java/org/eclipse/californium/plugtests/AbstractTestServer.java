@@ -62,7 +62,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
-import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
+import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -379,9 +379,11 @@ public abstract class AbstractTestServer extends CoapServer {
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
 							CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
-					dtlsConfigBuilder.setIdentity(serverCredentials.getPrivateKey(),
+					AsyncCertificateProvider certificateProvider = new AsyncCertificateProvider(serverCredentials.getPrivateKey(),
 							serverCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY,
 							CertificateType.X_509);
+					certificateProvider.setDelay(handshakeResultDelay);
+					dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
 					AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier
 							.builder();
 					if (cliConfig.trustall) {

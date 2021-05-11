@@ -57,7 +57,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected void processServerHelloDone() throws HandshakeException {
+	protected void completeProcessingServerHelloDone() throws HandshakeException {
 
 		DTLSSession session = getSession();
 		if (session.getCipherSuite().isEccBased()) {

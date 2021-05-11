@@ -486,6 +486,7 @@ public class HandshakerTest {
 
 	private class TestHandshaker extends Handshaker {
 
+
 		private final int[] receivedMessages = new int[10];
 
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
@@ -525,6 +526,10 @@ public class HandshakerTest {
 
 		@Override
 		protected void processCertificateVerified() {
+		}
+
+		@Override
+		protected void processCertificateIdentityAvailable() throws HandshakeException {
 		}
 	}
 }

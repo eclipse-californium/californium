@@ -30,6 +30,7 @@ import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
@@ -308,7 +309,7 @@ public class CredentialsUtil {
 					} else if (rpk >= 0) {
 						types.add(CertificateType.RAW_PUBLIC_KEY);
 					}
-					config.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(), types);
+					config.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(), types));
 				}
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
