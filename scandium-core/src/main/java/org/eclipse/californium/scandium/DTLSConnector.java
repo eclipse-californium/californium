@@ -411,7 +411,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	private volatile AlertHandler alertHandler;
 	private final SessionListener sessionListener;
 	private final ConnectionListener connectionListener;
-	private ExecutorService executorService;
+	private volatile ExecutorService executorService;
 	private boolean hasInternalExecutor;
 
 	/**
@@ -442,17 +442,17 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * Creates a DTLS connector for a given set of configuration options.
 	 * <p>
 	 * The connection store must use the same connection id generator as
-	 * configured in the provided configuration. The current implementation synchronize on the connection store,
-	 * therefore it is important not to use the connection store within a
-	 * different synchronization scope.
+	 * configured in the provided configuration. The current implementation
+	 * synchronize on the connection store, therefore it is important not to use
+	 * the connection store within a different synchronization scope.
 	 * </p>
 	 * 
 	 * @param configuration The configuration options.
 	 * @param connectionStore The registry to use for managing connections to
 	 *            peers.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
-	 * @throws IllegalArgumentException if the connection store uses a different
-	 *             cid generator than the configuration.
+	 * @throws IllegalStateException if the connection store has already a cid
+	 *             generator.
 	 */
 	protected DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
 		if (configuration == null) {
@@ -792,7 +792,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		}
 	}
 
-	private synchronized ExecutorService getExecutorService() {
+	private ExecutorService getExecutorService() {
 		return executorService;
 	}
 
@@ -1048,7 +1048,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * The abbreviated handshake will be done next time data will be sent with {@link #send(RawData)}.
 	 * @param peer the peer for which we will force to do an abbreviated handshake
 	 */
-	public final synchronized void forceResumeSessionFor(InetSocketAddress peer) {
+	public final void forceResumeSessionFor(InetSocketAddress peer) {
 		Connection peerConnection = connectionStore.get(peer);
 		if (peerConnection != null && peerConnection.hasEstablishedDtlsContext()) {
 			peerConnection.setResumptionRequired(true);
@@ -1062,7 +1062,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * <p>
 	 * This method's execution time is proportional to the number of connections this connector maintains.
 	 */
-	public final synchronized void forceResumeAllSessions() {
+	public final void forceResumeAllSessions() {
 		connectionStore.markAllAsResumptionRequired();
 	}
 
@@ -1072,7 +1072,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * After invoking this method a new connection needs to be established with a peer using a 
 	 * full handshake in order to exchange messages with it again.
 	 */
-	public final synchronized void clearConnectionState() {
+	public final void clearConnectionState() {
 		connectionStore.clear();
 	}
 
@@ -1171,7 +1171,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * </p>
 	 */
 	@Override
-	public synchronized void destroy() {
+	public void destroy() {
 		stop();
 		connectionStore.clear();
 		messageHandler = null;
@@ -1474,7 +1474,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 		if (records.size() == 1 && firstRecord.isNewClientHello()) {
 			firstRecord.setAddress(peerAddress, router);
-			executorService.execute(new Runnable() {
+			getExecutorService().execute(new Runnable() {
 
 				@Override
 				public void run() {
@@ -1951,6 +1951,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			boolean addressVerified = isClientInControlOfSourceIpAddress(peerAddress, clientHello, expectedCookie);
 			if (addressVerified) {
 				Connection connection;
+				ExecutorService executor = getExecutorService();
 				synchronized (connectionStore) {
 					connection = connectionStore.get(peerAddress);
 					if (connection != null && !connection.isStartedByClientHello(clientHello)) {
@@ -1992,7 +1993,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					}
 					if (connection == null) {
 						connection = new Connection(peerAddress);
-						connection.setConnectorContext(getExecutorService(), connectionListener);
+						connection.setConnectorContext(executor, connectionListener);
 						connection.startByClientHello(clientHello);
 						if (!connectionStore.put(connection)) {
 							return;
