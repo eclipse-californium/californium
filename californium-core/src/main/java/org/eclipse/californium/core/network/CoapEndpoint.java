@@ -142,9 +142,14 @@ import org.slf4j.LoggerFactory;
  * back over the same endpoint. The endpoint sends outgoing messages over a
  * connector. The connector encapsulates the transport protocol.
  * <p>
- * The CoAP Draft 18 describes an endpoint as: "A CoAP Endpoint is is identified
- * by transport layer multiplexing information that can include a UDP port
- * number and a security association." (draft-ietf-core-coap-14: 1.2)
+ * The <a href="https://www.rfc-editor.org/rfc/rfc7252#section-1.2" target=
+ * "_blank">RFC 7252, 1.2. Terminology</a> describes an endpoint as:
+ * 
+ * "An entity participating in the CoAP protocol. Colloquially, an endpoint
+ * lives on a "Node", although "Host" would be more consistent with Internet
+ * standards usage, and is further identified by transport-layer multiplexing
+ * information that can include a UDP port number and a security association
+ * (Section 4.1)."
  * <p>
  * The following diagram describes the structure of an endpoint. The endpoint
  * implements CoAP in layers. Incoming and outgoing messages always travel from
@@ -156,40 +161,40 @@ import org.slf4j.LoggerFactory;
  * outgoing message. By default, only one interceptor is used to log messages.
  * 
  * <pre>
- * +-----------------------+
- * |   {@link MessageDeliverer}    +--&gt; (Resource Tree)
- * +-------------A---------+
+ * +--------------------------+
+ * |   {@link MessageDeliverer}       +--&gt; (Resource Tree)
+ * +-------------A------------+
  *               |
- *             * A            
- * +-Endpoint--+-A---------+
- * |           v A         |
- * |           v A         |
- * | +---------v-+-------+ |
- * | | Stack Top         | |
- * | +-------------------+ |
- * | | {@link ExchangeCleanupLayer}      | |
- * | +-------------------+ |
- * | | {@link ObserveLayer}      | |
- * | +-------------------+ |
- * | | {@link BlockwiseLayer}    | |
- * | +-------------------+ |
- * | | {@link ReliabilityLayer}  | |
- * | +-------------------+ |
- * | | Stack Bottom      | |
- * | +--------+-+--------+ |
- * |          v A          |
- * |          v A          |
- * |        {@link Matcher}        |
- * |          v A          |
- * |   {@link MessageInterceptor}  |  
- * |          v A          |
- * |          v A          |
- * | +--------v-+--------+ |
- * +-|     {@link Connector}     |-+
- *   +--------+-A--------+
- *            v A
- *            v A
- *         (Network)
+ *             * A
+ * +-Endpoint--+-A------------+
+ * |           v A            |
+ * |           v A            |
+ * | +---------v-+----------+ |
+ * | | Stack Top            | |
+ * | +----------------------+ |
+ * | | {@link ExchangeCleanupLayer} | |
+ * | +----------------------+ |
+ * | | {@link ObserveLayer}         | |
+ * | +----------------------+ |
+ * | | {@link BlockwiseLayer}       | |
+ * | +----------------------+ |
+ * | | {@link ReliabilityLayer}     | |
+ * | +----------------------+ |
+ * | | Stack Bottom         | |
+ * | +---------+-+----------+ |
+ * |           v A            |
+ * |           v A            |
+ * |         {@link Matcher}          |
+ * |           v A            |
+ * |   {@link MessageInterceptor}     |
+ * |           v A            |
+ * |           v A            |
+ * | +---------v-+----------+ |
+ * +-|     {@link Connector}        |-+
+ *   +---------+-A----------+
+ *             v A
+ *             v A
+ *          (Network)
  * </pre>
  * <p>
  * The endpoint and its layers use an {@link ScheduledExecutorService} to
