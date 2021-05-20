@@ -207,10 +207,9 @@ public class ClientHandshakerTest {
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertNotNull(clientHello);
 		CipherSuite cipherSuite = clientHello.getCipherSuites().get(0);
-		HelloExtensions extensions = new HelloExtensions();
-		extensions.addExtension(ConnectionIdExtension.fromConnectionId(ConnectionId.EMPTY));
 		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), new Random(), new SessionId(),
-				cipherSuite, CompressionMethod.NULL, extensions);
+				cipherSuite, CompressionMethod.NULL);
+		serverHello.addExtension(ConnectionIdExtension.fromConnectionId(ConnectionId.EMPTY));
 		Record record =  DtlsTestTools.getRecordForMessage(0, 1, serverHello);
 		record.decodeFragment(handshaker.getDtlsContext().getReadState());
 		try {
