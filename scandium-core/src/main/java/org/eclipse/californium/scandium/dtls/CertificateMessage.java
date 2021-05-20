@@ -33,6 +33,7 @@ import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
@@ -84,6 +85,14 @@ public final class CertificateMessage extends HandshakeMessage {
 	private static final ThreadLocalCertificateFactory CERTIFICATE_FACTORY = new ThreadLocalCertificateFactory(
 			CERTIFICATE_TYPE_X509);
 
+	/**
+	 * Empty certificate chain. Used for empty client certificate messages, if
+	 * no matching certificate is available.
+	 * 
+	 * @since 3.0
+	 */
+	private static final List<X509Certificate> EMPTY = Collections.emptyList();
+
 	// Members ///////////////////////////////////////////////////////////
 
 	/**
@@ -106,6 +115,16 @@ public final class CertificateMessage extends HandshakeMessage {
 	private final int length;
 
 	// Constructor ////////////////////////////////////////////////////
+
+	/**
+	 * Creates a empty <em>CERTIFICATE</em> message containing a empty
+	 * certificate chain.
+	 * 
+	 * @since 3.0
+	 */
+	public CertificateMessage() {
+		this(EMPTY, null);
+	}
 
 	/**
 	 * Creates a <em>CERTIFICATE</em> message containing a certificate chain.

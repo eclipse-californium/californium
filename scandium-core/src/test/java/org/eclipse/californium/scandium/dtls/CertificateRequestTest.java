@@ -115,7 +115,7 @@ public class CertificateRequestTest {
 		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.RSA));
 		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.MD5, SignatureAlgorithm.DSA));
 		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.NONE, SignatureAlgorithm.ANONYMOUS));
-		assertThat(req.getSignatureAndHashAlgorithm(key), is(nullValue()));
+		assertThat(req.getSignatureAndHashAlgorithm(key, SignatureAndHashAlgorithm.DEFAULT), is(nullValue()));
 	}
 
 	/**
@@ -140,7 +140,7 @@ public class CertificateRequestTest {
 		req.addSignatureAlgorithm(ecdsaBasedAlgorithm);
 
 		// WHEN negotiating the signature algorithm to use with the server
-		SignatureAndHashAlgorithm negotiatedAlgorithm = req.getSignatureAndHashAlgorithm(key);
+		SignatureAndHashAlgorithm negotiatedAlgorithm = req.getSignatureAndHashAlgorithm(key, SignatureAndHashAlgorithm.DEFAULT);
 
 		// THEN the negotiated algorithm is the ECDSA based one
 		assertThat(negotiatedAlgorithm, is(ecdsaBasedAlgorithm));
