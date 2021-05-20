@@ -57,7 +57,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.Principal;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -92,19 +91,54 @@ import org.slf4j.LoggerFactory;
  * message flow is depicted in
  * <a href="https://tools.ietf.org/html/rfc6347#page-21" target= "_blank">Figure
  * 1</a>.
+ * 
+ * <pre>
+ *   Client                                          Server
+ *   ------                                          ------
+ *
+ *   ClientHello             --------&gt;                           Flight 1
+ *
+ *                           &lt;--------   HelloVerifyRequest      Flight 2
+ *
+ *   ClientHello             --------&gt;                           Flight 3
+ *
+ *                                              ServerHello    \
+ *                                             Certificate*     \
+ *                                       ServerKeyExchange*      Flight 4
+ *                                      CertificateRequest*     /
+ *                           &lt;--------      ServerHelloDone    /
+ *
+ *   Certificate*                                              \
+ *   ClientKeyExchange                                          \
+ *   CertificateVerify*                                          Flight 5
+ *   [ChangeCipherSpec]                                         /
+ *   Finished                --------&gt;                         /
+ *
+ *                                       [ChangeCipherSpec]    \ Flight 6
+ *                           &lt;--------             Finished    /
+ * </pre>
  */
 @NoPublicAPI
 public class ServerHandshaker extends Handshaker {
+	private static final HandshakeState[] CLIENT_HELLO = {
+			new HandshakeState(HandshakeType.CLIENT_HELLO) };
 
-	private static HandshakeState[] CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),
+	private static final HandshakeState[] CLIENT_CERTIFICATE = {
+			new HandshakeState(HandshakeType.CERTIFICATE),
 			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
 			new HandshakeState(HandshakeType.CERTIFICATE_VERIFY),
-			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC), new HandshakeState(HandshakeType.FINISHED) };
-	private static HandshakeState[] EMPTY_CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),
+			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
+			new HandshakeState(HandshakeType.FINISHED) };
+
+	private static final HandshakeState[] EMPTY_CLIENT_CERTIFICATE = {
 			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
-			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC), new HandshakeState(HandshakeType.FINISHED) };
-	protected static HandshakeState[] NO_CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
-			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC), new HandshakeState(HandshakeType.FINISHED) };
+			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
+			new HandshakeState(HandshakeType.FINISHED) };
+
+	protected static final HandshakeState[] NO_CLIENT_CERTIFICATE = {
+			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
+			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
+			new HandshakeState(HandshakeType.FINISHED) };
 
 	// Members ////////////////////////////////////////////////////////
 	private final Logger LOGGER_NEGOTIATION = LoggerFactory.getLogger(LOGGER.getName() + ".negotiation");
@@ -117,12 +151,6 @@ public class ServerHandshaker extends Handshaker {
 
 	/** Is the client required to authenticate itself? */
 	private boolean clientAuthenticationRequired = false;
-
-	/**
-	 * The client's public key from its certificate (only sent when
-	 * CertificateRequest sent).
-	 */
-	private PublicKey clientPublicKey;
 
 	/**
 	 * Cipher suite selector.
@@ -162,7 +190,7 @@ public class ServerHandshaker extends Handshaker {
 	private CipherSuiteParameters selectedCipherSuiteParameters;
 
 	/** The client's {@link CertificateVerify}. Optional. */
-	private CertificateVerify certificateVerifyMessage = null;
+	private CertificateVerify certificateVerifyMessage;
 
 	private PskPublicInformation preSharedKeyIdentity;
 
@@ -215,6 +243,7 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAndHashAlgorithms = config.getSupportedSignatureAlgorithms();
+		setExpectedStates(CLIENT_HELLO);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -271,7 +300,7 @@ public class ServerHandshaker extends Handshaker {
 
 		case CERTIFICATE_VERIFY:
 			receivedCertificateVerify((CertificateVerify) message);
-			if (masterSecret != null && certificateVerfied) {
+			if (masterSecret != null && otherPeersCertificateVerified) {
 				expectChangeCipherSpecMessage();
 			}
 			break;
@@ -291,24 +320,17 @@ public class ServerHandshaker extends Handshaker {
 	protected void processMasterSecret(SecretKey masterSecret) {
 		applyMasterSecret(masterSecret);
 		SecretUtil.destroy(masterSecret);
-		if (states == NO_CLIENT_CERTIFICATE || (states == EMPTY_CLIENT_CERTIFICATE && certificateVerfied)) {
+		if (isExpectedStates(NO_CLIENT_CERTIFICATE) ||
+			(isExpectedStates(EMPTY_CLIENT_CERTIFICATE)) ||
+			(isExpectedStates(CLIENT_CERTIFICATE) && otherPeersCertificateVerified && certificateVerifyMessage != null)) {
 			expectChangeCipherSpecMessage();
 		}
 	}
 
 	@Override
 	protected void processCertificateVerified() {
-		if (certificateVerifyMessage != null) {
-			if (peerCertPath != null) {
-				getSession().setPeerIdentity(new X509CertPath(peerCertPath));
-			} else {
-				getSession().setPeerIdentity(new RawPublicKeyIdentity(clientPublicKey));
-			}
-		}
-		if (states == EMPTY_CLIENT_CERTIFICATE || certificateVerifyMessage != null) {
-			if (masterSecret != null) {
-				expectChangeCipherSpecMessage();
-			}
+		if ( masterSecret != null && certificateVerifyMessage != null) {
+			expectChangeCipherSpecMessage();
 		}
 	}
 
@@ -323,16 +345,17 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private void receivedClientCertificate(final CertificateMessage message) throws HandshakeException {
 
-		clientPublicKey = message.getPublicKey();
-		if (clientAuthenticationRequired && clientPublicKey == null) {
-			LOGGER.debug("Client authentication failed: missing certificate!");
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
-			throw new HandshakeException("Client Certificate required!", alert);
+		if (message.isEmpty()) {
+			if (clientAuthenticationRequired) {
+				LOGGER.debug("Client authentication failed: missing certificate!");
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+				throw new HandshakeException("Client Certificate required!", alert);
+			}
+			// message uses a empty certificate chain 
+			setExpectedStates(EMPTY_CLIENT_CERTIFICATE);
+		} else {
+			verifyCertificate(message);
 		}
-		if (clientPublicKey == null) {
-			states = EMPTY_CLIENT_CERTIFICATE;
-		}
-		verifyCertificate(message);
 	}
 
 	/**
@@ -348,16 +371,13 @@ public class ServerHandshaker extends Handshaker {
 		certificateVerifyMessage = message;
 		// remove last message - CertificateVerify itself
 		handshakeMessages.remove(handshakeMessages.size() - 1);
-		message.verifySignature(clientPublicKey, handshakeMessages);
+		message.verifySignature(otherPeersPublicKey, handshakeMessages);
 		// add CertificateVerify again
 		handshakeMessages.add(message);
-		// at this point we have successfully authenticated the client
-		if (certificateVerfied) {
-			if (peerCertPath != null) {
-				getSession().setPeerIdentity(new X509CertPath(peerCertPath));
-			} else {
-				getSession().setPeerIdentity(new RawPublicKeyIdentity(clientPublicKey));
-			}
+
+		setOtherPeersSignatureVerified();
+		if (otherPeersCertificateVerified) {
+			expectChangeCipherSpecMessage();
 		}
 	}
 
@@ -378,7 +398,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// check if client sent all expected messages
 		// (i.e. ClientCertificate/CertificateVerify when server sent CertificateRequest)
-		if (clientAuthenticationRequired && states == EMPTY_CLIENT_CERTIFICATE) {
+		if (clientAuthenticationRequired && isExpectedStates(EMPTY_CLIENT_CERTIFICATE)) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
 		}
@@ -455,12 +475,7 @@ public class ServerHandshaker extends Handshaker {
 
 		boolean clientCertificate = createCertificateRequest(clientHello, flight);
 
-		if (clientCertificate) {
-			states = CLIENT_CERTIFICATE;
-		} else {
-			states = NO_CLIENT_CERTIFICATE;
-		}
-		statesIndex = -1;
+		setExpectedStates(clientCertificate ? CLIENT_CERTIFICATE : NO_CLIENT_CERTIFICATE);
 
 		/*
 		 * Last, send ServerHelloDone (mandatory)
@@ -583,7 +598,7 @@ public class ServerHandshaker extends Handshaker {
 		DTLSSession session = getSession();
 		if ((clientAuthenticationWanted || clientAuthenticationRequired)
 				&& session.getCipherSuite().requiresServerCertificateMessage()
-				&& selectedCipherSuiteParameters.getSelectedClientCertificateType() != null) {
+				&& session.receiveCertificateType() != null) {
 			CertificateRequest certificateRequest = new CertificateRequest();
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 			if (session.receiveCertificateType() == CertificateType.X_509) {
@@ -743,41 +758,14 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * Selects one of the client's proposed cipher suites.
 	 * <p>
-	 * Iterates through the provided (ordered) list of the client's
-	 * preferred ciphers until one is found that is also contained
-	 * in the {@link #supportedCipherSuites}.
-	 * </p>
+	 * Delegates the selection calling
+	 * {@link CipherSuiteSelector#select(CipherSuiteParameters)}.
 	 * <p>
-	 * If the client proposes an ECC based cipher suite this method also tries
-	 * to determine an appropriate <em>Supported Group</em> by means of invoking
-	 * the {@link #getCommonSupportedGroups(ClientHello)} method. If at least
-	 * one group is found it will be stored in the
-	 * {@link #selectedCipherSuiteParameters} list. A ECC based cipher suite
-	 * will only be accepted, if a server certificate with the used curve is
-	 * available.
-	 * </p>
-	 * <p>
-	 * The selected cipher suite is set on the <em>session</em> to be negotiated
-	 * using the {@link DTLSSession#setCipherSuite(CipherSuite)} method. The
-	 * <em>negotiatedServerCertificateType</em>, <em>negotiatedClientCertificateType</em>
-	 * and <em>negotiatedSupportedGroup</em> fields are set to values corresponding to
-	 * the selected cipher suite.
-	 * </p>
-	 * <p>
-	 * The <em>SSL_NULL_WITH_NULL_NULL</em> cipher suite is <em>never</em>
-	 * negotiated as mandated by <a href="http://tools.ietf.org/html/rfc5246#appendix-A.5" target="_blank">
-	 * RFC 5246 Appendix A.5</a>
-	 * </p>
 	 * 
-	 * @param clientHello
-	 *            the <em>CLIENT_HELLO</em> message containing the list of cipher suites
-	 *            the client supports (ordered by preference).
-	 * @param serverHelloExtensions
-	 *            the container object to add server extensions to that are required for the selected
-	 *            cipher suite.
-	 * @throws HandshakeException
-	 *             if this server's configuration does not support any of the cipher suites
-	 *             proposed by the client.
+	 * @throws HandshakeException if this server's configuration does not
+	 *             support any of the cipher suites proposed by the client.
+	 * @see CipherSuiteSelector
+	 * @see DefaultCipherSuiteSelector
 	 */
 	protected void negotiateCipherSuite(final ClientHello clientHello, final HelloExtensions serverHelloExtensions)
 			throws HandshakeException {

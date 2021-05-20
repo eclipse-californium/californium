@@ -91,6 +91,8 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
@@ -281,13 +283,32 @@ public abstract class Handshaker implements Destroyable {
 
 	/** The chain of certificates asserting this handshaker's identity */
 	protected final List<X509Certificate> certificateChain;
-	/** The certificate path of the other peer */
-	protected CertPath peerCertPath;
 	/**
-	 * Indicates, that the certificate or public key verification has finished.
-	 * @since 2.5
+	 * The certificate path of the other peer.
+	 * 
+	 * @since 3.0 (renamed certPath)
 	 */
-	protected boolean certificateVerfied;
+	private CertPath otherPeersCertPath;
+	/**
+	 * The public key of the other peer
+	 * 
+	 * @since 3.0
+	 */
+	protected PublicKey otherPeersPublicKey;
+	/**
+	 * Indicates, that the verification of the other peer's certificate chain public key has finished.
+	 * 
+	 * @since 3.0 (renamed certificateVerfied)
+	 */
+	protected boolean otherPeersCertificateVerified;
+	/**
+	 * Indicates, that the signature of the other peers is verified.
+	 * 
+	 * That signature is contained in the SERVER_KEY_EXCHANGE or CERTIFICATE_VERIFY. 
+	 * 
+	 * @since 3.0
+	 */
+	private boolean otherPeersSignatureVerified;
 
 	/**
 	 * Support Server Name Indication TLS extension.
@@ -356,8 +377,25 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
-	protected int statesIndex;
-	protected HandshakeState[] states;
+	/**
+	 * Indicates, that {@link #setExpectedStates(HandshakeState[])} has been called
+	 * during the last processing of {@link #processNextHandshakeMessages}.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean statesChanged;
+	/**
+	 * Current index of {@link #expectedStates}.
+	 */
+	private int statesIndex;
+	/**
+	 * Currently expected states.
+	 * 
+	 * @see #statesIndex
+	 * @see #setExpectedStates(HandshakeState[])
+	 * @since 3.0 (renamed, was states)
+	 */
+	private HandshakeState[] expectedStates;
 
 	private boolean eccExpected = false;
 	private boolean changeCipherSuiteMessageExpected = false;
@@ -372,6 +410,11 @@ public abstract class Handshaker implements Destroyable {
 	 * secret</a>
 	 */
 	private SecretKey otherSecret;
+	/**
+	 * Cause for handshake failure.
+	 * 
+	 * @see #setFailureCause(Throwable)
+	 */
 	private Throwable cause;
 	/**
 	 * Custom argument for {@link AdvancedApplicationLevelInfoSupplier}.
@@ -854,6 +897,7 @@ public abstract class Handshaker implements Destroyable {
 				if (epoch == 0) {
 					handshakeMessages.add(handshakeMessage);
 				}
+				statesChanged = false;
 				recursionProtection.lock();
 				try {
 					doProcessMessage(handshakeMessage);
@@ -866,7 +910,9 @@ public abstract class Handshaker implements Destroyable {
 					// last Flight may have changed processing
 					// the handshake message
 					++nextReceiveMessageSequence;
-					++statesIndex;
+					if (!statesChanged) {
+						++statesIndex;
+					}
 				}
 				handshakeMessage = handshakeMessage.getNextHandshakeMessage();
 				if (useMultiHandshakeMessagesRecord == null && handshakeMessage != null) {
@@ -878,47 +924,85 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Checks, if the provided states are the currently expected ones.
+	 * 
+	 * @param states state to check
+	 * @return {@code true}, if the provided states are the currently expected
+	 *         ones
+	 * @see #setExpectedStates(HandshakeState[])
+	 * @since 3.0
+	 */
+	protected boolean isExpectedStates(HandshakeState[] states) {
+		return this.expectedStates == states;
+	}
+
+	/**
+	 * Sets expected states.
+	 * 
+	 * Resets {@link #statesIndex}.
+	 * 
+	 * @param states expected states
+	 * @see #isExpectedStates(HandshakeState[])
+	 * @see #expectMessage(DTLSMessage)
+	 * @since 3.0
+	 */
+	protected void setExpectedStates(HandshakeState[] states) {
+		this.expectedStates = states;
+		this.statesIndex = 0;
+		this.statesChanged = true;
+	}
+
+	/**
 	 * Check, if message is expected.
 	 * 
 	 * @param message message to check
 	 * @throws HandshakeException if the message is not expected
 	 */
 	protected void expectMessage(DTLSMessage message) throws HandshakeException {
-		if (states != null) {
-			if (statesIndex >= states.length) {
-				LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
-						peerToLog);
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
-				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
-						+ " handshake message, no more expected!", alert);
-			}
-			HandshakeState expectedState = states[statesIndex];
-			boolean expected = expectedState.expect(message);
-			if (!expected && expectedState.isOptional()) {
-				if (statesIndex + 1 < states.length) {
-					HandshakeState nextExpectedState = states[statesIndex + 1];
-					if (nextExpectedState.expect(message)) {
-						++statesIndex;
-						expected = true;
-					}
+		if (expectedStates == null) {
+			LOGGER.warn("Cannot process {} message from peer [{}], not expected!", HandshakeState.toString(message),
+					peerToLog);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+			throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+					+ " handshake message, not expected!", alert);
+		}
+		if (expectedStates.length == 0) {
+			// only for tests!
+			return;
+		}
+		if (statesIndex >= expectedStates.length) {
+			LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
+					peerToLog);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+			throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+					+ " handshake message, no more expected!", alert);
+		}
+		HandshakeState expectedState = expectedStates[statesIndex];
+		boolean expected = expectedState.expect(message);
+		if (!expected && expectedState.isOptional()) {
+			if (statesIndex + 1 < expectedStates.length) {
+				HandshakeState nextExpectedState = expectedStates[statesIndex + 1];
+				if (nextExpectedState.expect(message)) {
+					++statesIndex;
+					expected = true;
 				}
 			}
+		}
 
-			if (!expected) {
-				// check for self addressed messages
-				// some cloud deployments may get easily mixed up
-				DTLSFlight flight = pendingFlight.get();
-				if (flight != null && flight.contains(message)) {
-					LOGGER.debug("Cannot process {} message from itself [{}]!",
-							HandshakeState.toString(message), peerToLog);
-				} else {
-					LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
-							HandshakeState.toString(message), peerToLog, expectedState);
-				}
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
-				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
-						+ " handshake message, " + expectedState + " expected!", alert);
+		if (!expected) {
+			// check for self addressed messages
+			// some cloud deployments may get easily mixed up
+			DTLSFlight flight = pendingFlight.get();
+			if (flight != null && flight.contains(message)) {
+				LOGGER.debug("Cannot process {} message from itself [{}]!",
+						HandshakeState.toString(message), peerToLog);
+			} else {
+				LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
+						HandshakeState.toString(message), peerToLog, expectedState);
 			}
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
+			throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+					+ " handshake message, " + expectedState + " expected!", alert);
 		}
 	}
 
@@ -1051,12 +1135,18 @@ public abstract class Handshaker implements Destroyable {
 		certificateVerificationPending = false;
 		LOGGER.info("Process result of certificate verification.");
 		if (certificateVerificationResult.getCertificatePath() != null) {
-			peerCertPath = certificateVerificationResult.getCertificatePath();
-			certificateVerfied = true;
+			otherPeersCertificateVerified = true;
+			otherPeersCertPath = certificateVerificationResult.getCertificatePath();
+			if (otherPeersSignatureVerified) {
+				getSession().setPeerIdentity(new X509CertPath(otherPeersCertPath));
+			}
 			setCustomArgument(certificateVerificationResult);
 			processCertificateVerified();
 		} else if (certificateVerificationResult.getPublicKey() != null) {
-			certificateVerfied = true;
+			otherPeersCertificateVerified = true;
+			if (otherPeersSignatureVerified) {
+				getSession().setPeerIdentity(new RawPublicKeyIdentity(otherPeersPublicKey));
+			}
 			setCustomArgument(certificateVerificationResult);
 			processCertificateVerified();
 		} else if (certificateVerificationResult.getException() != null) {
@@ -1084,6 +1174,24 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.5
 	 */
 	protected abstract void processCertificateVerified() throws HandshakeException;
+
+	/**
+	 * Set the signature of the other peer to verified.
+	 * 
+	 * Sets the {@link DTLSSession#setPeerIdentity(Principal)}, if the
+	 * certificate chain or public key of the other peer is also already
+	 * verified.
+	 */
+	protected void setOtherPeersSignatureVerified() {
+		otherPeersSignatureVerified = true;
+		if (otherPeersCertificateVerified) {
+			if (otherPeersCertPath != null) {
+				getSession().setPeerIdentity(new X509CertPath(otherPeersCertPath));
+			} else if (otherPeersPublicKey != null) {
+				getSession().setPeerIdentity(new RawPublicKeyIdentity(otherPeersPublicKey));
+			}
+		}
+	}
 
 	// Methods ////////////////////////////////////////////////////////
 
@@ -1722,7 +1830,7 @@ public abstract class Handshaker implements Destroyable {
 						timeout = true;
 					}
 				}
-				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed, {}. Retransmission {} of {}.",
+				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed,{}. Retransmission {} of {}.",
 						flight.getFlightNumber(), flight.getNumberOfMessages(), peerToLog, message, flight.getTries(),
 						maxRetransmissions);
 
@@ -2104,6 +2212,7 @@ public abstract class Handshaker implements Destroyable {
 		}
 		LOGGER.info("Start certificate verification.");
 		certificateVerificationPending = true;
+		this.otherPeersPublicKey = message.getPublicKey();
 		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, !isClient(), useTruncatedCertificatePathForVerification, message);
 		if (verificationResult != null) {
 			processCertificateVerificationResult(verificationResult);

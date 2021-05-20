@@ -56,16 +56,34 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * <a href="https://tools.ietf.org/html/rfc6347#page-21" target= "_blank">Figure
  * 2</a>.
  * 
+ * <pre>
+ *   Client                                          Server
+ *   ------                                          ------
+ *
+ *   ClientHello             --------&gt;                          Flight 1
+ *
+ *                                              ServerHello    \
+ *                                       [ChangeCipherSpec]     Flight 2
+ *                           &lt;--------             Finished    /
+ *
+ *   [ChangeCipherSpec]                                        \Flight 3
+ *   Finished                --------&gt;                         /
+ * </pre>
+ * 
+ * 
  * If not, it falls back to a full handshake. The message flow of this is
  * depicted in
  * <a href="https://tools.ietf.org/html/rfc6347#page-21" target= "_blank">Figure
- * 1</a>.
+ * 1</a>, see {@link ServerHandshaker}.
  * 
  * @since 3.0 supports {@link ResumptionVerifier} and fall back to
  *        full-handshakes
  */
 @NoPublicAPI
 public class ResumingServerHandshaker extends ServerHandshaker {
+	private static final HandshakeState[] ABBREVIATED_HANDSHAKE = { 
+			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
+			new HandshakeState(HandshakeType.FINISHED) };
 
 	// Members ////////////////////////////////////////////////////////
 	private final ResumptionVerifier resumptionHandler;
@@ -152,8 +170,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		if (!clientHello.hasSessionId()) {
 			throw new IllegalArgumentException("Client hello doesn't contain session id required for resumption!");
 		}
-		states = NO_CLIENT_CERTIFICATE;
-		statesIndex = 0;
 		pendingClientHello = clientHello;
 		ResumptionVerificationResult result = resumptionHandler.verifyResumptionRequest(
 				getConnection().getConnectionId(), clientHello.getServerNames(), clientHello.getSessionId());
@@ -189,7 +205,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			LOGGER.debug("Process client hello asynchronous");
 			ensureUndestroyed();
 			processResumptionVerificationResult((ResumptionVerificationResult) handshakeResult);
-			++statesIndex;
 		}
 		super.processAsyncHandshakeResult(handshakeResult);
 	}
@@ -356,7 +371,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		mdWithServerFinished.update(finished.toByteArray());
 		handshakeHash = mdWithServerFinished.digest();
 		sendFlight(flight);
-		statesIndex = 0;
+		setExpectedStates(ABBREVIATED_HANDSHAKE);
 		expectChangeCipherSpecMessage();
 	}
 

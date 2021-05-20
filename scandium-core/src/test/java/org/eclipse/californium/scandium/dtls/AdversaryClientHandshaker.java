@@ -21,8 +21,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.crypto.SecretKey;
-
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -59,27 +57,22 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
+	protected void processServerHelloDone() throws HandshakeException {
 
-		applyMasterSecret(masterSecret);
+		DTLSSession session = getSession();
+		if (session.getCipherSuite().isEccBased()) {
+			expectEcc();
+		}
 
 		/*
 		 * Third, send CertificateVerify message if necessary.
 		 */
-		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
-			CertificateType clientCertificateType = getSession().sendCertificateType();
-			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
-				throw new HandshakeException(
-						"Server wants to use not supported client certificate type " + clientCertificateType,
-						new AlertMessage(
-								AlertLevel.FATAL,
-								AlertDescription.ILLEGAL_PARAMETER));
-			}
-
-			// prepare handshake messages
-
-			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages);
-
+		SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm = session.getSignatureAndHashAlgorithm();
+		if (negotiatedSignatureAndHashAlgorithm != null) {
+			// valid negotiated signature and hash algorithm
+			// prepare certificate verify message
+			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey,
+					handshakeMessages);
 			wrapMessage(flight5, certificateVerify);
 		}
 
