@@ -105,12 +105,10 @@ public final class ServerHello extends HandshakeMessage {
 	 *            the negotiated cipher suite.
 	 * @param compressionMethod
 	 *            the negotiated compression method.
-	 * @param extensions
-	 *            a list of extensions supported by the client.
 	 * @throws NullPointerException if any of the parameters is {@code null}
 	 */
 	public ServerHello(ProtocolVersion version, Random random, SessionId sessionId,
-			CipherSuite cipherSuite, CompressionMethod compressionMethod, HelloExtensions extensions) {
+			CipherSuite cipherSuite, CompressionMethod compressionMethod) {
 		if (version == null) {
 			throw new NullPointerException("Negotiated protocol version must not be null");
 		}
@@ -126,15 +124,36 @@ public final class ServerHello extends HandshakeMessage {
 		if (compressionMethod == null) {
 			throw new NullPointerException("Negotiated compression method must not be null");
 		}
-		if (extensions == null) {
-			throw new NullPointerException("Negotiated extensions must not be null");
-		}
 		this.serverVersion = version;
 		this.random = random;
 		this.sessionId = sessionId;
 		this.cipherSuite = cipherSuite;
 		this.compressionMethod = compressionMethod;
-		this.extensions = extensions;
+		this.extensions =  new HelloExtensions();
+	}
+
+	private ServerHello(DatagramReader reader) throws HandshakeException {
+		int major = reader.read(VERSION_BITS);
+		int minor = reader.read(VERSION_BITS);
+		serverVersion = ProtocolVersion.valueOf(major, minor);
+
+		random = new Random(reader.readBytes(RANDOM_BYTES));
+
+		sessionId = new SessionId(reader.readVarBytes(SESSION_ID_LENGTH_BITS));
+
+		int code = reader.read(CIPHER_SUITE_BITS);
+		cipherSuite = CipherSuite.getTypeByCode(code);
+		if (cipherSuite == null) {
+			throw new HandshakeException(
+					String.format("Server selected unknown cipher suite [%s]", Integer.toHexString(code)),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		} else if ( cipherSuite == CipherSuite.TLS_NULL_WITH_NULL_NULL) {
+			throw new HandshakeException("Server tries to negotiate NULL cipher suite",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		}
+		compressionMethod = CompressionMethod.getMethodByCode(reader.read(COMPRESSION_METHOD_BITS));
+
+		extensions = HelloExtensions.fromReader(reader);
 	}
 
 	// Serialization //////////////////////////////////////////////////
@@ -169,30 +188,7 @@ public final class ServerHello extends HandshakeMessage {
 	 *           {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 	 */
 	public static HandshakeMessage fromReader(DatagramReader reader) throws HandshakeException {
-
-		int major = reader.read(VERSION_BITS);
-		int minor = reader.read(VERSION_BITS);
-		ProtocolVersion version = ProtocolVersion.valueOf(major, minor);
-
-		Random random = new Random(reader.readBytes(RANDOM_BYTES));
-
-		SessionId sessionId = new SessionId(reader.readVarBytes(SESSION_ID_LENGTH_BITS));
-
-		int code = reader.read(CIPHER_SUITE_BITS);
-		CipherSuite cipherSuite = CipherSuite.getTypeByCode(code);
-		if (cipherSuite == null) {
-			throw new HandshakeException(
-					String.format("Server selected unknown cipher suite [%s]", Integer.toHexString(code)),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
-		} else if ( cipherSuite == CipherSuite.TLS_NULL_WITH_NULL_NULL) {
-			throw new HandshakeException("Server tries to negotiate NULL cipher suite",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
-		}
-		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(reader.read(COMPRESSION_METHOD_BITS));
-
-		HelloExtensions extensions = HelloExtensions.fromReader(reader);
-
-		return new ServerHello(version, random, sessionId, cipherSuite, compressionMethod, extensions);
+		return new ServerHello(reader);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -273,6 +269,16 @@ public final class ServerHello extends HandshakeMessage {
 	 */
 	public HelloExtensions getExtensions() {
 		return extensions;
+	}
+
+	/**
+	 * Add hello extension.
+	 * 
+	 * @param extension hello extension to add
+	 * @since 3.0
+	 */
+	void addExtension(HelloExtension extension) {
+		extensions.addExtension(extension);
 	}
 
 	/**

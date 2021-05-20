@@ -335,15 +335,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		clientRandom = clientHello.getRandom();
 		serverRandom = new Random();
 
-		HelloExtensions serverHelloExtensions = new HelloExtensions();
-		negotiateCipherSuite(clientHello, serverHelloExtensions);
-		processHelloExtensions(clientHello, serverHelloExtensions);
-
 		flightNumber += 2;
 		DTLSFlight flight = createFlight();
 
 		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom,
-				session.getSessionIdentifier(), cipherSuite, session.getCompressionMethod(), serverHelloExtensions);
+				session.getSessionIdentifier(), cipherSuite, session.getCompressionMethod());
+		addHelloExtensions(clientHello, serverHello);
 		wrapMessage(flight, serverHello);
 
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
