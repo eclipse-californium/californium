@@ -482,6 +482,8 @@ public class HandshakerTest {
 		return list.get(0);
 	}
 
+	private static final HandshakeState[] EMPTY_FOR_TEST = {};
+
 	private class TestHandshaker extends Handshaker {
 
 		private final int[] receivedMessages = new int[10];
@@ -493,6 +495,7 @@ public class HandshakerTest {
 					config);
 			getConnection().setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 			getSession().set(session);
+			setExpectedStates(EMPTY_FOR_TEST);
 		}
 
 		@Override

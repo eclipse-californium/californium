@@ -56,11 +56,27 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * The message flow is depicted in
  * <a href="https://tools.ietf.org/html/rfc6347#page-21" target="_blank">Figure
  * 2</a>. The new keys will be generated from the master secret established from
- * a previous full handshake. If the server denies to resume the session with
+ * a previous full handshake.
+ * 
+ * <pre>
+ *   Client                                          Server
+ *   ------                                          ------
+ *
+ *   ClientHello             --------&gt;                          Flight 1
+ *
+ *                                              ServerHello    \
+ *                                       [ChangeCipherSpec]     Flight 2
+ *                           &lt;--------             Finished    /
+ *
+ *   [ChangeCipherSpec]                                        \Flight 3
+ *   Finished                --------&gt;                         /
+ * </pre>
+ * 
+ * If the server denies to resume the session with
  * the provided session id, the handshaker falls back to a full-handshake,
  * depicted in
  * <a href="https://tools.ietf.org/html/rfc6347#page-21" target="_blank">Figure
- * 1</a>.
+ * 1</a>, see {@link ClientHandshaker}.
  * 
  * <p>
  * This implementation offers a probing mode.
@@ -93,8 +109,8 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 @NoPublicAPI
 public class ResumingClientHandshaker extends ClientHandshaker {
 
-	private static HandshakeState[] RESUME = { new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
-			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
+	private static final HandshakeState[] ABBREVIATED_HANDSHAKE = { 
+			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
 			new HandshakeState(HandshakeType.FINISHED) };
 
 	// flag to indicate if we must do a full handshake or an abbreviated one
@@ -181,7 +197,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					peerToLog, session.getSessionIdentifier());
 			// Server refuse to resume the session, go for a full handshake
 			fullHandshake  = true;
-			states = SEVER_CERTIFICATE;
 			SecretUtil.destroy(context);
 			super.receivedServerHello(message);
 		} else if (!message.getCompressionMethod().equals(session.getCompressionMethod())) {
@@ -219,6 +234,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					context.setReadConnectionId(getReadConnectionId());
 				}
 			}
+			setExpectedStates(ABBREVIATED_HANDSHAKE);
 			expectChangeCipherSpecMessage();
 			masterSecret = session.getMasterSecret();
 			calculateKeys(masterSecret);
@@ -305,7 +321,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		DTLSFlight flight = createFlight();
 		wrapMessage(flight, message);
 		sendFlight(flight);
-		states = RESUME;
-		statesIndex = 0;
+		setExpectedStates(INIT);
 	}
 }
