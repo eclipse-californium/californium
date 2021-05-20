@@ -116,7 +116,10 @@ public class DTLSConnectorStartStopTest {
 	 */
 	@AfterClass
 	public static void tearDown() {
-		serverHelper.destroyServer();
+		if (serverHelper != null) {
+			serverHelper.destroyServer();
+			serverHelper = null;
+		}
 	}
 
 	@Before

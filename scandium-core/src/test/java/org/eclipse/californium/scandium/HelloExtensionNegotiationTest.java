@@ -91,7 +91,10 @@ public class HelloExtensionNegotiationTest {
 	 */
 	@AfterClass
 	public static void tearDown() {
-		serverHelper.destroyServer();
+		if (serverHelper != null) {
+			serverHelper.destroyServer();
+			serverHelper = null;
+		}
 	}
 
 	/**
