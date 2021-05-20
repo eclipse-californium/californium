@@ -48,15 +48,12 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.security.cert.X509Certificate;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.x500.X500Principal;
 
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -710,41 +707,44 @@ public class ClientHandshaker extends Handshaker {
 			if (supported.isEmpty()) {
 				supported = SignatureAndHashAlgorithm.DEFAULT;
 			}
-			certificateRequest.selectSignatureAlgorithms(supported);
 			CertificateType certificateType = getSession().sendCertificateType();
-			CertificateMessage clientCertificate;
-			SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm = null;;
+			CertificateMessage clientCertificate = null;
+			SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm = null;
 			if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
 				// empty certificate, if no proper public key is available
 				PublicKey publicKey = this.publicKey;
 				if (publicKey != null) {
-					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(publicKey);
-					if (negotiatedSignatureAndHashAlgorithm == null) {
-						publicKey = null;
-					}
-				}
-				if (LOGGER.isDebugEnabled()) {
-					byte[] raw = publicKey == null ? Bytes.EMPTY : publicKey.getEncoded();
-					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", StringUtil.byteArray2HexString(raw));
-				}
-				clientCertificate = new CertificateMessage(publicKey);
-			} else if (CertificateType.X_509 == certificateType) {
-				// empty certificate, if no proper certificate chain is available
-				List<X509Certificate> clientChain = Collections.emptyList();
-				if (certificateChain != null) {
-					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(certificateChain);
+					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(publicKey, supported);
 					if (negotiatedSignatureAndHashAlgorithm != null) {
-						clientChain = certificateChain;
+						clientCertificate = new CertificateMessage(publicKey);
+						if (LOGGER.isDebugEnabled()) {
+							LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server",
+									StringUtil.byteArray2HexString(publicKey.getEncoded()));
+						}
 					}
 				}
-				List<X500Principal> authorities = truncateCertificatePath ? certificateRequest.getCertificateAuthorities() : null;
-				clientCertificate = new CertificateMessage(clientChain, authorities);
-				if (clientCertificate.isEmpty()) {
-					negotiatedSignatureAndHashAlgorithm = null;
+			} else if (CertificateType.X_509 == certificateType) {
+				if (certificateChain != null) {
+					negotiatedSignatureAndHashAlgorithm = certificateRequest
+							.getSignatureAndHashAlgorithm(certificateChain, supported);
+					if (negotiatedSignatureAndHashAlgorithm != null) {
+						List<X500Principal> authorities = truncateCertificatePath
+								? certificateRequest.getCertificateAuthorities()
+								: null;
+						clientCertificate = new CertificateMessage(certificateChain, authorities);
+						if (clientCertificate.isEmpty()) {
+							// don't sent a certificate verify message
+							negotiatedSignatureAndHashAlgorithm = null;
+						}
+					}
 				}
 			} else {
 				throw new IllegalArgumentException(
 						"Certificate type " + certificateType + " not supported!");
+			}
+			if (clientCertificate == null && negotiatedSignatureAndHashAlgorithm == null) {
+				// no matching algorithm, send empty certificate message
+				clientCertificate = new CertificateMessage();
 			}
 			wrapMessage(flight, clientCertificate);
 			getSession().setSignatureAndHashAlgorithm(negotiatedSignatureAndHashAlgorithm);

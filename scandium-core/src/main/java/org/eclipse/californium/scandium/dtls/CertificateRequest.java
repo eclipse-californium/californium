@@ -339,26 +339,6 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	/**
-	 * Select received supported signature and hash algorithms by the supported
-	 * signature and hash algorithms of this peer.
-	 * 
-	 * Ensure, that the other peer doesn't sent unsupported signature and hash
-	 * algorithms by this peer.
-	 * 
-	 * @param supportedSignatureAndHashAlgorithms supported signature and hash
-	 *            algorithms of this peer
-	 */
-	public void selectSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms) {
-		List<SignatureAndHashAlgorithm> removes = new ArrayList<>();
-		for (SignatureAndHashAlgorithm algo :this.supportedSignatureAlgorithms) {
-			if (!supportedSignatureAndHashAlgorithms.contains(algo)) {
-				removes.add(algo);
-			}
-		}
-		this.supportedSignatureAlgorithms.removeAll(removes);
-	}
-
-	/**
 	 * Adds a distinguished name to the list of acceptable certificate authorities.
 	 * 
 	 * @param authority The authority to add.
@@ -474,31 +454,46 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * Gets the signature algorithm that is compatible with a given public key.
 	 * 
 	 * @param key The public key.
-	 * @return A signature algorithm that can be used with the given key or {@code null} if
-	 *         the given key is not compatible with any of the supported certificate types
-	 *         or any of the supported signature algorithms.
+	 * @param clientSupportedSignatureAlgorithms The signature algorithms
+	 *            supported by the client.
+	 * @return A signature algorithm that can be used with the given key or
+	 *         {@code null} if the given key is not compatible with any of the
+	 *         supported certificate types or any of the supported signature
+	 *         algorithms.
+	 * @since 3.0 (added clientSupportedSignatureAlgorithms)
 	 */
-	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(PublicKey key) {
-
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(PublicKey key,
+			List<SignatureAndHashAlgorithm> clientSupportedSignatureAlgorithms) {
 		if (isSupportedKeyType(key)) {
-			return SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, key);
-		} 
+			List<SignatureAndHashAlgorithm> negotiated = SignatureAndHashAlgorithm
+					.getCommonSignatureAlgorithms(supportedSignatureAlgorithms, clientSupportedSignatureAlgorithms);
+			return SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(negotiated, key);
+		}
 		return null;
 	}
 
 	/**
-	 * Gets a signature algorithm that is compatible with a given certificate chain.
+	 * Gets a signature algorithm that is compatible with a given certificate
+	 * chain.
 	 * 
 	 * @param chain The certificate chain.
-	 * @return A signature algorithm that can be used with the key contained in the given chain's
-	 *         end entity certificate or {@code null} if any of the chain's certificates is not
-	 *         compatible with any of the supported certificate types or any of the supported signature algorithms.
+	 * @param clientSupportedSignatureAlgorithms The signature algorithms
+	 *            supported by the client.
+	 * @return A signature algorithm that can be used with the key contained in
+	 *         the given chain's end entity certificate or {@code null} if any
+	 *         of the chain's certificates is not compatible with any of the
+	 *         supported certificate types or any of the supported signature
+	 *         algorithms.
 	 */
-	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(List<X509Certificate> chain) {
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(List<X509Certificate> chain, List<SignatureAndHashAlgorithm> clientSupportedSignatureAlgorithms) {
 		X509Certificate certificate = chain.get(0);
 		if (isSupportedKeyType(certificate)) {
+			List<SignatureAndHashAlgorithm> negotiated = SignatureAndHashAlgorithm
+					.getCommonSignatureAlgorithms(supportedSignatureAlgorithms, clientSupportedSignatureAlgorithms);
+
 			SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
-					.getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, certificate.getPublicKey());
+					.getSupportedSignatureAlgorithm(negotiated, certificate.getPublicKey());
+			// use the signature algorithms of the other peer to check the chain.
 			if (signatureAndHashAlgorithm != null
 					&& SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(supportedSignatureAlgorithms, chain)) {
 				return signatureAndHashAlgorithm;
