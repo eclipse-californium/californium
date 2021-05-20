@@ -310,9 +310,18 @@ public class DTLSConnectorAdvancedTest {
 			serverResumptionVerifier.shutdown();
 			serverResumptionVerifier = null;
 		}
-		serverHelper.destroyServer();
-		timer.shutdown();
-		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
+		if (serverHelper != null) {
+			serverHelper.destroyServer();
+			serverHelper = null;
+		}
+		if (timer != null) {
+			timer.shutdown();
+			timer = null;
+		}
+		if (executor != null) {
+			ExecutorsUtil.shutdownExecutorGracefully(100, executor);
+			executor = null;
+		}
 	}
 
 	/**
@@ -380,6 +389,7 @@ public class DTLSConnectorAdvancedTest {
 			alternativeServerHelper.server.stop();
 			ConnectorHelper.assertReloadConnections("alt-server", alternativeServerHelper.server);
 			alternativeServerHelper.destroyServer();
+			alternativeServerHelper = null;
 		}
 		if (clientCertificateVerifier != null) {
 			clientCertificateVerifier.shutdown();
@@ -389,9 +399,12 @@ public class DTLSConnectorAdvancedTest {
 			client.stop();
 			ConnectorHelper.assertReloadConnections("client", client);
 			client.destroy();
+			client = null;
 		}
 		lastReceivedFlight = null;
-		serverHelper.cleanUpServer();
+		if (serverHelper != null) {
+			serverHelper.cleanUpServer();
+		}
 		TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
 		TestConditionTools.assertStatisticCounter(serverHealth, "dropped sending records", is(0L));
 		TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(0L));

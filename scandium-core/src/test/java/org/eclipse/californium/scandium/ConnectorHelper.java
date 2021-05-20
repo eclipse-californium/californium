@@ -295,8 +295,10 @@ public class ConnectorHelper {
 		}
 		if (serverAlertCatcher != null) {
 			serverAlertCatcher.resetAlert();
-			server.setAlertHandler(serverAlertCatcher);
-		} else {
+			if (server != null) {
+				server.setAlertHandler(serverAlertCatcher);
+			}
+		} else if (server != null) {
 			server.setAlertHandler(null);
 		}
 		sessionListenerMap.clear();

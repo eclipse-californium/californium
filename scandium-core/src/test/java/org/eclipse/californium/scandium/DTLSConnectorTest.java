@@ -200,8 +200,14 @@ public class DTLSConnectorTest {
 
 	@AfterClass
 	public static void tearDown() {
-		serverHelper.destroyServer();
-		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
+		if (serverHelper != null) {
+			serverHelper.destroyServer();
+			serverHelper = null;
+		}
+		if (executor != null) {
+			ExecutorsUtil.shutdownExecutorGracefully(100, executor);
+			executor = null;
+		}
 	}
 
 	@Before

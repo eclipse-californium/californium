@@ -356,11 +356,13 @@ public class DTLSConnectorHandshakeTest {
 			serverHelper.server.stop();
 			ConnectorHelper.assertReloadConnections("server", serverHelper.server);
 			serverHelper.destroyServer();
+			serverHelper = null;
 		}
 		if (client != null) {
 			client.stop();
 			ConnectorHelper.assertReloadConnections("client", client);
 			client.destroy();
+			client = null;
 		}
 	}
 
