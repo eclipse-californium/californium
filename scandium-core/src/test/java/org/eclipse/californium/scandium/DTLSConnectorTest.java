@@ -480,7 +480,7 @@ public class DTLSConnectorTest {
 	}
 
 	/**
-	 * Verifies behavior described in <a href="http://tools.ietf.org/html/rfc6347#section-4.2.8" target="_blank">
+	 * Verifies behavior described in <a href="https://tools.ietf.org/html/rfc6347#section-4.2.8" target="_blank">
 	 * section 4.2.8 of RFC 6347 (DTLS 1.2)</a>.
 	 *  
 	 * @throws Exception if test fails
@@ -550,7 +550,7 @@ public class DTLSConnectorTest {
 	}
 
 	/**
-	 * Verifies behavior described in <a href="http://tools.ietf.org/html/rfc6347#section-4.2.8" target="_blank">
+	 * Verifies behavior described in <a href="https://tools.ietf.org/html/rfc6347#section-4.2.8" target="_blank">
 	 * section 4.2.8 of RFC 6347 (DTLS 1.2)</a>.
 	 */
 	@Test
@@ -574,7 +574,7 @@ public class DTLSConnectorTest {
 	}
 
 	/**
-	 * Verifies behavior described in <a href="http://tools.ietf.org/html/rfc6347#section-4.2.8" target="_blank">
+	 * Verifies behavior described in <a href="https://tools.ietf.org/html/rfc6347#section-4.2.8" target="_blank">
 	 * section 4.2.8 of RFC 6347 (DTLS 1.2)</a>.
 	 */
 	@Test
@@ -656,7 +656,7 @@ public class DTLSConnectorTest {
 	}
 
 	/**
-	 * Verifies behavior described in <a href="http://tools.ietf.org/html/rfc6347#section-4.2.8" target="_blank">
+	 * Verifies behavior described in <a href="https://tools.ietf.org/html/rfc6347#section-4.2.8" target="_blank">
 	 * section 4.2.8 of RFC 6347 (DTLS 1.2)</a>.
 	 *  
 	 * @throws Exception if test fails

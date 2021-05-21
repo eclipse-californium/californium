@@ -116,7 +116,7 @@ public final class DTLSContext implements Destroyable {
 	 *            server, the sequence number to use in the SERVER_HELLO record
 	 *            MUST be the same as the one from the successfully validated
 	 *            CLIENT_HELLO record (see
-	 *            <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1"
+	 *            <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1"
 	 *            target="_blank"> section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for
 	 *            details)
 	 * @throws IllegalArgumentException if sequence number is out of the valid
@@ -388,7 +388,7 @@ public final class DTLSContext implements Destroyable {
 	 * <p>
 	 * The information in the current read state is used to de-crypt messages
 	 * received from a peer. See
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
 	 * 1.2)</a> for details.
 	 * <p>
 	 * The cipher suite of the returned object will be
@@ -406,7 +406,7 @@ public final class DTLSContext implements Destroyable {
 	 * 
 	 * The information in the current read state is used to de-crypt messages
 	 * received from a peer. See
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
 	 * 1.2)</a> for details.
 	 * 
 	 * The <em>pending</em> read state becomes the <em>current</em> read state
@@ -445,7 +445,7 @@ public final class DTLSContext implements Destroyable {
 	 * <p>
 	 * The information in the current write state is used to en-crypt messages
 	 * sent to a peer. See
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
 	 * 1.2)</a> for details.
 	 * <p>
 	 * The cipher suite of the returned object will be
@@ -478,7 +478,7 @@ public final class DTLSContext implements Destroyable {
 	 * 
 	 * The information in the current write state is used to en-crypt messages
 	 * sent to a peer. See
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
 	 * 1.2)</a> for details.
 	 * 
 	 * The <em>pending</em> write state becomes the <em>current</em> write state
@@ -569,7 +569,7 @@ public final class DTLSContext implements Destroyable {
 	 * current epoch.
 	 * 
 	 * The check is done based on a <em>sliding window</em> as described in
-	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.1.2.6" target="_blank"> section
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.1.2.6" target="_blank"> section
 	 * 4.1.2.6 of the DTLS 1.2 spec</a>.
 	 * 
 	 * @param sequenceNo the record's sequence number

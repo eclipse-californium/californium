@@ -49,7 +49,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  * <p>
  * There may be many assumptions about the intended behavior. One is to postpone
  * the version negotiation according
- * <a href= "https://tools.ietf.org/html/rfc5246#appendix-E.1" target="_blank">RFC 5246 - E.1 -
+ * <a href="https://tools.ietf.org/html/rfc5246#appendix-E.1" target="_blank">RFC 5246 - E.1 -
  * Compatibility with TLS 1.0/1.1 and SSL 3.0</a> until the endpoint ownership is
  * verified. That prevents sending protocol-version alerts to wrong clients.
  * </p>

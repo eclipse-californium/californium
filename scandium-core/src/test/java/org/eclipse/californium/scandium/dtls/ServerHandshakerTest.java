@@ -450,7 +450,7 @@ public class ServerHandshakerTest {
 
 	/**
 	 * Creates a ClientHello message as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#page-39" target="_blank">Client Hello</a>
+	 * <a href="https://tools.ietf.org/html/rfc5246#page-39" target="_blank">Client Hello</a>
 	 * 
 	 * @return the bytes of the message
 	 */

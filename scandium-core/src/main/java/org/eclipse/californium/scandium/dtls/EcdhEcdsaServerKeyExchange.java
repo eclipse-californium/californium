@@ -38,11 +38,11 @@ import org.slf4j.LoggerFactory;
 /**
  * The server's ephemeral ECDH with ECDSA signatures.
  * 
- * See <a href="http://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
+ * See <a href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
  * RFC 4492, section 5.4 Server Key Exchange</a> for details regarding
  * the message format.
  * 
- * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
  * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named curves" are
  * valid, the "prime" and "char2" curve descriptions are deprecated. Also only
  * "UNCOMPRESSED" as point format is valid, the other formats have been
@@ -221,7 +221,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	/**
 	 * Update the signature: SHA(ClientHello.random + ServerHello.random +
 	 * ServerKeyExchange.params). See <a
-	 * href="http://tools.ietf.org/html/rfc4492#section-5.4">RFC 4492, Section
+	 * href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">RFC 4492, Section
 	 * 5.4. Server Key Exchange</a> for further details on the signature format.
 	 * 
 	 * @param signature

@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * An object representation of the DTLS <em>Record</em> layer data structure(s).
  * <p>
  * The <em>Datagram Transport Layer Security</em> specification defines
- * a set of data structures at the <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">
+ * a set of data structures at the <a href="https://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">
  * Record</a> layer containing the data to be exchanged with peers.
  * <p>
  * This class is used to transform these data structures from their binary encoding
@@ -347,7 +347,7 @@ public class Record {
 	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record} instances.
 	 * 
 	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
-	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">RFC6347, Section 4.3.1</a>.
+	 * defined in <a href="https://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">RFC6347, Section 4.3.1</a>.
 	 * 
 	 * @param reader a reader with the raw binary representation containing one or more DTLSCiphertext structures
 	 * @param cidGenerator the connection id generator. May be {@code null}.
@@ -468,7 +468,7 @@ public class Record {
 	/**
 	 * Generates the explicit part of the nonce to be used with the AEAD Cipher.
 	 * 
-	 * <a href="http://tools.ietf.org/html/rfc6655#section-3" target="_blank">RFC6655, Section 3</a>
+	 * <a href="https://tools.ietf.org/html/rfc6655#section-3" target="_blank">RFC6655, Section 3</a>
 	 * encourages the use of the session's 16bit epoch value concatenated
 	 * with a monotonically increasing 48bit sequence number as the explicit nonce. 
 	 * 
@@ -481,7 +481,7 @@ public class Record {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.3" target="_blank">RFC 5246</a>:
+	 * See <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.3" target="_blank">RFC 5246</a>:
 	 * 
 	 * <pre>
 	 * additional_data = seq_num + TLSCompressed.type +

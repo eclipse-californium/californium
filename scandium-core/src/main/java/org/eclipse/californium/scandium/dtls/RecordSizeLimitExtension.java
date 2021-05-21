@@ -23,7 +23,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 /**
  * Record size limit extension.
  * <p>
- * See <a href="http://tools.ietf.org/html/rfc8449" target="_blank">RFC 8449</a> for additional
+ * See <a href="https://tools.ietf.org/html/rfc8449" target="_blank">RFC 8449</a> for additional
  * details.
  * 
  * @since 2.4

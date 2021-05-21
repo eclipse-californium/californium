@@ -225,7 +225,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
- * <a href="http://tools.ietf.org/html/rfc6347" target="_blank">RFC 6347</a> for securing data
+ * <a href="https://tools.ietf.org/html/rfc6347" target="_blank">RFC 6347</a> for securing data
  * exchanged between networked clients and a server application.
  * 
  * Note: using IPv6 interfaces with multiple addresses including permanent and
@@ -2890,7 +2890,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * peer in a single DTLS record.
 	 * <p>
 	 * The value of this property serves as an upper boundary for the <em>DTLSPlaintext.length</em>
-	 * field defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">DTLS 1.2 spec,
+	 * field defined in <a href="https://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">DTLS 1.2 spec,
 	 * Section 4.3.1</a>. This means that an application can assume that any message containing at
 	 * most as many bytes as indicated by this method, will be delivered to the peer in a single
 	 * unfragmented datagram.

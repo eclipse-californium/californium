@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * has signing capability (i.e., all certificates except those containing fixed
  * Diffie-Hellman parameters). When sent, it MUST immediately follow the
  * {@link ClientKeyExchange} message. For further details see <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.4.8" target="_blank">RFC 5246</a>.
+ * href="https://tools.ietf.org/html/rfc5246#section-7.4.8" target="_blank">RFC 5246</a>.
  */
 public final class CertificateVerify extends HandshakeMessage {
 

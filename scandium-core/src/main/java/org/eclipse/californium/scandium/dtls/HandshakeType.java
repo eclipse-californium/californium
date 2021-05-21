@@ -18,7 +18,7 @@ package org.eclipse.californium.scandium.dtls;
 
 /**
  * Represents the possible types of a handshake message. See <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.4" target="_blank">RFC 5246</a> for
+ * href="https://tools.ietf.org/html/rfc5246#section-7.4" target="_blank">RFC 5246</a> for
  * details.
  */
 public enum HandshakeType {

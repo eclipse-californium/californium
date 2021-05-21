@@ -18,7 +18,7 @@ package org.eclipse.californium.scandium.dtls;
 
 /**
  * Certificate types as defined in the
- * <a href="http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml" target="_blank">IANA registry</a>.
+ * <a href="https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml" target="_blank">IANA registry</a>.
  */
 public enum CertificateType {
 	// values as defined by IANA TLS Certificate Types registry

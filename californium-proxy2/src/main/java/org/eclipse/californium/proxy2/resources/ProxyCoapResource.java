@@ -38,9 +38,9 @@ import org.eclipse.californium.proxy2.http.Http2CoapTranslator;
  * According
  * <a href="https://tools.ietf.org/html/rfc7252#section-5.7" target="_blank">RFC
  * 7252, 5.7 Proxying</a> proxies are classified into
- * <a href= "https://tools.ietf.org/html/rfc7252#section-5.7.2" target=
+ * <a href="https://tools.ietf.org/html/rfc7252#section-5.7.2" target=
  * "_blank">Forward-Proxies</a> and
- * <a href= "https://tools.ietf.org/html/rfc7252#section-5.7.3" target=
+ * <a href="https://tools.ietf.org/html/rfc7252#section-5.7.3" target=
  * "_blank">Reverse-Proxies</a>.
  * 
  * The forward-proxies operates in a generic way. The destination to sent the

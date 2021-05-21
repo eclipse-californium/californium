@@ -30,7 +30,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 /**
  * The supported point formats extension.
  * 
- * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
  * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only only "UNCOMPRESSED"
  * as point format is valid, the other formats have been deprecated.
  */
@@ -129,7 +129,7 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	// EC point format Enum ///////////////////////////////////////////
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc4492#section-5.1.2">RFC 4492,
+	 * See <a href="https://tools.ietf.org/html/rfc4492#section-5.1.2">RFC 4492,
 	 * 5.1.2. Supported Point Formats Extension</a>.
 	 */
 	public enum ECPointFormat {

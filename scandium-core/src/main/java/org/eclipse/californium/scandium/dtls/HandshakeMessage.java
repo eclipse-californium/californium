@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Represents a general handshake message and defines the common header. The
  * subclasses are responsible for the rest of the message body. See <a
- * href="http://tools.ietf.org/html/rfc6347#section-4.2.2" target="_blank">RFC 6347</a> for the
+ * href="https://tools.ietf.org/html/rfc6347#section-4.2.2" target="_blank">RFC 6347</a> for the
  * message format.
  */
 @NoPublicAPI

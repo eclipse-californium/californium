@@ -31,7 +31,7 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
 /**
  * The supported elliptic curves extension.
  * 
- * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1">RFC
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target= "_blank">RFC
  * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named curves" are
  * valid, the "prime" and "char2" curve descriptions are deprecated.
  */

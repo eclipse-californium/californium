@@ -27,7 +27,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  * to use by including a "PSK identity" in this message. The server can
  * potentially provide a "PSK identity hint" to help the client in selecting
  * which identity to use. See <a
- * href="http://tools.ietf.org/html/rfc4279#section-2" target="_blank">RFC 4279</a> for details.
+ * href="https://tools.ietf.org/html/rfc4279#section-2" target="_blank">RFC 4279</a> for details.
  */
 public final class PSKClientKeyExchange extends ClientKeyExchange {
 
