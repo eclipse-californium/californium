@@ -49,7 +49,52 @@ public class ListUtils {
 				}
 			}
 		}
-		// though the input List is unspecific, ensure not to chain unmodifiables
+		// though the input List is unspecific,
+		// ensure not to chain unmodifiables
 		return Collections.unmodifiableList(new ArrayList<>(values));
+	}
+
+	/**
+	 * Add value to list, if not already contained.
+	 * 
+	 * @param <T> element type of list
+	 * @param list list of values.
+	 * @param value value to add. Not added, if {@code null}.
+	 * @return the provided list
+	 * @throws NullPointerException if list is {@code null}
+	 * @since 3.0
+	 */
+	public static <T> List<T> addIfAbsent(List<T> list, T value) {
+		if (list == null) {
+			throw new NullPointerException("List must not be null!");
+		}
+		if (value != null && !list.contains(value)) {
+			list.add(value);
+		}
+		return list;
+	}
+
+	/**
+	 * Add values to list, if not already contained.
+	 * 
+	 * @param <T> element type of list
+	 * @param list list of values.
+	 * @param newValues values to add. {@code null} are not added.
+	 * @return the provided list
+	 * @throws NullPointerException if list is {@code null}
+	 * @since 3.0
+	 */
+	public static <T> List<T> addIfAbsent(List<T> list, List<T> newValues) {
+		if (list == null) {
+			throw new NullPointerException("List must not be null!");
+		}
+		if (newValues != null && !newValues.isEmpty()) {
+			for (T value : newValues) {
+				if (value != null && !list.contains(value)) {
+					list.add(value);
+				}
+			}
+		}
+		return list;
 	}
 }

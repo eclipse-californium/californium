@@ -55,6 +55,9 @@ The `ApplicationLevelInfoSupplier.getInfo()` supports now to return `null` in or
 
 The `ResumingServerHandshaker` supports now a none-blocking `ResumptionVerifier` and a fall-back to a full handshake.
 
+The `SignatureAndHashAlgorithm` supports now `isRecommended` to address the upcoming 
+[draft-ietf-tls-md5-sha1-deprecate](https://datatracker.ietf.org/doc/draft-ietf-tls-md5-sha1-deprecate/).
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:
