@@ -458,8 +458,32 @@ public final class ClientHello extends HandshakeMessage {
 		hmac.update(rawMessage, tail, rawMessage.length - tail);
 	}
 
+	/**
+	 * Get proposed cipher suites.
+	 * @return list of proposed cipher suites.
+	 */
 	public List<CipherSuite> getCipherSuites() {
 		return Collections.unmodifiableList(supportedCipherSuites);
+	}
+
+	/**
+	 * Get list of common cipher suites.
+	 * 
+	 * List of cipher suites shared by client and server.
+	 * 
+	 * @param serverCipherSuite server's cipher suites.
+	 * @return list of common cipher suites
+	 * @since 3.0
+	 */
+	public List<CipherSuite> getCommonCipherSuites(List<CipherSuite> serverCipherSuite) {
+		List<CipherSuite> common = new ArrayList<>();
+		for (CipherSuite cipherSuite : serverCipherSuite) {
+			// NEVER negotiate NULL cipher suite
+			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL && supportedCipherSuites.contains(cipherSuite)) {
+				common.add(cipherSuite);
+			}
+		}
+		return common;
 	}
 
 	/**

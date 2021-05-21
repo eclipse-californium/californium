@@ -304,6 +304,32 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	private final Long autoResumptionTimeoutMillis;
 
+	/**
+	 * Enable/Disable the server's HELLO_VERIFY_REQUEST, if peers shares at
+	 * least one PSK based cipher suite.
+	 * <p>
+	 * <b>Note:<b> it is not recommended to disable the HELLO_VERIFY_REQUEST! See
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * To limit the amplification, the peers must share PSK cipher suites to by
+	 * pass that check. If only certificate based cipher suites are shared, the
+	 * HELLO_VERIFY_REQUEST will still be used.
+	 * 
+	 * @since 3.0
+	 */
+	private final boolean useHelloVerifyRequestForPsk;
+	/**
+	 * Generally enable/disable the server's HELLO_VERIFY_REQUEST.
+	 * <p>
+	 * <b>Note:</b> it is not recommended to disable the HELLO_VERIFY_REQUEST! See
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * @since 3.0
+	 */
+	private final boolean useHelloVerifyRequest;
+
 	private final int thresholdHandshakesWithoutVerifiedPeer;
 	/**
 	 * Counter for pending handshakes without matching cookie.
@@ -583,6 +609,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				threshold = 1;
 			}
 			this.thresholdHandshakesWithoutVerifiedPeer = (int) threshold;
+			this.useHelloVerifyRequest = config.useHelloVerifyRequest();
+			this.useHelloVerifyRequestForPsk = this.useHelloVerifyRequest && config.useHelloVerifyRequestForPsk();
 		}
 	}
 
@@ -1955,7 +1983,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				synchronized (connectionStore) {
 					connection = connectionStore.get(peerAddress);
 					if (connection != null && !connection.isStartedByClientHello(clientHello)) {
-						if (!clientHello.hasCookie()) {
+						if (useHelloVerifyRequest && !clientHello.hasCookie() && clientHello.hasSessionId()) {
 							SessionId establishedSessionId = connection.getEstablishedSessionIdentifier();
 							boolean sameSession = Bytes.equals(establishedSessionId, clientHello.getSessionId());
 							if (!sameSession) {
@@ -2103,6 +2131,14 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * </p>
 	 * Executed outside the connection's serial execution.
 	 * 
+	 * May be disabled using {@link #useHelloVerifyRequest} or
+	 * {@link #useHelloVerifyRequestForPsk}.
+	 * <p>
+	 * <b>Note:<b> it is not recommended to disable the HELLO_VERIFY_REQUEST!
+	 * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * 
 	 * @param peer the inet socket address to verify
 	 * @param clientHello the peer's client hello method including the cookie
 	 *            and/or session id to verify
@@ -2118,6 +2154,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		// a cookie as described in section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
 		byte[] providedCookie = clientHello.getCookie();
+
 		if (providedCookie.length > 0) {
 			// check, if cookie of the current period matches
 			boolean cookie = MessageDigest.isEqual(expectedCookie, providedCookie);
@@ -2139,6 +2176,20 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 						StringUtil.toLog(peer));
 			}
 			return cookie;
+		}
+
+		if (!useHelloVerifyRequest) {
+			/* using certificates creates a large amplification! */
+			return true;
+		} else if (!useHelloVerifyRequestForPsk) {
+			/*
+			 * only skip the hello verify request, if peers shares at least one
+			 * PSK based cipher suite.
+			 */
+			List<CipherSuite> common = clientHello.getCommonCipherSuites(config.getSupportedCipherSuites());
+			if (CipherSuite.containsPskBasedCipherSuite(common)) {
+				return true;
+			}
 		}
 
 		if (resumptionVerifier != null && clientHello.hasSessionId()) {

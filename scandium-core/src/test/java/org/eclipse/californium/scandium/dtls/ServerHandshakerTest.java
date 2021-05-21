@@ -82,6 +82,7 @@ public class ServerHandshakerTest {
 	DtlsConnectorConfig config;
 	ServerHandshaker handshaker;
 	DTLSSession session;
+	byte[] cookie = new byte[]{(byte) 0x0, (byte) 0x01, (byte) 0x02, (byte) 0x03};
 	byte[] sessionId = new byte[]{(byte) 0x0A, (byte) 0x0B, (byte) 0x0C, (byte) 0x0D, (byte) 0x0E, (byte) 0x0F};
 	byte[] supportedClientCiphers;
 	byte[] random;
@@ -142,7 +143,7 @@ public class ServerHandshakerTest {
 		extensions.add(DtlsTestTools.newMaxFragmentLengthExtension(1)); // code 1 = 512 bytes
 
 		// when the client sends its CLIENT_HELLO message
-		processClientHello(0, extensions);
+		processClientHello(0, cookie, extensions);
 
 		// then a fragment created under the session's current write state can
 		// not contain more than 512 bytes and the SERVER_HELLO message sent
@@ -170,7 +171,7 @@ public class ServerHandshakerTest {
 		extensions.add(DtlsTestTools.newServerNameExtension("iot.eclipse.org"));
 
 		// WHEN the client sends its CLIENT_HELLO message
-		processClientHello(0, extensions);
+		processClientHello(0, cookie, extensions);
 
 		// THEN the server names conveyed in the CLIENT_HELLO message
 		// are stored in the handshaker
@@ -185,7 +186,7 @@ public class ServerHandshakerTest {
 		List<byte[]> extensions = new LinkedList<>();
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(getArbitrarySupportedGroup().getId()));
 
-		processClientHello(0, extensions);
+		processClientHello(0, cookie, extensions);
 
 		// access the received ClientHello message from the handshakeMessages buffer
 		byte[] receivedMsg = handshaker.handshakeMessages.get(0).toByteArray();
@@ -201,7 +202,7 @@ public class ServerHandshakerTest {
 
 		try {
 			// process Client Hello including Cookie
-			processClientHello(0, null);
+			processClientHello(0, cookie, null);
 			fail("Server should have aborted cipher negotiation");
 		} catch (HandshakeException e) {
 			// server has aborted handshake as required
@@ -243,7 +244,7 @@ public class ServerHandshakerTest {
 		SupportedGroup supportedGroup = getArbitrarySupportedGroup();
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(supportedGroup.getId()));
 
-		processClientHello(0, extensions);
+		processClientHello(0, cookie, extensions);
 
 		// THEN the server selects the PSK based cipher because it does not consider the public
 		// key based cipher a valid option due to the client's lacking support for RPKs
@@ -259,7 +260,7 @@ public class ServerHandshakerTest {
 		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(0x05));
 
 		try {
-			processClientHello(0, extensions);
+			processClientHello(0, cookie, extensions);
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch (HandshakeException e) {
 			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
@@ -275,7 +276,7 @@ public class ServerHandshakerTest {
 				CertificateType.OPEN_PGP.getCode()));
 
 		try {
-			processClientHello(0, extensions);
+			processClientHello(0, cookie, extensions);
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
@@ -294,7 +295,7 @@ public class ServerHandshakerTest {
 		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(
 				CertificateType.OPEN_PGP.getCode(), CertificateType.X_509.getCode()));
 
-		processClientHello(0, extensions);
+		processClientHello(0, cookie, extensions);
 		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedClientCertificateType(), is(CertificateType.X_509));
 		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedServerCertificateType(), is(CertificateType.X_509));
@@ -307,7 +308,7 @@ public class ServerHandshakerTest {
 		extensions.add(DtlsTestTools.newServerCertificateTypesExtension(0x05));
 
 		try {
-			processClientHello(0, extensions);
+			processClientHello(0, cookie, extensions);
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
@@ -323,7 +324,7 @@ public class ServerHandshakerTest {
 		// curveId 0x0000 is not assigned by IANA
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000));
 		try {
-			processClientHello(0, extensions);
+			processClientHello(0, cookie, extensions);
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
 			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
@@ -338,7 +339,7 @@ public class ServerHandshakerTest {
 		SupportedGroup supportedGroup = getArbitrarySupportedGroup();
 		// curveId 0x0000 is not assigned by IANA
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000, supportedGroup.getId()));
-		processClientHello(0, extensions);
+		processClientHello(0, cookie, extensions);
 		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedSupportedGroup(), is(supportedGroup));
 	}
@@ -353,7 +354,7 @@ public class ServerHandshakerTest {
 	public void testReceiveClientHelloPicksCurveIfClientOmitsSupportedCurveExtension() throws Exception {
 
 		// omit supported elliptic curves extension
-		processClientHello(0, null);
+		processClientHello(0, cookie, null);
 		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
 		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedSupportedGroup(), is(notNullValue()));
 	}
@@ -380,7 +381,7 @@ public class ServerHandshakerTest {
 
 	private Record givenAHandshakerWithAQueuedMessage() throws Exception {
 
-		processClientHello(0, null);
+		processClientHello(0, cookie, null);
 		assertThat(handshaker.getNextReceiveMessageSequenceNumber(), is(1));
 		// create client CERTIFICATE msg
 		X509Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
@@ -418,9 +419,9 @@ public class ServerHandshakerTest {
 
 	}
 
-	private void processClientHello(int messageSeq, List<byte[]> helloExtensions) throws Exception {
+	private void processClientHello(int messageSeq, byte[] cookie, List<byte[]> helloExtensions) throws Exception {
 
-		processClientHello(0, 0, messageSeq, null, supportedClientCiphers, helloExtensions);
+		processClientHello(0, 0, messageSeq, cookie, supportedClientCiphers, helloExtensions);
 	}
 
 	private void processClientHello(int epoch, long sequenceNo, int messageSeq, byte[] cookie,

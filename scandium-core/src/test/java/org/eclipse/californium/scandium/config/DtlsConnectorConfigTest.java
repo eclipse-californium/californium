@@ -539,4 +539,32 @@ public class DtlsConnectorConfigTest {
 		trustedCertificates[1] = DtlsTestTools.getTrustedRootCA();
 		StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates);
 	}
+
+	@Test
+	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST can not be disabled!"));
+		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		builder.setUseHelloVerifyRequestForPsk(false);
+	}
+
+	@Test
+	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite2() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST disabled"));
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey());
+		builder.setClientAuthenticationRequired(false);
+		builder.setUseHelloVerifyRequestForPsk(false);
+		builder.build();
+	}
+
+	@Test
+	public void testDisableHelloVerifyRequestWithoutPskCiperSuite() {
+		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		builder.setUseHelloVerifyRequest(false);
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey());
+		builder.setClientAuthenticationRequired(false);
+		builder.build();
+	}
+
 }
