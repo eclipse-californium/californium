@@ -145,26 +145,31 @@ public class ServerHandshaker extends Handshaker {
 	private final Logger LOGGER_NEGOTIATION = LoggerFactory.getLogger(LOGGER.getName() + ".negotiation");
 
 	/** Does the server use session id? */
-	private boolean useSessionId = true;
+	private final boolean useSessionId;
 
 	/** Is the client wanted to authenticate itself? */
-	private boolean clientAuthenticationWanted = false;
+	private final boolean clientAuthenticationWanted;
 
 	/** Is the client required to authenticate itself? */
-	private boolean clientAuthenticationRequired = false;
+	private final boolean clientAuthenticationRequired;
+
+	/** Is the client's address verified? */
+	private final boolean useHelloVerifyRequest;
+	/** Is the client's address verified for PSK? */
+	private final boolean useHelloVerifyRequestForPsk;
 
 	/**
 	 * Cipher suite selector.
 	 * 
 	 * @since 2.3
 	 */
-	private CipherSuiteSelector cipherSuiteSelector;
+	private final CipherSuiteSelector cipherSuiteSelector;
 
 	/**
 	 * The cryptographic options this server supports, e.g. for exchanging keys,
 	 * digital signatures etc.
 	 */
-	private List<CipherSuite> supportedCipherSuites;
+	private final List<CipherSuite> supportedCipherSuites;
 
 	/**
 	 * The supported groups (curves) ordered by preference.
@@ -239,6 +244,8 @@ public class ServerHandshaker extends Handshaker {
 		this.clientAuthenticationWanted = config.isClientAuthenticationWanted();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
 		this.useSessionId = config.useServerSessionId();
+		this.useHelloVerifyRequest = config.useHelloVerifyRequest();
+		this.useHelloVerifyRequestForPsk = this.useHelloVerifyRequest && config.useHelloVerifyRequestForPsk();
 
 		// the server handshake uses the config with exchanged roles!
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
@@ -469,7 +476,20 @@ public class ServerHandshaker extends Handshaker {
 							AlertDescription.HANDSHAKE_FAILURE));
 		}
 
-		List<CipherSuite> commonCipherSuites = getCommonCipherSuites(clientHello.getCipherSuites());
+		List<CipherSuite> commonCipherSuites = getCommonCipherSuites(clientHello);
+		if (useHelloVerifyRequest && !useHelloVerifyRequestForPsk && !clientHello.hasCookie()) {
+			SessionId sessionId = getSession().getSessionIdentifier();
+			if (sessionId.isEmpty() || !sessionId.equals(clientHello.getSessionId())) {
+				// no cookie, no resumption => only PSK to reduce amplification
+				List<CipherSuite> common = new ArrayList<>();
+				for (CipherSuite cipherSuite : commonCipherSuites) {
+					if (cipherSuite.isPskBased()) {
+						common.add(cipherSuite);
+					}
+				}
+				commonCipherSuites = common;
+			}
+		}
 		List<CertificateType> commonServerCertTypes = getCommonServerCertificateTypes(clientHello.getServerCertificateTypeExtension());
 		List<CertificateType> commonClientCertTypes = getCommonClientCertificateTypes(clientHello.getClientCertificateTypeExtension());
 		List<SupportedGroup> commonGroups = getCommonSupportedGroups(clientHello.getSupportedEllipticCurvesExtension());
@@ -898,21 +918,14 @@ public class ServerHandshaker extends Handshaker {
 		}
 	}
 
-	private List<CipherSuite> getCommonCipherSuites(List<CipherSuite> clientCipherSuites) {
+	private List<CipherSuite> getCommonCipherSuites(ClientHello clientHello) {
 		List<CipherSuite> supported = supportedCipherSuites;
 		CipherSuite sessionCipherSuite = getSession().getCipherSuite();
 		if (!sessionCipherSuite.equals(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 			// resumption, limit handshake to use the same cipher suite
 			supported = Arrays.asList(sessionCipherSuite);
 		}
-		List<CipherSuite> common = new ArrayList<>();
-		for (CipherSuite cipherSuite : clientCipherSuites) {
-			// NEVER negotiate NULL cipher suite
-			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL && supported.contains(cipherSuite)) {
-				common.add(cipherSuite);
-			}
-		}
-		return common;
+		return clientHello.getCommonCipherSuites(supported);
 	}
 
 	private List<CertificateType> getCommonClientCertificateTypes(ClientCertificateTypeExtension clientCertificateTypes) {

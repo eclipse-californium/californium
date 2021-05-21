@@ -25,13 +25,29 @@ import org.eclipse.californium.elements.util.StringUtil;
  * The server send this request after receiving a {@link ClientHello} message to
  * prevent Denial-of-Service Attacks.
  * <p>
- * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target="_blank">RFC 6347</a>
- * for the definition.
+ * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+ * "_blank">RFC 6347</a> for the definition.
  * </p>
+ * 
+ * <pre>
+ *   Client                                   Server
+ *   ------                                   ------
+ *   ClientHello           -----&gt;
+ * 
+ *                         &lt;----- HelloVerifyRequest
+ *                                 (contains cookie)
+ * 
+ *   ClientHello           -----&gt;
+ *   (with cookie)
+ * 
+ *   [Rest of handshake] *
+ * </pre>
+ * 
  * <p>
  * It seems, that this definition is ambiguous about the server version to be
  * used.
  * </p>
+ * 
  * <pre>
  * The server_version field ...
  * DTLS 1.2 server implementations SHOULD use DTLS version 1.0 regardless
@@ -43,15 +59,19 @@ import org.eclipse.californium.elements.util.StringUtil;
  * A DTLS 1.2 server can either (SHOULD) send a version 1.0, or (MUST use same
  * version) 1.2. This question is pending in the IETF TLS mailing list, see
  * <a href=
- * "https://mailarchive.ietf.org/arch/msg/tls/rQ3El3ROKTN0rpzhRpJCaKOrUyU/" target="_blank">RFC
- * 6347 - Section 4.2.1 - used version in a HelloVerifyReques</a>.
+ * "https://mailarchive.ietf.org/arch/msg/tls/rQ3El3ROKTN0rpzhRpJCaKOrUyU/"
+ * target="_blank">RFC 6347 - Section 4.2.1 - used version in a
+ * HelloVerifyReques</a>.
  * </p>
  * <p>
- * There may be many assumptions about the intended behavior. One is to postpone
- * the version negotiation according
- * <a href="https://tools.ietf.org/html/rfc5246#appendix-E.1" target="_blank">RFC 5246 - E.1 -
- * Compatibility with TLS 1.0/1.1 and SSL 3.0</a> until the endpoint ownership is
- * verified. That prevents sending protocol-version alerts to wrong clients.
+ * There may be many assumptions about the intended behavior. The one
+ * implemented is to postpone the version negotiation according
+ * <a href="https://tools.ietf.org/html/rfc5246#appendix-E.1" target=
+ * "_blank">RFC 5246 - E.1 - Compatibility with TLS 1.0/1.1 and SSL 3.0</a>
+ * until the endpoint ownership is verified. That prevents sending
+ * protocol-version alerts to wrong clients. Therefore the server tries to use
+ * the client version in the HELLO_VERIFY_REQUEST, and once a CLIENT_HELLO with
+ * the proper cookie is received, a protocol-version alert is sent back.
  * </p>
  * 
  * Behavior of other DTLS 1.2 implementations:

@@ -607,7 +607,11 @@ public class ConnectorHelper {
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
 			try {
-				records.put(DtlsTestTools.fromByteArray(data, cidGenerator, ClockUtil.nanoRealtime()));
+				List<Record> messages = DtlsTestTools.fromByteArray(data, cidGenerator, ClockUtil.nanoRealtime());
+				for (Record record : messages) {
+					record.setAddress(endpoint, null);
+				}
+				records.put(messages);
 			} catch (InterruptedException e) {
 			}
 		}

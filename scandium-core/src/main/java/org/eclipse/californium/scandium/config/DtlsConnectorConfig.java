@@ -428,6 +428,37 @@ public final class DtlsConnectorConfig {
 	private Integer verifyPeersOnResumptionThreshold;
 
 	/**
+	 * Enable/Disable the server's HELLO_VERIFY_REQUEST, if peers shares at
+	 * least one PSK based cipher suite.
+	 * <p>
+	 * <b>Note:</b> it is not recommended to disable the HELLO_VERIFY_REQUEST! See
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * To limit the amplification, the peers must share PSK cipher suites to by
+	 * pass that check. If only certificate based cipher suites are shared, the
+	 * HELLO_VERIFY_REQUEST will still be used.
+	 * 
+	 * @see #useHelloVerifyRequest
+	 * @since 3.0
+	 */
+	private Boolean useHelloVerifyRequestForPsk;
+
+	/**
+	 * Generally enable/disable the server's HELLO_VERIFY_REQUEST.
+	 * <p>
+	 * <b>Note:</b> it is strongly not recommended to disable the HELLO_VERIFY_REQUEST
+	 * if used with certificates! That creates a large amplification! See
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * 
+	 * @see {@link #useHelloVerifyRequestForPsk}
+	 * @since 3.0
+	 */
+	private Boolean useHelloVerifyRequest;
+
+	/**
 	 * Indicates, that a session id is used by this server. The sessions are
 	 * cached by this server and can be resumed.
 	 * 
@@ -829,17 +860,58 @@ public final class DtlsConnectorConfig {
 	 * peer resumes a session (by id), but a different session is related to its
 	 * endpoint, then a verify request is used to ensure, that the peer really
 	 * owns that endpoint.
-	 * 
-	 * Note: a value larger than 0 will call the {@link ResumptionVerifier}. If
+	 * <p>
+	 * <b>Note:</b> a value larger than 0 will call the {@link ResumptionVerifier}. If
 	 * that implementation is expensive, please ensure, that this value is
 	 * configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid session
 	 * IDs may be spoofed and gets too expensive.
-	 * 
+	 * </p>
 	 * @return threshold handshakes without verified peer in percent of
 	 *         {@link #getMaxConnections()}.
+	 * @see HelloVerifyRequest
 	 */
 	public Integer getVerifyPeersOnResumptionThreshold() {
 		return verifyPeersOnResumptionThreshold;
+	}
+
+	/**
+	 * Enable/disable the server's HELLO_VERIFY_REQUEST, if peers shares at
+	 * least one PSK based cipher suite.
+	 * <p>
+	 * <b>Note:</b> it is not recommended to disable the HELLO_VERIFY_REQUEST!
+	 * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * To limit the amplification, the peers must share PSK cipher suites to by
+	 * pass that check. If only certificate based cipher suites are shared, the
+	 * HELLO_VERIFY_REQUEST will still be used.
+	 * 
+	 * @return {@code true}, if a HELLO_VERIFY_REQUEST should be send to the
+	 *         client, {@code false}, if no HELLO_VERIFY_REQUEST is used.
+	 * @see HelloVerifyRequest
+	 * @see #useHelloVerifyRequest()
+	 * @since 3.0
+	 */
+	public Boolean useHelloVerifyRequestForPsk() {
+		return useHelloVerifyRequestForPsk;
+	}
+
+	/**
+	 * Generally enable/disable the server's HELLO_VERIFY_REQUEST.
+	 * <p>
+	 * <b>Note:</b> it is strongly not recommended to disable the HELLO_VERIFY_REQUEST
+	 * for certificates! That creates a large amplification! See
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+	 * </p>
+	 * @return {@code true}, if a HELLO_VERIFY_REQUEST should be send to the
+	 *         client, {@code false}, if no HELLO_VERIFY_REQUEST is used.
+	 * @see HelloVerifyRequest
+	 * @see #useHelloVerifyRequestForPsk()
+	 * @since 3.0
+	 */
+	public Boolean useHelloVerifyRequest() {
+		return useHelloVerifyRequest;
 	}
 
 	/**
@@ -1404,6 +1476,8 @@ public final class DtlsConnectorConfig {
 		cloned.sniEnabled = sniEnabled;
 		cloned.extendedMasterSecretMode = extendedMasterSecretMode;
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
+		cloned.useHelloVerifyRequestForPsk = useHelloVerifyRequestForPsk;
+		cloned.useHelloVerifyRequest = useHelloVerifyRequest;
 		cloned.useServerSessionId = useServerSessionId;
 		cloned.loggingTag = loggingTag;
 		cloned.useAntiReplayFilter = useAntiReplayFilter;
@@ -1603,15 +1677,22 @@ public final class DtlsConnectorConfig {
 		 *             server side configuration
 		 */
 		public Builder setClientOnly() {
-			if (config.serverOnly != null && config.serverOnly) {
+			if (Boolean.TRUE.equals(config.serverOnly)) {
 				throw new IllegalStateException("client only is in contradiction to server only!");
 			} else if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
 				throw new IllegalStateException(
 						"client only is in contradiction to server side client authentication!");
-			} else if (config.useServerSessionId != null && !config.useServerSessionId.booleanValue()) {
+			} else if (Boolean.FALSE.equals(config.useServerSessionId)) {
 				throw new IllegalStateException(
 						"client only is in contradiction to server side 'server session id'!");
+			} else if (Boolean.FALSE.equals(config.useHelloVerifyRequestForPsk)) {
+				throw new IllegalStateException(
+						"client only is in contradiction to server side HELLO_VERIFY_REQUEST for PSK configuration!");
+			} else if (Boolean.FALSE.equals(config.useHelloVerifyRequest)) {
+				throw new IllegalStateException(
+						"client only is in contradiction to server side HELLO_VERIFY_REQUEST configuration!");
 			}
+
 			config.clientOnly = true;
 			return this;
 		}
@@ -2038,6 +2119,10 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param cipherSuites the preselected cipher suites
 		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if the list is empty,
+		 *             "TLS_NULL_WITH_NULL_NULL" is contained, or the use of
+		 *             HELLO_VERIFY_REQUEST is disabled and no PSK cipher suite
+		 *             is contained.
 		 * @since 2.5
 		 */
 		public Builder setPreselectedCipherSuites(CipherSuite... cipherSuites) {
@@ -2062,8 +2147,10 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param cipherSuites the preselected cipher suites
 		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the list is empty, or
-		 *        "TLS_NULL_WITH_NULL_NULL" is contained.
+		 * @throws IllegalArgumentException if the list is empty,
+		 *             "TLS_NULL_WITH_NULL_NULL" is contained, or the use of
+		 *             HELLO_VERIFY_REQUEST is disabled and no PSK cipher suite
+		 *             is contained.
 		 * @since 2.5
 		 */
 		public Builder setPreselectedCipherSuites(List<CipherSuite> cipherSuites) {
@@ -2073,9 +2160,13 @@ public final class DtlsConnectorConfig {
 				throw new IllegalArgumentException("Connector must preselect at least one cipher suite");
 			} else if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
-			} else {
-				config.preselectedCipherSuites = cipherSuites;
+			} else if (Boolean.FALSE.equals(config.useHelloVerifyRequestForPsk)) {
+				if (!CipherSuite.containsPskBasedCipherSuite(cipherSuites)) {
+					throw new IllegalArgumentException(
+							"HELLO_VERIFY_REQUEST disabled, requires at least on PSK cipher suite!");
+				}
 			}
+			config.preselectedCipherSuites = cipherSuites;
 			return this;
 		}
 
@@ -2093,7 +2184,9 @@ public final class DtlsConnectorConfig {
 		 * @param cipherSuites the names of the preselected cipher suites
 		 * @return this builder for command chaining
 		 * @throws IllegalArgumentException if at least one name is not
-		 *        available, or "TLS_NULL_WITH_NULL_NULL" is contained.
+		 *             available, "TLS_NULL_WITH_NULL_NULL" is contained, or the
+		 *             use of HELLO_VERIFY_REQUEST is disabled and no PSK cipher
+		 *             suite is contained.
 		 * @since 2.5
 		 */
 		public Builder setPreselectedCipherSuites(String... cipherSuites) {
@@ -2119,9 +2212,11 @@ public final class DtlsConnectorConfig {
 		 * @throws NullPointerException if the given array is {@code null}
 		 * @throws IllegalArgumentException if the given array is empty,
 		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
-		 *             contains a cipher suite, not supported by the JVM, or
+		 *             contains a cipher suite, not supported by the JVM,
 		 *             violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting,
+		 *             or the use of HELLO_VERIFY_REQUEST is disabled and no PSK
+		 *             cipher suite is contained.
 		 */
 		public Builder setSupportedCipherSuites(CipherSuite... cipherSuites) {
 			if (cipherSuites == null) {
@@ -2141,11 +2236,12 @@ public final class DtlsConnectorConfig {
 		 *            preference
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given list is {@code null}
-		 * @throws IllegalArgumentException if the given list is empty,
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
-		 *             contains a cipher suite, not supported by the JVM, or
-		 *             violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
+		 * @throws IllegalArgumentException if the given list is empty, contains
+		 *             {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, contains a
+		 *             cipher suite, not supported by the JVM, violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting,
+		 *             or the use of HELLO_VERIFY_REQUEST is disabled and no PSK
+		 *             cipher suite is contained.
 		 */
 		public Builder setSupportedCipherSuites(List<CipherSuite> cipherSuites) {
 			if (cipherSuites == null) {
@@ -2156,6 +2252,12 @@ public final class DtlsConnectorConfig {
 			} 
 			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
+			}
+			if (Boolean.FALSE.equals(config.useHelloVerifyRequestForPsk)) {
+				if (!CipherSuite.containsPskBasedCipherSuite(cipherSuites)) {
+					throw new IllegalArgumentException(
+							"HELLO_VERIFY_REQUEST disabled, requires at least on PSK cipher suite!");
+				}
 			}
 			if (config.recommendedCipherSuitesOnly == null || config.recommendedCipherSuitesOnly) {
 				verifyRecommendedCipherSuitesOnly(cipherSuites);
@@ -2186,8 +2288,10 @@ public final class DtlsConnectorConfig {
 		 * @throws IllegalArgumentException if the given array is empty,
 		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
 		 *             contains a cipher suite, not supported by the JVM,
-		 *             contains a name, which is not supported, or violates the
-		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
+		 *             contains a name, which is not supported, violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting,
+		 *             or the use of HELLO_VERIFY_REQUEST is disabled and no PSK
+		 *             cipher suite is contained.
 		 */
 		public Builder setSupportedCipherSuites(String... cipherSuites) {
 			if (cipherSuites == null) {
@@ -2917,25 +3021,112 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Sets threshold in percent of {@link #setMaxConnections(int)}, whether
 		 * a HELLO_VERIFY_REQUEST should be used also for session resumption.
-		 * 
-		 * Note: a value larger than 0 will call the {@link ResumptionVerifier}.
+		 * <p>
+		 * <b>Note:</b> a value larger than 0 will call the {@link ResumptionVerifier}.
 		 * If that implementation is expensive, please ensure, that this value
 		 * is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
 		 * session ids may be spoofed and gets too expensive.
-		 * 
+		 * </p>
 		 * @param threshold 0 := always use HELLO_VERIFY_REQUEST, 1 ... 100 :=
 		 *            dynamically determine to use HELLO_VERIFY_REQUEST. Default
 		 *            is based on
 		 *            {@link DtlsConnectorConfig#DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}
 		 * @return this builder for command chaining.
+		 * @throws IllegalStateException if the HELLO_VERIFY_REQUEST is disabled
 		 * @throws IllegalArgumentException if threshold is not between 0 and
 		 *             100
 		 */
 		public Builder setVerifyPeersOnResumptionThreshold(int threshold) {
+			if (Boolean.FALSE.equals(config.useHelloVerifyRequest)) {
+				throw new IllegalStateException("HELLO_VERIFY_REQUEST is already disabled!");
+			}
 			if (threshold < 0 || threshold > 100) {
 				throw new IllegalArgumentException("threshold must be between 0 and 100, but is " + threshold + "!");
 			}
 			config.verifyPeersOnResumptionThreshold = threshold;
+			return this;
+		}
+
+		/**
+		 * Enable/disable the server's HELLO_VERIFY_REQUEST, if peers shares at
+		 * least one PSK based cipher suite.
+		 * <p>
+		 * <b>Note:</b> it is not recommended to disable the
+		 * HELLO_VERIFY_REQUEST! See
+		 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+		 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+		 * </p>
+		 * To limit the amplification, the peers must share PSK cipher suites to
+		 * by pass that check. If only certificate based cipher suites are
+		 * shared, the HELLO_VERIFY_REQUEST will still be used.
+		 * 
+		 * @param enable {@code true}, if a HELLO_VERIFY_REQUEST should be send
+		 *            to the client, {@code false}, if no HELLO_VERIFY_REQUEST
+		 *            is used.
+		 * @return this builder for command chaining.
+		 * @see HelloVerifyRequest
+		 * @throws IllegalStateException if the configuration is for client
+		 *             only.
+		 * @throws IllegalArgumentException if a verify peers on resumption
+		 *             threshold is used, or configuration doesn't contain a PSK
+		 *             based cipher suite.
+		 * @since 3.0
+		 */
+		public Builder setUseHelloVerifyRequestForPsk(boolean enable) {
+			if (Boolean.TRUE.equals(config.clientOnly)) {
+				throw new IllegalStateException("HELLO_VERIFY_REQUEST usage is not supported for client only!");
+			}
+			if (Boolean.FALSE.equals(config.useHelloVerifyRequest) && enable) {
+				throw new IllegalStateException("HELLO_VERIFY_REQUEST is generally disabled!");
+			}
+			if (!enable) {
+				if (config.supportedCipherSuites != null) {
+					if (!CipherSuite.containsPskBasedCipherSuite(config.supportedCipherSuites)) {
+						throw new IllegalArgumentException(
+								"No PSK cipher suite selected, HELLO_VERIFY_REQUEST can not be disabled!");
+					}
+				}
+			}
+			config.useHelloVerifyRequestForPsk = enable;
+			return this;
+		}
+
+		/**
+		 * Generally enable/disable the server's HELLO_VERIFY_REQUEST.
+		 * <p>
+		 * <b>Note:</b> it is strongly not recommended to disable the
+		 * HELLO_VERIFY_REQUEST for certificates! That creates a large
+		 * amplification! See
+		 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+		 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
+		 * </p>
+		 * 
+		 * @param enable {@code true}, if a HELLO_VERIFY_REQUEST should be send
+		 *            to the client, {@code false}, if no HELLO_VERIFY_REQUEST
+		 *            is used.
+		 * @return this builder for command chaining.
+		 * @see HelloVerifyRequest
+		 * @see #setUseHelloVerifyRequestForPsk(boolean)
+		 * @throws IllegalStateException if the configuration is for client
+		 *             only.
+		 * @throws IllegalArgumentException if a verify peers on resumption
+		 *             threshold is used, or configuration doesn't contain a PSK
+		 *             based cipher suite.
+		 * @since 3.0
+		 */
+		public Builder setUseHelloVerifyRequest(boolean enable) {
+			if (Boolean.TRUE.equals(config.clientOnly)) {
+				throw new IllegalStateException("HELLO_VERIFY_REQUEST usage is not supported for client only!");
+			}
+			if (!enable) {
+				if (Boolean.TRUE.equals(config.useHelloVerifyRequestForPsk)) {
+					throw new IllegalStateException("HELLO_VERIFY_REQUEST is enabled for PSK!");
+				}
+				if (config.verifyPeersOnResumptionThreshold != null) {
+					throw new IllegalArgumentException("Verify peers on resumption threshold is already set!");
+				}
+			}
+			config.useHelloVerifyRequest = enable;
 			return this;
 		}
 
@@ -3248,6 +3439,12 @@ public final class DtlsConnectorConfig {
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
 			}
+			if (config.useHelloVerifyRequest == null) {
+				config.useHelloVerifyRequest = Boolean.TRUE;
+			}
+			if (config.useHelloVerifyRequestForPsk == null) {
+				config.useHelloVerifyRequestForPsk = config.useHelloVerifyRequest;
+			}
 			if (config.trustCertificateTypes == null && config.advancedCertificateVerifier != null) {
 				config.trustCertificateTypes = config.advancedCertificateVerifier.getSupportedCertificateTypes();
 			} 
@@ -3375,6 +3572,11 @@ public final class DtlsConnectorConfig {
 			}
 			verifySignatureAndHashAlgorithms(config.supportedSignatureAlgorithms);
 			verifySupportedGroups(config.supportedGroups);
+			if (config.useHelloVerifyRequest && !config.useHelloVerifyRequestForPsk
+					&& !CipherSuite.containsPskBasedCipherSuite(config.supportedCipherSuites)) {
+				throw new IllegalArgumentException(
+						"HELLO_VERIFY_REQUEST disabled for PSK, requires at least one PSK cipher suite!");
+			}
 			config.trustCertificateTypes = ListUtils.init(config.trustCertificateTypes);
 			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);

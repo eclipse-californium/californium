@@ -88,6 +88,7 @@ import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
+import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -100,6 +101,7 @@ import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
+import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
@@ -111,6 +113,7 @@ import org.eclipse.californium.scandium.dtls.ResumptionVerificationResult;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
@@ -184,7 +187,6 @@ public class DTLSConnectorAdvancedTest {
 	AsyncAdvancedPskStore clientPskStore;
 	AsyncNewAdvancedCertificateVerifier clientCertificateVerifier;
 	DtlsConnectorConfig clientConfig;
-	DtlsConnectorConfig clientConfigSingleRecord;
 	DTLSConnector client;
 	InMemoryConnectionStore clientConnectionStore;
 	List<Record> lastReceivedFlight;
@@ -370,12 +372,9 @@ public class DTLSConnectorAdvancedTest {
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
 				.setConnectionIdGenerator(clientCidGenerator)
 				.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setHealthHandler(clientHealth);
+				.setHealthHandler(clientHealth)
+				.setLoggingTag("client");
 		clientConfig = builder.build();
-		clientConfigSingleRecord = new DtlsConnectorConfig.Builder(clientConfig)
-				.setEnableMultiRecordMessages(false)
-				.setLoggingTag("client")
-				.build();
 		clientHealth.reset();
 		serverPskStore.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
 		serverCertificateVerifier.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
@@ -413,6 +412,21 @@ public class DTLSConnectorAdvancedTest {
 		serverHealth.reset();
 	}
 
+	private DtlsConnectorConfig createClientConfigSingleRecord() {
+		return new DtlsConnectorConfig.Builder(clientConfig)
+				.setEnableMultiRecordMessages(false)
+				.setLoggingTag("client")
+				.build();
+	}
+
+	private DtlsConnectorConfig createClientConfigPsk() {
+		return new DtlsConnectorConfig.Builder(clientConfig)
+				.setAdvancedPskStore(new AdvancedSinglePskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				.setLoggingTag("client")
+				.build();
+	}
+
 	private void startClient() throws IOException {
 		clientCertificateVerifier.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
 		serverPskStore.setDelay(0);
@@ -437,7 +451,7 @@ public class DTLSConnectorAdvancedTest {
 			// to send message in bad order.
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(null,
-					new TestRecordLayer(rawClient, true), timer, createClientConnection(), clientConfigSingleRecord,
+					new TestRecordLayer(rawClient, true), timer, createClientConnection(), createClientConfigSingleRecord(),
 					false);
 			clientHandshaker.addSessionListener(sessionListener);
 			// Start handshake (Send CLIENT HELLO)
@@ -479,7 +493,7 @@ public class DTLSConnectorAdvancedTest {
 				.setHealthHandler(serverHealth)
 				.setConnectionIdGenerator(serverCidGenerator);
 
-		DtlsConnectorConfig clientConfigSingleRecord = DtlsConnectorConfig.builder(this.clientConfigSingleRecord)
+		DtlsConnectorConfig clientConfigSingleRecord = DtlsConnectorConfig.builder(createClientConfigSingleRecord())
 				.setMaxRetransmissions(MAX_RETRANSMISSIONS * 2).build();
 
 		// Configure and create UDP connector
@@ -571,12 +585,18 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, 
-					new TestRecordLayer(rawServer, true), timer, createServerConnection(), serverConfigSingleRecord);
+			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer, true);
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, 
+					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
 			List<Record> rs = waitForFlightReceived("flight 3", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 3", collector, 1);
 			// Handle and answer
 			// (SERVER_HELLO, CERTIFICATE, ... SERVER HELLO DONE, flight 4)
 			processAll(serverHandshaker, rs);
@@ -613,7 +633,7 @@ public class DTLSConnectorAdvancedTest {
 			Connection clientConnection = createClientConnection();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
-					clientConnection, clientConfigSingleRecord, false);
+					clientConnection, createClientConfigSingleRecord(), false);
 			clientHandshaker.addSessionListener(sessionListener);
 
 			// Start 1. handshake (Send CLIENT HELLO)
@@ -644,7 +664,7 @@ public class DTLSConnectorAdvancedTest {
 			sessionListener = new LatchSessionListener();
 			DTLSSession session = new DTLSSession(clientHandshaker.getSession());
 			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(session,
-					clientRecordLayer, timer, clientConnection, clientConfigSingleRecord, false);
+					clientRecordLayer, timer, clientConnection, createClientConfigSingleRecord(), false);
 			resumingClientHandshaker.addSessionListener(sessionListener);
 
 			// Start resuming handshake (Send CLIENT HELLO, additional flight)
@@ -692,13 +712,19 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
+
 			// Handle and answer (should be SERVER_HELLO, CERTIFICATE, ...
 			// SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
@@ -785,13 +811,17 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
 			// Handle and answer (should be SERVER_HELLO, CERTIFICATE, ...
 			// SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
@@ -880,13 +910,19 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
+
 			// Handle and answer (should be SERVER_HELLO, CERTIFICATE, ... SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
 
@@ -902,7 +938,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			ServerHandshaker resumingServerHandshaker = new ServerHandshaker(1, 0,
+			ServerHandshaker resumingServerHandshaker = new ServerHandshaker(1, 1,
 					serverRecordLayer, timer, createServerConnection(), serverConfig);
 			resumingServerHandshaker.addSessionListener(sessionListener);
 
@@ -914,6 +950,12 @@ public class DTLSConnectorAdvancedTest {
 
 			// Wait to receive response (should be CLIENT HELLO, flight 1)
 			rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
+
 			// Handle and answer (should be SERVER_HELLO, CERTIFICATE, ... SERVER HELLO DONE)
 			processAll(resumingServerHandshaker, rs);
 
@@ -950,13 +992,18 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
 			// Handle and answer (should be SERVER_HELLO, CERTIFICATE, ...
 			// SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
@@ -1059,13 +1106,18 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
 			// Handle and answer (should be SERVER_HELLO, CERTIFICATE, ...
 			// SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
@@ -1142,13 +1194,18 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
 			// Handle and answer (should be SERVER_HELLO, CERTIFICATE, ... SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
 
@@ -1164,7 +1221,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			ServerHandshaker resumingServerHandshaker = new ServerHandshaker(1, 0,
+			ServerHandshaker resumingServerHandshaker = new ServerHandshaker(1, 1,
 					serverRecordLayer, timer, createServerConnection(), serverConfig);
 			resumingServerHandshaker.addSessionListener(sessionListener);
 
@@ -1418,12 +1475,18 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1,
 					serverRecordLayer, timer, createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
+
 			// Handle and answer
 			// (SERVER_HELLO, CERTIFICATE, ... SERVER HELLO DONE, flight 4)
 			processAll(serverHandshaker, rs);
@@ -1657,13 +1720,18 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 3", collector, 1);
 			// Handle and answer (should be CERTIFICATE, ... SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
 
@@ -1747,13 +1815,19 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
+
 			// Handle and answer (should be CERTIFICATE, ... SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
 
@@ -1853,13 +1927,20 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
+			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0,
-					new TestRecordLayer(rawServer), timer, createServerConnection(), serverHelper.serverConfig);
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1,
+					serverRecordLayer, timer, createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
+
 			// Handle and answer
 			// (CERTIFICATE, ... SERVER HELLO DONE, flight 4)
 			processAll(serverHandshaker, rs);
@@ -2036,7 +2117,7 @@ public class DTLSConnectorAdvancedTest {
 			sessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(clientHandshaker.getSession());
 			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
-					clientRecordLayer, timer, clientConnection, clientConfigSingleRecord, false);
+					clientRecordLayer, timer, clientConnection, createClientConfigSingleRecord(), false);
 			resumingClientHandshaker.addSessionListener(sessionListener);
 
 			// Start resuming handshake (Send CLIENT HELLO, additional flight)
@@ -2088,7 +2169,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
-					createClientConnection(), clientConfigSingleRecord, false);
+					createClientConnection(), createClientConfigSingleRecord(), false);
 			clientHandshaker.addSessionListener(sessionListener);
 
 			// Start 1. handshake (Send CLIENT HELLO)
@@ -2143,13 +2224,18 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0, serverRecordLayer, timer,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// 1. handshake
 			// Wait to receive response (should be CLIENT HELLO)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 3", collector, 1);
 			// Handle and answer (should be CERTIFICATE, ... SERVER HELLO DONE)
 			processAll(serverHandshaker, rs);
 
@@ -2223,12 +2309,17 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1,
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 3", collector, 1);
 			// Handle and answer
 			// (CERTIFICATE, ... SERVER HELLO DONE, flight 4)
 			processAll(serverHandshaker, rs);
@@ -2277,12 +2368,17 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1,
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 3", collector, 1);
 			// Handle and answer
 			// (CERTIFICATE, ... SERVER HELLO DONE, flight 4)
 			processAll(serverHandshaker, rs);
@@ -2439,7 +2535,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
-					createClientConnection(), clientConfigSingleRecord, false);
+					createClientConnection(), createClientConfigSingleRecord(), false);
 			clientHandshaker.addSessionListener(sessionListener);
 
 			// Start 1. handshake (Send CLIENT HELLO)
@@ -2490,12 +2586,17 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1,
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
 			// Handle and answer
 			// (CERTIFICATE, ... SERVER HELLO DONE, flight 4)
 			processAll(serverHandshaker, rs);
@@ -2884,12 +2985,18 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 0,
+			ServerHandshaker serverHandshaker = new ServerHandshaker(1, 1,
 					serverRecordLayer, timer, createServerConnection(), builder.build());
 			serverHandshaker.addSessionListener(sessionListener);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
 			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+
+			sendHelloVerifyRequest(serverRecordLayer, rs);
+
+			// Wait to receive response (should be CLIENT HELLO with cookie)
+			rs = waitForFlightReceived("flight 1", collector, 1);
+
 			// Handle and answer
 			// (CERTIFICATE, ... SERVER HELLO DONE, flight 4)
 			processAll(serverHandshaker, rs);
@@ -2984,7 +3091,7 @@ public class DTLSConnectorAdvancedTest {
 			sessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(clientHandshaker.getSession());
 			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
-					clientRecordLayer, timer, clientConnection, clientConfigSingleRecord, false);
+					clientRecordLayer, timer, clientConnection, createClientConfigSingleRecord(), false);
 			resumingClientHandshaker.addSessionListener(sessionListener);
 
 			// Start resuming handshake (Send CLIENT HELLO, additional flight)
@@ -3061,7 +3168,7 @@ public class DTLSConnectorAdvancedTest {
 			sessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(clientHandshaker.getSession());
 			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
-					clientRecordLayer, timer, clientConnection, clientConfigSingleRecord, false);
+					clientRecordLayer, timer, clientConnection, createClientConfigSingleRecord(), false);
 			resumingClientHandshaker.addSessionListener(sessionListener);
 
 			// Start resuming handshake (Send CLIENT HELLO, additional flight)
@@ -3088,6 +3195,206 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
+	@Test
+	public void testDisableHelloVerifRequestForPsk() throws Exception {
+		alternativeServerHelper = new ConnectorHelper();
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setUseHelloVerifyRequestForPsk(false)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setConnectionIdGenerator(serverCidGenerator)
+				.setHealthHandler(serverHealth);
+
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient, true);
+		try {
+			// create limited server
+			alternativeServerHelper.startServer(builder);
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
+					createConnection(clientCidGenerator, alternativeServerHelper.serverEndpoint), createClientConfigPsk(), false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait for response (SERVER_HELLO, SERVER_DONE)
+			List<Record> rs = waitForFlightReceived("flight 4", collector, 2);
+
+			// create server session listener to ensure,
+			// that server finish also the handshake
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
+
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (CCS, FINISH)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake succeeded
+			assertTrue("server handshake failed",
+					serverSessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		} finally {
+			rawClient.stop();
+			alternativeServerHelper.destroyServer();
+			serverHealth.reset();
+		}
+	}
+
+	@Test
+	public void testDisabledHelloVerifRequestForPskWithCertificate() throws Exception {
+		alternativeServerHelper = new ConnectorHelper();
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setUseHelloVerifyRequestForPsk(false)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setConnectionIdGenerator(serverCidGenerator)
+				.setHealthHandler(serverHealth);
+
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient, true);
+		try {
+			// create limited server
+			alternativeServerHelper.startServer(builder);
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
+					createConnection(clientCidGenerator, alternativeServerHelper.serverEndpoint), clientConfig, false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+
+			// create server session listener to ensure,
+			// that server finish also the handshake
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
+
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (CCS, FINISH)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake succeeded
+			assertTrue("server handshake failed",
+					serverSessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		} finally {
+			rawClient.stop();
+			alternativeServerHelper.destroyServer();
+			serverHealth.reset();
+		}
+	}
+
+	@Test
+	public void testDisabledHelloVerifRequestWithCertificate() throws Exception {
+		alternativeServerHelper = new ConnectorHelper();
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setUseHelloVerifyRequest(false)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setConnectionIdGenerator(serverCidGenerator)
+				.setHealthHandler(serverHealth);
+
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient, true);
+		try {
+			// create limited server
+			alternativeServerHelper.startServer(builder);
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
+					createConnection(clientCidGenerator, alternativeServerHelper.serverEndpoint), clientConfig, false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			List<Record> rs = waitForFlightReceived("flight 4", collector, 5);
+
+			// create server session listener to ensure,
+			// that server finish also the handshake
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
+
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (CCS, FINISH)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake succeeded
+			assertTrue("server handshake failed",
+					serverSessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			// Create 2. handshaker
+			sessionListener = new LatchSessionListener();
+			clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
+					createConnection(clientCidGenerator, alternativeServerHelper.serverEndpoint), clientConfig, false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 2. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+
+			// create server session listener to ensure,
+			// that server finish also the handshake
+			serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
+
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake succeeded
+			assertTrue("server handshake failed",
+					serverSessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		} finally {
+			rawClient.stop();
+			alternativeServerHelper.destroyServer();
+			serverHealth.reset();
+		}
+	}
+
 	private void send(Connection connection, TestRecordLayer recordLayer, DTLSMessage... messages)
 			throws GeneralSecurityException, IOException {
 		List<DatagramPacket> datagrams = encode(connection, messages);
@@ -3108,6 +3415,36 @@ public class DTLSConnectorAdvancedTest {
 			datagrams.add(datagram);
 		}
 		return datagrams;
+	}
+
+	private void sendHelloVerifyRequest(RecordLayer recordLayer, List<Record> records)
+			throws GeneralSecurityException, HandshakeException, IOException {
+		if (records.size() == 1) {
+			Record record = records.get(0);
+			record.decodeFragment(DTLSConnectionState.NULL);
+			final ClientHello clientHello = (ClientHello) record.getFragment();
+			if (!clientHello.hasCookie()) {
+				HelloVerifyRequest request = new HelloVerifyRequest(clientHello.getClientVersion(),
+						new byte[] { 0, 1, 2, 3 });
+				request.setMessageSeq(clientHello.getMessageSeq());
+				// use epoch 0 and sequence no from CLIENT_HELLO record as
+				// mandated by section 4.2.1 of the DTLS 1.2 spec
+				// see http://tools.ietf.org/html/rfc6347#section-4.2.1
+				Record helloVerify = new Record(ContentType.HANDSHAKE, clientHello.getClientVersion(),
+						record.getSequenceNumber(), request);
+				helloVerify.setAddress(record.getPeerAddress(), null);
+				byte[] helloVerifyBytes = helloVerify.toByteArray();
+				DatagramPacket datagram = new DatagramPacket(helloVerifyBytes, helloVerifyBytes.length,
+						record.getPeerAddress());
+				recordLayer.sendFlight(Arrays.asList(datagram));
+			} else {
+				throw new IllegalArgumentException(
+						"client_hello contains already a cookie!");
+			}
+		} else {
+			throw new IllegalArgumentException(
+					"flight must contain exactly one handshake message, not " + records.size() + "!");
+		}
 	}
 
 	private HandshakeException processAll(final Handshaker handshaker, final List<Record> records)
