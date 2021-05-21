@@ -107,12 +107,12 @@ public final class SignatureAndHashAlgorithm {
 
 	/**
 	 * Signature algorithms as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a>.
+	 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a>.
 	 * <p>
 	 * Code is at most 255 (1 byte needed for representation).
 	 * 
 	 * Since 2.4: added {@link #ED25519} and {@link #ED448} defined by
-	 * <a href="http://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422</a>.
+	 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422</a>.
 	 */
 	public static enum SignatureAlgorithm {
 
@@ -548,7 +548,7 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Gets the <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature" target="_blank">
+	 * Gets the <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature" target="_blank">
 	 * JCA standard name</a> corresponding to this combination of hash and signature algorithm.
 	 * <p>
 	 * The name returned by this method can be used to instantiate a {@code java.security.Signature} object like this:

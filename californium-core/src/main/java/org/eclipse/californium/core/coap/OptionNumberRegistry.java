@@ -273,7 +273,7 @@ public final class OptionNumberRegistry {
 	/**
 	 * Assert, that the value matches the options's definition.
 	 * 
-	 * See <a href= "https://tools.ietf.org/html/rfc7252#page-53">RFC7252, 5.10.
+	 * See <a href="https://tools.ietf.org/html/rfc7252#page-53" target="_blank">RFC7252, 5.10.
 	 * Option Definitions </a>.
 	 * 
 	 * @param optionNumber option's number
@@ -293,7 +293,7 @@ public final class OptionNumberRegistry {
 	/**
 	 * Assert, that the value length matches the options's definition.
 	 * 
-	 * See <a href= "https://tools.ietf.org/html/rfc7252#page-53">RFC7252, 5.10.
+	 * See <a href="https://tools.ietf.org/html/rfc7252#page-53" target="_blank">RFC7252, 5.10.
 	 * Option Definitions </a>.
 	 * 
 	 * @param optionNumber option's number

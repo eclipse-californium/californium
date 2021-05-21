@@ -109,10 +109,11 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * Type of incoming forwarded messages.
 	 * 
 	 * Unassigned according <a href=
-	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-5">IANA,
-	 * TLS ContentType</a>, and no collision with CoAP messages
-	 * <a href= "https://tools.ietf.org/html/rfc7252#section-3">RFC 7252,
-	 * Message Format</a> (1. byte, version 0b01, others xx xxxx).
+	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-5"
+	 * target= "_blank">IANA, TLS ContentType</a>, and no collision with CoAP
+	 * messages <a href="https://tools.ietf.org/html/rfc7252#section-3" target=
+	 * "_blank">RFC 7252, Message Format</a> (1. byte, version 0b01, others xx
+	 * xxxx).
 	 */
 	public static final Byte RECORD_TYPE_INCOMING = (byte) 63;
 	/**
@@ -121,7 +122,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * Unassigned according <a href=
 	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-5">IANA,
 	 * TLS ContentType</a>, and no collision with CoAP messages
-	 * <a href= "https://tools.ietf.org/html/rfc7252#section-3">RFC 7252,
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-3" target="_blank">RFC 7252,
 	 * Message Format</a> (1. byte, version 0b01, others xx xxxx).
 	 */
 	public static final Byte RECORD_TYPE_OUTGOING = (byte) 62;

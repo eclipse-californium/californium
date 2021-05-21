@@ -446,7 +446,7 @@ public class StringUtil {
 
 	/**
 	 * Checks if a given string is a valid host name as defined by
-	 * <a href="http://tools.ietf.org/html/rfc1123" target="_blank">RFC 1123</a>.
+	 * <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC 1123</a>.
 	 * 
 	 * @param name The name to check.
 	 * @return {@code true} if the name is a valid host name.

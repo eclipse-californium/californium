@@ -31,7 +31,7 @@ import javax.crypto.ShortBufferException;
 
 /**
  * A generic authenticated encryption block cipher mode which uses the 128-bit
- * block cipher AES. See <a href="http://tools.ietf.org/html/rfc3610" target="_blank">RFC
+ * block cipher AES. See <a href="https://tools.ietf.org/html/rfc3610" target="_blank">RFC
  * 3610</a> for details.
  */
 public class CCMBlockCipher {
@@ -144,7 +144,7 @@ public class CCMBlockCipher {
 
 		/**
 		 * Computes CBC-MAC. See
-		 * <a href="http://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610 -
+		 * <a href="https://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610 -
 		 * Authentication</a> for details.
 		 * 
 		 * @param cipher the cipher.
@@ -280,7 +280,7 @@ public class CCMBlockCipher {
 	// Static methods /////////////////////////////////////////////////
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.5" target="_blank">RFC 3610</a>
+	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.5" target="_blank">RFC 3610</a>
 	 * for details.
 	 * 
 	 * @param key the encryption key K.
@@ -300,7 +300,7 @@ public class CCMBlockCipher {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.5" target="_blank">RFC 3610</a>
+	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.5" target="_blank">RFC 3610</a>
 	 * for details.
 	 * 
 	 * @param key the encryption key K.
@@ -372,7 +372,7 @@ public class CCMBlockCipher {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610</a>
+	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610</a>
 	 * for details.
 	 * 
 	 * @param key the encryption key K.
@@ -390,7 +390,7 @@ public class CCMBlockCipher {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610</a>
+	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.2" target="_blank">RFC 3610</a>
 	 * for details.
 	 * 
 	 * @param outputOffset offset of the encrypted message within the resulting byte

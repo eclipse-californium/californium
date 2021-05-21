@@ -20,7 +20,7 @@ package org.eclipse.californium.scandium.dtls;
  * The content type represents a higher-level protocol to process the enclosed
  * fragment. It is one of the four types: ChangeCipherSpec, Alert, Handshake,
  * ApplicationData. For further details see <a
- * href="http://tools.ietf.org/html/rfc5246#appendix-A.1" target="_blank">RFC 5246</a>.
+ * href="https://tools.ietf.org/html/rfc5246#appendix-A.1" target="_blank">RFC 5246</a>.
  */
 public enum ContentType {
 

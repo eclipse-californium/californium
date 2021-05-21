@@ -31,7 +31,7 @@ import org.eclipse.californium.scandium.util.ListUtils;
 
 /**
  * This represents the Certificate Type Extension. See <a
- * href="http://tools.ietf.org/html/rfc7250" target="_blank">RFC 7250</a> for
+ * href="https://tools.ietf.org/html/rfc7250" target="_blank">RFC 7250</a> for
  * details.
  */
 public abstract class CertificateTypeExtension extends HelloExtension {

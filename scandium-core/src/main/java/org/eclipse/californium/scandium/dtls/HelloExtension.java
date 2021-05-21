@@ -27,11 +27,11 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  * An abstract class representing the functionality for all possible defined
  * extensions.
  * <p>
- * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.4" target="_blank">RFC 5246</a>
+ * See <a href="https://tools.ietf.org/html/rfc5246#section-7.4.1.4" target="_blank">RFC 5246</a>
  * for the extension format.
  * <p>
  * In particular this class is an object representation of the <em>Extension</em>
- * struct defined in <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.4" target="_blank">
+ * struct defined in <a href="https://tools.ietf.org/html/rfc5246#section-7.4.1.4" target="_blank">
  * TLS 1.2, Section 7.4.1.4</a>:
  * 
  * <pre>
@@ -113,7 +113,7 @@ public abstract class HelloExtension {
 	 * representation.
 	 * 
 	 * The TLS spec is unspecific about how a server should handle extensions sent by a client
-	 * that it does not understand. However, <a href="http://tools.ietf.org/html/rfc7250#section-4.2" target="_blank">
+	 * that it does not understand. However, <a href="https://tools.ietf.org/html/rfc7250#section-4.2" target="_blank">
 	 * Section 4.2 of RFC 7250</a> mandates that a server implementation must simply ignore
 	 * extensions of type <em>client_certificate_type</em> or <em>server_certificate_type</em>
 	 * if it does not support these extensions.

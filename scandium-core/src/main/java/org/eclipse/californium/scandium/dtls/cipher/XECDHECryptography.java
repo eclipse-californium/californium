@@ -514,10 +514,10 @@ public final class XECDHECryptography implements Destroyable {
 
 	/**
 	 * The <em>Supported Groups</em> as defined in the official
-	 * <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8" target="_blank">
+	 * <a href="https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8" target="_blank">
 	 * IANA Transport Layer Security (TLS) Parameters</a>.
 	 * 
-	 * Also see <a href="http://tools.ietf.org/html/rfc4492#section-5.1.1" target="_blank">RFC 4492,
+	 * Also see <a href="https://tools.ietf.org/html/rfc4492#section-5.1.1" target="_blank">RFC 4492,
 	 * Section 5.1.1 Supported Elliptic Curves Extension</a>.
 	 */
 	public enum SupportedGroup {

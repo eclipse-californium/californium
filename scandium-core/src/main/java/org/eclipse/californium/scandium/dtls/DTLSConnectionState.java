@@ -38,7 +38,7 @@ import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
  * A set of algorithms and corresponding security parameters that together
  * represent the <em>current read</em> or <em>write state</em> of a TLS connection.
  * <p>
- * According to the <a href="http://tools.ietf.org/html/rfc5246#section-6.1" target="_blank">TLS 1.2</a>
+ * According to the <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank">TLS 1.2</a>
  * specification, a connection state <em>specifies a compression algorithm, an encryption
  * algorithm, and a MAC algorithm.  In addition, the parameters for these algorithms are
  * known: the MAC key and the bulk encryption keys for the connection in both the read and

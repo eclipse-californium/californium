@@ -35,7 +35,7 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
 /**
  * The server's ephemeral ECDH.
  * 
- * See <a href="http://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
+ * See <a href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
  * RFC 4492, section 5.4 Server Key Exchange</a> for details regarding
  * the message format.
  * 

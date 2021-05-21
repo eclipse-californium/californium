@@ -64,7 +64,7 @@ import org.junit.runners.Parameterized.Parameters;
  * 
  * Test idea:
  * 
- * <a href="http://www.isg.rhul.ac.uk/tls/TLStiming.pdf" target="_blank"> Lucky
+ * <a href="https://www.isg.rhul.ac.uk/tls/TLStiming.pdf" target="_blank"> Lucky
  * Thirteen:Breaking the TLS and DTLS Record Protocols</a>
  * 
  * Lucky 13 attacks claims to be able to use "timing side channel" in order to

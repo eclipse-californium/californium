@@ -23,7 +23,7 @@ package org.eclipse.californium.scandium.dtls;
  * message sent by the client after it receives the {@link ServerHelloDone}
  * message. This is a super class for the different key exchange methods (i.e.
  * Diffie-Hellman, RSA, Elliptic Curve Diffie-Hellman). See <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.4.7" target="_blank">RFC 5246</a>.
+ * href="https://tools.ietf.org/html/rfc5246#section-7.4.7" target="_blank">RFC 5246</a>.
  */
 public abstract class ClientKeyExchange extends HandshakeMessage {
 

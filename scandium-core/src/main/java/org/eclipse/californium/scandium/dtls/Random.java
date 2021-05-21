@@ -28,7 +28,7 @@ import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
  * A 32-byte value provided by the client and the server in the
  * {@link ClientHello} respectively in the {@link ServerHello} used later in the
  * protocol to compute the premaster secret. See <a
- * href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a> for the
+ * href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a> for the
  * message format.
  */
 public class Random extends Bytes {

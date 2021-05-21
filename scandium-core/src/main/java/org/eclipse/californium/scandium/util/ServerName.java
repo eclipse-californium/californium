@@ -78,7 +78,7 @@ public class ServerName {
 	 * @return The new instance.
 	 * @throws NullPointerException if the host name is {@code null}.
 	 * @throws IllegalArgumentException if the given name is not a valid host name
-	 *               as per <a href="http://tools.ietf.org/html/rfc1123" target="_blank">RFC 1123</a>.
+	 *               as per <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC 1123</a>.
 	 */
 	public static ServerName fromHostName(final String hostName) {
 		if (hostName == null) {

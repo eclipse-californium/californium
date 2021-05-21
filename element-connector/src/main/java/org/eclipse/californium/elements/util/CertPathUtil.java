@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * case."
  * </p>
  * 
- * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.6" target="_blank">RFC5246, Section
+ * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.6" target="_blank">RFC5246, Section
  * 7.4.6, Client Certificate </a>
  * <p>
  * "If the certificate_authorities list in the certificate request message was

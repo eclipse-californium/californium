@@ -167,7 +167,7 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	 * 
 	 * The URI is created using the SHA-256 hash algorithm on the key's
 	 * <em>SubjectPublicKeyInfo</em> as described in
-	 * <a href="http://tools.ietf.org/html/rfc6920#section-2" target="_blank">RFC 6920, section 2</a>.
+	 * <a href="https://tools.ietf.org/html/rfc6920#section-2" target="_blank">RFC 6920, section 2</a>.
 	 * 
 	 * @return the named information URI
 	 */

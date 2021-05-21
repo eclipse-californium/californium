@@ -32,7 +32,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  * <p>
  * Instances of this enumeration do not implement any compression functionality.
  * They merely serve as an object representation of the identifiers defined
- * in <a href="http://tools.ietf.org/html/rfc3749" target="_blank">Transport Layer Security
+ * in <a href="https://tools.ietf.org/html/rfc3749" target="_blank">Transport Layer Security
  * Protocol Compression Methods</a>.
  * <p>
  * Note, that only the {@link #NULL} compression method is supported.

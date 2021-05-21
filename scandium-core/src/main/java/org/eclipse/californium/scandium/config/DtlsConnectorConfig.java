@@ -946,7 +946,7 @@ public final class DtlsConnectorConfig {
 	 * On the client side the connector advertise these supported groups
 	 * (curves) in a DTLS handshake. On the server side the connector limits the
 	 * acceptable supported groups (curves) to this list. According
-	 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
+	 * <a href="https://tools.ietf.org/html/rfc8422#page-11" target= "_blank">RFC 8422, 5.1.
 	 * Client Hello Extensions, Actions of the receiver</a> This affects both,
 	 * curves for ECDH and the certificates for ECDSA.
 	 * 
@@ -1667,7 +1667,7 @@ public final class DtlsConnectorConfig {
 		 * in a single DTLS record.
 		 * <p>
 		 * The value of this property is used to indicate to peers the <em>Maximum Fragment Length</em>
-		 * as defined in <a href="http://tools.ietf.org/html/rfc6066#section-4" target="_blank">RFC 6066, Section 4</a>.
+		 * as defined in <a href="https://tools.ietf.org/html/rfc6066#section-4" target="_blank">RFC 6066, Section 4</a>.
 		 * It is also used to determine the amount of memory that will be allocated for receiving UDP datagrams
 		 * sent by peers from the network interface.
 		 * </p>
@@ -2243,7 +2243,7 @@ public final class DtlsConnectorConfig {
 		 * The connector will use these supported groups (in exactly the same
 		 * order) during the DTLS handshake when negotiating a curve with a
 		 * peer. According
-		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
+		 * <a href="https://tools.ietf.org/html/rfc8422#page-11" target= "_blank">RFC 8422, 5.1.
 		 * Client Hello Extensions, Actions of the receiver</a> This affects
 		 * both, curves for ECDH and the certificates for ECDSA.
 		 * 
@@ -2271,7 +2271,7 @@ public final class DtlsConnectorConfig {
 		 * The connector will use these supported groups (in exactly the same
 		 * order) during the DTLS handshake when negotiating a curve with a
 		 * peer. According
-		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
+		 * <a href="https://tools.ietf.org/html/rfc8422#page-11" target= "_blank">RFC 8422, 5.1.
 		 * Client Hello Extensions, Actions of the receiver</a> This affects
 		 * both, curves for ECDH and the certificates for ECDSA.
 		 * 
@@ -2312,7 +2312,7 @@ public final class DtlsConnectorConfig {
 		 * The connector will use these supported groups (in exactly the same
 		 * order) during the DTLS handshake when negotiating a curve with a
 		 * peer. According
-		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
+		 * <a href="https://tools.ietf.org/html/rfc8422#page-11" target= "_blank">RFC 8422, 5.1.
 		 * Client Hello Extensions, Actions of the receiver</a> This affects
 		 * both, curves for ECDH and the certificates for ECDSA.
 		 * 

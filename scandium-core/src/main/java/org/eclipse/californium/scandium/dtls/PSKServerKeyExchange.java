@@ -26,7 +26,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  * algorithm. To help the client in selecting which identity to use, the server
  * can provide a "PSK identity hint" in the ServerKeyExchange message. If no
  * hint is provided, the ServerKeyExchange message is omitted. See <a
- * href="http://tools.ietf.org/html/rfc4279#section-2" target="_blank">ServerKeyExchange</a> for
+ * href="https://tools.ietf.org/html/rfc4279#section-2" target="_blank">ServerKeyExchange</a> for
  * the message format.
  */
 public final class PSKServerKeyExchange extends ServerKeyExchange {
