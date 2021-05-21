@@ -82,12 +82,17 @@ public interface NewAdvancedCertificateVerifier {
 	 * Get the list of supported certificate types in order of preference.
 	 * 
 	 * @return the list of supported certificate types.
+	 * @since 3.0 (renamed from getSupportedCertificateType)
 	 */
-	List<CertificateType> getSupportedCertificateType();
+	List<CertificateType> getSupportedCertificateTypes();
 
 	/**
-	 * Validates the X.509 certificate chain provided by the the peer as part of
-	 * the certificate message.
+	 * Validates the certificate provided by the the peer as part of the
+	 * certificate message.
+	 * 
+	 * If a x509 certificate chain is provided in the certificate message,
+	 * validate the chain and key usage. If a RawPublicKey certificate is
+	 * provided, check, if this public key is trusted.
 	 * 
 	 * @param cid connection ID
 	 * @param serverName indicated server names.

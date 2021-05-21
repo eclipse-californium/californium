@@ -47,7 +47,7 @@ public class AsyncResumptionVerifier extends ConnectionStoreResumptionVerifier {
 	/**
 	 * Thread factory.
 	 */
-	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncPskStoreTimer#");
+	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncResumptionTimer#");
 	/**
 	 * Executor for asynchronous behaviour.
 	 */
@@ -133,9 +133,7 @@ public class AsyncResumptionVerifier extends ConnectionStoreResumptionVerifier {
 	public ResumptionVerificationResult verifyResumptionRequest(final ConnectionId cid, final ServerNames serverName,
 			final SessionId sessionId) {
 
-		if (delayMillis <= 0)
-
-		{
+		if (delayMillis <= 0) {
 			if (delayMillis < 0) {
 				try {
 					Thread.sleep(-delayMillis);
@@ -148,8 +146,8 @@ public class AsyncResumptionVerifier extends ConnectionStoreResumptionVerifier {
 
 				@Override
 				public void run() {
-					ResumptionVerificationResult result = AsyncResumptionVerifier.super.verifyResumptionRequest(cid, serverName,
-							sessionId);
+					ResumptionVerificationResult result = AsyncResumptionVerifier.super.verifyResumptionRequest(cid,
+							serverName, sessionId);
 					resultHandler.apply(result);
 				}
 			}, delayMillis, TimeUnit.MILLISECONDS);

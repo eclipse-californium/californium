@@ -3203,7 +3203,7 @@ public final class DtlsConnectorConfig {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
 			}
 			if (config.trustCertificateTypes == null && config.advancedCertificateVerifier != null) {
-				config.trustCertificateTypes = config.advancedCertificateVerifier.getSupportedCertificateType();
+				config.trustCertificateTypes = config.advancedCertificateVerifier.getSupportedCertificateTypes();
 			} 
 
 			if (config.serverOnly && !config.clientAuthenticationRequired && !config.clientAuthenticationWanted
@@ -3247,7 +3247,7 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException(
 							"trusted certificates, trusted rpks, or certificate verifier must be set for trust certificates");
 				}
-				List<CertificateType> list = config.advancedCertificateVerifier.getSupportedCertificateType();
+				List<CertificateType> list = config.advancedCertificateVerifier.getSupportedCertificateTypes();
 				for (CertificateType type : config.trustCertificateTypes) {
 					if (!list.contains(type)) {
 						throw new IllegalStateException(
