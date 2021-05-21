@@ -1176,6 +1176,21 @@ public abstract class Handshaker implements Destroyable {
 	protected abstract void processCertificateVerified() throws HandshakeException;
 
 	/**
+	 * Checks, if a internal API call is pending.
+	 * 
+	 * Using {@link AdvancedPskStore} or {@link NewAdvancedCertificateVerifier}
+	 * may result in pending API calls. Such API calls are timed out with the
+	 * current flight and so report as INTERNAL_ERROR alert instead of silently
+	 * ignore that time out.
+	 * 
+	 * @return {@code true}, if call is pending, {@code false}, if not.
+	 * @since 3.0
+	 */
+	protected boolean hasPendingApiCall() {
+		return certificateVerificationPending || pskRequestPending;
+	}
+
+	/**
 	 * Set the signature of the other peer to verified.
 	 * 
 	 * Sets the {@link DTLSSession#setPeerIdentity(Principal)}, if the
@@ -1833,7 +1848,14 @@ public abstract class Handshaker implements Destroyable {
 				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed,{}. Retransmission {} of {}.",
 						flight.getFlightNumber(), flight.getNumberOfMessages(), peerToLog, message, flight.getTries(),
 						maxRetransmissions);
-
+				if (hasPendingApiCall()) {
+					cause = new HandshakeException("Internal callback timeout!",
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+				}
+				if (cause instanceof HandshakeException) {
+					recordLayer.processHandshakeException(connection, (HandshakeException) cause);
+					return;
+				}
 				// inform handshaker
 				if (timeout) {
 					handshaker.handshakeFailed(new DtlsHandshakeTimeoutException(

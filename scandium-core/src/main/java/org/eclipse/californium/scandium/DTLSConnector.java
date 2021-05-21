@@ -2771,6 +2771,11 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		}
 	}
 
+	@Override
+	public void processHandshakeException(Connection connection, HandshakeException error) {
+		processExceptionDuringHandshake(null, connection, error);
+	}
+
 	protected void sendRecord(Record record) throws IOException {
 		if (health != null && record.getType() != ContentType.APPLICATION_DATA) {
 			health.sendingRecord(false);

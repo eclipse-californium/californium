@@ -76,6 +76,10 @@ public class SimpleRecordLayer implements RecordLayer {
 		}
 	}
 
+	@Override
+	public void processHandshakeException(Connection connection, HandshakeException error) {
+	}
+
 	public void setHandshaker(Handshaker handshaker) {
 		this.handshaker = handshaker;
 	}
