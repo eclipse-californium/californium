@@ -525,6 +525,8 @@ public final class DtlsConnectorConfig {
 
 	private Boolean recommendedSupportedGroupsOnly;
 
+	private Boolean recommendedSignatureAndHashAlgorithmsOnly;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -1342,6 +1344,17 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * @return <code>true</code> if only recommended signature and hash
+	 *         algorithms are used.
+	 * @see Builder#setRecommendedSupportedGroupsOnly(boolean)
+	 * 
+	 * @since 3.0
+	 */
+	public Boolean isRecommendedSignatureAndHashAlgorithmsOnly() {
+		return recommendedSignatureAndHashAlgorithmsOnly;
+	}
+
+	/**
 	 * @return a copy of this configuration
 	 */
 	@Override
@@ -1551,6 +1564,25 @@ public final class DtlsConnectorConfig {
 			config.recommendedSupportedGroupsOnly = recommendedSupportedGroupsOnly;
 			if (recommendedSupportedGroupsOnly && config.supportedGroups != null) {
 				verifyRecommendedSupportedGroupsOnly(config.supportedGroups);
+			}
+			return this;
+		}
+
+		/**
+		 * Set usage of recommended signature and hash algorithms.
+		 * 
+		 * @param recommendedSignatureAndHashAlgorithmsOnly {@code true} allow
+		 *            only recommended signature and hash algorithms,
+		 *            {@code false}, also allow not recommended signature and
+		 *            hash algorithms. Default value is {@code true}
+		 * @return this builder for command chaining
+		 * 
+		 * @since 3.0
+		 */
+		public Builder setRecommendedSignatureAndHashAlgorithmsOnly(boolean recommendedSignatureAndHashAlgorithmsOnly) {
+			config.recommendedSignatureAndHashAlgorithmsOnly = recommendedSignatureAndHashAlgorithmsOnly;
+			if (recommendedSignatureAndHashAlgorithmsOnly && config.supportedSignatureAlgorithms != null) {
+				verifyRecommendedSignatureAndHashAlgorithmsOnly(config.supportedSignatureAlgorithms);
 			}
 			return this;
 		}
@@ -2176,7 +2208,10 @@ public final class DtlsConnectorConfig {
 		 *            specific extension is to be used for a client, and the
 		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
 		 * @return this builder for command chaining
-		 * @since 2.3
+		 * @throws IllegalArgumentException if the list violates the
+		 *             {@link #setRecommendedSignatureAndHashAlgorithmsOnly(boolean)}
+		 *             setting.
+		 * @since 3.0 (reports recommendedSignatureAndHashAlgorithmsOnly violations)
 		 */
 		public Builder setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm... supportedSignatureAlgorithms) {
 			List<SignatureAndHashAlgorithm> list = null;
@@ -2197,9 +2232,16 @@ public final class DtlsConnectorConfig {
 		 *            specific extension is to be used for a client, and the
 		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
 		 * @return this builder for command chaining
-		 * @since 2.3
+		 * @throws IllegalArgumentException if the list violates the
+		 *             {@link #setRecommendedSignatureAndHashAlgorithmsOnly(boolean)}
+		 *             setting.
+		 * @since 3.0 (reports recommendedSignatureAndHashAlgorithmsOnly violations)
 		 */
 		public Builder setSupportedSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms) {
+			if (supportedSignatureAlgorithms != null && (config.recommendedSignatureAndHashAlgorithmsOnly == null
+					|| config.recommendedSignatureAndHashAlgorithmsOnly)) {
+				verifyRecommendedSignatureAndHashAlgorithmsOnly(supportedSignatureAlgorithms);
+			}
 			config.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 			return this;
 		}
@@ -2215,8 +2257,12 @@ public final class DtlsConnectorConfig {
 		 *            specific extension is to be used for a client, and the
 		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
 		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if the list violates the
+		 *             {@link #setRecommendedSignatureAndHashAlgorithmsOnly(boolean)}
+		 *             setting or not supported signature and algorithms are
+		 *             contained in the list.
 		 * @see SignatureAndHashAlgorithm#valueOf(String)
-		 * @since 2.3
+		 * @since 3.0 (reports recommendedSignatureAndHashAlgorithmsOnly violations)
 		 */
 		public Builder setSupportedSignatureAlgorithms(String... supportedSignatureAlgorithms) {
 			List<SignatureAndHashAlgorithm> list = null;
@@ -3278,12 +3324,12 @@ public final class DtlsConnectorConfig {
 
 			if (ecc) {
 				if (config.supportedSignatureAlgorithms.isEmpty()) {
-					if (config.certChain == null && config.publicKey != null) {
-						config.supportedSignatureAlgorithms = SignatureAndHashAlgorithm
-								.getDefaultSignatureAlgorithms(config.publicKey);
-					} else {
-						config.supportedSignatureAlgorithms = SignatureAndHashAlgorithm
-								.getDefaultSignatureAlgorithms(config.certChain);
+					config.supportedSignatureAlgorithms = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
+					ListUtils.addIfAbsent(config.supportedSignatureAlgorithms,
+							SignatureAndHashAlgorithm.getSignatureAlgorithms(config.certChain));
+					if (config.publicKey != null) {
+						SignatureAndHashAlgorithm.ensureDefaultSignatureAlgorithm(config.supportedSignatureAlgorithms,
+								config.publicKey);
 					}
 				}
 				if (config.supportedGroups.isEmpty()) {
@@ -3398,8 +3444,24 @@ public final class DtlsConnectorConfig {
 				}
 			}
 			if (message.length() > 0) {
-				throw new IllegalStateException("Not recommended supported groups (curves) " + message
+				throw new IllegalArgumentException("Not recommended supported groups (curves) " + message
 						+ " used! (Requires to set recommendedSupportedGroupsOnly to false.)");
+			}
+		}
+
+		private void verifyRecommendedSignatureAndHashAlgorithmsOnly(List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
+			StringBuilder message = new StringBuilder();
+			for (SignatureAndHashAlgorithm signature : signatureAndHashAlgorithms) {
+				if (!signature.isRecommended()) {
+					if (message.length() > 0) {
+						message.append(", ");
+					}
+					message.append(signature.getJcaName());
+				}
+			}
+			if (message.length() > 0) {
+				throw new IllegalArgumentException("Not recommended signature and hash algorithms " + message
+						+ " used! (Requires to set recommendedSignatureAndHashAlgorithmsOnly to false.)");
 			}
 		}
 
@@ -3462,9 +3524,9 @@ public final class DtlsConnectorConfig {
 		private void addSupportedGroups(List<SupportedGroup> defaultGroups, PublicKey publicKey) {
 			if (publicKey != null) {
 				SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
-				if (group != null && group.isUsable() && !defaultGroups.contains(group)) {
+				if (group != null && group.isUsable()) {
 					if (!config.recommendedSupportedGroupsOnly || group.isRecommended()) {
-						defaultGroups.add(group);
+						ListUtils.addIfAbsent(defaultGroups, group);
 					}
 				}
 			}

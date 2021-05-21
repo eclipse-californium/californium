@@ -54,6 +54,7 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgor
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
@@ -192,6 +193,20 @@ public class DtlsConnectorConfigTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(containsString("Not recommended cipher suites"));
 		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+	}
+
+	@Test
+	public void testBuilderDetectsNotRecommendedSignatureAndHashAlgorithms() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(containsString("Not recommended signature and hash algorithms"));
+		builder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA);
+	}
+
+	@Test
+	public void testBuilderDetectsNotRecommendedSupportedGroup() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(containsString("Not recommended supported groups"));
+		builder.setSupportedGroups(XECDHECryptography.SupportedGroup.sect163k1);
 	}
 
 	@Test
@@ -354,6 +369,7 @@ public class DtlsConnectorConfigTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
 		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setAdvancedCertificateVerifier(verifier)
+				.setRecommendedSignatureAndHashAlgorithmsOnly(false)
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
 				.build();
 	}
@@ -386,6 +402,7 @@ public class DtlsConnectorConfigTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
 		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain())
 				.setAdvancedCertificateVerifier(verifier)
+				.setRecommendedSignatureAndHashAlgorithmsOnly(false)
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
 				.build();
 	}
