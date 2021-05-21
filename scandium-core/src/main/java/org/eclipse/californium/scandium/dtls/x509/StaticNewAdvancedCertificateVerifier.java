@@ -78,10 +78,12 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	 * @param trustedRPKs trusted RPK identities. {@code null} not support RPK,
 	 *            empty, to trust all.
 	 * @param supportedCertificateTypes list of supported certificate type in
-	 *            order of preference.
-	 * @throws IllegalArgumentException if both verifier are {@code null}.
-	 * @throws NullPointerException if the list of supported certificate types
-	 *             is {@code null}
+	 *            order of preference. {@code null} to create a list based on
+	 *            the provided trusts with Raw Public key before x509.
+	 * @throws IllegalArgumentException if both, trustedCertificates and
+	 *             trustedRPKs, are {@code null}, the supportedCertificateTypes
+	 *             is empty, or the trusts for an provided certificate type are
+	 *             {@code null}.
 	 */
 	public StaticNewAdvancedCertificateVerifier(X509Certificate[] trustedCertificates,
 			RawPublicKeyIdentity[] trustedRPKs, List<CertificateType> supportedCertificateTypes) {
@@ -113,7 +115,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	}
 
 	@Override
-	public List<CertificateType> getSupportedCertificateType() {
+	public List<CertificateType> getSupportedCertificateTypes() {
 		return supportedCertificateTypes;
 	}
 
