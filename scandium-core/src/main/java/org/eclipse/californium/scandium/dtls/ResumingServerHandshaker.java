@@ -199,6 +199,15 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		handshakeCompleted();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Additionally check, if a call to {@link ResumptionVerifier} is pending.
+	 */
+	protected boolean hasPendingApiCall() {
+		return pendingClientHello != null || super.hasPendingApiCall();
+	}
+
 	@Override
 	public void processAsyncHandshakeResult(HandshakeResult handshakeResult) throws HandshakeException {
 		if (handshakeResult instanceof ResumptionVerificationResult) {

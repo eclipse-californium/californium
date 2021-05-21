@@ -117,6 +117,8 @@ public interface RecordLayer {
 	 */
 	void processRecord(Record record, Connection connection);
 
+	void processHandshakeException(Connection connection, HandshakeException error);
+
 	/**
 	 * Report dropped record
 	 * 

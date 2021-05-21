@@ -417,6 +417,7 @@ public class DTLSConnectorAdvancedTest {
 		clientCertificateVerifier.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
 		serverPskStore.setDelay(0);
 		serverCertificateVerifier.setDelay(0);
+		serverResumptionVerifier.setDelay(0);
 		client = serverHelper.createClient(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 		client.start();
@@ -2644,11 +2645,11 @@ public class DTLSConnectorAdvancedTest {
 			// (CLIENT_KEY_EXCHANGE, CHANGE CIPHER SPEC, ..., FINISHED)
 			processAll(clientHandshaker, rs);
 
-			// Ensure handshake failed
-			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
-			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
+			waitForAlertReceived("timeout", collector);
+
+			Throwable error = serverSessionListener.waitForSessionFailed(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("server handshake not failed", error);
-			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
+			assertThat(error, instanceOf(HandshakeException.class));
 			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawClient.stop();
@@ -2775,11 +2776,11 @@ public class DTLSConnectorAdvancedTest {
 			// (CLIENT_KEY_EXCHANGE, CHANGE CIPHER SPEC, ..., FINISHED)
 			processAll(clientHandshaker, rs);
 
-			// Ensure handshake failed
-			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
-			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
+			waitForAlertReceived("timeout", collector);
+
+			Throwable error = serverSessionListener.waitForSessionFailed(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("server handshake not failed", error);
-			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
+			assertThat(error, instanceOf(HandshakeException.class));
 			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawClient.stop();
@@ -2978,7 +2979,6 @@ public class DTLSConnectorAdvancedTest {
 			}
 
 			aHandshakeResponses = 0; // no resumption verification response
-			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// Create resume handshaker
 			sessionListener = new LatchSessionListener();
@@ -2990,19 +2990,12 @@ public class DTLSConnectorAdvancedTest {
 			// Start resuming handshake (Send CLIENT HELLO, additional flight)
 			resumingClientHandshaker.startHandshake();
 
-			// create server session listener to ensure,
-			// that server finish also the handshake
-			LatchSessionListener newServerSessionListener = getSessionListenerForEndpoint("server", rawClient);
-			while (newServerSessionListener == serverSessionListener) {
-				Thread.sleep(100);
-				newServerSessionListener = getSessionListenerForEndpoint("server", rawClient);
-			}
+			waitForAlertReceived("timeout", collector);
 
-			// Ensure handshake failed
-			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
-			Throwable error = newServerSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
+			Throwable error = serverSessionListener.waitForSessionFailed(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("server handshake not failed", error);
-			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
+			assertThat(error, instanceOf(HandshakeException.class));
 			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawClient.stop();
@@ -3153,6 +3146,20 @@ public class DTLSConnectorAdvancedTest {
 			run.run();
 		}
 		return cause.get();
+	}
+
+	private Record waitForAlertReceived(String description, RecordCollectorDataHandler collector)
+			throws InterruptedException {
+		int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+		List<Record> rs = collector.waitForFlight(1, timeout, TimeUnit.MILLISECONDS);
+		assertNotNull(description + " missing alert!", rs);
+		assertThat(description + " unexpected records!", rs.size(), is(1));
+
+		// Ensure handshake failed
+		Record record = rs.get(0);
+		assertThat(description + " unexpected record type " + record.getType(), record.getType(),
+				is(ContentType.ALERT));
+		return record;
 	}
 
 	private List<Record> waitForFlightReceived(String description, RecordCollectorDataHandler collector, int records)
@@ -3361,6 +3368,10 @@ public class DTLSConnectorAdvancedTest {
 		public void processRecord(Record record, Connection connection) {
 			// records are fetched with getMessagesOfFlight and
 			// handed over to the handshaker within the test
+		}
+
+		@Override
+		public void processHandshakeException(Connection connection, HandshakeException error) {
 		}
 
 		@Override
