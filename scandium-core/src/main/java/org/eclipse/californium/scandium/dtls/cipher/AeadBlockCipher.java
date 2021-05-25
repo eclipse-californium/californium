@@ -43,16 +43,15 @@ public class AeadBlockCipher {
 	 */
 	public final static boolean isSupported(String transformation, int keyLength) {
 		try {
+			int keyLengthBits = keyLength * Byte.SIZE;
 			// check, if java-vm supports transformation
-			Cipher cipher;
 			if (AES_CCM.equals(transformation)) {
-				cipher = CCMBlockCipher.CIPHER.current();
+				if (CCMBlockCipher.isSupported()) {
+					return keyLengthBits <= CCMBlockCipher.getMaxAllowedKeyLength();
+				}
 			} else {
-				cipher = Cipher.getInstance(transformation);
-			}
-			if (cipher != null) {
-				int maxAllowedKeyLengthBits = Cipher.getMaxAllowedKeyLength(cipher.getAlgorithm());
-				return keyLength * 8 <= maxAllowedKeyLengthBits;
+				Cipher cipher = Cipher.getInstance(transformation);
+				return keyLengthBits <= Cipher.getMaxAllowedKeyLength(cipher.getAlgorithm());
 			}
 		} catch (GeneralSecurityException ex) {
 		}
