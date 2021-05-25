@@ -531,7 +531,6 @@ public class ClientHandshaker extends Handshaker {
 		 * algorithm.
 		 */
 		PskPublicInformation clientIdentity;
-		PskSecretResult masterSecretResult;
 		DTLSSession session = getSession();
 		KeyExchangeAlgorithm keyExchangeAlgorithm = session.getKeyExchange();
 		XECDHECryptography ecdhe = null;
@@ -575,10 +574,7 @@ public class ClientHandshaker extends Handshaker {
 			clientKeyExchange = new PSKClientKeyExchange(clientIdentity);
 			wrapMessage(flight5, clientKeyExchange);
 			seed = generateMasterSecretSeed();
-			masterSecretResult = requestPskSecretResult(clientIdentity, null, seed);
-			if (masterSecretResult != null) {
-				processPskSecretResult(masterSecretResult);
-			}
+			requestPskSecretResult(clientIdentity, null, seed);
 			break;
 		case ECDHE_PSK:
 			clientIdentity = getPskClientIdentity();
@@ -586,10 +582,7 @@ public class ClientHandshaker extends Handshaker {
 			clientKeyExchange = new EcdhPskClientKeyExchange(clientIdentity, encodedPoint);
 			wrapMessage(flight5, clientKeyExchange);
 			seed = generateMasterSecretSeed();
-			masterSecretResult = requestPskSecretResult(clientIdentity, ecdheSecret, seed);
-			if (masterSecretResult != null) {
-				processPskSecretResult(masterSecretResult);
-			}
+			requestPskSecretResult(clientIdentity, ecdheSecret, seed);
 			break;
 
 		default:
