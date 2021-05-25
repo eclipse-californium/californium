@@ -23,6 +23,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 import javax.crypto.Cipher;
@@ -44,9 +45,17 @@ public class CCMBlockCipher {
 
 	/**
 	 * The underlying block cipher.
+	 * <p>
+	 * <b>Note:</b> code scanners seems to be limited in analyzing code.
+	 * Therefore some code scanners may report the use of "AES/ECB" as finding.
+	 * This implementation uses the basic form of AES ciphers (AES/ECB) to build
+	 * AES/CCM for older JREs. For more details, see
+	 * <a href="https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation"
+	 * target="_blank"> Wikipedia, Block cipher mode of operation</a>
+	 * </p>
 	 */
-	public static final String CIPHER_NAME = "AES/ECB/NoPadding";
-	public static final ThreadLocalCipher CIPHER = new ThreadLocalCipher(CIPHER_NAME);
+	private static final String CIPHER_NAME = "AES/ECB/NoPadding";
+	private static final ThreadLocalCipher CIPHER = new ThreadLocalCipher(CIPHER_NAME);
 
 	private static abstract class Block {
 
@@ -278,6 +287,33 @@ public class CCMBlockCipher {
 
 	}
 	// Static methods /////////////////////////////////////////////////
+
+	/**
+	 * Checks, if AES/CCM cipher is supported.
+	 * 
+	 * Checks, if the AES/ECB cipher is supported for this JRE in order to build
+	 * a AES/CCM cipher based on that.
+	 * 
+	 * @return {@code true}, if AES/CCM is supported, {@code false}, if not.
+	 * @since 3.0
+	 */
+	public static boolean isSupported() {
+		return CIPHER.isSupported();
+	}
+
+	/**
+	 * Returns the maximum key length for AES/CCM according to the installed JCE
+	 * jurisdiction policy files.
+	 * 
+	 * @return the maximum key length in bits or {@link Integer#MAX_VALUE}.
+	 * 
+	 * @throws NoSuchAlgorithmException if "AES/ECB" is not supported.
+	 * @see Cipher#getMaxAllowedKeyLength(String)
+	 * @since 3.0
+	 */
+	public static int getMaxAllowedKeyLength() throws NoSuchAlgorithmException {
+		return Cipher.getMaxAllowedKeyLength(CIPHER_NAME);
+	}
 
 	/**
 	 * See <a href="https://tools.ietf.org/html/rfc3610#section-2.5" target="_blank">RFC 3610</a>

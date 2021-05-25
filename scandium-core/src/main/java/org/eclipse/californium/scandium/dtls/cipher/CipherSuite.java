@@ -769,7 +769,6 @@ public enum CipherSuite {
 	 */
 	private enum MACAlgorithm {
 		NULL(null, null, 0, 0, 0),
-		HMAC_MD5("HmacMD5", "MD5",16, 0, 0),
 		HMAC_SHA1("HmacSHA1", "SHA-1", 20, 8, 64),
 		HMAC_SHA256("HmacSHA256", "SHA-256", 32, 8, 64),
 		HMAC_SHA384("HmacSHA384", "SHA-384", 48, 16, 128),
@@ -916,7 +915,6 @@ public enum CipherSuite {
 		// key_length & record_iv_length as documented in RFC 5426, Appendix C
 		// see http://tools.ietf.org/html/rfc5246#appendix-C
 		NULL("NULL", CipherType.NULL, 0, 0, 0),
-		B_3DES_EDE_CBC("DESede/CBC/NoPadding", CipherType.BLOCK, 24, 0, 8), // don't know
 		AES_128_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 16, 0, 16), // http://www.ietf.org/mail-archive/web/tls/current/msg08445.html
 		AES_256_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 32, 0, 16),
 		AES_128_CCM_8(AeadBlockCipher.AES_CCM, CipherType.AEAD, 16, 4, 8, 8), // explicit nonce (record IV) length = 8
