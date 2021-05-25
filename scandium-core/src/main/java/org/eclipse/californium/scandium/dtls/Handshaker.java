@@ -914,7 +914,7 @@ public abstract class Handshaker implements Destroyable {
 					LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
 							HandshakeState.toString(message), getSession().getPeer(), expectedState);
 				}
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
 						session.getPeer());
 				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
 						+ " handshake message, " + expectedState + " expected!", alert);
