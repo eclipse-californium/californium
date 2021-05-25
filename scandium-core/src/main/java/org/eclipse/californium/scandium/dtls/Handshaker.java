@@ -1350,12 +1350,11 @@ public abstract class Handshaker implements Destroyable {
 	 * @param pskIdentity PSK identity
 	 * @param otherSecret others secret for ECHDE support. Maybe {@code null}.
 	 * @param seed seed to be used for (extended) master secret.
-	 * @return psk secret result. {@code null}, if result is returned
-	 *         asynchronous.
+	 * @throws HandshakeException if an error occurs
 	 * @throws NullPointerException if seed is {@code null}
 	 * @since 3.0 (added parameter seed)
 	 */
-	protected PskSecretResult requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret, byte[] seed) {
+	protected void requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret, byte[] seed) throws HandshakeException {
 		if (seed == null) {
 			throw new NullPointerException("seed must not be null!");
 		}
@@ -1365,8 +1364,11 @@ public abstract class Handshaker implements Destroyable {
 		pskRequestPending = true;
 		masterSecretSeed = seed;
 		this.otherSecret = SecretUtil.create(otherSecret);
-		return advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
+		PskSecretResult result = advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
 				hmacAlgorithm, otherSecret, masterSecretSeed, session.useExtendedMasterSecret());
+		if (result != null) {
+			processPskSecretResult(result);
+		}
 	}
 
 	protected final void setCurrentReadState() {

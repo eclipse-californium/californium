@@ -279,20 +279,13 @@ public class ServerHandshaker extends Handshaker {
 			break;
 
 		case CLIENT_KEY_EXCHANGE:
-			PskSecretResult masterSecretResult;
 			switch (getSession().getKeyExchange()) {
 			case PSK:
-				masterSecretResult = receivedClientKeyExchange((PSKClientKeyExchange) message);
-				if (masterSecretResult != null) {
-					processPskSecretResult(masterSecretResult);
-				}
+				receivedClientKeyExchange((PSKClientKeyExchange) message);
 				break;
 
 			case ECDHE_PSK:
-				masterSecretResult = receivedClientKeyExchange((EcdhPskClientKeyExchange) message);
-				if (masterSecretResult != null) {
-					processPskSecretResult(masterSecretResult);
-				}
+				receivedClientKeyExchange((EcdhPskClientKeyExchange) message);
 				break;
 
 			case EC_DIFFIE_HELLMAN:
@@ -673,27 +666,36 @@ public class ServerHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the client's key exchange message.
-	 * @return the master secret
+	 * @throws HandshakeException  if an error occurs
 	 */
-	private PskSecretResult receivedClientKeyExchange(PSKClientKeyExchange message) {
+	private void receivedClientKeyExchange(PSKClientKeyExchange message) throws HandshakeException {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
 		byte[] seed = generateMasterSecretSeed();
-		return requestPskSecretResult(preSharedKeyIdentity, null, seed);
+		requestPskSecretResult(preSharedKeyIdentity, null, seed);
 	}
 
-	private PskSecretResult receivedClientKeyExchange(EcdhPskClientKeyExchange message) throws HandshakeException {
+	/**
+	 * Retrieves the preshared key from the identity hint and then generates the
+	 * master secret using also the result of the ECDHE key exchange.
+	 * 
+	 * @param message
+	 *            the client's key exchange message.
+	 * @throws HandshakeException  if an error occurs
+	 */
+	private void receivedClientKeyExchange(EcdhPskClientKeyExchange message) throws HandshakeException {
+		SecretKey otherSecret = null;
 		try {
 			// use the client's PSK identity to look up the pre-shared key
 			preSharedKeyIdentity = message.getIdentity();
-			SecretKey otherSecret = ecdhe.generateSecret(message.getEncodedPoint());
+			otherSecret = ecdhe.generateSecret(message.getEncodedPoint());
 			byte[] seed = generateMasterSecretSeed();
-			PskSecretResult masterSecretRequest = requestPskSecretResult(preSharedKeyIdentity, otherSecret, seed);
-			SecretUtil.destroy(otherSecret);
-			return masterSecretRequest;
+			requestPskSecretResult(preSharedKeyIdentity, otherSecret, seed);
 		} catch (GeneralSecurityException ex) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
 			throw new HandshakeException("Cannot process handshake message, caused by " + ex.getMessage(), alert, ex);
+		} finally {
+			SecretUtil.destroy(otherSecret);
 		}
 	}
 
