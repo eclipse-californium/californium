@@ -505,7 +505,7 @@ public class HandshakerTest {
 
 		public void createKeys() {
 			byte[] secret = Bytes.createBytes(RandomManager.currentSecureRandom(), 48);
-			masterSecret = SecretUtil.create(secret, "MAC");
+			SecretKey masterSecret = SecretUtil.create(secret, "MAC");
 			clientRandom = new Random();
 			serverRandom = new Random();
 			calculateKeys(masterSecret);
@@ -520,7 +520,7 @@ public class HandshakerTest {
 		}
 
 		@Override
-		protected void processMasterSecret(SecretKey masterSecret) {
+		protected void processMasterSecret() {
 		}
 
 		@Override

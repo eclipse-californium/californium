@@ -62,7 +62,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
@@ -290,7 +289,9 @@ public class ServerHandshaker extends Handshaker {
 
 			case EC_DIFFIE_HELLMAN:
 				SecretKey masterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) message);
-				processMasterSecret(masterSecret);
+				applyMasterSecret(masterSecret);
+				SecretUtil.destroy(masterSecret);
+				processMasterSecret();
 				break;
 
 			default:
@@ -301,7 +302,7 @@ public class ServerHandshaker extends Handshaker {
 
 		case CERTIFICATE_VERIFY:
 			receivedCertificateVerify((CertificateVerify) message);
-			if (masterSecret != null && otherPeersCertificateVerified) {
+			if (hasMasterSecret() && otherPeersCertificateVerified) {
 				expectChangeCipherSpecMessage();
 			}
 			break;
@@ -318,9 +319,7 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected void processMasterSecret(SecretKey masterSecret) {
-		applyMasterSecret(masterSecret);
-		SecretUtil.destroy(masterSecret);
+	protected void processMasterSecret() {
 		if (isExpectedStates(NO_CLIENT_CERTIFICATE) ||
 			(isExpectedStates(EMPTY_CLIENT_CERTIFICATE)) ||
 			(isExpectedStates(CLIENT_CERTIFICATE) && otherPeersCertificateVerified && certificateVerifyMessage != null)) {
@@ -330,7 +329,7 @@ public class ServerHandshaker extends Handshaker {
 
 	@Override
 	protected void processCertificateVerified() {
-		if ( masterSecret != null && certificateVerifyMessage != null) {
+		if (hasMasterSecret() && certificateVerifyMessage != null) {
 			expectChangeCipherSpecMessage();
 		}
 	}
@@ -409,28 +408,10 @@ public class ServerHandshaker extends Handshaker {
 
 		// create handshake hash
 		MessageDigest md = getHandshakeMessageDigest();
+		MessageDigest mdWithClientFinished = cloneMessageDigest(md);
 
-		MessageDigest mdWithClientFinished;
-		try {
-			/*
-			 * the handshake_messages for the Finished message sent by the
-			 * client will be different from that for the Finished message sent
-			 * by the server, because the one that is sent second will include
-			 * the prior one.
-			 */
-			mdWithClientFinished = (MessageDigest) md.clone();
-		} catch (CloneNotSupportedException e) {
-			throw new HandshakeException(
-					"Cannot create FINISHED message hash",
-					new AlertMessage(
-							AlertLevel.FATAL,
-							AlertDescription.INTERNAL_ERROR));
-		}
-
-		Mac mac = getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac();
 		// Verify client's data
-		message.verifyData(mac, masterSecret, true, md.digest());
-
+		verifyFinished(message, md.digest());
 		/*
 		 * First, send ChangeCipherSpec
 		 */
@@ -442,7 +423,7 @@ public class ServerHandshaker extends Handshaker {
 		 * Second, send Finished message
 		 */
 		mdWithClientFinished.update(message.toByteArray());
-		Finished finished = new Finished(mac, masterSecret, false, mdWithClientFinished.digest());
+		Finished finished = createFinishedMessage(mdWithClientFinished.digest());
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		contextEstablished();

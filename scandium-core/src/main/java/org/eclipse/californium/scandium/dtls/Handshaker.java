@@ -136,7 +136,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * The master secret for this handshake.
 	 */
-	protected SecretKey masterSecret;
+	private SecretKey masterSecret;
 	private SecretKey clientWriteMACKey;
 	private SecretKey serverWriteMACKey;
 
@@ -1089,7 +1089,9 @@ public abstract class Handshaker implements Destroyable {
 					newPskSecret = masterSecret;
 				}
 				setCustomArgument(pskSecretResult);
-				processMasterSecret(newPskSecret);
+				applyMasterSecret(newPskSecret);
+				SecretUtil.destroy(newPskSecret);
+				processMasterSecret();
 			} else {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY);
 				if (hostName != null) {
@@ -1111,11 +1113,10 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Do the handshaker specific master secret processing
 	 * 
-	 * @param masterSecret master secret
 	 * @throws HandshakeException if an error occurs
 	 * @since 2.3
 	 */
-	protected abstract void processMasterSecret(SecretKey masterSecret) throws HandshakeException;
+	protected abstract void processMasterSecret() throws HandshakeException;
 
 	/**
 	 * Process certificate verification result.
@@ -1228,15 +1229,33 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Clone message digest for second FINISHED message.
+	 * 
+	 * @param md message digest
+	 * @return cloned message digest
+	 * @throws HandshakeException if cloning fails.
+	 * @since 3.0
+	 */
+	protected final MessageDigest cloneMessageDigest(MessageDigest md) throws HandshakeException {
+		try {
+			return (MessageDigest) md.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new HandshakeException("Cannot create hash for second FINISHED message",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+		}
+	}
+
+	/**
 	 * Applying the key expansion on the master secret generates a large key
 	 * block to generate the encryption, MAC and IV keys. Also set the master
-	 * secret to the session for resumption handshakes.
+	 * secret to the session for later resumption handshakes.
 	 * 
 	 * See <a href="https://tools.ietf.org/html/rfc5246#section-6.3" target="_blank">RFC5246</a>
 	 * for further details about the keys.
 	 * 
 	 * @param masterSecret the master secret.
 	 * @see #masterSecret
+	 * @see #calculateKeys(SecretKey)
 	 * @since 2.3
 	 */
 	protected void applyMasterSecret(SecretKey masterSecret) {
@@ -1244,6 +1263,19 @@ public abstract class Handshaker implements Destroyable {
 		this.masterSecret = SecretUtil.create(masterSecret);
 		calculateKeys(masterSecret);
 		getSession().setMasterSecret(masterSecret);
+	}
+
+	/**
+	 * Resume master secret from established session.
+	 * 
+	 * @see #masterSecret
+	 * @see #calculateKeys(SecretKey)
+	 * @since 3.0
+	 */
+	protected void resumeMasterSecret() {
+		ensureUndestroyed();
+		this.masterSecret = getSession().getMasterSecret();
+		calculateKeys(masterSecret);
 	}
 
 	/**
@@ -1385,6 +1417,47 @@ public abstract class Handshaker implements Destroyable {
 		} else {
 			context.createWriteState(serverWriteKey, serverWriteIV, serverWriteMACKey);
 		}
+	}
+
+	/**
+	 * Create the FINISHED message for a pending handshake.
+	 * 
+	 * @param handshakeHash
+	 *            the hash of the handshake messages
+	 * @return create FINISHED message
+	 * @since 3.0
+	 */
+	protected final Finished createFinishedMessage(byte[] handshakeHash) {
+		if (masterSecret == null) {
+			throw new IllegalStateException("master secret not available!");
+		}
+		return new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient(), handshakeHash);
+	}
+
+	/**
+	 * Verify the handshake hash of the FINISHED.
+	 * 
+	 * @param finished received FINISHED message.
+	 * @param handshakeHash
+	 *            the hash of the handshake messages
+	 * @throws HandshakeException if the data can not be verified
+	 * @since 3.0
+	 */
+	protected final void verifyFinished(Finished finished, byte[] handshakeHash) throws HandshakeException {
+		if (masterSecret == null) {
+			throw new IllegalStateException("master secret not available!");
+		}
+		finished.verifyData(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, !isClient(), handshakeHash);
+	}
+
+	/**
+	 * Checks, if the master secret is available.
+	 * 
+	 * @return {@code true}, if available, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public final boolean hasMasterSecret() {
+		return masterSecret != null;
 	}
 
 	/**

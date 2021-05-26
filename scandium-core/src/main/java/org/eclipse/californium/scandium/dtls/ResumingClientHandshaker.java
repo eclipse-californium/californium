@@ -40,8 +40,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.MessageDigest;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.crypto.Mac;
-
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -236,8 +234,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			}
 			setExpectedStates(ABBREVIATED_HANDSHAKE);
 			expectChangeCipherSpecMessage();
-			masterSecret = session.getMasterSecret();
-			calculateKeys(masterSecret);
+			resumeMasterSecret();
 		}
 	}
 
@@ -258,31 +255,18 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		// update the handshake hash
 		MessageDigest md = getHandshakeMessageDigest();
+		MessageDigest mdWithServerFinish = cloneMessageDigest(md);
 
-		MessageDigest mdWithServerFinish;
-		try {
-			// the client's finished verify_data must also contain the server's
-			// finished message
-			mdWithServerFinish = (MessageDigest) md.clone();
-		} catch (CloneNotSupportedException e) {
-			throw new HandshakeException(
-					"Cannot create FINISHED message hash",
-					new AlertMessage(
-							AlertLevel.FATAL,
-							AlertDescription.INTERNAL_ERROR));
-		}
-
-		Mac mac = getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac();
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
-		message.verifyData(mac, masterSecret, false, md.digest());
+		verifyFinished(message, md.digest());
 
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
-		mdWithServerFinish.update(message.getRawMessage());
-		Finished finished = new Finished(mac, masterSecret, true, mdWithServerFinish.digest());
+		mdWithServerFinish.update(message.toByteArray());
+		Finished finished = createFinishedMessage(mdWithServerFinish.digest());
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		contextEstablished();

@@ -90,17 +90,9 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		// can't do this on the fly, since there is no explicit ordering of
 		// messages
 		MessageDigest md = getHandshakeMessageDigest();
-		MessageDigest mdWithClientFinished;
-		try {
-			mdWithClientFinished = (MessageDigest) md.clone();
-		} catch (CloneNotSupportedException e) {
-			throw new HandshakeException(
-					"Cannot create FINISHED message",
-					new AlertMessage(
-							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
-		}
+		MessageDigest mdWithClientFinished = cloneMessageDigest(md);
 
-		Finished finished = new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient(), md.digest());
+		Finished finished = createFinishedMessage(md.digest());
 		wrapMessage(flight5, finished);
 
 		// compute handshake hash with client's finished message also
