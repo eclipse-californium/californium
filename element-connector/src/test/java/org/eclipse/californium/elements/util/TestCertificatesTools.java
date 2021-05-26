@@ -32,6 +32,8 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.security.auth.x500.X500Principal;
 
 public class TestCertificatesTools {
@@ -60,6 +62,8 @@ public class TestCertificatesTools {
 
 	private static final SecureRandom random = new SecureRandom();
 
+	private static X509ExtendedKeyManager clientKeyManager;
+	private static X509ExtendedKeyManager serverKeyManager;
 	private static SslContextUtil.Credentials clientCredentials;
 	private static SslContextUtil.Credentials serverCredentials;
 	private static SslContextUtil.Credentials serverRsaCredentials;
@@ -82,6 +86,15 @@ public class TestCertificatesTools {
 			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
 					TRUST_STORE_URI, null, TRUST_STORE_PASSWORD);
 
+			KeyManager[] manager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			if (manager != null && manager.length > 0) {
+				serverKeyManager = (X509ExtendedKeyManager) manager[0];
+			}
+			manager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "client", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			if (manager != null && manager.length > 0) {
+				clientKeyManager = (X509ExtendedKeyManager) manager[0];
+			}
+
 			trustedCertificates = SslContextUtil.asX509Certificates(certificates);
 			certificates = SslContextUtil.loadTrustedCertificates(
 					TRUST_STORE_URI, ROOT_CA_ALIAS, TRUST_STORE_PASSWORD);
@@ -96,11 +109,19 @@ public class TestCertificatesTools {
 					KEY_STORE_URI, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
 			nosigningCertificate = chain[0];
 		} catch (IOException | GeneralSecurityException e) {
-			// nothing we can do
+			throw new Error(e.getMessage());
 		}
 	}
 
 	protected TestCertificatesTools() {
+	}
+
+	public static X509ExtendedKeyManager getServerKeyManager() {
+		return serverKeyManager;
+	}
+
+	public static X509ExtendedKeyManager getClientKeyManager() {
+		return clientKeyManager;
 	}
 
 	public static X509Certificate[] getServerCertificateChain() {

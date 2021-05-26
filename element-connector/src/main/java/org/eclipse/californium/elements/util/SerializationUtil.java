@@ -374,6 +374,7 @@ public class SerializationUtil {
 	 * Note: this "Work In Progress"; the format may change!
 	 * 
 	 * @param in stream to skip items.
+	 * @param numBits number of bits of the item length.
 	 */
 	@WipAPI
 	public static void skipItems(InputStream in, int numBits) {
