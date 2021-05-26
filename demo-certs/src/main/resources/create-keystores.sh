@@ -19,7 +19,7 @@
 # Note:
 #
 # EdDSA requires java 15
-# 
+# sudo update-java-alternatives -s java-1.15.0-openjdk-amd64
 
 KEY_STORE=keyStore.jks
 KEY_STORE_PWD=endPass
@@ -39,6 +39,7 @@ CA_RSA_CER=caRsa.cer
 SERVER_CER=server.cer
 SERVER_LARGE_CER=serverLarge.cer
 SERVER_RSA_CER=serverRsa.cer
+SERVER_EDDSA_CER=serverEdDsa.cer
 CLIENT_CER=client.cer
 CLIENT_EXT_CER=clientExt.cer
 CLIENT_EDDSA_CER=clientEdDsa.cer
@@ -52,6 +53,7 @@ CLIENT_EDDSA_KEY_STORE_P12=clientEdDsa.p12
 SERVER_KEY_STORE_P12=server.p12
 SERVER_LARGE_KEY_STORE_P12=serverLarge.p12
 SERVER_RSA_KEY_STORE_P12=serverRsa.p12
+SERVER_EDDSA_KEY_STORE_P12=serverEdDsa.p12
 ROOT_TRUST_STORE_P12=rootTrustStore.p12
 
 # PEM 
@@ -64,6 +66,7 @@ CLIENT_EDDSA_KEY_STORE_PEM=clientEdDsa.pem
 SERVER_KEY_STORE_PEM=server.pem
 SERVER_LARGE_KEY_STORE_PEM=serverLarge.pem
 SERVER_RSA_KEY_STORE_PEM=serverRsa.pem
+SERVER_EDDSA_KEY_STORE_PEM=serverEdDsa.pem
 EC_PUBLIC_KEY_PEM=ec_public.pem
 EC_PRIVATE_KEY_PEM=ec_private.pem
 ED25519_PUBLIC_KEY_PEM=ed25519_public.pem
@@ -78,9 +81,9 @@ VALIDITY=365
 
 remove_keys() {
 	rm -f $KEY_STORE $TRUST_STORE $EDDSA_KEY_STORE
-	rm -f $ROOT_CER $CA_CER $CA2_CER $CA_RSA_CER $SERVER_CER $SERVER_LARGE_CER $SERVER_RSA_CER $CLIENT_CER $CLIENT_EXT_CER $CLIENT_EDDSA_CER
-	rm -f $CLIENT_KEY_STORE_P12 $SERVER_KEY_STORE_P12 $SERVER_LARGE_KEY_STORE_P12 $SERVER_RSA_KEY_STORE_P12 $TRUST_STORE_P12 $CA_TRUST_STORE_P12 $CA_RSA_TRUST_STORE_P12 $CLIENT_EDDSA_KEY_STORE_P12 $ROOT_TRUST_STORE_P12
-	rm -f $CLIENT_KEY_STORE_PEM $SERVER_KEY_STORE_PEM $SERVER_LARGE_KEY_STORE_PEM $SERVER_RSA_KEY_STORE_PEM $TRUST_STORE_PEM $CA_TRUST_STORE_PEM $CA_RSA_TRUST_STORE_PEM $CLIENT_EDDSA_KEY_STORE_PEM $ROOT_TRUST_STORE_PEM
+	rm -f $ROOT_CER $CA_CER $CA2_CER $CA_RSA_CER $SERVER_CER $SERVER_LARGE_CER $SERVER_RSA_CER $CLIENT_CER $CLIENT_EXT_CER $CLIENT_EDDSA_CER $SERVER_EDDSA_CER
+	rm -f $CLIENT_KEY_STORE_P12 $SERVER_KEY_STORE_P12 $SERVER_LARGE_KEY_STORE_P12 $SERVER_RSA_KEY_STORE_P12 $TRUST_STORE_P12 $CA_TRUST_STORE_P12 $CA_RSA_TRUST_STORE_P12 $CLIENT_EDDSA_KEY_STORE_P12 $ROOT_TRUST_STORE_P12 $SERVER_EDDSA_KEY_STORE_P12
+	rm -f $CLIENT_KEY_STORE_PEM $SERVER_KEY_STORE_PEM $SERVER_LARGE_KEY_STORE_PEM $SERVER_RSA_KEY_STORE_PEM $TRUST_STORE_PEM $CA_TRUST_STORE_PEM $CA_RSA_TRUST_STORE_PEM $CLIENT_EDDSA_KEY_STORE_PEM $ROOT_TRUST_STORE_PEM $SERVER_EDDSA_KEY_STORE_PEM
 	rm -f $EC_PUBLIC_KEY_PEM $EC_PRIVATE_KEY_PEM $ED25519_PUBLIC_KEY_PEM $ED25519_PRIVATE_KEY_PEM $ED448_PUBLIC_KEY_PEM $ED448_PRIVATE_KEY_PEM
 }
 
@@ -110,7 +113,7 @@ create_keys() {
    keytool -genkeypair -alias server -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server' \
         -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $KEY_STORE -storepass $KEY_STORE_PWD -storetype $DEFAULT_STORE_TYPE
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias server | \
-      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -validity $VALIDITY -rfc > $SERVER_CER
+      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -ext san=dns:my.test.server -validity $VALIDITY -rfc > $SERVER_CER
    keytool -alias server -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_CER -storetype $DEFAULT_STORE_TYPE
 
    echo "creating CA2 key and certificate..."
@@ -138,7 +141,7 @@ create_keys() {
    keytool -genkeypair -alias serverrsa -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa' \
         -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $KEY_STORE -storepass $KEY_STORE_PWD
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias serverrsa | \
-      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias carsa -gencert -ext KU=dig -validity $VALIDITY -rfc > $SERVER_RSA_CER
+      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias carsa -gencert -ext KU=dig  -ext san=dns:my.test.server2 -validity $VALIDITY -rfc > $SERVER_RSA_CER
    keytool -alias serverrsa -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_RSA_CER
 
    echo "creating client key and certificate..."
@@ -171,12 +174,23 @@ create_keys() {
    keytool -alias clientext -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_EXT_CER
 
    # requires java 15!
+   # sudo update-java-alternatives -s java-1.15.0-openjdk-amd64
    echo "creating client eddsa key and certificate..."
    keytool -genkeypair -alias clienteddsa -keyalg Ed25519 -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client-eddsa' \
         -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -storetype $DEFAULT_STORE_TYPE
    keytool -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias clienteddsa | \
       keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -validity $VALIDITY -rfc > $CLIENT_EDDSA_CER
    keytool -alias clienteddsa -importcert -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_EDDSA_CER -storetype $DEFAULT_STORE_TYPE
+
+   echo "creating server eddsa key and certificate..."
+   keytool -genkeypair -alias servereddsa -keyalg Ed25519 -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-eddsa' \
+        -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -storetype $DEFAULT_STORE_TYPE
+   keytool -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias servereddsa | \
+      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -validity $VALIDITY -rfc > $SERVER_EDDSA_CER
+   keytool -alias servereddsa -importcert -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_EDDSA_CER -storetype $DEFAULT_STORE_TYPE
+
+   echo "import key and certificate into eddsa store ..."
+   keytool -importkeystore -destkeystore $EDDSA_KEY_STORE -deststorepass $KEY_STORE_PWD -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD -storetype $DEFAULT_STORE_TYPE
 
 }
 
@@ -192,6 +206,8 @@ export_p12() {
       -destkeystore $SERVER_LARGE_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD -alias serverrsa \
       -destkeystore $SERVER_RSA_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
+   keytool -v -importkeystore -srckeystore $EDDSA_KEY_STORE -srcstorepass $KEY_STORE_PWD -alias servereddsa \
+      -destkeystore $SERVER_EDDSA_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $TRUST_STORE -srcstorepass $TRUST_STORE_PWD -alias root \
       -destkeystore $ROOT_TRUST_STORE_P12 -deststorepass $TRUST_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $TRUST_STORE -srcstorepass $TRUST_STORE_PWD -alias ca \
@@ -210,6 +226,7 @@ export_pem() {
       openssl pkcs12 -in $SERVER_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_KEY_STORE_PEM
       openssl pkcs12 -in $SERVER_LARGE_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_LARGE_KEY_STORE_PEM
       openssl pkcs12 -in $SERVER_RSA_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_RSA_KEY_STORE_PEM
+      openssl pkcs12 -in $SERVER_EDDSA_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_EDDSA_KEY_STORE_PEM
       openssl pkcs12 -in $CLIENT_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $CLIENT_KEY_STORE_PEM
       openssl pkcs12 -in $CLIENT_EDDSA_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $CLIENT_EDDSA_KEY_STORE_PEM
       openssl pkcs12 -in $ROOT_TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $ROOT_TRUST_STORE_PEM
@@ -238,6 +255,7 @@ copy_pem() {
   cp $SERVER_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_LARGE_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_RSA_KEY_STORE_PEM $DESTINATION_DIR
+  cp $SERVER_EDDSA_KEY_STORE_PEM $DESTINATION_DIR
   cp $EC_PRIVATE_KEY_PEM $DESTINATION_DIR
   echo "copy to cf-extplugtest-server"
   DESTINATION_DIR=../../../../demo-apps/cf-extplugtest-server/service
