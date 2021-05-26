@@ -193,8 +193,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *             verified.
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-		message.verifyData(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, true,
-				handshakeHash);
+		verifyFinished(message, handshakeHash);
 		contextEstablished();
 		handshakeCompleted();
 	}
@@ -357,21 +356,13 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 		MessageDigest md = getHandshakeMessageDigest();
 
-		MessageDigest mdWithServerFinished;
-		try {
-			mdWithServerFinished = (MessageDigest) md.clone();
-		} catch (CloneNotSupportedException e) {
-			throw new HandshakeException("Cannot create FINISHED message hash",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
-		}
+		MessageDigest mdWithServerFinished = cloneMessageDigest(md);
 
-		masterSecret = session.getMasterSecret();
-		calculateKeys(masterSecret);
+		resumeMasterSecret();
 
 		setCurrentWriteState();
 
-		Finished finished = new Finished(cipherSuite.getThreadLocalPseudoRandomFunctionMac(), masterSecret, false,
-				md.digest());
+		Finished finished = createFinishedMessage(md.digest());
 		wrapMessage(flight, finished);
 
 		mdWithServerFinished.update(finished.toByteArray());

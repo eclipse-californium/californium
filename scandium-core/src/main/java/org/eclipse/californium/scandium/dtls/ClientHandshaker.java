@@ -324,8 +324,7 @@ public class ClientHandshaker extends Handshaker {
 	 *             not be processed
 	 */
 	private void receivedServerFinished(Finished message) throws HandshakeException {
-		message.verifyData(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false,
-				handshakeHash);
+		verifyFinished(message, handshakeHash);
 		contextEstablished();
 		handshakeCompleted();
 	}
@@ -566,7 +565,9 @@ public class ClientHandshaker extends Handshaker {
 			SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(
 					session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), ecdheSecret, seed,
 					session.useExtendedMasterSecret());
-			processMasterSecret(masterSecret);
+			applyMasterSecret(masterSecret);
+			SecretUtil.destroy(masterSecret);
+			processMasterSecret();
 			break;
 		case PSK:
 			clientIdentity = getPskClientIdentity();
@@ -603,10 +604,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @since 2.3
 	 */
 	@Override
-	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
-
-		applyMasterSecret(masterSecret);
-		SecretUtil.destroy(masterSecret);
+	protected void processMasterSecret() throws HandshakeException {
 		if (!isExpectedStates(SEVER_CERTIFICATE) || otherPeersCertificateVerified) {
 			processServerHelloDone();
 		}
@@ -624,7 +622,7 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	@Override
 	protected void processCertificateVerified() throws HandshakeException {
-		if (masterSecret != null) {
+		if (hasMasterSecret()) {
 			processServerHelloDone();
 		}
 	}
@@ -669,16 +667,9 @@ public class ClientHandshaker extends Handshaker {
 		// can't do this on the fly, since there is no explicit ordering of
 		// messages
 		MessageDigest md = getHandshakeMessageDigest();
-		MessageDigest mdWithClientFinished;
-		try {
-			mdWithClientFinished = (MessageDigest) md.clone();
-		} catch (CloneNotSupportedException e) {
-			throw new HandshakeException("Cannot create FINISHED message",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
-		}
+		MessageDigest mdWithClientFinished = cloneMessageDigest(md);
 
-		Finished finished = new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(),
-				this.masterSecret, true, md.digest());
+		Finished finished = createFinishedMessage(md.digest());
 		wrapMessage(flight5, finished);
 
 		// compute handshake hash with client's finished message also
