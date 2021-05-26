@@ -195,7 +195,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					peerToLog, session.getSessionIdentifier());
 			// Server refuse to resume the session, go for a full handshake
 			fullHandshake  = true;
-			SecretUtil.destroy(context);
+			SecretUtil.destroy(getDtlsContext());
 			super.receivedServerHello(message);
 		} else if (!message.getCompressionMethod().equals(session.getCompressionMethod())) {
 			throw new HandshakeException(
@@ -228,6 +228,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				ConnectionIdExtension extension = message.getConnectionIdExtension();
 				if (extension != null) {
 					ConnectionId connectionId = extension.getConnectionId();
+					DTLSContext context = getDtlsContext(); 
 					context.setWriteConnectionId(connectionId);
 					context.setReadConnectionId(getReadConnectionId());
 				}

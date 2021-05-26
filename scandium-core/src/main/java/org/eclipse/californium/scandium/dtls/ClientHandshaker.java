@@ -367,7 +367,7 @@ public class ClientHandshaker extends Handshaker {
 	protected void receivedServerHello(ServerHello message) throws HandshakeException {
 		// store the negotiated values
 
-		usedProtocol = message.getServerVersion();
+		ProtocolVersion  usedProtocol = message.getServerVersion();
 		if (!usedProtocol.equals(ProtocolVersion.VERSION_DTLS_1_2)) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION);
 			throw new HandshakeException("The client only supports DTLS v1.2, not " + usedProtocol + "!", alert);
@@ -394,6 +394,7 @@ public class ClientHandshaker extends Handshaker {
 			ConnectionIdExtension extension = message.getConnectionIdExtension();
 			if (extension != null) {
 				ConnectionId connectionId = extension.getConnectionId();
+				DTLSContext context = getDtlsContext();
 				context.setWriteConnectionId(connectionId);
 				context.setReadConnectionId(getReadConnectionId());
 			}
@@ -511,7 +512,7 @@ public class ClientHandshaker extends Handshaker {
 	 * The ServerHelloDone message is sent by the server to indicate the end of
 	 * the ServerHello and associated messages. The client starts to fetch all
 	 * required credentials. If these credentials are available, the processing
-	 * is continued with {@link #doProcessMasterSecretResult(PskSecretResult)}.
+	 * is continued with {@link #processMasterSecret()}.
 	 * 
 	 * @throws HandshakeException if the server's hello done can not be
 	 *             processed.

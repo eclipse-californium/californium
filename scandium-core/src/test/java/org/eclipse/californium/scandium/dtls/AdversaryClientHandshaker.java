@@ -108,6 +108,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 			public List<Record> getRecords(int maxDatagramSize, int maxFragmentSize, boolean useMultiHandshakeMessageRecords)
 					throws HandshakeException {
 				try {
+					DTLSContext context = getDtlsContext();
 					Record record = new Record(ContentType.APPLICATION_DATA, context.getWriteEpoch(), new ApplicationMessage(data),
 							context, true, 0);
 					return Arrays.asList(record);

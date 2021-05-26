@@ -122,7 +122,6 @@ public abstract class Handshaker implements Destroyable {
 
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
-	protected ProtocolVersion usedProtocol;
 	protected Random clientRandom;
 	protected Random serverRandom;
 
@@ -161,7 +160,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * DTLS context of handshaker.
 	 */
-	protected final DTLSContext context;
+	private final DTLSContext context;
 
 	/**
 	 * The logic in charge of verifying the chain of certificates asserting this
@@ -273,7 +272,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Current partial reassembled handshake message.
 	 */
-	protected ReassemblingHandshakeMessage reassembledMessage;
+	private ReassemblingHandshakeMessage reassembledMessage;
 
 	/** The handshaker's private key. */
 	protected final PrivateKey privateKey;

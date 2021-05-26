@@ -764,6 +764,7 @@ public class ServerHandshaker extends Handshaker {
 		if (supportsConnectionId()) {
 			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
 			if (connectionIdExtension != null) {
+				DTLSContext context = getDtlsContext(); 
 				context.setWriteConnectionId(connectionIdExtension.getConnectionId());
 				final ConnectionId connectionId = getReadConnectionId();
 				context.setReadConnectionId(connectionId);
