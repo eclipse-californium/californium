@@ -329,8 +329,9 @@ public class SslContextUtil {
 	 * 
 	 * @param keyStoreUri key store URI. Supports configurable URI scheme based
 	 *            input streams and URI ending based key store type.
-	 * @param alias alias to load only specific credentials into the KeyManager.
-	 *            null to load all credentials into the KeyManager.
+	 * @param aliasPattern alias pattern to load only specific credentials into
+	 *            the KeyManager. null to load all credentials into the
+	 *            KeyManager.
 	 * @param storePassword password for key store.
 	 * @param keyPassword password for private key.
 	 * @return array with KeyManager
@@ -339,8 +340,9 @@ public class SslContextUtil {
 	 * @throws IllegalArgumentException if no matching credentials are found
 	 * @throws NullPointerException if keyStoreUri, storePassword, or
 	 *             keyPassword is {@code null}.
+	 * @since 3.0 (add support for alias pattern)
 	 */
-	public static KeyManager[] loadKeyManager(String keyStoreUri, String alias, char[] storePassword,
+	public static KeyManager[] loadKeyManager(String keyStoreUri, String aliasPattern, char[] storePassword,
 			char[] keyPassword) throws IOException, GeneralSecurityException {
 		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
 		KeyStore ks;
@@ -352,21 +354,35 @@ public class SslContextUtil {
 			if (credentials.chain == null) {
 				throw new IllegalArgumentException("credentials missing! No certificate chain found!");
 			}
-			return createKeyManager(alias, credentials.privateKey, credentials.chain);
+			return createKeyManager(DEFAULT_ALIAS, credentials.privateKey, credentials.chain);
 		} else {
 			if (null == keyPassword) {
 				throw new NullPointerException("keyPassword must be provided!");
 			}
 			ks = loadKeyStore(keyStoreUri, storePassword, configuration);
-			if (alias != null && !alias.isEmpty()) {
+			if (aliasPattern != null && !aliasPattern.isEmpty()) {
+				boolean found = false;;
+				Pattern pattern = Pattern.compile(aliasPattern);
 				KeyStore ksAlias = KeyStore.getInstance(ks.getType());
 				ksAlias.load(null);
-				Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
-				if (null != entry) {
-					ksAlias.setEntry(alias, entry, new KeyStore.PasswordProtection(keyPassword));
-				} else {
+				for (Enumeration<String> e = ks.aliases(); e.hasMoreElements();) {
+					String alias = e.nextElement();
+					Matcher matcher = pattern.matcher(alias);
+					if (!matcher.matches()) {
+						continue;
+					}
+					Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
+					if (null != entry) {
+						ksAlias.setEntry(alias, entry, new KeyStore.PasswordProtection(keyPassword));
+						found = true;
+					} else {
+						throw new GeneralSecurityException(
+								"key stores '" + keyStoreUri + "' doesn't contain credentials for '" + alias + "'");
+					}
+				}
+				if (!found) {
 					throw new GeneralSecurityException(
-							"key stores '" + keyStoreUri + "' doesn't contain credentials for '" + alias + "'");
+							"no credentials found in '" + keyStoreUri + "' for '" + aliasPattern + "'!");
 				}
 				ks = ksAlias;
 			}
@@ -1156,10 +1172,12 @@ public class SslContextUtil {
 	 *            trust anchor is not checked.
 	 * @return trust manager
 	 * @throws NullPointerException if trusted certificates is {@code null}.
+	 * @throws IllegalArgumentException if a empty array is provided or a
+	 *             none x509 certificate was found or a array entry was null.
 	 * @see #createTrustAllManager()
 	 * @since 3.0
 	 */
-	public static TrustManager[] createSimpleTrustManager(Certificate[] trusts) throws GeneralSecurityException {
+	public static TrustManager[] createSimpleTrustManager(Certificate[] trusts) {
 		if (null == trusts) {
 			throw new NullPointerException("trusted certificates must be provided!");
 		}
