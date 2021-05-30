@@ -45,23 +45,30 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * Provides invocations for coap-server and -clients.
  * 
  * The required libcoap examples are not included. The test requires version
- * 4.2.1 (maybe newer) and is intended to work with openssl as DTLS
+ * 4.2.1 (better 4.3.0rc3 or newer) and is intended to work with openssl as DTLS
  * implementation.
  * 
- * Check <a href="https://libcoap.net/" target="_blank">libcoap.net</a> for further information.
- * <a href="https://libcoap.net/install.html" target="_blank">install</a> describes how to build
- * it locally, the sources are available at
- * <a href="https://github.com/obgm/libcoap" target="_blank">github -libcoap</a>.
+ * Check <a href="https://libcoap.net/" target="_blank">libcoap.net</a> for
+ * further information.
+ * <a href="https://libcoap.net/install.html" target="_blank">install</a>
+ * describes how to build it locally, the sources are available at
+ * <a href="https://github.com/obgm/libcoap" target="_blank">github
+ * -libcoap</a>.
  * 
  * If tinydtls, mbedtls or gnutls should be also tested, prepare additional
- * configuration, build and installation
+ * configurations, builds and installations.
+ * 
+ * (The configure examples requires a new libcoap from Apr 28 2021 or newer.
+ * That introduces the {@code --enable-add-default-names} feature. If used with
+ * version before that requires to use {@code --program-suffix} with the (d)tls
+ * library, e.g. {@code --program-suffix=-tinydtls}.)
  * 
  * <pre>
  * ./configure --disable-shared --enable-dtls --with-openssl --disable-doxygen --disable-manpages
- * ./configure --disable-shared --enable-dtls --with-tinydtls --disable-doxygen --disable-manpages --program-suffix=-tinydtls
- * ./configure --disable-shared --enable-dtls --with-gnutls --disable-doxygen --disable-manpages --program-suffix=-gnutls
+ * ./configure --disable-shared --enable-dtls --with-tinydtls --disable-doxygen --disable-manpages
+ * ./configure --disable-shared --enable-dtls --with-gnutls --disable-doxygen --disable-manpages
  * With libcoap 4.3.0:
- * ./configure --disable-shared --enable-dtls --with-mbedtls --disable-doxygen --disable-manpages --program-suffix=-mbedtls
+ * ./configure --disable-shared --enable-dtls --with-mbedtls --disable-doxygen --disable-manpages
  * </pre>
  * 
  * After {@code sudo make install}, execution of {@code sudo ldconfig} may be
@@ -102,11 +109,11 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	public static final String LIBCOAP_CLIENT_TINYDTLS = "coap-client-tinydtls";
 	public static final String LIBCOAP_CLIENT_GNUTLS = "coap-client-gnutls";
 	public static final String LIBCOAP_CLIENT_MBEDTLS = "coap-client-mbedtls";
-	public static final String LIBCOAP_CLIENT = "coap-client";
+	public static final String LIBCOAP_CLIENT_OPENSSL = "coap-client-openssl";
 	public static final String LIBCOAP_SERVER_TINYDTLS = "coap-server-tinydtls";
 	public static final String LIBCOAP_SERVER_GNUTLS = "coap-server-gnutls";
 	public static final String LIBCOAP_SERVER_MBEDTLS = "coap-server-mbedtls";
-	public static final String LIBCOAP_SERVER = "coap-server";
+	public static final String LIBCOAP_SERVER_OPENSSL = "coap-server-openssl";
 
 	public static final String DEFAULT_VERBOSE_LEVEL = "7";
 
@@ -118,8 +125,8 @@ public class LibCoapProcessUtil extends ProcessUtil {
 
 	private String valgrind = VALGRIND;
 
-	private String client = LIBCOAP_CLIENT;
-	private String server = LIBCOAP_SERVER;
+	private String client = LIBCOAP_CLIENT_OPENSSL;
+	private String server = LIBCOAP_SERVER_OPENSSL;
 
 	private String version;
 	private String dtlsVersion;
@@ -200,7 +207,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	 * @return result of coap-client command. {@code null}, if not available.
 	 */
 	public ProcessResult prepareLibCoapClient(long timeMillis) {
-		client = LIBCOAP_CLIENT;
+		client = LIBCOAP_CLIENT_OPENSSL;
 		return prepareLibCoapApplication(client, "OpenSSL", timeMillis);
 	}
 
@@ -247,7 +254,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	 * @return result of coap-server command. {@code null}, if not available.
 	 */
 	public ProcessResult preapreLibCoapServer(long timeMillis) {
-		server = LIBCOAP_SERVER;
+		server = LIBCOAP_SERVER_OPENSSL;
 		return prepareLibCoapApplication(server, "OpenSSL", timeMillis);
 	}
 
