@@ -77,6 +77,8 @@ Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return
 
 `Request.setOnResponseError(Throwable error)` is not longer accompanied by `Request.setCanceled(boolean canceled)`.
 
+[RFC 7967, Option for No Server Response](https://tools.ietf.org/html/rfc7967) is introduced.
+
 ### Californium-Proxy2:
 
 The apache http-components have been updated to http-client 5.0.3 and http-core 5.0.2.
@@ -134,6 +136,9 @@ are removed and must be replaced by
 13) The `ResumptionSupportingConnectionStore.find(SessionId)` returns now a new DTLSSession instead of a connection.
 
 14) Change `useNoServerSessionId` into `useServerSessionId` with inverse logic.
+
+15) To support [RFC 7627, Extended Master Secret](https://tools.ietf.org/html/rfc7627), a parameter `useExtendedMasterSecret` is added to
+`AdvancedPskStore.requestPskSecretResult`.
 
 ### Californium-Core:
 
