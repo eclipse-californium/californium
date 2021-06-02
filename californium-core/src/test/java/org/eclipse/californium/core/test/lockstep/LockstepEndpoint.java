@@ -577,16 +577,25 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
-					int expectedLength = payload.length();
-					int actualLength = message.getPayloadSize();
-					assertEquals("Wrong payload length: ", expectedLength, actualLength);
-					assertEquals("Wrong payload:", payload, message.getPayloadString());
-					print("Correct payload (" + actualLength + " bytes):" + System.lineSeparator()
-							+ message.getPayloadString());
+					if (payload.isEmpty()) {
+						assertEquals("Payload not expected, length: ", 0, message.getPayloadSize());
+						print("Correct empty payload");
+					} else {
+						int expectedLength = payload.length();
+						int actualLength = message.getPayloadSize();
+						assertEquals("Wrong payload length: ", expectedLength, actualLength);
+						assertEquals("Wrong payload:", payload, message.getPayloadString());
+						print("Correct payload (" + actualLength + " bytes):" + System.lineSeparator()
+								+ message.getPayloadString());
+					}
 				}
 
 				public String toString() {
-					return "Expected payload: '" + payload + "'";
+					if (payload.isEmpty()) {
+						return "Expected no payload";
+					} else {
+						return "Expected payload: '" + payload + "'";
+					}
 				}
 			});
 			return this;

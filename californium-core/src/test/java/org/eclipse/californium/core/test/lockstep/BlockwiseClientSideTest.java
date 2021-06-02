@@ -1082,13 +1082,13 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(2, false, 128).block2(0, true, 128).size2(respPayload.length())
 				.etag(tag).payload(respPayload.substring(0, 128)).go();
 
-		server.expectRequest(CON, POST, path).storeBoth("D").block2(1, false, 128).go();
+		server.expectRequest(CON, POST, path).storeBoth("D").block2(1, false, 128).payload("").go();
 		server.sendResponse(ACK, CHANGED).loadBoth("D").block2(1, true, 128).etag(tag).payload(respPayload.substring(128, 256)).go();
 
-		server.expectRequest(CON, POST, path).storeBoth("E").block2(2, false, 128).go();
+		server.expectRequest(CON, POST, path).storeBoth("E").block2(2, false, 128).payload("").go();
 		server.sendResponse(ACK, CHANGED).loadBoth("E").block2(2, true, 128).etag(tag).payload(respPayload.substring(256, 384)).go();
 
-		server.expectRequest(CON, POST, path).storeBoth("F").block2(3, false, 128).go();
+		server.expectRequest(CON, POST, path).storeBoth("F").block2(3, false, 128).payload("").go();
 		server.sendResponse(ACK, CHANGED).loadBoth("F").block2(3, false, 128).etag(tag).payload(respPayload.substring(384, 500)).go();
 
 		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
