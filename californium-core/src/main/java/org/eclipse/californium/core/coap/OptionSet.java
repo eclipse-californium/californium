@@ -745,15 +745,22 @@ public final class OptionSet {
 	 * "http://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats">IANA
 	 * Registry</a>).
 	 * 
-	 * @param format the Content-Format ID
+	 * @param format the Content-Format ID. Use value
+	 *            {@link MediaTypeRegistry#UNDEFINED} to
+	 *            {@link #removeContentFormat()}.
 	 * @return this OptionSet for a fluent API.
 	 * @throws IllegalArgumentException if value is out of range {@code 0} to
-	 *             {@link MediaTypeRegistry#MAX_TYPE} (since 3.0).
+	 *             {@link MediaTypeRegistry#MAX_TYPE} and not
+	 *             {@link MediaTypeRegistry#UNDEFINED} (since 3.0).
 	 * @see MediaTypeRegistry
 	 */
 	public OptionSet setContentFormat(int format) {
-		OptionNumberRegistry.assertValue(OptionNumberRegistry.CONTENT_FORMAT, format);
-		content_format = format;
+		if (MediaTypeRegistry.UNDEFINED == format) {
+			content_format = null;
+		} else {
+			OptionNumberRegistry.assertValue(OptionNumberRegistry.CONTENT_FORMAT, format);
+			content_format = format;
+		}
 		return this;
 	}
 
