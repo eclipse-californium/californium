@@ -45,6 +45,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.LoggerFactory;
 
 @Category(Small.class)
 public class PeersBasedDeduplicatorTest {
@@ -62,6 +63,7 @@ public class PeersBasedDeduplicatorTest {
 
 	NetworkConfig config;
 	Deduplicator deduplicator;
+	boolean intensiveLogging;
 
 	@Before
 	public void init() {
@@ -71,6 +73,7 @@ public class PeersBasedDeduplicatorTest {
 		config.setInt(Keys.MARK_AND_SWEEP_INTERVAL, 1000);
 		config.setBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE, true);
 		deduplicator = DeduplicatorFactory.getDeduplicatorFactory().createDeduplicator(config);
+		intensiveLogging = LoggerFactory.getLogger(SweepDeduplicator.class).isDebugEnabled();
 	}
 
 	@Test
@@ -125,7 +128,7 @@ public class PeersBasedDeduplicatorTest {
 				}
 			});
 		}
-		assertThat(ready.await(10, TimeUnit.SECONDS), is(true));
+		assertThat(ready.await(intensiveLogging ? 30 : 10, TimeUnit.SECONDS), is(true));
 
 		int size = deduplicator.size();
 		assertThat(size, is(lessThanOrEqualTo(NUMBER_OF_PEERS * MESSAGES_PER_PEER)));
