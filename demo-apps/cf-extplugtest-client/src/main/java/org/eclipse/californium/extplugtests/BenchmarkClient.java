@@ -885,9 +885,12 @@ public class BenchmarkClient {
 		TimeStatistic statistic = errorRttStatistic;
 		if (connect.compareAndSet(true, false)) {
 			statistic = connectRttStatistic;
-		} else if (response.isSuccess()) {
+		} else {
 			statistic = rttStatistic;
-			transmissioRttStatistic.add(response.advanced().getTransmissionRttNanos(), TimeUnit.NANOSECONDS);
+			Long transmissionRttNanos = response.advanced().getTransmissionRttNanos();
+			if (transmissionRttNanos != null) {
+				transmissioRttStatistic.add(transmissionRttNanos, TimeUnit.NANOSECONDS);
+			}
 		}
 		Long rtt = response.advanced().getApplicationRttNanos();
 		statistic.add(rtt, TimeUnit.NANOSECONDS);
