@@ -481,7 +481,6 @@ public class Request extends Message {
 	 */
 	public Request setURI(final URI uri) {
 		checkURI(uri);
-
 		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
 		final String uriScheme = uri.getScheme();
 		final boolean literalIp = IP_PATTERN.matcher(host).matches();
@@ -570,7 +569,9 @@ public class Request extends Message {
 		} else if (!CoAP.isSupportedScheme(uri.getScheme())) {
 			throw new IllegalArgumentException("URI scheme '" + uri.getScheme() + "' is not supported!");
 		} else if (uri.getFragment() != null) {
-			throw new IllegalArgumentException("URI must not contain a fragment");
+			throw new IllegalArgumentException("URI must not contain a fragment '" + uri.getFragment() + "'!");
+		} else if (uri.getSchemeSpecificPart() != null && uri.getHost() == null) {
+			throw new IllegalArgumentException("URI expected host '" + uri.getSchemeSpecificPart() + "' is invalid!");
 		}
 	}
 
