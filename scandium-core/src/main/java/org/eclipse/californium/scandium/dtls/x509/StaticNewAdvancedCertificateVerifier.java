@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.x509;
 
+import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
@@ -126,7 +127,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 
 	@Override
 	public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
-			boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
+			InetSocketAddress remotePeer, boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
 		try {
 			CertPath certChain = message.getCertificateChain();
 			if (certChain == null) {

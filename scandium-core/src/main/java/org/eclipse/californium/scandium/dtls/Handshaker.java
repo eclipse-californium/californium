@@ -1630,7 +1630,7 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Gets the effective server names.
+	 * Gets the effective server names of {@link DTLSSession}.
 	 * 
 	 * @return the effective server names, or {@code null}, if disabled or not
 	 *         available.
@@ -2400,7 +2400,9 @@ public abstract class Handshaker implements Destroyable {
 		LOGGER.info("Start certificate verification.");
 		certificateVerificationPending = true;
 		this.otherPeersPublicKey = message.getPublicKey();
-		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, !isClient(), useTruncatedCertificatePathForVerification, message);
+		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(
+				connection.getConnectionId(), getServerNames(), getPeerAddress(), !isClient(),
+				useTruncatedCertificatePathForVerification, message);
 		if (verificationResult != null) {
 			processCertificateVerificationResult(verificationResult);
 		}

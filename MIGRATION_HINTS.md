@@ -17,6 +17,10 @@ This document doesn't contain hints for migrating versions before 2.0. That excl
 
 If a 2.0.0 or newer is used, it's recommended to update first to 2.6.2 and cleanup all deprecation using the documentation on the deprecation.
 
+## First Experience
+
+Migrating [Eclipse/Hono](https://github.com/eclipse/hono) and [Eclipse/Leshan](https://github.com/eclipse/leshan) the major changes, which requires adaption, are the changes in the DTLS configuration and the related callbacks. Reading the section below should help all to overcome issues caused by these changes.
+
 ## Noteworthy Behavior Changes
 
 ### Element-Connector:
@@ -55,7 +59,7 @@ The `DTLSSession` is split into `DTLSContext` (connection/association specific d
 
 The `ApplicationLevelInfoSupplier.getInfo()` supports now to return `null` in order to not alter the additional information.
 
-The `ResumingServerHandshaker` supports now a none-blocking `ResumptionVerifier` and a fall-back to a full handshake.
+The `ResumingServerHandshaker` supports now a none-blocking `ResumptionVerifier` and a fallback to a full handshake.
 
 The `CertificateProvider` introduces the possibility to use multiple certificates.
 
@@ -80,6 +84,8 @@ Using the "transparent blockwise mode" (MAX_RESOURCE_BODY_SIZE larger than 0) in
 Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return an byte array, which may be empty.
 
 `Request.setOnResponseError(Throwable error)` is not longer accompanied by `Request.setCanceled(boolean canceled)`.
+
+The `OptionSet` and the `Option`s are now strictly validated. If that cause trouble, please check, if the value is valid according [RFC 7252, 5.10.  Option Definitions](https://tools.ietf.org/html/rfc7252#page-53) or the other specific RFCs.
 
 [RFC 7967, Option for No Server Response](https://tools.ietf.org/html/rfc7967) is introduced.
 
@@ -117,7 +123,7 @@ are removed and must be replaced by
 
 `NewAdvancedCertificateVerifier`, and `StaticNewAdvancedCertificateVerifier`.
 
-3) The `DTLSession` in `NewAdvancedCertificateVerifier.verifyCertificate` is removed. If that is required by your implementation, please open an issue. The parameter `Boolean clientUsage` is replaced by `boolean clientUsage`. With that, the key-usage extension is always checked, if provided.
+3) The `DTLSession` in `NewAdvancedCertificateVerifier.verifyCertificate` is removed. Therefore the `InetSocketAddress` of the remote peer has been added. The parameter `Boolean clientUsage` is replaced by `boolean clientUsage`. With that, the key-usage extension is always checked, if provided.
 
 4) `MtuUtil` is removed and must be replaced by `NetworkInterfacesUtil`.
 

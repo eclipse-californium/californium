@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.x509;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
@@ -96,6 +97,7 @@ public interface NewAdvancedCertificateVerifier {
 	 * 
 	 * @param cid connection ID
 	 * @param serverName indicated server names.
+	 * @param remotePeer socket address of remote peer
 	 * @param clientUsage indicator to check certificate usage. {@code true},
 	 *            check key usage for client, {@code false} for server.
 	 * @param truncateCertificatePath {@code true} truncate certificate path at
@@ -104,8 +106,8 @@ public interface NewAdvancedCertificateVerifier {
 	 * @return certificate verification result, or {@code null}, if result is
 	 *         provided asynchronous.
 	 */
-	CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName, boolean clientUsage,
-			boolean truncateCertificatePath, CertificateMessage message);
+	CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName, InetSocketAddress remotePeer,
+			boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message);
 
 	/**
 	 * Return an list of certificate authorities which are trusted
@@ -123,7 +125,7 @@ public interface NewAdvancedCertificateVerifier {
 	 * 
 	 * @param resultHandler handler for asynchronous master secret results. This
 	 *            handler MUST NOT be called from the thread calling
-	 *            {@link #verifyCertificate(ConnectionId, ServerNames, boolean, boolean, CertificateMessage)},
+	 *            {@link #verifyCertificate(ConnectionId, ServerNames, InetSocketAddress, boolean, boolean, CertificateMessage)},
 	 *            instead just return the result there.
 	 */
 	void setResultHandler(HandshakeResultHandler resultHandler);
