@@ -243,18 +243,18 @@ public class DTLSConnectorAdvancedTest {
 
 			@Override
 			public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
-					final boolean clientUsage, final boolean truncateCertificatePath,
-					final CertificateMessage message) {
+					InetSocketAddress remotePeer, final boolean clientUsage,
+					final boolean truncateCertificatePath, final CertificateMessage message) {
 				LOGGER.info("verify certificate");
 				CertificateVerificationResult result = null;
 				if (0 < verifyHandshakeResponses) {
-					result = super.verifyCertificate(cid, serverName, clientUsage, truncateCertificatePath, message);
+					result = super.verifyCertificate(cid, serverName, remotePeer, clientUsage, truncateCertificatePath, message);
 					if (1 < verifyHandshakeResponses) {
 						final int delay = getDelay();
 						try {
 							setDelay(1);
 							for (int index = 1; index < verifyHandshakeResponses; ++index) {
-								super.verifyCertificate(cid, serverName, clientUsage, truncateCertificatePath, message);
+								super.verifyCertificate(cid, serverName, remotePeer, clientUsage, truncateCertificatePath, message);
 							}
 						} finally {
 							setDelay(delay);

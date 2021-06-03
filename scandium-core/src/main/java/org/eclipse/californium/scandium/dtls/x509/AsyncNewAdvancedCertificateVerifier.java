@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.x509;
 
+import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
@@ -112,7 +113,7 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 
 	@Override
 	public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
-			final boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
+			final InetSocketAddress remotePeer, final boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
 		if (delayMillis <= 0) {
 			if (delayMillis < 0) {
 				try {
@@ -120,22 +121,22 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 				} catch (InterruptedException e) {
 				}
 			}
-			return super.verifyCertificate(cid, serverName, clientUsage, truncateCertificatePath, message);
+			return super.verifyCertificate(cid, serverName, remotePeer, clientUsage, truncateCertificatePath, message);
 		} else {
 			executorService.schedule(new Runnable() {
 
 				@Override
 				public void run() {
-					verifyCertificateAsynchronous(cid, serverName, clientUsage, truncateCertificatePath, message);
+					verifyCertificateAsynchronous(cid, serverName, remotePeer, clientUsage, truncateCertificatePath, message);
 				}
 			}, delayMillis, TimeUnit.MILLISECONDS);
 			return null;
 		}
 	}
 
-	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, boolean clientUsage,
-			boolean truncateCertificatePath, CertificateMessage message) {
-		CertificateVerificationResult result = super.verifyCertificate(cid, serverName, clientUsage,
+	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, InetSocketAddress remotePeer,
+			boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
+		CertificateVerificationResult result = super.verifyCertificate(cid, serverName, remotePeer, clientUsage,
 				truncateCertificatePath, message);
 		CertPath certPath = result.getCertificatePath();
 		PublicKey publicKey = result.getPublicKey();
