@@ -110,6 +110,18 @@ public class RequestTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
+	public void testSetURIMalformedPort() {
+		// space before port
+		Request.newGet().setURI("coap://iot.eclipse.org: 5683");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetURIMalformedPort2() {
+		// encoded space before port
+		Request.newGet().setURI("coap://iot.eclipse.org:%205683");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
 	public void testSetURIRejectsUnsupportedScheme() {
 		Request.newGet().setURI("unknown://127.0.0.1");
 	}
