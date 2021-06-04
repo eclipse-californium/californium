@@ -26,7 +26,7 @@ import org.eclipse.californium.elements.exception.ConnectorException;
  */
 public class Proxy2 {
 
-	private static final String CROSS_PROXY = CrossExampleProxy2.class.getSimpleName();
+	private static final String CROSS_PROXY = ExampleCrossProxy2.class.getSimpleName();
 	private static final String SECURE_PROXY = ExampleSecureProxy2.class.getSimpleName();
 	private static final String COAP_CLIENT = ExampleProxy2CoapClient.class.getSimpleName();
 	private static final String HTTP_CLIENT = ExampleProxy2HttpClient.class.getSimpleName();
@@ -39,7 +39,7 @@ public class Proxy2 {
 		if (start != null) {
 			String[] args2 = Arrays.copyOfRange(args, 1, args.length);
 			if (CROSS_PROXY.equals(start)) {
-				CrossExampleProxy2.main(args2);
+				ExampleCrossProxy2.main(args2);
 				return;
 			} else if (SECURE_PROXY.equals(start)) {
 				ExampleSecureProxy2.main(args2);

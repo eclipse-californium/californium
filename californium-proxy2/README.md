@@ -248,7 +248,7 @@ See the [BasicHttpForwardingProxy2](https://github.com/eclipse/californium/blob/
 
 # Implementing a CoAP server with co-located proxy-server
 
-Until here the things should have been not too complicated. But that starts with mixed servers, when the coap-server and the proxy-server are co-located. The difficulty, especially with reverse-proxies, is the ambiguity in interpreting the requests. If resources are either selected by the uri-path or by the destination scheme, then it may result in unintended processing. The specification assumes, that a server is able to know it's exposed address in order to determine, if the request is sent to the coap-server or the co-located proxy-server. But with the server-side virtualization and containers, that may get very hard. The proxy2 library offers some function for such mixed servers, but if such a mixed server works proper, is the responsibility of that mixed server.
+Until here the things should have been not too complicated. But that starts with mixed servers, when the coap-server and the proxy-server are co-located. The difficulty, especially with reverse-proxies, is the ambiguity in interpreting the requests. If resources are either selected by the uri-path or by the destination scheme, then it may result in unintended processing. The specification assumes, that a server is able to know it's exposed address in order to determine, if the request is sent to the coap-server or the co-located proxy-server. But with the server-side virtualisation and containers, that may get very hard. The proxy2 library offers some function for such mixed servers, but if such a mixed server works proper, is the responsibility of that mixed server.
 
 -  `ForwardProxyMessageDeliverer` offers also a constructor with a root-`Resource` and a `CoapUriTranslator` translator. The root-`Resource` is required to select a `Resource` using the uri-path, and the translator could be customized to select the request to be forwarded.
 
@@ -261,6 +261,7 @@ AddressEndpointContext proxy = new AddressEndpointContext(new InetSocketAddress(
 request.setDestinationContext(proxy);
 // not recommended! literal IP, same as proxy
 request.setURI("coap://127.0.0.1/coap-target");
+request.getOptions().setUriHost("127.0.0.1");
 ```
 
 ```java
