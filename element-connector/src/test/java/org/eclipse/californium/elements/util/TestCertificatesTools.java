@@ -64,6 +64,7 @@ public class TestCertificatesTools {
 
 	private static X509ExtendedKeyManager clientKeyManager;
 	private static X509ExtendedKeyManager serverKeyManager;
+	private static X509ExtendedKeyManager serverEdDsaKeyManager;
 	private static SslContextUtil.Credentials clientCredentials;
 	private static SslContextUtil.Credentials serverCredentials;
 	private static SslContextUtil.Credentials serverRsaCredentials;
@@ -86,10 +87,15 @@ public class TestCertificatesTools {
 			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
 					TRUST_STORE_URI, null, TRUST_STORE_PASSWORD);
 
-			KeyManager[] manager = SslContextUtil.loadKeyManager(EDDSA_KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			serverKeyManager = getX509KeyManager(manager);
-			manager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "client", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			clientKeyManager = getX509KeyManager(manager);
+			KeyManager[] keyManager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			serverKeyManager = getX509KeyManager(keyManager);
+			keyManager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "client", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			clientKeyManager = getX509KeyManager(keyManager);
+
+			if (Asn1DerDecoder.isSupported(Asn1DerDecoder.ED25519)) {
+				keyManager = SslContextUtil.loadKeyManager(EDDSA_KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+				serverEdDsaKeyManager = getX509KeyManager(keyManager);
+			}
 
 			trustedCertificates = SslContextUtil.asX509Certificates(certificates);
 			certificates = SslContextUtil.loadTrustedCertificates(
@@ -118,6 +124,10 @@ public class TestCertificatesTools {
 
 	public static X509ExtendedKeyManager getClientKeyManager() {
 		return clientKeyManager;
+	}
+
+	public static X509ExtendedKeyManager getServerEdDsaKeyManager() {
+		return serverEdDsaKeyManager;
 	}
 
 	public static X509Certificate[] getServerCertificateChain() {

@@ -33,7 +33,7 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -44,7 +44,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-@Category(Small.class)
+@Category(Medium.class)
 public class InMemoryConnectionStoreTest {
 	@Rule
 	public ThreadsRule cleanup = new ThreadsRule();

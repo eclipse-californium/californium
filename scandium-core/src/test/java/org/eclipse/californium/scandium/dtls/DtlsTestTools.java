@@ -23,12 +23,14 @@ import static org.junit.Assert.assertFalse;
 
 import java.util.List;
 
+import javax.net.ssl.X509ExtendedKeyManager;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.util.ServerName;
 
 public final class DtlsTestTools extends TestCertificatesTools {
@@ -41,6 +43,14 @@ public final class DtlsTestTools extends TestCertificatesTools {
 	}
 
 	private DtlsTestTools() {
+	}
+
+	public static X509ExtendedKeyManager getDtlsServerKeyManager() {
+		if (XECDHECryptography.SupportedGroup.X25519.isUsable()) {
+			return TestCertificatesTools.getServerEdDsaKeyManager();
+		} else {
+			return TestCertificatesTools.getServerKeyManager();
+		}
 	}
 
 	public static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg) {

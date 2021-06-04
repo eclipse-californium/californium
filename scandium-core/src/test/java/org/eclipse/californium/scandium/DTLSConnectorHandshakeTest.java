@@ -395,7 +395,7 @@ public class DTLSConnectorHandshakeTest {
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		if (enableSni) {
 			builder.setCertificateIdentityProvider(new KeyManagerCertificateProvider(DtlsTestTools.SERVER_NAME,
-					DtlsTestTools.getServerKeyManager(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
+					DtlsTestTools.getDtlsServerKeyManager(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
 		}
 		startServer(builder);
 	}
@@ -1360,7 +1360,7 @@ public class DTLSConnectorHandshakeTest {
 				.setSupportedSignatureAlgorithms(defaults)
 				.setApplicationLevelInfoSupplier(clientInfoSupplier)
 				.setCertificateIdentityProvider(new KeyManagerCertificateProvider(
-				DtlsTestTools.getServerKeyManager(), CertificateType.X_509));
+				DtlsTestTools.getDtlsServerKeyManager(), CertificateType.X_509));
 		startServer(builderServer);
 
 		Credentials credentials = TestCertificatesTools.getCredentials("clienteddsa");
