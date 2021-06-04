@@ -85,7 +85,7 @@ import org.slf4j.LoggerFactory;
  * Proxy: http://lantersoft.ch/robots.txt
  * </pre>
  */
-public class CrossExampleProxy2 {
+public class ExampleCrossProxy2 {
 
 	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.proxy.statistics");
 
@@ -142,7 +142,7 @@ public class CrossExampleProxy2 {
 	private int httpPort;
 	private CacheResource cache;
 
-	public CrossExampleProxy2(NetworkConfig config, boolean accept, boolean cache) throws IOException {
+	public ExampleCrossProxy2(NetworkConfig config, boolean accept, boolean cache) throws IOException {
 		HttpClientFactory.setNetworkConfig(config);
 		coapPort = config.getInt(Keys.COAP_PORT);
 		httpPort = config.getInt(Keys.HTTP_PORT);
@@ -216,7 +216,7 @@ public class CrossExampleProxy2 {
 
 	public static void main(String args[]) throws IOException {
 		NetworkConfig proxyConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CrossExampleProxy2 proxy = new CrossExampleProxy2(proxyConfig, false, true);
+		ExampleCrossProxy2 proxy = new ExampleCrossProxy2(proxyConfig, false, true);
 		ExampleHttpServer httpServer = null;
 		NetworkConfig config = ExampleCoapServer.init();
 		for (int index = 0; index < args.length; ++index) {
@@ -258,7 +258,7 @@ public class CrossExampleProxy2 {
 		Runtime runtime = Runtime.getRuntime();
 		long max = runtime.maxMemory();
 		System.out.println(
-				CrossExampleProxy2.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
+				ExampleCrossProxy2.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
 		long lastGcCount = 0;
 		NetStatLogger netstat = new NetStatLogger("udp");
 		for (;;) {
