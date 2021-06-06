@@ -126,6 +126,13 @@
 
 	<pluginRepositories>
 		<pluginRepository>
+			<id>dash-licenses-snapshots</id>
+			<url>https://repo.eclipse.org/content/repositories/dash-licenses-snapshots/</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</pluginRepository>
+		<pluginRepository>
 			<id>repo.eclipse.org</id>
 			<name>Californium Repository - Releases</name>
 			<url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
@@ -401,6 +408,20 @@
 							<version>0.22.1</version>
 						</dependency>
 					</dependencies>
+				</plugin>
+				<plugin>
+					<groupId>org.eclipse.dash</groupId>
+					<artifactId>license-tool-plugin</artifactId>
+					<version>0.0.1-SNAPSHOT</version>
+					<executions>
+						<execution>
+							<id>license-check</id>
+							<phase>verify</phase>
+							<goals>
+								<goal>license-check</goal>
+							</goals>
+						</execution>
+					</executions>
 				</plugin>
 			</plugins>
 		</pluginManagement>
