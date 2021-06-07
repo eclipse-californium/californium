@@ -87,7 +87,7 @@ To see the set of options and arguments.
 Requires to start the server with 
 
 ```sh
-java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0-M1.jar --benchmark --no-plugtest
+java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0-M2.jar --benchmark --no-plugtest
 ```
 
 The performance with enabled deduplication for CON requests depends a lot on heap management. Especially, if the performance goes down after a while, that is frequently caused by an exhausted  heap. Therefore using explicit heap-options is recommended. Use the benchmark client from "cf-extplugtest-client", normally started with the shell script "benchmark.sh" there.
@@ -115,7 +115,7 @@ Benchmark started.
 
 ## Benchmarks - Graceful Shutdown
 
-(3.0.0-M1)
+(3.0.0-M2)
 
 The benchmark server is now extended to "save" the connection state (into memory) and "load" it again. For demonstration, type
 
@@ -215,7 +215,7 @@ See [cf-cluster README.md](../../cf-utils/cf-cluster/README.md) for more details
 A service, which uses requests with a device UUID to record these requests along with the source-ip and report them in a response. A client then analyze, if requests or responses may get lost. Used for long term communication tests. An example client is contained in "cf-extplugtest-client".
 
 ```sh
-java -jar target/cf-extplugtest-client-3.0.0-M1.jar ReceivetestClient --cbor -v
+java -jar target/cf-extplugtest-client-3.0.0-M2.jar ReceivetestClient --cbor -v
 
 Response: Payload: 491 bytes
 RTT: 1107ms
@@ -337,13 +337,13 @@ The current build-in cluster comes with three modes:
 Start node 1 on port 15784, using `localhost:15884` as own cluster-management-interface. Provide `localhost:25884` as static cluster-management-interface for node 2:
 
 ```sh
-java -jar target/cf-extplugtest-server-3.0.0-M1.jar --dtls-cluster ":15784;localhost:15884;1,---;localhost:25884;2"
+java -jar target/cf-extplugtest-server-3.0.0-M2.jar --dtls-cluster ":15784;localhost:15884;1,---;localhost:25884;2"
 ```
 
 Start node 2 on port 25784, using `localhost:25884` as own cluster-management-interface. Provide `localhost:15884` as static cluster-management-interface for node 1:
 
 ```sh
-java -jar target/cf-extplugtest-server-3.0.0-M1.jar --dtls-cluster "---;localhost:15884;1,:25784;localhost:25884;2"
+java -jar target/cf-extplugtest-server-3.0.0-M2.jar --dtls-cluster "---;localhost:15884;1,:25784;localhost:25884;2"
 ```
 
 In that mode, the `address:cid` pairs of the other/foreign nodes are static.
@@ -351,7 +351,7 @@ In that mode, the `address:cid` pairs of the other/foreign nodes are static.
 To use that setup, a basic udp-load-balancer may be used in front. The [Cf-NAT](https://github.com/eclipse/californium/tree/master/cf-utils/cf-nat) offers such a function:
 
 ```sh
-java -jar cf-nat-3.0.0-M1.jar :5784 <host>:15784 <host>:25784
+java -jar cf-nat-3.0.0-M2.jar :5784 <host>:15784 <host>:25784
 ```
 
 Replace `<host>` by the host the `cf-extplugtest-server` has been started.
@@ -361,19 +361,19 @@ Replace `<host>` by the host the `cf-extplugtest-server` has been started.
 Start node 1 on port 15784, using `localhost:15884` as own cluster-management-interface. Provide `localhost:25884,localhost:35884` as cluster-management-interfaces for the other nodes of this cluster group:
 
 ```sh
-java -jar target/cf-extplugtest-server-3.0.0-M1.jar --dtls-cluster ":15784;localhost:15884;1" --dtls-cluster-group="localhost:25884,localhost:35884"
+java -jar target/cf-extplugtest-server-3.0.0-M2.jar --dtls-cluster ":15784;localhost:15884;1" --dtls-cluster-group="localhost:25884,localhost:35884"
 ```
 
 Start node 2 on port 25784, using `localhost:25884` as own cluster-management-interface. Provide `localhost:15884,localhost:35884` as cluster-management-interfaces for the other nodes of this cluster group:
 
 ```sh
-java -jar target/cf-extplugtest-server-3.0.0-M1.jar --dtls-cluster ":25784;localhost:25884;2" --dtls-cluster-group="localhost:15884,localhost:35884"
+java -jar target/cf-extplugtest-server-3.0.0-M2.jar --dtls-cluster ":25784;localhost:25884;2" --dtls-cluster-group="localhost:15884,localhost:35884"
 ```
 
 Start node 3 on port 35784, using `localhost:35884` as own cluster-management-interface. Provide `localhost:15884,localhost:25884` as cluster-management-interfaces for the other nodes of this cluster group:
 
 ```sh
-java -jar target/cf-extplugtest-server-3.0.0-M1.jar --dtls-cluster ":35784;localhost:35884;3" --dtls-cluster-group="localhost:15884,localhost:25884"
+java -jar target/cf-extplugtest-server-3.0.0-M2.jar --dtls-cluster ":35784;localhost:35884;3" --dtls-cluster-group="localhost:15884,localhost:25884"
 ```
 
 In that mode, the `address:cid` pairs of the other/foreign nodes are dynamically created using additional messages of the cluster-management-protocol.
@@ -388,13 +388,13 @@ In that mode, the `address:cid` pairs of the other/foreign nodes are dynamically
 This cluster internal management traffic could be optionally encrypted using DTLS with PSK (all nodes share the same identity and secret).
 
 ```sh
-java -jar target/cf-extplugtest-server-3.0.0-M1.jar --dtls-cluster ":25784;localhost:25884;2" --dtls-cluster-group="localhost:15884,localhost:35884 --dtls-cluster-group-security=topSecret!"
+java -jar target/cf-extplugtest-server-3.0.0-M2.jar --dtls-cluster ":25784;localhost:25884;2" --dtls-cluster-group="localhost:15884,localhost:35884 --dtls-cluster-group-security=topSecret!"
 ```
 
 To use that setup, a basic udp-load-balancer may be used in front as for the mode before. Just add the new third destination.
 
 ```sh
-java -jar cf-nat-3.0.0-M1.jar :5784 <host>:15784 <host>:25784 <host>:35784
+java -jar cf-nat-3.0.0-M2.jar :5784 <host>:15784 <host>:25784 <host>:35784
 ```
 
 ### k8s Nodes
@@ -405,7 +405,7 @@ java -jar cf-nat-3.0.0-M1.jar :5784 <host>:15784 <host>:25784 <host>:35784
 Start nodes in a container using port `5784`, and `<any>:5884` as own cluster-management-interface. Additionally provide the external port of the cluster-management-interface also with `5884`.
 
 ```sh
-CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "/opt/app/cf-extplugtest-server-3.0.0-M1.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884"]
+CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "/opt/app/cf-extplugtest-server-3.0.0-M2.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884"]
 ```
 
 Example `CMD` statement for docker (":5884" for "<any>:5884", "5884" for just port 5884, see [Dockerfile](service/Dockerfile)).
@@ -448,7 +448,7 @@ Using a k8s "StatefulSet" comes with a "in-cluster load balancing" based on the 
 To test the dtls-cid-cluster a coap-client can be used. For the k8s approach, start it with
 
 ```sh
-java -jar cf-client-3.0.0-M1.jar --method GET coaps://<host>:30784/mycontext
+java -jar cf-client-3.0.0-M2.jar --method GET coaps://<host>:30784/mycontext
 
 ==[ CoAP Request ]=============================================
 MID    : 12635
@@ -493,7 +493,7 @@ If you execute the client multiple times, you will see different `node-id`s, whe
 For the other two variants above, `Static Nodes` or `Dynamic Nodes`, the `cf-nat` may be used as load-balancer. In that cases, just use the address of the `cf-nat` as destination, e.g.
 
 ```sh
-java -jar cf-client-3.0.0-M1.jar --method GET coaps://<nat>:5784/mycontext
+java -jar cf-client-3.0.0-M2.jar --method GET coaps://<nat>:5784/mycontext
 ```
 
 ### Test the dtls-cid-cluster with Cf-NAT 
@@ -501,7 +501,7 @@ java -jar cf-client-3.0.0-M1.jar --method GET coaps://<nat>:5784/mycontext
 To test, that the dtls-cid-cluster even works, if the client's address is changed, such a address change can be simulated using [Cf-NAT](https://github.com/eclipse/californium/tree/master/cf-utils/cf-nat)
 
 ```sh
-java -jar cf-nat-3.0.0-M1.jar :5784 <host>:30784
+java -jar cf-nat-3.0.0-M2.jar :5784 <host>:30784
 ```
 
 Starts a NAT at port `5784`, forwarding the traffic to `<host>:30784`.
@@ -519,7 +519,7 @@ remove <host:port> - remove destination from load balancer
 reverse (on|off) - enable/disable reverse address updates.
 ```
 
-Start two [cf-browser-3.0.0-M1](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/3.0.0-M1/cf-browser-3.0.0-M1.jar) instances. Enter as destination `coaps://<nat-host>:5784/mycontext` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
+Start two [cf-browser-3.0.0-M2](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/3.0.0-M2/cf-browser-3.0.0-M2.jar) instances. Enter as destination `coaps://<nat-host>:5784/mycontext` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
 
 ```sh
 ip: ?.?.?.?
@@ -695,7 +695,7 @@ An idea to improve that, is not to backward the records and instead send them di
 The communication is routed through NATs/LoadBalancer. A entry for `IPa => IPb` can usually not be used to send a record back from `IPc`. The simple load-balancer `cf-nat` offers therefore the "reverse address update feature". With that, sending back a message with `IPc => IPa` is not only possible, it updates the load-balancer destination to the right `IPc` node for this client's traffic. This works for the first two setups `Static Notes` and `Dynamic Notes`, if the `cf-nat`is used as load-balancer and started with
 
 ```sh
-java -jar cf-nat-2.6.0.jar :5784 <host>:15784 <host>:25784 -r
+java -jar cf-nat-3.0.0-M2.jar :5784 <host>:15784 <host>:25784 -r
 ```
 
 To check, if reverse address update is enabled, press `<enter>` on the console of the NAT.
@@ -712,13 +712,13 @@ When starting the nodes, add `--no-dtls-cluster-backward`.
 Node 1
 
 ```sh
-java -jar target/cf-extplugtest-server-3.0.0-M1.jar --dtls-cluster ":15784;localhost:15884;1" --dtls-cluster-group="localhost:25884" --no-dtls-cluster-backward
+java -jar target/cf-extplugtest-server-3.0.0-M2.jar --dtls-cluster ":15784;localhost:15884;1" --dtls-cluster-group="localhost:25884" --no-dtls-cluster-backward
 ```
 
 Node 2
 
 ```sh
-java -jar target/cf-extplugtest-server-3.0.0-M1.jar --dtls-cluster ":25784;localhost:15884;2" --dtls-cluster-group="localhost:15884" --no-dtls-cluster-backward
+java -jar target/cf-extplugtest-server-3.0.0-M2.jar --dtls-cluster ":25784;localhost:15884;2" --dtls-cluster-group="localhost:15884" --no-dtls-cluster-backward
 ```
 
 You may try out the benchmark above and `clear` the NAT during execution. The 20% penalty is gone! The cluster adjusts very fast the load-balancers NAT entries with the right address.

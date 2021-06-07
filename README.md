@@ -92,7 +92,7 @@ to your `pom.xml` (without the dots):
 
 ##### Current Milestones
 
-[Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.0.0-M1). if you want to use the current milestone for the upcoming 3.0.0, use version `3.0.0-M1` from the releases.
+[Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.0.0-M2). if you want to use the current milestone for the upcoming 3.0.0, use version `3.0.0-M2` from the releases.
 
 ##### Current Builds
 
@@ -136,7 +136,7 @@ A test server is running at <a href="coap://californium.eclipseprojects.io:5683/
 
 (Note: that changed from "californium.eclipse.org" on the 9th. December 2020. All 2.x demo- and plugtest-clients must therefore use the new destination "californium.eclipseprojects.io" explicitly!)
 
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0-M1/cf-plugtest-server-3.0.0-M1.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0-M2/cf-plugtest-server-3.0.0-M2.jar) from the demo-apps.
 The root resource responds with its current version.
 
 More information can be found at [http://www.eclipse.org/californium](http://www.eclipse.org/californium) and technical details at [https://projects.eclipse.org/projects/iot.californium](https://projects.eclipse.org/projects/iot.californium).
@@ -150,7 +150,7 @@ More information can be found at [http://coap.me/](http://coap.me/).
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.0.0-M1.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.0.0-M2.jar MulticastTestServer`
 
 # Contact
 
