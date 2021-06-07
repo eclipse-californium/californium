@@ -261,7 +261,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	private static final int TLS12_CID_PADDING = 0;
 
-	private static final long CLIENT_HELLO_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(60);
+	private static final long CLIENT_HELLO_TIMEOUT_NANOS = CookieGenerator.COOKIE_LIFETIME_NANOS * 2
+			+ TimeUnit.SECONDS.toNanos(15);
 
 	/**
 	 * Indicates, that MDC support is available.
@@ -711,13 +712,13 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * 
 	 * To prevent starting handshakes accidentally from repeated client hellos,
 	 * the client's random is used to filter that for
-	 * {@link #CLIENT_HELLO_TIMEOUT_MILLIS}.
+	 * {@link #CLIENT_HELLO_TIMEOUT_NANOS}.
 	 * 
 	 * @return system nanoseconds.
 	 * @since 3.0
 	 */
 	private long calculateRecentHandshakeExpires() {
-		return ClockUtil.nanoRealtime() - TimeUnit.MILLISECONDS.toNanos(CLIENT_HELLO_TIMEOUT_MILLIS);
+		return ClockUtil.nanoRealtime() - CLIENT_HELLO_TIMEOUT_NANOS;
 	}
 
 	/**
