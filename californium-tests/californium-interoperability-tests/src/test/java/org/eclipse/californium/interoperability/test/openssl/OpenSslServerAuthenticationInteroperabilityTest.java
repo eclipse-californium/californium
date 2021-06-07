@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.openssl;
 
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
@@ -228,6 +229,20 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic (groups|curves): P-384");
+	}
+
+	@Test
+	public void testOpenSslServerBrainpoolP384r1() throws Exception {
+		assumeTrue("BrainpoolP384r1 not support by JRE", XECDHECryptography.SupportedGroup.brainpoolP384r1.isUsable());
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_CERTIFICATE, "brainpoolP384r1:prime256v1", null, cipherSuite);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
+		dtlsBuilder.setRecommendedSupportedGroupsOnly(false);
+		dtlsBuilder.setSupportedGroups(SupportedGroup.brainpoolP384r1, SupportedGroup.secp256r1);
+		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+
+		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		connect(cipher, "Shared Elliptic (groups|curves): brainpoolP384r1:P-256");
 	}
 
 	@Test
