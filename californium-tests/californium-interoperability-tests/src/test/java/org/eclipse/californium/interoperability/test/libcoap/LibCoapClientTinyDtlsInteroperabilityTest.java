@@ -19,6 +19,7 @@ import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.RPK;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 
@@ -138,6 +139,19 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)", "certificate_verify \\(15\\)");
 		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapClientTinyDtlsRpkAnonymousClient() throws Exception {
+		processUtil.assumeMinVersion("4.3.0");
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder();
+		builder.setClientAuthenticationRequired(false);
+		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+
+		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
+		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)");
+		assertNull(californiumUtil.getPrincipal());
 	}
 
 	public ProcessResult connect(String sendMessage, String... patterns) throws Exception {

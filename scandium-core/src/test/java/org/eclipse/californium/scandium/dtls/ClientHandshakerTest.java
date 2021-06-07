@@ -277,7 +277,7 @@ public class ClientHandshakerTest {
 		CertificateType preferred = null;
 		ServerCertificateTypeExtension typeExtension = msg.getServerCertificateTypeExtension();
 		if (typeExtension != null) {
-			preferred = typeExtension.getCertificateTypes().get(0);
+			preferred = typeExtension.getCertificateType();
 		}
 		if (expectedType == CertificateType.X_509) {
 			if (preferred == null) {

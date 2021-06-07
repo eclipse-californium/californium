@@ -108,14 +108,17 @@ public final class HelloExtensions {
 	 * @param type the type of extension
 	 * @return the extension, or {@code null}, if no extension of the given type
 	 *         is present
+	 * @throws NullPointerException if type is {@code null}
+	 * @since 3.0 (added NullPointerException)
 	 */
 	@SuppressWarnings("unchecked")
 	public <T extends HelloExtension> T getExtension(ExtensionType type) {
-		if (type != null) {
-			for (HelloExtension ext : extensions) {
-				if (type.equals(ext.getType())) {
-					return (T) ext;
-				}
+		if (type == null) {
+			throw new NullPointerException("Extension type must not be null!");
+		}
+		for (HelloExtension ext : extensions) {
+			if (type.equals(ext.getType())) {
+				return (T) ext;
 			}
 		}
 		return null;
