@@ -54,9 +54,17 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 public class CookieGenerator {
 
 	/**
-	 * Key lifetime in nanos.
+	 * Cookie's key lifetime in nanos.
+	 * 
+	 * Considering the current and the past cookie enables the client to execute
+	 * handshakes also when the cookie key has changed. That usually requires a
+	 * new challenge with a HELLO_VERIFY_REQUEST, but supporting also the past
+	 * cookie eliminates the need of that extra exchange. The lifetime of a
+	 * CLIENT_HELLO therefore spans also twice this value.
+	 * 
+	 * @since 3.0 (renamed COOKIE_LIFE_TIME)
 	 */
-	public static final long COOKIE_LIFE_TIME = TimeUnit.MINUTES.toNanos(5);
+	public static final long COOKIE_LIFETIME_NANOS = TimeUnit.SECONDS.toNanos(60);
 
 	/**
 	 * Nanos of next key generation.
@@ -109,7 +117,7 @@ public class CookieGenerator {
 				return currentSecretKey;
 			}
 			randomGenerator.nextBytes(randomBytes);
-			nextKeyGenerationNanos = now + COOKIE_LIFE_TIME;
+			nextKeyGenerationNanos = now + COOKIE_LIFETIME_NANOS;
 			// shift secret keys
 			pastSecretKey = currentSecretKey;
 			currentSecretKey = SecretUtil.create(randomBytes, "MAC");
