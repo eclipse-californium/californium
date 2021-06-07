@@ -138,7 +138,11 @@ public class CipherSuiteParameters {
 	private List<SignatureAndHashAlgorithm> signatures;
 	private ECPointFormat format;
 
+	private CipherSuite selectedCipherSuite;
+	private CertificateType selectedServerCertificateType;
+	private CertificateType selectedClientCertificateType;
 	private SignatureAndHashAlgorithm selectedSignature;
+	private SupportedGroup selectedSupportedGroup;
 
 	/**
 	 * Create common cipher suites and parameters.
@@ -193,6 +197,11 @@ public class CipherSuiteParameters {
 		this.supportedGroups = others.supportedGroups;
 		this.signatures = others.signatures;
 		this.format = others.format;
+		this.selectedCipherSuite = others.selectedCipherSuite;
+		this.selectedServerCertificateType = others.selectedServerCertificateType;
+		this.selectedClientCertificateType = others.selectedClientCertificateType;
+		this.selectedSupportedGroup = others.selectedSupportedGroup;
+		this.selectedSignature = others.selectedSignature;
 	}
 
 	public List<CipherSuite> getCipherSuites() {
@@ -261,7 +270,7 @@ public class CipherSuiteParameters {
 	 * @return selected cipher suite
 	 */
 	public CipherSuite getSelectedCipherSuite() {
-		return cipherSuites.get(0);
+		return selectedCipherSuite;
 	}
 
 	/**
@@ -271,10 +280,7 @@ public class CipherSuiteParameters {
 	 *         available.
 	 */
 	public CertificateType getSelectedServerCertificateType() {
-		if (serverCertTypes.isEmpty()) {
-			return null;
-		}
-		return serverCertTypes.get(0);
+		return selectedServerCertificateType;
 	}
 
 	/**
@@ -284,10 +290,7 @@ public class CipherSuiteParameters {
 	 *         available.
 	 */
 	public CertificateType getSelectedClientCertificateType() {
-		if (clientCertTypes.isEmpty()) {
-			return null;
-		}
-		return clientCertTypes.get(0);
+		return selectedClientCertificateType;
 	}
 
 	/**
@@ -296,10 +299,7 @@ public class CipherSuiteParameters {
 	 * @return supported group, or {@code null}, if not available.
 	 */
 	public SupportedGroup getSelectedSupportedGroup() {
-		if (supportedGroups.isEmpty()) {
-			return null;
-		}
-		return supportedGroups.get(0);
+		return selectedSupportedGroup;
 	}
 
 	/**
@@ -339,10 +339,19 @@ public class CipherSuiteParameters {
 	 * Select cipher suite.
 	 * 
 	 * @param cipherSuite selected cipher suite
+	 * @throws NullPointerException if the cipher suite is {@code null}
+	 * @throws IllegalArgumentException if the cipher suite is not in the list
+	 *             of common cipher suites
+	 * @since 3.0 (added NullPointerException and IllegalArgumentException)
 	 */
 	public void select(CipherSuite cipherSuite) {
-		cipherSuites.clear();
-		cipherSuites.add(cipherSuite);
+		if (cipherSuite == null) {
+			throw new NullPointerException("Cipher suite must not be null!");
+		}
+		if (!cipherSuites.contains(cipherSuite)) {
+			throw new IllegalArgumentException(cipherSuite + " is no common cipher suite!");
+		}
+		selectedCipherSuite = cipherSuite;
 	}
 
 	/**
@@ -350,12 +359,15 @@ public class CipherSuiteParameters {
 	 * 
 	 * @param type selected server certificate type. Maybe {@code null}, if not
 	 *            available.
+	 * @throws IllegalArgumentException if the certificate type is not in the
+	 *             list of common server certificate types
+	 * @since 3.0 (added IllegalArgumentException)
 	 */
 	public void selectServerCertificateType(CertificateType type) {
-		serverCertTypes.clear();
-		if (type != null) {
-			serverCertTypes.add(type);
+		if (type != null && !serverCertTypes.contains(type)) {
+			throw new IllegalArgumentException(type + " server certificate type is no common certificate type.");
 		}
+		selectedServerCertificateType = type;
 	}
 
 	/**
@@ -363,12 +375,31 @@ public class CipherSuiteParameters {
 	 * 
 	 * @param type selected client certificate type. Maybe {@code null}, if not
 	 *            available or client certificate not requested.
+	 * @throws IllegalArgumentException if the certificate type is not in the
+	 *             list of common client certificate types
+	 * @since 3.0 (added IllegalArgumentException)
 	 */
 	public void selectClientCertificateType(CertificateType type) {
-		clientCertTypes.clear();
-		if (type != null) {
-			clientCertTypes.add(type);
+		if (type != null && !clientCertTypes.contains(type)) {
+			throw new IllegalArgumentException(type + " client certificate type is no common certificate type.");
 		}
+		selectedClientCertificateType = type;
+	}
+
+	/**
+	 * Select supported group / curve.
+	 * 
+	 * @param group selected supported group. Maybe {@code null}, if not
+	 *            available.
+	 * @throws IllegalArgumentException if the supported group is not in the
+	 *             list of common supported group
+	 * @since 3.0
+	 */
+	public void selectSupportedGroup(SupportedGroup group) {
+		if (group != null && !supportedGroups.contains(group)) {
+			throw new IllegalArgumentException(group + " is no common group/curve.");
+		}
+		this.selectedSupportedGroup = group;
 	}
 
 	/**
@@ -376,8 +407,14 @@ public class CipherSuiteParameters {
 	 * 
 	 * @param signature selected signature and hash algorithm. Maybe
 	 *            {@code null}, if not available.
+	 * @throws IllegalArgumentException if the signature and hash algorithm is
+	 *             not in the list of common signature and hash algorithms
+	 * @since 3.0 (added IllegalArgumentException)
 	 */
 	public void selectSignatureAndHashAlgorithm(SignatureAndHashAlgorithm signature) {
+		if (signature != null && !signatures.contains(signature)) {
+			throw new IllegalArgumentException(signature + " is no common signature and hash algorithm.");
+		}
 		this.selectedSignature = signature;
 	}
 
@@ -436,6 +473,9 @@ public class CipherSuiteParameters {
 		StringBuilder builder = new StringBuilder();
 		builder.append("cipher suites: ");
 		for (CipherSuite cipherSuite : cipherSuites) {
+			if (selectedCipherSuite == cipherSuite) {
+				builder.append("#");
+			}
 			builder.append(cipherSuite.name()).append(",");
 		}
 		builder.setLength(builder.length() - 1);
@@ -456,24 +496,36 @@ public class CipherSuiteParameters {
 		}
 		builder.append("server certificate types: ");
 		for (CertificateType cerType : serverCertTypes) {
+			if (selectedServerCertificateType == cerType) {
+				builder.append("#");
+			}
 			builder.append(cerType.name()).append(",");
 		}
 		builder.setLength(builder.length() - 1);
 		builder.append(StringUtil.lineSeparator());
 		builder.append("client certificate types: ");
-		for (CertificateType cerType : serverCertTypes) {
+		for (CertificateType cerType : clientCertTypes) {
+			if (selectedClientCertificateType == cerType) {
+				builder.append("#");
+			}
 			builder.append(cerType.name()).append(",");
 		}
 		builder.setLength(builder.length() - 1);
 		builder.append(StringUtil.lineSeparator());
 		builder.append("ec-groups: ");
 		for (SupportedGroup group : supportedGroups) {
+			if (selectedSupportedGroup == group) {
+				builder.append("#");
+			}
 			builder.append(group.name()).append(",");
 		}
 		builder.setLength(builder.length() - 1);
 		builder.append(StringUtil.lineSeparator());
 		builder.append("signatures: ");
 		for (SignatureAndHashAlgorithm sign : signatures) {
+			if (selectedSignature == sign) {
+				builder.append("#");
+			}
 			builder.append(sign.getJcaName()).append(",");
 		}
 		builder.setLength(builder.length() - 1);

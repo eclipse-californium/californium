@@ -83,7 +83,11 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 				return false;
 			}
 		} else {
-			// PSK or PSK_ECDHE only requires a selected cipher suite.
+			if (cipherSuite.isEccBased()) {
+				// PSK_ECDHE requires a selected supported group
+				parameters.selectSupportedGroup(parameters.getSupportedGroups().get(0));
+			}
+			// PSK requires a selected cipher suite.
 			parameters.select(cipherSuite);
 			return true;
 		}
@@ -110,8 +114,8 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 	 *             the node certificate is not EC based.
 	 */
 	protected boolean selectForCertificate(CipherSuiteParameters parameters, CipherSuite cipherSuite) {
-		// make sure that we support the client's proposed server certificate
-		// types
+		// make sure that we support the client's proposed
+		// server certificate types
 		if (parameters.getServerCertTypes().isEmpty()) {
 			parameters.setCertificateMismatch(CertificateBasedMismatch.SERVER_CERT_TYPE);
 			return false;
@@ -167,6 +171,7 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 			parameters.select(cipherSuite);
 			parameters.selectServerCertificateType(certificateType);
 			parameters.selectSignatureAndHashAlgorithm(signatureAndHashAlgorithm);
+			parameters.selectSupportedGroup(parameters.getSupportedGroups().get(0));
 			certificateType = clientAuthentication ? parameters.getClientCertTypes().get(0) : null;
 			parameters.selectClientCertificateType(certificateType);
 			return true;

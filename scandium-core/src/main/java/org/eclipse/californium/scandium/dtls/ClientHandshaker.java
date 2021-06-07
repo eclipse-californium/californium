@@ -421,7 +421,6 @@ public class ClientHandshaker extends Handshaker {
 			throw new HandshakeException("Extended Master Secret required!",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
-		session.setSendCertificateType(message.getClientCertificateType());
 		session.setSniSupported(message.hasServerNameExtension());
 		setExpectedStates(cipherSuite.requiresServerCertificateMessage() ? SEVER_CERTIFICATE : NO_SEVER_CERTIFICATE);
 	}
@@ -444,7 +443,7 @@ public class ClientHandshaker extends Handshaker {
 			} else {
 				for (HelloExtension serverExtension : serverExtensions.getExtensions()) {
 					if (clientExtensions.getExtension(serverExtension.getType()) == null) {
-						throw new HandshakeException("Server wants " + serverExtension.getType() + ", but client not!",
+						throw new HandshakeException("Server wants " + serverExtension.getType() + ", but client didn't propose it!",
 								new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION));
 					}
 				}
@@ -480,12 +479,23 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		CertificateType serverCertificateType = message.getServerCertificateType();
-		if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
-			throw new HandshakeException(
-					"Server wants to use not supported server certificate type " + serverCertificateType,
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
+		if (serverCertificateType != null) {
+			if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
+				throw new HandshakeException(
+						"Server wants to use not supported server certificate type " + serverCertificateType,
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
+			}
+			session.setReceiveCertificateType(serverCertificateType);
 		}
-		session.setReceiveCertificateType(serverCertificateType);
+		CertificateType clientCertificateType = message.getClientCertificateType();
+		if (clientCertificateType != null) {
+			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
+				throw new HandshakeException(
+						"Server wants to use not supported client certificate type " + clientCertificateType,
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
+			}
+			session.setSendCertificateType(clientCertificateType);
+		}
 	}
 
 	/**

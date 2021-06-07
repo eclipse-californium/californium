@@ -282,20 +282,24 @@ public final class ServerHello extends HandshakeMessage {
 	}
 
 	/**
-	 * Gets the type of certificate the server expects the client to send in
-	 * its <em>Certificate</em> message.
+	 * Gets the type of certificate the server expects the client to send in its
+	 * <em>Certificate</em> message.
 	 * 
-	 * @return the certificate type
+	 * @return the certificate type, or {@code null}, if this SERVER_HELLO
+	 *         doesn't contain the client certificate type extension.
+	 * @since 3.0 (adapted to return {@code null})
 	 */
 	CertificateType getClientCertificateType() {
 		return getCertificateType(ExtensionType.CLIENT_CERT_TYPE);
 	}
 
 	/**
-	 * Gets the type of certificate the server will send to the client in
-	 * its <em>Certificate</em> message.
+	 * Gets the type of certificate the server will send to the client in its
+	 * <em>Certificate</em> message.
 	 * 
-	 * @return the certificate type
+	 * @return the certificate type, or {@code null}, if this SERVER_HELLO
+	 *         doesn't contain the server certificate type extension.
+	 * @since 3.0 (adapted to return {@code null})
 	 */
 	CertificateType getServerCertificateType() {
 		return getCertificateType(ExtensionType.SERVER_CERT_TYPE);
@@ -304,17 +308,19 @@ public final class ServerHello extends HandshakeMessage {
 	/**
 	 * Gets the type of certificate for the provided extension type.
 	 * 
-	 * @param type extension type. Either {@link ExtensionType#SERVER_CERT_TYPE} or {@link ExtensionType#CLIENT_CERT_TYPE}
-	 * @return the certificate type
+	 * @param type extension type. Either {@link ExtensionType#SERVER_CERT_TYPE}
+	 *            or {@link ExtensionType#CLIENT_CERT_TYPE}
+	 * @return the certificate type, or {@code null}, if this SERVER_HELLO
+	 *         doesn't contain the extension.
+	 * @since 3.0 (adapted to return {@code null})
 	 */
 	private CertificateType getCertificateType(ExtensionType type) {
 		// default type is always X.509
-		CertificateType result = CertificateType.X_509;
 		CertificateTypeExtension certificateExtension = extensions.getExtension(type);
-		if (certificateExtension != null && !certificateExtension.getCertificateTypes().isEmpty()) {
-			result = certificateExtension.getCertificateTypes().get(0);
+		if (certificateExtension != null) {
+			return certificateExtension.getCertificateType();
 		}
-		return result;
+		return null;
 	}
 
 	/**

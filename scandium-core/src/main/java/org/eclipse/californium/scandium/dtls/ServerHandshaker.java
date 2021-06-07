@@ -591,13 +591,13 @@ public class ServerHandshaker extends Handshaker {
 		DTLSSession session = getSession();
 		CertificateMessage certificateMessage = null;
 		if (session.getCipherSuite().requiresServerCertificateMessage()) {
-			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
+			CertificateType certificateType = session.sendCertificateType();
+			if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
 				certificateMessage = new CertificateMessage(cipherSuiteParameters.getPublicKey());
-			} else if (CertificateType.X_509 == session.sendCertificateType()) {
+			} else if (CertificateType.X_509 == certificateType) {
 				certificateMessage = new CertificateMessage(cipherSuiteParameters.getCertificateChain());
 			} else {
-				throw new IllegalArgumentException(
-						"Certificate type " + session.sendCertificateType() + " not supported!");
+				throw new IllegalArgumentException("Certificate type " + certificateType + " not supported!");
 			}
 			wrapMessage(flight, certificateMessage);
 		}
@@ -657,17 +657,18 @@ public class ServerHandshaker extends Handshaker {
 
 	private boolean createCertificateRequest(DTLSFlight flight) {
 		DTLSSession session = getSession();
+		CertificateType certificateType = session.receiveCertificateType();
 		if ((clientAuthenticationWanted || clientAuthenticationRequired)
 				&& session.getCipherSuite().requiresServerCertificateMessage()
-				&& session.receiveCertificateType() != null) {
+				&& certificateType != null) {
 			CertificateRequest certificateRequest = new CertificateRequest();
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-			if (session.receiveCertificateType() == CertificateType.X_509) {
+			if (CertificateType.X_509 == certificateType) {
 				certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
 				if (certificateVerifier != null) {
 					certificateRequest.addCerticiateAuthorities(certificateVerifier.getAcceptedIssuers());
 				}
-			} else if (session.receiveCertificateType() == CertificateType.RAW_PUBLIC_KEY) {
+			} else if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
 				List<SignatureAndHashAlgorithm> ecdsaSignatures = SignatureAndHashAlgorithm
 						.getEcdsaCompatibleSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
 				certificateRequest.addSignatureAlgorithms(ecdsaSignatures);
@@ -770,19 +771,27 @@ public class ServerHandshaker extends Handshaker {
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
 
-		CertificateType certificateType = session.receiveCertificateType();
-		if (certificateType != null) {
-			if (clientHello.getClientCertificateTypeExtension() != null) {
-				ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(certificateType);
-				serverHello.addExtension(ext);
+		if (session.getCipherSuite().requiresServerCertificateMessage()) {
+			if (clientAuthenticationRequired || clientAuthenticationWanted) {
+				CertificateType certificateType = session.receiveCertificateType();
+				if (certificateType != null) {
+					ClientCertificateTypeExtension certificateTypeExtension = clientHello
+							.getClientCertificateTypeExtension();
+					if (certificateTypeExtension != null && certificateTypeExtension.contains(certificateType)) {
+						ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(certificateType);
+						serverHello.addExtension(ext);
+					}
+				}
 			}
-		}
 
-		certificateType = session.sendCertificateType();
-		if (certificateType != null) {
-			if (clientHello.getServerCertificateTypeExtension() != null) {
-				ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(certificateType);
-				serverHello.addExtension(ext);
+			CertificateType certificateType = session.sendCertificateType();
+			if (certificateType != null) {
+				ServerCertificateTypeExtension certificateTypeExtension = clientHello
+						.getServerCertificateTypeExtension();
+				if (certificateTypeExtension != null && certificateTypeExtension.contains(certificateType)) {
+					ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(certificateType);
+					serverHello.addExtension(ext);
+				}
 			}
 		}
 
@@ -879,17 +888,34 @@ public class ServerHandshaker extends Handshaker {
 	 * @see DefaultCipherSuiteSelector
 	 */
 	private void negotiateCipherSuite(ClientHello clientHello) throws HandshakeException {
-
+		LOGGER.trace("Negotiate on: {}", cipherSuiteParameters);
 		if (cipherSuiteSelector.select(cipherSuiteParameters)) {
+			LOGGER.debug("Negotiated: {}", cipherSuiteParameters);
 			DTLSSession session = getSession();
 			CipherSuite cipherSuite = cipherSuiteParameters.getSelectedCipherSuite();
 			session.setCipherSuite(cipherSuite);
 			if (cipherSuite.requiresServerCertificateMessage()) {
 				session.setSignatureAndHashAlgorithm(cipherSuiteParameters.getSelectedSignature());
-				session.setSendCertificateType(cipherSuiteParameters.getSelectedServerCertificateType());
-				CertificateType certificateType = cipherSuiteParameters.getSelectedClientCertificateType();
-				if (clientAuthenticationRequired || (clientAuthenticationWanted && certificateType != null)) {
+				CertificateType certificateType = cipherSuiteParameters.getSelectedServerCertificateType();
+				if (certificateType == null) {
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE);
+					throw new HandshakeException("No common server certificate type!", alert);
+				}
+				session.setSendCertificateType(certificateType);
+				certificateType = cipherSuiteParameters.getSelectedClientCertificateType();
+				if (clientAuthenticationRequired) {
+					if (certificateType == null) {
+						AlertMessage alert = new AlertMessage(AlertLevel.FATAL,
+								AlertDescription.UNSUPPORTED_CERTIFICATE);
+						throw new HandshakeException("No common client certificate type!", alert);
+					}
 					session.setReceiveCertificateType(certificateType);
+				} else if (clientAuthenticationWanted) {
+					if (certificateType != null) {
+						session.setReceiveCertificateType(certificateType);
+					}
+					// if no common certificate type is available,
+					// keep x509 but don't send the extension
 				}
 			}
 			LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]", cipherSuite.name(), peerToLog);
@@ -1019,19 +1045,14 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private static List<CertificateType> getCommonCertificateTypes(CertificateTypeExtension certTypeExt,
 			final List<CertificateType> supportedCertificateTypes) {
-		List<CertificateType> common = new ArrayList<>();
 		if (supportedCertificateTypes != null) {
 			if (certTypeExt != null) {
-				for (CertificateType certType : certTypeExt.getCertificateTypes()) {
-					if (supportedCertificateTypes.contains(certType)) {
-						common.add(certType);
-					}
-				}
+				return certTypeExt.getCommonCertificateTypes(supportedCertificateTypes);
 			} else if (supportedCertificateTypes.contains(CertificateType.X_509)) {
-				common.add(CertificateType.X_509);
+				return CertificateTypeExtension.DEFAULT_X509;
 			}
 		}
-		return common;
+		return CertificateTypeExtension.EMPTY;
 	}
 
 	final CipherSuiteParameters getNegotiatedCipherSuiteParameters() {
