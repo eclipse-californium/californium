@@ -64,6 +64,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
@@ -368,7 +369,6 @@ public class ClientHandshaker extends Handshaker {
 				session.setReadConnectionId(getReadConnectionId());
 			}
 		}
-		session.setSendCertificateType(message.getClientCertificateType());
 		session.setSniSupported(message.hasServerNameExtension());
 		session.setParameterAvailable();
 		if (!cipherSuite.requiresServerCertificateMessage()) {
@@ -391,6 +391,32 @@ public class ClientHandshaker extends Handshaker {
 										message.getPeer()));
 					}
 				}
+			}
+
+			if (serverExtensions.getExtension(ExtensionType.SERVER_CERT_TYPE) != null) {
+				CertificateType serverCertificateType = message.getServerCertificateType();
+				if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
+					throw new HandshakeException(
+							"Server wants to use not supported server certificate type " + serverCertificateType,
+							new AlertMessage(
+									AlertLevel.FATAL,
+									AlertDescription.ILLEGAL_PARAMETER,
+									message.getPeer()));
+				}
+				session.setReceiveCertificateType(serverCertificateType);
+			}
+
+			if (serverExtensions.getExtension(ExtensionType.CLIENT_CERT_TYPE) != null) {
+				CertificateType clientCertificateType = message.getClientCertificateType();
+				if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
+					throw new HandshakeException(
+							"Server wants to use not supported client certificate type " + clientCertificateType,
+							new AlertMessage(
+									AlertLevel.FATAL,
+									AlertDescription.ILLEGAL_PARAMETER,
+									message.getPeer()));
+				}
+				session.setSendCertificateType(clientCertificateType);
 			}
 		}
 
@@ -432,16 +458,6 @@ public class ClientHandshaker extends Handshaker {
 			}
 		}
 
-		CertificateType serverCertificateType = message.getServerCertificateType();
-		if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
-			throw new HandshakeException(
-					"Server wants to use not supported server certificate type " + serverCertificateType,
-					new AlertMessage(
-							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							message.getPeer()));
-		}
-		session.setReceiveCertificateType(serverCertificateType);
 	}
 
 	/**

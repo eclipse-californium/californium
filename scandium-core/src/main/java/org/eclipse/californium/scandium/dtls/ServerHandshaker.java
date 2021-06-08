@@ -786,18 +786,28 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	private void addServerHelloExtensions(final CipherSuite negotiatedCipherSuite, final ClientHello clientHello, final HelloExtensions extensions) {
-		CertificateType certificateType = session.receiveCertificateType();
-		if (certificateType != null) {
-			if (clientHello.getClientCertificateTypeExtension() != null) {
-				ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(certificateType);
-				extensions.addExtension(ext);
+		if (negotiatedCipherSuite.requiresServerCertificateMessage()) {
+			if (clientAuthenticationRequired || clientAuthenticationWanted) {
+				CertificateType certificateType = session.receiveCertificateType();
+				if (certificateType != null) {
+					ClientCertificateTypeExtension clientCertificateTypeExtension = clientHello
+							.getClientCertificateTypeExtension();
+					if (clientCertificateTypeExtension != null
+							&& clientCertificateTypeExtension.getCertificateTypes().contains(certificateType)) {
+						ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(certificateType);
+						extensions.addExtension(ext);
+					}
+				}
 			}
-		}
-		certificateType = session.sendCertificateType();
-		if (certificateType != null) {
-			if (clientHello.getServerCertificateTypeExtension() != null) {
-				ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(certificateType);
-				extensions.addExtension(ext);
+			CertificateType certificateType = session.sendCertificateType();
+			if (certificateType != null) {
+				ServerCertificateTypeExtension serverCertificateTypeExtension = clientHello
+						.getServerCertificateTypeExtension();
+				if (serverCertificateTypeExtension != null
+						&& serverCertificateTypeExtension.getCertificateTypes().contains(certificateType)) {
+					ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(certificateType);
+					extensions.addExtension(ext);
+				}
 			}
 		}
 		if (negotiatedCipherSuite.isEccBased()) {

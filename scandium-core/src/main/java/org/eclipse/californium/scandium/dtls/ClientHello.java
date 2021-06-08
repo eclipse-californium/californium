@@ -203,19 +203,20 @@ public final class ClientHello extends HandshakeMessage {
 			this.extensions.addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
 		}
 
-		// the certificate types the client is able to provide to the server
-		if (useCertificateTypeExtension(supportedClientCertificateTypes)) {
-			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(supportedClientCertificateTypes);
-			this.extensions.addExtension(clientCertificateType);
+		if (CipherSuite.containsCipherSuiteRequiringCertExchange(supportedCipherSuites)) {
+			// the certificate types the client is able to provide to the server
+			if (useCertificateTypeExtension(supportedClientCertificateTypes)) {
+				CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(supportedClientCertificateTypes);
+				this.extensions.addExtension(clientCertificateType);
+			}
+	
+			// the type of certificates the client is able to process when provided
+			// by the server
+			if (useCertificateTypeExtension(supportedServerCertificateTypes)) {
+				CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(supportedServerCertificateTypes);
+				this.extensions.addExtension(serverCertificateType);
+			}
 		}
-
-		// the type of certificates the client is able to process when provided
-		// by the server
-		if (useCertificateTypeExtension(supportedServerCertificateTypes)) {
-			CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(supportedServerCertificateTypes);
-			this.extensions.addExtension(serverCertificateType);
-		}
-		
 	}
 
 	/**
