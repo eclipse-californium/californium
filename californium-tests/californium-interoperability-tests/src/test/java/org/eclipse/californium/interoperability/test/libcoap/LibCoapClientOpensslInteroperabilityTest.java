@@ -59,7 +59,7 @@ import org.junit.Test;
  * 
  * @see LibCoapProcessUtil
  */
-public class LibCoapClientInteroperabilityTest {
+public class LibCoapClientOpensslInteroperabilityTest {
 
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
@@ -75,7 +75,7 @@ public class LibCoapClientInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new LibCoapProcessUtil();
-		ProcessResult result = processUtil.prepareLibCoapClient(TIMEOUT_MILLIS);
+		ProcessResult result = processUtil.prepareLibCoapClientOpenssl(TIMEOUT_MILLIS);
 		assumeNotNull(result);
 		processUtil.assumeMinVersion("4.2.1");
 		processUtil.assumeMinDtlsVersion("1.1.1");

@@ -201,12 +201,12 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	}
 
 	/**
-	 * Get libcoap client version.
+	 * Get libcoap client with openssl version.
 	 * 
 	 * @param timeMillis timeout in milliseconds
 	 * @return result of coap-client command. {@code null}, if not available.
 	 */
-	public ProcessResult prepareLibCoapClient(long timeMillis) {
+	public ProcessResult prepareLibCoapClientOpenssl(long timeMillis) {
 		client = LIBCOAP_CLIENT_OPENSSL;
 		return prepareLibCoapApplication(client, "OpenSSL", timeMillis);
 	}
@@ -248,12 +248,12 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	}
 
 	/**
-	 * Get libcoap server version.
+	 * Get libcoap server with openssl version.
 	 * 
 	 * @param timeMillis timeout in milliseconds
 	 * @return result of coap-server command. {@code null}, if not available.
 	 */
-	public ProcessResult preapreLibCoapServer(long timeMillis) {
+	public ProcessResult prepareLibCoapServerOpenssl(long timeMillis) {
 		server = LIBCOAP_SERVER_OPENSSL;
 		return prepareLibCoapApplication(server, "OpenSSL", timeMillis);
 	}

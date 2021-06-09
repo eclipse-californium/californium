@@ -40,6 +40,9 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -208,6 +211,24 @@ public class CaliforniumUtil extends ConnectorUtil {
 			});
 			server.start();
 		}
+	}
+
+	/**
+	 * Send request using a full handshake.
+	 * 
+	 * Only available for clients, see {@link #CaliforniumUtil(boolean)}.
+	 * 
+	 * @param request request to send
+	 * @return response, or {@code null}, if no response was received.
+	 * @throws IllegalStateException if it is not a client
+	 * @since 3.0
+	 */
+	public CoapResponse sendWithFullHandshake(Request request) {
+		EndpointContext destinationContext = request.getDestinationContext();
+		destinationContext = MapBasedEndpointContext.setEntries(destinationContext,
+				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
+		request.setDestinationContext(destinationContext);
+		return send(request);
 	}
 
 	/**
