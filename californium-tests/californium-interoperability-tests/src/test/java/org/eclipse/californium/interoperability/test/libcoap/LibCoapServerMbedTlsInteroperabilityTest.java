@@ -23,6 +23,7 @@ import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProce
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNotNull;
@@ -113,6 +114,31 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
+		connect(true);
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapServerPsk2FullHandshake() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
+
+		californiumUtil.start(BIND, null, cipherSuite);
+
+		// first handshake
+		Request request = Request.newGet();
+		request.setURI("coaps://" + StringUtil.toString(DESTINATION) + "/time");
+		CoapResponse response = californiumUtil.send(request);
+		assertNotNull(response);
+		assertEquals(CoAP.ResponseCode.CONTENT, response.getCode());
+
+		// second handshake
+		request = Request.newGet();
+		request.setURI("coaps://" + StringUtil.toString(DESTINATION) + "/time");
+		response = californiumUtil.sendWithFullHandshake(request);
+		assertNotNull(response);
+		assertEquals(CoAP.ResponseCode.CONTENT, response.getCode());
+
 		connect(true);
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
 	}
