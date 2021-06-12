@@ -748,7 +748,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			}
 		}
 		if (count > 0 || size > 0) {
-			LOGGER.warn("Cleanup {} recent handshakes, left {}!", count, size);
+			LOGGER.info("Cleanup {} recent handshakes, left {}!", count, size);
 		}
 	}
 
@@ -2082,7 +2082,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		if (connection == null) {
 			throw new NullPointerException("connection must not be null!");
 		} else if (!connection.equalsPeerAddress(record.getPeerAddress())) {
-			DROP_LOGGER.info("Drop received CLIENT_HELLO, changed address {} => {}!",
+			DROP_LOGGER.debug("Drop received CLIENT_HELLO, changed address {} => {}!",
 					StringUtil.toLog(record.getPeerAddress()), StringUtil.toLog(connection.getPeerAddress()));
 			return;
 		} else if (connection.hasEstablishedDtlsContext() || connection.hasOngoingHandshake()) {

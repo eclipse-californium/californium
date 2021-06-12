@@ -666,7 +666,7 @@ public abstract class Handshaker implements Destroyable {
 						return null;
 					}
 				default:
-					LOGGER.warn("Cannot process message of type [{}], discarding...", fragment.getContentType());
+					LOGGER.info("Cannot process message of type [{}], discarding...", fragment.getContentType());
 					return null;
 				}
 			} else {
@@ -1172,7 +1172,7 @@ public abstract class Handshaker implements Destroyable {
 		}
 		ensureUndestroyed();
 		certificateVerificationPending = false;
-		LOGGER.info("Process result of certificate verification.");
+		LOGGER.debug("Process result of certificate verification.");
 		if (certificateVerificationResult.getCertificatePath() != null) {
 			otherPeersCertificateVerified = true;
 			otherPeersCertPath = certificateVerificationResult.getCertificatePath();
@@ -1220,7 +1220,7 @@ public abstract class Handshaker implements Destroyable {
 		}
 		ensureUndestroyed();
 		certificateIdentityPending = false;
-		LOGGER.info("Process result of certificate identity.");
+		LOGGER.debug("Process result of certificate identity.");
 		this.privateKey = result.getPrivateKey();
 		this.publicKey = result.getPublicKey();
 		this.certificateChain = result.getCertificateChain();

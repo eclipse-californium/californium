@@ -425,13 +425,8 @@ public class DTLSFlight {
 			records.add(new Record(ContentType.HANDSHAKE, multiEpoch, multiHandshakeMessage,
 					context, multiUseCid, 0));
 			int count = multiHandshakeMessage.getNumberOfHandshakeMessages();
-			if (count > 1) {
-				LOGGER.info("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
+			LOGGER.debug("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
 						multiHandshakeMessage.getMessageLength(), peerToLog);
-			} else {
-				LOGGER.debug("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
-						multiHandshakeMessage.getMessageLength(), peerToLog);
-			}
 			multiHandshakeMessage = null;
 			multiEpoch = 0;
 			multiUseCid = false;
@@ -509,13 +504,13 @@ public class DTLSFlight {
 			maxDatagramSize = Math.min(RecordLayer.DEFAULT_IPV4_MTU - RecordLayer.IPV4_HEADER_LENGTH, maxDatagramSize);
 		}
 
-		LOGGER.info("Prepare flight {}, using max. datagram size {}, max. fragment size {} [mhm={}, mr={}]",
+		LOGGER.trace("Prepare flight {}, using max. datagram size {}, max. fragment size {} [mhm={}, mr={}]",
 				flightNumber, maxDatagramSize, maxFragmentSize, multiHandshakeMessages,
 				multiRecords);
 
 		List<Record> records = getRecords(maxDatagramSize, maxFragmentSize, multiHandshakeMessages);
 
-		LOGGER.info("Effective max. datagram size {}", effectiveDatagramSize);
+		LOGGER.trace("Effective max. datagram size {}", effectiveDatagramSize);
 
 		for (int index = 0; index < records.size(); ++index) {
 			Record record = records.get(index);
