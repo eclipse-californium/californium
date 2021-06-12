@@ -66,6 +66,8 @@ The `CertificateProvider` introduces the possibility to use multiple certificate
 The `SignatureAndHashAlgorithm` supports now `isRecommended` to address the upcoming 
 [draft-ietf-tls-md5-sha1-deprecate](https://datatracker.ietf.org/doc/draft-ietf-tls-md5-sha1-deprecate/).
 
+The lifetime of cookies, used during initial stateless phase of a handshake, is reduced from 5 minutes to 1 minute. With the already available support for the past cookie, a HELLO_VERIFY_REQUEST is valid from 1 minute up to 2 minutes. The CLIENT_HELLO deduplication filter is extended from 1 minute to 2m15s. The intention is a slightly improvement of protection against spoofed CLIENT_HELLOs. 
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:
