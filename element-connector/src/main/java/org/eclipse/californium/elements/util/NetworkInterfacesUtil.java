@@ -184,11 +184,14 @@ public class NetworkInterfacesUtil {
 							for (InterfaceAddress interfaceAddress : iface.getInterfaceAddresses()) {
 								InetAddress broadcast = interfaceAddress.getBroadcast();
 								if (broadcast != null && !broadcast.isAnyLocalAddress()) {
-									broadcastAddresses.add(broadcast);
-									LOGGER.debug("Found broadcast address {} - {}.", broadcast, iface.getName());
-									if (broad4 == null) {
-										broad4 = (Inet4Address) broadcast;
-										++count;
+									InetAddress address = interfaceAddress.getAddress();
+									if (address != null && !address.equals(broadcast)) {
+										broadcastAddresses.add(broadcast);
+										LOGGER.debug("Found broadcast address {} - {}.", broadcast, iface.getName());
+										if (broad4 == null) {
+											broad4 = (Inet4Address) broadcast;
+											++count;
+										}
 									}
 								}
 							}
