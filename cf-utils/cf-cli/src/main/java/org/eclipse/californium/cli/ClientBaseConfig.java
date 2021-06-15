@@ -38,7 +38,7 @@ import picocli.CommandLine.Parameters;
  */
 public class ClientBaseConfig extends ConnectorConfig {
 
-	public static final String LABELT_URI = "URI";
+	public static final String LABEL_URI = "URI";
 
 	public static final String DEFAULT_URI = "californium.eclipseprojects.io";
 
@@ -80,7 +80,7 @@ public class ClientBaseConfig extends ConnectorConfig {
 	/**
 	 * Destination URI.
 	 */
-	@Parameters(index = "0", paramLabel = LABELT_URI, arity = "0..1", description = "destination URI. Default ${DEFAULT-VALUE}")
+	@Parameters(index = "0", paramLabel = LABEL_URI, arity = "0..1", description = "destination URI. Default ${DEFAULT-VALUE}")
 	public String uri;
 
 	/**
@@ -103,7 +103,7 @@ public class ClientBaseConfig extends ConnectorConfig {
 			public String defaultValue(ArgSpec argSpec) throws Exception {
 				if (argSpec instanceof PositionalParamSpec) {
 					PositionalParamSpec spec = (PositionalParamSpec) argSpec;
-					if (LABELT_URI.contentEquals(spec.paramLabel())) {
+					if (LABEL_URI.contentEquals(spec.paramLabel())) {
 						return defaultUri;
 					}
 				}
