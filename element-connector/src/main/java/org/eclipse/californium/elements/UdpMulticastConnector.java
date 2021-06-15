@@ -178,7 +178,7 @@ public class UdpMulticastConnector extends UDPConnector {
 					this.multicast = true;
 				} else {
 					throw new IllegalArgumentException(
-							"Broadcast and additional multicast addresses are nor supported for multicast receiver function!");
+							"Broadcast and additional multicast addresses are not supported for multicast receiver function!");
 				}
 			}
 		} else {
@@ -367,7 +367,7 @@ public class UdpMulticastConnector extends UDPConnector {
 		/**
 		 * Set address and port to bind the connector.
 		 * 
-		 * @param localAddress address and port ot bind. If a broadcast address
+		 * @param localAddress address and port to bind. If a broadcast address
 		 *            is used without adding multicast group, this connector may
 		 *            be used as multicast receiver. if a multicast address is
 		 *            used without adding multicast group, the connector joins
@@ -388,7 +388,7 @@ public class UdpMulticastConnector extends UDPConnector {
 		/**
 		 * Set socket address to bind the connector.
 		 * 
-		 * @param localSocketAddress address and port ot bind. If a broadcast
+		 * @param localSocketAddress address and port to bind. If a broadcast
 		 *            address is used without adding multicast group, this
 		 *            connector may be used as multicast receiver. if a
 		 *            multicast address is used without adding multicast group,
