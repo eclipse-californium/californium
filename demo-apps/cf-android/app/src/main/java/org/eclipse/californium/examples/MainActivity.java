@@ -18,6 +18,8 @@ package org.eclipse.californium.examples;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -32,6 +34,7 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -43,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 public class MainActivity extends Activity {
 
     public static final String CLIENT_NAME = "client";
+
+    private static final Executor executor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,18 +64,33 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        MenuItem item = menu.findItem(R.id.action_start);
+        if (item != null) {
+            item.setChecked(ServerService.isRunning());
+        }
+        return true;
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         //noinspection SimplifiableIfStatement
-        switch(id){
+        switch (id) {
             case R.id.action_sandbox:
-                ((EditText)findViewById(R.id.editUri)).setText(R.string.uri_sandbox);
+                ((EditText) findViewById(R.id.editUri)).setText(R.string.uri_sandbox);
+                return true;
+            case R.id.action_sandbox_dtls:
+                ((EditText) findViewById(R.id.editUri)).setText(R.string.uri_dtls_sandbox);
                 return true;
             case R.id.action_local:
-                ((EditText)findViewById(R.id.editUri)).setText(R.string.uri_local);
+                ((EditText) findViewById(R.id.editUri)).setText(R.string.uri_local);
+                return true;
+            case R.id.action_local_dtls:
+                ((EditText) findViewById(R.id.editUri)).setText(R.string.uri_dtls_local);
                 return true;
             case R.id.action_start:
                 if (!item.isChecked()) {
@@ -81,25 +101,21 @@ public class MainActivity extends Activity {
                     item.setChecked(false);
                 }
                 return true;
-            case R.id.action_local_dtls:
-                ((EditText)findViewById(R.id.editUri)).setText(R.string.uri_dtls_local);
-                return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
-    private final Executor executor = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     public void clickGet(View view) {
-        final String uri = ((EditText)findViewById(R.id.editUri)).getText().toString();
+        final String uri = ((EditText) findViewById(R.id.editUri)).getText().toString();
 
         // reset text fields
-        ((TextView)findViewById(R.id.textCode)).setText("");
-        ((TextView)findViewById(R.id.textCodeName)).setText("Loading...");
-        ((TextView)findViewById(R.id.textRtt)).setText("");
-        ((TextView)findViewById(R.id.textContent)).setText("");
+        ((TextView) findViewById(R.id.textCode)).setText("");
+        ((TextView) findViewById(R.id.textCodeName)).setText("Loading...");
+        ((TextView) findViewById(R.id.textRtt)).setText("");
+        ((TextView) findViewById(R.id.textContent)).setText("");
 
         executor.execute(new Runnable() {
             @Override
@@ -108,7 +124,7 @@ public class MainActivity extends Activity {
                 try {
                     CoapClient client = new CoapClient(uri);
                     response = client.get();
-                } catch(Exception ex) {
+                } catch (Exception ex) {
                     Log.e("coap", ex.getMessage(), ex);
                     response = null;
                 }
@@ -118,15 +134,15 @@ public class MainActivity extends Activity {
                     @Override
                     public void run() {
                         if (finalResponse != null) {
-                            ((TextView)findViewById(R.id.textCode)).setText(finalResponse.getCode().toString());
-                            ((TextView)findViewById(R.id.textCodeName)).setText(finalResponse.getCode().name());
+                            ((TextView) findViewById(R.id.textCode)).setText(finalResponse.getCode().toString());
+                            ((TextView) findViewById(R.id.textCodeName)).setText(finalResponse.getCode().name());
                             Long rtt = finalResponse.advanced().getApplicationRttNanos();
                             if (rtt != null) {
                                 ((TextView) findViewById(R.id.textRtt)).setText(TimeUnit.NANOSECONDS.toMillis(rtt) + " ms");
                             }
-                            ((TextView)findViewById(R.id.textContent)).setText(finalResponse.getResponseText());
+                            ((TextView) findViewById(R.id.textContent)).setText(finalResponse.getResponseText());
                         } else {
-                            ((TextView)findViewById(R.id.textCodeName)).setText("No response");
+                            ((TextView) findViewById(R.id.textCodeName)).setText("No response");
                         }
                     }
                 });
@@ -137,7 +153,7 @@ public class MainActivity extends Activity {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        stopService(new Intent(this,ServerService.class));
+        stopService(new Intent(this, ServerService.class));
     }
 
     /**
@@ -145,18 +161,23 @@ public class MainActivity extends Activity {
      * This method is used to setup EndpointpointManager with both plain
      * and dtls connector.
      */
-    private void initCoapEndpoint(){
-        CoapEndpoint.Builder dtlsEndpointBuilder = new CoapEndpoint.Builder();
+    private void initCoapEndpoint() {
+        NetworkConfig config = NetworkConfig.createStandardWithoutFile();
         // setup coap EndpointManager to dtls connector
         DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
         dtlsConfig.setClientOnly();
+        dtlsConfig.setAutoResumptionTimeoutMillis(TimeUnit.SECONDS.toMillis(30));
         ConfigureDtls.loadCredentials(dtlsConfig, CLIENT_NAME);
         DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
+
+        CoapEndpoint.Builder dtlsEndpointBuilder = new CoapEndpoint.Builder();
+        dtlsEndpointBuilder.setNetworkConfig(config);
         dtlsEndpointBuilder.setConnector(dtlsConnector);
         EndpointManager.getEndpointManager().setDefaultEndpoint(dtlsEndpointBuilder.build());
         // setup coap EndpointManager to udp connector
         CoapEndpoint.Builder udpEndpointBuilder = new CoapEndpoint.Builder();
         UDPConnector udpConnector = new UDPConnector();
+        udpEndpointBuilder.setNetworkConfig(config);
         udpEndpointBuilder.setConnector(udpConnector);
         EndpointManager.getEndpointManager().setDefaultEndpoint(udpEndpointBuilder.build());
     }

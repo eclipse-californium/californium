@@ -19,53 +19,174 @@ package org.eclipse.californium.examples;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
+import android.util.Log;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Local server service.
+ * <p>
+ * Offers coap and coaps server endpoint.
+ * Supports also multicast for coap, but depends on Android implementation!
+ */
 public class ServerService extends Service {
 
-    CoapServer server;
+    public static final String SERVER_NAME = "server";
+
+    private static final Executor executor = Executors.newSingleThreadExecutor();
     private static final int DTLS_PORT = 5684;
     private static final int CoAP_PORT = 5683;
-    public static final String SERVER_NAME = "server";
+
+    private static volatile boolean running;
+
+    private CoapServer server;
+    private boolean stop;
+
+    public static boolean isRunning() {
+        return running;
+    }
 
     @Override
     public void onCreate() {
-        this.server = new CoapServer(CoAP_PORT);
-        DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-        dtlsConfig.setAddress(new InetSocketAddress(DTLS_PORT));
-        ConfigureDtls.loadCredentials(dtlsConfig, SERVER_NAME);
-        DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
-        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-        builder.setConnector(connector);
-        server.addEndpoint(builder.build());
-        server.add(new HelloWorldResource());
+        Log.i("coap", "onCreate service");
+        running = true;
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
-        server.start();
+        Log.i("coap", "onStartCommand service");
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+                CoapServer server = new CoapServer(config);
+                NetworkInterface multicast = NetworkInterfacesUtil.getMulticastInterface();
+                if (multicast == null) {
+                    setupUdp(server, config);
+                } else {
+                    setupUdpIpv4(server, config);
+                    setupUdpIpv6(server, config);
+                }
+                setupDtls(server, config);
+                server.add(new HelloWorldResource());
+                startServer(server);
+            }
+        });
 
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
-        server.destroy();
+        Log.i("coap", "onDestroy service");
+        stopServer();
+        running = false;
     }
 
     @Override
     public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
         throw new UnsupportedOperationException("Not yet implemented");
+    }
+
+    private synchronized void startServer(CoapServer server) {
+        if (!stop) {
+            server.start();
+            this.server = server;
+        }
+    }
+
+    private synchronized void stopServer() {
+        stop = true;
+        final CoapServer coapServer = this.server;
+        if (coapServer != null) {
+            this.server = null;
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    coapServer.destroy();
+                }
+            });
+        }
+    }
+
+    private void setupUdp(CoapServer server, NetworkConfig config) {
+        UDPConnector connector = new UDPConnector(new InetSocketAddress(CoAP_PORT));
+        setupUdp(server, config, connector);
+    }
+
+    private void setupUdpIpv4(CoapServer server, NetworkConfig config) {
+        NetworkInterface multicast = NetworkInterfacesUtil.getMulticastInterface();
+        Inet4Address address4 = NetworkInterfacesUtil.getMulticastInterfaceIpv4();
+
+        // listen on the same port requires to enable address reuse
+        UDPConnector connector = new UDPConnector(new InetSocketAddress(address4, CoAP_PORT));
+        connector.setReuseAddress(true);
+
+        UdpMulticastConnector.Builder builder = new UdpMulticastConnector.Builder();
+        builder.setLocalAddress(CoAP.MULTICAST_IPV4, CoAP_PORT);
+        builder.setMulticastReceiver(true);
+        builder.addMulticastGroup(CoAP.MULTICAST_IPV4, multicast);
+        UdpMulticastConnector multicastConnector = builder.build();
+        connector.addMulticastReceiver(multicastConnector);
+        Log.i("coap", "multicast receiver " + CoAP.MULTICAST_IPV4 +
+                " started on " + address4);
+        setupUdp(server, config, connector);
+    }
+
+    private void setupUdpIpv6(CoapServer server, NetworkConfig config) {
+        NetworkInterface multicast = NetworkInterfacesUtil.getMulticastInterface();
+        Inet6Address address6 = NetworkInterfacesUtil.getMulticastInterfaceIpv6();
+
+        // listen on the same port requires to enable address reuse
+        UDPConnector connector = new UDPConnector(new InetSocketAddress(address6, CoAP_PORT));
+        connector.setReuseAddress(true);
+
+        UdpMulticastConnector.Builder builder = new UdpMulticastConnector.Builder();
+        builder.setLocalAddress(CoAP.MULTICAST_IPV6_SITELOCAL, CoAP_PORT);
+        builder.setMulticastReceiver(true);
+        builder.addMulticastGroup(CoAP.MULTICAST_IPV6_SITELOCAL, multicast);
+        UdpMulticastConnector multicastConnector = builder.build();
+        connector.addMulticastReceiver(multicastConnector);
+        Log.i("coap", "multicast receiver " + CoAP.MULTICAST_IPV6_SITELOCAL +
+                " started on " + address6);
+
+        setupUdp(server, config, connector);
+    }
+
+    private void setupUdp(CoapServer server, NetworkConfig config, UDPConnector connector) {
+        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+        builder.setNetworkConfig(config);
+        builder.setConnectorWithAutoConfiguration(connector);
+        server.addEndpoint(builder.build());
+    }
+
+    private void setupDtls(CoapServer server, NetworkConfig config) {
+        DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+        dtlsConfig.setAddress(new InetSocketAddress(DTLS_PORT));
+        ConfigureDtls.loadCredentials(dtlsConfig, SERVER_NAME);
+        DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
+        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+        builder.setNetworkConfig(config);
+        builder.setConnector(connector);
+        server.addEndpoint(builder.build());
     }
 
     class HelloWorldResource extends CoapResource {

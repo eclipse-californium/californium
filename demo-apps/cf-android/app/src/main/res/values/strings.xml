@@ -5,12 +5,14 @@
     <string name="label_button">GET</string>
 
     <string name="action_sandbox">californium.eclipseprojects.io</string>
+    <string name="action_dtls_sandbox">DTLS californium.eclipseprojects.io</string>
     <string name="action_local">localhost</string>
-    <string name="action_local_dtls">dtls localhost</string>
+    <string name="action_local_dtls">DTLS localhost</string>
 
     <string name="action_start">Run Local Server</string>
 
     <string name="uri_sandbox">coap://californium.eclipseprojects.io:5683/</string>
+    <string name="uri_dtls_sandbox">coaps://californium.eclipseprojects.io:5684/</string>
     <string name="uri_local">coap://localhost:5683/</string>
     <string name="uri_dtls_local">coaps://localhost:5684/</string>
 </resources>
