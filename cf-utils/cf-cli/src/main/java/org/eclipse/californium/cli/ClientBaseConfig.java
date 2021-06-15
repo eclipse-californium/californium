@@ -118,7 +118,7 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public void defaults() {
 		String scheme = CoAP.getSchemeFromUri(uri);
 		if (scheme == null) {
-			if (authenticationModes.isEmpty()) {
+			if (authenticationModes == null || authenticationModes.isEmpty()) {
 				uri = CoAP.COAP_URI_SCHEME + "://" + uri;
 			} else {
 				uri = CoAP.COAP_SECURE_URI_SCHEME + "://" + uri;
