@@ -43,6 +43,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -71,6 +72,7 @@ import org.eclipse.californium.elements.EndpointContextUtil;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * The class Message models the base class of all CoAP messages. CoAP messages
@@ -784,8 +786,15 @@ public abstract class Message {
 	 */
 	public Message setDestinationContext(EndpointContext peerContext) {
 		// requests calls setRequestDestinationContext instead
-		if (peerContext != null && NetworkInterfacesUtil.isMultiAddress(peerContext.getPeerAddress().getAddress())) {
-			throw new IllegalArgumentException("Multicast destination is only supported for request!");
+		if (peerContext != null) {
+			InetAddress address = peerContext.getPeerAddress().getAddress();
+			if (NetworkInterfacesUtil.isBroadcastAddress(address)) {
+				throw new IllegalArgumentException(
+						"Broadcast destination " + StringUtil.toString(address) + " only supported for request!");
+			} else if (NetworkInterfacesUtil.isMultiAddress(address)) {
+				throw new IllegalArgumentException(
+						"Multicast destination " + StringUtil.toString(address) + " only supported for request!");
+			}
 		}
 		this.destinationContext = peerContext;
 		this.effectiveDestinationContext = peerContext;
