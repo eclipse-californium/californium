@@ -38,6 +38,11 @@ import picocli.CommandLine.Parameters;
  */
 public class ClientBaseConfig extends ConnectorConfig {
 
+	/**
+	 * Label for URI.
+	 * 
+	 * Used to apply {@link #defaultUri} as default value for parameters.
+	 */
 	public static final String LABEL_URI = "URI";
 
 	public static final String DEFAULT_URI = "californium.eclipseprojects.io";
