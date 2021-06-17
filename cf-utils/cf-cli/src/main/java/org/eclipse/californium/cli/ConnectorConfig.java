@@ -303,6 +303,24 @@ public class ConnectorConfig implements Cloneable {
 		@Option(names = "--secret64", description = "PSK secret, base64")
 		public String base64;
 
+		/**
+		 * Byte encoded secret key.
+		 * 
+		 * @return secret key in bytes encoded
+		 * @since 3.0
+		 */
+		public byte[] toKey() {
+			if (text != null) {
+				return text.getBytes();
+			} else if (hex != null) {
+				return StringUtil.hex2ByteArray(hex);
+			} else if (base64 != null) {
+				return StringUtil.base64ToByteArray(base64);
+			} else {
+				return null;
+			}
+		}
+
 	}
 
 	@Option(names = { "-v", "--verbose" }, negatable = true, description = "verbose")
@@ -347,19 +365,13 @@ public class ConnectorConfig implements Cloneable {
 				helpRequested = true;
 			}
 			if (pskIndex != null) {
-				secret = new ConnectorConfig.Secret();
+				secret = new Secret();
 				secret.hex = StringUtil.byteArray2Hex(pskStore.getSecrets(pskIndex));
 				identity = pskStore.getIdentity(pskIndex);
 			}
 		}
 		if (secret != null && secretKey == null) {
-			if (secret.text != null) {
-				secretKey = secret.text.getBytes();
-			} else if (secret.hex != null) {
-				secretKey = StringUtil.hex2ByteArray(secret.hex);
-			} else if (secret.base64 != null) {
-				secretKey = StringUtil.base64ToByteArray(secret.base64);
-			}
+			secretKey = secret.toKey();
 		}
 		if (authenticationModes == null) {
 			authenticationModes = new ArrayList<ConnectorConfig.AuthenticationMode>();
