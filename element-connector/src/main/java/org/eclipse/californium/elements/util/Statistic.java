@@ -16,6 +16,8 @@
 package org.eclipse.californium.elements.util;
 
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -37,6 +39,18 @@ public class Statistic {
 	 */
 	private final AtomicLong[] statistic;
 
+	/**
+	 * Sum of added sample value.
+	 */
+	private final AtomicLong sum = new AtomicLong();
+	/**
+	 * {@code true}, on sum overflow.
+	 */
+	private final AtomicBoolean invalidSum = new AtomicBoolean();
+
+	/**
+	 * Maximum added sample value.
+	 */
 	private final AtomicLong maximum = new AtomicLong();
 
 	/**
@@ -55,9 +69,9 @@ public class Statistic {
 	}
 
 	/**
-	 * Add value to statistic.
+	 * Add sample value to statistic.
 	 * 
-	 * @param value value to add
+	 * @param value sample value to add
 	 */
 	public void add(long value) {
 		if (value >= 0) {
@@ -66,6 +80,9 @@ public class Statistic {
 				statistic[index].incrementAndGet();
 			} else {
 				statistic[statistic.length - 1].incrementAndGet();
+			}
+			if (!invalidSum.get() && sum.addAndGet(value) < 0) {
+				invalidSum.set(true);
 			}
 			long maximumValue = maximum.get();
 			while (value > maximumValue) {
@@ -92,9 +109,10 @@ public class Statistic {
 	}
 
 	/**
-	 * Checks, if values are available for this statistic.
+	 * Checks, if sample values are available for this statistic.
 	 * 
-	 * @return {@code true}, if values are available, {@code false}, otherwise.
+	 * @return {@code true}, if sample values are available, {@code false},
+	 *         otherwise.
 	 */
 	public boolean available() {
 		for (int index = 0; index < statistic.length; ++index) {
@@ -125,16 +143,11 @@ public class Statistic {
 	 * @return summary
 	 */
 	public Summary getSummary(int... percentiles) {
-		long sum = 0;
 		long count = 0;
 		for (int index = 0; index < statistic.length; ++index) {
 			long hits = statistic[index].get();
 			if (hits > 0) {
 				count += hits;
-				sum += hits * getUpperLimit(index);
-				if (sum < 0) {
-					throw new IllegalStateException();
-				}
 			}
 		}
 		if (count > 0) {
@@ -180,29 +193,67 @@ public class Statistic {
 					}
 				}
 			}
-			return new Summary((int) count, sum / count, max, percentiles, values);
+			return new Summary((int) count, invalidSum.get() ? null : sum.get(), max, percentiles, values);
 		} else {
 			return new Summary();
 		}
 	}
 
+	/**
+	 * Statistic summary.
+	 * 
+	 * @see Statistic#getSummary(int...)
+	 */
 	public static class Summary {
 
-		final int count;
-		final long average;
-		final long maximum;
-		final int[] percentiles;
-		final long[] values;
+		/**
+		 * Number of samples
+		 */
+		private final int count;
+		/**
+		 * Overall sum of added sample values.
+		 */
+		private final Long overallSum;
+		/**
+		 * Maximum added sample value.
+		 */
+		private final long maximum;
+		/**
+		 * List of per mill percentiles,. e.g. {@code 990} for {@code 99%}.
+		 */
+		private final int[] percentiles;
+		/**
+		 * Values of percentiles according {@link #percentiles}.
+		 */
+		private final long[] percentileValues;
 
+		/**
+		 * Empty statistic, if no values are available.
+		 */
 		public Summary() {
 			this.count = 0;
-			this.average = 0;
-			this.maximum = 0;
+			this.overallSum = 0L;
+			this.maximum = 0L;
 			this.percentiles = null;
-			this.values = null;
+			this.percentileValues = null;
 		}
 
-		public Summary(int count, long average, long maximum, int[] percentiles, long values[]) {
+		/**
+		 * Statistic with snapshot of current samples.
+		 * 
+		 * @param count number of samples
+		 * @param overallSum Overall sum of sample values. {@code null} for sum
+		 *            overflow.
+		 * @param maximum maximum sample value
+		 * @param percentiles List of per mill percentiles,. e.g. {@code 990}
+		 *            for {@code 99%}.
+		 * @param values values of percentiles according percentiles.
+		 * @throws NullPointerException if values are {@code null}, and
+		 *             percentiles are provided.
+		 * @throws IllegalArgumentException if the percentiles and values have
+		 *             different lengths.
+		 */
+		public Summary(int count, Long overallSum, long maximum, int[] percentiles, long values[]) {
 			if (percentiles != null) {
 				if (values == null) {
 					throw new NullPointerException("values must not be null, if percentiles are provided!");
@@ -213,68 +264,142 @@ public class Statistic {
 				}
 			}
 			this.count = count;
-			this.average = average;
+			this.overallSum = overallSum;
 			this.maximum = maximum;
 			this.percentiles = percentiles;
-			this.values = values;
+			this.percentileValues = values;
 		}
 
+		/**
+		 * Create a scaled statistic.
+		 * 
+		 * @param raw statistic
+		 * @param scale scale function
+		 */
 		public Summary(Summary raw, Scale scale) {
 			this.count = raw.count;
-			this.average = scale.scale(raw.average);
+			if (raw.overallSum != null) {
+				this.overallSum = scale.scale(raw.overallSum);
+			} else {
+				this.overallSum = null;
+			}
 			this.maximum = scale.scale(raw.maximum);
 			this.percentiles = raw.percentiles;
-			if (raw.values != null) {
-				int numOfValues = raw.values.length;
-				this.values = new long[numOfValues];
+			if (raw.percentileValues != null) {
+				int numOfValues = raw.percentileValues.length;
+				this.percentileValues = new long[numOfValues];
 				for (int index = 0; index < numOfValues; ++index) {
-					this.values[index] = scale.scale(raw.values[index]);
+					this.percentileValues[index] = scale.scale(raw.percentileValues[index]);
 				}
 			} else {
-				this.values = null;
+				this.percentileValues = null;
 			}
 		}
 
+		/**
+		 * Get number of sample values.
+		 * 
+		 * @return number of sample values
+		 */
 		public int getCount() {
 			return count;
 		}
 
-		public long getAverage() {
-			return average;
+		/**
+		 * Get average sample value.
+		 * 
+		 * @return average sample value. -1.0 on overflow.
+		 */
+		public double getAverage() {
+			if (overallSum == null) {
+				return -1.0D;
+			}
+			return count == 0 ? 0.0D : ((double) overallSum) / count;
 		}
 
+		/**
+		 * Get overall sum of sample values.
+		 * 
+		 * @return overall sum of sample values, or {@code null}, on overflow
+		 */
+		public Long getOverallSum() {
+			return overallSum;
+		}
+
+		/**
+		 * Get maximum sample value.
+		 * 
+		 * @return maximum sample value
+		 */
 		public long getMaximum() {
 			return maximum;
 		}
 
+		/**
+		 * Number of percentiles.
+		 * 
+		 * @return number of percentiles
+		 */
 		public int getPercentileCount() {
 			return percentiles != null ? percentiles.length : 0;
 		}
 
+		/**
+		 * Get per mill percentile of index.
+		 * 
+		 * @param index index within {@code [0 ... PercentileCount)}.
+		 * @return per mill percentile in of index. Range {@code 0} to
+		 *         {@code 999}. {@code 950} for {@code 95%}.
+		 */
 		public long getPercentilePerMill(int index) {
 			return percentiles != null ? percentiles[index] : -1;
 		}
 
+		/**
+		 * Sample value of percentile.
+		 * 
+		 * @param index index within {@code [0 ... PercentileCount)}.
+		 * @return sample value of percentile
+		 */
 		public long getPercentileValue(int index) {
-			return values != null ? values[index] : -1;
+			return percentileValues != null ? percentileValues[index] : -1;
 		}
 
+		/**
+		 * Textual statistic without unit..
+		 * 
+		 * @return textual statistic.
+		 */
 		public String toString() {
 			return toString("");
 		}
 
+		/**
+		 * Textual statistic using provide unit.
+		 * 
+		 * @param unit sample values unit
+		 * @return textual statistic with unit.
+		 */
 		public String toString(String unit) {
 			if (count > 0) {
 				StringBuilder summary = new StringBuilder();
-				summary.append(String.format("all: %d, avg.: %d%s", count, average, unit));
+				summary.append(String.format("#: %d", count));
+				if (overallSum != null) {
+					double average = getAverage();
+					if (average < 1.0F) {
+						summary.append(String.format(Locale.UK, ", sum.: %d%s", overallSum, unit));
+					} else {
+						summary.append(String.format(Locale.UK, ", avg.: %.2f%s", average, unit));
+					}
+				}
 				if (percentiles != null) {
 					for (int index = 0; index < percentiles.length; ++index) {
 						int p = percentiles[index] / 10;
 						int pm = percentiles[index] % 10;
 						if (pm > 0) {
-							summary.append(String.format(", %d.%d%%: %d%s", p, pm, values[index], unit));
+							summary.append(String.format(", %d.%d%%: %d%s", p, pm, percentileValues[index], unit));
 						} else {
-							summary.append(String.format(", %d%%: %d%s", p, values[index], unit));
+							summary.append(String.format(", %d%%: %d%s", p, percentileValues[index], unit));
 						}
 					}
 				}
@@ -286,6 +411,13 @@ public class Statistic {
 		}
 	}
 
+	/**
+	 * Scale function.
+	 * 
+	 * Scale {@link Summary} sample values.
+	 * 
+	 * @see Summary#Summary(Summary, Scale)
+	 */
 	public interface Scale {
 
 		long scale(long value);

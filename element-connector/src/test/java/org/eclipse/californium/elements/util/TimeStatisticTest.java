@@ -38,7 +38,7 @@ public class TimeStatisticTest {
 		}
 		Summary summary = statistic.getSummary();
 		assertThat("count", summary.getCount(), is(99));
-		assertThat("average", summary.getAverage(), is(inRange(1000L, 1001L + TIME_SLOT)));
+		assertThat("average", summary.getAverage(), is(inRange(1000.0D, 1001.0D + TIME_SLOT)));
 		assertThat("maximum", summary.getMaximum(), is(1980L));
 		statistic.add(4000, TimeUnit.MILLISECONDS);
 		summary = statistic.getSummary();
