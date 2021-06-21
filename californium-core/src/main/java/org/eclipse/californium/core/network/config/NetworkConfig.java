@@ -36,8 +36,6 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Properties;
 
 import org.eclipse.californium.core.coap.Message;
@@ -75,9 +73,6 @@ public final class NetworkConfig {
 
 	/** The properties. */
 	private Properties properties;
-
-	/** The list of config observers. */
-	private List<NetworkConfigObserver> observers = new LinkedList<NetworkConfigObserver>();
 
 	/**
 	 * Network configuration key names
@@ -837,9 +832,6 @@ public final class NetworkConfig {
 			throw new NullPointerException("value must not be null");
 		} else {
 			properties.put(key, String.valueOf(value));
-			for (NetworkConfigObserver obs : observers) {
-				obs.changed(key, value);
-			}
 			return this;
 		}
 	}
@@ -910,13 +902,4 @@ public final class NetworkConfig {
 		return set(key, String.valueOf(value));
 	}
 
-	public NetworkConfig addConfigObserver(NetworkConfigObserver observer) {
-		observers.add(observer);
-		return this;
-	}
-
-	public NetworkConfig removeConfigObserver(NetworkConfigObserver observer) {
-		observers.remove(observer);
-		return this;
-	}
 }

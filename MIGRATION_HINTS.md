@@ -2,9 +2,9 @@
 
 # Californium (Cf) - Migration Hints
 
-April, 2021
+June, 2021
 
-The version 2.x is now out for about a year and reached version 2.6.2.
+The version 2.x is now out for about more than a year and reached version 2.6.3.
 We currently started to work on a 3.0 starting with removing deprecates APIs.
 
 To migrate to the 3.0 this gives some hints to do so. If you miss something, don't hesitate to create an issue.
@@ -15,7 +15,7 @@ Please, keep in mind, that the 3.0 API is under develop.
 
 This document doesn't contain hints for migrating versions before 2.0. That excludes also hints to migrate any of the 2.0 MILESTONE releases.
 
-If a 2.0.0 or newer is used, it's recommended to update first to 2.6.2 and cleanup all deprecation using the documentation on the deprecation.
+If a 2.0.0 or newer is used, it's recommended to update first to 2.6.3 and cleanup all deprecation using the documentation on the deprecation.
 
 ## First Experience
 
@@ -90,6 +90,9 @@ Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return
 The `OptionSet` and the `Option`s are now strictly validated. If that cause trouble, please check, if the value is valid according [RFC 7252, 5.10.  Option Definitions](https://tools.ietf.org/html/rfc7252#page-53) or the other specific RFCs.
 
 [RFC 7967, Option for No Server Response](https://tools.ietf.org/html/rfc7967) is introduced.
+
+Changing network configuration values during runtime is not supported by Californium's components. Therefore the `NetworkConfigObserver` is now removed.
+ 
 
 ### Californium-Proxy2:
 
