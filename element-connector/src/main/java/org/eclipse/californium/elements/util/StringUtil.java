@@ -60,6 +60,17 @@ public class StringUtil {
 	public static final boolean SUPPORT_HOST_STRING;
 
 	/**
+	 * Flag indicating, that a scope separator "%" is encoded with "%25" for a
+	 * URLs.
+	 * 
+	 * Configured by the environment-variable or java-property
+	 * {@code "ENCODED_IPV6_SCOPE_SEPARATOR"}. Default is {@code true}.
+	 * 
+	 * @since 3.0
+	 */
+	public static final boolean ENCODED_IPV6_SCOPE_SEPARATOR;
+
+	/**
 	 * Californium version. {@code null}, if not available.
 	 * 
 	 * @since 2.2
@@ -93,6 +104,8 @@ public class StringUtil {
 			}
 		}
 		CALIFORNIUM_VERSION = version;
+		ENCODED_IPV6_SCOPE_SEPARATOR = !Boolean.FALSE
+				.equals(StringUtil.getConfigurationBoolean("ENCODED_IPV6_SCOPE_SEPARATOR"));
 	}
 
 	private static String toHostString(InetSocketAddress address) {
@@ -464,11 +477,16 @@ public class StringUtil {
 	 * 
 	 * Apply workaround for JDK-8199396.
 	 * 
+	 * Note: since 3.0, a "%" in a IPv6 address is replaced by the encoded form
+	 * with "%25". That can be disabled by by the environment-variable or
+	 * java-property {@code "ENCODED_IPV6_SCOPE_SEPARATOR"}.
+	 * 
 	 * @param address address
 	 * @return uri hostname
 	 * @throws NullPointerException if address is {@code null}.
-	 * @throws URISyntaxException if address could not be converted into
-	 *             URI hostname.
+	 * @throws URISyntaxException if address could not be converted into URI
+	 *             hostname.
+	 * @see #ENCODED_IPV6_SCOPE_SEPARATOR
 	 * @since 2.1
 	 */
 	public static String getUriHostname(InetAddress address) throws URISyntaxException {
@@ -476,17 +494,33 @@ public class StringUtil {
 			throw new NullPointerException("address must not be null!");
 		}
 		String host = address.getHostAddress();
-		try {
-			new URI(null, null, host, -1, null, null, null);
-		} catch (URISyntaxException e) {
-			try {
-				// work-around for openjdk bug JDK-8199396.
-				// some characters are not supported for the ipv6 scope.
-				host = host.replaceAll("[-._~]", "");
-				new URI(null, null, host, -1, null, null, null);
-			} catch (URISyntaxException e2) {
-				// throw first exception before work-around
-				throw e;
+		if (address instanceof Inet6Address) {
+			Inet6Address address6 = (Inet6Address) address;
+			if (address6.getScopedInterface() != null || address6.getScopeId() > 0) {
+				int pos = host.indexOf('%');
+				if (pos > 0 && pos + 1 < host.length()) {
+					String separator = ENCODED_IPV6_SCOPE_SEPARATOR ? "%25" : "%";
+					String scope = host.substring(pos + 1);
+					String hostAddress = host.substring(0, pos);
+					host = hostAddress + separator + scope;
+					try {
+						new URI(null, null, host, -1, null, null, null);
+					} catch (URISyntaxException e) {
+						// work-around for openjdk bug JDK-8199396.
+						// some characters are not supported for the ipv6 scope.
+						scope = scope.replaceAll("[-._~]", "");
+						if (scope.isEmpty()) {
+							host = hostAddress;
+						} else {
+							host = hostAddress + separator + scope;
+							try {
+								new URI(null, null, host, -1, null, null, null);
+							} catch (URISyntaxException e2) {
+								throw e;
+							}
+						}
+					}
+				}
 			}
 		}
 		return host;
