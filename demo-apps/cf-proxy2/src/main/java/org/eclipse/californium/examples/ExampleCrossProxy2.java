@@ -32,31 +32,36 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.TrackerMode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.proxy2.ClientEndpoints;
 import org.eclipse.californium.proxy2.ClientSingleEndpoint;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.EndpointPool;
+import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.eclipse.californium.proxy2.http.Coap2HttpTranslator;
 import org.eclipse.californium.proxy2.http.Http2CoapTranslator;
 import org.eclipse.californium.proxy2.http.HttpClientFactory;
 import org.eclipse.californium.proxy2.http.server.ProxyHttpServer;
+import org.eclipse.californium.proxy2.resources.CacheResource;
+import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
+import org.eclipse.californium.proxy2.resources.ProxyCacheResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
 import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
 import org.eclipse.californium.proxy2.resources.StatsResource;
 import org.eclipse.californium.unixhealth.NetStatLogger;
-import org.eclipse.californium.proxy2.resources.CacheResource;
-import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
-import org.eclipse.californium.proxy2.resources.ProxyCacheResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,13 +78,15 @@ import org.slf4j.LoggerFactory;
  * browser: ("localhost" requests are not send to a proxy, so use the hostname
  * or none-local-ip-address) URI: http://<hostname>:5683/target/coap:
  * 
- * CoAP2CoAP: Insert in Copper: 
+ * CoAP2CoAP: Insert in Copper:
+ * 
  * <pre>
  * URI: coap://localhost:PORT/coap2coap 
  * Proxy: coap://localhost:PORT/targetA
  * </pre>
  *
  * CoAP2Http: Insert in Copper:
+ * 
  * <pre>
  * URI: coap://localhost:PORT/coap2http 
  * Proxy: http://lantersoft.ch/robots.txt
@@ -90,11 +97,11 @@ public class ExampleCrossProxy2 {
 	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.proxy.statistics");
 
 	/**
-	 * File name for network configuration.
+	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("Californium.properties");
+	private static final File CONFIG_FILE = new File("Californium3.properties");
 	/**
-	 * Header for network configuration.
+	 * Header for configuration.
 	 */
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Example Proxy";
 	/**
@@ -107,24 +114,24 @@ public class ExampleCrossProxy2 {
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
 
 	/**
-	 * Special network configuration defaults handler.
+	 * Special configuration defaults handler.
 	 */
-	private static final NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
-			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // 10s
-			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 15 * 1000); // 15s
-			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 30 * 1000); // 30s
-			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 8192);
-			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 8192);
-			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 20000);
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
+			config.set(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, 10, TimeUnit.SECONDS);
+			config.set(Proxy2Config.HTTP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS);
+			config.set(Proxy2Config.HTTPS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
+			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 60, TimeUnit.SECONDS);
 		}
 
 	};
@@ -142,30 +149,30 @@ public class ExampleCrossProxy2 {
 	private int httpPort;
 	private CacheResource cache;
 
-	public ExampleCrossProxy2(NetworkConfig config, boolean accept, boolean cache) throws IOException {
+	public ExampleCrossProxy2(Configuration config, boolean accept, boolean cache) throws IOException {
 		HttpClientFactory.setNetworkConfig(config);
-		coapPort = config.getInt(Keys.COAP_PORT);
-		httpPort = config.getInt(Keys.HTTP_PORT);
-		int threads = config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT);
+		coapPort = config.get(CoapConfig.COAP_PORT);
+		httpPort = config.get(Proxy2Config.HTTP_PORT);
+		int threads = config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT);
 		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads,
 				new DaemonThreadFactory("Proxy#"));
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
 		Coap2CoapTranslator translater = new Coap2CoapTranslator();
-		NetworkConfig outgoingConfig = new NetworkConfig(config);
+		Configuration outgoingConfig = new Configuration(config);
 		if (useEndpointsPool) {
-			outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
-			outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
+			outgoingConfig.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 1);
+			outgoingConfig.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 1);
 			endpoints = new EndpointPool(1000, 250, outgoingConfig, mainExecutor, secondaryExecutor);
 		} else {
-			outgoingConfig.setString(Keys.MID_TRACKER, "NULL");
+			outgoingConfig.set(CoapConfig.MID_TRACKER, TrackerMode.NULL);
 			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-			builder.setNetworkConfig(outgoingConfig);
+			builder.setConfiguration(outgoingConfig);
 			endpoints = new ClientSingleEndpoint(builder.build());
 		}
 		ProxyCacheResource cacheResource = null;
 		StatsResource statsResource = null;
 		if (cache) {
-			cacheResource = new ProxyCacheResource(true);
+			cacheResource = new ProxyCacheResource(config, true);
 			statsResource = new StatsResource(cacheResource);
 		}
 		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, accept, translater, endpoints);
@@ -215,13 +222,13 @@ public class ExampleCrossProxy2 {
 	}
 
 	public static void main(String args[]) throws IOException {
-		NetworkConfig proxyConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration proxyConfig = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		ExampleCrossProxy2 proxy = new ExampleCrossProxy2(proxyConfig, false, true);
 		ExampleHttpServer httpServer = null;
-		NetworkConfig config = ExampleCoapServer.init();
+		Configuration config = ExampleCoapServer.init();
 		for (int index = 0; index < args.length; ++index) {
 			Integer port = parse(args[index], "coap", ExampleCoapServer.DEFAULT_COAP_PORT, config,
-					NetworkConfig.Keys.COAP_PORT);
+					CoapConfig.COAP_PORT);
 			if (port != null) {
 				new ExampleCoapServer(config, port);
 
@@ -245,8 +252,8 @@ public class ExampleCrossProxy2 {
 					// returning a fixed destination URI
 					// don't add this to the ProxyMessageDeliverer
 					URI destination = URI.create("http://localhost:" + port + "/http-target");
-					ProxyCoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination2", true, true, true,
-							destination, proxy.endpoints);
+					ProxyCoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination2", true, true,
+							true, destination, proxy.endpoints);
 					reverseProxy.setCache(proxy.cache);
 					proxy.coapProxyServer.getRoot().getChild("targets").add(reverseProxy);
 					System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
@@ -272,9 +279,9 @@ public class ExampleCrossProxy2 {
 			if (fill > 80) {
 				System.out.println("Maxium heap size: " + max / (1024 * 1024) + "M " + fill + "% used.");
 				System.out.println("Heap may exceed! Enlarge the maxium heap size.");
-				System.out.println("Or consider to reduce the value of " + Keys.EXCHANGE_LIFETIME);
+				System.out.println("Or consider to reduce the value of " + CoapConfig.EXCHANGE_LIFETIME);
 				System.out.println("in \"" + CONFIG_FILE + "\" or set");
-				System.out.println(Keys.DEDUPLICATOR + " to " + Keys.NO_DEDUPLICATOR + " there.");
+				System.out.println(CoapConfig.DEDUPLICATOR + " to " + CoapConfig.NO_DEDUPLICATOR + " there.");
 				break;
 			}
 			long gcCount = 0;
@@ -296,15 +303,17 @@ public class ExampleCrossProxy2 {
 
 	}
 
-	private static Integer parse(String arg, String prefix, int defaultValue, NetworkConfig config, String key) {
+	private static Integer parse(String arg, String prefix, int defaultValue, Configuration config,
+			IntegerDefinition key) {
 		Integer result = null;
 		if (arg.startsWith(prefix)) {
 			arg = arg.substring(prefix.length());
 			if (arg.isEmpty()) {
-				if (config == null || key == null) {
+				if (config != null && key != null) {
+					result = config.get(key);
+				}
+				if (result == null) {
 					result = defaultValue;
-				} else {
-					result = config.getInt(key, defaultValue);
 				}
 			} else if (arg.startsWith("=")) {
 				arg = arg.substring(1);
@@ -332,6 +341,7 @@ public class ExampleCrossProxy2 {
 			exchange.respond(ResponseCode.CONTENT, String.format(value, counter.incrementAndGet()),
 					MediaTypeRegistry.TEXT_PLAIN);
 		}
+
 	}
 
 	private static void startManagamentStatistic() {

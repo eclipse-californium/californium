@@ -29,15 +29,15 @@ package org.eclipse.californium.core.observe;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The ObserveRelation is a server-side control structure. It represents a
@@ -93,10 +93,9 @@ public class ObserveRelation {
 		this.endpoint = endpoint;
 		this.resource = resource;
 		this.exchange = exchange;
-		NetworkConfig config = exchange.getEndpoint().getConfig();
-		checkIntervalTime = TimeUnit.MILLISECONDS
-				.toNanos(config.getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME));
-		checkIntervalCount = config.getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
+		Configuration config = exchange.getEndpoint().getConfig();
+		checkIntervalTime = config.getTimeAsInt(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, TimeUnit.NANOSECONDS);
+		checkIntervalCount = config.get(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT);
 
 		this.key = StringUtil.toString(getSource()) + "#" + exchange.getRequest().getTokenString();
 	}
@@ -291,7 +290,7 @@ public class ObserveRelation {
 	 * @param response notification to check.
 	 * @return {@code true}, if notification is in transit, {@code false},
 	 *         otherwise.
-	 * @sine 3.0
+	 * @since 3.0
 	 */
 	private static boolean isInTransit(final Response response) {
 		if (response == null || !response.isConfirmable()) {

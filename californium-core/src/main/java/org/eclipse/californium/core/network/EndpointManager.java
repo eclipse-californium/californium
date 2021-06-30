@@ -34,14 +34,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A manager and coap-factory for {@link Endpoint}s that can be used by clients for sending

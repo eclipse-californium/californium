@@ -18,17 +18,14 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.network.Outbox;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.BaseCoapStack;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 import org.eclipse.californium.core.network.stack.ExchangeCleanupLayer;
 import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
-import org.eclipse.californium.core.network.stack.ReliabilityLayer;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * 
@@ -38,11 +35,6 @@ import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 public class OSCoreStack extends BaseCoapStack {
 
 	/**
-	 * The logger
-	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(OSCoreStack.class);
-
-	/**
 	 * Creates a new stack for UDP as the transport.
 	 * 
 	 * @param tag logging tag
@@ -50,24 +42,17 @@ public class OSCoreStack extends BaseCoapStack {
 	 * @param outbox The adapter for submitting outbound messages to the
 	 *            transport.
 	 * @param ctxDb context DB.
-	 * @since 3.0 logging tag added
+	 * @since 3.0 (logging tag added and changed parameter to Configuration)
 	 */
-	public OSCoreStack(String tag, NetworkConfig config, Outbox outbox, OSCoreCtxDB ctxDb) {
+	public OSCoreStack(String tag, Configuration config, Outbox outbox, OSCoreCtxDB ctxDb) {
 		super(outbox);
-		ReliabilityLayer reliabilityLayer;
-		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL)) {
-			reliabilityLayer = CongestionControlLayer.newImplementation(tag, config);
-			LOGGER.info("{}Enabling congestion control: {}", tag, reliabilityLayer.getClass().getSimpleName());
-		} else {
-			reliabilityLayer = new ReliabilityLayer(config);
-		}
 
 		Layer layers[] = new Layer[] {
 				new ObjectSecurityContextLayer(ctxDb),
 				new ExchangeCleanupLayer(config),
 				new ObserveLayer(config),
 				new BlockwiseLayer(tag, false, config),
-				reliabilityLayer,
+				CongestionControlLayer.newImplementation(tag, config),
 				new ObjectSecurityLayer(ctxDb)};
 		setLayers(layers);
 	}

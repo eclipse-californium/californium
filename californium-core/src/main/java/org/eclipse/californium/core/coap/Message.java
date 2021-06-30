@@ -57,22 +57,22 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.TokenGenerator;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextUtil;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The class Message models the base class of all CoAP messages. CoAP messages
@@ -158,7 +158,7 @@ public abstract class Message {
 
 	/**
 	 * Message specific parameter. Overwrites then general ones from
-	 * {@link NetworkConfig}.
+	 * {@link Configuration}.
 	 */
 	private volatile ReliabilityLayerParameters parameters;
 
@@ -578,8 +578,8 @@ public abstract class Message {
 	 * outgoing requests, this limits the size of the response.
 	 * 
 	 * @return maximum resource body size. {@code 0} to use the
-	 *         {@link NetworkConfig} value of
-	 *         {@link Keys#MAX_RESOURCE_BODY_SIZE}.
+	 *         {@link Configuration} value of
+	 *         {@link CoapConfig#MAX_RESOURCE_BODY_SIZE}.
 	 * @since 2.3
 	 */
 	public int getMaxResourceBodySize() {
@@ -593,8 +593,8 @@ public abstract class Message {
 	 * outgoing requests, this limits the size of the response.
 	 * 
 	 * @param maxResourceBodySize maximum resource body size. {@code 0} or
-	 *            default is defined by the {@link NetworkConfig} value of
-	 *            {@link Keys#MAX_RESOURCE_BODY_SIZE}.
+	 *            default is defined by the {@link Configuration} value of
+	 *            {@link CoapConfig#MAX_RESOURCE_BODY_SIZE}.
 	 * @since 2.3
 	 */
 	public void setMaxResourceBodySize(int maxResourceBodySize) {
@@ -1287,12 +1287,12 @@ public abstract class Message {
 	 * heap usage, when message is kept for deduplication.
 	 * 
 	 * The server-side offloads message when sending the first response when
-	 * {@link Keys#USE_MESSAGE_OFFLOADING} is enabled. Requests are
+	 * {@link CoapConfig#USE_MESSAGE_OFFLOADING} is enabled. Requests are
 	 * {@link OffloadMode#FULL} offloaded, responses are
 	 * {@link OffloadMode#PAYLOAD} offloaded.
 	 * 
 	 * A client-side may also chose to offload requests and responses based on
-	 * {@link Keys#USE_MESSAGE_OFFLOADING}, when the request and responses are
+	 * {@link CoapConfig#USE_MESSAGE_OFFLOADING}, when the request and responses are
 	 * not longer used by the client.
 	 * 
 	 * For messages with {@link #setProtectFromOffload()}, offloading is
@@ -1420,6 +1420,8 @@ public abstract class Message {
 	/**
 	 * Get list of {@link MessageObserver}. If not already defined, create a new
 	 * one. This method is thread-safe and creates exactly one list.
+	 * 
+	 * @return list of {@link MessageObserver}
 	 */
 	private List<MessageObserver> ensureMessageObserverList() {
 		List<MessageObserver> list = messageObservers.get();

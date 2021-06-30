@@ -70,15 +70,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,14 +116,14 @@ import org.slf4j.LoggerFactory;
  * privilege the most recent transfers. This is the most resilient way, as new
  * transfer will never be blocked by old incomplete transfer.
  * <p>
- * The transparent bockwise mode is enabled by using a value larger than
- * {@code 0} for {@link Keys#MAX_RESOURCE_BODY_SIZE}. If the transparent
- * bockwise mode is enabled, the {@link Resource} is intended to provide the
+ * The transparent blockwise mode is enabled by using a value larger than
+ * {@code 0} for {@link CoapConfig#MAX_RESOURCE_BODY_SIZE}. If the transparent
+ * blockwise mode is enabled, the {@link Resource} is intended to provide the
  * full payload. The application should not use any block option, that is filled
  * in by the stack in transparent mode. Only in rare cases the application may
  * use a block option, but that easily ends up in undefined behavior. Usually
- * disabling the transparent bockwise mode setting
- * {@link Keys#MAX_RESOURCE_BODY_SIZE} to {@code 0} is the better option, if
+ * disabling the transparent blockwise mode setting
+ * {@link CoapConfig#MAX_RESOURCE_BODY_SIZE} to {@code 0} is the better option, if
  * application block options are required.
  * <p>
  * Synchronization: The blockwise-layer uses synchronization to prevent from
@@ -229,7 +229,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private final int blockInterval;
 	private final int maxResourceBodySize;
 	private final boolean strictBlock2Option;
-	private final int healthStatusInterval;
+	private final long healthStatusInterval;
 	/* @since 2.4 */
 	private final boolean enableAutoFailoverOn413;
 
@@ -238,17 +238,17 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * <p>
 	 * The following configuration properties are used:
 	 * <ul>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_MESSAGE_SIZE}
+	 * <li>{@link CoapConfig#MAX_MESSAGE_SIZE}
 	 * - This value is used as the threshold for determining whether an inbound
 	 * or outbound message's body needs to be transferred blockwise. If not set,
 	 * a default value of 4096 bytes is used.</li>
 	 * 
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#PREFERRED_BLOCK_SIZE}
+	 * <li>{@link CoapConfig#PREFERRED_BLOCK_SIZE}
 	 * - This value is used as the value proposed to a peer when doing a
 	 * transparent blockwise transfer. The value indicates the number of bytes,
 	 * not the szx code. If not set, a default value of 1024 bytes is used.</li>
 	 * 
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_RESOURCE_BODY_SIZE}
+	 * <li>{@link CoapConfig#MAX_RESOURCE_BODY_SIZE}
 	 * - This value (in bytes) is used as the upper limit for the size of the
 	 * buffer used for assembling blocks of a transparent blockwise transfer.
 	 * Resource bodies larger than this value can only be transferred in a
@@ -257,46 +257,42 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * be forwarded directly up and down to the next layer. If not set, a
 	 * default value of 8192 bytes is used.</li>
 	 * 
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STATUS_LIFETIME}
+	 * <li>{@link CoapConfig#BLOCKWISE_STATUS_LIFETIME}
 	 * - The maximum amount of time (in milliseconds) allowed between transfers
 	 * of individual blocks before the blockwise transfer state is discarded. If
 	 * not set, a default value of 30 seconds is used.</li>
 	 * 
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION}
+	 * <li>{@link CoapConfig#BLOCKWISE_STRICT_BLOCK2_OPTION}
 	 * - This value is used to indicate if the response should always include
 	 * the Block2 option when client request early blockwise negociation but the
-	 * response can be sent on one packet. If not set, the default value is
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}</li>
+	 * response can be sent on one packet.</li>
 	 * </ul>
 	 * 
 	 * @param tag logging tag
 	 * @param enableBert {@code true}, enable TCP/BERT support, if the
-	 *            configured value for {@link Keys#TCP_NUMBER_OF_BULK_BLOCKS} is
+	 *            configured value for {@link CoapConfig#TCP_NUMBER_OF_BULK_BLOCKS} is
 	 *            larger than {@code 1}. {@code false} disable it.
 	 * @param config The configuration values to use.
-	 * @since 3.0 logging tag added
+	 * @since 3.0 (logging tag added and changed parameter to Configuration)
 	 */
-	public BlockwiseLayer(String tag, boolean enableBert, NetworkConfig config) {
+	public BlockwiseLayer(String tag, boolean enableBert, Configuration config) {
 		this.tag = tag;
 
-		int blockSize = config.getInt(Keys.PREFERRED_BLOCK_SIZE, NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
+		int blockSize = config.get(CoapConfig.PREFERRED_BLOCK_SIZE);
 		int szx = BlockOption.size2Szx(blockSize);
 		String blockSizeDescription = String.valueOf(blockSize);
-		maxTcpBertBulkBlocks = enableBert ? config.getInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 1) : 1;
+		maxTcpBertBulkBlocks = enableBert ? config.get(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS) : 1;
 		if (maxTcpBertBulkBlocks > 1) {
 			// Change the preferredBlockSize to accommodate BERT.
 			szx = BlockOption.BERT_SZX;
 			blockSizeDescription = "1024(BERT)";
 		}
-		maxMessageSize = config.getInt(Keys.MAX_MESSAGE_SIZE, NetworkConfigDefaults.DEFAULT_MAX_MESSAGE_SIZE);
+		maxMessageSize = config.get(CoapConfig.MAX_MESSAGE_SIZE);
 		preferredBlockSzx = szx;
-		blockTimeout = config.getInt(Keys.BLOCKWISE_STATUS_LIFETIME,
-				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STATUS_LIFETIME);
-		blockInterval = config.getInt(Keys.BLOCKWISE_STATUS_INTERVAL,
-				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STATUS_INTERVAL);
-		maxResourceBodySize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE,
-				NetworkConfigDefaults.DEFAULT_MAX_RESOURCE_BODY_SIZE);
-		int maxActivePeers = config.getInt(Keys.MAX_ACTIVE_PEERS, NetworkConfigDefaults.DEFAULT_MAX_ACTIVE_PEERS);
+		blockTimeout = config.getTimeAsInt(CoapConfig.BLOCKWISE_STATUS_LIFETIME, TimeUnit.MILLISECONDS);
+		blockInterval = config.getTimeAsInt(CoapConfig.BLOCKWISE_STATUS_INTERVAL,TimeUnit.MILLISECONDS);
+		maxResourceBodySize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
+		int maxActivePeers = config.get(CoapConfig.MAX_ACTIVE_PEERS);
 		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout,
 				TimeUnit.MILLISECONDS);
 		block1Transfers.setEvictingOnReadAccess(false);
@@ -323,13 +319,11 @@ public class BlockwiseLayer extends AbstractLayer {
 				}
 			}
 		});
-		strictBlock2Option = config.getBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION,
-				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
+		strictBlock2Option = config.get(CoapConfig.BLOCKWISE_STRICT_BLOCK2_OPTION);
 
-		healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+		healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
 
-		enableAutoFailoverOn413 = config.getBoolean(Keys.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER,
-				NetworkConfigDefaults.DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
+		enableAutoFailoverOn413 = config.get(CoapConfig.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 
 		LOGGER.info(
 				"{}BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
@@ -372,7 +366,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						cleanupExpiredBlockStatus(true);
 					}
 				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
 		cleanup = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
 
@@ -630,13 +624,16 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				BlockOption responseBlock2 = response.getOptions().getBlock2();
 
-				// peer has issued a random block access request using option block2 in request
+				// peer has issued a random block access request using option
+				// block2 in request
 				if (responseBlock2 != null) {
 					if (requestBlock2.getOffset() != responseBlock2.getOffset()) {
 						LOGGER.warn(
 								"{}resource [{}] implementation error, peer requested block offset {} but resource returned block offest {}",
-								tag, exchange.getRequest().getURI(), requestBlock2.getOffset(), responseBlock2.getOffset());
-						responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
+								tag, exchange.getRequest().getURI(), requestBlock2.getOffset(),
+								responseBlock2.getOffset());
+						responseToSend = Response.createResponse(exchange.getRequest(),
+								ResponseCode.INTERNAL_SERVER_ERROR);
 						responseToSend.setType(response.getType());
 						responseToSend.setMID(response.getMID());
 						responseToSend.addMessageObservers(response.getMessageObservers());
@@ -1165,6 +1162,10 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	/**
 	 * Sends request for the next response block.
+	 * 
+	 * @param exchange exchange for blockwise transfer
+	 * @param response current response block
+	 * @param status blockwise status
 	 */
 	private void requestNextBlock(Exchange exchange, Response response, Block2BlockwiseStatus status) {
 		// do late block size negotiation

@@ -34,10 +34,12 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -57,6 +59,8 @@ public class TcpConnectorTest {
 
 	@Rule
 	public ThreadsRule threads = THREADS_RULE;
+
+	private Configuration configuration;
 
 	private final int messageSize;
 	private final List<Connector> cleanup = new ArrayList<>();
@@ -82,6 +86,11 @@ public class TcpConnectorTest {
 		this.messageSize = messageSize;
 	}
 
+	@Before
+	public void init() {
+		configuration = ConnectorTestUtil.getTestConfiguration();
+	}
+
 	@After
 	public void cleanup() {
 		stop(cleanup);
@@ -89,10 +98,8 @@ public class TcpConnectorTest {
 
 	@Test
 	public void serverClientPingPong() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
-		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, CONNECTION_TIMEOUT_IN_MS,
-				IDLE_TIMEOUT_IN_S);
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), configuration);
+		TcpClientConnector client = new TcpClientConnector(configuration);
 
 		cleanup.add(server);
 		cleanup.add(client);
@@ -120,8 +127,7 @@ public class TcpConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), configuration);
 		assertThat(server.getProtocol(), is("TCP"));
 		cleanup.add(server);
 
@@ -131,8 +137,7 @@ public class TcpConnectorTest {
 
 		List<RawData> messages = new ArrayList<>();
 		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
-			TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, CONNECTION_TIMEOUT_IN_MS,
-					IDLE_TIMEOUT_IN_S);
+			TcpClientConnector client = new TcpClientConnector(configuration);
 			cleanup.add(client);
 			Catcher clientCatcher = new Catcher();
 			client.setRawDataReceiver(clientCatcher);
@@ -161,10 +166,8 @@ public class TcpConnectorTest {
 
 	@Test
 	public void onConnect() throws Exception {
-		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
-		TcpClientConnector client = new TcpClientConnector(NUMBER_OF_THREADS, CONNECTION_TIMEOUT_IN_MS,
-				IDLE_TIMEOUT_IN_S);
+		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), configuration);
+		TcpClientConnector client = new TcpClientConnector(configuration);
 
 		cleanup.add(server);
 		cleanup.add(client);

@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * Common functionality for integration tests.
@@ -51,15 +52,14 @@ public final class IntegrationTestTools {
 	 * when receiving certain messages.
 	 * 
 	 * @param destination The address to send messages to.
+	 * @param config The configuration for the endpoint.
 	 * @return The created endpoint.
 	 */
-	public static LockstepEndpoint createLockstepEndpoint(final InetSocketAddress destination) {
-		LockstepEndpoint endpoint = new LockstepEndpoint();
-		endpoint.setDestination(destination);
-		return endpoint;
+	public static LockstepEndpoint createLockstepEndpoint(InetSocketAddress destination, Configuration config) {
+		return new LockstepEndpoint(destination, config);
 	}
 
-	public static LockstepEndpoint createChangedLockstepEndpoint(final LockstepEndpoint previous) {
+	public static LockstepEndpoint createChangedLockstepEndpoint(LockstepEndpoint previous) {
 		LockstepEndpoint endpoint = new LockstepEndpoint(previous);
 		previous.destroy();
 		return endpoint;

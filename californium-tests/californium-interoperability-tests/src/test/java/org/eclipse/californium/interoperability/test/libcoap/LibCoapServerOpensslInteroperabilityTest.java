@@ -17,14 +17,14 @@ package org.eclipse.californium.interoperability.test.libcoap;
 
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.TRUST;
-import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNotNull;
@@ -42,6 +42,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -210,8 +211,8 @@ public class LibCoapServerOpensslInteroperabilityTest {
 		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		californiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);
@@ -261,7 +262,8 @@ public class LibCoapServerOpensslInteroperabilityTest {
 
 		californiumUtil.start(BIND, null, cipherSuite);
 		connect(false, "peer did not return a certificate");
-		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		californiumUtil.assertAlert(TIMEOUT_MILLIS,
+				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 	}
 
 	@Test
@@ -296,8 +298,8 @@ public class LibCoapServerOpensslInteroperabilityTest {
 		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		californiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);

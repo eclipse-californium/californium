@@ -33,11 +33,12 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.CongestionControlMode;
 import org.eclipse.californium.core.network.stack.congestioncontrol.Rto;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -78,7 +79,7 @@ public class CongestionControlTest {
 	// client retransmits after 200 ms
 	private static final int ACK_TIMEOUT_IN_MS = 200;
 
-	private NetworkConfig config;
+	private Configuration config;
 
 	private LockstepEndpoint server;
 	private CoapTestEndpoint client;
@@ -88,28 +89,26 @@ public class CongestionControlTest {
 	@Before
 	public void setup() throws Exception {
 		config = network.createStandardTestConfig()
-				.setInt(Keys.MAX_MESSAGE_SIZE, 128)
-				.setInt(Keys.PREFERRED_BLOCK_SIZE, 128)
-				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
-				.setInt(Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
-				.setLong(Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
-				.setInt(Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS)
-				.setInt(Keys.ACK_RANDOM_FACTOR, 1)
-				.setInt(Keys.MAX_RETRANSMIT, 2)
-				.setInt(Keys.ACK_TIMEOUT_SCALE, 1)
-				.setInt(Keys.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL)
-				.setInt(Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME)
-				.setBoolean(Keys.USE_CONGESTION_CONTROL, true)
-				.setString(Keys.CONGESTION_CONTROL_ALGORITHM, "BasicRto")
-				.setInt(Keys.NSTART, 3)
-				;
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 128)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1F)
+				.set(CoapConfig.MAX_RETRANSMIT, 2)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1F)
+				.set(CoapConfig.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.CONGESTION_CONTROL_ALGORITHM, CongestionControlMode.BASIC_RTO)
+				.set(CoapConfig.NSTART, 3);
 
 		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config);
 		cleanup.add(client);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());
-		server = createLockstepEndpoint(client.getAddress());
+		server = createLockstepEndpoint(client.getAddress(), config);
 		cleanup.add(server);
 	}
 

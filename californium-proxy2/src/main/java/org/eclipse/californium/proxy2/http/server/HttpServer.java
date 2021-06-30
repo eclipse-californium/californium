@@ -36,6 +36,7 @@ import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.Message;
+import org.apache.hc.core5.http.URIScheme;
 import org.apache.hc.core5.http.impl.bootstrap.AsyncServerBootstrap;
 import org.apache.hc.core5.http.impl.bootstrap.HttpAsyncServer;
 import org.apache.hc.core5.http.impl.bootstrap.StandardFilter;
@@ -62,8 +63,9 @@ import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.apache.hc.core5.reactor.ListenerEndpoint;
 import org.apache.hc.core5.util.Args;
 import org.apache.hc.core5.util.TimeValue;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.eclipse.californium.proxy2.http.ContentTypedEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,22 +86,23 @@ public class HttpServer {
 	/**
 	 * Create http server.
 	 * 
-	 * @param config network configuration
+	 * @param config configuration
 	 * @param httpPort port ot be used.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public HttpServer(NetworkConfig config, int httpPort) {
+	public HttpServer(Configuration config, int httpPort) {
 		this(config, new InetSocketAddress(httpPort));
 	}
 
 	/**
 	 * Create http server.
 	 * 
-	 * @param config network configuration
+	 * @param config configuration
 	 * @param httpInterface interface to be used.
 	 * @throws NullPointerException if interface is {@code null}
-	 * @since 2.4
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public HttpServer(NetworkConfig config, InetSocketAddress httpInterface) {
+	public HttpServer(Configuration config, InetSocketAddress httpInterface) {
 		if (httpInterface == null) {
 			throw new NullPointerException("http interface must not be null!");
 		}
@@ -110,9 +113,9 @@ public class HttpServer {
 				.add(new ResponseContent()).add(new ResponseConnControl()).build();
 
 		// configuring IOReactor
-		int threads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
-		int socketTimeout = config.getInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_TIMEOUT);
-		int socketBufferSize = config.getInt(NetworkConfig.Keys.HTTP_SERVER_SOCKET_BUFFER_SIZE);
+		int threads = config.get(Proxy2Config.HTTP_WORKER_THREADS);
+		int socketTimeout = config.getTimeAsInt(Proxy2Config.HTTP_SERVER_SOCKET_TIMEOUT, TimeUnit.MILLISECONDS);
+		int socketBufferSize = config.get(Proxy2Config.HTTP_SERVER_SOCKET_BUFFER_SIZE);
 		IOReactorConfig ioReactorConfig = IOReactorConfig.custom().setRcvBufSize(socketBufferSize)
 				.setSoTimeout(socketTimeout, TimeUnit.MILLISECONDS).setTcpNoDelay(true)
 				.setSoLinger(0, TimeUnit.MILLISECONDS).setIoThreadCount(threads).build();
@@ -238,7 +241,7 @@ public class HttpServer {
 		});
 
 		server.start();
-		final Future<ListenerEndpoint> future = server.listen(httpInterface);
+		final Future<ListenerEndpoint> future = server.listen(httpInterface, URIScheme.HTTP);
 		try {
 			final ListenerEndpoint listenerEndpoint = future.get();
 			LOGGER.info("Listening on {}", listenerEndpoint.getAddress());
@@ -303,9 +306,10 @@ public class HttpServer {
 			long counter = requestCounter.incrementAndGet();
 			String payload = String.format(this.message, name, counter);
 			int hc = payload.hashCode();
-			responseTrigger.submitResponse(AsyncResponseBuilder.create(HttpStatus.SC_OK)
-					.addHeader("Etag", Integer.toHexString(hc))
-					.setEntity(payload, ContentType.TEXT_PLAIN.withCharset(UTF_8)).build(), context);
+			responseTrigger.submitResponse(
+					AsyncResponseBuilder.create(HttpStatus.SC_OK).addHeader("Etag", Integer.toHexString(hc))
+							.setEntity(payload, ContentType.TEXT_PLAIN.withCharset(UTF_8)).build(),
+					context);
 			LOGGER.debug("{}, {} request handled!", endpoint, counter);
 		}
 

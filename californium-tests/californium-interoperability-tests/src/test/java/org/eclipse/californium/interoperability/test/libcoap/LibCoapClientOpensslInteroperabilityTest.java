@@ -17,11 +17,11 @@ package org.eclipse.californium.interoperability.test.libcoap;
 
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.TRUST;
-import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -38,10 +38,12 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -119,8 +121,8 @@ public class LibCoapClientOpensslInteroperabilityTest {
 	@Test
 	public void testLibCoapClientPskMultiFragment() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-		builder.setEnableMultiHandshakeMessageRecords(true);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
@@ -131,8 +133,8 @@ public class LibCoapClientOpensslInteroperabilityTest {
 	@Test
 	public void testLibCoapClientPskNoSessionId() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-		builder.setUseServerSessionId(false);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
 		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);

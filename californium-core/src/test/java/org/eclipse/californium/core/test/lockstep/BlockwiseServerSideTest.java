@@ -59,13 +59,14 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.assume.TimeAssume;
 import org.eclipse.californium.elements.category.Large;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.TestCondition;
@@ -106,7 +107,7 @@ public class BlockwiseServerSideTest {
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final String RESOURCE_PATH = "test";
 
-	private NetworkConfig config;
+	private Configuration config;
 
 	private CoapServer server;
 	private CoapTestEndpoint serverEndpoint;
@@ -123,13 +124,13 @@ public class BlockwiseServerSideTest {
 	@Before
 	public void setup() throws Exception {
 		config = network.createStandardTestConfig()
-				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_PREFERRED_BLOCK_SIZE)
-				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
-				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
-				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
-				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL)
-				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, TEST_PREFERRED_BLOCK_SIZE)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME, TimeUnit.MILLISECONDS);
 
 		etag = null;
 		expectedMid = null;
@@ -146,7 +147,7 @@ public class BlockwiseServerSideTest {
 		cleanup.add(server);
 		InetSocketAddress serverAddress = serverEndpoint.getAddress();
 		System.out.println("Server binds to port " + serverAddress.getPort());
-		client = createLockstepEndpoint(serverAddress);
+		client = createLockstepEndpoint(serverAddress, config);
 		cleanup.add(client);
 	}
 

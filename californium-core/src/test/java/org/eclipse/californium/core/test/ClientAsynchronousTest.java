@@ -47,9 +47,9 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -86,8 +86,6 @@ public class ClientAsynchronousTest {
 
 	@BeforeClass
 	public static void init() {
-		network.getStandardTestConfig()
-			.setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
 		cleanup.add(createServer());
 	}
 
@@ -228,9 +226,9 @@ public class ClientAsynchronousTest {
 	}
 
 	private static CoapServer createServer() {
-		NetworkConfig config = network.getStandardTestConfig();
+		Configuration config = network.getStandardTestConfig();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		serverEndpoint = builder.build();
 

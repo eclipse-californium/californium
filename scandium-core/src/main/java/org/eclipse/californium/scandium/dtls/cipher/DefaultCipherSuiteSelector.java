@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
@@ -120,9 +121,8 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 			parameters.setCertificateMismatch(CertificateBasedMismatch.SERVER_CERT_TYPE);
 			return false;
 		}
-		boolean clientAuthentication = parameters.isClientAuthenticationRequired()
-				|| parameters.isClientAuthenticationWanted();
-		if (clientAuthentication && parameters.getClientCertTypes().isEmpty()) {
+		CertificateAuthenticationMode clientAuthentication = parameters.getClientAuthenticationMode();
+		if (clientAuthentication.useCertificateRequest() && parameters.getClientCertTypes().isEmpty()) {
 			parameters.setCertificateMismatch(CertificateBasedMismatch.CLIENT_CERT_TYPE);
 			return false;
 		}
@@ -172,7 +172,8 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 			parameters.selectServerCertificateType(certificateType);
 			parameters.selectSignatureAndHashAlgorithm(signatureAndHashAlgorithm);
 			parameters.selectSupportedGroup(parameters.getSupportedGroups().get(0));
-			certificateType = clientAuthentication ? parameters.getClientCertTypes().get(0) : null;
+			certificateType = clientAuthentication.useCertificateRequest() ? parameters.getClientCertTypes().get(0)
+					: null;
 			parameters.selectClientCertificateType(certificateType);
 			return true;
 		}

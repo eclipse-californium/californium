@@ -33,10 +33,6 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 	public static final int CODE_BITS = 8;
 	private final Length fragmentLength;
 
-	public MaxFragmentLengthExtension(int fragmentLengthCode) {
-		this(Length.fromCode(fragmentLengthCode));
-	}
-
 	public MaxFragmentLengthExtension(Length fragmentLength) {
 		super(ExtensionType.MAX_FRAGMENT_LENGTH);
 		if (fragmentLength == null) {

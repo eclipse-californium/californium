@@ -31,15 +31,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -70,8 +71,8 @@ public class UdpMatcherMulticastTest {
 
 	@Before
 	public void before() throws UnknownHostException {
-		NetworkConfig config = network.createStandardTestConfig();
-		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, 20000);
+		Configuration config = network.createStandardTestConfig();
+		config.set(CoapConfig.MULTICAST_BASE_MID, 20000);
 		scheduler = MatcherTestUtils.newScheduler();
 		cleanup.add(scheduler);
 		exchangeEndpointContext = mock(EndpointContext.class);

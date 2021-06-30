@@ -20,6 +20,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -28,8 +29,11 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
@@ -132,15 +136,16 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 		Integer mgmtSendBuffer = addConditionally(config.getSocketSendBufferSize(), MAX_DATAGRAM_OFFSET);
 		if (identity != null) {
 			SecretKey secretkey = clusterConfiguration.getSecretKey();
-			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration.getConfiguration())
+					.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 500, TimeUnit.MILLISECONDS)
+					.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, 3)
+					.set(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF, 0)
+					.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1024)
+					.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 0)
+					.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, mgmtReceiveBuffer)
+					.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, mgmtSendBuffer)
 					.setAddress(clusterConfiguration.getAddress())
-					.setReceiverThreadCount(0).setMaxConnections(1024)
-					.setSocketReceiveBufferSize(mgmtReceiveBuffer)
-					.setSocketSendBufferSize(mgmtSendBuffer)
 					.setAdvancedPskStore(new AdvancedSinglePskStore(identity, secretkey))
-					.setRetransmissionTimeout(500)
-					.setBackOffRetransmission(0)
-					.setMaxRetransmissions(3)
 					.setConnectionListener(new ConnectionListener() {
 
 						@Override
@@ -182,16 +187,13 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 			this.useClusterMac = clusterConfiguration.useClusterMac();
 			this.protocol = this.useClusterMac ? PROTOCOL_MANAGEMENT_DTLS_MAC : PROTOCOL_MANAGEMENT_DTLS;
 		} else {
+			Configuration config = new Configuration();
+			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 0);
+			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 2);
+			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, mgmtReceiveBuffer);
+			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, mgmtSendBuffer);
 			ClusterManagementUdpConnector udpConnector = new ClusterManagementUdpConnector(
-					clusterConfiguration.getAddress());
-			udpConnector.setReceiverThreadCount(0);
-			udpConnector.setSenderThreadCount(2);
-			if (mgmtReceiveBuffer != null) {
-				udpConnector.setReceiveBufferSize(mgmtReceiveBuffer);
-			}
-			if (mgmtSendBuffer != null) {
-				udpConnector.setSendBufferSize(mgmtSendBuffer);
-			}
+					clusterConfiguration.getAddress(), config);
 			this.clusterManagementConnector = udpConnector;
 			this.useClusterMac = false;
 			this.protocol = PROTOCOL_MANAGEMENT_UDP;
@@ -428,8 +430,8 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 */
 	private class ClusterManagementUdpConnector extends UDPConnector {
 
-		public ClusterManagementUdpConnector(InetSocketAddress bindAddress) {
-			super(bindAddress);
+		public ClusterManagementUdpConnector(InetSocketAddress bindAddress, Configuration configuration) {
+			super(bindAddress, configuration);
 		}
 
 		@Override

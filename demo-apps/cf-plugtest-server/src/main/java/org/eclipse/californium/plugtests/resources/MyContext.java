@@ -32,13 +32,14 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -106,10 +107,10 @@ public class MyContext extends CoapResource {
 		formatter.add("port", new Long(source.getPort()));
 		Endpoint endpoint = exchange.getEndpoint();
 		if (endpoint != null) {
-			NetworkConfig config = endpoint.getConfig();
-			String nodeId = config.getString(NetworkConfig.Keys.DTLS_CONNECTION_ID_NODE_ID);
-			if (nodeId != null && !nodeId.isEmpty()) {
-				formatter.add("node-id", nodeId);
+			Configuration config = endpoint.getConfig();
+			Integer nodeId = config.get(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID);
+			if (nodeId != null) {
+				formatter.add("node-id", nodeId.toString());
 			}
 		}
 		Principal peerIdentity = context.getPeerIdentity();

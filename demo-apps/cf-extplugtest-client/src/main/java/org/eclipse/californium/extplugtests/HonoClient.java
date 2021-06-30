@@ -43,10 +43,12 @@ import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 
 import picocli.CommandLine.Command;
@@ -55,7 +57,7 @@ import picocli.CommandLine.Option;
 public class HonoClient {
 
 	private static final String DEFAULT_HONO = "hono.eclipseprojects.io";
-	private static final File CONFIG_FILE = new File("CaliforniumHono.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumHono3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Hono Client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
@@ -86,21 +88,22 @@ public class HonoClient {
 
 	}
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
-			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
-			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
-			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 20);
-			config.setInt(Keys.TCP_WORKER_THREADS, 2);
-			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 2);
-			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 2);
-			config.setInt(Keys.PROTOCOL_STAGE_THREAD_COUNT, 2);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
+			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 12, TimeUnit.HOURS);
+			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(TcpConfig.TCP_WORKER_THREADS, 2);
+			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 2);
+			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 2);
+			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);
 		}
 	};
 
@@ -198,12 +201,13 @@ public class HonoClient {
 	 */
 	public static void main(String[] args) throws IOException, ConnectorException {
 		// hono sandbox
+		TcpConfig.register();
 		final Config clientConfig = new Config();
 		clientConfig.setDefaultPskCredentials("sensor1@DEFAULT_TENANT", "hono-secret");
 		clientConfig.defaultUri = "coaps://" + DEFAULT_HONO + "/telemetry";
-		clientConfig.networkConfigHeader = CONFIG_HEADER;
-		clientConfig.networkConfigDefaultHandler = DEFAULTS;
-		clientConfig.networkConfigFile = CONFIG_FILE;
+		clientConfig.configurationHeader = CONFIG_HEADER;
+		clientConfig.customConfigurationDefaultsProvider = DEFAULTS;
+		clientConfig.configurationFile = CONFIG_FILE;
 		ClientInitializer.init(args, clientConfig);
 		if (clientConfig.helpRequested) {
 			System.exit(0);

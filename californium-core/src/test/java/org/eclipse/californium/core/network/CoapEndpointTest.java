@@ -42,7 +42,6 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -53,6 +52,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -65,7 +65,7 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class CoapEndpointTest {
 
-	static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
+	static final Configuration CONFIG = Configuration.createStandardWithoutFile();
 	static final int MESSAGE_ID = 4711;
 	static final byte[] TOKEN = new byte[] { 0x01, 0x02, 0x03 };
 	static final InetSocketAddress SOURCE_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
@@ -88,7 +88,7 @@ public class CoapEndpointTest {
 		connector = new SimpleConnector();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(connector);
-		builder.setNetworkConfig(CONFIG);
+		builder.setConfiguration(CONFIG);
 
 		endpoint = builder.build();
 		connectorSentLatch = new CountDownLatch(1);
@@ -170,7 +170,7 @@ public class CoapEndpointTest {
 		SimpleConnector connector = new SimpleSecureConnector();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(connector);
-		builder.setNetworkConfig(CONFIG);
+		builder.setConfiguration(CONFIG);
 		Endpoint endpoint = builder.build();
 		final CountDownLatch latch = new CountDownLatch(1);
 		MessageDeliverer deliverer = new MessageDeliverer() {

@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -39,6 +38,7 @@ import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
@@ -104,11 +104,13 @@ public class DTLSConnectorStartStopTest {
 			rand.nextBytes(logid);
 			testLogTagHead = StringUtil.byteArray2HexString(logid, StringUtil.NO_SEPARATOR, 0) + "-";
 		}
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder();
-		builder.setMaxConnections(1000);
-		builder.setStaleConnectionThreshold(10);
-		serverHelper = new ConnectorHelper(true);
-		serverHelper.startServer(builder);
+		serverHelper = new ConnectorHelper(network);
+		serverHelper.useSessionStore = true;
+		serverHelper.serverBuilder
+				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1000)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 10, TimeUnit.SECONDS);
+
+		serverHelper.startServer();
 	}
 
 	/**
@@ -127,11 +129,9 @@ public class DTLSConnectorStartStopTest {
 		testLogTag = testLogTagHead + testLogTagCounter++;
 		clientConnectionStore = new DebugConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, null);
 		clientConnectionStore.setTag(testLogTag + "-client");
-		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder builder = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
-				.setLoggingTag(testLogTag + "-client")
-				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
-		DtlsConnectorConfig clientConfig = builder.build();
+		DtlsConnectorConfig clientConfig = serverHelper.newClientConfigBuilder(network)
+				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
+				.setLoggingTag(testLogTag + "-client").build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);

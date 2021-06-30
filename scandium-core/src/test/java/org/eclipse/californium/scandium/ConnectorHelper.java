@@ -72,8 +72,11 @@ import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
+import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -93,11 +96,11 @@ import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
+import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 
 /**
  * A utility class for implementing DTLS integration tests.
@@ -106,14 +109,14 @@ import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVe
  */
 public class ConnectorHelper {
 
-	static final String	SERVERNAME							= "my.test.server";
-	static final String	SERVERNAME2							= "my.test.server2";
-	static final String	SCOPED_CLIENT_IDENTITY				= "My_client_identity";
-	static final String	SCOPED_CLIENT_IDENTITY_SECRET		= "mySecretPSK";
-	static final String	CLIENT_IDENTITY						= "Client_identity";
-	static final String	CLIENT_IDENTITY_SECRET				= "secretPSK";
-	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
-	static final int	SERVER_CONNECTION_STORE_CAPACITY	= 3;
+	static final String SERVERNAME = "my.test.server";
+	static final String SERVERNAME2 = "my.test.server2";
+	static final String SCOPED_CLIENT_IDENTITY = "My_client_identity";
+	static final String SCOPED_CLIENT_IDENTITY_SECRET = "mySecretPSK";
+	static final String CLIENT_IDENTITY = "Client_identity";
+	static final String CLIENT_IDENTITY_SECRET = "secretPSK";
+	static final int MAX_TIME_TO_WAIT_SECS = 2;
+	static final int SERVER_CONNECTION_STORE_CAPACITY = 3;
 
 	static final ThreadFactory TEST_UDP_THREAD_FACTORY = new TestThreadFactory("TEST-UDP-");
 
@@ -128,99 +131,67 @@ public class ConnectorHelper {
 	DTLSContext establishedServerContext;
 	DTLSSession establishedServerSession;
 	AlertCatcher serverAlertCatcher;
+	AdvancedMultiPskStore serverPskStore;
 
 	DtlsConnectorConfig serverConfig;
+	DtlsConnectorConfig.Builder serverBuilder;
 
-	public ConnectorHelper() {
-		this(false);
-	}
+	public ConnectorHelper(DtlsNetworkRule network) {
+		List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(false));
+		list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
+				KeyExchangeAlgorithm.PSK));
+		serverPskStore = new AdvancedMultiPskStore();
+		serverPskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		serverPskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 
-	public ConnectorHelper(boolean useSessionStore) {
-		this.useSessionStore = useSessionStore;
-	}
-
-	/**
-	 * Configures and starts a connector representing the <em>server side</em> of a DTLS connection.
-	 * <p>
-	 * The connector is configured as follows:
-	 * <ul>
-	 * <li>binds to an ephemeral port on loopback address, the address can be read from the
-	 * <em>serverEndpoint</em> property</li>
-	 * <li>supports ECDHE_ECDSA and PSK based ciphers using both CCM and CBC</li>
-	 * <li>uses a PSK store containing the {@link #CLIENT_IDENTITY} and matching secret</li>
-	 * <li>uses the private key returned by {@link DtlsTestTools#getPrivateKey()}</li>
-	 * <li>uses {@link DtlsTestTools#getTrustedCertificates()} as the trust anchor</li>
-	 * <li>requires clients to be authenticated</li>
-	 * </ul>
-	 * 
-	 * @throws IOException if the server cannot be started.
-	 * @throws GeneralSecurityException if the keys cannot be read.
-	 */
-	public void startServer() throws IOException, GeneralSecurityException {
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder();
-		startServer(builder);
+		serverBuilder = DtlsConnectorConfig.builder(network.createTestConfig())
+				.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1)
+				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, SERVER_CONNECTION_STORE_CAPACITY)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 5, TimeUnit.MINUTES)
+				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setAdvancedPskStore(serverPskStore)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(),
+						DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setSupportedCipherSuites(list)
+				.setLoggingTag("server");
 	}
 
 	/**
-	 * Configures and starts a connector representing the <em>server side</em> of a DTLS connection.
+	 * Configures and starts a connector representing the <em>server side</em>
+	 * of a DTLS connection.
 	 * <p>
 	 * The connector is configured as follows:
 	 * <ul>
-	 * <li>binds to an ephemeral port on loopback address, the address can be read from the
-	 * <em>serverEndpoint</em> property</li>
-	 * <li>supports ECDHE_ECDSA and PSK based ciphers using both CCM and CBC</li>
-	 * <li>uses a PSK store containing the {@link #CLIENT_IDENTITY} and matching secret</li>
-	 * <li>uses the private key returned by {@link DtlsTestTools#getPrivateKey()}</li>
-	 * <li>uses {@link DtlsTestTools#getTrustedCertificates()} as the trust anchor</li>
+	 * <li>binds to an ephemeral port on loopback address, the address can be
+	 * read from the <em>serverEndpoint</em> property</li>
+	 * <li>supports ECDHE_ECDSA and PSK based ciphers using both CCM and
+	 * CBC</li>
+	 * <li>uses a PSK store containing the {@link #CLIENT_IDENTITY} and matching
+	 * secret</li>
+	 * <li>uses the private key returned by
+	 * {@link DtlsTestTools#getPrivateKey()}</li>
+	 * <li>uses {@link DtlsTestTools#getTrustedCertificates()} as the trust
+	 * anchor</li>
 	 * </ul>
 	 * 
 	 * @param builder pre-configuration
 	 * @throws IOException if the server cannot be started.
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
-	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
-		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-				.setReceiverThreadCount(1)
-				.setConnectionThreadCount(2)
-				.setLoggingTag("server")
-				.setServerOnly(true);
+	public void startServer() throws IOException, GeneralSecurityException {
 
-		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
-		if (incompleteConfig.getMaxTransmissionUnitLimit() == null) {
-			builder.setMaxTransmissionUnit(1024);
-		}
-		if (incompleteConfig.getMaxConnections() == null) {
-			builder.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY);
-		}
-		if (incompleteConfig.getStaleConnectionThreshold() == null) {
-			builder.setStaleConnectionThreshold(60 * 5); // connection timeout 5mins
-		}
+		ensureTrusts(serverBuilder);
 
-		ensurePskStore(builder);
-
-		if (incompleteConfig.getCertificateIdentityProvider() == null) {
-			builder.setCertificateIdentityProvider(
-					new SingleCertificateProvider(
-					DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
-					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
-		}
-
-		if (incompleteConfig.getSupportedCipherSuites() == null) {
-			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(false));
-			list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
-					KeyExchangeAlgorithm.PSK));
-			builder.setRecommendedCipherSuitesOnly(false);
-			builder.setSupportedCipherSuites(list);
-		}
-
-		ensureTrusts(builder);
-
-		serverConfig = builder.build();
+		serverConfig = serverBuilder.build();
 
 		if (useSessionStore) {
 			serverSessionStore = new TestInMemorySessionStore(false);
 		}
-		serverConnectionStore = new DebugConnectionStore(serverConfig.getMaxConnections(), serverConfig.getStaleConnectionThreshold(), serverSessionStore);
+		serverConnectionStore = new DebugConnectionStore(serverConfig.getMaxConnections(),
+				serverConfig.getStaleConnectionThresholdSeconds(), serverSessionStore);
 		serverConnectionStore.setTag("server");
 
 		serverAlertCatcher = new AlertCatcher();
@@ -234,27 +205,13 @@ public class ConnectorHelper {
 		serverEndpoint = server.getAddress();
 	}
 
-	public AdvancedPskStore ensurePskStore(DtlsConnectorConfig.Builder builder) {
-		AdvancedPskStore result = null;
-		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
-		if (incompleteConfig.getAdvancedPskStore() == null) {
-			AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-			pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-			pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
-			result = pskStore;
-			builder.setAdvancedPskStore(result);
-		}
-		return result;
-	}
-
 	public NewAdvancedCertificateVerifier ensureTrusts(DtlsConnectorConfig.Builder builder) {
 		NewAdvancedCertificateVerifier result = null;
 		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
-		if (!Boolean.FALSE.equals(incompleteConfig.isClientAuthenticationRequired())
-				|| Boolean.TRUE.equals(incompleteConfig.isClientAuthenticationWanted())) {
+		if (incompleteConfig.getCertificateAuthenticationMode() != CertificateAuthenticationMode.NONE) {
 			if (incompleteConfig.getAdvancedCertificateVerifier() == null) {
 				Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
-				X509Certificate[] trustedCertificates =  DtlsTestTools.getTrustedCertificates();
+				X509Certificate[] trustedCertificates = DtlsTestTools.getTrustedCertificates();
 				verifierBuilder.setTrustedCertificates(trustedCertificates);
 				verifierBuilder.setTrustAllRPKs();
 				result = verifierBuilder.build();
@@ -275,12 +232,14 @@ public class ConnectorHelper {
 	}
 
 	/**
-	 * Resets the encapsulated server side connector's state to its initial configuration.
+	 * Resets the encapsulated server side connector's state to its initial
+	 * configuration.
 	 * <p>
 	 * This entails:
 	 * <ul>
 	 * <li>clear server's connection store</li>
-	 * <li>re-set server's {@code RawDataChannel}'s processor to <em>serverRawDataProcessor</em></li>
+	 * <li>re-set server's {@code RawDataChannel}'s processor to
+	 * <em>serverRawDataProcessor</em></li>
 	 * <li>clear server's error handler</li>
 	 * </ul>
 	 */
@@ -331,37 +290,39 @@ public class ConnectorHelper {
 		return new DtlsTestConnector(configuration, connectionStore);
 	}
 
-	public DtlsConnectorConfig newStandardClientConfig(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
-		return newStandardClientConfigBuilder(bindAddress).build();
-	}
-
-	public DtlsConnectorConfig.Builder newStandardClientConfigBuilder(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
+	public DtlsConnectorConfig.Builder newClientConfigBuilder(DtlsNetworkRule network) throws IOException, GeneralSecurityException {
+		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		NewAdvancedCertificateVerifier clientCertificateVerifier = StaticNewAdvancedCertificateVerifier.builder()
-				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
-				.setTrustAllRPKs()
-				.build();
-		return DtlsConnectorConfig.builder()
+				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
+		return DtlsConnectorConfig.builder(network.createTestConfig())
+				.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY)
 				.setLoggingTag("client")
-				.setAddress(bindAddress)
-				.setReceiverThreadCount(1)
-				.setConnectionThreadCount(2)
-				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
+				.setAddress(clientEndpoint)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1)
+				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(),
+						DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY,
+						CertificateType.X_509))
 				.setAdvancedCertificateVerifier(clientCertificateVerifier);
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, boolean releaseSocket) throws Exception {
-		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, boolean releaseSocket)
+			throws Exception {
+		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverEndpoint), null,
+				false);
 		return givenAnEstablishedSession(client, raw, releaseSocket);
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, RawData msgToSend,
+			boolean releaseSocket) throws Exception {
 
 		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientChannel);
 		client.start();
 		clientChannel.setAddress(client.getAddress());
 		client.send(msgToSend);
-		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds",
+				clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
 		establishedServerContext = con.getDtlsContext();
@@ -371,8 +332,10 @@ public class ConnectorHelper {
 		if (releaseSocket) {
 			synchronized (client) {
 				client.stop();
-				// in order to prevent sporadic BindExceptions during test execution
-				// give OS some time before allowing test cases to re-bind to same port
+				// in order to prevent sporadic BindExceptions during test
+				// execution
+				// give OS some time before allowing test cases to re-bind to
+				// same port
 				client.wait(200);
 			}
 		}
@@ -408,6 +371,7 @@ public class ConnectorHelper {
 	}
 
 	static class LatchDecrementingRawDataChannel implements RawDataChannel {
+
 		private InetSocketAddress address;
 		private CountDownLatch latch;
 
@@ -508,6 +472,7 @@ public class ConnectorHelper {
 	}
 
 	static class MessageCapturingProcessor implements RawDataProcessor {
+
 		private volatile boolean quiet;
 		private AtomicLong time = new AtomicLong(System.nanoTime());
 		private AtomicReference<RawData> inboundMessage = new AtomicReference<RawData>();
@@ -672,7 +637,7 @@ public class ConnectorHelper {
 	}
 
 	public static class LatchSessionListener extends SessionAdapter {
-		
+
 		private CountDownLatch finished = new CountDownLatch(1);
 		private AtomicBoolean established = new AtomicBoolean();
 		private CountDownLatch completed = new CountDownLatch(1);
@@ -738,7 +703,8 @@ public class ConnectorHelper {
 							socket.receive(packet);
 							if (packet.getLength() > 0) {
 								// handle data
-								handler.handleData((InetSocketAddress)packet.getSocketAddress(), Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
+								handler.handleData((InetSocketAddress) packet.getSocketAddress(),
+										Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
 								packet.setLength(buf.length);
 							}
 						} catch (IOException e) {
@@ -776,7 +742,8 @@ public class ConnectorHelper {
 		}
 
 		public void sendRecord(InetSocketAddress peerAddress, byte[] record) throws IOException {
-			DatagramPacket datagram = new DatagramPacket(record, record.length, peerAddress.getAddress(), peerAddress.getPort());
+			DatagramPacket datagram = new DatagramPacket(record, record.length, peerAddress.getAddress(),
+					peerAddress.getPort());
 			send(datagram);
 		}
 
@@ -795,6 +762,7 @@ public class ConnectorHelper {
 	}
 
 	class DtlsTestConnector extends DTLSConnector {
+
 		DtlsTestConnector(DtlsConnectorConfig configuration) {
 			super(configuration);
 		}
@@ -812,6 +780,7 @@ public class ConnectorHelper {
 	}
 
 	public static interface BuilderSetup {
+
 		void setup(DtlsConnectorConfig.Builder builder);
 	}
 

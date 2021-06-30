@@ -17,11 +17,15 @@ package org.eclipse.californium.examples.basic;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
+import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.eclipse.californium.proxy2.http.HttpClientFactory;
 import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
@@ -38,11 +42,11 @@ import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
 public class BasicForwardingProxy2 {
 
 	/**
-	 * File name for network configuration.
+	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("Californium.properties");
+	private static final File CONFIG_FILE = new File("Californium3.properties");
 	/**
-	 * Header for network configuration.
+	 * Header for configuration.
 	 */
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Simple Forwarding Proxy";
 	/**
@@ -55,24 +59,24 @@ public class BasicForwardingProxy2 {
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
 
 	/**
-	 * Special network configuration defaults handler.
+	 * Special configuration defaults handler.
 	 */
-	private static final NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
-			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // 10s
-			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 15 * 1000); // 15s
-			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 30 * 1000); // 30s
-			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 8192);
-			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 8192);
-			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 20000);
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
+			config.set(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, 10, TimeUnit.SECONDS); // 10s
+			config.set(Proxy2Config.HTTP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS); // 15s
+			config.set(Proxy2Config.HTTPS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS); // 30s
+			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
+			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 60, TimeUnit.SECONDS);
 		}
 
 	};
@@ -81,24 +85,24 @@ public class BasicForwardingProxy2 {
 
 	private CoapServer coapProxyServer;
 
-	public BasicForwardingProxy2(NetworkConfig config) throws IOException {
+	public BasicForwardingProxy2(Configuration config) throws IOException {
 		// initialize http clients
 		HttpClientFactory.setNetworkConfig(config);
 		// initialize coap-server
-		int port = config.getInt(Keys.COAP_PORT);
+		int port = config.get(CoapConfig.COAP_PORT);
 		coapProxyServer = new CoapServer(config, port);
 		// initialize proxy resource
 		ProxyCoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP, false, false, null);
-		// initialize proxy message deviverer
+		// initialize proxy message deliverer
 		ForwardProxyMessageDeliverer proxyMessageDeliverer = new ForwardProxyMessageDeliverer(coap2http);
-		// set proxy message deviverer
+		// set proxy message deliverer
 		coapProxyServer.setMessageDeliverer(proxyMessageDeliverer);
 		coapProxyServer.start();
 		System.out.println("** CoAP Proxy at: coap://localhost:" + port);
 	}
 
 	public static void main(String args[]) throws IOException {
-		NetworkConfig proxyConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration proxyConfig = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		BasicForwardingProxy2 proxy = new BasicForwardingProxy2(proxyConfig);
 		System.out.println(BasicForwardingProxy2.class.getSimpleName() + " started.");
 	}

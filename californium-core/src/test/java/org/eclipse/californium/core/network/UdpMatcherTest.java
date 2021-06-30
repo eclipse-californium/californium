@@ -45,13 +45,13 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.EndpointContextOperator;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -86,7 +86,7 @@ public class UdpMatcherTest {
 	
 	@Before
 	public void before(){
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		Configuration config = Configuration.createStandardWithoutFile();
 		scheduler = MatcherTestUtils.newScheduler();
 		cleanup.add(scheduler);
 		tokenProvider = new RandomTokenGenerator(config);

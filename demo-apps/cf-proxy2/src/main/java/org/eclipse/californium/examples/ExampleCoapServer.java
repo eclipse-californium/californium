@@ -22,11 +22,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
@@ -37,11 +37,11 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 public class ExampleCoapServer {
 
 	/**
-	 * File name for network configuration.
+	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("CaliforniumDemo.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumDemo3.properties");
 	/**
-	 * Header for network configuration.
+	 * Header for configuration.
 	 */
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Proxy Demo-Server";
 
@@ -50,19 +50,19 @@ public class ExampleCoapServer {
 	public static final int DEFAULT_COAP_PORT = 5685;
 
 	/**
-	 * Special network configuration defaults handler.
+	 * Special configuration defaults handler.
 	 */
-	private static final NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.COAP_PORT, DEFAULT_COAP_PORT);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.COAP_PORT, DEFAULT_COAP_PORT);
 		}
 	};
 
 	private CoapServer coapServer;
 
-	public ExampleCoapServer(NetworkConfig config, final int port) throws IOException {
+	public ExampleCoapServer(Configuration config, final int port) throws IOException {
 		String path = RESOURCE;
 		if (path.startsWith("/")) {
 			path = path.substring(1);
@@ -104,17 +104,17 @@ public class ExampleCoapServer {
 		System.out.println("Request: coap://localhost:" + port + RESOURCE);
 	}
 
-	public static NetworkConfig init() {
-		return NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+	public static Configuration init() {
+		return Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 	}
 
 	public static void main(String arg[]) throws IOException {
-		NetworkConfig config = init();
+		Configuration config = init();
 		int port;
 		if (arg.length > 0) {
 			port = Integer.parseInt(arg[0]);
 		} else {
-			port = config.getInt(NetworkConfig.Keys.COAP_PORT);
+			port = config.get(CoapConfig.COAP_PORT);
 		}
 		new ExampleCoapServer(config, port);
 	}

@@ -17,44 +17,43 @@
 
 package org.eclipse.californium.benchmark;
 
+import java.io.File;
+import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
+
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 
-import java.io.File;
-import java.net.InetSocketAddress;
-
 public class TcpThroughputServer {
-	private static final File CONFIG_FILE = new File("CaliforniumTcpServer.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumTcpServer3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for TCP server";
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setLong(Keys.MAX_MESSAGE_SIZE, 16 * 1024);
-			config.setInt(Keys.PROTOCOL_STAGE_THREAD_COUNT, 2);
-			config.setLong(Keys.EXCHANGE_LIFETIME, 10000);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, 16 * 1024);
+			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);
+			config.set(CoapConfig.EXCHANGE_LIFETIME, 10000, TimeUnit.MILLISECONDS);
 		}
 	};
 
 	public static void main(String[] args) {
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
-		int tcpIdleTimeout = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-		int tcpPort = config.getInt(Keys.COAP_PORT);
+		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		int tcpPort = config.get(CoapConfig.COAP_PORT);
 
-		Connector serverConnector = new TcpServerConnector(new InetSocketAddress(tcpPort), tcpThreads, tcpIdleTimeout);
+		Connector serverConnector = new TcpServerConnector(new InetSocketAddress(tcpPort), config);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 
 		CoapServer server = new CoapServer(config);

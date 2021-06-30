@@ -27,16 +27,16 @@ import java.net.InetAddress;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,9 +61,9 @@ public class BlockwiseLayerTest {
 	@Test
 	public void testReceiveRequestDelegatesToApplicationLayer() {
 
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
-				.setInt(Keys.MAX_MESSAGE_SIZE, 128)
-				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 0);
+		Configuration config = Configuration.createStandardWithoutFile()
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 0);
 		Layer appLayer = mock(Layer.class);
 
 		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
@@ -83,9 +83,9 @@ public class BlockwiseLayerTest {
 	@Test
 	public void testReceiveRequestRejectsExcessiveRequestBody() {
 
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
-				.setInt(Keys.MAX_MESSAGE_SIZE, 128)
-				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 200);
+		Configuration config = Configuration.createStandardWithoutFile()
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 200);
 		Layer outbox = mock(Layer.class);
 		ArgumentCaptor<Response> errorResponse = ArgumentCaptor.forClass(Response.class);
 
@@ -108,9 +108,9 @@ public class BlockwiseLayerTest {
 	@Test
 	public void testReceiveResponseCancelsRequestForExcessiveResponseBody() {
 
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
-				.setInt(Keys.MAX_MESSAGE_SIZE, 128)
-				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 200);
+		Configuration config = Configuration.createStandardWithoutFile()
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 200);
 		MessageObserver requestObserver = mock(MessageObserver.class);
 		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
 
@@ -134,9 +134,9 @@ public class BlockwiseLayerTest {
 	@Test
 	public void testReceiveResponseForwardsNotificationForCanceledObservationToUpperLayer() {
 
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile()
-				.setInt(Keys.MAX_MESSAGE_SIZE, 128)
-				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 200);
+		Configuration config = Configuration.createStandardWithoutFile()
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 200);
 		Layer upperLayer = mock(Layer.class);
 		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
 		blockwiseLayer.setUpperLayer(upperLayer);

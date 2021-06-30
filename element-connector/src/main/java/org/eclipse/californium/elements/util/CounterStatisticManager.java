@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 
  * Manage {@link SimpleCounterStatistic} and support timer interval based and
  * external triggered processing.
+ * 
  * @since 2.1
  */
 abstract public class CounterStatisticManager {
@@ -51,10 +52,11 @@ abstract public class CounterStatisticManager {
 	 */
 	private final ScheduledExecutorService executor;
 	/**
-	 * Interval to call {@link #dump()} in seconds. {@code 0} to disable active
+	 * Interval to call {@link #dump()}. {@code 0} to disable active
 	 * calls of {@link #dump()}.
 	 */
-	private final int interval;
+	private final long interval;
+	private final TimeUnit unit;
 	/**
 	 * Handle of scheduled task.
 	 */
@@ -72,6 +74,7 @@ abstract public class CounterStatisticManager {
 	protected CounterStatisticManager(String tag) {
 		this.tag = StringUtil.normalizeLoggingTag(tag);
 		this.interval = 0;
+		this.unit = null;
 		this.executor = null;
 	}
 
@@ -81,21 +84,25 @@ abstract public class CounterStatisticManager {
 	 * {@link #dump()} is called repeated with configurable interval.
 	 * 
 	 * @param tag describing information
-	 * @param interval interval in seconds. {@code 0} to disable actively calling
+	 * @param interval interval. {@code 0} to disable actively calling
 	 *            {@link #dump()}.
+	 * @param unit time unit of interval
 	 * @param executor executor to schedule active calls of {@link #dump()}.
 	 * @throws NullPointerException if executor is {@code null}
+	 * @since 3.0 (added unit)
 	 */
-	protected CounterStatisticManager(String tag, int interval, ScheduledExecutorService executor) {
+	protected CounterStatisticManager(String tag, long interval, TimeUnit unit, ScheduledExecutorService executor) {
 		if (executor == null) {
 			throw new NullPointerException("executor must not be null!");
 		}
 		this.tag = StringUtil.normalizeLoggingTag(tag);
 		if (isEnabled()) {
 			this.interval = interval;
+			this.unit = unit;
 			this.executor = interval > 0 ? executor : null;
 		} else {
 			this.interval = 0;
+			this.unit = null;
 			this.executor = null;
 		}
 	}
@@ -167,7 +174,7 @@ abstract public class CounterStatisticManager {
 					}
 				}
 
-			}, interval, interval, TimeUnit.SECONDS);
+			}, interval, interval, unit);
 		}
 	}
 
@@ -190,7 +197,7 @@ abstract public class CounterStatisticManager {
 
 	/**
 	 * Dump statistic. Either called active, for
-	 * {@link #CounterStatisticManager(String, int, ScheduledExecutorService)},
+	 * {@link #CounterStatisticManager(String, long, TimeUnit, ScheduledExecutorService)},
 	 * or externally.
 	 */
 	public abstract void dump();

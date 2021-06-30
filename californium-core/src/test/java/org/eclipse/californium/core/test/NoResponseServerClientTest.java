@@ -20,22 +20,23 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -67,13 +68,16 @@ public class NoResponseServerClientTest {
 	private CoapTestEndpoint clientEndpoint;
 	private CoapTestEndpoint serverEndpoint;
 	private InetSocketAddress serverAddress;
-	private NetworkConfig config;
+	private Configuration config;
 
 	@Before
 	public void init() {
-		config = network.createStandardTestConfig().setInt(Keys.EXCHANGE_LIFETIME, 10000)
-				.setInt(Keys.MARK_AND_SWEEP_INTERVAL, 1000).setInt(Keys.NON_LIFETIME, 1000)
-				.setInt(Keys.MAX_LATENCY, 1000).setInt(Keys.MAX_SERVER_RESPONSE_DELAY, 1000);
+		config = network.createStandardTestConfig()
+				.set(CoapConfig.EXCHANGE_LIFETIME, 10000, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, 1000, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.NON_LIFETIME, 1000, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.MAX_LATENCY, 1000, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.MAX_SERVER_RESPONSE_DELAY, 1000, TimeUnit.MILLISECONDS);
 		cleanup.add(createSimpleServer());
 
 		clientEndpoint = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config);

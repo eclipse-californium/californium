@@ -50,6 +50,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -57,7 +58,6 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.observe.Observation;
@@ -67,6 +67,7 @@ import org.eclipse.californium.core.observe.ObservationUtil;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -415,18 +416,20 @@ public class ObserveTest {
 
 	private CoapServer createServer() {
 		// retransmit constantly all 200 milliseconds
-		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
-				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
+		Configuration config = network.createTestConfig()
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 
 		serverEndpoint = builder.build();
 		int count = counter.incrementAndGet();
 		CoapServer server = new CoapServer(config);
 		server.setExecutors(ExecutorsUtil.newScheduledThreadPool(//
-				config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT),
+				config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT),
 				new NamedThreadFactory("CoapServer(main):" + count + "#")), //$NON-NLS-1$
 				ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary):" + count + "#"), false);
 		server.addEndpoint(serverEndpoint);
@@ -444,7 +447,7 @@ public class ObserveTest {
 		// setup the client endpoint using the special observation store
 		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setObservationStore(observations);
 		CoapEndpoint coapEndpoint = builder.build();
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);

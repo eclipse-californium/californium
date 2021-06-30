@@ -61,14 +61,14 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.category.Large;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -100,7 +100,7 @@ public class ObserveClientSideTest {
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
-	private NetworkConfig config;
+	private Configuration config;
 
 	private LockstepEndpoint server;
 	private CoapTestEndpoint client;
@@ -111,16 +111,16 @@ public class ObserveClientSideTest {
 	@Before
 	public void setup() throws Exception {
 		config = network.createStandardTestConfig()
-				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
-				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
-				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
-				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
-				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
-				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
-				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, 200)
-				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 2000);
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 16)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 16)
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS) // client retransmits after 200 ms
+				.set(CoapConfig.MAX_RETRANSMIT, 2)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_INTERVAL, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_LIFETIME, 2000, TimeUnit.MILLISECONDS);
 		// don't check address, tests explicitly change it!
 		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config, false);
 		client.addInterceptor(clientInterceptor);
@@ -141,7 +141,7 @@ public class ObserveClientSideTest {
 		client.start();
 		cleanup.add(client);
 		System.out.println("Client binds to port " + client.getAddress().getPort());
-		server = createLockstepEndpoint(client.getAddress());
+		server = createLockstepEndpoint(client.getAddress(), config);
 		cleanup.add(server);
 	}
 
@@ -1165,8 +1165,8 @@ public class ObserveClientSideTest {
 	@Test
 	public void testBlockwiseObserveAndTimedoutNotification() throws Exception {
 		System.out.println("Blockwise Observe:");
-		int timeoutMillis = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
-		
+		int timeoutMillis = config.getTimeAsInt(CoapConfig.ACK_TIMEOUT, TimeUnit.MILLISECONDS);
+
 		// observer request response will be sent using blockwise
 		respPayload = generateRandomPayload(2 * 16);
 		// notification payload sended without blockwise
@@ -1501,7 +1501,7 @@ public class ObserveClientSideTest {
 
 	@Test
 	public void testNotifyRequestSameMID() throws Exception {
-		boolean replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
+		boolean replace = config.get(CoapConfig.DEDUPLICATOR_AUTO_REPLACE);
 		System.out.println("Observe with lost ACKs:");
 		respPayload = generateRandomPayload(10);
 		String path = "test";

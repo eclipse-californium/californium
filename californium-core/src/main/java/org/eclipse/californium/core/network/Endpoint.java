@@ -31,12 +31,12 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
@@ -247,8 +247,9 @@ public interface Endpoint {
 	 * Gets this endpoint's configuration.
 	 *
 	 * @return the configuration
+	 * @since 3.0 (changed return type to Configuration)
 	 */
-	NetworkConfig getConfig();
+	Configuration getConfig();
 
 	/**
 	 * Cancel observation for this request.

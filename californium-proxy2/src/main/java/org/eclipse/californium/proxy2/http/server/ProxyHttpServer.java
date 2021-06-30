@@ -22,8 +22,8 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.proxy2.http.Http2CoapTranslator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,11 +46,12 @@ public class ProxyHttpServer {
 	/**
 	 * Instantiates a new proxy endpoint.
 	 * 
-	 * @param config network configuration
+	 * @param config configuration
 	 * @param httpPort the http port
 	 * @throws IOException the socket exception
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public ProxyHttpServer(NetworkConfig config, int httpPort) throws IOException {
+	public ProxyHttpServer(Configuration config, int httpPort) throws IOException {
 		this(new HttpStack(config, httpPort));
 	}
 

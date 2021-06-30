@@ -23,15 +23,19 @@ import java.net.DatagramSocketImpl;
 import java.net.SocketException;
 import java.util.Deque;
 import java.util.LinkedList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.eclipse.californium.elements.util.DirectDatagramSocketImpl;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Network rule for datagram junit tests.
@@ -65,19 +69,60 @@ import org.junit.runners.model.Statement;
  * default is NATIVE. I hope, after a introduction period, it could be changed
  * to DIRECT.
  * 
+ * For the DIRECT mode there are additional parameters available
+ * {@link #setMessageThreads(int)}, and {@link #setDelay(int)}.
+ * 
+ * Though {@link Configuration} depends on some internal state, this rule
+ * manages these states by setup and cleanup the values. Therefore it's
+ * intended, that test code uses the provided methods to access
+ * {@link Configuration}, {@link #getStandardTestConfig()},
+ * {@link #createStandardTestConfig()}, and {@link #createTestConfig()}.
+ * 
  * If the rule scope is left, the rule checks for left open DatagramSockets.
  * Therefore it's important to chose the right scope for the rule. The
- * <code>&#64;ClassRule<code> is required for tests, which starts a server once
- * and then reuse it on several tests. <code>&#64;Rule<code> could be used, if
- * every test cleans up on its own.
+ * {@code &#64;ClassRule} is required for tests, which starts a server once and
+ * then reuse it on several tests. {@code &#64;Rule} could be used, if every
+ * test cleans up on its own.
  * 
  * <pre>
  * public class AbcNetworkTest {
  *    &#64;ClassRule
  *    public static NetworkRule network = new NetworkRule(Mode.DIRECT, Mode.NATIVE);
- * 
+ *    ...
+ *    &#64;BeforeClass
+ *    public static void init() {
+ *       network.getStandardTestConfig().set(NetworkConfig.UDP_CONNECTOR_DATAGRAM_SIZE, 512);
+ *    ...
  * </pre>
  * 
+ * If used as {@code &#64;ClassRule}, the {@link Configuration} access methods
+ * then are valid from the {@code &#64;BeforeClass} until
+ * {@code &#64;AfterClass} method.
+ * 
+ * If used as {@code &#64;Rule}, the {@link Configuration} access methods are
+ * valid from the {@code &#64;Before} until {@code &#64;After} method.
+ * 
+ * In rare cases nested rules are allowed, but be careful when accessing the
+ * {@link Configuration} to choose the active rule. The inner will overwrite the
+ * outer {@link Configuration} and detach from that.
+ * 
+ * <pre>
+ * public class AbcNetworkTest {
+ *    &#64;ClassRule
+ *    public static NetworkRule network = new NetworkRule(Mode.DIRECT, Mode.NATIVE);
+ *    &#64;Rule
+ *    public static NetworkRule inner = new NetworkRule(Mode.DIRECT, Mode.NATIVE);
+ *    ...
+ *    &#64;BeforeClass
+ *    public static void init() {
+ *       network.getStandardTestConfig().set(NetworkConfig.UDP_CONNECTOR_DATAGRAM_SIZE, 512);
+ *    ...
+ *    
+ *    &#64;Before
+ *    public void before() {
+ *       inner.getStandardTestConfig().set(NetworkConfig.UDP_CONNECTOR_DATAGRAM_SIZE, 256);
+ * 
+ * </pre>
  */
 public class NetworkRule implements TestRule {
 
@@ -87,6 +132,8 @@ public class NetworkRule implements TestRule {
 	 * "DIRECT".
 	 */
 	public static final String PROPERTY_NAME = "org.eclipse.californium.junit.socketmode";
+
+	private static final int DEFAULT_MESSAGE_THREADS = 1;
 
 	/**
 	 * Default datagram formatter.
@@ -177,6 +224,15 @@ public class NetworkRule implements TestRule {
 	 */
 	private final DatagramFormatter formatter;
 	/**
+	 * Number of message processing threads. Used to setup test
+	 * {@link Configuration}.
+	 * 
+	 * @see #createTestConfig()
+	 * @see #createStandardTestConfig()
+	 * @see #getStandardTestConfig()
+	 */
+	protected final AtomicInteger messageThreads = new AtomicInteger(DEFAULT_MESSAGE_THREADS);
+	/**
 	 * Delay for message processing.
 	 * 
 	 * @see #DEFAULT_DELAY_IN_MILLIS
@@ -257,6 +313,23 @@ public class NetworkRule implements TestRule {
 			throw new IllegalArgumentException("delays could only be used for DIRECT DatagramSockets!");
 		}
 		this.delayInMillis = delayInMillis;
+		return this;
+	}
+
+	/**
+	 * Set number of message processing threads. Using multiple threads for
+	 * sending and receiving may result in reordering of messages. Therefore the
+	 * default is {@link #DEFAULT_MESSAGE_THREADS} to ensure, that no such
+	 * reorder happens.
+	 * 
+	 * @param threads number of threads.
+	 * @return this rule
+	 */
+	public NetworkRule setMessageThreads(int threads) {
+		if (1 > threads) {
+			throw new IllegalArgumentException("number of message threads must be at least 1, not " + threads + "!");
+		}
+		messageThreads.set(threads);
 		return this;
 	}
 
@@ -346,6 +419,7 @@ public class NetworkRule implements TestRule {
 	 *            then reused by several tests.
 	 */
 	protected void initNetwork(boolean outerScope) {
+		createStandardTestConfig();
 		if (Mode.DIRECT == usedMode) {
 			if (outerScope && !DirectDatagramSocketImpl.isEmpty()) {
 				LOGGER.info("Previous test didn't 'closeNetwork()'!");
@@ -358,13 +432,15 @@ public class NetworkRule implements TestRule {
 	/**
 	 * Close network after testing.
 	 * 
-	 * Ensure, that all sockets are closed. Reset network configuration to their
+	 * Ensure, that all sockets are closed. Reset configuration to their
 	 * defaults.
 	 * 
 	 * @see #DEFAULT_FORMATTER
 	 * @see #DEFAULT_DELAY_IN_MILLIS
 	 */
 	protected void closeNetwork() {
+		messageThreads.set(DEFAULT_MESSAGE_THREADS);
+		Configuration.setStandard(null);
 		if (Mode.DIRECT == usedMode) {
 			if (!DirectDatagramSocketImpl.isEmpty()) {
 				LOGGER.info("Test didn't close all DatagramSockets!");
@@ -405,6 +481,50 @@ public class NetworkRule implements TestRule {
 			LOGGER.error(message);
 			throw new IllegalStateException(message);
 		}
+	}
+
+	/**
+	 * Create new standard configuration for testing.
+	 * 
+	 * @return fresh standard configurations. Changes are visible to other usage
+	 *         of the standard configuration.
+	 * @see Configuration#getStandard()
+	 * @since 3.0 (was in CoapNetworkRule)
+	 */
+	public Configuration createStandardTestConfig() {
+		Configuration config = createTestConfig();
+		Configuration.setStandard(config);
+		return config;
+	}
+
+	/**
+	 * Get standard configuration for testing.
+	 * 
+	 * @return standard configurations. Changes are visible to other usage of
+	 *         the standard configuration.
+	 * @see Configuration#getStandard()
+	 * @since 3.0 (was in CoapNetworkRule)
+	 */
+	public Configuration getStandardTestConfig() {
+		ensureThisRuleIsActive();
+		return Configuration.getStandard();
+	}
+
+	/**
+	 * Create new configuration for testing.
+	 * 
+	 * @return configurations. Detached from the standard configuration.
+	 * @since 3.0 (was in CoapNetworkRule)
+	 */
+	public Configuration createTestConfig() {
+		ensureThisRuleIsActive();
+		SystemConfig.register();
+		UdpConfig.register();
+		int threads = messageThreads.get();
+		Configuration config = new Configuration();
+		config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, threads);
+		config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, threads);
+		return config;
 	}
 
 	/**

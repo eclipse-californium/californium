@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
@@ -33,17 +34,16 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
@@ -114,7 +114,7 @@ public class OSCoreInnerBlockwiseTest {
 	@Before
 	public void startupServer() {
 		payload = createRandomPayload(DEFAULT_BLOCK_SIZE * 4);
-		createOscoreServer(MatcherMode.STRICT);
+		createOscoreServer();
 		resource.setPayload(payload);
 	}
 
@@ -253,18 +253,21 @@ public class OSCoreInnerBlockwiseTest {
 		}
 	}
 
-	private void createOscoreServer(MatcherMode mode) {
+	private void createOscoreServer() {
 
 		setServerContext();
 
 		// retransmit constantly all 200 milliseconds
-		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200)
-				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
+		Configuration config = network.createTestConfig()
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
 				// set response timeout (indirect) to 10s
-				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L).setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE)
-				.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE).setString(Keys.RESPONSE_MATCHING, mode.name());
+				.set(CoapConfig.EXCHANGE_LIFETIME, 10, TimeUnit.SECONDS)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setCustomCoapStackArgument(dbServer);
 		CoapEndpoint serverEndpoint = builder.build();
@@ -279,7 +282,7 @@ public class OSCoreInnerBlockwiseTest {
 		uri = TestTools.getUri(serverEndpoint, TARGET);
 
 		builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(builder.build());
 	}
 

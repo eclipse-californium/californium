@@ -45,9 +45,10 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -142,16 +143,16 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	/**
 	 * Create reverse observation resource.
 	 * 
-	 * @param config network configuration to read HEALTH_STATUS_INTERVAL.
+	 * @param config configuration to read HEALTH_STATUS_INTERVAL.
 	 * @param executor executor for notification timeout.
 	 */
-	public ReverseObserve(NetworkConfig config, ScheduledExecutorService executor) {
+	public ReverseObserve(Configuration config, ScheduledExecutorService executor) {
 		super(RESOURCE_NAME);
 		this.executor = executor;
 		getAttributes().setTitle("Reverse Observe");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
-		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			executor.scheduleWithFixedDelay(new Runnable() {
 
@@ -163,7 +164,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 								overallObserves.get());
 					}
 				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 

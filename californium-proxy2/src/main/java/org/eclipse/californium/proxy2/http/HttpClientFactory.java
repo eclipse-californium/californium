@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy2.http;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -36,8 +37,8 @@ import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.proxy2.config.Proxy2Config;
 
 /**
  * Provide http clients using pooled connection management.
@@ -45,30 +46,32 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 public class HttpClientFactory {
 
 	private static final TimeValue KEEP_ALIVE = TimeValue.ofSeconds(5);
-	private static AtomicReference<NetworkConfig> config = new AtomicReference<NetworkConfig>();
+	private static AtomicReference<Configuration> config = new AtomicReference<Configuration>();
 
 	private HttpClientFactory() {
 	}
 
 	/**
-	 * Set the network configuration for the http client.
+	 * Set the configuration for the http client.
 	 * 
-	 * @param config network configuration
-	 * @return previous network configuration, or {@code null}, if not available
+	 * @param config configuration
+	 * @return previous configuration, or {@code null}, if not available
+	 * @since 3.0 (changed return type and parameter to Configuration)
 	 */
-	public static NetworkConfig setNetworkConfig(NetworkConfig config) {
+	public static Configuration setNetworkConfig(Configuration config) {
 		return HttpClientFactory.config.getAndSet(config);
 	}
 
 	/**
-	 * Get the network configuration for the http client.
+	 * Get the configuration for the http client.
 	 * 
-	 * @return network configuration for the http client
+	 * @return configuration for the http client
+	 * @since 3.0 (changed return type to Configuration)
 	 */
-	public static NetworkConfig getNetworkConfig() {
-		NetworkConfig config = HttpClientFactory.config.get();
+	public static Configuration getNetworkConfig() {
+		Configuration config = HttpClientFactory.config.get();
 		if (config == null) {
-			HttpClientFactory.config.compareAndSet(null, NetworkConfig.getStandard());
+			HttpClientFactory.config.compareAndSet(null, Configuration.getStandard());
 			config = HttpClientFactory.config.get();
 		}
 		return config;
@@ -86,11 +89,12 @@ public class HttpClientFactory {
 	/**
 	 * Create the pooled asynchronous http client.
 	 * 
-	 * @param config network configuration for the http client
+	 * @param config configuration for the http client
 	 * @return asynchronous http client
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public static CloseableHttpAsyncClient createClient(NetworkConfig config) {
-		int connectionIdleSecs = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+	public static CloseableHttpAsyncClient createClient(Configuration config) {
+		int connectionIdleSecs = config.getTimeAsInt(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, TimeUnit.SECONDS);
 		final CloseableHttpAsyncClient client = HttpAsyncClientBuilder.create().disableCookieManagement()
 				.setDefaultRequestConfig(createCustomRequestConfig(config))
 				.setConnectionManager(createPoolingConnManager(config)).setVersionPolicy(HttpVersionPolicy.NEGOTIATE)
@@ -120,11 +124,12 @@ public class HttpClientFactory {
 	/**
 	 * Create the http request-config.
 	 * 
-	 * @param config network configuration for the http client
+	 * @param config configuration for the http client
 	 * @return http request-config
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	private static RequestConfig createCustomRequestConfig(NetworkConfig config) {
-		int connecTimeoutMillis = config.getInt(Keys.TCP_CONNECT_TIMEOUT);
+	private static RequestConfig createCustomRequestConfig(Configuration config) {
+		int connecTimeoutMillis = config.getTimeAsInt(Proxy2Config.HTTP_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
 		return RequestConfig.custom().setConnectionRequestTimeout(Timeout.ofMilliseconds(connecTimeoutMillis * 4))
 				.setConnectTimeout(Timeout.ofMilliseconds(connecTimeoutMillis)).build();
 	}
@@ -132,11 +137,12 @@ public class HttpClientFactory {
 	/**
 	 * Create pooling connection Manager.
 	 * 
-	 * @param config network configuration for the http client
+	 * @param config configuration for the http client
 	 * @return pooling connection Manager
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	private static PoolingAsyncClientConnectionManager createPoolingConnManager(NetworkConfig config) {
-		int connectionIdleSecs = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+	private static PoolingAsyncClientConnectionManager createPoolingConnManager(Configuration config) {
+		int connectionIdleSecs = config.getTimeAsInt(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, TimeUnit.MILLISECONDS);
 		return PoolingAsyncClientConnectionManagerBuilder.create()
 				.setPoolConcurrencyPolicy(PoolConcurrencyPolicy.STRICT).setConnPoolPolicy(PoolReusePolicy.LIFO)
 				.setConnectionTimeToLive(TimeValue.ofSeconds(connectionIdleSecs)).setMaxConnTotal(250)

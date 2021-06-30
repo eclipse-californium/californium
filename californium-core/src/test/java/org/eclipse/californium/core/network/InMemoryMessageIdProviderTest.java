@@ -31,8 +31,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.TrackerMode;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -61,11 +63,11 @@ public class InMemoryMessageIdProviderTest {
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
 
-	private NetworkConfig config = network.createStandardTestConfig();
+	private Configuration config = network.createStandardTestConfig();
 
 	@Test
 	public void testNullTrackerGetNextMessageIdReturnsMid() {
-		config.set(NetworkConfig.Keys.MID_TRACKER, "NULL");
+		config.set(CoapConfig.MID_TRACKER, TrackerMode.NULL);
 		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
 		InetSocketAddress peerAddress = getPeerAddress(1);
 		int mid1 = provider.getNextMessageId(peerAddress);
@@ -81,14 +83,14 @@ public class InMemoryMessageIdProviderTest {
 
 	@Test
 	public void testMapBasedTrackerGetNextMessageIdReturnsMid() {
-		config.set(NetworkConfig.Keys.MID_TRACKER, "MAPBASED");
+		config.set(CoapConfig.MID_TRACKER, TrackerMode.MAPBASED);
 		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
 		testLimitedTrackerGetNextMessageIdReturnsMid(provider);
 	}
 
 	@Test
 	public void testGroupedTrackerGetNextMessageIdReturnsMid() {
-		config.set(NetworkConfig.Keys.MID_TRACKER, "GROUPED");
+		config.set(CoapConfig.MID_TRACKER, TrackerMode.GROUPED);
 		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
 		testLimitedTrackerGetNextMessageIdReturnsMid(provider);
 	}
@@ -115,13 +117,6 @@ public class InMemoryMessageIdProviderTest {
 		}
 	}
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testIllegalTracker() {
-		config.set(NetworkConfig.Keys.MID_TRACKER, "ILLEGAL");
-		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
-		testLimitedTrackerGetNextMessageIdReturnsMid(provider);
-	}
-
 	@Test
 	public void testGetNextMessageIdReturnsMid() {
 
@@ -138,7 +133,7 @@ public class InMemoryMessageIdProviderTest {
 	public void testGetNextMessageIdFailsIfMaxPeersIsReached() {
 
 		int MAX_PEERS = 2;
-		config.setLong(NetworkConfig.Keys.MAX_ACTIVE_PEERS, MAX_PEERS);
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, MAX_PEERS);
 		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
 		addPeers(provider, MAX_PEERS);
 
@@ -158,8 +153,8 @@ public class InMemoryMessageIdProviderTest {
 
 		int MAX_PEERS = 2;
 		int MAX_PEER_INACTIVITY_PERIOD = 1; // seconds
-		config.setLong(NetworkConfig.Keys.MAX_ACTIVE_PEERS, MAX_PEERS);
-		config.setLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, MAX_PEER_INACTIVITY_PERIOD);
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, MAX_PEERS);
+		config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, MAX_PEER_INACTIVITY_PERIOD, TimeUnit.SECONDS);
 		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
 		addPeers(provider, MAX_PEERS);
 

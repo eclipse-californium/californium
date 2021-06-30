@@ -28,10 +28,12 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.scandium.ConnectorHelper;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -62,6 +64,10 @@ public class ConnectorUtil {
 	private static final String SERVER_RSA_NAME = "serverrsa";
 	public static final String TRUST_CA = "ca";
 	public static final String TRUST_ROOT = "root";
+
+	static {
+		DtlsConfig.register();
+	}
 
 	/**
 	 * Alert catcher.
@@ -143,14 +149,15 @@ public class ConnectorUtil {
 			CipherSuite... cipherSuites) {
 		List<CipherSuite> suites = Arrays.asList(cipherSuites);
 		if (dtlsBuilder == null) {
-			dtlsBuilder = new DtlsConnectorConfig.Builder();
+			dtlsBuilder = DtlsConnectorConfig.builder(new Configuration());
+		} else {
 		}
-		dtlsBuilder.setAddress(bind);
-		dtlsBuilder.setRecommendedCipherSuitesOnly(false);
-		dtlsBuilder.setAdditionalTimeoutForEcc(1000);
-		dtlsBuilder.setConnectionThreadCount(2);
-		dtlsBuilder.setReceiverThreadCount(2);
-		dtlsBuilder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(6));
+		dtlsBuilder.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 1000, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setAddress(bind)
+				.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(6));
 		if (CipherSuite.containsPskBasedCipherSuite(suites)) {
 			dtlsBuilder.setAdvancedPskStore(
 					new AdvancedSinglePskStore(OpenSslUtil.OPENSSL_PSK_IDENTITY, OpenSslUtil.OPENSSL_PSK_SECRET));

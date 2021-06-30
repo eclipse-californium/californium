@@ -181,6 +181,7 @@ import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -310,7 +311,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * Enable/Disable the server's HELLO_VERIFY_REQUEST, if peers shares at
 	 * least one PSK based cipher suite.
 	 * <p>
-	 * <b>Note:<b> it is not recommended to disable the HELLO_VERIFY_REQUEST! See
+	 * <b>Note:</b> it is not recommended to disable the HELLO_VERIFY_REQUEST! See
 	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
 	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
 	 * </p>
@@ -358,7 +359,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 	protected final DtlsHealth health;
 
-	private final boolean serverOnly;
+	private final DtlsRole dtlsRole;
 	private final String defaultHandshakeMode;
 	/**
 	 * Apply record filter only for records within the receive window.
@@ -373,6 +374,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	private final boolean useCidUpdateAddressOnNewerRecordFilter;
 
+	private final int outboundMessageBufferSize;
 	/**
 	 * (Down-)counter for pending outbound messages. Initialized with
 	 * {@link DtlsConnectorConfig#getOutboundMessageBufferSize()}.
@@ -431,7 +433,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 	 * @see #getEndpointContextMatcher()
 	 * @see #sendMessage(RawData, Connection)
-	 * @see #sendMessage(RawData, Connection, DTLSSession)
+	 * @see #sendMessageWithoutSession(RawData, Connection)
 	 */
 	private volatile EndpointContextMatcher endpointContextMatcher;
 
@@ -462,7 +464,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	protected static ResumptionSupportingConnectionStore createConnectionStore(DtlsConnectorConfig configuration) {
 		return new InMemoryConnectionStore(configuration.getMaxConnections(),
-				configuration.getStaleConnectionThreshold(), configuration.getSessionStore()).setTag(configuration.getLoggingTag());
+				configuration.getStaleConnectionThresholdSeconds(), configuration.getSessionStore()).setTag(configuration.getLoggingTag());
 
 	}
 
@@ -491,13 +493,14 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			this.config = configuration;
 			this.connectionIdGenerator = config.getConnectionIdGenerator();
 			this.protocolVersionForHelloVerifyRequests = config.getProtocolVersionForHelloVerifyRequests();
-			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
-			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
-			this.serverOnly = config.isServerOnly();
+			this.outboundMessageBufferSize = config.getOutboundMessageBufferSize();
+			this.pendingOutboundMessagesCountdown.set(outboundMessageBufferSize);
+			this.autoResumptionTimeoutMillis = config.getAutoHandshakeTimeoutMillis();
+			this.dtlsRole = config.getDtlsRole();
 			this.defaultHandshakeMode = config.getDefaultHandshakeMode();
-			this.useExtendedWindowFilter = config.useExtendedWindowFilter();
-			this.useFilter = config.useAntiReplayFilter() || useExtendedWindowFilter != 0;
-			this.useCidUpdateAddressOnNewerRecordFilter = config.useCidUpdateAddressOnNewerRecordFilter();
+			this.useExtendedWindowFilter = config.useDisabledWindowFilter();
+			this.useFilter = config.useAntiReplayFilter();
+			this.useCidUpdateAddressOnNewerRecordFilter = config.useUpdateAddressUsingCidOnNewerRecords();
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
@@ -532,10 +535,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				}
 			}
 			DtlsHealth healthHandler = config.getHealthHandler();
-			Integer healthStatusInterval = config.getHealthStatusInterval();
 			// this is a useful health metric
 			// that could later be exported to some kind of monitoring interface
-			if (healthHandler == null && healthStatusInterval != null && healthStatusInterval > 0) {
+			if (healthHandler == null && config.getHealthStatusIntervalMilliseconds() > 0) {
 				healthHandler = createDefaultHealthHandler(config);
 				if (!healthHandler.isEnabled()) {
 					healthHandler = null;
@@ -755,15 +757,15 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	/**
 	 * Sets the executor to be used for processing records.
 	 * <p>
-	 * If this property is not set before invoking the {@linkplain #start()
+	 * If this property is not set before invoking the {@link #start()
 	 * start method}, a new {@link ExecutorService} is created with a thread
-	 * pool of {@linkplain DtlsConnectorConfig#getConnectionThreadCount() size}.
+	 * pool of {@link DtlsConnectorConfig#getConnectorThreadCount()} size.
 	 * 
 	 * This helps with performing multiple handshakes in parallel, in particular if the key exchange
 	 * requires a look up of identities, e.g. in a database or using a web service.
 	 * <p>
 	 * If this method is used to set an executor, the executor will <em>not</em> be shut down
-	 * by the {@linkplain #stop() stop method}.
+	 * by the {@link #stop() stop method}.
 	 * 
 	 * @param executor The executor.
 	 * @throws IllegalStateException if a new executor is set and this connector is already running.
@@ -855,9 +857,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	protected void init(InetSocketAddress bindAddress, DatagramSocket socket, Integer mtu) throws IOException {
 		this.socket = socket;
-		pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
+		pendingOutboundMessagesCountdown.set(outboundMessageBufferSize);
 
-		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
+		if (bindAddress.getPort() != 0 && config.useReuseAddress()) {
 			// make it easier to stop/start a server consecutively without delays
 			LOGGER.info("Enable address reuse for socket!");
 			socket.setReuseAddress(true);
@@ -867,16 +869,20 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		}
 
 		Integer size = config.getSocketReceiveBufferSize();
-		try {
-			if (size != null && size != 0) {
+		if (size != null && size > 0) {
+			try {
 				socket.setReceiveBufferSize(size);
+			} catch (IllegalArgumentException ex) {
+				LOGGER.error("failed to apply receive buffer size {}", size, ex);
 			}
-			size = config.getSocketSendBufferSize();
-			if (size != null && size != 0) {
+		}
+		size = config.getSocketSendBufferSize();
+		if (size != null && size > 0) {
+			try {
 				socket.setSendBufferSize(size);
+			} catch (IllegalArgumentException ex) {
+				LOGGER.error("failed to apply send buffer size {}", size, ex);
 			}
-		} catch (IllegalArgumentException ex) {
-			LOGGER.error("failed to apply {}", size, ex);
 		}
 		// don't try to access the buffer sizes,
 		// when receive may already lock the socket!
@@ -891,9 +897,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			connectionStore.markAllAsResumptionRequired();
 		}
 
-		if (config.getMaxFragmentLengthCode() != null) {
-			MaxFragmentLengthExtension.Length lengthCode = MaxFragmentLengthExtension.Length.fromCode(
-					config.getMaxFragmentLengthCode());
+		if (config.getMaxFragmentLength() != null) {
+			MaxFragmentLengthExtension.Length lengthCode = config.getMaxFragmentLength();
 			// reduce inbound buffer size accordingly
 			inboundDatagramBufferSize = lengthCode.length()
 					+ MAX_CIPHERTEXT_EXPANSION
@@ -929,13 +934,14 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv4 instead", ipv4Mtu);
 				}
 			}
-			if (inboundDatagramBufferSize > config.getMaxTransmissionUnitLimit()) {
-				if (ipv4Mtu > config.getMaxTransmissionUnitLimit()) {
-					ipv4Mtu = config.getMaxTransmissionUnitLimit();
+			Integer limit = config.getMaxTransmissionUnitLimit();
+			if (limit != null && limit < inboundDatagramBufferSize) {
+				if (ipv4Mtu > limit) {
+					ipv4Mtu = limit;
 					LOGGER.info("Limit MTU IPv4[{}]", ipv4Mtu);
 				}
-				if (ipv6Mtu > config.getMaxTransmissionUnitLimit()) {
-					ipv6Mtu = config.getMaxTransmissionUnitLimit();
+				if (ipv6Mtu > limit) {
+					ipv6Mtu = limit;
 					LOGGER.info("Limit MTU IPv6[{}]", ipv6Mtu);
 				}
 			} else {
@@ -960,7 +966,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		}
 
 		if (executorService == null) {
-			int threadCount = config.getConnectionThreadCount();
+			int threadCount = config.getConnectorThreadCount();
 			if (threadCount > 1) {
 				executorService = ExecutorsUtil.newFixedThreadPool(threadCount - 1, new DaemonThreadFactory(
 						"DTLS-Worker-" + lastBindAddress + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
@@ -1049,8 +1055,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (health != null && health.isEnabled()) {
-			final Integer healthStatusInterval = config.getHealthStatusInterval();
-			if (healthStatusInterval != null) {
+			final int healthStatusInterval = config.getHealthStatusIntervalMilliseconds();
+			if (healthStatusInterval > 0) {
 				statusLogger = timer.scheduleAtFixedRate(new Runnable() {
 
 					@Override
@@ -1058,7 +1064,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 						health.dump(config.getLoggingTag(), config.getMaxConnections(), connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
 					}
 
-				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+				}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 			}
 		}
 
@@ -1508,6 +1514,14 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 		if (records.size() == 1 && firstRecord.isNewClientHello()) {
 			firstRecord.setAddress(peerAddress, router);
+			if (dtlsRole == DtlsRole.CLIENT_ONLY) {
+				DROP_LOGGER.trace("client-only, discarding {} CLIENT_HELLO from [{}]!", records.size(),
+						StringUtil.toLog(peerAddress));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
+				return;
+			}
 			getExecutorService().execute(new Runnable() {
 
 				@Override
@@ -2140,7 +2154,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * May be disabled using {@link #useHelloVerifyRequest} or
 	 * {@link #useHelloVerifyRequestForPsk}.
 	 * <p>
-	 * <b>Note:<b> it is not recommended to disable the HELLO_VERIFY_REQUEST!
+	 * <b>Note:</b> it is not recommended to disable the HELLO_VERIFY_REQUEST!
 	 * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
 	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
 	 * </p>
@@ -2412,7 +2426,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			error = new IllegalArgumentException(
 					"Message data must not exceed " + MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
 		} else {
-			boolean create = !serverOnly;
+			boolean create = dtlsRole != DtlsRole.SERVER_ONLY;
 			if (create) {
 				create = !getEffectiveHandshakeMode(message).equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE);
 			}
@@ -2421,7 +2435,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				if (create) {
 					error = new IllegalStateException("connection store is exhausted!");
 				} else {
-					if (serverOnly) {
+					if (dtlsRole == DtlsRole.SERVER_ONLY) {
 						message.onError(new EndpointUnconnectedException("server only, connection missing!"));
 					} else {
 						message.onError(new EndpointUnconnectedException("connection missing!"));
@@ -2572,7 +2586,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		}
 		Handshaker handshaker = connection.getOngoingHandshake();
 		if (handshaker == null) {
-			if (serverOnly) {
+			if (dtlsRole == DtlsRole.SERVER_ONLY) {
 				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, server only, connection missing!",
 						message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
 				message.onError(new EndpointUnconnectedException("server only, connection missing!"));
@@ -2634,9 +2648,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			boolean full = DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL.equals(handshakeMode);
 			final boolean probing = DtlsEndpointContext.HANDSHAKE_MODE_PROBE.equals(handshakeMode);
 			final boolean force = probing || full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
-			if (force || markedAsClosed || connection.isAutoResumptionRequired(getAutoResumptionTimeout(message))) {
+			if (force || markedAsClosed || connection.isAutoResumptionRequired(getAutoHandshakeTimeout(message))) {
 				// create the session to resume from the previous one.
-				if (serverOnly) {
+				if (dtlsRole == DtlsRole.SERVER_ONLY) {
 					DROP_LOGGER.trace(
 							"DTLSConnector drops {} outgoing bytes to {}, server only, resumption requested failed!",
 							message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
@@ -2919,19 +2933,19 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	}
 
 	/**
-	 * Get auto resumption timeout.
+	 * Gets the auto handshake timeout.
 	 * 
-	 * Check, if {@link DtlsEndpointContext#KEY_RESUMPTION_TIMEOUT} is provided,
+	 * Check, if {@link DtlsEndpointContext#KEY_AUTO_HANDSHAKE_TIMEOUT} is provided,
 	 * or use {@link #autoResumptionTimeoutMillis} as default.
 	 * 
 	 * @param message message to check for auto resumption timeout.
 	 * @return resulting timeout in milliseconds. {@code null} for no auto
-	 *         resumption.
-	 * @since 3.0 (fixed typo, was "getAutResumptionTimeout" before)
+	 *         handshake timeout.
+	 * @since 3.0 (rename, was "getAutResumptionTimeout")
 	 */
-	private Long getAutoResumptionTimeout(RawData message) {
+	private Long getAutoHandshakeTimeout(RawData message) {
 		Long timeout = autoResumptionTimeoutMillis;
-		Number contextTimeout = message.getEndpointContext().getNumber(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
+		Number contextTimeout = message.getEndpointContext().getNumber(DtlsEndpointContext.KEY_AUTO_HANDSHAKE_TIMEOUT);
 		if (contextTimeout != null) {
 			if (contextTimeout.longValue() >= 0) {
 				timeout = contextTimeout.longValue();

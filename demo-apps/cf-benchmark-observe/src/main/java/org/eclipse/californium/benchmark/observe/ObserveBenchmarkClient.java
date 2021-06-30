@@ -23,11 +23,13 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.benchmark.observe.ObserveBenchmarkClient;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 
 public class ObserveBenchmarkClient {
@@ -114,19 +116,19 @@ public class ObserveBenchmarkClient {
 
 	private static void setBenchmarkConfiguration(int udp_sender, int udp_receiver) {
 
-		// Network configuration optimal for performance benchmarks
-		NetworkConfig.createStandardWithoutFile()
+		// Configuration optimal for performance benchmarks
+		Configuration.createStandardWithoutFile()
 				// Disable deduplication OR strongly reduce lifetime
-				.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.NO_DEDUPLICATOR)
-				.setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME, 1500)
+				.set(CoapConfig.DEDUPLICATOR, CoapConfig.NO_DEDUPLICATOR)
+				.set(CoapConfig.EXCHANGE_LIFETIME, 1500, TimeUnit.MILLISECONDS)
 
 				// Increase buffer for network interface to 10 MB
-				.setInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 10 * 1024 * 1024)
-				.setInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER, 10 * 1024 * 1024)
+				.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 10 * 1024 * 1024)
+				.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 10 * 1024 * 1024)
 
 				// Increase threads for receiving and sending packets through the socket
-				.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, udp_receiver)
-				.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, udp_sender);
+				.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, udp_receiver)
+				.set(UdpConfig.UDP_SENDER_THREAD_COUNT, udp_sender);
 	}
 
 	private static void printUsage() {

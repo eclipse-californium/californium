@@ -35,9 +35,9 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.InvalidFieldException;
 import org.eclipse.californium.proxy2.InvalidMethodException;
@@ -92,8 +92,9 @@ public class HttpStack {
 	 *            HTTP_SERVER_SOCKET_BUFFER_SIZE.
 	 * @param httpPort the http port
 	 * @throws IOException Signals that an I/O exception has occurred.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public HttpStack(NetworkConfig config, int httpPort) throws IOException {
+	public HttpStack(Configuration config, int httpPort) throws IOException {
 		this(config, new InetSocketAddress(httpPort));
 	}
 
@@ -105,9 +106,9 @@ public class HttpStack {
 	 *            HTTP_SERVER_SOCKET_BUFFER_SIZE.
 	 * @param httpInterface the http interface
 	 * @throws IOException Signals that an I/O exception has occurred.
-	 * @since 2.4
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public HttpStack(NetworkConfig config, InetSocketAddress httpInterface) throws IOException {
+	public HttpStack(Configuration config, InetSocketAddress httpInterface) throws IOException {
 		server = new HttpServer(config, httpInterface);
 	}
 
@@ -140,7 +141,7 @@ public class HttpStack {
 	 * Register "local" request handler.
 	 *
 	 * Handles requests for
-	 * "http://<proxy-host>:<proxy-port>/local/<local-coap-path>".
+	 * {@code "http://<proxy-host>:<proxy-port>/local/<local-coap-path>"}.
 	 */
 	void registerLocalRequestHandler() {
 		String name = "/" + LOCAL_RESOURCE_NAME;
@@ -152,7 +153,7 @@ public class HttpStack {
 	 * Register "proxy" request handlers.
 	 *
 	 * Handles proxy requests for
-	 * "http://<proxy-host>:<proxy-port>/proxy/<destination-uri>".
+	 * "{@code http://<proxy-host>:<proxy-port>/proxy/<destination-uri>"}.
 	 */
 	void registerProxyRequestHandler() {
 		String name = "/" + PROXY_RESOURCE_NAME;
@@ -170,7 +171,7 @@ public class HttpStack {
 	 * (including the destination host).
 	 * 
 	 * Handles proxy requests for
-	 * "http://<destination>:<port>/<destination-uri>/<destination-scheme>:".
+	 * {@code "http://<destination>:<port>/<destination-uri>/<destination-scheme>:"}.
 	 */
 	void registerHttpProxyRequestHandler() {
 		String name = "/" + PROXY_RESOURCE_NAME;
@@ -217,7 +218,7 @@ public class HttpStack {
 		 * Instantiates a new proxy request handler.
 		 * 
 		 * @param resourceName the http resource name
-		 * @param proxyingEnabled
+		 * @param proxyingEnabled {@code true}, enable proxy, {@code false}, otherwise.
 		 */
 		public ProxyAsyncRequestHandler(String resourceName, boolean proxyingEnabled) {
 			this.resourceName = resourceName;

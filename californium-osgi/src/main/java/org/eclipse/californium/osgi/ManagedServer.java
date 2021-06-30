@@ -20,33 +20,32 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Dictionary;
-import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedService;
 import org.osgi.util.tracker.ServiceTracker;
 import org.osgi.util.tracker.ServiceTrackerCustomizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
  * A managed Californium {@code ServerInterface} instance that can be configured using the OSGi
  * <i>Configuration Admin</i> service.
  * 
- * The service understands all network configuration properties defined
- * by {@link NetworkConfigDefaults}.
+ * The service understands all configuration properties defined
+ * by {@link CoapConfig}.
  * In particular, it uses the following properties to determine which endpoints the managed server
  * should listen on:
  * <ul>
@@ -63,14 +62,14 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
 public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<Resource, Resource>, ServerEndpointRegistry {
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(ManagedServer.class);
-	
+
 	private ServerInterface managedServer;
 	private boolean running = false;
 	private BundleContext context;
 	private ServiceTracker<Resource, Resource> resourceTracker;
 	private ServerInterfaceFactory serverFactory;
 	private EndpointFactory endpointFactory;
-	
+
 	/**
 	 * Sets all required collaborators.
 	 * 
@@ -97,6 +96,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	 */
 	public ManagedServer(BundleContext bundleContext, ServerInterfaceFactory serverFactory,
 			EndpointFactory endpointFactory) {
+		CoapConfig.register();
 		if (bundleContext == null) {
 			throw new NullPointerException("BundleContext must not be null");
 		}
@@ -111,8 +111,8 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 			this.serverFactory= new ServerInterfaceFactory() {
 				
 				@Override
-				public ServerInterface newServer(NetworkConfig config) {
-					int port = config.getInt(NetworkConfig.Keys.COAP_PORT);		
+				public ServerInterface newServer(Configuration config) {
+					int port = config.get(CoapConfig.COAP_PORT);
 					if ( port == 0 )
 					{
 						port = CoAP.DEFAULT_COAP_PORT;
@@ -121,7 +121,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 				}
 
 				@Override
-				public ServerInterface newServer(NetworkConfig config, int... ports) {
+				public ServerInterface newServer(Configuration config, int... ports) {
 					CoapServer server = new CoapServer(config, ports);
 					return server;
 				}
@@ -148,19 +148,16 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 			stop();
 		}
 
-		NetworkConfig networkConfig = NetworkConfig.createStandardWithoutFile();
+		Configuration networkConfig = Configuration.createStandardWithoutFile();
 		if (properties != null) {
-			for (Enumeration<String> allKeys = properties.keys(); allKeys.hasMoreElements(); ) {
-				String key = allKeys.nextElement();
-				networkConfig.set(key, properties.get(key));
-			}
+			networkConfig.add(properties);
 		}
 
 		// create server instance with CoAP endpoint on configured port
 		managedServer = serverFactory.newServer(networkConfig);
 
 		// add secure endpoint if configured
-		int securePort = networkConfig.getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
+		int securePort = networkConfig.get(CoapConfig.COAP_SECURE_PORT);
 		if ( securePort > 0 ) {
 			Endpoint secureEndpoint = endpointFactory.getSecureEndpoint(
 					networkConfig, new InetSocketAddress((InetAddress) null, securePort));
@@ -170,7 +167,6 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 			} else {
 				LOGGER.warn("Secure endpoint has been configured in server properties but EndpointFactory does not support creation of secure Endpoints");
 			}
-
 		}
 
 		managedServer.start();

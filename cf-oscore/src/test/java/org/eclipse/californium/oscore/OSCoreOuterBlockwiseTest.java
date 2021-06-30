@@ -26,6 +26,7 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
@@ -36,18 +37,17 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
@@ -114,9 +114,7 @@ public class OSCoreOuterBlockwiseTest {
 	private String proxyUri;
 	private String payload;
 
-	private static MatcherMode mode = MatcherMode.STRICT;
-
-	private static NetworkConfig blockwiseConfig;
+	private static Configuration blockwiseConfig;
 
 	public void startupServer(boolean serverResponseBlockwiseEnabled) {
 		payload = createRandomPayload(DEFAULT_BLOCK_SIZE * 4);
@@ -134,11 +132,14 @@ public class OSCoreOuterBlockwiseTest {
 	 */
 	@BeforeClass
 	public static void createBlockwiseConfig() {
-		blockwiseConfig = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200).setFloat(Keys.ACK_RANDOM_FACTOR, 1f)
-				.setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
+		blockwiseConfig = network.createTestConfig()
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
 				// set response timeout (indirect) to 10s
-				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L).setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE)
-				.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE).setString(Keys.RESPONSE_MATCHING, mode.name());
+				.set(CoapConfig.EXCHANGE_LIFETIME, 10, TimeUnit.SECONDS)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 	}
 
 	/**
@@ -392,8 +393,8 @@ public class OSCoreOuterBlockwiseTest {
 	 */
 	@Test
 	public void testOuterBlockwiseExceedMaxUnfragmentedSizeProxyServerBW() throws Exception {
-		NetworkConfig config = NetworkConfig.getStandard();
-		config.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 0); // Don't retransmit
+		Configuration config = network.createTestConfig();
+		config.set(CoapConfig.MAX_RETRANSMIT, 0); // Don't retransmit
 
 		startupServer(false);
 		startupProxy(true, false);
@@ -444,8 +445,8 @@ public class OSCoreOuterBlockwiseTest {
 	 */
 	@Test
 	public void testOuterBlockwiseExceedMaxUnfragmentedSizeProxyClientBW() throws Exception {
-		NetworkConfig config = NetworkConfig.getStandard();
-		config.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 0); // Don't retransmit
+		Configuration config = network.createTestConfig();
+		config.set(CoapConfig.MAX_RETRANSMIT, 0); // Don't retransmit
 
 		startupServer(false);
 		startupProxy(false, true);
@@ -516,7 +517,7 @@ public class OSCoreOuterBlockwiseTest {
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		if (serverResponseBlockwise) {
-			builder.setNetworkConfig(blockwiseConfig);
+			builder.setConfiguration(blockwiseConfig);
 		}
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
@@ -604,7 +605,7 @@ public class OSCoreOuterBlockwiseTest {
 		builder.setCoapStackFactory(CoapEndpoint.STANDARD_COAP_STACK_FACTORY);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		if (proxyResponseBlockwiseEnabled) {
-			builder.setNetworkConfig(blockwiseConfig);
+			builder.setConfiguration(blockwiseConfig);
 		}
 
 		CoapEndpoint proxyServerEndpoint = builder.build();
@@ -633,7 +634,7 @@ public class OSCoreOuterBlockwiseTest {
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setCoapStackFactory(CoapEndpoint.STANDARD_COAP_STACK_FACTORY);
 					if (proxyRequestBlockwise) {
-						builder.setNetworkConfig(blockwiseConfig);
+						builder.setConfiguration(blockwiseConfig);
 					}
 					CoapEndpoint proxyClientEndpoint = builder.build();
 					proxyClient.setEndpoint(proxyClientEndpoint);

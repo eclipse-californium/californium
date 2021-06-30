@@ -25,11 +25,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
@@ -144,8 +146,8 @@ public class OpenSslClientInteroperabilityTest {
 	@Test
 	public void testOpenSslClientMultiFragments() throws Exception {
 		processUtil.setTag("openssl-client, multifragments per record, " + cipherSuite.name());
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-		builder.setEnableMultiHandshakeMessageRecords(true);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 		scandiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, OpenSslProcessUtil.AuthenticationMode.CERTIFICATE,

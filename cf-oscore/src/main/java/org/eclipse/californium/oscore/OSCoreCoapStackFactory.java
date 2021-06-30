@@ -21,8 +21,8 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapStackFactory;
 import org.eclipse.californium.core.network.Outbox;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.CoapStack;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * Coap stack factory creating a {@link OSCoreStack} including a
@@ -34,7 +34,7 @@ public class OSCoreCoapStackFactory implements CoapStackFactory {
 	private static volatile OSCoreCtxDB defaultCtxDb;
 
 	@Override
-	public CoapStack createCoapStack(String protocol, String tag, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+	public CoapStack createCoapStack(String protocol, String tag, Configuration config, Outbox outbox, Object customStackArgument) {
 		if (CoAP.isTcpProtocol(protocol)) {
 			throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 		}

@@ -20,6 +20,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
@@ -29,22 +30,23 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -122,23 +124,28 @@ public class SecureBlockwiseTest {
 
 	private void createSecureServer(MatcherMode mode) {
 		AdvancedPskStore pskStore = new AdvancedSinglePskStore(IDENITITY, KEY.getBytes());
-		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
+		Configuration configuration = network.createTestConfig()
+				// retransmit constantly all 200 milliseconds
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
+				// set response timeout (indirect) to 10s
+				.set(CoapConfig.EXCHANGE_LIFETIME, 10, TimeUnit.SECONDS)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE)
+				.set(CoapConfig.RESPONSE_MATCHING, mode)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
+		
+		DtlsConnectorConfig dtlsConfig = DtlsConnectorConfig.builder(configuration)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("server")
-				.setReceiverThreadCount(2)
-				.setConnectionThreadCount(2)
 				.setAdvancedPskStore(pskStore).build();
-		// retransmit constantly all 200 milliseconds
-		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200)
-				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
-				// set response timeout (indirect) to 10s
-				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L).setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE)
-				.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE)
-				.setString(Keys.RESPONSE_MATCHING, mode.name());
+
 		DTLSConnector serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(configuration);
 		CoapEndpoint serverEndpoint = builder.build();
 
 		CoapServer server = new CoapServer();
@@ -151,16 +158,14 @@ public class SecureBlockwiseTest {
 		uri = TestTools.getUri(serverEndpoint, TARGET);
 
 		// prepare secure client endpoint
-		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
+		DtlsConnectorConfig clientdtlsConfig = DtlsConnectorConfig.builder(configuration)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
-				.setReceiverThreadCount(2)
-				.setConnectionThreadCount(2)
 				.setAdvancedPskStore(pskStore).build();
 		DTLSConnector clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(configuration);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(builder.build());
 	}
 

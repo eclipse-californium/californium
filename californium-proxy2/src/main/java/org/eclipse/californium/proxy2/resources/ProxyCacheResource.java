@@ -34,9 +34,10 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,20 +55,6 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 public class ProxyCacheResource extends CoapResource implements CacheResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyCacheResource.class);
-
-	/**
-	 * The time after which an entry is removed. Since it is not possible to set
-	 * the expiration for the single instances, this constant represent the
-	 * upper bound for the cache. The real lifetime will be handled explicitly
-	 * with the max-age option.
-	 */
-	private static final int CACHE_RESPONSE_MAX_AGE = NetworkConfig.getStandard()
-			.getInt(NetworkConfig.Keys.HTTP_CACHE_RESPONSE_MAX_AGE);
-
-	/**
-	 * Maximum size for the cache.
-	 */
-	private static final long CACHE_SIZE = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_CACHE_SIZE);
 
 	/**
 	 * The cache.
@@ -91,7 +78,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	 * @see #isEnabled()
 	 */
 	public ProxyCacheResource() {
-		this(false);
+		this(null, false);
 	}
 
 	/**
@@ -102,17 +89,35 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	 * @see #isEnabled()
 	 */
 	public ProxyCacheResource(boolean enabled) {
+		this(null, enabled);
+	}
+
+	/**
+	 * Instantiates a new proxy cache resource.
+	 * 
+	 * @param configuration Configuration to use. {@code null} to
+	 *            use {@link Configuration#getStandard()} .
+	 * @param enabled {@code true}, enable proxy, or {@code false}, otherwise.
+	 * @see #setEnabled(boolean)
+	 * @see #isEnabled()
+	 * @since 3.0
+	 */
+	public ProxyCacheResource(Configuration configuration, boolean enabled) {
 		super("cache");
 		this.enabled = enabled;
+		if (configuration == null) {
+			configuration = Configuration.getStandard();
+		}
+		int maxAge = configuration.getTimeAsInt(Proxy2Config.CACHE_RESPONSE_MAX_AGE, TimeUnit.SECONDS);
+		int size = configuration.get(Proxy2Config.CACHE_SIZE);
 
 		// builds a new cache that:
 		// - has a limited size of CACHE_SIZE entries
 		// - removes entries after CACHE_RESPONSE_MAX_AGE seconds from the last
 		// write
 		// - record statistics
-		responseCache = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).recordStats()
-				.expireAfterWrite(CACHE_RESPONSE_MAX_AGE, TimeUnit.SECONDS)
-				.removalListener(new RemovalListener<CacheKey, Response>() {
+		responseCache = CacheBuilder.newBuilder().maximumSize(size).recordStats()
+				.expireAfterWrite(maxAge, TimeUnit.SECONDS).removalListener(new RemovalListener<CacheKey, Response>() {
 
 					@Override
 					public void onRemoval(RemovalNotification<CacheKey, Response> notification) {
@@ -126,9 +131,8 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 						// exceptions are thrown
 						Response cachedResponse = request.getResponse();
 
-						// check for null and raise an exception that clients
-						// must
-						// handle
+						// check for null and raise an exception
+						// that clients must handle
 						if (cachedResponse == null) {
 							throw new NullPointerException();
 						}

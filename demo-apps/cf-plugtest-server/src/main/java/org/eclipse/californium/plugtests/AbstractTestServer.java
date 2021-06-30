@@ -27,6 +27,7 @@ import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,11 +38,13 @@ import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
@@ -50,14 +53,13 @@ import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.MdcConnectionListener;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
-import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
@@ -142,30 +144,30 @@ public abstract class AbstractTestServer extends CoapServer {
 	public static final String OPENSSL_PSK_IDENTITY = "Client_identity";
 	public static final SecretKey OPENSSL_PSK_SECRET = SecretUtil.create("secretPSK".getBytes(), "PSK");
 
-	public static final String KEY_DTLS_HANDSHAKE_RESULT_DELAY = "DTLS_HANDSHAKE_RESULT_DELAY";
-	public static final String KEY_DTLS_SERVER_USE_SESSION_ID = "DTLS_SERVER_USE_SESSION_ID";
+	public static final TimeDefinition DTLS_HANDSHAKE_RESULT_DELAY = new TimeDefinition("DTLS_HANDSHAKE_RESULT_DELAY",
+			"Delay for DTLS handshake results. Only for testing!!!\n0 no delay, < 0 blocking delay, > 0 non-blocking delay.");
 
 	public static final Pattern HONO_IDENTITY_PATTERN = Pattern.compile("^[^@]{8,}@.{8,}$");
 	public static final SecretKey HONO_PSK_SECRET = SecretUtil.create("secret".getBytes(), "PSK");
 
 	public static final Pattern IPV6_SCOPE = Pattern.compile("^([0-9a-fA-F:]+)(%\\w+)?$");
 
-	private final NetworkConfig config;
-	private final Map<Select, NetworkConfig> selectConfig;
+	private final Configuration config;
+	private final Map<Select, Configuration> selectConfig;
 
 	protected SslContextUtil.Credentials serverCredentials = null;
 	protected Certificate[] trustedCertificates = null;
 	protected SSLContext serverSslContext = null;
 
-	protected AbstractTestServer(NetworkConfig config, Map<Select, NetworkConfig> selectConfig) {
+	protected AbstractTestServer(Configuration config, Map<Select, Configuration> selectConfig) {
 		super(config);
 		this.config = config;
 		this.selectConfig = selectConfig;
 	}
 
-	public NetworkConfig getConfig(Select select) {
+	public Configuration getConfig(Select select) {
 		if (selectConfig != null) {
-			NetworkConfig udpConfig = selectConfig.get(select);
+			Configuration udpConfig = selectConfig.get(select);
 			if (udpConfig != null) {
 				return udpConfig;
 			}
@@ -173,10 +175,10 @@ public abstract class AbstractTestServer extends CoapServer {
 		return config;
 	}
 
-	public NetworkConfig getConfig(Protocol protocol, InterfaceType interfaceType) {
+	public Configuration getConfig(Protocol protocol, InterfaceType interfaceType) {
 		if (selectConfig != null) {
 			Select select = new Select(protocol, interfaceType);
-			NetworkConfig udpConfig = selectConfig.get(select);
+			Configuration udpConfig = selectConfig.get(select);
 			if (udpConfig != null) {
 				return udpConfig;
 			}
@@ -254,8 +256,8 @@ public abstract class AbstractTestServer extends CoapServer {
 	 */
 	public void addEndpoints(List<String> selectAddress, List<InterfaceType> interfaceTypes, List<Protocol> protocols,
 			BaseConfig cliConfig) {
-		int coapPort = config.getInt(Keys.COAP_PORT);
-		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
+		int coapPort = config.get(CoapConfig.COAP_PORT);
+		int coapsPort = config.get(CoapConfig.COAP_SECURE_PORT);
 
 		if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
 			initCredentials();
@@ -322,22 +324,20 @@ public abstract class AbstractTestServer extends CoapServer {
 			if (protocols.contains(Protocol.UDP) || protocols.contains(Protocol.TCP)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
 				if (protocols.contains(Protocol.UDP)) {
-					NetworkConfig udpConfig = getConfig(Protocol.UDP, interfaceType);
+					Configuration udpConfig = getConfig(Protocol.UDP, interfaceType);
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setInetSocketAddress(bindToAddress);
-					builder.setNetworkConfig(udpConfig);
+					builder.setConfiguration(udpConfig);
 					CoapEndpoint endpoint = builder.build();
 					addEndpoint(endpoint);
 					print(endpoint, interfaceType);
 				}
 				if (protocols.contains(Protocol.TCP)) {
-					NetworkConfig tcpConfig = getConfig(Protocol.TCP, interfaceType);
-					int tcpThreads = tcpConfig.getInt(Keys.TCP_WORKER_THREADS);
-					int tcpIdleTimeout = tcpConfig.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-					TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads, tcpIdleTimeout);
+					Configuration tcpConfig = getConfig(Protocol.TCP, interfaceType);
+					TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpConfig);
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
-					builder.setNetworkConfig(tcpConfig);
+					builder.setConfiguration(tcpConfig);
 					CoapEndpoint endpoint = builder.build();
 					addEndpoint(endpoint);
 					print(endpoint, interfaceType);
@@ -346,34 +346,17 @@ public abstract class AbstractTestServer extends CoapServer {
 			if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
 				if (protocols.contains(Protocol.DTLS)) {
-					NetworkConfig dtlsConfig = getConfig(Protocol.DTLS, interfaceType);
-					int retransmissionTimeout = dtlsConfig.getInt(Keys.ACK_TIMEOUT);
-					int staleTimeout = dtlsConfig.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
-					int dtlsThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
-					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
-					int maxPeers = dtlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
-					int handshakeResultDelay = dtlsConfig.getInt(KEY_DTLS_HANDSHAKE_RESULT_DELAY, 0);
-					boolean useServerSessionId = dtlsConfig.getBoolean(KEY_DTLS_SERVER_USE_SESSION_ID, true);
-					Integer cidLength = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
-					Integer cidNode = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_NODE_ID);
-					Integer healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL); // seconds
-					Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
-					Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
-					DtlsConnectorConfig.Builder dtlsConfigBuilder = new DtlsConnectorConfig.Builder();
-					if (cidLength != null) {
-						if (cidLength > 4 && cidNode != null) {
-							dtlsConfigBuilder
-									.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(cidNode, cidLength));
-						} else {
-							dtlsConfigBuilder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
-						}
-					}
+					Configuration dtlsConfig = getConfig(Protocol.DTLS, interfaceType);
+					int handshakeResultDelay = dtlsConfig.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
+
+					dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+					dtlsConfig.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+
+					DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(dtlsConfig);
 					AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
 					asyncPskStore.setDelay(handshakeResultDelay);
-					dtlsConfigBuilder.setUseServerSessionId(useServerSessionId);
 					dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 					dtlsConfigBuilder.setAddress(bindToAddress);
-					dtlsConfigBuilder.setRecommendedCipherSuitesOnly(false);
 					dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 							CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
@@ -395,57 +378,35 @@ public abstract class AbstractTestServer extends CoapServer {
 					AsyncNewAdvancedCertificateVerifier verifier = verifierBuilder.build();
 					verifier.setDelay(handshakeResultDelay);
 					dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
-					dtlsConfigBuilder.setMaxConnections(maxPeers);
-					dtlsConfigBuilder.setStaleConnectionThreshold(staleTimeout);
-					dtlsConfigBuilder.setConnectionThreadCount(dtlsThreads);
-					dtlsConfigBuilder.setReceiverThreadCount(dtlsReceiverThreads);
-					dtlsConfigBuilder.setHealthStatusInterval(healthStatusInterval);
-					dtlsConfigBuilder.setSocketReceiveBufferSize(recvBufferSize);
-					dtlsConfigBuilder.setSocketSendBufferSize(sendBufferSize);
-					dtlsConfigBuilder.setRetransmissionTimeout(retransmissionTimeout);
 					AsyncResumptionVerifier resumptionVerifier = new AsyncResumptionVerifier();
 					resumptionVerifier.setDelay(handshakeResultDelay);
 					dtlsConfigBuilder.setResumptionVerifier(resumptionVerifier);
-					switch (cliConfig.clientAuth) {
-					case NONE:
-						dtlsConfigBuilder.setClientAuthenticationRequired(false);
-						break;
-					case WANTED:
-						dtlsConfigBuilder.setClientAuthenticationWanted(true);
-						break;
-					case NEEDED:
-						dtlsConfigBuilder.setClientAuthenticationRequired(true);
-						break;
-					}
 					dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
-					if (MatcherMode.PRINCIPAL.name().equals(dtlsConfig.getString(Keys.RESPONSE_MATCHING))) {
+					if (MatcherMode.PRINCIPAL == dtlsConfig.get(CoapConfig.RESPONSE_MATCHING)) {
 						builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
 					}
-					builder.setNetworkConfig(dtlsConfig);
+					builder.setConfiguration(dtlsConfig);
 					CoapEndpoint endpoint = builder.build();
 					addEndpoint(endpoint);
 					print(endpoint, interfaceType);
 				}
 				if (protocols.contains(Protocol.TLS)) {
-					NetworkConfig tlsConfig = getConfig(Protocol.TLS, interfaceType);
-					int tcpThreads = tlsConfig.getInt(Keys.TCP_WORKER_THREADS);
-					int tcpIdleTimeout = tlsConfig.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-					int tlsHandshakeTimeout = tlsConfig.getInt(Keys.TLS_HANDSHAKE_TIMEOUT);
-					int maxPeers = tlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
-					int sessionTimeout = tlsConfig.getInt(Keys.SECURE_SESSION_TIMEOUT);
+					Configuration tlsConfig = getConfig(Protocol.TLS, interfaceType);
+					tlsConfig.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+					int maxPeers = tlsConfig.get(CoapConfig.MAX_ACTIVE_PEERS);
+					int sessionTimeout = tlsConfig.getTimeAsInt(TcpConfig.TLS_SESSION_TIMEOUT, TimeUnit.SECONDS);
 					SSLSessionContext serverSessionContext = serverSslContext.getServerSessionContext();
 					if (serverSessionContext != null) {
 						serverSessionContext.setSessionTimeout(sessionTimeout);
 						serverSessionContext.setSessionCacheSize(maxPeers);
 					}
-					TlsServerConnector connector = new TlsServerConnector(serverSslContext, cliConfig.clientAuth,
-							bindToAddress, tcpThreads, tlsHandshakeTimeout, tcpIdleTimeout);
+					TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress, tlsConfig);
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
-					builder.setNetworkConfig(tlsConfig);
+					builder.setConfiguration(tlsConfig);
 					CoapEndpoint endpoint = builder.build();
 					addEndpoint(endpoint);
 					print(endpoint, interfaceType);
@@ -456,8 +417,8 @@ public abstract class AbstractTestServer extends CoapServer {
 
 	protected void print(CoapEndpoint endpoint, InterfaceType interfaceType) {
 		LOGGER.info("{}listen on {} ({}) max msg size: {}, block size: {}", getTag(), endpoint.getUri(), interfaceType,
-				endpoint.getConfig().getInt(Keys.MAX_MESSAGE_SIZE),
-				endpoint.getConfig().getInt(Keys.PREFERRED_BLOCK_SIZE));
+				endpoint.getConfig().get(CoapConfig.MAX_MESSAGE_SIZE),
+				endpoint.getConfig().get(CoapConfig.PREFERRED_BLOCK_SIZE));
 	}
 
 	public static class PlugPskStore implements AdvancedPskStore {

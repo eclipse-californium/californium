@@ -93,6 +93,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.assume.TimeAssume;
+import org.eclipse.californium.elements.config.Configuration;
 import org.junit.AssumptionViolatedException;
 
 public class LockstepEndpoint {
@@ -115,19 +116,17 @@ public class LockstepEndpoint {
 
 	private final DataSerializer serializer;
 	private final DataParser parser;
+	private final Configuration configuration;
 	private boolean verbose = DEFAULT_VERBOSE;
 	private MultiMessageExpectation multi;
 
-	public LockstepEndpoint() {
-		this((InetSocketAddress)null);
-	}
-
-	public LockstepEndpoint(final InetSocketAddress destination) {
+	public LockstepEndpoint(final InetSocketAddress destination, Configuration configuration) {
 
 		this.destination = destination;
+		this.configuration = configuration;
 		this.storage = new HashMap<String, Object>();
 		this.incoming = new LinkedBlockingQueue<RawData>();
-		this.connector = new UDPConnector(TestTools.LOCALHOST_EPHEMERAL);
+		this.connector = new UDPConnector(TestTools.LOCALHOST_EPHEMERAL, configuration);
 		this.connector.setRawDataReceiver(new RawDataChannel() {
 
 			public void receiveData(RawData raw) {
@@ -144,12 +143,12 @@ public class LockstepEndpoint {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 	public LockstepEndpoint(final LockstepEndpoint previousEndpoint) {
-		this(previousEndpoint.destination);
+		this(previousEndpoint.destination, previousEndpoint.configuration);
 		storage.putAll(previousEndpoint.storage);
 	}
-	
+
 	public void destroy() {
 		if (connector != null) {
 			connector.destroy();

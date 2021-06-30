@@ -22,6 +22,7 @@ import static org.junit.Assert.fail;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
+import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -78,7 +79,7 @@ public class MaxFragmentLengthExtensionTest {
 	}
 
 	private void givenA512ByteMaxFragmentLengthExtension() {
-		extension = new MaxFragmentLengthExtension(1);
+		extension = new MaxFragmentLengthExtension(Length.BYTES_512);
 	}
 
 	private void givenAMaxFragmentLengthStruct(byte code) {

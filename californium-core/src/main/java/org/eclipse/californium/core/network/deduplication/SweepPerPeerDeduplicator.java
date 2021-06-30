@@ -23,8 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.KeyMID;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,19 +55,20 @@ public final class SweepPerPeerDeduplicator extends SweepDeduplicator {
 	 * The following configuration values are used to initialize the sweep
 	 * algorithm used by this deduplicator:
 	 * <ul>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#PEERS_MARK_AND_SWEEP_MESSAGES}
+	 * <li>{@link CoapConfig#PEERS_MARK_AND_SWEEP_MESSAGES}
 	 * - maximum number of messages per peer kept for deduplication.</li>
 	 * </ul>
 	 * 
-	 * See {@link SweepDeduplicator#SweepDeduplicator(NetworkConfig)} for other
+	 * See {@link SweepDeduplicator#SweepDeduplicator(Configuration)} for other
 	 * used configuration values.
 	 * 
 	 * @param config the configuration to use.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public SweepPerPeerDeduplicator(NetworkConfig config) {
+	public SweepPerPeerDeduplicator(Configuration config) {
 		super(config);
 		algorithm = new SweepAlgorithm();
-		messagePerPeer = config.getInt(NetworkConfig.Keys.PEERS_MARK_AND_SWEEP_MESSAGES);
+		messagePerPeer = config.get(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES);
 	}
 
 	@Override

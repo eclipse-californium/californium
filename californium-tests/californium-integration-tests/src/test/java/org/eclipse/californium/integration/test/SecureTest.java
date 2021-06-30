@@ -30,20 +30,21 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
@@ -220,22 +221,21 @@ public class SecureTest {
 	}
 
 	private void createTestEndpoint() {
+		// setup CoAP config
+		Configuration config = network.createTestConfig()
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
+				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_TIMEOUT_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_TIMEOUT_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, NB_RETRANSMISSION);
 		// setup DTLS Config
-		Builder builder = new DtlsConnectorConfig.Builder()
+		Builder builder = DtlsConnectorConfig.builder(config)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
-				.setAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()))
-				.setMaxRetransmissions(NB_RETRANSMISSION)
-				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT);
+				.setAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
 		DtlsConnectorConfig dtlsConfig = builder.build();
-
-		// setup CoAP config
-		NetworkConfig config = network.createTestConfig()
-				.setInt(Keys.ACK_TIMEOUT, 200)
-				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f)
-				.setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
-				.setLong(Keys.EXCHANGE_LIFETIME, TEST_TIMEOUT_EXCHANGE_LIFETIME)
-				.setLong(Keys.MARK_AND_SWEEP_INTERVAL, TEST_TIMEOUT_SWEEP_DEDUPLICATOR_INTERVAL);
 
 		// create endpoint for tests
 		DTLSConnector clientConnector = new DTLSConnector(dtlsConfig);
@@ -245,29 +245,29 @@ public class SecureTest {
 
 	private CoapEndpoint createEndpoint(String tag, int exchangeTimeout, int coapTimeout, int dtlsTimeout,
 			int pskDelay) {
+		// setup CoAP config
+		Configuration config = network.createTestConfig()
+				.set(CoapConfig.ACK_TIMEOUT, coapTimeout, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.EXCHANGE_LIFETIME, exchangeTimeout, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, dtlsTimeout, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, TEST_DTLS_RETRANSMISSIONS)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
 		// setup DTLS Config
 		AsyncAdvancedPskStore pskStore = new AsyncAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
 		pskStore.setDelay(-pskDelay);
 		pskStores.add(pskStore);
-		Builder builder = new DtlsConnectorConfig.Builder()
+		Builder builder = new DtlsConnectorConfig.Builder(config)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag(tag)
-				.setAdvancedPskStore(pskStore)
-				.setReceiverThreadCount(2)
-				.setConnectionThreadCount(2)
-				.setRetransmissionTimeout(dtlsTimeout)
-				.setMaxRetransmissions(TEST_DTLS_RETRANSMISSIONS);
+				.setAdvancedPskStore(pskStore);
 		DtlsConnectorConfig dtlsConfig = builder.build();
-
-		// setup CoAP config
-		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, coapTimeout)
-				.setLong(Keys.EXCHANGE_LIFETIME, exchangeTimeout);
 
 		// create endpoint for tests
 		DTLSConnector connector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.Builder coapBuilder = new CoapEndpoint.Builder();
 		coapBuilder.setConnector(connector);
-		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConfiguration(config);
 		CoapEndpoint coapEndpoint = coapBuilder.build();
 		return coapEndpoint;
 	}

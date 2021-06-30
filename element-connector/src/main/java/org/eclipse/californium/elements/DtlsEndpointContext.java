@@ -108,13 +108,15 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	public static final String HANDSHAKE_MODE_NONE = "none";
 
 	/**
-	 * The name of the attribute that contains a auto session resumption timeout
-	 * in milliseconds as {@link Number}.
+	 * The name of the attribute that contains a auto handshake timeout in
+	 * milliseconds as {@link Number}.
 	 * 
-	 * {@code -1}, disable auto session resumption. None critical attribute, not
+	 * {@code -1}, disable auto handshake timeout. None critical attribute, not
 	 * considered for matching.
+	 * 
+	 * @since 3.0 (renamed, was KEY_RESUMPTION_TIMEOUT)
 	 */
-	public static final String KEY_RESUMPTION_TIMEOUT = KEY_PREFIX_NONE_CRITICAL + "DTLS_RESUMPTION_TIMEOUT";
+	public static final String KEY_AUTO_HANDSHAKE_TIMEOUT = KEY_PREFIX_NONE_CRITICAL + "DTLS_AUTO_HANDSHAKE_TIMEOUT";
 	/**
 	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_NONE}.
 	 * 

@@ -62,13 +62,13 @@ import org.slf4j.LoggerFactory;
  * peer's next flight has arrived in its total. A flight needs not only consist
  * of {@code HandshakeMessage}s but may also contain {@code AlertMessage}s and
  * {@code ChangeCipherSpecMessage}s. See
- * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.4" target="_blank">RFC 6347</a> for
- * details.
+ * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.4" target=
+ * "_blank">RFC 6347</a> for details.
  * 
  * Scandium offers also the possibility to stop the retransmission with
  * receiving the first response message instead of the complete flight. That is
  * currently configurable using
- * {@link DtlsConnectorConfig#isEarlyStopRetransmission()}. Only for the flight
+ * {@link DtlsConnectorConfig#useEarlyStopRetransmission()}. Only for the flight
  * before the very last flight of a handshake, it must be ensured, that the
  * retransmission is only stopped, after that very last flight is received
  * completely. Though the very last flight in DTLS 1.2 is always a flight with
@@ -84,8 +84,8 @@ import org.slf4j.LoggerFactory;
  * To support both variants, the flight provides the {@link #responseStarted}
  * and {@link #responseCompleted} flags and a general handle to a timeout task.
  * 
- * @see "e-mail discussion IETF TLS mailarchive, 
- *       2017, May 31. - June 1., Simone Bernard and Raja Ashok"
+ * @see "e-mail discussion IETF TLS mailarchive, 2017, May 31. - June 1., Simone
+ *      Bernard and Raja Ashok"
  */
 @NoPublicAPI
 public class DTLSFlight {
@@ -98,8 +98,7 @@ public class DTLSFlight {
 	private final List<Record> records;
 
 	/**
-	 * The dtls messages together with their epoch that belong to this
-	 * flight.
+	 * The dtls messages together with their epoch that belong to this flight.
 	 * 
 	 * @since 2.4
 	 */
@@ -112,7 +111,7 @@ public class DTLSFlight {
 	private final DTLSContext context;
 
 	private final InetSocketAddress peer;
-	
+
 	private final Object peerToLog;
 
 	/**
@@ -292,10 +291,8 @@ public class DTLSFlight {
 			case CHANGE_CIPHER_SPEC:
 				flushMultiHandshakeMessages();
 				// CCS has only 1 byte payload and doesn't require fragmentation
-				records.add(new Record(message.getContentType(), epochMessage.epoch,
-						message, context, false, 0));
-				LOGGER.debug("Add CCS message of {} bytes for [{}]",
-						message.size(), peerToLog);
+				records.add(new Record(message.getContentType(), epochMessage.epoch, message, context, false, 0));
+				LOGGER.debug("Add CCS message of {} bytes for [{}]", message.size(), peerToLog);
 				break;
 			default:
 				throw new HandshakeException("Cannot create " + message.getContentType() + " record for flight",
@@ -364,10 +361,9 @@ public class DTLSFlight {
 					}
 				}
 			}
-			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch,
-					handshakeMessage, context, useCid, 0));
-			LOGGER.debug("Add {} message of {} bytes for [{}]",
-					handshakeMessage.getMessageType(), messageLength, peerToLog);
+			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch, handshakeMessage, context, useCid, 0));
+			LOGGER.debug("Add {} message of {} bytes for [{}]", handshakeMessage.getMessageType(), messageLength,
+					peerToLog);
 			return;
 		}
 
@@ -394,20 +390,14 @@ public class DTLSFlight {
 			byte[] fragmentBytes = new byte[fragmentLength];
 			System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
 
-			FragmentedHandshakeMessage fragmentedMessage =
-					new FragmentedHandshakeMessage(
-							handshakeMessage.getMessageType(),
-							messageLength,
-							messageSeq,
-							offset,
-							fragmentBytes);
+			FragmentedHandshakeMessage fragmentedMessage = new FragmentedHandshakeMessage(
+					handshakeMessage.getMessageType(), messageLength, messageSeq, offset, fragmentBytes);
 
 			LOGGER.debug("fragment for offset {}, {} bytes", offset, fragmentedMessage.size());
 
 			offset += fragmentLength;
 
-			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch, fragmentedMessage,
-					context, false, 0));
+			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch, fragmentedMessage, context, false, 0));
 		}
 	}
 
@@ -419,11 +409,10 @@ public class DTLSFlight {
 	 */
 	private void flushMultiHandshakeMessages() throws GeneralSecurityException {
 		if (multiHandshakeMessage != null) {
-			records.add(new Record(ContentType.HANDSHAKE, multiEpoch, multiHandshakeMessage,
-					context, multiUseCid, 0));
+			records.add(new Record(ContentType.HANDSHAKE, multiEpoch, multiHandshakeMessage, context, multiUseCid, 0));
 			int count = multiHandshakeMessage.getNumberOfHandshakeMessages();
 			LOGGER.debug("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
-						multiHandshakeMessage.getMessageLength(), peerToLog);
+					multiHandshakeMessage.getMessageLength(), peerToLog);
 			multiHandshakeMessage = null;
 			multiEpoch = 0;
 			multiUseCid = false;
@@ -452,8 +441,7 @@ public class DTLSFlight {
 					int epoch = record.getEpoch();
 					DTLSMessage fragment = record.getFragment();
 					boolean useCid = record.useConnectionId();
-					records.set(index, new Record(record.getType(), epoch, fragment, context,
-							useCid, 0));
+					records.set(index, new Record(record.getType(), epoch, fragment, context, useCid, 0));
 				}
 			} else {
 				this.effectiveDatagramSize = maxDatagramSize;
@@ -489,7 +477,8 @@ public class DTLSFlight {
 	 * @since 2.4
 	 */
 	public List<DatagramPacket> getDatagrams(int maxDatagramSize, int maxFragmentSize,
-			Boolean useMultiHandshakeMessageRecords, Boolean useMultiRecordMessages, boolean backOff) throws HandshakeException {
+			Boolean useMultiHandshakeMessageRecords, Boolean useMultiRecordMessages, boolean backOff)
+			throws HandshakeException {
 
 		DatagramWriter writer = new DatagramWriter(maxDatagramSize);
 		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
@@ -502,8 +491,7 @@ public class DTLSFlight {
 		}
 
 		LOGGER.trace("Prepare flight {}, using max. datagram size {}, max. fragment size {} [mhm={}, mr={}]",
-				flightNumber, maxDatagramSize, maxFragmentSize, multiHandshakeMessages,
-				multiRecords);
+				flightNumber, maxDatagramSize, maxFragmentSize, multiHandshakeMessages, multiRecords);
 
 		List<Record> records = getRecords(maxDatagramSize, maxFragmentSize, multiHandshakeMessages);
 
@@ -526,12 +514,15 @@ public class DTLSFlight {
 					recordBytes = Bytes.concatenate(recordBytes, finish.toByteArray());
 				}
 			}
-			int left = multiRecords && !(backOff && useMultiRecordMessages == null) ? effectiveDatagramSize - recordBytes.length : 0;
+			int left = multiRecords && !(backOff && useMultiRecordMessages == null)
+					? effectiveDatagramSize - recordBytes.length
+					: 0;
 			if (writer.size() > left) {
 				// current record does not fit into datagram anymore
 				// thus, send out current datagram and put record into new one
 				byte[] payload = writer.toByteArray();
-				DatagramPacket datagram = new DatagramPacket(payload, payload.length, peer.getAddress(), peer.getPort());
+				DatagramPacket datagram = new DatagramPacket(payload, payload.length, peer.getAddress(),
+						peer.getPort());
 				datagrams.add(datagram);
 				LOGGER.debug("Sending datagram of {} bytes to peer [{}]", payload.length, peerToLog);
 			}
@@ -592,9 +583,9 @@ public class DTLSFlight {
 
 	/**
 	 * Called, when the flight needs to be retransmitted. Increment the timeout,
-	 * here we double it. Limit the timeout to {@link #MAX_TIMEOUT_MILLIS}.
+	 * here we double it. Limit the timeout to {@link #maxTimeout}.
 	 * 
-	 * @see #incrementTimeout(int)
+	 * @see #incrementTimeout(int, int)
 	 */
 	public void incrementTimeout() {
 		this.timeout = incrementTimeout(this.timeout, this.maxTimeout);
@@ -642,7 +633,7 @@ public class DTLSFlight {
 
 	/**
 	 * Signal, that the first handshake message of the response is received. If
-	 * {@link DtlsConnectorConfig#isEarlyStopRetransmission()} is configured,
+	 * {@link DtlsConnectorConfig#useEarlyStopRetransmission()} is configured,
 	 * this stops sending retransmissions but keep a scheduled timeout task.
 	 */
 	public void setResponseStarted() {

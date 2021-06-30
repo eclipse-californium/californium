@@ -75,16 +75,16 @@ public class DtlsEndpointContextMatcherTest {
 		unsecureMessageContext = new UdpEndpointContext(ADDRESS);
 
 		noneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null,
-				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 30000));
+				new Attributes().add(KEY_AUTO_HANDSHAKE_TIMEOUT, 30000));
 		scopedNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null,
-				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 30000));
+				new Attributes().add(KEY_AUTO_HANDSHAKE_TIMEOUT, 30000));
 
 		strictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null,
 				new Attributes().add(KEY_SESSION_ID, session).add(KEY_EPOCH, 1).add(KEY_CIPHER, "CIPHER")
-						.add(KEY_RESUMPTION_TIMEOUT, "30000"));
+						.add(KEY_AUTO_HANDSHAKE_TIMEOUT, "30000"));
 		scopedStrictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null,
 				new Attributes().add(KEY_SESSION_ID, session).add(KEY_EPOCH, 1).add(KEY_CIPHER, "CIPHER")
-						.add(KEY_RESUMPTION_TIMEOUT, "30000"));
+						.add(KEY_AUTO_HANDSHAKE_TIMEOUT, "30000"));
 	}
 
 	@Test
@@ -177,28 +177,28 @@ public class DtlsEndpointContextMatcherTest {
 	@Test
 	public void testAddNewEntries() {
 		EndpointContext context = MapBasedEndpointContext.addEntries(strictMessageContext,
-				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 30000));
+				new Attributes().add(KEY_AUTO_HANDSHAKE_TIMEOUT, 30000));
 		assertThat(context.getPeerAddress(), is(strictMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(strictMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(strictMessageContext.getPeerIdentity()));
-		assertThat(context.getNumber(KEY_RESUMPTION_TIMEOUT).intValue(), is(30000));
+		assertThat(context.getNumber(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(30000));
 
 		context = MapBasedEndpointContext.addEntries(scopedStrictMessageContext,
-				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 30000));
+				new Attributes().add(KEY_AUTO_HANDSHAKE_TIMEOUT, 30000));
 		assertThat(context.getPeerAddress(), is(scopedStrictMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(scopedStrictMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(scopedStrictMessageContext.getPeerIdentity()));
-		assertThat(context.getNumber(KEY_RESUMPTION_TIMEOUT).intValue(), is(30000));
+		assertThat(context.getNumber(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(30000));
 	}
 
 	@Test
 	public void testAddContainedEntries() {
 		EndpointContext context = MapBasedEndpointContext.addEntries(noneCriticalMessageContext,
-				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 60000));
+				new Attributes().add(KEY_AUTO_HANDSHAKE_TIMEOUT, 60000));
 		assertThat(context.getPeerAddress(), is(noneCriticalMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(noneCriticalMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(noneCriticalMessageContext.getPeerIdentity()));
-		assertThat(context.getNumber(KEY_RESUMPTION_TIMEOUT).intValue(), is(60000));
+		assertThat(context.getNumber(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(60000));
 	}
 
 }

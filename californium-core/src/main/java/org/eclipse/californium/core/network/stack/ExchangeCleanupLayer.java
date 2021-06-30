@@ -17,12 +17,14 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.util.concurrent.TimeUnit;
+
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,10 +41,16 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 	 */
 	private final int lifetime;
 
-	public ExchangeCleanupLayer(final NetworkConfig config) {
-		this.lifetime = config.getInt(Keys.NON_LIFETIME)
-				+ config.getInt(Keys.MAX_LATENCY)
-				+ config.getInt(Keys.MAX_SERVER_RESPONSE_DELAY);
+	/**
+	 * Create exchange cleanup layer.
+	 * 
+	 * @param config configuration
+	 * @since 3.0 (changed parameter to Configuration)
+	 */
+	public ExchangeCleanupLayer(final Configuration config) {
+		this.lifetime = config.getTimeAsInt(CoapConfig.NON_LIFETIME, TimeUnit.MILLISECONDS)
+				+ config.getTimeAsInt(CoapConfig.MAX_LATENCY, TimeUnit.MILLISECONDS)
+				+ config.getTimeAsInt(CoapConfig.MAX_SERVER_RESPONSE_DELAY, TimeUnit.MILLISECONDS);
 	}
 
 	/**

@@ -21,7 +21,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
@@ -43,7 +43,7 @@ public class ExampleHttpServer {
 	private AtomicLong requestCounter = new AtomicLong();
 	private long lastRequestCounterSync;
 
-	public ExampleHttpServer(NetworkConfig config, final int httpPort) throws IOException {
+	public ExampleHttpServer(Configuration config, final int httpPort) throws IOException {
 		HttpServer server = new HttpServer(config, httpPort);
 		server.setSimpleResource(RESOURCE, "Hi! I am the Http Server on %s. Request %d.", requestCounter);
 		server.start();
@@ -61,7 +61,7 @@ public class ExampleHttpServer {
 
 	public static void main(String arg[]) throws IOException {
 		// NetworkConfig HTTP_PORT is used for proxy
-		NetworkConfig config = NetworkConfig.getStandard();
+		Configuration config = Configuration.getStandard();
 		int port = DEFAULT_PORT;
 		if (arg.length > 0) {
 			port = Integer.parseInt(arg[0]);

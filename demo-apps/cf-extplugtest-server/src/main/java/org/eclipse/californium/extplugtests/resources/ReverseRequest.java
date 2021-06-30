@@ -34,8 +34,9 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
@@ -113,15 +114,15 @@ public class ReverseRequest extends CoapResource {
 	/**
 	 * Create reverse observation resource.
 	 * 
-	 * @param config network configuration to read HEALTH_STATUS_INTERVAL.
+	 * @param config configuration to read HEALTH_STATUS_INTERVAL.
 	 */
-	public ReverseRequest(NetworkConfig config, ScheduledExecutorService executor) {
+	public ReverseRequest(Configuration config, ScheduledExecutorService executor) {
 		super(RESOURCE_NAME);
 		this.executor = executor;
 		getAttributes().setTitle("Reverse Request");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
-		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			executor.scheduleWithFixedDelay(new Runnable() {
 
@@ -132,7 +133,7 @@ public class ReverseRequest extends CoapResource {
 								overallSentRequests.get(), overallPendingRequests.get());
 					}
 				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 

@@ -23,12 +23,14 @@ import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -51,14 +53,14 @@ public class InMemoryMessageExchangeStoreTest {
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	InMemoryMessageExchangeStore store;
-	NetworkConfig config;
+	Configuration config;
 
 	@Before
 	public void createConfig() {
 		ScheduledExecutorService executor = ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("ExchangeStore-"));
 		cleanup.add(executor);
-		config = NetworkConfig.createStandardWithoutFile();
-		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 200); //ms
+		config = Configuration.createStandardWithoutFile();
+		config.set(CoapConfig.EXCHANGE_LIFETIME, 200, TimeUnit.MILLISECONDS);
 		store = new InMemoryMessageExchangeStore(config);
 		store.setExecutor(executor);
 		store.start();

@@ -50,6 +50,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.eclipse.californium.elements.UdpMulticastConnector.Builder;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -78,14 +80,13 @@ import org.slf4j.LoggerFactory;
  * 
  * UDP broadcast is allowed.
  * 
- * The number of threads can be set through {@link #setReceiverThreadCount(int)}
- * and {@link #setSenderThreadCount(int)} before the connector is started.
+ * The number of threads can be set through
+ * {@link UdpConfig#UDP_RECEIVER_THREAD_COUNT} and
+ * {@link UdpConfig#UDP_SEND_BUFFER_SIZE} in the provided {@link Configuration}.
  */
 public class UDPConnector implements Connector {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnector.class);
-
-	public static final int UNDEFINED = 0;
 
 	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$
 
@@ -116,6 +117,12 @@ public class UDPConnector implements Connector {
 	 */
 	private final List<UdpMulticastConnector> multicastReceivers = new CopyOnWriteArrayList<>();
 
+	private final int senderCount;
+	private final int receiverCount;
+	private final int receiverPacketSize;
+	private final Integer configReceiveBufferSize;
+	private final Integer configSendBufferSize;
+
 	protected volatile boolean running;
 
 	private volatile DatagramSocket socket;
@@ -132,13 +139,8 @@ public class UDPConnector implements Connector {
 	/** The receiver of incoming messages. */
 	private volatile RawDataChannel receiver;
 
-	private int receiveBufferSize = UNDEFINED;
-	private int sendBufferSize = UNDEFINED;
-
-	private int senderCount = 1;
-	private int receiverCount = 1;
-
-	private int receiverPacketSize = 2048;
+	private Integer receiveBufferSize;
+	private Integer sendBufferSize;
 
 	/**
 	 * {@code true}, if socket is reused, {@code false}, otherwise.
@@ -159,20 +161,6 @@ public class UDPConnector implements Connector {
 	protected boolean multicast;
 
 	/**
-	 * Creates a connector on the wildcard address listening on an ephemeral
-	 * port, i.e. a port chosen by the system.
-	 * 
-	 * Not recommended for the server side on IPv6 systems with multiple
-	 * addresses assigned to single network interfaces.
-	 * 
-	 * The effect of this constructor is the same as invoking
-	 * <code>UDPConnector(null)</code>.
-	 */
-	public UDPConnector() {
-		this(null);
-	}
-
-	/**
 	 * Creates a connector bound to a given IP address and port.
 	 * 
 	 * Note: using IPv6 interfaces with multiple addresses including permanent
@@ -183,11 +171,11 @@ public class UDPConnector implements Connector {
 	 * address' is not used on the server side and a separate Connector is
 	 * created for each address to receive incoming traffic.
 	 * 
-	 * @param address the IP address and port, if <code>null</code> the
-	 *            connector is bound to an ephemeral port on the wildcard
-	 *            address
+	 * @param address the IP address and port, if {@code null} the connector is
+	 *            bound to an ephemeral port on the wildcard address
+	 * @param configuration configuration with {@link UdpConfig} definitions.
 	 */
-	public UDPConnector(InetSocketAddress address) {
+	public UDPConnector(InetSocketAddress address, Configuration configuration) {
 		if (address == null) {
 			this.localAddr = new InetSocketAddress(0);
 		} else {
@@ -195,8 +183,14 @@ public class UDPConnector implements Connector {
 		}
 		this.running = false;
 		this.effectiveAddr = localAddr;
-		// TODO: think about restricting the outbound queue's capacity
-		this.outgoing = new LinkedBlockingQueue<RawData>();
+		this.outgoing = new LinkedBlockingQueue<RawData>(configuration.get(UdpConfig.UDP_CONNECTOR_OUT_CAPACITY));
+		this.receiverCount = configuration.get(UdpConfig.UDP_RECEIVER_THREAD_COUNT);
+		this.senderCount = configuration.get(UdpConfig.UDP_SENDER_THREAD_COUNT);
+		this.receiverPacketSize = configuration.get(UdpConfig.UDP_DATAGRAM_SIZE);
+		this.configReceiveBufferSize = configuration.get(UdpConfig.UDP_RECEIVE_BUFFER_SIZE);
+		this.configSendBufferSize = configuration.get(UdpConfig.UDP_SEND_BUFFER_SIZE);
+		this.receiveBufferSize = configReceiveBufferSize;
+		this.sendBufferSize = configSendBufferSize;
 	}
 
 	@Override
@@ -231,13 +225,13 @@ public class UDPConnector implements Connector {
 		this.socket = socket;
 		effectiveAddr = (InetSocketAddress) socket.getLocalSocketAddress();
 
-		if (receiveBufferSize != UNDEFINED) {
-			socket.setReceiveBufferSize(receiveBufferSize);
+		if (configReceiveBufferSize != null) {
+			socket.setReceiveBufferSize(configReceiveBufferSize);
 		}
 		receiveBufferSize = socket.getReceiveBufferSize();
 
-		if (sendBufferSize != UNDEFINED) {
-			socket.setSendBufferSize(sendBufferSize);
+		if (configSendBufferSize != null) {
+			socket.setSendBufferSize(configSendBufferSize);
 		}
 		sendBufferSize = socket.getSendBufferSize();
 
@@ -344,14 +338,17 @@ public class UDPConnector implements Connector {
 		}
 		// move onError callback out of synchronized block
 		boolean running;
+		boolean added = false;
 		synchronized (this) {
 			running = this.running;
 			if (running) {
-				outgoing.add(msg);
+				added = outgoing.offer(msg);
 			}
 		}
 		if (!running) {
 			notifyMsgAsInterrupted(msg);
+		} else if (!added) {
+			msg.onError(new InterruptedIOException("Connector overloaded."));
 		}
 	}
 
@@ -548,8 +545,8 @@ public class UDPConnector implements Connector {
 					"UDPConnector ({}) received truncated UDP datagram from {}. Maximum size allowed {}. Discarding ...",
 					connector, StringUtil.toLog(datagram.getSocketAddress()), receiverPacketSize);
 		} else if (dataReceiver == null) {
-			LOGGER.debug("UDPConnector ({}) received UDP datagram from {} without receiver. Discarding ...",
-					connector, StringUtil.toLog(datagram.getSocketAddress()));
+			LOGGER.debug("UDPConnector ({}) received UDP datagram from {} without receiver. Discarding ...", connector,
+					StringUtil.toLog(datagram.getSocketAddress()));
 		} else {
 			long timestamp = ClockUtil.nanoRealtime();
 			String local = StringUtil.toString(connector);
@@ -591,46 +588,20 @@ public class UDPConnector implements Connector {
 		this.reuseAddress = enable;
 	}
 
-	public void setReceiveBufferSize(int size) {
-		this.receiveBufferSize = size;
-		for (UdpMulticastConnector multicastReceiver : multicastReceivers) {
-			multicastReceiver.setReceiveBufferSize(size);
-		}
-	}
-
-	public int getReceiveBufferSize() {
+	public Integer getReceiveBufferSize() {
 		return receiveBufferSize;
 	}
 
-	public void setSendBufferSize(int size) {
-		this.sendBufferSize = size;
-	}
-
-	public int getSendBufferSize() {
+	public Integer getSendBufferSize() {
 		return sendBufferSize;
-	}
-
-	public void setReceiverThreadCount(int count) {
-		this.receiverCount = count;
 	}
 
 	public int getReceiverThreadCount() {
 		return receiverCount;
 	}
 
-	public void setSenderThreadCount(int count) {
-		this.senderCount = count;
-	}
-
 	public int getSenderThreadCount() {
 		return senderCount;
-	}
-
-	public void setReceiverPacketSize(int size) {
-		this.receiverPacketSize = size;
-		for (UdpMulticastConnector multicastReceiver : multicastReceivers) {
-			multicastReceiver.setReceiverPacketSize(size);
-		}
 	}
 
 	public int getReceiverPacketSize() {

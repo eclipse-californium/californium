@@ -29,13 +29,13 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
@@ -63,7 +63,7 @@ public final class MatcherTestUtils {
 		return ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("MatcherTest-"));
 	}
 
-	static TcpMatcher newTcpMatcher(NetworkConfig config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+	static TcpMatcher newTcpMatcher(Configuration config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
 		InMemoryMessageExchangeStore exchangeStore = new InMemoryMessageExchangeStore(config);
 		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
 				new InMemoryObservationStore(config), exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
@@ -72,11 +72,11 @@ public final class MatcherTestUtils {
 		return matcher;
 	}
 
-	static UdpMatcher newUdpMatcher(NetworkConfig config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+	static UdpMatcher newUdpMatcher(Configuration config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
 		return newUdpMatcher(config, new InMemoryMessageExchangeStore(config), new InMemoryObservationStore(config), correlationContextMatcher, scheduler);
 	}
 
-	static UdpMatcher newUdpMatcher(NetworkConfig config, MessageExchangeStore exchangeStore,
+	static UdpMatcher newUdpMatcher(Configuration config, MessageExchangeStore exchangeStore,
 			ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher,
 			ScheduledExecutorService scheduler) {
 		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),

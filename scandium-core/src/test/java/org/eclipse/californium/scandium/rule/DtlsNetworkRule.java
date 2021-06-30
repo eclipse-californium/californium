@@ -17,9 +17,12 @@ package org.eclipse.californium.scandium.rule;
 
 import java.util.List;
 
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramFormatter;
+import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
@@ -50,7 +53,7 @@ public class DtlsNetworkRule extends NetworkRule {
 	 * CoAP datagram formatter. Used for logging.
 	 */
 	private static final DatagramFormatter FORMATTER = new DatagramFormatter() {
-	
+
 		@Override
 		public String format(byte[] data) {
 			if (null == data) {
@@ -80,7 +83,7 @@ public class DtlsNetworkRule extends NetworkRule {
 							byte[] fragment = record.getFragmentBytes();
 							if (fragment != null && fragment.length > 6) {
 								HandshakeType type = HandshakeType.getTypeByCode(fragment[0] & 0xff);
-								int seqn = (fragment[4] & 0xff) << 8 | (fragment[5]  & 0xff);
+								int seqn = (fragment[4] & 0xff) << 8 | (fragment[5] & 0xff);
 								builder.append(", ").append(type).append(", HSeqNo=").append(seqn);
 							}
 						}
@@ -95,7 +98,7 @@ public class DtlsNetworkRule extends NetworkRule {
 				return "decode " + data.length + " received bytes with " + ex.getMessage();
 			}
 		}
-	
+
 	};
 
 	/**
@@ -112,4 +115,37 @@ public class DtlsNetworkRule extends NetworkRule {
 		return (DtlsNetworkRule) super.setDelay(delayInMillis);
 	}
 
+	/**
+	 * Create new configuration for testing.
+	 * 
+	 * @return configurations. Detached from the standard configuration.
+	 */
+	@Override
+	public Configuration createTestConfig() {
+		DtlsConfig.register();
+		Configuration config = super.createTestConfig();
+		return config;
+	}
+
+	/**
+	 * Create new client configuration for testing.
+	 * 
+	 * @return configurations. Detached from the standard configuration.
+	 */
+	public Configuration createClientTestConfig() {
+		Configuration config = createTestConfig();
+		config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		return config;
+	}
+
+	/**
+	 * Create new server configuration for testing.
+	 * 
+	 * @return configurations. Detached from the standard configuration.
+	 */
+	public Configuration createServerTestConfig() {
+		Configuration config = createTestConfig();
+		config.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY);
+		return config;
+	}
 }

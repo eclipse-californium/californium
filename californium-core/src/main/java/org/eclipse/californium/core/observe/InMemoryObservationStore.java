@@ -33,9 +33,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,11 +48,11 @@ public final class InMemoryObservationStore implements ObservationStore {
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final ConcurrentMap<Token, Observation> map = new ConcurrentHashMap<>();
 	private volatile boolean enableStatus;
-	private final NetworkConfig config;
+	private final Configuration config;
 	private ScheduledFuture<?> statusLogger;
 	private ScheduledExecutorService executor;
 
-	public InMemoryObservationStore(NetworkConfig config) {
+	public InMemoryObservationStore(Configuration config) {
 		this.config = config;
 	}
 	
@@ -159,8 +159,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 
 	@Override
 	public synchronized void start() {
-		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL,
-				NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
+		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
 
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && executor != null) {
 			statusLogger = executor.scheduleAtFixedRate(new Runnable() {
@@ -180,7 +179,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 						}
 					}
 				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 

@@ -24,7 +24,7 @@ import java.util.List;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.TestScope;

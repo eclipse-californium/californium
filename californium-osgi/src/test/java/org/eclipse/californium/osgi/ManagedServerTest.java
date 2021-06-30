@@ -31,10 +31,11 @@ import java.util.List;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
 import org.junit.Before;
 import org.junit.Test;
 import org.osgi.framework.BundleContext;
@@ -52,31 +53,31 @@ public class ManagedServerTest {
 	List<Endpoint> endpointList = new LinkedList<Endpoint>();
 	Endpoint standardEndpoint;
 	Endpoint secureEndpoint;
-	
+
 	InetSocketAddress standardAddress = new InetSocketAddress(CoAP.DEFAULT_COAP_PORT);
 	InetSocketAddress secureAddress = new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT);
-	
+
 	@Before
 	public void setUp() {
-		
+
 		standardEndpoint = mock(Endpoint.class);
 		secureEndpoint = mock(Endpoint.class);
 		when(standardEndpoint.getAddress()).thenReturn(standardAddress);
 		when(secureEndpoint.getAddress()).thenReturn(secureAddress);
-		
+
 		server = mock(ServerInterface.class);
 		when(server.getEndpoints()).thenReturn(endpointList);
-		
+
 		bundleContext = mock(BundleContext.class);
 		serverFactory = new ServerInterfaceFactory() {
-			
+
 			@Override
-			public ServerInterface newServer(NetworkConfig config) {
+			public ServerInterface newServer(Configuration config) {
 				return newServer(config, CoAP.DEFAULT_COAP_PORT);
 			}
 
 			@Override
-			public ServerInterface newServer(NetworkConfig config, int... ports) {
+			public ServerInterface newServer(Configuration config, int... ports) {
 				for (int port : ports) {
 					if (port == standardAddress.getPort()) {
 						endpointList.add(standardEndpoint);
@@ -89,37 +90,37 @@ public class ManagedServerTest {
 				return server;
 			}
 		};
-		
+
 		secureEndpointFactory = new EndpointFactory() {
-			
+
 			@Override
-			public Endpoint getSecureEndpoint(NetworkConfig config,
+			public Endpoint getSecureEndpoint(Configuration config,
 					InetSocketAddress address) {
 				return secureEndpoint;
 			}
-			
+
 			@Override
-			public Endpoint getEndpoint(NetworkConfig config, InetSocketAddress address) {
+			public Endpoint getEndpoint(Configuration config, InetSocketAddress address) {
 				return standardEndpoint;
 			}
 		};
 
 		endpointFactory = new EndpointFactory() {
-			
+
 			@Override
-			public Endpoint getSecureEndpoint(NetworkConfig config,
+			public Endpoint getSecureEndpoint(Configuration config,
 					InetSocketAddress address) {
 				return null;
 			}
-			
+
 			@Override
-			public Endpoint getEndpoint(NetworkConfig config, InetSocketAddress address) {
+			public Endpoint getEndpoint(Configuration config, InetSocketAddress address) {
 				return standardEndpoint;
 			}
 		};
 		managedServer = new ManagedServer(bundleContext, serverFactory, endpointFactory);
 	}
-	
+
 	@Test
 	public void testUpdatedDestroysAndCreatesServer() throws Exception {
 		managedServer.updated(null);
@@ -130,7 +131,7 @@ public class ManagedServerTest {
 		verify(server).destroy();
 		verify(server).start();
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testAddingService() throws Exception {
@@ -138,7 +139,7 @@ public class ManagedServerTest {
 		ServiceReference<Resource> ref = mock(ServiceReference.class);
 		when(bundleContext.getService(ref)).thenReturn(resource);
 		managedServer.updated(null);
-		
+
 		Resource addedResource = managedServer.addingService(ref);
 		assertEquals(resource, addedResource);
 		verify(server).add(resource);
@@ -151,45 +152,44 @@ public class ManagedServerTest {
 		ServiceReference<Resource> ref = mock(ServiceReference.class);
 		when(bundleContext.getService(ref)).thenReturn(resource);
 		managedServer.updated(null);
-		
+
 		managedServer.removedService(ref, resource);
 		verify(server).remove(resource);
 	}
 
-	
 	@Test
 	public void testSecureEndpointRequiresSecureEndpointFactory() throws Exception {
 		Dictionary<String, String> props = new Hashtable<String, String>();
-		props.put(NetworkConfig.Keys.COAP_SECURE_PORT, Integer.toString(CoAP.DEFAULT_COAP_SECURE_PORT));
+		props.put(CoapConfig.COAP_SECURE_PORT.getKey(), Integer.toString(CoAP.DEFAULT_COAP_SECURE_PORT));
 		managedServer.updated(props);
 		assertFalse(server.getEndpoints().isEmpty());
 		// verify that the secure CoAP endpoint has not been registered 
 		verify(server, times(0)).addEndpoint(secureEndpoint);
 	}
-	
+
 	@Test
 	public void testServiceRegistersEndpoints() throws Exception {
 
 		Dictionary<String, String> props = new Hashtable<String, String>();
-		props.put(NetworkConfig.Keys.COAP_SECURE_PORT, Integer.toString(CoAP.DEFAULT_COAP_SECURE_PORT));
-		
+		props.put(CoapConfig.COAP_SECURE_PORT.getKey(), Integer.toString(CoAP.DEFAULT_COAP_SECURE_PORT));
+
 		managedServer = new ManagedServer(bundleContext, serverFactory, secureEndpointFactory);
 		managedServer.updated(props);
-		
+
 		assertFalse(server.getEndpoints().isEmpty());
 		verify(server).addEndpoint(secureEndpoint);
 	}
-	
+
 	@Test
 	public void testEndpointRegistryRetrievesEndpointsFromManagedServer() throws Exception {
-		
-        managedServer.updated(null);
-        managedServer.getEndpoint(standardAddress);
-        managedServer.getEndpoint(CoAP.DEFAULT_COAP_PORT);
-        managedServer.getAllEndpoints();
 
-        verify(server).getEndpoint(standardAddress);
-        verify(server).getEndpoint(CoAP.DEFAULT_COAP_PORT);
-        verify(server).getEndpoints();
+		managedServer.updated(null);
+		managedServer.getEndpoint(standardAddress);
+		managedServer.getEndpoint(CoAP.DEFAULT_COAP_PORT);
+		managedServer.getAllEndpoints();
+
+		verify(server).getEndpoint(standardAddress);
+		verify(server).getEndpoint(CoAP.DEFAULT_COAP_PORT);
+		verify(server).getEndpoints();
 	}
 }

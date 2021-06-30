@@ -84,9 +84,12 @@ public final class SignatureAndHashAlgorithm {
 		 * Gets an algorithm by its code.
 		 * 
 		 * @param code The algorithm's code.
-		 * @return The algorithm or {@code null} if no algorithm is defined for the given code by
-		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246, Appendix A.4.1</a>, or
-		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422, Section 5.1.3</a>.
+		 * @return The algorithm or {@code null} if no algorithm is defined for
+		 *         the given code by
+		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1"
+		 *         target="_blank">RFC 5246, Appendix A.4.1</a>, or
+		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3"
+		 *         target="_blank">RFC 8422, Section 5.1.3</a>.
 		 */
 		public static HashAlgorithm getAlgorithmByCode(int code) {
 			switch (code) {
@@ -114,8 +117,10 @@ public final class SignatureAndHashAlgorithm {
 
 		/**
 		 * Gets the code of this algorithm as defined by
-		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246, Appendix A.4.1</a>, or
-		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422, Section 5.1.3</a>.
+		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target=
+		 * "_blank">RFC 5246, Appendix A.4.1</a>, or
+		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target=
+		 * "_blank">RFC 8422, Section 5.1.3</a>.
 		 * 
 		 * @return The code.
 		 */
@@ -130,12 +135,14 @@ public final class SignatureAndHashAlgorithm {
 
 	/**
 	 * Signature algorithms as defined by
-	 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a>.
+	 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target=
+	 * "_blank">RFC 5246</a>.
 	 * <p>
 	 * Code is at most 255 (1 byte needed for representation).
 	 * 
 	 * Since 2.4: added {@link #ED25519} and {@link #ED448} defined by
-	 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422</a>.
+	 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target=
+	 * "_blank">RFC 8422</a>.
 	 */
 	public static enum SignatureAlgorithm {
 
@@ -176,9 +183,12 @@ public final class SignatureAndHashAlgorithm {
 		 * Gets an algorithm by its code.
 		 * 
 		 * @param code The algorithm's code.
-		 * @return The algorithm or {@code null} if no algorithm is defined for the given code by
-		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246, Appendix A.4.1</a>, or
-		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422, Section 5.1.3</a>.
+		 * @return The algorithm or {@code null} if no algorithm is defined for
+		 *         the given code by
+		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1"
+		 *         target="_blank">RFC 5246, Appendix A.4.1</a>, or
+		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3"
+		 *         target="_blank">RFC 8422, Section 5.1.3</a>.
 		 */
 		public static SignatureAlgorithm getAlgorithmByCode(int code) {
 			switch (code) {
@@ -202,8 +212,10 @@ public final class SignatureAndHashAlgorithm {
 
 		/**
 		 * Gets the code of this algorithm as defined by
-		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246, Appendix A.4.1</a>, or
-		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422, Section 5.1.3</a>.
+		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target=
+		 * "_blank">RFC 5246, Appendix A.4.1</a>, or
+		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target=
+		 * "_blank">RFC 8422, Section 5.1.3</a>.
 		 * 
 		 * @return The code.
 		 */
@@ -310,25 +322,31 @@ public final class SignatureAndHashAlgorithm {
 	 * Get signature and hash algorithm from JCA name.
 	 * 
 	 * @param jcaName name of signature and hash algorithm. e.g.
-	 *            "SHA256withECDSA".
+	 *            "SHA256withECDSA". If "with" is not contained in the provided
+	 *            name, {@link HashAlgorithm#INTRINSIC} is assumed.
 	 * @return signature and hash algorithm, or {@code null}, if signature or
 	 *         hash is unknown.
 	 * 
-	 * @since 2.3
+	 * @since 3.0 (added {@link HashAlgorithm#INTRINSIC} as default)
 	 */
 	public static SignatureAndHashAlgorithm valueOf(String jcaName) {
 		int index = jcaName.indexOf("with");
 		if (index < 0) {
 			index = jcaName.indexOf("WITH");
 		}
+		HashAlgorithm hashAlgorithm;
+		SignatureAlgorithm signatureAlgorithm;
 		if (0 < index) {
 			String hash = jcaName.substring(0, index);
 			String signature = jcaName.substring(index + 4, jcaName.length());
-			HashAlgorithm hashAlgorithm = HashAlgorithm.valueOf(hash);
-			SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.valueOf(signature);
-			if (hashAlgorithm != null && signatureAlgorithm != null) {
-				return new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
-			}
+			hashAlgorithm = HashAlgorithm.valueOf(hash);
+			signatureAlgorithm = SignatureAlgorithm.valueOf(signature);
+		} else {
+			hashAlgorithm = HashAlgorithm.INTRINSIC;
+			signatureAlgorithm = SignatureAlgorithm.valueOf(jcaName);
+		}
+		if (hashAlgorithm != null && signatureAlgorithm != null) {
+			return new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 		}
 		return null;
 	}
@@ -569,10 +587,8 @@ public final class SignatureAndHashAlgorithm {
 	/**
 	 * Creates an instance for corresponding algorithm codes.
 	 * 
-	 * @param hashAlgorithmCode
-	 *            the hash algorithm's code.
-	 * @param signatureAlgorithmCode
-	 *            the signature algorithm's code.
+	 * @param hashAlgorithmCode the hash algorithm's code.
+	 * @param signatureAlgorithmCode the signature algorithm's code.
 	 */
 	public SignatureAndHashAlgorithm(int hashAlgorithmCode, int signatureAlgorithmCode) {
 		this.hashAlgorithmCode = hashAlgorithmCode;
@@ -617,15 +633,21 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Gets the <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature" target="_blank">
-	 * JCA standard name</a> corresponding to this combination of hash and signature algorithm.
+	 * Gets the <a href=
+	 * "https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature"
+	 * target="_blank"> JCA standard name</a> corresponding to this combination
+	 * of hash and signature algorithm.
 	 * <p>
-	 * The name returned by this method can be used to instantiate a {@code java.security.Signature} object like this:
+	 * The name returned by this method can be used to instantiate a
+	 * {@code java.security.Signature} object like this:
+	 * 
 	 * <pre>
+	 * 
 	 * Signature signature = Signature.newInstance(signatureAndHash.jcaName());
 	 * </pre>
 	 * 
-	 * @return The name, or {@code null}, if name is not available/not known by this implementation.
+	 * @return The name, or {@code null}, if name is not available/not known by
+	 *         this implementation.
 	 * 
 	 * @since 2.3
 	 */

@@ -53,11 +53,14 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
@@ -124,8 +127,9 @@ public class HandshakerTest {
 
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
 				.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build();
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder();
-		builder.setClientOnly();
+		Configuration configuration = new Configuration();
+		configuration.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
 		builder.setAdvancedCertificateVerifier(verifier);
 
 		handshakerWithoutAnchors = new TestHandshaker(session, recordLayer, builder.build());
@@ -133,8 +137,7 @@ public class HandshakerTest {
 		verifier = StaticNewAdvancedCertificateVerifier.builder()
 				.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey))
 				.setTrustedCertificates(trustAnchor).build();
-		builder = DtlsConnectorConfig.builder();
-		builder.setClientOnly();
+		builder = DtlsConnectorConfig.builder(configuration);
 		builder.setAdvancedCertificateVerifier(verifier);
 
 		handshakerWithAnchors = new TestHandshaker(session, recordLayer, builder.build());
@@ -148,7 +151,9 @@ public class HandshakerTest {
 
 	@Test
 	public void testProcessMessageBuffersUnexpectedChangeCipherSpecMessage() throws Exception {
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientOnly()
+		Configuration configuration = new Configuration();
+		configuration.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration)
 				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
 						.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build());
 
@@ -177,7 +182,9 @@ public class HandshakerTest {
 
 	@Test
 	public void testProcessMessageBuffersFinishedMessageUntilChangeCipherSpecIsReceived() throws Exception {
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientOnly()
+		Configuration configuration = new Configuration();
+		configuration.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration)
 				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
 						.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build());
 

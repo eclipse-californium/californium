@@ -28,7 +28,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
@@ -55,7 +56,7 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 	 * 
 	 * The following configuration value is used:
 	 * <ul>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
+	 * <li>{@link CoapConfig#EXCHANGE_LIFETIME}
 	 * - each message ID returned by <em>getNextMessageId</em> is marked as
 	 * <em>in use</em> for this amount of time (ms).</li>
 	 * </ul>
@@ -66,8 +67,9 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 	 * @param config configuration
 	 * @throws IllegalArgumentException if minMid is not smaller than maxMid or
 	 *             initialMid is not in the range of minMid and maxMid
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public MapBasedMessageIdTracker(int initialMid, int minMid, int maxMid, NetworkConfig config) {
+	public MapBasedMessageIdTracker(int initialMid, int minMid, int maxMid, Configuration config) {
 		if (minMid >= maxMid) {
 			throw new IllegalArgumentException("max. MID " + maxMid + " must be larger than min. MID " + minMid + "!");
 		}
@@ -75,7 +77,7 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 			throw new IllegalArgumentException(
 					"initial MID " + initialMid + " must be in range [" + minMid + "-" + maxMid + ")!");
 		}
-		exchangeLifetimeNanos = TimeUnit.MILLISECONDS.toNanos(config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME));
+		exchangeLifetimeNanos = config.get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.NANOSECONDS);
 		counter = initialMid - minMid;
 		min = minMid;
 		range = maxMid - minMid;

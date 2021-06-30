@@ -58,11 +58,12 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.TestCondition;
@@ -102,7 +103,7 @@ public class ObserveServerSideTest {
 
 	private static final int ACK_TIMEOUT = 200;
 	private static final String RESOURCE_PATH = "obs";
-	private static NetworkConfig CONFIG;
+	private static Configuration CONFIG;
 
 	private static InetSocketAddress serverAddress;
 	private static CoapTestEndpoint serverEndpoint;
@@ -119,15 +120,15 @@ public class ObserveServerSideTest {
 	@BeforeClass
 	public static void start() {
 		CONFIG = network.createTestConfig()
-				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT)
-				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
-				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
-				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 200)
-				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 247)
-				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, 100)
-				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 300);
+				.set(CoapConfig.ACK_TIMEOUT, ACK_TIMEOUT, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 32)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 32)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.EXCHANGE_LIFETIME, 247, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_INTERVAL, 100, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.BLOCKWISE_STATUS_LIFETIME, 300, TimeUnit.MILLISECONDS);
 
 		testObsResource = new TestObserveResource(RESOURCE_PATH);
 
@@ -145,7 +146,7 @@ public class ObserveServerSideTest {
 	@Before
 	public void setupClient() throws Exception {
 
-		client = createLockstepEndpoint(serverAddress);
+		client = createLockstepEndpoint(serverAddress, CONFIG);
 		testObsResource.clearObserveRelations();
 		testObsResource.setSeparateResponse(false);
 		testObsResource.setObserveType(NON);

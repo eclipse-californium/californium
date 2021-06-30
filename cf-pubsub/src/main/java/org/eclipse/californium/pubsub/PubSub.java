@@ -23,6 +23,8 @@
  ******************************************************************************/
 package org.eclipse.californium.pubsub;
 
+import java.io.IOException;
+
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
@@ -30,11 +32,11 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import java.io.IOException;
 /**
  * A PubsSub instance can be used to establish a Publish Subscribe client
  * according to the IETF Publish-Subscribe Model for the Constrained Application
@@ -56,7 +58,7 @@ public class PubSub {
     private String host;
     private int port;
     private long timeout;
-    private NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+    private Configuration config = Configuration.createStandardWithoutFile();
 
     /**
      * Creates an instance of PubSub with the port set to 5683 (CoAP default port) and timeout 5000 milliseconds
@@ -81,18 +83,18 @@ public class PubSub {
     }
 
     /**
-     * @return an empty network configuration of the PubSub instance
+     * @return an empty configuration of the PubSub instance
      * which can be changed and then set with the setter function
      */
-    public NetworkConfig getConfig() {
+    public Configuration getConfig() {
         return config;
     }
 
     /**
-     * Sets the network configuration of the PubSub instance
-     * @param config network configuration
+     * Sets the configuration of the PubSub instance
+     * @param config configuration
      */
-    public void setConfig(NetworkConfig config) {
+    public void setConfig(Configuration config) {
         this.config = config;
     }
 
@@ -321,7 +323,7 @@ public class PubSub {
             req.setURI(client.getURI());
             req.setObserve();
 
-            config.set(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, 4);
+            config.set(CoapConfig.TOKEN_SIZE_LIMIT, 4);
             RandomTokenGenerator rand = new RandomTokenGenerator(config);
             Token token = rand.createToken(Scope.SHORT_TERM_CLIENT_LOCAL);
             req.setToken(token);

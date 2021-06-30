@@ -27,6 +27,8 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -160,14 +162,16 @@ public class UdpMulticastConnector extends UDPConnector {
 	 * @param groups list of multicast groups and network interfaces to join. If
 	 *            no broadcast nor multicast address is used as local address,
 	 *            this list must not be empty.
+	 * @param configuration configuration with {@link UdpConfig} definitions.
 	 * @param multicastReceiver enable use as multicast-receiver. Fails, if the
 	 *            connector doesn't joins exactly one group.
 	 * @throws IllegalArgumentException if multicastReceiver is requested but
 	 *             not exactly one broadcast or multicast address is provided.
 	 */
 	private UdpMulticastConnector(InetSocketAddress localSocketAddress, InetAddress outgoingAddress,
-			NetworkInterface outgoingInterface, List<Join> groups, boolean multicastReceiver) {
-		super(localSocketAddress);
+			NetworkInterface outgoingInterface, List<Join> groups, boolean multicastReceiver,
+			Configuration configuration) {
+		super(localSocketAddress, configuration);
 		setReuseAddress(true);
 		this.outgoingInterface = outgoingInterface;
 		this.outgoingAddress = outgoingAddress;
@@ -337,6 +341,7 @@ public class UdpMulticastConnector extends UDPConnector {
 		private NetworkInterface outgoingInterface;
 		private List<Join> groups = new ArrayList<Join>();
 		private boolean multicastReceiver;
+		private Configuration configuration;
 
 		/**
 		 * Create Builder.
@@ -482,6 +487,21 @@ public class UdpMulticastConnector extends UDPConnector {
 		}
 
 		/**
+		 * Set configuration with {@link UdpConfig} definitions.
+		 * 
+		 * If not set, {@link Configuration#getStandard()} is used.
+		 * 
+		 * @param configuration configuration with {@link UdpConfig}
+		 *            definitions.
+		 * @return this builder for command chaining
+		 * @since 3.0
+		 */
+		public Builder setConfiguration(Configuration configuration) {
+			this.configuration = configuration;
+			return this;
+		}
+
+		/**
 		 * Create connector from parameters.
 		 * 
 		 * @return created connector
@@ -490,8 +510,11 @@ public class UdpMulticastConnector extends UDPConnector {
 		 *             provided.
 		 */
 		public UdpMulticastConnector build() {
+			if (configuration == null) {
+				configuration = Configuration.getStandard();
+			}
 			return new UdpMulticastConnector(localSocketAddress, outgoingAddress, outgoingInterface, groups,
-					multicastReceiver);
+					multicastReceiver, configuration);
 		}
 	}
 }

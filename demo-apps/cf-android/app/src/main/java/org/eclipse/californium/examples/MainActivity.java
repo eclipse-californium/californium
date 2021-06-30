@@ -18,8 +18,6 @@ package org.eclipse.californium.examples;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -32,11 +30,13 @@ import android.widget.TextView;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 import java.util.concurrent.Executor;
@@ -162,7 +162,9 @@ public class MainActivity extends Activity {
      * and dtls connector.
      */
     private void initCoapEndpoint() {
-        NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+        CoapConfig.register();
+        DtlsConfig.register();
+        Configuration config = Configuration.createStandardWithoutFile();
         // setup coap EndpointManager to dtls connector
         DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
         dtlsConfig.setClientOnly();
@@ -171,13 +173,13 @@ public class MainActivity extends Activity {
         DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
 
         CoapEndpoint.Builder dtlsEndpointBuilder = new CoapEndpoint.Builder();
-        dtlsEndpointBuilder.setNetworkConfig(config);
+        dtlsEndpointBuilder.setConfiguration(config);
         dtlsEndpointBuilder.setConnector(dtlsConnector);
         EndpointManager.getEndpointManager().setDefaultEndpoint(dtlsEndpointBuilder.build());
         // setup coap EndpointManager to udp connector
         CoapEndpoint.Builder udpEndpointBuilder = new CoapEndpoint.Builder();
         UDPConnector udpConnector = new UDPConnector();
-        udpEndpointBuilder.setNetworkConfig(config);
+        udpEndpointBuilder.setConfiguration(config);
         udpEndpointBuilder.setConnector(udpConnector);
         EndpointManager.getEndpointManager().setDefaultEndpoint(udpEndpointBuilder.build());
     }

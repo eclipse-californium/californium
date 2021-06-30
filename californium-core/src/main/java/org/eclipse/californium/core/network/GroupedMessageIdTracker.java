@@ -23,8 +23,8 @@ package org.eclipse.californium.core.network;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
@@ -84,10 +84,10 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 	 * 
 	 * The following configuration values are used:
 	 * <ul>
-	 * <li>{@link Keys#MID_TRACKER_GROUPS}
+	 * <li>{@link CoapConfig#MID_TRACKER_GROUPS}
 	 * - determine the group size for the message IDs. Each group is marked as
 	 * <em>in use</em>, if a MID within the group is used.</li>
-	 * <li>{@link Keys#EXCHANGE_LIFETIME}
+	 * <li>{@link CoapConfig#EXCHANGE_LIFETIME}
 	 * - each group of a message ID returned by <em>getNextMessageId</em> is
 	 * marked as <em>in use</em> for this amount of time (ms).</li>
 	 * </ul>
@@ -98,8 +98,9 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 	 * @param config configuration
 	 * @throws IllegalArgumentException if minMid is not smaller than maxMid or
 	 *             initialMid is not in the range of minMid and maxMid
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public GroupedMessageIdTracker(int initialMid, int minMid, int maxMid, NetworkConfig config) {
+	public GroupedMessageIdTracker(int initialMid, int minMid, int maxMid, Configuration config) {
 		if (minMid >= maxMid) {
 			throw new IllegalArgumentException("max. MID " + maxMid + " must be larger than min. MID " + minMid + "!");
 		}
@@ -107,11 +108,11 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 			throw new IllegalArgumentException(
 					"initial MID " + initialMid + " must be in range [" + minMid + "-" + maxMid + ")!");
 		}
-		exchangeLifetimeNanos = TimeUnit.MILLISECONDS.toNanos(config.getLong(Keys.EXCHANGE_LIFETIME));
+		exchangeLifetimeNanos = config.get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.NANOSECONDS);
 		currentMID = initialMid - minMid;
 		this.min = minMid;
 		this.range = maxMid - minMid;
-		this.numberOfGroups = config.getInt(NetworkConfig.Keys.MID_TRACKER_GROUPS);
+		this.numberOfGroups = config.get(CoapConfig.MID_TRACKER_GROUPS);
 		this.sizeOfGroups = (range + numberOfGroups - 1) / numberOfGroups;
 		midLease = new long[numberOfGroups];
 		Arrays.fill(midLease, ClockUtil.nanoRealtime() - 1000);

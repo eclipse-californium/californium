@@ -25,10 +25,10 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -39,7 +39,6 @@ import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Local server service.
@@ -76,7 +75,7 @@ public class ServerService extends Service {
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+                Configuration config = Configuration.createStandardWithoutFile();
                 CoapServer server = new CoapServer(config);
                 NetworkInterface multicast = NetworkInterfacesUtil.getMulticastInterface();
                 if (multicast == null) {
@@ -127,12 +126,12 @@ public class ServerService extends Service {
         }
     }
 
-    private void setupUdp(CoapServer server, NetworkConfig config) {
+    private void setupUdp(CoapServer server, Configuration config) {
         UDPConnector connector = new UDPConnector(new InetSocketAddress(CoAP_PORT));
         setupUdp(server, config, connector);
     }
 
-    private void setupUdpIpv4(CoapServer server, NetworkConfig config) {
+    private void setupUdpIpv4(CoapServer server, Configuration config) {
         NetworkInterface multicast = NetworkInterfacesUtil.getMulticastInterface();
         Inet4Address address4 = NetworkInterfacesUtil.getMulticastInterfaceIpv4();
 
@@ -151,7 +150,7 @@ public class ServerService extends Service {
         setupUdp(server, config, connector);
     }
 
-    private void setupUdpIpv6(CoapServer server, NetworkConfig config) {
+    private void setupUdpIpv6(CoapServer server, Configuration config) {
         NetworkInterface multicast = NetworkInterfacesUtil.getMulticastInterface();
         Inet6Address address6 = NetworkInterfacesUtil.getMulticastInterfaceIpv6();
 
@@ -171,20 +170,20 @@ public class ServerService extends Service {
         setupUdp(server, config, connector);
     }
 
-    private void setupUdp(CoapServer server, NetworkConfig config, UDPConnector connector) {
+    private void setupUdp(CoapServer server, Configuration config, UDPConnector connector) {
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-        builder.setNetworkConfig(config);
+        builder.setConfiguration(config);
         builder.setConnectorWithAutoConfiguration(connector);
         server.addEndpoint(builder.build());
     }
 
-    private void setupDtls(CoapServer server, NetworkConfig config) {
+    private void setupDtls(CoapServer server, Configuration config) {
         DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
         dtlsConfig.setAddress(new InetSocketAddress(DTLS_PORT));
         ConfigureDtls.loadCredentials(dtlsConfig, SERVER_NAME);
         DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-        builder.setNetworkConfig(config);
+        builder.setConfiguration(config);
         builder.setConnector(connector);
         server.addEndpoint(builder.build());
     }

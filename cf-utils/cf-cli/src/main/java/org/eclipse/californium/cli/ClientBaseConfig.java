@@ -75,12 +75,12 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public Integer localPort;
 
 	/**
-	 * DTLS auto-resumption timeout in milliseconds.
+	 * DTLS auto-handshake timeout. Format: time[unit].
 	 * 
 	 * @since 3.0
 	 */
-	@Option(names = "--dtls-auto-resumption", description = "enable dtls auto-resumption. Value in milliseconds. Default disabled. Recommended value to use 30000 (30s).")
-	public Long dtlsAutoResumption;
+	@Option(names = "--dtls-auto-handshake", description = "enable dtls auto-handshake with provided timeout. Value in format time[unit], e.g. the recommended value of \"30[s]\". Or time|unit, e.g. 30s. Default disabled.")
+	public String dtlsAutoHandshake;
 
 	/**
 	 * Destination URI.
