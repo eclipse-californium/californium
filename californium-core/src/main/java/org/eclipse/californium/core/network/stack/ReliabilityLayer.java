@@ -45,14 +45,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextUtil;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,14 +73,23 @@ public class ReliabilityLayer extends AbstractLayer {
 	private final AtomicInteger counter = new AtomicInteger();
 
 	/**
-	 * Constructs a new reliability layer. Changes to the configuration are
-	 * observed and automatically applied.
+	 * Leisure for multicast server in milliseconds.
+	 * 
+	 * @since 3.0
+	 */
+	private final int maxLeisureMillis;
+
+	/**
+	 * Constructs a new reliability layer.
 	 * 
 	 * @param config the configuration
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public ReliabilityLayer(NetworkConfig config) {
+	public ReliabilityLayer(Configuration config) {
 		defaultReliabilityLayerParameters = ReliabilityLayerParameters.builder().applyConfig(config).build();
-		LOGGER.trace("ReliabilityLayer uses ACK_TIMEOUT={}, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={} as default",
+		maxLeisureMillis = config.getTimeAsInt(CoapConfig.LEISURE, TimeUnit.MILLISECONDS);
+		LOGGER.trace("Max. leisure for multicast server={}ms", maxLeisureMillis);
+		LOGGER.trace("ReliabilityLayer uses ACK_TIMEOUT={}ms, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={} as default",
 				defaultReliabilityLayerParameters.getAckTimeout(),
 				defaultReliabilityLayerParameters.getAckRandomFactor(),
 				defaultReliabilityLayerParameters.getAckTimeoutScale());
@@ -127,7 +137,17 @@ public class ReliabilityLayer extends AbstractLayer {
 	public void sendResponse(Exchange exchange, Response response) {
 		LOGGER.debug("{} send response {}", exchange, response);
 		prepareResponse(exchange, response);
-		lower().sendResponse(exchange, response);
+		if (exchange.getCurrentRequest().isMulticast() && response.getType() == Type.NON) {
+			int leisure;
+			synchronized (rand) {
+				leisure = rand.nextInt(maxLeisureMillis);
+			}
+			DelayedResponseTask task = new DelayedResponseTask(exchange, response);
+			ScheduledFuture<?> f = executor.schedule(task, leisure, TimeUnit.MILLISECONDS);
+			exchange.setRetransmissionHandle(f);
+		} else {
+			lower().sendResponse(exchange, response);
+		}
 	}
 
 	protected void prepareResponse(Exchange exchange, Response response) {
@@ -419,9 +439,9 @@ public class ReliabilityLayer extends AbstractLayer {
 	}
 
 	/**
-	 * Returns a random timeout between the specified min and max.
+	 * Returns a random timeout between the specified minimum and maximum.
 	 * 
-	 * @param ackTimeout ack timeout in milliseconds
+	 * @param ackTimeout acknowledge timeout in milliseconds
 	 * @param randomFactor random factor. Intended to be above 1.5.
 	 * @return a random value between ackTimeout and ackTimeout * randomFactor
 	 */
@@ -429,9 +449,31 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (randomFactor <= 1.0) {
 			return ackTimeout;
 		}
-		int delta = (int) (ackTimeout * randomFactor) - ackTimeout;
+		int delta = (int) (ackTimeout * randomFactor) - ackTimeout + 1;
 		synchronized (rand) {
-			return ackTimeout + rand.nextInt(delta + 1);
+			return ackTimeout + rand.nextInt(delta);
+		}
+	}
+
+	private class DelayedResponseTask implements Runnable {
+
+		protected final Exchange exchange;
+		protected final Response response;
+
+		private DelayedResponseTask(Exchange exchange, Response response) {
+			this.exchange = exchange;
+			this.response = response;
+		}
+
+		@Override
+		public void run() {
+			exchange.execute(new Runnable() {
+
+				@Override
+				public void run() {
+					lower().sendResponse(exchange, response);
+				}
+			});
 		}
 	}
 
@@ -446,7 +488,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		protected final Exchange exchange;
 		protected final Message message;
 
-		private RetransmissionTask(final Exchange exchange, final Message message) {
+		private RetransmissionTask(Exchange exchange, Message message) {
 			super(true);
 			this.exchange = exchange;
 			this.message = message;

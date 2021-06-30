@@ -29,17 +29,22 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.CongestionControlMode;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.stack.RemoteEndpoint.RtoType;
-import org.eclipse.californium.core.network.stack.congestioncontrol.*;
+import org.eclipse.californium.core.network.stack.congestioncontrol.BasicRto;
+import org.eclipse.californium.core.network.stack.congestioncontrol.Cocoa;
+import org.eclipse.californium.core.network.stack.congestioncontrol.CongestionStatisticLogger;
+import org.eclipse.californium.core.network.stack.congestioncontrol.LinuxRto;
+import org.eclipse.californium.core.network.stack.congestioncontrol.PeakhopperRto;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 
 /**
@@ -122,7 +127,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	private LeastRecentlyUsedCache<InetSocketAddress, RemoteEndpoint> remoteEndpoints;
 
 	/** The configuration */
-	protected final NetworkConfig config;
+	protected final Configuration config;
 
 	/**
 	 * The logging tag.
@@ -142,20 +147,21 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * 
 	 * @param tag logging tag
 	 * @param config the configuration
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public CongestionControlLayer(String tag, NetworkConfig config) {
+	public CongestionControlLayer(String tag, Configuration config) {
 		super(config);
 		this.tag = tag;
 		this.config = config;
-		this.remoteEndpoints = new LeastRecentlyUsedCache<>(config.getInt(Keys.MAX_ACTIVE_PEERS, 150000),
-				config.getLong(Keys.MAX_PEER_INACTIVITY_PERIOD, 10 * 60));
+		this.remoteEndpoints = new LeastRecentlyUsedCache<>(config.get(CoapConfig.MAX_ACTIVE_PEERS),
+				config.get(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, TimeUnit.SECONDS));
 		this.remoteEndpoints.setEvictingOnReadAccess(false);
 		setDithering(false);
 	}
 
 	@Override
 	public void start() {
-		statistic = new CongestionStatisticLogger(tag, 5000, executor);
+		statistic = new CongestionStatisticLogger(tag, 5000, TimeUnit.MILLISECONDS, executor);
 		statistic.start();
 	}
 
@@ -655,24 +661,43 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		}
 	}
 
-	public static CongestionControlLayer newImplementation(String tag, NetworkConfig config) {
-
-		String implementation = config.getString(NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM, "Cocoa");
-		switch (implementation) {
-		case "Cocoa":
-			return new Cocoa(tag, config, false);
-		case "CocoaStrong":
-			return new Cocoa(tag, config, true);
-		case "BasicRto":
-			return new BasicRto(tag, config);
-		case "LinuxRto":
-			return new LinuxRto(tag, config);
-		case "PeakhopperRto":
-			return new PeakhopperRto(tag, config);
-		default:
-			LOGGER.info("configuration contains unsupported {}, using Cocoa",
-					NetworkConfig.Keys.CONGESTION_CONTROL_ALGORITHM);
-			return new Cocoa(tag, config, false);
+	/**
+	 * Create reliability layer based on the configuration.
+	 * 
+	 * @param tag logging tag
+	 * @param config configuration
+	 * @return reliability layer
+	 * @since 3.0
+	 */
+	public static ReliabilityLayer newImplementation(String tag, Configuration config) {
+		ReliabilityLayer layer = null;
+		CongestionControlMode mode = config.get(CoapConfig.CONGESTION_CONTROL_ALGORITHM);
+		switch (mode) {
+		case COCOA:
+			layer = new Cocoa(tag, config, false);
+			break;
+		case COCOA_STRONG:
+			layer = new Cocoa(tag, config, true);
+			break;
+		case BASIC_RTO:
+			layer = new BasicRto(tag, config);
+			break;
+		case LINUX_RTO:
+			layer = new LinuxRto(tag, config);
+			break;
+		case PEAKHOPPER_RTO:
+			layer = new PeakhopperRto(tag, config);
+			break;
+		case NULL:
+			layer = new ReliabilityLayer(config);
+			break;
 		}
+		if (layer != null) {
+			if (mode != CongestionControlMode.NULL) {
+				LOGGER.info("Enabling congestion control: {}", layer.getClass().getSimpleName());
+			}
+			return layer;
+		}
+		throw new IllegalArgumentException("Unsupported " + CoapConfig.CONGESTION_CONTROL_ALGORITHM.getKey());
 	}
 }

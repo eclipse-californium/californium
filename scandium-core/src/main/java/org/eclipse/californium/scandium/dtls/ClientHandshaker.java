@@ -59,6 +59,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -202,9 +203,9 @@ public class ClientHandshaker extends Handshaker {
 	protected final List<SupportedGroup> supportedGroups;
 
 	/**
-	 * Maximum fragment length code.
+	 * Maximum fragment length.
 	 */
-	protected final Integer maxFragmentLengthCode;
+	protected final Length maxFragmentLength;
 	/**
 	 * Truncate certificate path.
 	 */
@@ -258,7 +259,7 @@ public class ClientHandshaker extends Handshaker {
 		super(0, 0, recordLayer, timer, connection, config);
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 		this.supportedGroups = config.getSupportedGroups();
-		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
+		this.maxFragmentLength = config.getMaxFragmentLength();
 		this.truncateCertificatePath = config.useTruncatedCertificatePathForClientsCertificateMessage();
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
@@ -469,7 +470,7 @@ public class ClientHandshaker extends Handshaker {
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 			}
 			MaxFragmentLengthExtension.Length maxFragmentLength = maxFragmentLengthExtension.getFragmentLength();
-			if (maxFragmentLength.code() == maxFragmentLengthCode) {
+			if (this.maxFragmentLength == maxFragmentLength) {
 				// immediately use negotiated max. fragment size
 				session.setMaxFragmentLength(maxFragmentLength.length());
 			} else {
@@ -889,10 +890,10 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	protected void addMaxFragmentLength(final ClientHello helloMessage) {
-		if (maxFragmentLengthCode != null) {
-			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode);
+		if (maxFragmentLength != null) {
+			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLength);
 			helloMessage.addExtension(ext);
-			LOGGER.debug("Indicating max. fragment length [{}] to server [{}]", maxFragmentLengthCode, peerToLog);
+			LOGGER.debug("Indicating max. fragment length [{}] to server [{}]", maxFragmentLength, peerToLog);
 		}
 	}
 

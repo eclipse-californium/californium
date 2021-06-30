@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.NotForAndroid;
@@ -82,12 +83,14 @@ public class NetStatLogger extends CounterStatisticManager {
 	 * {@link #dump()} is called repeated with configurable interval.
 	 * 
 	 * @param tag logging tag
-	 * @param interval interval in seconds. {@code 0} to disable active logging.
+	 * @param interval interval. {@code 0} to disable active logging.
+	 * @param unit time unit of interval
 	 * @param executor executor executor to schedule active logging.
 	 * @throws NullPointerException if executor is {@code null}
+	 * @since 3.0 (added unit)
 	 */
-	public NetStatLogger(String tag, int interval, ScheduledExecutorService executor) {
-		super(tag, interval, executor);
+	public NetStatLogger(String tag, int interval, TimeUnit unit, ScheduledExecutorService executor) {
+		super(tag, interval, unit, executor);
 		if (isEnabled()) {
 			init();
 		}

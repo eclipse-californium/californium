@@ -62,16 +62,14 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EndpointContextTracer;
+import org.eclipse.californium.core.coap.Message.OffloadMode;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.ResponseTimeout;
-import org.eclipse.californium.core.coap.Message.OffloadMode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
@@ -81,6 +79,12 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -90,6 +94,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TimeStatistic;
 import org.eclipse.californium.extplugtests.resources.Feed;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
 import org.eclipse.californium.unixhealth.NetStatLogger;
@@ -117,11 +122,11 @@ public class BenchmarkClient {
 	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.extplugtests.statistics");
 
 	/**
-	 * File name for network configuration.
+	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("CaliforniumBenchmark.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumBenchmark3.properties");
 	/**
-	 * Header for network configuration.
+	 * Header for configuration.
 	 */
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Benchmark Client";
 	/**
@@ -142,51 +147,51 @@ public class BenchmarkClient {
 	private static final String DEFAULT_REQUESTS = "100";
 
 	/**
-	 * NetworkConfig key for number of threads used per client. {@code 0} to use
-	 * a shared thread pool.
+	 * Definition for number of threads used per client. {@code 0} to use a shared
+	 * thread pool.
 	 * <p>
 	 * Default: {@code 0}, use shared thread pool
 	 * <p>
-	 * Note: unfortunately the currently used synchronous socket requires at
-	 * least it's own receiver thread. So the number of threads is considered to
-	 * be used for the other components used by a client.
+	 * Note: unfortunately the currently used synchronous socket requires at least
+	 * it's own receiver thread. So the number of threads is considered to be used
+	 * for the other components used by a client.
 	 */
-	private static final String KEY_BENCHMARK_CLIENT_THREADS = "BENCHMARK_CLIENT_THREADS";
+	private static final IntegerDefinition BENCHMARK_CLIENT_THREADS = new IntegerDefinition("BENCHMARK_CLIENT_THREADS",
+			"Number of threads used per client. 0 to use a shared thread pool.");
 
 	private static final ThreadGroup CLIENT_THREAD_GROUP = new ThreadGroup("Client"); //$NON-NLS-1$
 
 	private static final NamedThreadFactory threadFactory = new DaemonThreadFactory("Client#", CLIENT_THREAD_GROUP);
 	/**
-	 * Special network configuration defaults handler.
+	 * Special configuration defaults handler.
 	 */
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
-			config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
-			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.setInt(Keys.NON_LIFETIME, 15 * 1000); // lifetime / timeout for non-requests
-			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
-			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
-			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
-			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
-			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s
-			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 30 * 1000); // 20s
-			config.setInt(Keys.TCP_WORKER_THREADS, 2);
-			config.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by cli option!
-			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
-			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
-			config.setInt(Keys.PROTOCOL_STAGE_THREAD_COUNT, 1);
-			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 8192);
-			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 8192);
-			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 0);
-			config.setInt(KEY_BENCHMARK_CLIENT_THREADS, 0);
-			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_TIMEOUT, 2000);
-			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_MAX, 2);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+			config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
+			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+			config.set(CoapConfig.NON_LIFETIME, 15, TimeUnit.SECONDS); // lifetime / timeout for non-requests
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
+			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 12, TimeUnit.HOURS);
+			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(TcpConfig.TCP_WORKER_THREADS, 2);
+			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by cli option!
+			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 1);
+			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 1);
+			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 1);
+			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
+			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 0, TimeUnit.SECONDS);
+			config.set(BENCHMARK_CLIENT_THREADS, 0);
+			config.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, 2);
 		}
 
 	};
@@ -331,6 +336,9 @@ public class BenchmarkClient {
 			if (bursts == null) {
 				Long value = StringUtil.getConfigurationLong("COAPS_HANDSHAKES_BURST");
 				bursts = value != null ? value.intValue() : 0;
+			}
+			if (requests < 1) {
+				requests = 1;
 			}
 		}
 	}
@@ -840,18 +848,18 @@ public class BenchmarkClient {
 		this.dtlsConnector = secure && connector instanceof DTLSConnector ? (DTLSConnector) connector : null;
 		this.id = endpoint.getTag();
 		this.uri = uri;
-		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
+		Configuration config = endpoint.getConfig();
+		int maxResourceSize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
-			int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
+			int threads = config.get(BENCHMARK_CLIENT_THREADS);
 			this.executorService = ExecutorsUtil.newScheduledThreadPool(threads, threadFactory);
 			this.shutdown = true;
 		} else {
 			this.executorService = executor;
 			this.shutdown = false;
 		}
-		NetworkConfig config = endpoint.getConfig();
-		this.ackTimeout =  config.getLong(Keys.ACK_TIMEOUT);
-		this.nonTimeout =  config.getLong(Keys.NON_LIFETIME);
+		this.ackTimeout =  config.getTimeAsInt(CoapConfig.ACK_TIMEOUT, TimeUnit.MILLISECONDS);
+		this.nonTimeout =  config.getTimeAsInt(CoapConfig.NON_LIFETIME, TimeUnit.MILLISECONDS);
 		endpoint.addInterceptor(new MessageTracer());
 		endpoint.setExecutors(this.executorService, secondaryExecutor);
 		this.client = new CoapClient(uri);
@@ -1062,12 +1070,12 @@ public class BenchmarkClient {
 	}
 
 	public static void main(String[] args) throws InterruptedException, IOException {
-
+		TcpConfig.register();
 		BenchmarkClient.args = args;
 		startManagamentStatistic();
-		config.networkConfigHeader = CONFIG_HEADER;
-		config.networkConfigDefaultHandler = DEFAULTS;
-		config.networkConfigFile = CONFIG_FILE;
+		config.configurationHeader = CONFIG_HEADER;
+		config.customConfigurationDefaultsProvider = DEFAULTS;
+		config.configurationFile = CONFIG_FILE;
 		ClientInitializer.init(args, config, false);
 
 		if (config.helpRequested) {
@@ -1084,12 +1092,12 @@ public class BenchmarkClient {
 
 		if (config.blockwiseOptions != null) {
 			if (config.blockwiseOptions.bertBlocks != null && config.blockwiseOptions.bertBlocks > 0) {
-				config.networkConfig.setInt(Keys.MAX_MESSAGE_SIZE, 1024);
-				config.networkConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 1024);
-				config.networkConfig.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, config.blockwiseOptions.bertBlocks);
+				config.configuration.set(CoapConfig.MAX_MESSAGE_SIZE, 1024);
+				config.configuration.set(CoapConfig.PREFERRED_BLOCK_SIZE, 1024);
+				config.configuration.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, config.blockwiseOptions.bertBlocks);
 			} else if (config.blockwiseOptions.blocksize != null) {
-				config.networkConfig.setInt(Keys.MAX_MESSAGE_SIZE, config.blockwiseOptions.blocksize);
-				config.networkConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, config.blockwiseOptions.blocksize);
+				config.configuration.set(CoapConfig.MAX_MESSAGE_SIZE, config.blockwiseOptions.blocksize);
+				config.configuration.set(CoapConfig.PREFERRED_BLOCK_SIZE, config.blockwiseOptions.blocksize);
 			}
 		}
 
@@ -1098,10 +1106,10 @@ public class BenchmarkClient {
 		}
 
 		if (config.timeout != null) {
-			config.networkConfig.setLong(Keys.NON_LIFETIME, config.timeout);
+			config.configuration.set(CoapConfig.NON_LIFETIME, config.timeout, TimeUnit.MILLISECONDS);
 		}
 
-		offload = config.networkConfig.getBoolean(Keys.USE_MESSAGE_OFFLOADING);
+		offload = config.configuration.get(CoapConfig.USE_MESSAGE_OFFLOADING);
 
 		URI tempUri;
 		try {
@@ -1131,7 +1139,7 @@ public class BenchmarkClient {
 		ScheduledExecutorService executor = ExecutorsUtil
 				.newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new DaemonThreadFactory("Aux#"));
 
-		final ScheduledExecutorService connectorExecutor = config.networkConfig.getInt(KEY_BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
+		final ScheduledExecutorService connectorExecutor = config.configuration.get(BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
 		final boolean secure = CoAP.isSecureScheme(uri.getScheme());
 		final boolean dtls = secure && !CoAP.isTcpScheme(uri.getScheme());
 

@@ -46,10 +46,12 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
@@ -103,12 +105,12 @@ public class ServerHandshakerTest {
 		timer = new TestScheduledExecutorService();
 		recordLayer = new SimpleRecordLayer();
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build();
-		config = DtlsConnectorConfig.builder()
-				.setSniEnabled(true)
+		config = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
+				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, certificateChain, CertificateType.X_509))
 				.setAdvancedCertificateVerifier(verifier)
 				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
-				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
 				.build();
 		handshaker = newHandshaker(config);
 		session = handshaker.getSession();
@@ -224,14 +226,15 @@ public class ServerHandshakerTest {
 		// GIVEN a server handshaker that supports a public key based cipher using RawPublicKeys
 		// only as well as a pre-shared key based cipher
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
-		config = DtlsConnectorConfig.builder()
+		Configuration configuration = new Configuration();
+		config = DtlsConnectorConfig.builder(configuration)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, DtlsTestTools.getPublicKey()))
 				.setSupportedCipherSuites(
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setAdvancedPskStore(new AdvancedSinglePskStore("client", "secret".getBytes()))
 				.setAdvancedCertificateVerifier(verifier)
-				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
+				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED)
 				.build();
 		handshaker = newHandshaker(config);
 		session = handshaker.getSession();

@@ -22,24 +22,23 @@ package org.eclipse.californium.oscore;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-
-import com.upokecenter.cbor.CBORObject;
-
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.EncryptCommon;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.upokecenter.cbor.CBORObject;
 
 /**
  * 
@@ -271,7 +270,7 @@ public class OSCoreCtx {
 		contextRederivationPhase = ContextRederivation.PHASE.INACTIVE;
 
 		// Set default value of MAX_UNFRAGMENTED_SIZE
-		maxUnfragmentedSize = NetworkConfig.getStandard().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
+		maxUnfragmentedSize = Configuration.getStandard().get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 
 		//Set digest value depending on HKDF
 		String digest = null;

@@ -38,9 +38,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
@@ -75,15 +77,17 @@ public class ExampleDTLSClient {
 					KEY_STORE_PASSWORD);
 			Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, "root", TRUST_STORE_PASSWORD);
+			Configuration configuration = Configuration.getStandard()
+					.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
+					.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
 
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
 			builder.setAdvancedPskStore(new AdvancedSinglePskStore("Client_identity", "secretPSK".getBytes()));
 			builder.setCertificateIdentityProvider(new SingleCertificateProvider(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
 					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
 			builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
 					.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build());
 			builder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(0));
-			builder.setConnectionThreadCount(1);
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector.setRawDataReceiver(new RawDataChannel() {
 

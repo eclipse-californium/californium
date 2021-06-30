@@ -19,13 +19,13 @@ package org.eclipse.californium.core.network.stack.congestioncontrol;
 
 import java.net.InetSocketAddress;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 import org.eclipse.californium.core.network.stack.RemoteEndpoint;
+import org.eclipse.californium.elements.config.Configuration;
 
 public class LinuxRto extends CongestionControlLayer {
 
-	public LinuxRto(String tag, NetworkConfig config) {
+	public LinuxRto(String tag, Configuration config) {
 		super(tag, config);
 	}
 

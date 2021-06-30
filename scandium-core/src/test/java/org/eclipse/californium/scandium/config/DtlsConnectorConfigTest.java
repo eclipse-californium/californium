@@ -46,7 +46,10 @@ import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.CertificateIdentityResult;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -79,7 +82,8 @@ public class DtlsConnectorConfigTest {
 	@Before
 	public void setUp() throws Exception {
 		endpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
-		builder = DtlsConnectorConfig.builder().setAddress(endpoint);
+		Configuration configuration = new Configuration();
+		builder = DtlsConnectorConfig.builder(configuration).setAddress(endpoint);
 	}
 
 	@Test
@@ -143,8 +147,8 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderSetsEcdheCipherSuiteWhenKeysAreSet() throws Exception {
-		DtlsConnectorConfig config = builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
-				.setClientAuthenticationRequired(false).build();
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+		DtlsConnectorConfig config = builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())).build();
 		assertFalse(config.getSupportedCipherSuites().isEmpty());
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
 			assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN));
@@ -153,7 +157,9 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderSetsAtLeastAllMandatoryCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
-		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false).setRecommendedCipherSuitesOnly(false)
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+		DtlsConnectorConfig config = builder
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes())).build();
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
@@ -166,12 +172,13 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderSetsPreselectedCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
-		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false)
-				.setRecommendedCipherSuitesOnly(false)
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+		builder.setList(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+		DtlsConnectorConfig config = builder
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes()))
-				.setPreselectedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256)
 				.build();
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
 		assertThat(cipherSuites,
@@ -182,8 +189,8 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderSetsNoNotRecommendedCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
-		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false)
-				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+		DtlsConnectorConfig config = builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes())).build();
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
 		for (CipherSuite cipherSuite :cipherSuites) {
@@ -261,18 +268,21 @@ public class DtlsConnectorConfigTest {
 	}
 
 	public void testSetIdentityWithoutCertificateTypeArray() throws Exception {
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain()))
-				.setClientAuthenticationRequired(false).build();
+				.build();
 	}
 
 	public void testSetIdentityWithNullCertificateTypeArray() throws Exception {
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
-				(CertificateType[]) null)).setClientAuthenticationRequired(false).build();
+				(CertificateType[]) null)).build();
 	}
 
 	public void testSetIdentityWithoutCertificateTypeList() throws Exception {
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
-				(List<CertificateType>) null)).setClientAuthenticationRequired(false).build();
+				(List<CertificateType>) null)).build();
 	}
 
 	@Test
@@ -311,28 +321,32 @@ public class DtlsConnectorConfigTest {
 	@Test
 	public void testBuildAllowsForAnonymousClientWithRpkTrust() {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
-		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 				.setAdvancedCertificateVerifier(verifier).build();
 	}
 
 	@Test
 	public void testBuildAllowsForAnonymousClientWithTrustStore() {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
-		builder.setClientOnly().setAdvancedCertificateVerifier(verifier).build();
+		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		builder.setAdvancedCertificateVerifier(verifier).build();
 	}
 
 	@Test
 	public void testBuildDetectsErrorForAnonymousClientUsingPSKCiphersOnly() {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("PSK store must be set"));
-		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8).build();
+		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test
 	public void testBuildDetectsErrorForAnonymousClientWithoutTrust() {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("certificate verifier must be set"));
-		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
+		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test
@@ -372,7 +386,7 @@ public class DtlsConnectorConfigTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedCertificateVerifier(verifier)
-				.setRecommendedSignatureAndHashAlgorithmsOnly(false)
+				.set(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY, false)
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
 				.build();
 	}
@@ -405,7 +419,7 @@ public class DtlsConnectorConfigTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain()))
 				.setAdvancedCertificateVerifier(verifier)
-				.setRecommendedSignatureAndHashAlgorithmsOnly(false)
+				.set(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY, false)
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
 				.build();
 	}
@@ -438,75 +452,17 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test
-	public void testWantedAuthentication() throws Exception {
-		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
-		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
-		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
-			.setAdvancedCertificateVerifier(verifier)
-			.setClientAuthenticationWanted(true);
-		// WHEN configuration is build
-		DtlsConnectorConfig config = builder.build();
-
-		// THEN
-		assertThat(config.isClientAuthenticationWanted(), is(true));
-		assertThat(config.isClientAuthenticationRequired(), is(false));
-	}
-
-	@Test
-	public void testDisabledRequiredAuthentication() throws Exception {
-		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
-		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()));
-		builder.setClientAuthenticationRequired(false);
-		// WHEN configuration is build
-		DtlsConnectorConfig config = builder.build();
-
-		// THEN
-		assertThat(config.isClientAuthenticationWanted(), is(false));
-		assertThat(config.isClientAuthenticationRequired(), is(false));
-	}
-
-	@Test
-	public void testClientOnlyWantedAuthentication() throws Exception {
-		exception.expect(IllegalStateException.class);
-		exception.expectMessage("client authentication is not supported for client only!");
-		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
-		builder.setClientOnly()
-		// WHEN client authentication is wanted
-			.setClientAuthenticationWanted(true);
-		// THEN fails
-	}
-
-	@Test
-	public void testClientOnlyRequiredAuthentication() throws Exception {
-		exception.expect(IllegalStateException.class);
-		exception.expectMessage("client authentication is not supported for client only!");
-		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
-		builder.setClientOnly()
-		// WHEN client authentication is required
-				.setClientAuthenticationRequired(true);
-		// THEN fails
-	}
-
-	@Test
 	public void testServerOnlyWithDisabledRequiredAuthenticationFailsOnTrust() throws Exception {
 		exception.expect(IllegalStateException.class);
-		exception.expectMessage("configured certificate verifier is not used for disabled client authentication!");
+		exception.expectMessage("configured certificate verifier is not used for client authentication mode NONE!");
 		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY);
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
-		builder.setServerOnly(true)
-				.setAdvancedCertificateVerifier(verifier)
-				.setClientAuthenticationRequired(false)
+		builder.setAdvancedCertificateVerifier(verifier)
 		// WHEN configuration is build
 				.build();
 		// THEN fails
-	}
-
-	@Test
-	public void testAntiReplayFilterAndWindowFilter() throws Exception {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Anti replay filter is active!");
-		builder.setUseAntiReplayFilter(true);
-		builder.setUseExtendedWindowFilter(-1);
 	}
 
 	@Test
@@ -518,20 +474,20 @@ public class DtlsConnectorConfigTest {
 
 		// THEN
 		assertThat(config.useAntiReplayFilter(), is(true));
-		assertThat(config.useExtendedWindowFilter(), is(0));
+		assertThat(config.useDisabledWindowFilter(), is(0));
 	}
 
 	@Test
 	public void testAntiReplayFilterDefaultWithWindowFilter() throws Exception {
 		builder.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes()))
-				.setUseExtendedWindowFilter(-1);
+				.set(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER, -1);
 		
 		// WHEN configuration is build
 		DtlsConnectorConfig config = builder.build();
 
 		// THEN
-		assertThat(config.useAntiReplayFilter(), is(false));
-		assertThat(config.useExtendedWindowFilter(), is(-1));
+		assertThat(config.useAntiReplayFilter(), is(true));
+		assertThat(config.useDisabledWindowFilter(), is(-1));
 	}
 
 	@Test
@@ -547,9 +503,9 @@ public class DtlsConnectorConfigTest {
 	@Test
 	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST can not be disabled!"));
+		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST disabled, requires at least on PSK cipher suite!"));
+		builder.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, false);
 		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-		builder.setUseHelloVerifyRequestForPsk(false);
 	}
 
 	@Test
@@ -557,17 +513,17 @@ public class DtlsConnectorConfigTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST disabled"));
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()));
-		builder.setClientAuthenticationRequired(false);
-		builder.setUseHelloVerifyRequestForPsk(false);
+		builder.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, false);
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		builder.build();
 	}
 
 	@Test
 	public void testDisableHelloVerifyRequestWithoutPskCiperSuite() {
 		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-		builder.setUseHelloVerifyRequest(false);
+		builder.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST, false);
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()));
-		builder.setClientAuthenticationRequired(false);
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		builder.build();
 	}
 

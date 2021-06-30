@@ -26,6 +26,20 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.plugtests.AbstractTestServer;
+import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,37 +48,22 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ParseResult;
 
-import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.plugtests.AbstractTestServer;
-import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
-
 public class SimpleFileServer extends AbstractTestServer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleFileServer.class);
 
-	private static final File CONFIG_FILE = new File("Californium.properties");
+	private static final File CONFIG_FILE = new File("Californium3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Fileserver";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2 MB
 	private static final int DEFAULT_BLOCK_SIZE = 512;
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 		}
 	};
 
@@ -101,11 +100,11 @@ public class SimpleFileServer extends AbstractTestServer {
 			System.exit(-1);
 		}
 
-		NetworkConfig netConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		NetworkConfig udpConfig = new NetworkConfig(netConfig);
-		udpConfig.setInt(Keys.MAX_MESSAGE_SIZE, 64);
-		udpConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 64);
-		Map<Select, NetworkConfig> protocolConfig = new HashMap<>();
+		Configuration netConfig = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration udpConfig = new Configuration(netConfig);
+		udpConfig.set(CoapConfig.MAX_MESSAGE_SIZE, 64);
+		udpConfig.set(CoapConfig.PREFERRED_BLOCK_SIZE, 64);
+		Map<Select, Configuration> protocolConfig = new HashMap<>();
 		protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfig);
 
 		try {
@@ -155,14 +154,14 @@ public class SimpleFileServer extends AbstractTestServer {
 	 * Constructor for a new simple file server. Here, the resources of the
 	 * server are initialized.
 	 */
-	public SimpleFileServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, String coapRootPath, File filesRoot) throws SocketException {
+	public SimpleFileServer(Configuration config, Map<Select, Configuration> protocolConfig, String coapRootPath, File filesRoot) throws SocketException {
 		super(config, protocolConfig);
 		add(new FileResource(config, coapRootPath, filesRoot));
 	}
 
 	class FileResource extends CoapResource {
 
-		private final NetworkConfig config;
+		private final Configuration config;
 		/**
 		 * Files root directory.
 		 */
@@ -171,11 +170,11 @@ public class SimpleFileServer extends AbstractTestServer {
 		/**
 		 * Create CoAP file resource.
 		 * 
-		 * @param config network configuration
+		 * @param config configuration
 		 * @param coapRootPath CoAP resource (base) name
 		 * @param filesRoot files root
 		 */
-		public FileResource(NetworkConfig config, String coapRootPath, File filesRoot) {
+		public FileResource(Configuration config, String coapRootPath, File filesRoot) {
 			super(coapRootPath);
 			this.config = config;
 			this.filesRoot = filesRoot;
@@ -243,7 +242,7 @@ public class SimpleFileServer extends AbstractTestServer {
 				exchange.respond(CoAP.ResponseCode.UNAUTHORIZED);
 				return;
 			}
-			long maxLength = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE);
+			long maxLength = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 			long length = file.length();
 			if (length > maxLength) {
 				LOG.warn("File {} is too large {} (max.: {})!", file.getAbsolutePath(), length, maxLength);

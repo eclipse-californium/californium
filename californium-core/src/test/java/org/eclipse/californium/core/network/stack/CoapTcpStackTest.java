@@ -32,10 +32,10 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Outbox;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -48,7 +48,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 @Category(Small.class) @RunWith(MockitoJUnitRunner.class)
 public class CoapTcpStackTest {
 
-	private static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
+	private static final Configuration CONFIG = Configuration.createStandardWithoutFile();
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();

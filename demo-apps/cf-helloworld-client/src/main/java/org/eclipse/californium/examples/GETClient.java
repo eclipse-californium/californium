@@ -25,26 +25,26 @@ import java.net.URISyntaxException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 
 
 public class GETClient {
 
-	private static final File CONFIG_FILE = new File("Californium.properties");
-	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Fileclient";
+	private static final File CONFIG_FILE = new File("Californium3.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for file-client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2 MB
 	private static final int DEFAULT_BLOCK_SIZE = 512;
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 		}
 	};
 
@@ -53,8 +53,8 @@ public class GETClient {
 	 * 
 	 */	
 	public static void main(String args[]) {
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		NetworkConfig.setStandard(config);
+		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration.setStandard(config);
 		
 		URI uri = null; // URI parameter of the request
 		

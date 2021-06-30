@@ -47,6 +47,8 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -62,8 +64,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * TCP server connection is used by CoapEndpoint when instantiated by the CoapServer. Per RFC the server can both
- * send and receive messages, but cannot initiated new outgoing connections.
+ * TCP server connection is used by CoapEndpoint when instantiated by the
+ * CoapServer. Per RFC the server can both send and receive messages, but cannot
+ * initiated new outgoing connections.
  */
 public class TcpServerConnector implements Connector {
 
@@ -97,13 +100,15 @@ public class TcpServerConnector implements Connector {
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
 
-	public TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout) {
-		this(localAddress, numberOfThreads, idleTimeout, new TcpContextUtil());
+	public TcpServerConnector(InetSocketAddress localAddress, Configuration configuration) {
+		this(localAddress, configuration, new TcpContextUtil());
 	}
 
-	protected TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout, TcpContextUtil contextUtil) {
-		this.numberOfThreads = numberOfThreads;
-		this.connectionIdleTimeoutSeconds = idleTimeout;
+	protected TcpServerConnector(InetSocketAddress localAddress, Configuration configuration,
+			TcpContextUtil contextUtil) {
+		this.numberOfThreads = configuration.get(TcpConfig.TCP_WORKER_THREADS);
+		this.connectionIdleTimeoutSeconds = configuration.getTimeAsInt(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT,
+				TimeUnit.SECONDS);
 		this.localAddress = localAddress;
 		this.contextUtil = contextUtil;
 		this.effectiveLocalAddress = localAddress;
@@ -129,12 +134,10 @@ public class TcpServerConnector implements Connector {
 				new DaemonThreadFactory("TCP-Server-" + id + "#", TCP_THREAD_GROUP));
 
 		ServerBootstrap bootstrap = new ServerBootstrap();
-		// server socket 
+		// server socket
 		bootstrap.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
-				.childHandler(new ChannelRegistry())
-				.option(ChannelOption.SO_BACKLOG, 100)
-				.option(ChannelOption.AUTO_READ, true)
-				.childOption(ChannelOption.SO_KEEPALIVE, true);
+				.childHandler(new ChannelRegistry()).option(ChannelOption.SO_BACKLOG, 100)
+				.option(ChannelOption.AUTO_READ, true).childOption(ChannelOption.SO_KEEPALIVE, true);
 
 		// Start the server.
 		ChannelFuture channelFuture = bootstrap.bind(localAddress).syncUninterruptibly();
@@ -179,7 +182,8 @@ public class TcpServerConnector implements Connector {
 			throw new NullPointerException("Message must not be null");
 		}
 		if (msg.isMulticast()) {
-			LOGGER.warn("TcpConnector drops {} bytes to multicast {}", msg.getSize(), StringUtil.toLog(msg.getInetSocketAddress()));
+			LOGGER.warn("TcpConnector drops {} bytes to multicast {}", msg.getSize(),
+					StringUtil.toLog(msg.getInetSocketAddress()));
 			msg.onError(new MulticastNotSupportedException("TCP doesn't support multicast!"));
 			return;
 		}
@@ -189,7 +193,8 @@ public class TcpServerConnector implements Connector {
 		}
 		Channel channel = activeChannels.get(msg.getInetSocketAddress());
 		if (channel == null) {
-			// TODO: Is it worth allowing opening a new connection when in server mode?
+			// TODO: Is it worth allowing opening a new connection when in
+			// server mode?
 			LOGGER.debug("Attempting to send message to an address without an active connection {}",
 					StringUtil.toLog(msg.getInetSocketAddress()));
 			msg.onError(new EndpointUnconnectedException(getProtocol() + " client not connected!"));
@@ -197,7 +202,9 @@ public class TcpServerConnector implements Connector {
 		}
 		EndpointContext context = contextUtil.buildEndpointContext(channel);
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
-		/* check, if the message should be sent with the established connection */
+		/*
+		 * check, if the message should be sent with the established connection
+		 */
 		if (null != endpointMatcher && !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
 			LOGGER.warn("TcpConnector drops {} bytes to {}", msg.getSize(),
 					StringUtil.toLog(msg.getInetSocketAddress()));
@@ -272,7 +279,8 @@ public class TcpServerConnector implements Connector {
 			onNewChannelCreated(ch);
 
 			// Handler order:
-			// 0. Register/unregister new channel: all messages can only be sent over open connections.
+			// 0. Register/unregister new channel: all messages can only be sent
+			// over open connections.
 			// 1. Generate Idle events
 			// 2. Close idle channels.
 			// 3. Stream-to-message decoder
@@ -287,7 +295,10 @@ public class TcpServerConnector implements Connector {
 		}
 	}
 
-	/** Tracks active channels to send messages over them. TCPServer connector does not establish new connections. */
+	/**
+	 * Tracks active channels to send messages over them. TCPServer connector
+	 * does not establish new connections.
+	 */
 	private class ChannelTracker extends ChannelInboundHandlerAdapter {
 
 		@Override

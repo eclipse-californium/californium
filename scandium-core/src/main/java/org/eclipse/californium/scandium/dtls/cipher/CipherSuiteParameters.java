@@ -20,6 +20,7 @@ import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
@@ -128,8 +129,7 @@ public class CipherSuiteParameters {
 
 	private PublicKey publicKey;
 	private List<X509Certificate> certificateChain;
-	private boolean clientAuthenticationRequired;
-	private boolean clientAuthenticationWanted;
+	private CertificateAuthenticationMode clientAuthenticationMode;
 
 	private List<CipherSuite> cipherSuites;
 	private List<CertificateType> serverCertTypes;
@@ -149,26 +149,22 @@ public class CipherSuiteParameters {
 	 * 
 	 * @param publicKey peer's public key. Maybe {@code null}.
 	 * @param certificateChain peer's certificate chain. Maybe {@code null}.
-	 * @param clientAuthenticationRequired {@code true}, if client
-	 *            authentication is required, {@code false}, otherwise.
-	 * @param clientAuthenticationWanted {@code true}, if client authentication
-	 *            is wanted, {@code false}, otherwise.
-	 * @param cipherSuites list of common cipher suites
+	 * @param clientAuthenticationMode client authentication mode.
+	 * @param cipherSuites list of common cipher suites.
 	 * @param serverCertTypes list of common server certificate types.
 	 * @param clientCertTypes list of common client certificate types.
-	 * @param supportedGroups list of common supported groups (curves)
+	 * @param supportedGroups list of common supported groups (curves).
 	 * @param signatures list of common signatures and algorithms.
 	 * @param format common ec point format. Only
 	 *            {@link ECPointFormat#UNCOMPRESSED} is supported.
 	 */
 	public CipherSuiteParameters(PublicKey publicKey, List<X509Certificate> certificateChain,
-			boolean clientAuthenticationRequired, boolean clientAuthenticationWanted, List<CipherSuite> cipherSuites,
+			CertificateAuthenticationMode clientAuthenticationMode, List<CipherSuite> cipherSuites,
 			List<CertificateType> serverCertTypes, List<CertificateType> clientCertTypes,
 			List<SupportedGroup> supportedGroups, List<SignatureAndHashAlgorithm> signatures, ECPointFormat format) {
 		this.publicKey = publicKey;
 		this.certificateChain = certificateChain;
-		this.clientAuthenticationRequired = clientAuthenticationRequired;
-		this.clientAuthenticationWanted = !clientAuthenticationRequired && clientAuthenticationWanted;
+		this.clientAuthenticationMode = clientAuthenticationMode;
 		this.cipherSuites = cipherSuites;
 		this.serverCertTypes = serverCertTypes;
 		this.clientCertTypes = clientCertTypes;
@@ -189,8 +185,7 @@ public class CipherSuiteParameters {
 			CipherSuiteParameters others) {
 		this.publicKey = publicKey;
 		this.certificateChain = certificateChain;
-		this.clientAuthenticationRequired = others.clientAuthenticationRequired;
-		this.clientAuthenticationWanted = others.clientAuthenticationWanted;
+		this.clientAuthenticationMode = others.clientAuthenticationMode;
 		this.cipherSuites = others.cipherSuites;
 		this.serverCertTypes = others.serverCertTypes;
 		this.clientCertTypes = others.clientCertTypes;
@@ -256,12 +251,8 @@ public class CipherSuiteParameters {
 		return certificateMismatch;
 	}
 
-	public boolean isClientAuthenticationRequired() {
-		return clientAuthenticationRequired;
-	}
-
-	public boolean isClientAuthenticationWanted() {
-		return clientAuthenticationWanted;
+	public CertificateAuthenticationMode getClientAuthenticationMode() {
+		return clientAuthenticationMode;
 	}
 
 	/**
@@ -485,9 +476,9 @@ public class CipherSuiteParameters {
 			builder.append("]").append(StringUtil.lineSeparator());
 		}
 		if (publicKey != null) {
-			if (clientAuthenticationRequired) {
+			if (clientAuthenticationMode == CertificateAuthenticationMode.NEEDED) {
 				builder.append("client certificate required");
-			} else if (clientAuthenticationWanted) {
+			} else if (clientAuthenticationMode == CertificateAuthenticationMode.WANTED) {
 				builder.append("client certificate wanted");
 			} else {
 				builder.append("no client certificate");

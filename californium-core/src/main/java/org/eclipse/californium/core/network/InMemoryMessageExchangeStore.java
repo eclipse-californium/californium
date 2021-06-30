@@ -55,8 +55,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
@@ -64,13 +62,15 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
 import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
@@ -85,7 +85,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>();
 	private volatile boolean enableStatus;
 
-	private final NetworkConfig config;
+	private final Configuration config;
 	private final TokenGenerator tokenGenerator;
 	private final EndpointIdentityResolver endpointIdentityResolver;
 	private final String tag;
@@ -101,8 +101,9 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * @param config the configuration to use.
 	 * 
 	 * @throws NullPointerException if config is {@code null}
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public InMemoryMessageExchangeStore(NetworkConfig config) {
+	public InMemoryMessageExchangeStore(Configuration config) {
 		this(null, config, new RandomTokenGenerator(config), new UdpEndpointContextMatcher());
 	}
 
@@ -113,14 +114,27 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * @param tokenProvider the TokenProvider which provides CoAP tokens.
 	 * @param endpointResolver the endpoint resolver which provides endpoint
 	 *            identity.
-	 * @throws NullPointerException if one or the parameter is {@code null}
+	 * @throws NullPointerException if one of the parameter is {@code null}
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public InMemoryMessageExchangeStore(NetworkConfig config, TokenGenerator tokenProvider,
+	public InMemoryMessageExchangeStore(Configuration config, TokenGenerator tokenProvider,
 			EndpointIdentityResolver endpointResolver) {
 		this(null, config, tokenProvider, endpointResolver);
 	}
 
-	public InMemoryMessageExchangeStore(String tag, NetworkConfig config, TokenGenerator tokenProvider,
+	/**
+	 * Creates a new store for configuration values.
+	 * 
+	 * @param tag logging tag
+	 * @param config the configuration to use.
+	 * @param tokenProvider the TokenProvider which provides CoAP tokens.
+	 * @param endpointResolver the endpoint resolver which provides endpoint
+	 *            identity.
+	 * @throws NullPointerException if one of the parameter, except tag, is
+	 *             {@code null}
+	 * @since 3.0 (changed parameter to Configuration)
+	 */
+	public InMemoryMessageExchangeStore(String tag, Configuration config, TokenGenerator tokenProvider,
 			EndpointIdentityResolver endpointResolver) {
 		if (config == null) {
 			throw new NullPointerException("Configuration must not be null");
@@ -139,7 +153,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	private void startStatusLogging() {
-		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
+		final long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && executor != null) {
@@ -151,7 +165,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 						dump(5);
 					}
 				}
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -480,6 +494,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	/**
 	 * Dump collection of exchange entries.
 	 * 
+	 * @param <K> key type, {@link KeyMID} or {@link KeyToken}
 	 * @param logMaxExchanges maximum number of exchanges to include in dump.
 	 * @param exchangeEntries collection with exchanges entries
 	 */

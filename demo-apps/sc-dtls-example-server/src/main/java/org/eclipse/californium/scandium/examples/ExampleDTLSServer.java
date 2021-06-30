@@ -25,8 +25,10 @@ import java.security.cert.Certificate;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
@@ -60,15 +62,17 @@ public class ExampleDTLSServer {
 			Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, "root", TRUST_STORE_PASSWORD);
 
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-			builder.setRecommendedCipherSuitesOnly(false);
-			builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
-			builder.setAdvancedPskStore(pskStore);
-			builder.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
-					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
-			builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
-					.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build());
-			builder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(6));
+			Configuration configuration = Configuration.getStandard();
+			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration)
+					.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+					.setAddress(new InetSocketAddress(DEFAULT_PORT))
+					.setAdvancedPskStore(pskStore)
+					.setCertificateIdentityProvider(
+							new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
+					.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+							.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build())
+					.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(6));
+
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector
 					.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));

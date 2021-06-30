@@ -40,8 +40,11 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -80,10 +83,10 @@ public class HelloExtensionNegotiationTest {
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException, GeneralSecurityException {
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
-				.setSniEnabled(true);
-		serverHelper = new ConnectorHelper();
-		serverHelper.startServer(builder);
+		serverHelper = new ConnectorHelper(network);
+		serverHelper.serverBuilder
+				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true);
+		serverHelper.startServer();
 	}
 
 	/**
@@ -132,10 +135,10 @@ public class HelloExtensionNegotiationTest {
 	@Test
 	public void testConnectorNegotiatesMaxFragmentLength() throws Exception {
 		// given a constrained client that can only handle fragments of max. 512 bytes
-		clientConfig = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
-				.setMaxFragmentLengthCode(1)
-				.setMaxTransmissionUnit(1024)
-				.build();
+		Builder builder = serverHelper.newClientConfigBuilder(network)
+				.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024)
+				.set(DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH, Length.BYTES_512);
+		clientConfig = builder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 
 		// when the client negotiates a session with the server
@@ -158,8 +161,8 @@ public class HelloExtensionNegotiationTest {
 	public void testConnectorIncludesServerNameIndication() throws Exception {
 
 		// given a client that indicates a virtual host to connect to using SNI
-		clientConfig = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
-				.setSniEnabled(true)
+		clientConfig = serverHelper.newClientConfigBuilder(network)
+				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
 				.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 

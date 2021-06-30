@@ -45,24 +45,25 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
@@ -500,29 +501,32 @@ public class SecureObserveTest {
 
 	private void createSecureServer(MatcherMode mode, ConnectionIdGenerator cidGenerator) {
 		serverPskStore = new TestUtilPskStore();
-		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
+
+		Configuration config = network.createTestConfig()
+				// retransmit constantly all 200 milliseconds
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
+				// set response timeout (indirect) to 10s
+				.set(CoapConfig.EXCHANGE_LIFETIME, 10, TimeUnit.SECONDS)
+				.set(CoapConfig.RESPONSE_MATCHING, mode)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
+
+		DtlsConnectorConfig dtlsConfig = DtlsConnectorConfig.builder(config)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("server")
-				.setReceiverThreadCount(2)
-				.setConnectionThreadCount(2)
 				.setConnectionIdGenerator(cidGenerator)
 				.setAdvancedPskStore(serverPskStore).build();
 
-		NetworkConfig config = network.createTestConfig()
-				// retransmit constantly all 200 milliseconds
-				.setInt(Keys.ACK_TIMEOUT, 200)
-				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
-				// set response timeout (indirect) to 10s
-				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L)
-				.setString(Keys.RESPONSE_MATCHING, mode.name());
 
 		serverConnector = new DTLSConnector(dtlsConfig);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		CoapEndpoint.Builder builder = CoapEndpoint.builder();
 		builder.setConnector(serverConnector);
 		if (mode == MatcherMode.PRINCIPAL) {
 			builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
 		}
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		serverEndpoint = builder.build();
 
 		CoapServer server = new CoapServer();
@@ -536,17 +540,15 @@ public class SecureObserveTest {
 
 		// prepare secure client endpoint
 		clientPskStore = new TestUtilPskStore();
-		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
+		DtlsConnectorConfig clientdtlsConfig = DtlsConnectorConfig.builder(config)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
-				.setReceiverThreadCount(2)
-				.setConnectionThreadCount(2)
 				.setConnectionIdGenerator(cidGenerator)
 				.setAdvancedPskStore(clientPskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		clientEndpoint = builder.build();
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
 		setPskCredentials(IDENITITY, KEY);

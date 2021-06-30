@@ -32,12 +32,13 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.TestConditionTools;
@@ -87,13 +88,14 @@ public class ResponseRetransmissionTest {
 
 	@Before
 	public void setup() throws Exception {
-		NetworkConfig config = network.createTestConfig()
+		Configuration config = network.createTestConfig()
 				// server retransmits after 200 ms
-				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, TEST_ACK_TIMEOUT)
-				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1).setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 1)
-				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
-				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME);
-		serverConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL);
+				.set(CoapConfig.ACK_TIMEOUT, TEST_ACK_TIMEOUT, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1F)
+				.set(CoapConfig.MAX_RETRANSMIT, 1)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
+		serverConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL, config);
 		serverEndpoint = new CoapTestEndpoint(serverConnector, config, false);
 		serverEndpoint.addInterceptor(serverInterceptor);
 		serverEndpoint.addPostProcessInterceptor(health);
@@ -104,7 +106,7 @@ public class ResponseRetransmissionTest {
 		server.start();
 		cleanup.add(server);
 
-		client = createLockstepEndpoint(serverEndpoint.getAddress());
+		client = createLockstepEndpoint(serverEndpoint.getAddress(), config);
 		cleanup.add(client);
 		System.out.println("Server binds to port " + serverEndpoint.getAddress().getPort());
 	}

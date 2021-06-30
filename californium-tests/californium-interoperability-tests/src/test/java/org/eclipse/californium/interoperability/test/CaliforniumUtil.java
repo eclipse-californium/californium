@@ -33,16 +33,17 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -53,6 +54,10 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * Configure and starts coap-server or -client.
  */
 public class CaliforniumUtil extends ConnectorUtil {
+
+	static {
+		CoapConfig.register();
+	}
 
 	/**
 	 * {@code true}, if used as client, {@code false}, otherwise.
@@ -140,9 +145,9 @@ public class CaliforniumUtil extends ConnectorUtil {
 	}
 
 	private void start() throws IOException {
-		NetworkConfig config = NetworkConfig.getStandard();
+		Configuration config = Configuration.createStandardWithoutFile();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setConnector(getConnector());
 		CoapEndpoint endpoint = builder.build();
 		if (asClient) {

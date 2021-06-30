@@ -20,11 +20,11 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.network.Matcher;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.eclipse.californium.core.network.Matcher;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 
 
 /**
@@ -63,22 +63,23 @@ public class DeduplicatorFactory {
 
 	/**
 	 * Creates a new deduplicator based on the value of the
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#DEDUPLICATOR} configuration property.
+	 * {@link CoapConfig#DEDUPLICATOR} configuration property.
 	 * 
 	 * @param config The configuration properties.
 	 * @return The deduplicator to use.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public Deduplicator createDeduplicator(final NetworkConfig config) {
+	public Deduplicator createDeduplicator(final Configuration config) {
 
-		String type = config.getString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.NO_DEDUPLICATOR);
+		String type = config.get(CoapConfig.DEDUPLICATOR);
 		switch(type) {
-		case NetworkConfig.Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP:
+		case CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP:
 			return new SweepPerPeerDeduplicator(config);
-		case NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP:
+		case CoapConfig.DEDUPLICATOR_MARK_AND_SWEEP:
 			return new SweepDeduplicator(config);
-		case NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION:
+		case CoapConfig.DEDUPLICATOR_CROP_ROTATION:
 			return new CropRotation(config);
-		case NetworkConfig.Keys.NO_DEDUPLICATOR:
+		case CoapConfig.NO_DEDUPLICATOR:
 			return new NoDeduplicator();
 		default:
 			LOGGER.warn("configuration contains unsupported deduplicator type, duplicate detection will be turned off");

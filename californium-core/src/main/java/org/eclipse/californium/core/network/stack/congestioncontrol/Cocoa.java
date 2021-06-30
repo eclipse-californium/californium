@@ -20,9 +20,9 @@ package org.eclipse.californium.core.network.stack.congestioncontrol;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 import org.eclipse.californium.core.network.stack.RemoteEndpoint;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 
 public class Cocoa extends CongestionControlLayer {
@@ -46,7 +46,7 @@ public class Cocoa extends CongestionControlLayer {
 
 	private final boolean strong;
 
-	public Cocoa(String tag, NetworkConfig config, boolean strong) {
+	public Cocoa(String tag, Configuration config, boolean strong) {
 		super(tag, config);
 		this.strong = strong;
 		setDithering(true);

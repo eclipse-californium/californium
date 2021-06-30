@@ -17,6 +17,7 @@ package org.eclipse.californium.integration.test.util;
 
 import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,5 +49,6 @@ public class CoapsNetworkRule extends CoapNetworkRule {
 	 */
 	public CoapsNetworkRule(Mode... modes) {
 		super(NO_FORMATTER, modes);
+		DtlsConfig.register();
 	}
 }

@@ -23,12 +23,13 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.proxy2.EndpointPool;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -51,15 +52,15 @@ public class SecureEndpointPool extends EndpointPool {
 	private DtlsConnectorConfig dtlsConfig;
 
 	/**
-	 * Create endpoint pool with specific network configuration and executors.
+	 * Create endpoint pool with specific configuration and executors.
 	 * 
 	 * @param size size of pool
 	 * @param init initial size of pool
-	 * @param config network configuration to create endpoints.
+	 * @param config configuration to create endpoints.
 	 * @param mainExecutor main executor for endpoints
 	 * @param secondaryExecutor secondary executor for endpoints
 	 */
-	public SecureEndpointPool(int size, int init, NetworkConfig config, ScheduledExecutorService mainExecutor,
+	public SecureEndpointPool(int size, int init, Configuration config, ScheduledExecutorService mainExecutor,
 			ScheduledExecutorService secondaryExecutor, DtlsConnectorConfig dtlsConfig) {
 		super(size, config, mainExecutor, secondaryExecutor);
 		this.dtlsConfig = dtlsConfig;
@@ -78,7 +79,7 @@ public class SecureEndpointPool extends EndpointPool {
 	protected Endpoint createEndpoint() throws IOException {
 		DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig);
 		dtlsConnector.setExecutor(mainExecutor);
-		Endpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(dtlsConnector).build();
+		Endpoint endpoint = new CoapEndpoint.Builder().setConfiguration(config).setConnector(dtlsConnector).build();
 		endpoint.setExecutors(mainExecutor, secondaryExecutor);
 		try {
 			endpoint.start();
@@ -89,21 +90,15 @@ public class SecureEndpointPool extends EndpointPool {
 		}
 	}
 
-	public static DtlsConnectorConfig.Builder setup(NetworkConfig config) throws IOException, GeneralSecurityException {
-		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
-		int staleTimeout = config.getInt(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD);
-		int retransmissionTimeout = config.getInt(Keys.ACK_TIMEOUT);
-		int receiverThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
-		Integer healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL); // seconds
-		Integer cidLength = config.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
-		Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
-		Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
+	public static DtlsConnectorConfig.Builder setup(Configuration config) throws IOException, GeneralSecurityException {
+		config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		Integer cidLength = config.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
 		SslContextUtil.Credentials clientCredentials = SslContextUtil.loadCredentials(
 				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
 				SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-		DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+		DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
 		dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
 				CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
 		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
@@ -117,14 +112,6 @@ public class SecureEndpointPool extends EndpointPool {
 		if (cidLength != null) {
 			dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 		}
-		dtlsConfig.setSocketReceiveBufferSize(recvBufferSize);
-		dtlsConfig.setSocketSendBufferSize(sendBufferSize);
-		dtlsConfig.setClientOnly();
-		dtlsConfig.setRetransmissionTimeout(retransmissionTimeout);
-		dtlsConfig.setMaxConnections(maxPeers);
-		dtlsConfig.setReceiverThreadCount(receiverThreads);
-		dtlsConfig.setStaleConnectionThreshold(staleTimeout);
-		dtlsConfig.setHealthStatusInterval(healthStatusInterval);
 
 		return dtlsConfig;
 	}

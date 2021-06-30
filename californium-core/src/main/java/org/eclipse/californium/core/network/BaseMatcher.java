@@ -64,24 +64,23 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A base class for implementing Matchers that provides support for using a
@@ -90,7 +89,7 @@ import org.eclipse.californium.elements.EndpointContext;
 public abstract class BaseMatcher implements Matcher {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BaseMatcher.class);
-	protected final NetworkConfig config;
+	protected final Configuration config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
 	protected final TokenGenerator tokenGenerator;
@@ -112,8 +111,9 @@ public abstract class BaseMatcher implements Matcher {
 	 *            message exchanges with endpoints.
 	 * @param executor executor to be used for exchanges.
 	 * @throws NullPointerException if one of the parameters is {@code null}.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public BaseMatcher( NetworkConfig config,  NotificationListener notificationListener,
+	public BaseMatcher( Configuration config,  NotificationListener notificationListener,
 			 TokenGenerator tokenGenerator,  ObservationStore observationStore,
 			 MessageExchangeStore exchangeStore, Executor executor) {
 		if (config == null) {

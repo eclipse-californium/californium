@@ -20,9 +20,8 @@ package org.eclipse.californium.core.network;
 import java.security.SecureRandom;
 
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.TokenGenerator.Scope;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * 0b??????00 {@link Scope#SHORT_TERM_CLIENT_LOCAL}, for standard tokens
  * </pre>
  * 
- * All generated tokens will have the configured {@link Keys#TOKEN_SIZE_LIMIT}.
+ * All generated tokens will have the configured {@link CoapConfig#TOKEN_SIZE_LIMIT}.
  * tokens with different size will be treated as
  * {@link Scope#SHORT_TERM_CLIENT_LOCAL}.
  *
@@ -45,7 +44,6 @@ import org.slf4j.LoggerFactory;
 public class RandomTokenGenerator implements TokenGenerator {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(RandomTokenGenerator.class);
-	private static final int DEFAULT_TOKEN_LENGTH = 8; // bytes
 
 	private final int tokenSize;
 	private final SecureRandom rng;
@@ -53,17 +51,18 @@ public class RandomTokenGenerator implements TokenGenerator {
 	/**
 	 * Creates a new {@link RandomTokenGenerator}.
 	 * 
-	 * @param networkConfig used to obtain the configured token size
+	 * @param config used to obtain the configured token size
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public RandomTokenGenerator(final NetworkConfig networkConfig) {
+	public RandomTokenGenerator(final Configuration config) {
 
-		if (networkConfig == null) {
+		if (config == null) {
 			throw new NullPointerException("NetworkConfig must not be null");
 		}
 		this.rng = new SecureRandom();
 		// trigger self-seeding of the PRNG, may "take a while"
 		this.rng.nextInt(10);
-		this.tokenSize = networkConfig.getInt(Keys.TOKEN_SIZE_LIMIT, DEFAULT_TOKEN_LENGTH);
+		this.tokenSize = config.get(CoapConfig.TOKEN_SIZE_LIMIT);
 		LOGGER.info("using tokens of {} bytes in length", this.tokenSize);
 	}
 
@@ -101,7 +100,7 @@ public class RandomTokenGenerator implements TokenGenerator {
 	 * </pre>
 	 * 
 	 * All generated tokens will have the configured
-	 * {@link Keys#TOKEN_SIZE_LIMIT}. Tokens with different size will be treated
+	 * {@link CoapConfig#TOKEN_SIZE_LIMIT}. Tokens with different size will be treated
 	 * as {@link Scope#SHORT_TERM_CLIENT_LOCAL}.
 	 * 
 	 */

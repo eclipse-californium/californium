@@ -499,6 +499,26 @@ public enum CipherSuite {
 	}
 
 	/**
+	 * Get array of supported cipher suites.
+	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} to include only
+	 *            recommended cipher suites.
+	 * @return array of supported cipher suites.
+	 * @since 3.0
+	 */
+	public static CipherSuite[] getSupportedCipherSuites(boolean recommendedCipherSuitesOnly) {
+		List<CipherSuite> list = new ArrayList<>();
+		for (CipherSuite suite : values()) {
+			if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+				if (suite.isSupported() && suite != TLS_NULL_WITH_NULL_NULL) {
+					list.add(suite);
+				}
+			}
+		}
+		return list.toArray(new CipherSuite[list.size()]);
+	}
+
+	/**
 	 * Get a list of all cipher suites using the provided key exchange
 	 * algorithms.
 	 * 

@@ -40,9 +40,9 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
@@ -54,6 +54,7 @@ import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -91,14 +92,16 @@ public class DeduplicationTest {
 
 	@Before
 	public void setup() throws Exception {
-		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
+		Configuration config = network.createTestConfig()
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
 				// client retransmits after 200 ms
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128).setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
-				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
-		clientConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL);
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 128)
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1F);
+		clientConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL, config);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint coapEndpoint = builder.build();
 		coapEndpoint.addInterceptor(clientInterceptor);
 		coapEndpoint.addPostProcessInterceptor(health);
@@ -106,7 +109,7 @@ public class DeduplicationTest {
 		cleanup.add(client);
 		client.addInterceptor(new MessageTracer());
 		client.start();
-		server = createLockstepEndpoint(client.getAddress());
+		server = createLockstepEndpoint(client.getAddress(), config);
 		cleanup.add(server);
 		System.out.println("Client binds to port " + client.getAddress().getPort());
 	}

@@ -39,14 +39,14 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -88,12 +88,14 @@ public class RandomAccessBlockTest {
 
 	@Before
 	public void startupServer() throws Exception {
-		NetworkConfig config = network.getStandardTestConfig().setInt(Keys.PREFERRED_BLOCK_SIZE, 16)
-				.setInt(Keys.MAX_MESSAGE_SIZE, 32).setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
+		Configuration config = network.getStandardTestConfig()
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 16)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 32)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, maxBodySize);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 
 		serverEndpoint = builder.build();
 		CoapServer server = new CoapServer(config);
@@ -104,7 +106,7 @@ public class RandomAccessBlockTest {
 
 		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 
 		clientEndpoint = builder.build();
 		cleanup.add(clientEndpoint);

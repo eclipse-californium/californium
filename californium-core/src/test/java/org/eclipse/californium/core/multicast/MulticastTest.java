@@ -36,16 +36,17 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestConditionTools;
@@ -80,14 +81,15 @@ public class MulticastTest {
 
 	private static final InetAddress MULTICAST_IPV4_2 = new InetSocketAddress("224.0.1.189", 0).getAddress();
 
-	private static NetworkConfig config;
+	private static Configuration config;
 	private static InetSocketAddress unicast;
 	private static HealthStatisticLogger health = new HealthStatisticLogger("client", true);
 
 	@BeforeClass
 	public static void setupServer() {
 		config = network.getStandardTestConfig();
-		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, 20000);
+		config.set(CoapConfig.MULTICAST_BASE_MID, 20000);
+		config.set(CoapConfig.LEISURE, TIMEOUT_MILLIS / 2, TimeUnit.MILLISECONDS);
 
 		CoapServer server1 = new CoapServer(config);
 		InetAddress host = NetworkInterfacesUtil.getMulticastInterfaceIpv4();
@@ -96,20 +98,20 @@ public class MulticastTest {
 		}
 
 		UdpMulticastConnector.Builder multicastBuilder = new UdpMulticastConnector.Builder();
-		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4);
+		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4).setConfiguration(config);
 		UDPConnector connector = multicastBuilder.build();
 
 		CoapEndpoint.Builder coapBuilder = new CoapEndpoint.Builder();
-		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConfiguration(config);
 		coapBuilder.setConnector(connector);
 		server1.addEndpoint(coapBuilder.build());
 
 		multicastBuilder = new UdpMulticastConnector.Builder();
-		multicastBuilder.setLocalPort(PORT).addMulticastGroup(MULTICAST_IPV4_2);
+		multicastBuilder.setLocalPort(PORT).addMulticastGroup(MULTICAST_IPV4_2).setConfiguration(config);
 		connector = multicastBuilder.build();
 
 		coapBuilder = new CoapEndpoint.Builder();
-		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConfiguration(config);
 		coapBuilder.setConnector(connector);
 		server1.addEndpoint(coapBuilder.build());
 		server1.add(new CoapResource("hello") {
@@ -151,11 +153,11 @@ public class MulticastTest {
 
 		CoapServer server2 = new CoapServer();
 		multicastBuilder = new UdpMulticastConnector.Builder();
-		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4);
+		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4).setConfiguration(config);
 		connector = multicastBuilder.build();
 
 		coapBuilder = new CoapEndpoint.Builder();
-		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConfiguration(config);
 		coapBuilder.setConnector(connector);
 		server2.addEndpoint(coapBuilder.build());
 		server2.add(new CoapResource("hello") {
@@ -193,18 +195,18 @@ public class MulticastTest {
 
 		unicast = new InetSocketAddress(host, PORT);
 		CoapServer server3 = new CoapServer(config);
-		connector = new UDPConnector(unicast);
+		connector = new UDPConnector(unicast, config);
 		connector.setReuseAddress(true);
 		coapBuilder = new CoapEndpoint.Builder();
-		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConfiguration(config);
 		coapBuilder.setConnector(connector);
 		CoapEndpoint coapEndpoint = coapBuilder.build();
 
 		multicastBuilder = new UdpMulticastConnector.Builder();
-		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4).setMulticastReceiver(true);
+		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4).setMulticastReceiver(true).setConfiguration(config);
 		connector.addMulticastReceiver(multicastBuilder.build());
 		multicastBuilder = new UdpMulticastConnector.Builder();
-		multicastBuilder.setLocalPort(PORT2).addMulticastGroup(CoAP.MULTICAST_IPV4).setMulticastReceiver(true);
+		multicastBuilder.setLocalPort(PORT2).addMulticastGroup(CoAP.MULTICAST_IPV4).setMulticastReceiver(true).setConfiguration(config);
 		connector.addMulticastReceiver(multicastBuilder.build());
 		server3.addEndpoint(coapEndpoint);
 
@@ -269,7 +271,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);
@@ -307,7 +309,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);
@@ -340,7 +342,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);
@@ -365,7 +367,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);
@@ -397,7 +399,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);
@@ -434,7 +436,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);
@@ -466,7 +468,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);
@@ -504,7 +506,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);
@@ -545,7 +547,7 @@ public class MulticastTest {
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
 		endpoint.addPostProcessInterceptor(health);

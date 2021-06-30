@@ -24,12 +24,12 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -44,21 +44,21 @@ public class MulticastTestClient {
 	}
 
 	/**
-	 * File name for network configuration.
+	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("CaliforniumMulticast.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumMulticast3.properties");
 	/**
-	 * Header for network configuration.
+	 * Header for configuration.
 	 */
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Multicast Client";
 	/**
-	 * Special network configuration defaults handler.
+	 * Special configuration defaults handler.
 	 */
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MULTICAST_BASE_MID, 65000);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MULTICAST_BASE_MID, 65000);
 		}
 
 	};
@@ -134,8 +134,8 @@ public class MulticastTestClient {
 
 	public static void main(String args[]) {
 
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		int unicastPort = config.getInt(Keys.COAP_PORT);
+		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		int unicastPort = config.get(CoapConfig.COAP_PORT);
 		int multicastPort = unicastPort;
 		switch (args.length) {
 		default:
@@ -148,7 +148,7 @@ public class MulticastTestClient {
 		}
 
 		HealthStatisticLogger health = new HealthStatisticLogger("multicast-client", true);
-		CoapEndpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
+		CoapEndpoint endpoint = new CoapEndpoint.Builder().setConfiguration(config).build();
 		endpoint.addPostProcessInterceptor(health);
 		CoapClient client = new CoapClient();
 		client.setEndpoint(endpoint);

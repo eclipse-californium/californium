@@ -31,11 +31,12 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.elements.util.TestScope;
@@ -130,9 +131,9 @@ public class NotificationReregistrationBackoffTest {
 	 */
 	@Before
 	public void setupClient() {
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		config.setLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF, backoff); // [ms]
-		clientEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
+		Configuration config = Configuration.createStandardWithoutFile();
+		config.set(CoapConfig.NOTIFICATION_REREGISTRATION_BACKOFF, backoff, TimeUnit.MILLISECONDS);
+		clientEndpoint = new CoapEndpoint.Builder().setConfiguration(config).build();
 		client = new CoapClient();
 		client.setURI("coap://127.0.0.1/" + TARGET);
 		client.setEndpoint(clientEndpoint);

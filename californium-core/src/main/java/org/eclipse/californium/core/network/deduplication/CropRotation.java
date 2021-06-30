@@ -29,10 +29,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyMID;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,13 +64,14 @@ public class CropRotation implements Deduplicator {
 	 * Creates a new crop rotation deduplicator for configuration properties.
 	 * <p>
 	 * Uses the value of the
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#CROP_ROTATION_PERIOD}
+	 * {@link CoapConfig#CROP_ROTATION_PERIOD}
 	 * param from the given configuration as the waiting period between crop
 	 * rotation (in milliseconds).
 	 * 
 	 * @param config The configuration properties.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public CropRotation(NetworkConfig config) {
+	public CropRotation(Configuration config) {
 		this.rotation = new Rotation();
 		maps = new ExchangeMap[3];
 		maps[0] = new ExchangeMap();
@@ -78,8 +79,8 @@ public class CropRotation implements Deduplicator {
 		maps[2] = new ExchangeMap();
 		first = 0;
 		second = 1;
-		period = config.getLong(NetworkConfig.Keys.CROP_ROTATION_PERIOD);
-		replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
+		period = config.get(CoapConfig.CROP_ROTATION_PERIOD, TimeUnit.MILLISECONDS);
+		replace = config.get(CoapConfig.DEDUPLICATOR_AUTO_REPLACE);
 	}
 
 	@Override

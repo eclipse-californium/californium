@@ -30,11 +30,14 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -176,8 +179,8 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslClientUnauthenticated() throws Exception {
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setClientAuthenticationRequired(false);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 
 		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
@@ -237,8 +240,8 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
 
-		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedSignatureAlgorithms(defaults);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setSupportedSignatureAlgorithms(defaults);
 		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, OpenSslProcessUtil.DEFAULT_CURVES,

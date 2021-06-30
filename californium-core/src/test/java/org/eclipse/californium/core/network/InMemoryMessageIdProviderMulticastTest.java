@@ -21,9 +21,11 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;
@@ -51,8 +53,8 @@ public class InMemoryMessageIdProviderMulticastTest {
 	 */
 	@Test(expected = IllegalStateException.class)
 	public void testMulticastWithMissConfiguredNetworkConfig() {
-		NetworkConfig config = network.createStandardTestConfig();
-		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, 0);
+		Configuration config = network.createStandardTestConfig();
+		config.set(CoapConfig.MULTICAST_BASE_MID, 0);
 		InMemoryMessageIdProvider midProvider = new InMemoryMessageIdProvider(config);
 		midProvider.getNextMessageId(new InetSocketAddress(GROUP, PORT));
 	}
@@ -60,9 +62,9 @@ public class InMemoryMessageIdProviderMulticastTest {
 	@Test
 	public void testMidsWithTwoMulticastGroupsAtOnce() {
 		final int multicastBaseMid = 65515;
-		NetworkConfig config = network.createStandardTestConfig();
-		config.setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME, 1);
-		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, multicastBaseMid);
+		Configuration config = network.createStandardTestConfig();
+		config.set(CoapConfig.EXCHANGE_LIFETIME, 1, TimeUnit.MILLISECONDS);
+		config.set(CoapConfig.MULTICAST_BASE_MID, multicastBaseMid);
 		InMemoryMessageIdProvider midProvider = new InMemoryMessageIdProvider(config);
 		for (int i = 1; i < 20; i++) {
 			if ((i % 5) == 0) {
@@ -87,9 +89,9 @@ public class InMemoryMessageIdProviderMulticastTest {
 	@Test
 	public void testMulticastMidRange() {
 		final int multicastBaseMid = 20000;
-		NetworkConfig config = network.createStandardTestConfig();
-		config.setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME, 1);
-		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, multicastBaseMid);
+		Configuration config = network.createStandardTestConfig();
+		config.set(CoapConfig.EXCHANGE_LIFETIME, 1, TimeUnit.MILLISECONDS);
+		config.set(CoapConfig.MULTICAST_BASE_MID, multicastBaseMid);
 		InetSocketAddress multicast = new InetSocketAddress(GROUP, PORT);
 		InetSocketAddress unicast = new InetSocketAddress("127.0.0.1", PORT);
 		InMemoryMessageIdProvider midProvider = new InMemoryMessageIdProvider(config);

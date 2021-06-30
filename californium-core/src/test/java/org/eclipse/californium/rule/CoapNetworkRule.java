@@ -17,13 +17,12 @@
  ******************************************************************************/
 package org.eclipse.californium.rule;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.slf4j.Logger;
@@ -32,62 +31,22 @@ import org.slf4j.LoggerFactory;
 /**
  * CoAP network rules for junit test using datagram sockets.
  * 
- * Though {@link NetworkConfig} and {@link EndpointManager} depend on some
+ * Though {@link EndpointManager} depend on some
  * internal state, this rule manages these states by setup and cleanup the
- * values. Therefore it's intended, that test code uses the provided methods to
- * access {@link NetworkConfig}, {@link #getStandardTestConfig()},
- * {@link #createStandardTestConfig()}, and {@link #createTestConfig()}.
+ * values.
  *
- * The rule is intended to be mainly used as <code>&#64;ClassRule<code>
+ * The rule is intended to be mainly used as {@code &#64;ClassRule}.
  * 
  * <pre>
  * public class AbcNetworkTest {
  *    &#64;ClassRule
  *    public static CoapNetworkRule network = new CoapNetworkRule(Mode.DIRECT, Mode.NATIVE);
  *    ...
- *    &#64;BeforeClass
- *    public static void init() {
- *       network.getStandardTestConfig().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
- *    ...
  * </pre>
- * 
- * The {@link NetworkConfig} access methods then are valid from the
- * <code>&#64;BeforeClass</code> until <code>&#64;AfterClass</code> method.
- * 
- * If used as
- * <code>&#64;Rule<code>, the {@link NetworkConfig} access methods then are valid from the
- * <code>&#64;Before</code> until <code>&#64;After</code> method.
- * 
- * For the DIRECT mode there are additional parameters available
- * {@link #setMessageThreads(int)}, and {@link #setDelay(int)}.
- * 
- * In rare cases nested rules are allowed, but be careful when accessing the
- * {@link NetworkConfig} to choose the active rule. The inner will overwrite the
- * outer {@link NetworkConfig} and detach from that.
-
- * <pre>
- * public class AbcNetworkTest {
- *    &#64;ClassRule
- *    public static CoapNetworkRule network = new CoapNetworkRule(Mode.DIRECT, Mode.NATIVE);
- *    &#64;Rule
- *    public static CoapNetworkRule inner = new CoapNetworkRule(Mode.DIRECT, Mode.NATIVE);
- *    ...
- *    &#64;BeforeClass
- *    public static void init() {
- *       network.getStandardTestConfig().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32);
- *    ...
- *    
- *    &#64;Before
- *    public void before() {
- *       inner.getStandardTestConfig().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 64);
- *    
- * </pre>
- * 
  */
 public class CoapNetworkRule extends NetworkRule {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(CoapNetworkRule.class);
-	private static final int DEFAULT_MESSAGE_THREADS = 1;
 	/**
 	 * CoAP datagram formatter. Used for logging.
 	 */
@@ -113,16 +72,6 @@ public class CoapNetworkRule extends NetworkRule {
 	};
 
 	/**
-	 * Number of message processing threads. Used to setup test
-	 * {@link NetworkConfig}.
-	 * 
-	 * @see #createTestConfig()
-	 * @see #createStandardTestConfig()
-	 * @see #getStandardTestConfig()
-	 */
-	private final AtomicInteger messageThreads = new AtomicInteger(DEFAULT_MESSAGE_THREADS);
-
-	/**
 	 * Create rule supporting provided modes.
 	 * 
 	 * @param modes
@@ -142,25 +91,6 @@ public class CoapNetworkRule extends NetworkRule {
 	 */
 	protected CoapNetworkRule(DatagramFormatter formatter, Mode... modes) {
 		super(formatter, modes);
-		this.messageThreads.set(DEFAULT_MESSAGE_THREADS);
-	}
-
-	/**
-	 * Set number of message processing threads. Using multiple threads for
-	 * sending and receiving may result in reordering of messages. Therefore the
-	 * default is {@link #DEFAULT_MESSAGE_THREADS} to ensure, that no such
-	 * reorder happens.
-	 * 
-	 * @param threads
-	 *            number of threads.
-	 * @return this rule
-	 */
-	public CoapNetworkRule setMessageThreads(int threads) {
-		if (1 > threads) {
-			throw new IllegalArgumentException("number of message threads must be at least 1, not " + threads + "!");
-		}
-		messageThreads.set(threads);
-		return this;
 	}
 
 	@Override
@@ -169,59 +99,36 @@ public class CoapNetworkRule extends NetworkRule {
 	}
 
 	@Override
+	public CoapNetworkRule setMessageThreads(int threads) {
+		return (CoapNetworkRule) super.setMessageThreads(threads);
+	}
+	
+	@Override
 	protected void initNetwork(boolean first) {
 		if (first) {
 			EndpointManager.reset();
 		}
-		createStandardTestConfig();
 		super.initNetwork(first);
 	}
 
 	@Override
 	protected void closeNetwork() {
 		EndpointManager.reset();
-		messageThreads.set(DEFAULT_MESSAGE_THREADS);
-		NetworkConfig.setStandard(null);
 		super.closeNetwork();
 	}
 
 	/**
-	 * Create new standard network configuration for testing.
+	 * Create new configuration for testing.
 	 * 
-	 * @return fresh standard network configurations. Changes are visible to
-	 *         other usage of the standard configuration.
-	 * @see NetworkConfig#getStandard()
-	 */
-	public NetworkConfig createStandardTestConfig() {
-		NetworkConfig config = createTestConfig();
-		NetworkConfig.setStandard(config);
-		return config;
-	}
-
-	/**
-	 * Get standard network configuration for testing.
-	 * 
-	 * @return standard network configurations. Changes are visible to other
-	 *         usage of the standard configuration.
-	 * @see NetworkConfig#getStandard()
-	 */
-	public NetworkConfig getStandardTestConfig() {
-		ensureThisRuleIsActive();
-		return NetworkConfig.getStandard();
-	}
-
-	/**
-	 * Create new network configuration for testing.
-	 * 
-	 * @return network configurations. Detached from the standard network
+	 * @return configurations. Detached from the standard
 	 *         configuration.
 	 */
-	public NetworkConfig createTestConfig() {
-		ensureThisRuleIsActive();
+	@Override
+	public Configuration createTestConfig() {
+		CoapConfig.register();
+		Configuration config = super.createTestConfig();
 		int threads = messageThreads.get();
-		NetworkConfig config = new NetworkConfig();
-		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, threads);
-		config.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, threads);
+		config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, threads);
 		return config;
 	}
 }

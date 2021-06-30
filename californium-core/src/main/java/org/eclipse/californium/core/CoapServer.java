@@ -36,13 +36,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
@@ -52,6 +49,7 @@ import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PersistentConnector;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -59,6 +57,8 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.WipAPI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An execution environment for CoAP {@link Resource}s.
@@ -122,8 +122,8 @@ public class CoapServer implements ServerInterface {
 	/** The root resource. */
 	private final Resource root;
 
-	/** The network configuration used by this server. */
-	private final NetworkConfig config;
+	/** The configuration used by this server. */
+	private final Configuration config;
 
 	/** The message deliverer. */
 	private MessageDeliverer deliverer;
@@ -152,7 +152,7 @@ public class CoapServer implements ServerInterface {
 	 * assigned, it will bind to CoAP's default port 5683.
 	 */
 	public CoapServer() {
-		this(NetworkConfig.getStandard());
+		this(Configuration.getStandard());
 	}
 
 	/**
@@ -164,7 +164,7 @@ public class CoapServer implements ServerInterface {
 	 *            will bind to CoAP's default port 5683 on {@link #start()}.
 	 */
 	public CoapServer(final int... ports) {
-		this(NetworkConfig.getStandard(), ports);
+		this(Configuration.getStandard(), ports);
 	}
 
 	/**
@@ -172,17 +172,18 @@ public class CoapServer implements ServerInterface {
 	 * specified ports after method {@link #start()} is called.
 	 *
 	 * @param config the configuration, if {@code null} the configuration
-	 *            returned by {@link NetworkConfig#getStandard()} is used.
+	 *            returned by {@link Configuration#getStandard()} is used.
 	 * @param ports the ports to bind to. If empty or {@code null} and no
 	 *            endpoints are added with {@link #addEndpoint(Endpoint)}, it
 	 *            will bind to CoAP's default port 5683 on {@link #start()}.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public CoapServer(final NetworkConfig config, final int... ports) {
+	public CoapServer(final Configuration config, final int... ports) {
 		// global configuration that is passed down (can be observed for changes)
 		if (config != null) {
 			this.config = config;
 		} else {
-			this.config = NetworkConfig.getStandard();
+			this.config = Configuration.getStandard();
 		}
 		setTag(null);
 		// resources
@@ -201,7 +202,7 @@ public class CoapServer implements ServerInterface {
 			for (int port : ports) {
 				CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 				builder.setPort(port);
-				builder.setNetworkConfig(config);
+				builder.setConfiguration(config);
 				addEndpoint(builder.build());
 			}
 		}
@@ -258,18 +259,18 @@ public class CoapServer implements ServerInterface {
 			// sets the central thread pool for the protocol stage over all
 			// endpoints
 			setExecutors(ExecutorsUtil.newScheduledThreadPool(//
-					this.config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT),
+					this.config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT),
 					new NamedThreadFactory("CoapServer(main)#")), //$NON-NLS-1$
 					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
 		}
 
 		if (endpoints.isEmpty()) {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
-			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
+			int port = config.get(CoapConfig.COAP_PORT);
 			LOGGER.info("{}no endpoints have been defined for server, setting up server endpoint on default port {}", getTag(), port);
 			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 			builder.setPort(port);
-			builder.setNetworkConfig(config);
+			builder.setConfiguration(config);
 			addEndpoint(builder.build());
 		}
 
@@ -602,12 +603,12 @@ public class CoapServer implements ServerInterface {
 	}
 
 	/**
-	 * Get the network configuration of this server.
+	 * Get the configuration of this server.
 	 * 
-	 * @return the network configuration
-	 * @since 2.1
+	 * @return the configuration
+	 * @since 3.0 (changed return type to Configuration)
 	 */
-	public NetworkConfig getConfig() {
+	public Configuration getConfig() {
 		return config;
 	}
 
@@ -630,7 +631,6 @@ public class CoapServer implements ServerInterface {
 
 		public RootResource() {
 			super("");
-			String nodeId = config.getString(NetworkConfig.Keys.DTLS_CONNECTION_ID_NODE_ID);
 			String title = "CoAP RFC 7252";
 			if (StringUtil.CALIFORNIUM_VERSION != null) {
 				String version = "Cf " + StringUtil.CALIFORNIUM_VERSION;
@@ -642,10 +642,7 @@ public class CoapServer implements ServerInterface {
 					.append("****************************************************************\n")
 					.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
 					.append("published under EPL+EDL: http://www.eclipse.org/californium/\n\n");
-			if (nodeId != null && !nodeId.isEmpty()) {
-				builder.append("node id = ").append(nodeId).append("\n\n");
-			}
-			builder.append("(c) 2014-2020 Institute for Pervasive Computing, ETH Zurich and others\n");
+			builder.append("(c) 2014-2021 Institute for Pervasive Computing, ETH Zurich and others\n");
 			String master = StringUtil.getConfiguration("COAP_ROOT_RESOURCE_FOOTER");
 			if (master != null) {
 				builder.append(master).append("\n");

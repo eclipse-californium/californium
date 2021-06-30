@@ -28,8 +28,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -100,7 +98,7 @@ public class DTLSEndpointContextTest {
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException, GeneralSecurityException {
-		serverHelper = new ConnectorHelper();
+		serverHelper = new ConnectorHelper(network);
 		serverHelper.startServer();
 	}
 
@@ -118,8 +116,7 @@ public class DTLSEndpointContextTest {
 	@Before
 	public void setUp() throws Exception {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		clientConfig = serverHelper.newStandardClientConfig(clientEndpoint);
+		clientConfig = serverHelper.newClientConfigBuilder(network).build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 	}
 

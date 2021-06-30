@@ -67,6 +67,7 @@ import javax.security.auth.DestroyFailedException;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -142,11 +143,8 @@ public class ServerHandshaker extends Handshaker {
 	/** Does the server use session id? */
 	private final boolean useSessionId;
 
-	/** Is the client wanted to authenticate itself? */
-	private final boolean clientAuthenticationWanted;
-
-	/** Is the client required to authenticate itself? */
-	private final boolean clientAuthenticationRequired;
+	/** certificate based client authentication mode */
+	private final CertificateAuthenticationMode clientAuthenticationMode;
 
 	/** Is the client's address verified? */
 	private final boolean useHelloVerifyRequest;
@@ -239,8 +237,7 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 		this.supportedGroups = config.getSupportedGroups();
 
-		this.clientAuthenticationWanted = config.isClientAuthenticationWanted();
-		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
+		this.clientAuthenticationMode = config.getCertificateAuthenticationMode();
 		this.useSessionId = config.useServerSessionId();
 		this.useHelloVerifyRequest = config.useHelloVerifyRequest();
 		this.useHelloVerifyRequestForPsk = this.useHelloVerifyRequest && config.useHelloVerifyRequestForPsk();
@@ -359,7 +356,7 @@ public class ServerHandshaker extends Handshaker {
 	private void receivedClientCertificate(CertificateMessage message) throws HandshakeException {
 
 		if (message.isEmpty()) {
-			if (clientAuthenticationRequired) {
+			if (clientAuthenticationMode == CertificateAuthenticationMode.NEEDED) {
 				LOGGER.debug("Client authentication failed: missing certificate!");
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 				throw new HandshakeException("Client Certificate required!", alert);
@@ -421,7 +418,8 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
 
-		if (clientAuthenticationRequired && isExpectedStates(EMPTY_CLIENT_CERTIFICATE)) {
+		if (clientAuthenticationMode == CertificateAuthenticationMode.NEEDED
+				&& isExpectedStates(EMPTY_CLIENT_CERTIFICATE)) {
 			// client sent an empty certificate, but authentication is required.
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
@@ -497,9 +495,8 @@ public class ServerHandshaker extends Handshaker {
 				clientHello.getSupportedSignatureAlgorithms());
 		ECPointFormat format = negotiateECPointFormat(clientHello.getSupportedPointFormatsExtension());
 
-		this.cipherSuiteParameters = new CipherSuiteParameters(null, null, clientAuthenticationRequired,
-				clientAuthenticationWanted, commonCipherSuites, commonServerCertTypes, commonClientCertTypes,
-				commonGroups, commonSignatures, format);
+		this.cipherSuiteParameters = new CipherSuiteParameters(null, null, clientAuthenticationMode, commonCipherSuites,
+				commonServerCertTypes, commonClientCertTypes, commonGroups, commonSignatures, format);
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(commonCipherSuites)) {
 			this.pendingClientHello = clientHello;
 			ServerNames serverNames = sniEnabled ? clientHello.getServerNames() : null;
@@ -658,7 +655,7 @@ public class ServerHandshaker extends Handshaker {
 	private boolean createCertificateRequest(DTLSFlight flight) {
 		DTLSSession session = getSession();
 		CertificateType certificateType = session.receiveCertificateType();
-		if ((clientAuthenticationWanted || clientAuthenticationRequired)
+		if (clientAuthenticationMode.useCertificateRequest()
 				&& session.getCipherSuite().requiresServerCertificateMessage()
 				&& certificateType != null) {
 			CertificateRequest certificateRequest = new CertificateRequest();
@@ -770,7 +767,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		if (session.getCipherSuite().requiresServerCertificateMessage()) {
-			if (clientAuthenticationRequired || clientAuthenticationWanted) {
+			if (clientAuthenticationMode.useCertificateRequest()) {
 				CertificateType certificateType = session.receiveCertificateType();
 				if (certificateType != null) {
 					ClientCertificateTypeExtension certificateTypeExtension = clientHello
@@ -901,14 +898,14 @@ public class ServerHandshaker extends Handshaker {
 				}
 				session.setSendCertificateType(certificateType);
 				certificateType = cipherSuiteParameters.getSelectedClientCertificateType();
-				if (clientAuthenticationRequired) {
+				if (clientAuthenticationMode == CertificateAuthenticationMode.NEEDED) {
 					if (certificateType == null) {
 						AlertMessage alert = new AlertMessage(AlertLevel.FATAL,
 								AlertDescription.UNSUPPORTED_CERTIFICATE);
 						throw new HandshakeException("No common client certificate type!", alert);
 					}
 					session.setReceiveCertificateType(certificateType);
-				} else if (clientAuthenticationWanted) {
+				} else if (clientAuthenticationMode == CertificateAuthenticationMode.WANTED) {
 					if (certificateType != null) {
 						session.setReceiveCertificateType(certificateType);
 					}

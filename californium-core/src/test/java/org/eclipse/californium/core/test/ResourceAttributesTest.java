@@ -38,13 +38,13 @@ import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Assert;
 import org.junit.Before;
@@ -210,7 +210,7 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public NetworkConfig getConfig() {
+		public Configuration getConfig() {
 			return null;
 		}
 

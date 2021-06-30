@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
@@ -270,10 +272,10 @@ public class CredentialsUtil {
 			if (rpkTrust) {
 				throw new IllegalArgumentException(Mode.NO_AUTH + " doesn't support " + Mode.RPK_TRUST);
 			}
-			config.setClientAuthenticationRequired(false);
+			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		}
 		else if (modes.contains(Mode.WANT_AUTH)) {
-			config.setClientAuthenticationWanted(true);
+			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		}
 
 		Builder trustBuilder = StaticNewAdvancedCertificateVerifier.builder();

@@ -25,13 +25,15 @@ import java.util.List;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 public class SecureServer {
@@ -40,7 +42,7 @@ public class SecureServer {
 			Mode.WANT_AUTH, Mode.NO_AUTH);
 
 	// allows configuration via Californium.properties
-	public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
+	public static final int DTLS_PORT = Configuration.getStandard().get(CoapConfig.COAP_SECURE_PORT);
 
 	public static void main(String[] args) {
 
@@ -61,15 +63,17 @@ public class SecureServer {
 		// server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("2a01:c911:0:2010::10", DTLS_PORT)), NetworkConfig.getStandard()));
 		// server.addEndpoint(new CoAPEndpoint(new DTLSConnector(new InetSocketAddress("10.200.1.2", DTLS_PORT)), NetworkConfig.getStandard()));
 
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		Configuration configuration = new Configuration()
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration)
+				.setAddress(new InetSocketAddress(DTLS_PORT));
 		CredentialsUtil.setupCid(args, builder);
-		builder.setAddress(new InetSocketAddress(DTLS_PORT));
-		builder.setRecommendedCipherSuitesOnly(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_SERVER_MODES, SUPPORTED_MODES);
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.SERVER_NAME, modes);
 		DTLSConnector connector = new DTLSConnector(builder.build());
-		CoapEndpoint.Builder coapBuilder = new CoapEndpoint.Builder();
-		coapBuilder.setConnector(connector);
+		CoapEndpoint.Builder coapBuilder = new CoapEndpoint.Builder()
+				.setConfiguration(configuration)
+				.setConnector(connector);
 		server.addEndpoint(coapBuilder.build());
 		server.start();
 

@@ -58,29 +58,27 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.eclipse.californium.core.coap.CoAP.Type;
-
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Matcher for CoAP messages transmitted over UDP.
@@ -108,8 +106,9 @@ public final class UdpMatcher extends BaseMatcher {
 	 * @param matchingStrategy endpoint context matcher to relate responses with
 	 *            requests
 	 * @throws NullPointerException if one of the parameters is {@code null}.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public UdpMatcher(NetworkConfig config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+	public UdpMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
 			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
 			EndpointContextMatcher matchingStrategy) {
 		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, executor);

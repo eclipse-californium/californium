@@ -31,15 +31,16 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor;
 import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor.ReceiveRequestHandler;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -82,7 +83,7 @@ public class BlockwiseBertTransferTest {
 	private static final String OVERSIZE_BODY = generateRandomPayload(16000);
 
 	private static CoapServer server;
-	private static NetworkConfig config;
+	private static Configuration config;
 
 	private static Endpoint serverEndpoint;
 
@@ -95,11 +96,11 @@ public class BlockwiseBertTransferTest {
 	@BeforeClass
 	public static void prepare() {
 		config = network.getStandardTestConfig()
-				.setInt(Keys.UDP_CONNECTOR_DATAGRAM_SIZE, 3000)
-				.setInt(Keys.PREFERRED_BLOCK_SIZE, 1024)
-				.setInt(Keys.MAX_MESSAGE_SIZE, 1024)
-				.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 2)
-				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 8192);
+				.set(UdpConfig.UDP_DATAGRAM_SIZE, 3000)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 1024)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 1024)
+				.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 2)
+				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 8192);
 
 		server = createSimpleServer();
 		cleanup.add(server);
@@ -109,8 +110,8 @@ public class BlockwiseBertTransferTest {
 	public void createClients() throws IOException {
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
-		builder.setConnectorWithAutoConfiguration(new UDPConnector(LOCALHOST_EPHEMERAL) {
+		builder.setConfiguration(config);
+		builder.setConnector(new UDPConnector(LOCALHOST_EPHEMERAL, config) {
 
 			@Override
 			public String getProtocol() {
@@ -255,8 +256,8 @@ public class BlockwiseBertTransferTest {
 		CoapServer result = new CoapServer(config);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
-		builder.setConnectorWithAutoConfiguration(new UDPConnector(LOCALHOST_EPHEMERAL) {
+		builder.setConfiguration(config);
+		builder.setConnector(new UDPConnector(LOCALHOST_EPHEMERAL, config) {
 
 			@Override
 			public String getProtocol() {
@@ -299,7 +300,7 @@ public class BlockwiseBertTransferTest {
 	}
 
 	private static int getBertBlocks(String payload) {
-		int bulk = config.getInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS);
+		int bulk = config.get(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS);
 		int bulkSize = 1024 * bulk;
 		return (payload.length() + bulkSize - 1) / bulkSize;
 	}

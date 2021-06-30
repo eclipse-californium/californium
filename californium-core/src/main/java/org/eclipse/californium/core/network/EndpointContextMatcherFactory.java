@@ -26,7 +26,8 @@
 package org.eclipse.californium.core.network;
 
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
@@ -35,15 +36,13 @@ import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.TcpEndpointContextMatcher;
 import org.eclipse.californium.elements.TlsEndpointContextMatcher;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * Factory for endpoint context matcher.
  */
 public class EndpointContextMatcherFactory {
 
-	public enum MatcherMode {
-		STRICT, RELAXED, PRINCIPAL
-	}
 
 	/**
 	 * Create endpoint context matcher related to connector according the
@@ -63,8 +62,9 @@ public class EndpointContextMatcherFactory {
 	 * @param connector connector to create related endpoint context matcher.
 	 * @param config configuration.
 	 * @return endpoint context matcher
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public static EndpointContextMatcher create(Connector connector, NetworkConfig config) {
+	public static EndpointContextMatcher create(Connector connector, Configuration config) {
 		String protocol = null;
 		if (null != connector) {
 			protocol = connector.getProtocol();
@@ -74,16 +74,7 @@ public class EndpointContextMatcherFactory {
 				return new TlsEndpointContextMatcher();
 			}
 		}
-		String textualMode = "???";
-		MatcherMode mode = MatcherMode.STRICT;
-		try {
-			textualMode = config.getString(NetworkConfig.Keys.RESPONSE_MATCHING);
-			mode = MatcherMode.valueOf(textualMode);
-		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException("Response matching mode '" + textualMode + "' not supported!");
-		} catch (NullPointerException e) {
-			throw new IllegalArgumentException("Response matching mode not provided/configured!");
-		}
+		MatcherMode mode = config.get(CoapConfig.RESPONSE_MATCHING);
 		switch (mode) {
 		case RELAXED:
 			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {

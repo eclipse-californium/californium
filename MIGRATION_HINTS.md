@@ -33,6 +33,8 @@ Since 3.0 the sub-class may be ignored, depending on the provided value of the `
 
 The IPv6-scope-separator "%" is replaced by the URL-encoded form "%25" (also fixed in 2.6.4).
 
+`DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT` is renamed into `DtlsEndpointContext.KEY_AUTO_HANDSHAKE_TIMEOUT`. The key's value is adjusted as well. The feature not only supports abbreviated handshakes, it also starts full handshakes, if the session is not able to be resumed.
+
 ### Scandium:
 
 Redesigned! May cause also unaware changes! If you detect one, please create an issue on 
@@ -193,6 +195,8 @@ are removed and must be replaced by
 12) Removed `Resource.getSecondaryExecutor()` and change the return type of `Resource.getExecutor()` from `ExecutorService` to the simpler `Executor`. Specific `Resource` implementation may maintain the executors as required by them.
 
 13) Removed `CoapResource.createClient(???)`. Though `Resource.getExecutor()` may return `null`, it depends on the implementation of the `Resource` not to return `null`, but that changes other executions. Therefore implement `createClient(???)` for the specific `Resources` and provide the executors there. 
+
+14) Removed `CoapEndpoint.Builder.setConnectorWithAutoConfiguration(UDPConnector)`. `Configuration` must now be provided to the Connector's constructors.
 
 ### Californium-Proxy2:
 

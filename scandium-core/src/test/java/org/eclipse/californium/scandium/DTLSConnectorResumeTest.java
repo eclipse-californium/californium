@@ -72,6 +72,7 @@ import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -154,6 +155,7 @@ public class DTLSConnectorResumeTest {
 	List<Record> lastReceivedFlight;
 
 	public static interface TypedBuilderSetup extends BuilderSetup {
+
 		Class<?> getPrincipalType();
 	}
 
@@ -208,8 +210,9 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				serverResumptionVerifier.setDelay(100);
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
-						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
+						.setAdvancedPskStore(clientPskStore);
 			}
 
 		}, new TypedBuilderSetup() {
@@ -230,8 +233,9 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
 				serverResumptionVerifier.setDelay(0);
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
-						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
+						.setAdvancedPskStore(clientPskStore);
 			}
 
 		}, new TypedBuilderSetup() {
@@ -274,10 +278,11 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				serverResumptionVerifier.setDelay(100);
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
-						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
+						.setAdvancedPskStore(clientPskStore);
 			}
-			
+
 		}, new TypedBuilderSetup() {
 
 			public String toString() {
@@ -319,7 +324,8 @@ public class DTLSConnectorResumeTest {
 				serverCertificateVerifier.setDelay(0);
 				serverResumptionVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
-						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain, CertificateType.X_509))
+						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey,
+								clientCertificateChain, CertificateType.X_509))
 						.setAdvancedCertificateVerifier(clientCertificateVerifier);
 			}
 		}, new TypedBuilderSetup() {
@@ -340,9 +346,10 @@ public class DTLSConnectorResumeTest {
 				serverCertificateProvider.setDelay(100);
 				serverCertificateVerifier.setDelay(100);
 				serverResumptionVerifier.setDelay(100);
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
-						.setEnableMultiHandshakeMessageRecords(true)
-						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain, CertificateType.X_509))
+						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey,
+								clientCertificateChain, CertificateType.X_509))
 						.setAdvancedCertificateVerifier(clientCertificateVerifier);
 			}
 		}, new TypedBuilderSetup() {
@@ -363,10 +370,11 @@ public class DTLSConnectorResumeTest {
 				serverCertificateProvider.setDelay(0);
 				serverCertificateVerifier.setDelay(0);
 				serverResumptionVerifier.setDelay(0);
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
-						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY))
-						.setAdvancedCertificateVerifier(clientCertificateVerifier)
-						.setEnableMultiHandshakeMessageRecords(true);
+						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey,
+								clientCertificateChain, CertificateType.RAW_PUBLIC_KEY))
+						.setAdvancedCertificateVerifier(clientCertificateVerifier);
 			}
 		}, new TypedBuilderSetup() {
 
@@ -386,10 +394,11 @@ public class DTLSConnectorResumeTest {
 				serverCertificateProvider.setDelay(100);
 				serverCertificateVerifier.setDelay(100);
 				serverResumptionVerifier.setDelay(100);
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
-						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY))
-						.setAdvancedCertificateVerifier(clientCertificateVerifier)
-						.setEnableMultiHandshakeMessageRecords(true);
+						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey,
+								clientCertificateChain, CertificateType.RAW_PUBLIC_KEY))
+						.setAdvancedCertificateVerifier(clientCertificateVerifier);
 			}
 		} };
 
@@ -422,24 +431,21 @@ public class DTLSConnectorResumeTest {
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME_ALT);
 		serverPskStore = new AsyncAdvancedPskStore(pskStore);
 		serverCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier.builder()
-				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
-				.setTrustAllRPKs()
-				.build();
+				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
 		serverResumptionVerifier = new AsyncResumptionVerifier();
 
 		serverCertificateProvider = new AsyncCertificateProvider(DtlsTestTools.getPrivateKey(),
 				DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
-				.setSniEnabled(true)
-				.setApplicationLevelInfoSupplier(supplier)
-				.setAdvancedCertificateVerifier(serverCertificateVerifier)
-				.setAdvancedPskStore(serverPskStore)
-				.setCertificateIdentityProvider(serverCertificateProvider)
+		serverHelper = new ConnectorHelper(network);
+		serverHelper.useSessionStore = true;
+
+		serverHelper.serverBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
+				.setApplicationLevelInfoSupplier(supplier).setAdvancedCertificateVerifier(serverCertificateVerifier)
+				.setAdvancedPskStore(serverPskStore).setCertificateIdentityProvider(serverCertificateProvider)
 				.setResumptionVerifier(serverResumptionVerifier);
 
-		serverHelper = new ConnectorHelper(true);
-		serverHelper.startServer(builder);
+		serverHelper.startServer();
 		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-RESUME-"));
 		clientPrivateKey = DtlsTestTools.getClientPrivateKey();
 		clientCertificateChain = DtlsTestTools.getClientCertificateChain();
@@ -506,10 +512,7 @@ public class DTLSConnectorResumeTest {
 
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 
-		DtlsConnectorConfig.Builder builder = createClientConfigBuilder("client", null);
-		DtlsConnectorConfig clientConfig = builder.build();
-
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = new DTLSConnector(createClientConfigBuilder("client", null).build(), clientConnectionStore);
 		client.setExecutor(executor);
 	}
 
@@ -524,14 +527,13 @@ public class DTLSConnectorResumeTest {
 		serverHelper.cleanUpServer();
 	}
 
-	private void autoResumeSetUp(Long timeout) throws Exception {
+	private void autoHandshakeSetup(Long timeout) throws Exception {
 		cleanUp();
 		serverHelper.serverSessionStore.establishedSessionCounter.set(0);
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 
-		DtlsConnectorConfig.Builder builder = createClientConfigBuilder("client-auto-resume", null);
-		builder.setAutoResumptionTimeoutMillis(timeout);
-		DtlsConnectorConfig clientConfig = builder.build();
+		DtlsConnectorConfig clientConfig = createClientConfigBuilder("client-auto-resume", null)
+				.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, timeout, TimeUnit.MILLISECONDS).build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 	}
@@ -540,13 +542,11 @@ public class DTLSConnectorResumeTest {
 		if (clientEndpoint == null) {
 			clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		}
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
-				.setLoggingTag(tag)
-				.setAddress(clientEndpoint)
-				.setSniEnabled(true)
-				.setReceiverThreadCount(1)
-				.setConnectionThreadCount(2)
-				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(network.createClientTestConfig())
+				.setLoggingTag(tag).setAddress(clientEndpoint)
+				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1).set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true);
 		clientPskStore.setResultHandler(null);
 		clientCertificateProvider.setResultHandler(null);
 		clientCertificateVerifier.setResultHandler(null);
@@ -577,7 +577,8 @@ public class DTLSConnectorResumeTest {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		client.saveConnections(out, 1000);
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
-		// create a new client with different inetAddress but with the same session store.
+		// create a new client with different inetAddress but with the same
+		// session store.
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
 		clientConfig = createClientConfigBuilder("client-after", clientEndpoint).build();
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
@@ -591,7 +592,8 @@ public class DTLSConnectorResumeTest {
 		final String msg = "Hello Again";
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -605,7 +607,7 @@ public class DTLSConnectorResumeTest {
 	@Test
 	public void testConnectorAutoResumesSession() throws Exception {
 
-		autoResumeSetUp(500L);
+		autoHandshakeSetup(500L);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -618,13 +620,14 @@ public class DTLSConnectorResumeTest {
 		Thread.sleep(1000);
 
 		assertThat(connection.isAutoResumptionRequired(500L), is(true));
-		
+
 		// Prepare message sending
 		final String msg = "Hello Again";
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -640,7 +643,7 @@ public class DTLSConnectorResumeTest {
 	@Test
 	public void testConnectorNoAutoResumesSession() throws Exception {
 
-		autoResumeSetUp(1000L);
+		autoHandshakeSetup(1000L);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -654,7 +657,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -667,7 +671,7 @@ public class DTLSConnectorResumeTest {
 
 	@Test
 	public void testConnectorSupressAutoResumesSession() throws Exception {
-		autoResumeSetUp(500L);
+		autoHandshakeSetup(500L);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -684,7 +688,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, new Attributes().add(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, -1));
+		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
+				new Attributes().add(DtlsEndpointContext.KEY_AUTO_HANDSHAKE_TIMEOUT, -1));
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -700,7 +705,7 @@ public class DTLSConnectorResumeTest {
 
 	@Test
 	public void testConnectorChangedAutoResumesSession() throws Exception {
-		autoResumeSetUp(500L);
+		autoHandshakeSetup(500L);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -717,7 +722,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, new Attributes().add(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, 10000));
+		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
+				new Attributes().add(DtlsEndpointContext.KEY_AUTO_HANDSHAKE_TIMEOUT, 10000));
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -758,7 +764,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -793,7 +800,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -818,12 +826,10 @@ public class DTLSConnectorResumeTest {
 		int serverSessions = serverHelper.serverSessionStore.size();
 
 		// second client with same address
-		InMemoryConnectionStore clientConnectionStore2 = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		DtlsConnectorConfig.Builder builder2 = createClientConfigBuilder("client-2", clientAddress)
-				.setSniEnabled(true)
-				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
-		DtlsConnectorConfig clientConfig2 = builder2.build();
-
+		InMemoryConnectionStore clientConnectionStore2 = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY,
+				60);
+		DtlsConnectorConfig clientConfig2 = createClientConfigBuilder("client-2", clientAddress)
+				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true).build();
 		DTLSConnector client2 = new DTLSConnector(clientConfig2, clientConnectionStore2);
 		client2.setExecutor(executor);
 		serverHelper.givenAnEstablishedSession(client2, true);
@@ -841,7 +847,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -875,7 +882,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -888,7 +896,7 @@ public class DTLSConnectorResumeTest {
 
 	@Test
 	public void testConnectorForceResumeSession() throws Exception {
-		autoResumeSetUp(null);
+		autoHandshakeSetup(null);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -921,7 +929,7 @@ public class DTLSConnectorResumeTest {
 
 	@Test
 	public void testConnectorForceFullHandshake() throws Exception {
-		autoResumeSetUp(null);
+		autoHandshakeSetup(null);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -971,9 +979,10 @@ public class DTLSConnectorResumeTest {
 
 		// remove session from server
 		serverHelper.remove(clientAddress, true);
-		
+
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -987,8 +996,10 @@ public class DTLSConnectorResumeTest {
 	public void testConnectorPerformsFullHandshakeWhenResumingWithDifferentSni() throws Exception {
 
 		// Do a first handshake
-		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
-		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, raw, true);
+		RawData raw = RawData.outbound("Hello World".getBytes(),
+				new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
+		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, raw,
+				true);
 		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
 
 		// Force a resume session the next time we send data
@@ -1002,7 +1013,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_ALT, null), null, false);
+		RawData data = RawData.outbound(msg.getBytes(),
+				new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_ALT, null), null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -1014,16 +1026,18 @@ public class DTLSConnectorResumeTest {
 
 	@Test
 	public void testConnectorPerformsFullHandshakeWhenResumingWithEmptySessionId() throws Exception {
-		ConnectorHelper serverWithoutSessionId = new ConnectorHelper();
+		ConnectorHelper serverWithoutSessionId = new ConnectorHelper(network);
 		try {
-			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
-					.setUseServerSessionId(false)
-					.setSniEnabled(true);
-			serverWithoutSessionId.startServer(builder);
+			serverWithoutSessionId.serverBuilder.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false)
+					.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true);
+			serverWithoutSessionId.startServer();
 
-			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, SERVERNAME, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
-			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, CLIENT_IDENTITY,
+					CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, SERVERNAME,
+					SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, SERVERNAME_ALT,
+					SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
 
 			// Do a first handshake
 			RawData raw = RawData.outbound("Hello World".getBytes(),
@@ -1063,9 +1077,8 @@ public class DTLSConnectorResumeTest {
 	public void testConnectorFailsWhenResumingWithoutExtendedMasterSecret() throws Exception {
 		client.destroy();
 
-		DtlsConnectorConfig.Builder builder = createClientConfigBuilder("client", null);
-		builder.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE);
-		DtlsConnectorConfig clientConfig = builder.build();
+		DtlsConnectorConfig clientConfig = createClientConfigBuilder("client", null)
+				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE).build();
 
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -1074,8 +1087,10 @@ public class DTLSConnectorResumeTest {
 		client.setAlertHandler(clientAlertCatcher);
 
 		// Do a first handshake
-		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
-		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, raw, true);
+		RawData raw = RawData.outbound("Hello World".getBytes(),
+				new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
+		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, raw,
+				true);
 		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
 
 		// Force a resume session the next time we send data
@@ -1090,7 +1105,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
+		RawData data = RawData.outbound(msg.getBytes(),
+				new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -1105,28 +1121,30 @@ public class DTLSConnectorResumeTest {
 	public void testConnectorPerformsFullHandshakeWhenResumingWithExtendedMasterSecret() throws Exception {
 		client.destroy();
 
-		DtlsConnectorConfig.Builder clientBuilder = createClientConfigBuilder("client", null);
-		clientBuilder.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED);
-		DtlsConnectorConfig clientConfig = clientBuilder.build();
+		DtlsConnectorConfig clientConfig = createClientConfigBuilder("client", null)
+				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED).build();
 
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 
-		ConnectorHelper serverWithoutExtendedMasterSecret = new ConnectorHelper();
+		ConnectorHelper serverWithoutExtendedMasterSecret = new ConnectorHelper(network);
 		try {
-			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
-					.setSniEnabled(true)
-					.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE);
-			serverWithoutExtendedMasterSecret.startServer(builder);
+			serverWithoutExtendedMasterSecret.serverBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
+					.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE);
+			serverWithoutExtendedMasterSecret.startServer();
 
-			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
-			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, CLIENT_IDENTITY,
+					CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME,
+					SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME_ALT,
+					SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
 
 			// Do a first handshake
 			RawData raw = RawData.outbound("Hello World".getBytes(),
-					new AddressEndpointContext(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME, null), null, false);
+					new AddressEndpointContext(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME, null),
+					null, false);
 			LatchDecrementingRawDataChannel clientRawDataChannel = serverWithoutExtendedMasterSecret
 					.givenAnEstablishedSession(client, raw, true);
 			SessionId sessionId = serverWithoutExtendedMasterSecret.establishedServerSession.getSessionIdentifier();
@@ -1145,7 +1163,8 @@ public class DTLSConnectorResumeTest {
 
 			// send message
 			RawData data = RawData.outbound(msg.getBytes(),
-					new AddressEndpointContext(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME, null), null, false);
+					new AddressEndpointContext(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME, null),
+					null, false);
 			client.send(data);
 			assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -1161,7 +1180,7 @@ public class DTLSConnectorResumeTest {
 
 	@Test
 	public void testConnectorSupressHandshake() throws Exception {
-		autoResumeSetUp(null);
+		autoHandshakeSetup(null);
 
 		// suppress handshake
 		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);

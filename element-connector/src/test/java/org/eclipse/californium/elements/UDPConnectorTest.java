@@ -64,11 +64,13 @@ public class UDPConnectorTest {
 	@Before
 	public void setup() throws IOException {
 		matcher = new TestEndpointContextMatcher(1, 1);
-		connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+				network.getStandardTestConfig());
 		connector.setEndpointContextMatcher(matcher);
 		connector.start();
 		channel = new SimpleRawDataChannel(1);
-		destination = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		destination = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
+				network.getStandardTestConfig());
 		destination.setRawDataReceiver(channel);
 		destination.start();
 	}

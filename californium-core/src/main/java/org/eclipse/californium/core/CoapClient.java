@@ -51,15 +51,13 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.eclipse.californium.elements.exception.ConnectorException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MessageObserver;
@@ -69,11 +67,13 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The Class CoapClient.
@@ -179,9 +179,8 @@ public class CoapClient {
 	 * Gets the maximum amount of time that synchronous method calls will block
 	 * and wait.
 	 * <p>
-	 * If this property is {@code null}, the value is from configuration property
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
-	 * of the effective endpoint.
+	 * If this property is {@code null}, the value is from configuration
+	 * property {@link CoapConfig#EXCHANGE_LIFETIME} of the effective endpoint.
 	 * 
 	 * @return The timeout in milliseconds, or {@code null}.
 	 */
@@ -195,9 +194,7 @@ public class CoapClient {
 	 * infinitely.
 	 * <p>
 	 * If this property is {@code null}, the value is from configuration
-	 * property
-	 * {@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
-	 * of the effective endpoint.
+	 * property {@link CoapConfig#EXCHANGE_LIFETIME} of the effective endpoint.
 	 * <p>
 	 * Under normal circumstances this property should be set to at least the
 	 * <em>EXCHANGE_LIFETIME</em> (the default) in order to account for
@@ -515,7 +512,7 @@ public class CoapClient {
 			assignClientUriIfEmpty(request);
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
 			if (timeout == null) {
-				timeout = outEndpoint.getConfig().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+				timeout = outEndpoint.getConfig().get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
 			}
 			send(request, outEndpoint).waitForResponse(timeout);
 			return request.isRejected();
@@ -1177,7 +1174,7 @@ public class CoapClient {
 		try {
 			Long timeout = getTimeout();
 			if (timeout == null) {
-				timeout = outEndpoint.getConfig().getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+				timeout = outEndpoint.getConfig().get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
 			}
 			Response response = send(request, outEndpoint).waitForResponse(timeout);
 			if (response == null) {
@@ -1593,6 +1590,7 @@ public class CoapClient {
 		 * specified relation.
 		 *
 		 * @param handler the Response handler
+		 * @param multicast {@code true}, for multicast requests, {@code false}, otherwise.
 		 * @param relation the Observe relation
 		 */
 		public ObserveMessageObserverImpl(CoapHandler handler, boolean multicast, CoapObserveRelation relation) {

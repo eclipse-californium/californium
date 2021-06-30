@@ -26,7 +26,7 @@ import java.util.Random;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -275,7 +275,7 @@ public class ClientConfig extends ClientBaseConfig {
 			contentType.defaults();
 		}
 		if (payload != null) {
-			int max = networkConfig.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
+			int max = configuration.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 			payload.defaults(max);
 		}
 	}

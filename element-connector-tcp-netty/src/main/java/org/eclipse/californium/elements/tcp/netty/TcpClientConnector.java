@@ -60,6 +60,8 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -111,14 +113,28 @@ public class TcpClientConnector implements Connector {
 
 	protected final TcpContextUtil contextUtil;
 
-	public TcpClientConnector(int numberOfThreads, int connectTimeoutMillis, int idleTimeout) {
-		this(numberOfThreads, connectTimeoutMillis, idleTimeout, new TcpContextUtil());
+	/**
+	 * Create TCP client.
+	 * 
+	 * @param configuration configuration with {@link TcpConfig} definitions.
+	 * @since 3.0
+	 */
+	public TcpClientConnector(Configuration configuration) {
+		this(configuration, new TcpContextUtil());
 	}
 
-	protected TcpClientConnector(int numberOfThreads, int connectTimeoutMillis, int idleTimeout, TcpContextUtil contextUtil) {
-		this.numberOfThreads = numberOfThreads;
-		this.connectionIdleTimeoutSeconds = idleTimeout;
-		this.connectTimeoutMillis = connectTimeoutMillis;
+	/**
+	 * Create TCP client with specific context utility.
+	 * 
+	 * @param configuration configuration with {@link TcpConfig} definitions.
+	 * @param contextUtil context utility
+	 * @since 3.0
+	 */
+	protected TcpClientConnector(Configuration configuration, TcpContextUtil contextUtil) {
+		this.numberOfThreads = configuration.get(TcpConfig.TCP_WORKER_THREADS);
+		this.connectionIdleTimeoutSeconds = configuration.getTimeAsInt(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT,
+				TimeUnit.SECONDS);
+		this.connectTimeoutMillis = configuration.getTimeAsInt(TcpConfig.TCP_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
 		this.contextUtil = contextUtil;
 	}
 
@@ -142,13 +158,9 @@ public class TcpClientConnector implements Connector {
 
 			@Override
 			protected ChannelPool newPool(SocketAddress key) {
-				Bootstrap bootstrap = new Bootstrap()
-						.group(workerGroup)
-						.channel(NioSocketChannel.class)
-						.option(ChannelOption.SO_KEEPALIVE, true)
-						.option(ChannelOption.AUTO_READ, true)
-						.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis)
-						.remoteAddress(key);
+				Bootstrap bootstrap = new Bootstrap().group(workerGroup).channel(NioSocketChannel.class)
+						.option(ChannelOption.SO_KEEPALIVE, true).option(ChannelOption.AUTO_READ, true)
+						.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis).remoteAddress(key);
 
 				// We multiplex over the same TCP connection, so don't acquire
 				// more than one connection per endpoint.
@@ -253,8 +265,8 @@ public class TcpClientConnector implements Connector {
 							LOGGER.trace("{}", cause.getMessage());
 						}
 					} else {
-						LOGGER.warn("Unable to open connection to {}",
-								StringUtil.toLog(msg.getInetSocketAddress()), future.cause());
+						LOGGER.warn("Unable to open connection to {}", StringUtil.toLog(msg.getInetSocketAddress()),
+								future.cause());
 					}
 					msg.onError(future.cause());
 				}

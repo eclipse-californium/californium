@@ -29,9 +29,9 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Assert;
@@ -67,16 +67,16 @@ public class StartStopTest {
 
 	@Before
 	public void setupServers() throws Exception {
-		NetworkConfig config = network.getStandardTestConfig();
+		Configuration config = network.getStandardTestConfig();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		Endpoint serverEndpoint = builder.build();
 		serverEndpoint.start();
 		uri = TestTools.getUri(serverEndpoint, "res");
 
 		builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(serverEndpoint.getAddress());
 
 		server1 = new CoapServer(config);
@@ -89,7 +89,7 @@ public class StartStopTest {
 		cleanup.add(server1);
 
 		builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(serverEndpoint.getAddress());
 
 		server2 = new CoapServer(config);

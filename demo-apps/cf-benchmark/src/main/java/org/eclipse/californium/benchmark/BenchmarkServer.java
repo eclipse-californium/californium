@@ -19,12 +19,15 @@ package org.eclipse.californium.benchmark;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 
 
@@ -36,16 +39,16 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
  * </pre>
  */
 public class BenchmarkServer {
-	
+
 	public static final int CORES = Runtime.getRuntime().availableProcessors();
 	public static final String OS = System.getProperty("os.name");
 	public static final boolean WINDOWS = OS.startsWith("Windows");
-	
+
 	public static final String DEFAULT_ADDRESS = null;
 	public static final int DEFAULT_PORT = 5683;
-	
+
 	public static final int DEFAULT_PROTOCOL_STAGE_THREAD_COUNT = CORES;
-	
+
 	public static final int DEFAULT_SENDER_COUNT = WINDOWS ? CORES : 1;
 	public static final int DEFAULT_RECEIVER_COUNT = WINDOWS ? CORES : 1;
 
@@ -55,14 +58,14 @@ public class BenchmarkServer {
 		System.out.println();
 		System.out.println("This machine has "+CORES+" cores");
 		System.out.println("Operating system: " + OS);
-		
+
 		String address = null;
 		int port = DEFAULT_PORT;
 		int udp_sender = DEFAULT_SENDER_COUNT;
 		int udp_receiver = DEFAULT_RECEIVER_COUNT;
 		int protocol_threads = DEFAULT_PROTOCOL_STAGE_THREAD_COUNT;
 		boolean use_workers = false;
-		
+
 		// Parse input
 		if (args.length > 0) {
 			int index = 0;
@@ -89,13 +92,13 @@ public class BenchmarkServer {
 				index += 2;
 			}
 		}
-		
+
 		// Parse address
 		InetAddress addr = address!=null ? InetAddress.getByName(address) : null;
 		InetSocketAddress sockAddr = new InetSocketAddress((InetAddress) addr, port);
-		
+
 		setBenchmarkConfiguration(udp_sender, udp_receiver);
-		
+
 		// Create server
 		CoapServer server = new CoapServer();
 		if (use_workers) {
@@ -108,7 +111,7 @@ public class BenchmarkServer {
 					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
 		}
 		System.out.println("Number of receiver/sender threads: "+udp_receiver+"/"+udp_sender);
-			
+
 		server.add(new BenchmarkResource("benchmark"));
 		server.add(new FibonacciResource("fibonacci"));
 		server.add(new ShutDownResource("shutdown"));
@@ -120,24 +123,24 @@ public class BenchmarkServer {
 
 		System.out.println("Benchmark server listening on " + sockAddr);
 	}
-	
+
 	private static void setBenchmarkConfiguration(int udp_sender, int udp_receiver) {
 
-		// Network configuration optimal for performance benchmarks
-		NetworkConfig.createStandardWithoutFile()
+		// Configuration optimal for performance benchmarks
+		Configuration.createStandardWithoutFile()
 			// Disable deduplication OR strongly reduce lifetime
-			.setString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.NO_DEDUPLICATOR)
-			.setInt(NetworkConfig.Keys.EXCHANGE_LIFETIME, 1500)
-			
+			.set(CoapConfig.DEDUPLICATOR, CoapConfig.NO_DEDUPLICATOR)
+			.set(CoapConfig.EXCHANGE_LIFETIME, 1500, TimeUnit.MILLISECONDS)
+
 			// Increase buffer for network interface to 10 MB
-			.setInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 10*1024*1024)
-			.setInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER, 10*1024*1024)
-		
+			.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 10*1024*1024)
+			.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 10*1024*1024)
+
 			// Increase threads for receiving and sending packets through the socket
-			.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, udp_receiver)
-			.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, udp_sender);
+			.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, udp_receiver)
+			.set(UdpConfig.UDP_SENDER_THREAD_COUNT, udp_sender);
 	}
-	
+
 	private static void printUsage() {
 		System.out.println();
 		System.out.println("SYNOPSIS");
@@ -165,14 +168,14 @@ public class BenchmarkServer {
 		System.out.println("	java -Xms4096m -Xmx4096m -jar " + BenchmarkServer.class.getSimpleName() + ".jar -s 2 -r 2");
 		System.exit(0);
 	}
-	
+
 	/*
 	 *  Sends a GET request to itself
 	 */
 	public static void selfTest() {
 		try {
 			Request request = Request.newGet();
-			request.setURI("localhost:5683/benchmark");
+			request.setURI("coap://localhost:5683/benchmark");
 			request.send();
 			Response response = request.waitForResponse(1000);
 			System.out.println("received "+response);

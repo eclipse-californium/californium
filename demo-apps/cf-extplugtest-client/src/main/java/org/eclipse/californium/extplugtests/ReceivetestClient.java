@@ -20,8 +20,8 @@ package org.eclipse.californium.extplugtests;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -45,13 +45,14 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -76,7 +77,7 @@ import picocli.CommandLine.Option;
  */
 public class ReceivetestClient {
 
-	private static final File CONFIG_FILE = new File("CaliforniumReceivetest.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumReceivetest3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Receivetest Client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
@@ -109,14 +110,14 @@ public class ReceivetestClient {
 
 	}
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
 		}
 	};
 
@@ -126,11 +127,12 @@ public class ReceivetestClient {
 	 * @param args the arguments
 	 */
 	public static void main(String[] args) throws ConnectorException, IOException {
+		TcpConfig.register();
 
 		final Config clientConfig = new Config();
-		clientConfig.networkConfigHeader = CONFIG_HEADER;
-		clientConfig.networkConfigDefaultHandler = DEFAULTS;
-		clientConfig.networkConfigFile = CONFIG_FILE;
+		clientConfig.configurationHeader = CONFIG_HEADER;
+		clientConfig.customConfigurationDefaultsProvider = DEFAULTS;
+		clientConfig.configurationFile = CONFIG_FILE;
 
 		try {
 			ClientInitializer.init(args, clientConfig);

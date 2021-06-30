@@ -26,12 +26,14 @@ import java.util.List;
 
 import javax.crypto.SecretKey;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.SslContextUtil.IncompleteCredentialsException;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -95,24 +97,24 @@ public class ConnectorConfig implements Cloneable {
 	public String defaultEcTrusts = createDescriptor("certs/trustStore.jks", "rootPass".toCharArray(), null, null);
 
 	/**
-	 * Header for new network configuration files.
+	 * Header for new configuration files.
 	 */
-	public String networkConfigHeader = NetworkConfig.DEFAULT_HEADER;
+	public String configurationHeader = Configuration.DEFAULT_HEADER;
 	/**
-	 * Default values handler for for new network configuration files.
+	 * Default values provider for new configuration files.
 	 */
-	public NetworkConfigDefaultHandler networkConfigDefaultHandler;
+	public DefinitionsProvider customConfigurationDefaultsProvider;
 	/**
-	 * Network Configuration.
+	 * Configuration.
 	 */
-	public NetworkConfig networkConfig;
+	public Configuration configuration;
 
 	/**
-	 * Filename for network configuration.
+	 * Filename for configuration.
 	 */
-	@Option(names = { "-N",
-			"--netconfig" }, paramLabel = "FILE", description = "network config file. Default ${DEFAULT-VALUE}.")
-	public File networkConfigFile;
+	@Option(names = { "-C",
+			"--config" }, paramLabel = "FILE", description = "configuration file. Default ${DEFAULT-VALUE}.")
+	public File configurationFile;
 
 	@Option(names = "--tag", description = "use logging tag.")
 	public String tag;
@@ -416,8 +418,10 @@ public class ConnectorConfig implements Cloneable {
 		if (cipherHelpRequested || authHelpRequested) {
 			helpRequested = true;
 		}
-		networkConfig = NetworkConfig.createWithFile(networkConfigFile, networkConfigHeader,
-				networkConfigDefaultHandler);
+		CoapConfig.register();
+		DtlsConfig.register();
+		configuration = Configuration.createWithFile(configurationFile, configurationHeader,
+				customConfigurationDefaultsProvider);
 
 		int extra = RecordLayer.IPV4_HEADER_LENGTH + 20 - Record.DTLS_HANDSHAKE_HEADER_LENGTH
 				- CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getMaxCiphertextExpansion();
@@ -461,11 +465,11 @@ public class ConnectorConfig implements Cloneable {
 		public String defaultValue(ArgSpec argSpec) throws Exception {
 			if (argSpec instanceof OptionSpec) {
 				OptionSpec optionSpec = (OptionSpec) argSpec;
-				if ("--netconfig".equals(optionSpec.longestName())) {
-					if (networkConfigFile != null) {
-						return networkConfigFile.getPath();
+				if ("--config".equals(optionSpec.longestName())) {
+					if (configurationFile != null) {
+						return configurationFile.getPath();
 					} else {
-						return NetworkConfig.DEFAULT_FILE_NAME;
+						return Configuration.DEFAULT_FILE_NAME;
 					}
 				}
 			}

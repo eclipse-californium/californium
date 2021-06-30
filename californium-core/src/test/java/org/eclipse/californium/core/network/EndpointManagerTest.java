@@ -157,7 +157,7 @@ public class EndpointManagerTest {
 	private static Endpoint createEndpoint(String protocol) {
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(new DummyConnector(protocol));
-		builder.setNetworkConfig(network.getStandardTestConfig());
+		builder.setConfiguration(network.getStandardTestConfig());
 		return builder.build();
 	}
 

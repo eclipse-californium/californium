@@ -27,6 +27,7 @@ package org.eclipse.californium.elements.tcp.netty;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -35,6 +36,9 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TlsEndpointContext;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.util.StringUtil;
 
 import io.netty.channel.Channel;
@@ -46,8 +50,6 @@ import io.netty.util.concurrent.GenericFutureListener;
  * A TLS client connector that establishes outbound TLS connections.
  */
 public class TlsClientConnector extends TcpClientConnector {
-
-	private static final int DEFAULT_HANDSHAKE_TIMEOUT_MILLIS = 10000;
 
 	/**
 	 * Context to be used to for connections.
@@ -64,30 +66,14 @@ public class TlsClientConnector extends TcpClientConnector {
 	 * the caller.
 	 * 
 	 * @param sslContext ssl context
-	 * @param numberOfThreads number of thread used by connector
-	 * @param connectTimeoutMillis tcp connect timeout in milliseconds
-	 * @param idleTimeout idle timeout in seconds to close unused connection.
+	 * @param configuration configuration with {@link TcpConfig} definitions.
+	 * @since 3.0
 	 */
-	public TlsClientConnector(SSLContext sslContext, int numberOfThreads, int connectTimeoutMillis, int idleTimeout) {
-		this(sslContext, numberOfThreads, connectTimeoutMillis, DEFAULT_HANDSHAKE_TIMEOUT_MILLIS, idleTimeout);
-	}
-
-	/**
-	 * Creates TLS client connector with custom SSL context. Useful for using
-	 * client keys, or custom trust stores. The context must be initialized by
-	 * the caller.
-	 * 
-	 * @param sslContext ssl context
-	 * @param numberOfThreads number of thread used by connector
-	 * @param connectTimeoutMillis tcp connect timeout in milliseconds
-	 * @param handshakeTimeoutMillis handshake timeout in milliseconds
-	 * @param idleTimeout idle timeout in seconds to close unused connection
-	 */
-	public TlsClientConnector(SSLContext sslContext, int numberOfThreads, int connectTimeoutMillis,
-			int handshakeTimeoutMillis, int idleTimeout) {
-		super(numberOfThreads, connectTimeoutMillis, idleTimeout, new TlsContextUtil(true));
+	public TlsClientConnector(SSLContext sslContext, Configuration configuration) {
+		super(configuration, new TlsContextUtil(CertificateAuthenticationMode.NEEDED));
 		this.sslContext = sslContext;
-		this.handshakeTimeoutMillis = handshakeTimeoutMillis;
+		this.handshakeTimeoutMillis = configuration.getTimeAsInt(TcpConfig.TLS_HANDSHAKE_TIMEOUT,
+				TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -116,8 +102,8 @@ public class TlsClientConnector extends TcpClientConnector {
 							return;
 						}
 						/*
-						 * Handshake succeeded! 
-						 * Call super.send() to actually send the message.
+						 * Handshake succeeded! Call super.send() to actually
+						 * send the message.
 						 */
 						TlsClientConnector.super.send(future.getNow(), endpointMatcher, msg);
 					} else if (future.isCancelled()) {

@@ -40,22 +40,22 @@ import org.eclipse.californium.cli.ConnectorConfig.AuthenticationMode;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
-import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
@@ -76,17 +76,6 @@ import picocli.CommandLine.ParseResult;
 public class ClientInitializer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ClientInitializer.class);
-
-	/**
-	 * Specify the initial DTLS retransmission timeout.
-	 */
-	public static final String KEY_DTLS_RETRANSMISSION_TIMEOUT = "DTLS_RETRANSMISSION_TIMEOUT";
-	/**
-	 * Specify the maximum number of DTLS retransmissions.
-	 * 
-	 * @since 2.6
-	 */
-	public static final String KEY_DTLS_RETRANSMISSION_MAX = "DTLS_RETRANSMISSION_MAX";
 
 	/**
 	 * TCP module initializer class.
@@ -242,12 +231,8 @@ public class ClientInitializer {
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setLoggingTag(clientConfig.tag);
 					Connector connector = factory.create(clientConfig, executor);
-					if (connector instanceof UDPConnector) {
-						builder.setConnectorWithAutoConfiguration((UDPConnector) connector);
-					} else {
-						builder.setConnector(connector);
-					}
-					builder.setNetworkConfig(clientConfig.networkConfig);
+					builder.setConnector(connector);
+					builder.setConfiguration(clientConfig.configuration);
 					CoapEndpoint endpoint = builder.build();
 					if (clientConfig.verbose) {
 						endpoint.addInterceptor(new MessageTracer());
@@ -293,7 +278,7 @@ public class ClientInitializer {
 		@Override
 		public Connector create(ClientBaseConfig clientConfig, ExecutorService executor) {
 			int localPort = clientConfig.localPort == null ? 0 : clientConfig.localPort;
-			return new UDPConnector(new InetSocketAddress(localPort));
+			return new UDPConnector(new InetSocketAddress(localPort), clientConfig.configuration);
 		}
 	}
 
@@ -305,31 +290,26 @@ public class ClientInitializer {
 	public static class DtlsConnectorFactory implements CliConnectorFactory {
 
 		public static DtlsConnectorConfig.Builder createDtlsConfig(ClientBaseConfig clientConfig) {
-			NetworkConfig config = clientConfig.networkConfig;
-			int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
-			int staleTimeout = config.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
-			int senderThreads = config.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
-			int receiverThreads = config.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
-			int retransmissionTimeout = config.getInt(Keys.ACK_TIMEOUT);
-			Integer healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL); // seconds
-			Integer cidLength = config.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
-			Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
-			Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
-			Integer dtlsRetransmissionTimeout = config.getOptInteger(KEY_DTLS_RETRANSMISSION_TIMEOUT);
-			Integer dtlsRetransmissionMax = config.getOptInteger(KEY_DTLS_RETRANSMISSION_MAX);
-			if (dtlsRetransmissionTimeout != null) {
-				retransmissionTimeout = dtlsRetransmissionTimeout;
-			}
+			Configuration config = clientConfig.configuration;
 			int localPort = clientConfig.localPort == null ? 0 : clientConfig.localPort;
-			Long autoResumption = clientConfig.dtlsAutoResumption;
-			Integer recordSizeLimit = clientConfig.recordSizeLimit;
-			Integer mtu = clientConfig.mtu;
-			if (clientConfig.cidLength != null) {
-				cidLength = clientConfig.cidLength;
-			}
 
-			DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-			dtlsConfig.setClientOnly();
+			if (clientConfig.mtu != null) {
+				config.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, clientConfig.mtu);
+			}
+			if (clientConfig.recordSizeLimit != null) {
+				config.set(DtlsConfig.DTLS_RECORD_SIZE_LIMIT, clientConfig.recordSizeLimit);
+			}
+			if (clientConfig.cidLength != null) {
+				config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, clientConfig.cidLength);
+			}
+			if (clientConfig.dtlsAutoHandshake != null) {
+				config.setFromText(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, clientConfig.dtlsAutoHandshake);
+				LOGGER.info("set [{}] to {}", DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT.getKey(),
+						config.getAsText(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT));
+			}
+			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+
+			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
 			boolean psk = false;
 			List<KeyExchangeAlgorithm> keyExchangeAlgorithms = new ArrayList<KeyExchangeAlgorithm>();
 			List<CertificateType> certificateTypes = new ArrayList<CertificateType>();
@@ -363,9 +343,11 @@ public class ClientInitializer {
 			if (clientConfig.authentication != null && clientConfig.authentication.credentials != null) {
 				Credentials identity = clientConfig.authentication.credentials;
 				if (certificateTypes.contains(CertificateType.X_509)) {
-					dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(identity.getPrivateKey(), identity.getCertificateChain(), certificateTypes));
+					dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(identity.getPrivateKey(),
+							identity.getCertificateChain(), certificateTypes));
 				} else if (certificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
-					dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(identity.getPrivateKey(), identity.getPubicKey()));
+					dtlsConfig.setCertificateIdentityProvider(
+							new SingleCertificateProvider(identity.getPrivateKey(), identity.getPubicKey()));
 				}
 			}
 
@@ -386,35 +368,14 @@ public class ClientInitializer {
 				}
 			}
 			if (clientConfig.cipherSuites != null && !clientConfig.cipherSuites.isEmpty()) {
-				dtlsConfig.setRecommendedCipherSuitesOnly(false);
+				dtlsConfig.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 				dtlsConfig.setSupportedCipherSuites(clientConfig.cipherSuites);
 				if (clientConfig.verbose) {
 					System.out.println("cipher suites:");
 					print("   ", 50, clientConfig.cipherSuites, System.out);
 				}
 			}
-			if (cidLength != null) {
-				dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
-			}
-			dtlsConfig.setSocketReceiveBufferSize(recvBufferSize);
-			dtlsConfig.setSocketSendBufferSize(sendBufferSize);
-			dtlsConfig.setRetransmissionTimeout(retransmissionTimeout);
-			if (dtlsRetransmissionMax != null) {
-				dtlsConfig.setMaxRetransmissions(dtlsRetransmissionMax);
-			}
-			dtlsConfig.setMaxConnections(maxPeers);
-			dtlsConfig.setConnectionThreadCount(senderThreads);
-			dtlsConfig.setReceiverThreadCount(receiverThreads);
-			dtlsConfig.setStaleConnectionThreshold(staleTimeout);
 			dtlsConfig.setAddress(new InetSocketAddress(localPort));
-			dtlsConfig.setHealthStatusInterval(healthStatusInterval);
-			dtlsConfig.setRecordSizeLimit(recordSizeLimit);
-			if (mtu != null) {
-				dtlsConfig.setMaxTransmissionUnit(mtu);
-			}
-			if (autoResumption != null) {
-				dtlsConfig.setAutoResumptionTimeoutMillis(autoResumption);
-			}
 			return dtlsConfig;
 		}
 

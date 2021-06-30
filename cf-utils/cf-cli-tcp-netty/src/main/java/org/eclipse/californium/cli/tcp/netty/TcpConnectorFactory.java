@@ -19,8 +19,6 @@ import java.util.concurrent.ExecutorService;
 
 import org.eclipse.californium.cli.CliConnectorFactory;
 import org.eclipse.californium.cli.ClientBaseConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.tcp.netty.TcpClientConnector;
 
@@ -33,11 +31,7 @@ public class TcpConnectorFactory implements CliConnectorFactory {
 
 	@Override
 	public Connector create(ClientBaseConfig clientConfig, ExecutorService executor) {
-		NetworkConfig config = clientConfig.networkConfig;
-		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
-		int tcpConnectTimeout = config.getInt(Keys.TCP_CONNECT_TIMEOUT);
-		int tcpIdleTimeout = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-		return new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
+		return new TcpClientConnector(clientConfig.configuration);
 	}
 
 }

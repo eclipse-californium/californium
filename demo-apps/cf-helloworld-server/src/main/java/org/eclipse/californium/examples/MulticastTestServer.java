@@ -28,12 +28,12 @@ import java.util.Random;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -48,8 +48,9 @@ public class MulticastTestServer {
 	private static final boolean LOOPBACK = false;
 
 	public static void main(String[] args) throws UnknownHostException {
-		NetworkConfig config = NetworkConfig.getStandard();
-		int unicastPort = config.getInt(Keys.COAP_PORT);
+		CoapConfig.register();
+		Configuration config = Configuration.getStandard();
+		int unicastPort = config.get(CoapConfig.COAP_PORT);
 		int multicastPort = unicastPort;
 		switch (args.length) {
 		default:
@@ -66,7 +67,7 @@ public class MulticastTestServer {
 		server.start();
 	}
 
-	private static void createEndpoints(CoapServer server, int unicastPort, int multicastPort, NetworkConfig config) {
+	private static void createEndpoints(CoapServer server, int unicastPort, int multicastPort, Configuration config) {
 		// UDPConnector udpConnector = new UDPConnector(new
 		// InetSocketAddress(unicastPort));
 		// udpConnector.setReuseAddress(true);
@@ -85,13 +86,13 @@ public class MulticastTestServer {
 		if (NetworkInterfacesUtil.isAnyIpv6()) {
 			Inet6Address ipv6 = NetworkInterfacesUtil.getMulticastInterfaceIpv6();
 			LOGGER.info("Multicast: IPv6 Network Address: {}", StringUtil.toString(ipv6));
-			UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv6, unicastPort));
+			UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv6, unicastPort), config);
 			udpConnector.setReuseAddress(true);
-			CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector)
+			CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setConfiguration(config).setConnector(udpConnector)
 					.build();
 
 			builder = new UdpMulticastConnector.Builder().setLocalAddress(CoAP.MULTICAST_IPV6_SITELOCAL, multicastPort)
-					.addMulticastGroup(CoAP.MULTICAST_IPV6_SITELOCAL, networkInterface);
+					.addMulticastGroup(CoAP.MULTICAST_IPV6_SITELOCAL, networkInterface).setConfiguration(config);
 			createReceiver(builder, udpConnector);
 
 			/*
@@ -99,7 +100,7 @@ public class MulticastTestServer {
 			 * multicast is broken
 			 */
 			builder = new UdpMulticastConnector.Builder().setLocalAddress(CoAP.MULTICAST_IPV6_LINKLOCAL, multicastPort)
-					.addMulticastGroup(CoAP.MULTICAST_IPV6_LINKLOCAL, networkInterface);
+					.addMulticastGroup(CoAP.MULTICAST_IPV6_LINKLOCAL, networkInterface).setConfiguration(config);
 			createReceiver(builder, udpConnector);
 
 			server.addEndpoint(coapEndpoint);
@@ -109,28 +110,29 @@ public class MulticastTestServer {
 		if (NetworkInterfacesUtil.isAnyIpv4()) {
 			Inet4Address ipv4 = NetworkInterfacesUtil.getMulticastInterfaceIpv4();
 			LOGGER.info("Multicast: IPv4 Network Address: {}", StringUtil.toString(ipv4));
-			UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv4, unicastPort));
+			UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv4, unicastPort), config);
 			udpConnector.setReuseAddress(true);
-			CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector)
+			CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setConfiguration(config).setConnector(udpConnector)
 					.build();
 
 			builder = new UdpMulticastConnector.Builder().setLocalAddress(CoAP.MULTICAST_IPV4, multicastPort)
-					.addMulticastGroup(CoAP.MULTICAST_IPV4, networkInterface);
+					.addMulticastGroup(CoAP.MULTICAST_IPV4, networkInterface).setConfiguration(config);
 			createReceiver(builder, udpConnector);
 
 			Inet4Address broadcast = NetworkInterfacesUtil.getBroadcastIpv4();
 			if (broadcast != null) {
 				// windows seems to fail to open a broadcast receiver
-				builder = new UdpMulticastConnector.Builder().setLocalAddress(broadcast, multicastPort);
+				builder = new UdpMulticastConnector.Builder().setLocalAddress(broadcast, multicastPort)
+						.setConfiguration(config);
 				createReceiver(builder, udpConnector);
 			}
 			server.addEndpoint(coapEndpoint);
 			LOGGER.info("IPv4 - multicast");
 		}
 		UDPConnector udpConnector = new UDPConnector(
-				new InetSocketAddress(InetAddress.getLoopbackAddress(), unicastPort));
+				new InetSocketAddress(InetAddress.getLoopbackAddress(), unicastPort), config);
 		udpConnector.setReuseAddress(true);
-		CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector)
+		CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setConfiguration(config).setConnector(udpConnector)
 				.build();
 		server.addEndpoint(coapEndpoint);
 		LOGGER.info("loopback");

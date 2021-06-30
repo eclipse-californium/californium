@@ -526,10 +526,10 @@ public abstract class Handshaker implements Destroyable {
 		this.useMultiHandshakeMessagesRecord = config.useMultiHandshakeMessageRecords();
 		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.getMaxDeferredProcessedOutgoingApplicationDataMessages();
 		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
-		this.sniEnabled = config.isSniEnabled();
+		this.sniEnabled = config.useServerNameIndication();
 		this.extendedMasterSecretMode = config.getExtendedMasterSecretMode();
 		this.useTruncatedCertificatePathForVerification = config.useTruncatedCertificatePathForValidation();
-		this.useEarlyStopRetransmission = config.isEarlyStopRetransmission();
+		this.useEarlyStopRetransmission = config.useEarlyStopRetransmission();
 		this.certificateIdentityProvider = config.getCertificateIdentityProvider();
 		this.certificateVerifier = config.getAdvancedCertificateVerifier();
 		this.advancedPskStore = config.getAdvancedPskStore();

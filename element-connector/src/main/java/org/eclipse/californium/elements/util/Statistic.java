@@ -273,6 +273,8 @@ public class Statistic {
 		/**
 		 * Create a scaled statistic.
 		 * 
+		 * Apply scale function to all values.
+		 * 
 		 * @param raw statistic
 		 * @param scale scale function
 		 */
@@ -409,6 +411,18 @@ public class Statistic {
 				return "no values available!";
 			}
 		}
+
+		/**
+		 * Scale summary.
+		 * 
+		 * Apply scale function to all values.
+		 * 
+		 * @param scale scale function
+		 * @return scaled summary
+		 */
+		public Summary scale(Scale scale) {
+			return new Summary(this, scale);
+		}
 	}
 
 	/**
@@ -416,7 +430,7 @@ public class Statistic {
 	 * 
 	 * Scale {@link Summary} sample values.
 	 * 
-	 * @see Summary#Summary(Summary, Scale)
+	 * @see Summary#scale
 	 */
 	public interface Scale {
 

@@ -32,15 +32,16 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
@@ -159,14 +160,16 @@ public class ObserveProActiveCancelTest {
 
 	private CoapServer createServer() {
 		// retransmit constantly all 200 milliseconds
-		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
-				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
+		Configuration config = network.createTestConfig()
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f);
 
 		MessageTracer tracer = new MessageTracer();
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 
 		serverEndpoint = builder.build();
 		serverEndpoint.addInterceptor(tracer);
@@ -182,7 +185,7 @@ public class ObserveProActiveCancelTest {
 		// setup the client endpoint using the special observation store
 		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		CoapEndpoint coapEndpoint = builder.build();
 		coapEndpoint.addInterceptor(tracer);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);

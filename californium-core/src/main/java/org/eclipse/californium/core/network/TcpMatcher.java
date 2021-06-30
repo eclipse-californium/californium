@@ -55,12 +55,12 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,8 +92,9 @@ public final class TcpMatcher extends BaseMatcher {
 	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
 	 * @throws NullPointerException if one of the parameters is {@code null}.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public TcpMatcher(NetworkConfig config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+	public TcpMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
 			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
 			EndpointContextMatcher endpointContextMatcher) {
 		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, executor);

@@ -17,37 +17,34 @@
 
 package org.eclipse.californium.benchmark;
 
-import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.elements.tcp.netty.TcpClientConnector;
-import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.elements.util.StringUtil;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.tcp.netty.TcpClientConnector;
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.StringUtil;
+
 public class TcpThroughputClient {
-	private static final File CONFIG_FILE = new File("CaliforniumTcpClient.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumTcpClient3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for TCP client";
 
 	public static void main(String[] args) throws ConnectorException, IOException {
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, null);
-		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
-		int tcpConnectTimeout = config.getInt(Keys.TCP_CONNECT_TIMEOUT);
-		int tcpIdleTimeout = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-		int tcpPort = config.getInt(Keys.COAP_PORT);
-		TcpClientConnector connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
+		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, null);
+		int tcpPort = config.get(CoapConfig.COAP_PORT);
+		TcpClientConnector connector = new TcpClientConnector(config);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(connector);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(builder.build());
 		CoapClient coapClient = new CoapClient("coap+tcp", "localhost", tcpPort, "echo");
 		try {

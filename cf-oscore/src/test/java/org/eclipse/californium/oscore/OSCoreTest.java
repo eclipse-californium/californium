@@ -38,7 +38,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.junit.After;
 import org.junit.Before;
@@ -59,7 +59,7 @@ public class OSCoreTest {
 			0x41 };
 	private OSCoreCtx clientCtx;
 	private OSCoreCtx serverCtx;
-	private TokenGenerator tokenGenerator = new RandomTokenGenerator(NetworkConfig.getStandard());
+	private TokenGenerator tokenGenerator = new RandomTokenGenerator(Configuration.createStandardWithoutFile());
 	private ArrayList<Token> allTokens = new ArrayList<Token>();
 	private final static OptionSet options = new OptionSet();
 	

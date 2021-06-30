@@ -15,11 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import static org.eclipse.californium.core.coap.TestOption.newOption;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.eclipse.californium.core.coap.TestOption.newOption;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -37,7 +37,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.TestOption;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
@@ -48,6 +47,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -79,7 +79,6 @@ public class MaliciousClientTest {
 
 	@BeforeClass
 	public static void startupServer() throws IOException {
-		network.getStandardTestConfig().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
 		CoapServer server = createServer();
 		cleanup.add(server);
 		cleanup.add(clientConnector);
@@ -213,9 +212,9 @@ public class MaliciousClientTest {
 	}
 
 	private static CoapServer createServer() throws IOException {
-		NetworkConfig config = network.getStandardTestConfig();
+		Configuration config = network.getStandardTestConfig();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		serverEndpoint = builder.build();
 
@@ -224,7 +223,7 @@ public class MaliciousClientTest {
 		server.addEndpoint(serverEndpoint);
 		server.start();
 
-		clientConnector = new UDPConnector(TestTools.LOCALHOST_EPHEMERAL);
+		clientConnector = new UDPConnector(TestTools.LOCALHOST_EPHEMERAL, config);
 		clientConnector.setRawDataReceiver(new RawDataChannel() {
 
 			@Override

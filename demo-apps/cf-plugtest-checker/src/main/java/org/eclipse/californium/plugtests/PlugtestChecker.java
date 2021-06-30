@@ -33,16 +33,19 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cli.ClientBaseConfig;
 import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.cli.ConnectorConfig;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -53,27 +56,26 @@ import picocli.CommandLine.Option;
  * It uses Cf's internal API for "deep message inspection."
  */
 public class PlugtestChecker {
-	private static final File CONFIG_FILE = new File("CaliforniumPlugtest.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumPlugtest3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 64;
 	public static final int PLUGTEST_BLOCK_SZX = 2; // 64 bytes
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
-		public void applyDefaults(NetworkConfig config) {
+		public void applyDefinitions(Configuration config) {
 			// adjust defaults for plugtest
-			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
-			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
-			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
-			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
-			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
-			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_TIMEOUT, 2000);
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
+			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 300, TimeUnit.SECONDS);
+			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
 		}
 
 	};
@@ -177,9 +179,9 @@ public class PlugtestChecker {
 	public static void main(String[] args) throws IOException {
 
 		Config clientConfig = new Config();
-		clientConfig.networkConfigHeader = CONFIG_HEADER;
-		clientConfig.networkConfigDefaultHandler = DEFAULTS;
-		clientConfig.networkConfigFile = CONFIG_FILE;
+		clientConfig.configurationHeader = CONFIG_HEADER;
+		clientConfig.customConfigurationDefaultsProvider = DEFAULTS;
+		clientConfig.configurationFile = CONFIG_FILE;
 		ClientInitializer.init(args, clientConfig);
 
 		if (clientConfig.helpRequested) {

@@ -22,8 +22,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.core.CoapObserveRelation;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.elements.EndpointContext;
 import org.slf4j.Logger;
@@ -129,7 +130,7 @@ public class ClientObserveRelation {
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
 		this.reregistrationBackoffMillis = endpoint.getConfig()
-				.getLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
+				.get(CoapConfig.NOTIFICATION_REREGISTRATION_BACKOFF, TimeUnit.MILLISECONDS);
 		this.scheduler = executor;
 		this.request.addMessageObserver(pendingRequestObserver);
 		this.request.setProtectFromOffload();

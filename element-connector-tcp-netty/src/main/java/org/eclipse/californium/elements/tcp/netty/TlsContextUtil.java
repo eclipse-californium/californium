@@ -28,6 +28,7 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -43,19 +44,24 @@ public class TlsContextUtil extends TcpContextUtil {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TlsContextUtil.class);
 
 	/**
-	 * Log warn messages, if remote peer's principal is not valid.
+	 * Client authentication mode.
+	 * 
+	 * Depending on the authentication mode, log warn or trace messages, if
+	 * remote peer's principal is not valid.
+	 * 
+	 * @since 3.0 (replaces warnMissingPrincipal)
 	 */
-	private final boolean warnMissingPrincipal;
+	private final CertificateAuthenticationMode clientAuthMode;
 
 	/**
 	 * Create utility instance.
 	 * 
-	 * @param warnMissingPrincipal {@code true}, to log warn messages, if remote
-	 *            peer's principal is not valid. {@code false}, to log trace
-	 *            messages.
+	 * @param clientAuthMode Client authentication mode. If {@code NEEDED}, log
+	 *            warn messages, if remote peer's principal is not valid. If
+	 *            {@code WANTED}, log trace messages.
 	 */
-	public TlsContextUtil(boolean warnMissingPrincipal) {
-		this.warnMissingPrincipal = warnMissingPrincipal;
+	public TlsContextUtil(CertificateAuthenticationMode clientAuthMode) {
+		this.clientAuthMode = clientAuthMode;
 	}
 
 	/**
@@ -79,44 +85,45 @@ public class TlsContextUtil extends TcpContextUtil {
 		if (sslSession != null) {
 			boolean checkKerberos = false;
 			Principal principal = null;
-			try {
-				Certificate[] peerCertificateChain = sslSession.getPeerCertificates();
-				if (peerCertificateChain != null && peerCertificateChain.length != 0) {
-					principal = X509CertPath.fromCertificatesChain(peerCertificateChain);
-				} else {
+			if (clientAuthMode.useCertificateRequest()) {
+				try {
+					Certificate[] peerCertificateChain = sslSession.getPeerCertificates();
+					if (peerCertificateChain != null && peerCertificateChain.length != 0) {
+						principal = X509CertPath.fromCertificatesChain(peerCertificateChain);
+					} else {
+						// maybe kerberos is used and therefore
+						// getPeerCertificates fails
+						checkKerberos = true;
+					}
+				} catch (SSLPeerUnverifiedException e1) {
 					// maybe kerberos is used and therefore
 					// getPeerCertificates fails
 					checkKerberos = true;
+				} catch (RuntimeException e) {
+					LOGGER.warn("TLS({}) failed to extract principal {}", id, e.getMessage());
 				}
-			} catch (SSLPeerUnverifiedException e1) {
-				// maybe kerberos is used and therefore
-				// getPeerCertificates fails
-				checkKerberos = true;
-			} catch (RuntimeException e) {
-				LOGGER.warn("TLS({}) failed to extract principal {}", id, e.getMessage());
-			}
 
-			if (checkKerberos) {
-				try {
-					principal = sslSession.getPeerPrincipal();
-				} catch (SSLPeerUnverifiedException e2) {
-					// still unverified, so also no kerberos
-					if (warnMissingPrincipal) {
-						LOGGER.warn("TLS({}) failed to verify principal, {}", id, e2.getMessage());
-					} else {
-						LOGGER.trace("TLS({}) failed to verify principal, {}", id, e2.getMessage());
+				if (checkKerberos) {
+					try {
+						principal = sslSession.getPeerPrincipal();
+					} catch (SSLPeerUnverifiedException e2) {
+						// still unverified, so also no kerberos
+						if (clientAuthMode == CertificateAuthenticationMode.NEEDED) {
+							LOGGER.warn("TLS({}) failed to verify principal, {}", id, e2.getMessage());
+						} else {
+							LOGGER.trace("TLS({}) failed to verify principal, {}", id, e2.getMessage());
+						}
 					}
 				}
-			}
 
-			if (principal != null) {
-				LOGGER.debug("TLS({}) Principal {}", id, principal.getName());
-			} else if (warnMissingPrincipal) {
-				LOGGER.warn("TLS({}) principal missing", id);
-			} else {
-				LOGGER.trace("TLS({}) principal missing", id);
+				if (principal != null) {
+					LOGGER.debug("TLS({}) Principal {}", id, principal.getName());
+				} else if (clientAuthMode == CertificateAuthenticationMode.NEEDED) {
+					LOGGER.warn("TLS({}) principal missing", id);
+				} else {
+					LOGGER.trace("TLS({}) principal missing", id);
+				}
 			}
-
 			byte[] sessionId = sslSession.getId();
 			if (sessionId != null && sessionId.length > 0) {
 				String sslId = StringUtil.byteArray2HexString(sessionId, StringUtil.NO_SEPARATOR, 0);

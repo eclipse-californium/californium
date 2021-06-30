@@ -15,7 +15,10 @@
  *******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import java.util.concurrent.TimeUnit;
+
+import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * Contains the configuration values for {@link ReliabilityLayer} and
@@ -130,20 +133,22 @@ public class ReliabilityLayerParameters {
 		}
 
 		/**
-		 * Apply value from {@link NetworkConfig}. Specific values may be
-		 * adapted by further calls to other setter.
+		 * Apply value from {@link Configuration}.
+		 * 
+		 * Specific values may be adapted by further calls to other setter.
 		 * 
 		 * Provides a fluent API to chain setters.
 		 * 
-		 * @param config network configuration
+		 * @param config configuration
 		 * @return this builder to chain setter.
+		 * @since 3.0 (changed parameter to Configuration)
 		 */
-		public Builder applyConfig(NetworkConfig config) {
-			ackTimeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
-			ackRandomFactor = config.getFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR);
-			ackTimeoutScale = config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
-			maxRetransmit = config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
-			nstart = config.getInt(NetworkConfig.Keys.NSTART);
+		public Builder applyConfig(Configuration config) {
+			ackTimeout = config.getTimeAsInt(CoapConfig.ACK_TIMEOUT, TimeUnit.MILLISECONDS);
+			ackRandomFactor = config.get(CoapConfig.ACK_RANDOM_FACTOR);
+			ackTimeoutScale = config.get(CoapConfig.ACK_TIMEOUT_SCALE);
+			maxRetransmit = config.get(CoapConfig.MAX_RETRANSMIT);
+			nstart = config.get(CoapConfig.NSTART);
 			return this;
 		}
 

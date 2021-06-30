@@ -26,11 +26,19 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp.netty;
 
-import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.*;
-import static org.eclipse.californium.elements.tcp.netty.TlsConnectorTestUtil.*;
-import static org.hamcrest.CoreMatchers.*;
+import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.CATCHER_TIMEOUT_IN_MS;
+import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.TEST_TIMEOUT_IN_MS;
+import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.THREADS_RULE;
+import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.createMessage;
+import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.createServerAddress;
+import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.getDestination;
+import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.stop;
+import static org.eclipse.californium.elements.tcp.netty.TlsConnectorTestUtil.clientSslContext;
+import static org.eclipse.californium.elements.tcp.netty.TlsConnectorTestUtil.serverSslContext;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -42,9 +50,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -63,11 +73,18 @@ public class TlsConnectorTest {
 	@Rule
 	public ThreadsRule threads = THREADS_RULE;
 
+	private Configuration configuration;
+
 	private final List<Connector> cleanup = new ArrayList<>();
 
 	@BeforeClass
 	public static void initializeSsl() throws Exception {
 		TlsConnectorTestUtil.initializeSsl();
+	}
+
+	@Before
+	public void init() {
+		configuration = ConnectorTestUtil.getTestConfiguration();
 	}
 
 	@After
@@ -77,10 +94,8 @@ public class TlsConnectorTest {
 
 	@Test
 	public void pingPongMessage() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 
 		Catcher serverCatcher = new Catcher();
 		Catcher clientCatcher = new Catcher();
@@ -107,8 +122,7 @@ public class TlsConnectorTest {
 
 	@Test
 	public void singleServerManyClients() throws Exception {
-		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), NUMBER_OF_THREADS,
-				IDLE_TIMEOUT_IN_S);
+		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
 		assertThat(server.getProtocol(), is("TLS"));
 		cleanup.add(server);
 
@@ -118,8 +132,7 @@ public class TlsConnectorTest {
 
 		List<RawData> messages = new ArrayList<>();
 		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
-			TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-					CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+			TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 			cleanup.add(client);
 			Catcher clientCatcher = new Catcher();
 			client.setRawDataReceiver(clientCatcher);
@@ -151,8 +164,7 @@ public class TlsConnectorTest {
 		int serverCount = 3;
 		Map<InetSocketAddress, Catcher> servers = new IdentityHashMap<>();
 		for (int i = 0; i < serverCount; i++) {
-			TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0),
-					NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
+			TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
 			cleanup.add(server);
 			Catcher serverCatcher = new Catcher();
 			server.setRawDataReceiver(serverCatcher);
@@ -161,8 +173,7 @@ public class TlsConnectorTest {
 			servers.put(getDestination(server.getAddress()), serverCatcher);
 		}
 
-		TlsClientConnector client = new TlsClientConnector(clientSslContext, NUMBER_OF_THREADS,
-				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
 		cleanup.add(client);
 		Catcher clientCatcher = new Catcher();
 		client.setRawDataReceiver(clientCatcher);

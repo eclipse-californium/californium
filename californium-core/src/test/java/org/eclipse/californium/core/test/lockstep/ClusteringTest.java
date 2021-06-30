@@ -32,18 +32,20 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -82,19 +84,19 @@ public class ClusteringTest {
 	@Before
 	public void setup() throws IOException {
 
-		NetworkConfig config = network.createStandardTestConfig()
-				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
-				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200ms
-				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
-				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
+		Configuration config = network.createStandardTestConfig()
+				.set(CoapConfig.MAX_MESSAGE_SIZE, 16)
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 16)
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f);
 
 		store = new InMemoryObservationStore(config);
 
 		notificationListener1 = new SynchronousNotificationListener();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setObservationStore(store);
 		client1 = builder.build();
 		client1.addNotificationListener(notificationListener1);
@@ -107,7 +109,7 @@ public class ClusteringTest {
 		notificationListener2 = new SynchronousNotificationListener();
 		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		builder.setObservationStore(store);
 		client2 = builder.build();
 		client2.addNotificationListener(notificationListener2);
@@ -117,8 +119,7 @@ public class ClusteringTest {
 		cleanup.add(client2);
 		System.out.println("Client 2 binds to port " + client2.getAddress().getPort());
 
-		server = new LockstepEndpoint();
-		server.setDestination(client1.getAddress());
+		server = new LockstepEndpoint(client1.getAddress(), config);
 		cleanup.add(server);
 	}
 

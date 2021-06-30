@@ -39,10 +39,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyMID;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,21 +121,22 @@ public class SweepDeduplicator implements Deduplicator {
 	 * The following configuration values are used to initialize the
 	 * sweep algorithm used by this deduplicator:
 	 * <ul>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME} -
+	 * <li>{@link CoapConfig#EXCHANGE_LIFETIME} -
 	 * an exchange is removed from this deduplicator if no messages have been received for this number
 	 * of milliseconds</li>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MARK_AND_SWEEP_INTERVAL} -
+	 * <li>{@link CoapConfig#MARK_AND_SWEEP_INTERVAL} -
 	 * the interval at which to check for expired exchanges in milliseconds</li>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#DEDUPLICATOR_AUTO_REPLACE} -
+	 * <li>{@link CoapConfig#DEDUPLICATOR_AUTO_REPLACE} -
 	 * the flag to enable exchange replacing, if the new exchange differs from the already stored one.</li>
 	 * </ul>
 	 * 
 	 * @param config the configuration to use.
+	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public SweepDeduplicator(NetworkConfig config) {
-		sweepInterval = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
-		exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
-		replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
+	public SweepDeduplicator(Configuration config) {
+		sweepInterval = config.get(CoapConfig.MARK_AND_SWEEP_INTERVAL, TimeUnit.MILLISECONDS);
+		exchangeLifetime = config.get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
+		replace = config.get(CoapConfig.DEDUPLICATOR_AUTO_REPLACE);
 	}
 
 	@Override

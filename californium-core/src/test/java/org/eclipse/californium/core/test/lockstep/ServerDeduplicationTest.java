@@ -42,14 +42,14 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -85,15 +85,15 @@ public class ServerDeduplicationTest {
 	@BeforeClass
 	public static void setupServer() throws Exception {
 
-		NetworkConfig config = network.getStandardTestConfig();
-		config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_MARK_AND_SWEEP);
-		config.setInt(Keys.MARK_AND_SWEEP_INTERVAL, DEDUPLICATOR_SWEEP_INTERVAL);
-		config.setInt(Keys.ACK_TIMEOUT, 1000);
-		config.setFloat(Keys.ACK_TIMEOUT_SCALE, 1.0F);
-		config.setFloat(Keys.ACK_RANDOM_FACTOR, 1.0F);
+		Configuration config = network.getStandardTestConfig()
+				.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_MARK_AND_SWEEP)
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, DEDUPLICATOR_SWEEP_INTERVAL, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_TIMEOUT, 1000, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1.0F)
+				.set(CoapConfig.ACK_RANDOM_FACTOR, 1.0F);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
-		builder.setNetworkConfig(config);
+		builder.setConfiguration(config);
 		Endpoint ep = builder.build();
 		ep.addInterceptor(new MessageTracer());
 		ep.addInterceptor(serverInterceptor);
@@ -141,7 +141,7 @@ public class ServerDeduplicationTest {
 	@Before
 	public void createClient() {
 		handleCounter.set(0);
-		client = createLockstepEndpoint(serverAddress);
+		client = createLockstepEndpoint(serverAddress, network.getStandardTestConfig());
 	}
 
 	@After
