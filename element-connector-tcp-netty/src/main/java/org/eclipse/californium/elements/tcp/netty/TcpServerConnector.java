@@ -246,12 +246,14 @@ public class TcpServerConnector implements Connector {
 	}
 
 	/**
-	 * Called when a new channel is created, Allows subclasses to add their own handlers first, like an SSL handler.
+	 * Called when a new channel is created, Allows subclasses to add their own
+	 * handlers first, like an SSL handler.
+	 * 
+	 * @param ch channel
 	 */
 	protected void onNewChannelCreated(Channel ch) {
-		
-	}
 
+	}
 
 	@Override
 	public String getProtocol() {

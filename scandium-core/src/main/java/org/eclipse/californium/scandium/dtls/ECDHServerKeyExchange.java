@@ -70,14 +70,16 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 	/**
 	 * Called when reconstructing the byte array.
 	 * 
-	 * @param supportedGroup
-	 *            supported group (named curve)
-	 * @param encodedPoint
-	 *            the encoded point on the curve (public key). 
+	 * @param supportedGroup supported group (named curve)
+	 * @param encodedPoint the encoded point on the curve (public key).
+	 * @throws NullPointerException if one of the parameters are {@code null}
 	 */
 	protected ECDHServerKeyExchange(SupportedGroup supportedGroup, byte[] encodedPoint) {
+		if (supportedGroup == null) {
+			throw new NullPointerException("Supported group (curve) must not be null!");
+		}
 		if (encodedPoint == null) {
-			throw new NullPointerException("encoded point cannot be null!");
+			throw new NullPointerException("encoded point must not be null!");
 		}
 		this.supportedGroup = supportedGroup;
 		this.encodedPoint = encodedPoint;

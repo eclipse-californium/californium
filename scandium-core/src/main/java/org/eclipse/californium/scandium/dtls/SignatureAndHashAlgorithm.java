@@ -514,6 +514,8 @@ public final class SignatureAndHashAlgorithm {
 	 * Checks if the given certificate have been signed using one of the
 	 * algorithms supported by the server.
 	 * 
+	 * @param supportedSignatureAlgorithms list of supported signatures and hash
+	 *            algorithms
 	 * @param certificate The certificate to test.
 	 * @return {@code true} if the certificate have been signed using one of the
 	 *         supported algorithms.

@@ -60,19 +60,19 @@ public class CertificateConfigurationHelper {
 	 * List of provided public keys.
 	 * 
 	 * @see #addConfigurationDefaultsFor(PublicKey)
-	 * @see #addConfigurationDefaultsFor(List))
+	 * @see #addConfigurationDefaultsFor(List)
 	 */
 	private final List<PublicKey> keys = new ArrayList<>();
 	/**
 	 * List of provided certificate chains.
 	 * 
-	 * @see #addConfigurationDefaultsFor(List))
+	 * @see #addConfigurationDefaultsFor(List)
 	 */
 	private final List<List<X509Certificate>> chains = new ArrayList<>();
 	/**
 	 * List of provided trusted certificates.
 	 * 
-	 * @see #addConfigurationDefaultsForTrust(X509Certificate[]))
+	 * @see #addConfigurationDefaultsForTrusts(X509Certificate[])
 	 */
 	private final List<X509Certificate> trusts = new ArrayList<>();
 	/**

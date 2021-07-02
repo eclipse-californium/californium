@@ -597,7 +597,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * 
 	 * @param packet message with original source address encoded at head.
 	 * @return message with decoded original source address
-	 * @see #encode(DatagramPacket, byte)
+	 * @see #encode(byte, DatagramPacket, byte[])
 	 */
 	private DatagramPacket decode(DatagramPacket packet) {
 		try {

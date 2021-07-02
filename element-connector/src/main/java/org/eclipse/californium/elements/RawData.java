@@ -87,7 +87,7 @@ public final class RawData {
 	/**
 	 * Instantiates a new raw data.
 	 * 
-	 * Use {@link #inbound(byte[], EndpointContext, boolean)} or
+	 * Use {@link #inbound(byte[], EndpointContext, boolean, long, InetSocketAddress)} or
 	 * {@link #outbound(byte[], EndpointContext, MessageCallback, boolean)}.
 	 *
 	 * @param data the data that is to be sent or has been received

@@ -72,12 +72,12 @@ public class CCMBlockCipher {
 		 * 
 		 * Lowest byte at the end.
 		 * 
-		 * <pre>
+		 * {@code
 		 * block[end] = number & 0xff;
 		 * block[end - 1] = (number >>= 8) & 0xff;
 		 * block[end - 2] = (number >>= 8) & 0xff;
 		 * block[offset] = (number >>= 8) & 0xff;
-		 * </pre>
+		 * }
 		 * 
 		 * Return remaining bytes in number.
 		 * 

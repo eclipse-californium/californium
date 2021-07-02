@@ -147,10 +147,10 @@ public final class CertificateVerify extends HandshakeMessage {
 	/**
 	 * Creates the signature and signs it with the client's private key.
 	 * 
-	 * @param clientPrivateKey
-	 *            the client's private key.
-	 * @param handshakeMessages
-	 *            the handshake messages used up to now in the handshake.
+	 * @param signatureAndHashAlgorithm signature and hash algorithm
+	 * @param clientPrivateKey the client's private key.
+	 * @param handshakeMessages the handshake messages used up to now in the
+	 *            handshake.
 	 * @return the signature.
 	 * @since 2.5 (was setSignature before)
 	 */

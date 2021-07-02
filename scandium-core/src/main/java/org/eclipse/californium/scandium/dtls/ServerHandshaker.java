@@ -711,8 +711,6 @@ public class ServerHandshaker extends Handshaker {
 	 * 
 	 * @param message the client's key exchange message.
 	 * @throws HandshakeException if an error occurs
-	 * @return the master secret
-	 * @throws HandshakeException if an error occurs
 	 */
 	private void receivedClientKeyExchange(PSKClientKeyExchange message) throws HandshakeException {
 		// use the client's PSK identity to look up the pre-shared key
@@ -940,12 +938,12 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * Determines the elliptic curve to use during the EC based DH key exchange.
 	 * 
-	 * @param clientHello the peer's <em>CLIENT_HELLO</em> message containing
-	 *            its preferred elliptic curves
+	 * @param clientCurves the peer's extension containing its preferred
+	 *            elliptic curves
 	 * @return a list of common supported curves. Maybe empty, if server and
 	 *         client have no curves in common
 	 * 
-	 * @since 2.3
+	 * @since 3.0 (changed parameter type to SupportedEllipticCurvesExtension)
 	 */
 	private List<SupportedGroup> getCommonSupportedGroups(SupportedEllipticCurvesExtension clientCurves) {
 		List<SupportedGroup> groups = new ArrayList<>();
@@ -982,12 +980,12 @@ public class ServerHandshaker extends Handshaker {
 	 * Determines the signature and hash algorithm to use during the EC based
 	 * handshake.
 	 * 
-	 * @param clientHello the peer's <em>CLIENT_HELLO</em> message containing
+	 * @param clientSignatureAndHashAlgorithms the peer's extension containing
 	 *            its preferred signatures and hash algorithms
 	 * @return a list of common signatures and hash algorithms. Maybe empty, if
 	 *         server and client have no signature and hash algorithm in common
 	 * 
-	 * @since 2.3
+	 * @since 3.0 (changed parameter type to SignatureAlgorithmsExtension)
 	 */
 	private List<SignatureAndHashAlgorithm> getCommonSignatureAndHashAlgorithms(
 			SignatureAlgorithmsExtension clientSignatureAndHashAlgorithms) {

@@ -192,15 +192,15 @@ public final class XECDHECryptography implements Destroyable {
 	}
 
 	/**
-	 * Map of {@link SupportedGroup#getId() to {@link SupportedGroup}.
+	 * Map of {@link SupportedGroup#getId()} to {@link SupportedGroup}.
 	 * 
-	 * @see {@link SupportedGroup#fromId(int)}.
+	 * @see SupportedGroup#fromId(int)
 	 */
 	private static final Map<Integer, SupportedGroup> EC_CURVE_MAP_BY_ID = new HashMap<>();
 	/**
-	 * Map of {@link SupportedGroup#getId() to {@link SupportedGroup}.
+	 * Map of {@link EllipticCurve} to {@link SupportedGroup}.
 	 * 
-	 * @see {@link SupportedGroup#fromId(int)}.
+	 * @see ECParameterSpec#getCurve()
 	 */
 	private static final Map<EllipticCurve, SupportedGroup> EC_CURVE_MAP_BY_CURVE = new HashMap<>();
 

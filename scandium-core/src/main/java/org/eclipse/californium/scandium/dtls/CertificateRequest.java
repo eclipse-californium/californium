@@ -494,6 +494,7 @@ public final class CertificateRequest extends HandshakeMessage {
 			SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
 					.getSupportedSignatureAlgorithm(negotiated, certificate.getPublicKey());
 			// use the signature algorithms of the other peer to check the chain.
+			// only the other peer verifies the signatures of the chain
 			if (signatureAndHashAlgorithm != null
 					&& SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(supportedSignatureAlgorithms, chain)) {
 				return signatureAndHashAlgorithm;

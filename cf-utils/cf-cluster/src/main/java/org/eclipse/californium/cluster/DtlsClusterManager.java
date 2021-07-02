@@ -346,6 +346,7 @@ public class DtlsClusterManager implements Readiness {
 	 * @param data cluster management data to send
 	 * @param type {@link #MAGIC_ID_PING} or {@link #MAGIC_ID_PING}
 	 * @param nodeId node-id
+	 * @param state current state
 	 */
 	private static void encodePingPong(byte[] data, byte type, int nodeId, ClusterState state) {
 		data[0] = type;
@@ -428,6 +429,9 @@ public class DtlsClusterManager implements Readiness {
 		 * 
 		 * @param nodeId node-id
 		 * @param address cluster management interface address
+		 * @param context endpoint context of response
+		 * @param matcher endpoint context matcher
+		 * @param state new state
 		 * @return number of current cluster nodes in map.
 		 */
 		public synchronized int update(int nodeId, InetSocketAddress address, EndpointContext context,
@@ -631,6 +635,9 @@ public class DtlsClusterManager implements Readiness {
 		 * Update address and usage time.
 		 * 
 		 * @param address cluster management interface address
+		 * @param context endpoint context of response
+		 * @param matcher endpoint context matcher
+		 * @param state new state
 		 */
 		private synchronized void update(InetSocketAddress address, EndpointContext context,
 				EndpointContextMatcher matcher, ClusterState state) {

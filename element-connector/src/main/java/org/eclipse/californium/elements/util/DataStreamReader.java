@@ -414,6 +414,7 @@ public class DataStreamReader {
 	/**
 	 * Reads new bits from the stream.
 	 * 
+	 * @return read byte
 	 * @throws IllegalArgumentException if no bytes are available
 	 */
 	private int readByte() {

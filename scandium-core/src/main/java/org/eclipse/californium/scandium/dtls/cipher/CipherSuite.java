@@ -873,7 +873,9 @@ public enum CipherSuite {
 
 		/**
 		 * checks, if MAC algorithm is supported.
-		 * @return
+		 * 
+		 * @return {@code true}, if MAC algorithm is supported, {@code false},
+		 *         otherwise.
 		 */
 		public boolean isSupported() {
 			return supported;

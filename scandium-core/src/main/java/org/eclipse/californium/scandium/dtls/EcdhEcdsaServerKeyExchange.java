@@ -123,8 +123,6 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 *            the encoded point of the other peeer (public key)
 	 * @param signatureEncoded
 	 *            the signature (encoded)
-	 * @throws HandshakeException if the server's public key could not be re-constructed
-	 *            from the parameters contained in the message
 	 */
 	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, SupportedGroup supportedGroup, byte[] encodedPoint,
 			byte[] signatureEncoded) {

@@ -113,8 +113,8 @@ public class CipherSuiteParameters {
 	/**
 	 * General mismatch.
 	 * 
-	 * {@link Mismatch#CIPHER_SUITE}, {@link Mismatch#EC_GROUPS}, or
-	 * {@link Mismatch#EC_FORMAT}.
+	 * {@link GeneralMismatch#CIPHER_SUITE}, {@link GeneralMismatch#EC_GROUPS}, or
+	 * {@link GeneralMismatch#EC_FORMAT}.
 	 * 
 	 * @since 3.0
 	 */

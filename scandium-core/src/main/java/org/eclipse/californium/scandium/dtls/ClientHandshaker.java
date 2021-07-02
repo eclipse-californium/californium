@@ -593,10 +593,10 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * Requires the client's certificate to be available.
 	 * 
-	 * Depending on the cipher suite, the PSK credentials are fetched. Calls
-	 * {@link #processMasterSecret(SecretKey)} on available PSK credentials.
+	 * Depending on the cipher suite, the PSK credentials are fetched. That
+	 * calls {@link #processMasterSecret()} on available PSK credentials.
 	 * 
-	 * @throws GeneralSecurityException if the client's handshake records cannot
+	 * @throws HandshakeException if the client's handshake records cannot
 	 *             be created
 	 * @since 3.0 (renamed, was receivedServerHelloDone)
 	 */

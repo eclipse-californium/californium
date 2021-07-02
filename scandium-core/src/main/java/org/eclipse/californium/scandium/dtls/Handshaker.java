@@ -253,7 +253,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Scheduler for flight timeout and retransmission.
 	 * 
-	 * @sine 2.4
+	 * @since 2.4
 	 */
 	private final ScheduledExecutorService timer;
 	/**
@@ -452,13 +452,13 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private Throwable cause;
 	/**
-	 * Custom argument for {@link AdvancedApplicationLevelInfoSupplier}.
+	 * Custom argument for {@link ApplicationLevelInfoSupplier#getInfo(Principal, Object)}.
 	 * 
 	 * @since 2.3
 	 */
 	private Object customArgument;
 	/**
-	 * Application level info supplier. may be {@code null}.
+	 * Application level info supplier. May be {@code null}.
 	 */
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 

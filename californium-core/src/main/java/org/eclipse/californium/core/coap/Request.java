@@ -595,7 +595,6 @@ public class Request extends Message {
 	 * @param destination The destination of the request.
 	 * @param literalIp {@code true}, if the host part of the URI is a literal
 	 *            address, {@code false}, if it's a DNS name.
-	 * @return This request for command chaining.
 	 * @throws NullPointerException if the destination is {@code null}
 	 * @throws IllegalArgumentException if the URI contains an unsupported
 	 *             scheme or contains a fragment.

@@ -137,7 +137,7 @@ public class StatsResource extends CoapResource {
 		 * Instantiates a new debug resource.
 		 * 
 		 * @param resourceIdentifier the resource identifier
-		 * @param cacheResource
+		 * @param cacheResource the cache resource this statistic is based on
 		 */
 		public CacheStatResource(String resourceIdentifier, CacheResource cacheResource) {
 			super(resourceIdentifier);
@@ -149,7 +149,7 @@ public class StatsResource extends CoapResource {
 		/**
 		 * Method to get the stats about the cache.
 		 * 
-		 * @return
+		 * @return textual statistic
 		 */
 		public String getStats() {
 			StringBuilder stringBuilder = new StringBuilder();

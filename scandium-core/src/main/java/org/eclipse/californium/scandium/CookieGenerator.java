@@ -79,7 +79,8 @@ public class CookieGenerator {
 	 */
 	private SecretKey pastSecretKey;
 	/**
-	 * Lock to protect access to {@link #secretKeys}, {@link #randomBytes} and
+	 * Lock to protect access to {@link #currentSecretKey},
+	 * {@link #pastSecretKey}, {@link #randomBytes} and
 	 * {@link #randomGenerator}.
 	 */
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -91,7 +92,7 @@ public class CookieGenerator {
 	/**
 	 * Return the secret key for cookie generation.
 	 * 
-	 * Secret key is refreshed every {@link #KEY_LIFE_TIME} nanoseconds.
+	 * Secret key is refreshed every {@link #COOKIE_LIFETIME_NANOS} nanoseconds.
 	 * 
 	 * @return secret key
 	 * @since 2.3
