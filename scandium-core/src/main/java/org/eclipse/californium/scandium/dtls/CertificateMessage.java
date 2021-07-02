@@ -54,8 +54,9 @@ import org.slf4j.LoggerFactory;
 /**
  * The server MUST send a Certificate message whenever the agreed-upon key
  * exchange method uses certificates for authentication. This message will
- * always immediately follow the {@link ServerHello} message. For details see <a
- * href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target="_blank">RFC 5246</a>.
+ * always immediately follow the {@link ServerHello} message. For details see
+ * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target=
+ * "_blank">RFC 5246</a>.
  */
 public final class CertificateMessage extends HandshakeMessage {
 
@@ -69,13 +70,13 @@ public final class CertificateMessage extends HandshakeMessage {
 
 	/**
 	 * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target="_blank">RFC 5246</a>:
-	 * <code>opaque ASN.1Cert<1..2^24-1>;</code>
+	 * {@code opaque ASN.1Cert<1..2^24-1>;}
 	 */
 	private static final int CERTIFICATE_LENGTH_BITS = 24;
 
 	/**
 	 * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target="_blank">RFC 5246</a>:
-	 * <code>ASN.1Cert certificate_list<0..2^24-1>;</code>
+	 * {@code ASN.1Cert certificate_list<0..2^24-1>;}
 	 */
 	private static final int CERTIFICATE_LIST_LENGTH_BITS = 24;
 

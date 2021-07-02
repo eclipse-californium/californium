@@ -46,7 +46,7 @@ public class RestoreHttpClient implements Readiness {
 	/**
 	 * Hostname pattern.
 	 * 
-	 * Matches {@code <name>-(a|b)-<n>).
+	 * Matches {@code <name>-(a|b)-<n>}.
 	 */
 	private static final Pattern HOSTNAME_PATTERN = Pattern.compile("^(.*-)([ab])(-\\d+)$");
 

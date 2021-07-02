@@ -445,6 +445,7 @@ public abstract class K8sManagementClient {
 		 * @param labels pod labels
 		 * @param group pod group
 		 * @param phase status phase
+		 * @param ready pod ready
 		 * @param address pod address
 		 * @param addresses pod addresses
 		 */

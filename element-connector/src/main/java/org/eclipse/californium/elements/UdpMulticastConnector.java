@@ -84,18 +84,18 @@ import org.slf4j.LoggerFactory;
  * Generally try to omit to use the "any" address at any place. Neither for the
  * unicast socket nor the multicast bind-address. For IPv6 - multicast with
  * link-scope, this may fail caused by
- * <a href="https://bugs.openjdk.java.net/browse/JDK-8210493" target="_blank">Bind to node- or
- * linklocal ipv6 multicast address fails</a>. Please always check your server
- * logs for messages of the pattern "received request {} via different multicast
- * groups ({} != {})!". That indicates, that the multicast request is accidently
- * received by multiple sockets and so unicast request may not be reliable
- * distinguished.
+ * <a href="https://bugs.openjdk.java.net/browse/JDK-8210493" target=
+ * "_blank">Bind to node- or linklocal ipv6 multicast address fails</a>. Please
+ * always check your server logs for messages of the pattern "received request
+ * {} via different multicast groups ({} != {})!". That indicates, that the
+ * multicast request is accidently received by multiple sockets and so unicast
+ * request may not be reliable distinguished.
  * </p>
  * <p>
  * <a href=
- * "https://stackoverflow.com/questions/19392173/multicastsocket-constructors-and-binding-to-port-or-socketaddress" target="_blank">
- * Stackoverflow - MulticastSocket - Constructors binding to port or
- * socketaddress</a>
+ * "https://stackoverflow.com/questions/19392173/multicastsocket-constructors-and-binding-to-port-or-socketaddress"
+ * target="_blank"> Stackoverflow - MulticastSocket - Constructors binding to
+ * port or socketaddress</a>
  * </p>
  * <p>
  * Note: using the multicast address as bind address may work as mention in the
@@ -134,7 +134,7 @@ public class UdpMulticastConnector extends UDPConnector {
 	private List<Join> groups = new ArrayList<Join>();
 
 	/**
-	 * {@code true}, to disable loopback mode, {@false}, otherwise.
+	 * {@code true}, to disable loopback mode, {@code false}, otherwise.
 	 * 
 	 * @since 2.3
 	 */
@@ -160,6 +160,8 @@ public class UdpMulticastConnector extends UDPConnector {
 	 * @param groups list of multicast groups and network interfaces to join. If
 	 *            no broadcast nor multicast address is used as local address,
 	 *            this list must not be empty.
+	 * @param multicastReceiver enable use as multicast-receiver. Fails, if the
+	 *            connector doesn't joins exactly one group.
 	 * @throws IllegalArgumentException if multicastReceiver is requested but
 	 *             not exactly one broadcast or multicast address is provided.
 	 */
@@ -193,8 +195,7 @@ public class UdpMulticastConnector extends UDPConnector {
 			if (multicastReceiver) {
 				if (this.groups.size() == 1) {
 					multicast = true;
-					this.effectiveAddr = new InetSocketAddress(this.groups.get(0).multicastGroup,
-							localAddr.getPort());
+					this.effectiveAddr = new InetSocketAddress(this.groups.get(0).multicastGroup, localAddr.getPort());
 				} else {
 					throw new IllegalArgumentException(
 							"Multiple multicast addresses are nor supported for multicast receiver function!");

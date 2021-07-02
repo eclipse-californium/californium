@@ -114,7 +114,7 @@ public class Record {
 	/**
 	 * Receive time in uptime nanoseconds.
 	 * 
-	 * @link {@link ClockUtil#nanoRealtime()}
+	 * {@link ClockUtil#nanoRealtime()}
 	 */
 	private final long receiveNanos;
 	/**
@@ -775,8 +775,7 @@ public class Record {
 	 * 2019-feb-18: the last discussion agreement is NOT to use a empty CID for tls_cid records.
 	 * 
 	 * @return {@code true}, if a none empty cid is used.
-	 * @see #Record(ContentType, int, long, DTLSMessage, DTLSSession, boolean,
-	 *      int)
+	 * @see #Record(ContentType, int, DTLSMessage, DTLSContext, boolean, int)
 	 */
 	boolean useConnectionId() {
 		return connectionId != null && !connectionId.isEmpty();

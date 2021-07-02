@@ -234,6 +234,7 @@ public class CrossProtocolTranslator {
 	 * 
 	 * @param headers array of http headers
 	 * @param etagTranslator translator for etag
+	 * @return list of CoAP options.
 	 * @throws NullPointerException if headers is {@code null}
 	 */
 	public List<Option> getCoapOptions(Header[] headers, EtagTranslator etagTranslator) {

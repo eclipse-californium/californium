@@ -80,7 +80,8 @@ public class StringUtil {
 	/**
 	 * Lookup table for hexadecimal digits.
 	 * 
-	 * @see #toHexString(byte[])
+	 * @see #charArray2hex(char[])
+	 * @see #byteArray2HexString(byte[], char, int)
 	 */
 	private final static char[] BIN_TO_HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
