@@ -118,6 +118,8 @@ The updated proxy2 now processes more coap-options and http-headers.
 
 4) The `UdpMulticastConnector` must be build using `UdpMulticastConnector.Builder.setMulticastReceiver(true)` in order to be added and used as mutlicast receiver to a `UDPConnector`.
 
+5) The `SslContextUtil.configure(String, String)` is removed, use `SslContextUtil.configure(String, KeyStoreType)` instead. `KeyStoreType` requires now either a type for the java `KeyStore` implementation, or a `SimpleKeyStore` custom reader.
+
 ### Scandium:
 
 1) `PskStore`, `StaticPskStore`, `StringPskStore` and `InMemoryPskStore`
