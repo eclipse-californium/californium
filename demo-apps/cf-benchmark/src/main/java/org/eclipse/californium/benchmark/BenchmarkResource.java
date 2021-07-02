@@ -17,8 +17,8 @@
 package org.eclipse.californium.benchmark;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 
 /**
