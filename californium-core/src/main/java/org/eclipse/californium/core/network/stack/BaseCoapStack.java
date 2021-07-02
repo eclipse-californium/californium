@@ -30,8 +30,6 @@ package org.eclipse.californium.core.network.stack;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -42,6 +40,8 @@ import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.Layer.TopDownBuilder;
 import org.eclipse.californium.core.observe.ObservationStoreException;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The BaseCoapStack passes the messages through the layers configured in the

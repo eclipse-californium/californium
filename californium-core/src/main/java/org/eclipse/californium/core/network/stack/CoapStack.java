@@ -15,13 +15,13 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
-
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * CoapStack is what CoapEndpoint uses to send messages through distinct layers.
