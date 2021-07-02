@@ -55,7 +55,7 @@ public abstract class DataParser {
 			throw new NullPointerException("raw-data must not be null!");
 		}
 		if (raw.getConnectorAddress() == null) {
-			throw new NullPointerException("raw-data connectos's address must not be null!");
+			throw new NullPointerException("raw-data connector's address must not be null!");
 		}
 		Message message = parseMessage(raw.getBytes());
 		message.setSourceContext(raw.getEndpointContext());
@@ -173,40 +173,42 @@ public abstract class DataParser {
 			if (nextByte == PAYLOAD_MARKER) {
 				break;
 			}
-			// the first 4 bits of the byte represent the option delta
-			int optionDeltaNibble = (0xF0 & nextByte) >> 4;
-			currentOptionNumber = calculateNextOptionNumber(reader, currentOptionNumber, optionDeltaNibble, message);
+			try {
+				// the first 4 bits of the byte represent the option delta
+				int optionDeltaNibble = (0xF0 & nextByte) >> 4;
+				currentOptionNumber += determineValueFromNibble(reader, optionDeltaNibble);
 
-			// the second 4 bits represent the option length
-			int optionLengthNibble = 0x0F & nextByte;
-			int optionLength = determineValueFromNibble(reader, optionLengthNibble, message);
+				// the second 4 bits represent the option length
+				int optionLengthNibble = 0x0F & nextByte;
+				int optionLength = determineValueFromNibble(reader, optionLengthNibble);
 
-			// read option
-			if (reader.bytesAvailable(optionLength)) {
-				try {
+				// read option
+				if (reader.bytesAvailable(optionLength)) {
 					Option option = new Option(currentOptionNumber);
 					option.setValue(reader.readBytes(optionLength));
 
 					if (currentOptionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
-						// OptionSet.setContentFormat(int) API weird => cleanup on 3.0
+						// OptionSet.setContentFormat(int) API weird => cleanup
+						// on 3.0
 						int format = option.getIntegerValue();
 						message.getOptions().setContentFormat(format);
 						if (!message.getOptions().hasContentFormat()) {
-							throw new IllegalArgumentException(
-									"Content Format option must be between 0 and " + MediaTypeRegistry.MAX_TYPE + " (2 bytes) inclusive");
+							throw new IllegalArgumentException("Content Format option must be between 0 and "
+									+ MediaTypeRegistry.MAX_TYPE + " (2 bytes) inclusive");
 						}
 					} else {
 						// add option to message
 						message.getOptions().addOption(option);
 					}
-				} catch (IllegalArgumentException ex) {
-					throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
+				} else {
+					String msg = String.format(
+							"Message contains option of length %d with only fewer bytes left in the message",
+							optionLength);
+					throw new IllegalArgumentException(msg);
 				}
-			} else {
-				String msg = String.format(
-						"Message contains option of length %d with only fewer bytes left in the message",
-						optionLength);
-				throw new CoAPMessageFormatException(msg, message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
+			} catch (IllegalArgumentException ex) {
+				throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(),
+						message.getRawCode(), message.isConfirmable());
 			}
 		}
 		try {
@@ -216,10 +218,10 @@ public abstract class DataParser {
 					message.getRawCode(), message.isConfirmable(), ResponseCode.BAD_REQUEST);
 		}
 		if (nextByte == PAYLOAD_MARKER) {
-			// the presence of a marker followed by a zero-length payload must be processed as a message format error
+			// the presence of a marker followed by a zero-length payload must
+			// be processed as a message format error
 			if (!reader.bytesAvailable()) {
-				throw new CoAPMessageFormatException(
-						"Found payload marker (0xFF) but message contains no payload",
+				throw new CoAPMessageFormatException("Found payload marker (0xFF) but message contains no payload",
 						message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
 			} else {
 				// get payload
@@ -235,23 +237,16 @@ public abstract class DataParser {
 	}
 
 	/**
-	 * Calculates the next option number based on the current option number and the option delta as specified in
-	 * RFC 7252, Section 3.1
-	 *
-	 * @param delta
-	 *            the 4-bit option delta value.
-	 * @return the next option number.
-	 * @throws MessageFormatException if the option number cannot be determined due to a message format error.
+	 * Calculates the number based on the delta (nibble).
+	 * 
+	 * @param reader reader with data
+	 * @param delta the 4-bit option delta value.
+	 * @return the next number.
+	 * @throws IllegalArgumentException if the number cannot be determined due
+	 *             to a message format error.
+	 * @since 3.0 (removed Message from parameter list)
 	 */
-	private static int calculateNextOptionNumber(
-			final DatagramReader reader,
-			final int currentOptionNumber,
-			final int delta,
-			final Message message) {
-		return currentOptionNumber + determineValueFromNibble(reader, delta, message);
-	}
-
-	private static int determineValueFromNibble(final DatagramReader reader, final int delta, final Message message) {
+	private static int determineValueFromNibble(DatagramReader reader, int delta) {
 		if (delta <= 12) {
 			return delta;
 		} else if (delta == 13) {
@@ -259,9 +254,7 @@ public abstract class DataParser {
 		} else if (delta == 14) {
 			return reader.read(16) + 269;
 		} else {
-			throw new CoAPMessageFormatException(
-					"Message contains illegal option delta/length: " + delta,
-					message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
+			throw new IllegalArgumentException("Message contains illegal option delta/length: " + delta);
 		}
 	}
 }
