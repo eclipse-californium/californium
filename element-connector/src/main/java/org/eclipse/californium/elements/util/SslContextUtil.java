@@ -109,8 +109,7 @@ import org.slf4j.LoggerFactory;
  * Depending on the usage, this may change to instance level access based API to
  * support more parallel configurations to be used.
  * 
- * @see #configure(String, String)
- * @see #configure(String, KeyStoreConfiguration)
+ * @see #configure(String, KeyStoreType)
  * @see #configure(String, InputStreamFactory)
  */
 public class SslContextUtil {
@@ -184,16 +183,15 @@ public class SslContextUtil {
 	/**
 	 * Map URI endings to key store types.
 	 * 
-	 * @see #configure(String, String)
+	 * @see #configure(String, KeyStoreType)
 	 * @see #getKeyStoreTypeFromUri(String)
 	 */
-	private static final Map<String, String> KEY_STORE_TYPES = new ConcurrentHashMap<>();
-	private static final Map<String, KeyStoreConfiguration> KEY_STORE_CONFIGS = new ConcurrentHashMap<>();
+	private static final Map<String, KeyStoreType> KEY_STORE_TYPES = new ConcurrentHashMap<>();
 	/**
 	 * Map URI scheme to input stream factories.
 	 * 
 	 * @see #configure(String, InputStreamFactory)
-	 * @see #getInputStreamFactoryFromUri(String)
+	 * @see #getInputStreamFromUri(String)
 	 */
 	private static final Map<String, InputStreamFactory> INPUT_STREAM_FACTORIES = new ConcurrentHashMap<>();
 
@@ -254,7 +252,7 @@ public class SslContextUtil {
 		}
 		String[] parameters = trust.split(PARAMETER_SEPARATOR, 3);
 		if (1 == parameters.length) {
-			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(parameters[0]);
+			KeyStoreType configuration = getKeyStoreTypeFromUri(parameters[0]);
 			if (configuration.simpleStore != null) {
 				return loadTrustedCertificates(parameters[0], null, null);
 			}
@@ -289,7 +287,7 @@ public class SslContextUtil {
 		}
 		String[] parameters = credentials.split(PARAMETER_SEPARATOR, 4);
 		if (1 == parameters.length) {
-			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(parameters[0]);
+			KeyStoreType configuration = getKeyStoreTypeFromUri(parameters[0]);
 			if (configuration.simpleStore != null) {
 				return loadCredentials(parameters[0], null, null, null);
 			}
@@ -344,7 +342,7 @@ public class SslContextUtil {
 	 */
 	public static KeyManager[] loadKeyManager(String keyStoreUri, String aliasPattern, char[] storePassword,
 			char[] keyPassword) throws IOException, GeneralSecurityException {
-		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		KeyStoreType configuration = getKeyStoreTypeFromUri(keyStoreUri);
 		KeyStore ks;
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
@@ -407,7 +405,7 @@ public class SslContextUtil {
 	 */
 	public static Certificate[] loadTrustedCertificates(String keyStoreUri, String aliasPattern, char[] storePassword)
 			throws IOException, GeneralSecurityException {
-		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		KeyStoreType configuration = getKeyStoreTypeFromUri(keyStoreUri);
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
 			if (credentials.trusts == null) {
@@ -464,7 +462,7 @@ public class SslContextUtil {
 	 */
 	public static Credentials loadCredentials(String keyStoreUri, String alias, char[] storePassword,
 			char[] keyPassword) throws IOException, GeneralSecurityException {
-		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		KeyStoreType configuration = getKeyStoreTypeFromUri(keyStoreUri);
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
 			if (credentials.getTrustedCertificates() != null) {
@@ -530,7 +528,7 @@ public class SslContextUtil {
 	 */
 	public static PrivateKey loadPrivateKey(String keyStoreUri, String alias, char[] storePassword, char[] keyPassword)
 			throws IOException, GeneralSecurityException {
-		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		KeyStoreType configuration = getKeyStoreTypeFromUri(keyStoreUri);
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
 			if (credentials.privateKey != null) {
@@ -575,7 +573,7 @@ public class SslContextUtil {
 	 */
 	public static PublicKey loadPublicKey(String keyStoreUri, String alias, char[] storePassword)
 			throws IOException, GeneralSecurityException {
-		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		KeyStoreType configuration = getKeyStoreTypeFromUri(keyStoreUri);
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
 			if (credentials.publicKey != null) {
@@ -612,7 +610,7 @@ public class SslContextUtil {
 	 */
 	public static X509Certificate[] loadCertificateChain(String keyStoreUri, String alias, char[] storePassword)
 			throws IOException, GeneralSecurityException {
-		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		KeyStoreType configuration = getKeyStoreTypeFromUri(keyStoreUri);
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
 			if (credentials.chain == null) {
@@ -640,83 +638,60 @@ public class SslContextUtil {
 	 * ".jks" to "JKS"
 	 * ".bks" to "BKS"
 	 * ".p12" to "PKCS12"
-	 * ".pem" to "PEM"
+	 * ".pem" to "PEM" (custom reader)
 	 * "*" to system default
 	 * </pre>
 	 * 
 	 * Input stream factory: {@link #CLASSPATH_SCHEME} to classpath loader.
+	 * 
+	 * Clear previous configuration. Custom entry must be added again using
+	 * {@link #configure(String, InputStreamFactory)}, and
+	 * {@link #configure(String, KeyStoreType)}.
 	 */
 	public static void configureDefaults() {
 		KEY_STORE_TYPES.clear();
-		KEY_STORE_TYPES.put(JKS_ENDING, JKS_TYPE);
-		KEY_STORE_TYPES.put(BKS_ENDING, BKS_TYPE);
-		KEY_STORE_TYPES.put(PKCS12_ENDING, PKCS12_TYPE);
-		KEY_STORE_TYPES.put(PEM_ENDING, PEM_TYPE);
-		KEY_STORE_TYPES.put(DEFAULT_ENDING, KeyStore.getDefaultType());
 
-		KEY_STORE_CONFIGS.put(JKS_TYPE, new KeyStoreConfiguration(JKS_TYPE, null));
-		KEY_STORE_CONFIGS.put(BKS_TYPE, new KeyStoreConfiguration(BKS_TYPE, null));
-		KEY_STORE_CONFIGS.put(PKCS12_TYPE, new KeyStoreConfiguration(PKCS12_TYPE, null));
-		KEY_STORE_CONFIGS.put(PEM_TYPE, new KeyStoreConfiguration(PEM_TYPE, new SimpleKeyStore() {
+		KEY_STORE_TYPES.put(JKS_ENDING, new KeyStoreType(JKS_TYPE));
+		KEY_STORE_TYPES.put(BKS_ENDING, new KeyStoreType(BKS_TYPE));
+		KEY_STORE_TYPES.put(PKCS12_ENDING, new KeyStoreType(PKCS12_TYPE));
+		KEY_STORE_TYPES.put(PEM_ENDING, new KeyStoreType(new SimpleKeyStore() {
 
 			@Override
 			public Credentials load(InputStream inputStream) throws GeneralSecurityException, IOException {
 				return loadPemCredentials(inputStream);
 			}
 		}));
+		KEY_STORE_TYPES.put(DEFAULT_ENDING, new KeyStoreType(KeyStore.getDefaultType()));
 
 		INPUT_STREAM_FACTORIES.clear();
 		INPUT_STREAM_FACTORIES.put(CLASSPATH_SCHEME, new ClassLoaderInputStreamFactory());
 	}
 
 	/**
-	 * Configure key store types for URI endings.
+	 * Configure a {@link KeyStoreType} for a URI ending.
 	 * 
 	 * @param ending URI ending. If {@link #DEFAULT_ENDING} is used, the key
 	 *            store default type is configured. Ending is converted to lower
 	 *            case before added to the {@link #KEY_STORE_TYPES}.
-	 * @param keyStoreType key store type.
-	 * @return old key store type for ending, or {@code null}, if no key store
-	 *         type was configured before
-	 * @throws NullPointerException if ending or key store type is {@code null}.
+	 * @param type the key store type.
+	 * @return previous key store type, or {@code null}, if no key
+	 *         store type was configured before
+	 * @throws NullPointerException if ending or type is {@code null}.
 	 * @throws IllegalArgumentException if ending doesn't start with "." and
-	 *             isn't {@link #DEFAULT_ENDING}, or key store type is empty.
+	 *             isn't {@link #DEFAULT_ENDING}.
+	 * @since 3.0 (changed parameter type to KeyStoreType)
 	 */
-	public static String configure(String ending, String keyStoreType) {
+	public static KeyStoreType configure(String ending, KeyStoreType type) {
 		if (ending == null) {
 			throw new NullPointerException("ending must not be null!");
 		}
 		if (!ending.equals(DEFAULT_ENDING) && !ending.startsWith(".")) {
 			throw new IllegalArgumentException("ending must start with \".\"!");
 		}
-		if (keyStoreType == null) {
+		if (type == null) {
 			throw new NullPointerException("key store type must not be null!");
 		}
-		if (keyStoreType.isEmpty()) {
-			throw new IllegalArgumentException("key store type must not be empty!");
-		}
-		return KEY_STORE_TYPES.put(ending.toLowerCase(), keyStoreType);
-	}
-
-	/**
-	 * Configure a {@link KeyStoreConfiguration} for a key store type.
-	 * 
-	 * @param keyStoreType the key store type
-	 * @param config the key store configuration
-	 * @return previous key store configuration, or {@code null}, if no key
-	 *         store configuration was configured before
-	 */
-	public static KeyStoreConfiguration configure(String keyStoreType, KeyStoreConfiguration config) {
-		if (keyStoreType == null) {
-			throw new NullPointerException("key store type must not be null!");
-		}
-		if (keyStoreType.isEmpty()) {
-			throw new IllegalArgumentException("key store type must not be empty!");
-		}
-		if (config == null) {
-			throw new NullPointerException("key store configuration must not be null!");
-		}
-		return KEY_STORE_CONFIGS.put(keyStoreType, config);
+		return KEY_STORE_TYPES.put(ending.toLowerCase(), type);
 	}
 
 	/**
@@ -756,11 +731,12 @@ public class SslContextUtil {
 	 * @return configured key store type for ending or default, if ending is not
 	 *         configured.
 	 * @throws GeneralSecurityException if configuration is not available
-	 * @see #configure(String, String)
+	 * @see #configure(String, KeyStoreType)
+	 * @since 3.0 (renamed, was getKeyStoreConfigurationFromUri)
 	 */
-	private static KeyStoreConfiguration getKeyStoreConfigurationFromUri(String uri) throws GeneralSecurityException {
+	private static KeyStoreType getKeyStoreTypeFromUri(String uri) throws GeneralSecurityException {
 		String ending = null;
-		String type = null;
+		KeyStoreType type = null;
 		if (!uri.equals(DEFAULT_ENDING)) {
 			int lastPartIndex = uri.lastIndexOf('/');
 			int endingIndex = uri.lastIndexOf('.');
@@ -775,11 +751,7 @@ public class SslContextUtil {
 		if (type == null) {
 			throw new GeneralSecurityException("no key store type for " + uri);
 		}
-		KeyStoreConfiguration configuration = KEY_STORE_CONFIGS.get(type.toUpperCase());
-		if (configuration == null) {
-			throw new GeneralSecurityException("no key store configuration for " + type);
-		}
-		return configuration;
+		return type;
 	}
 
 	/**
@@ -804,7 +776,7 @@ public class SslContextUtil {
 	 * Create input stream from URI. If no scheme is provided
 	 * ({@link #SCHEME_DELIMITER} not found), open a file using the URI.
 	 * Otherwise, if a scheme is provided, use that scheme to lookup a
-	 * configured {@link #InputStreamFactory}. If no factory for that scheme was
+	 * configured {@link InputStreamFactory}. If no factory for that scheme was
 	 * configured with {@link #configure(String, InputStreamFactory)}, then use
 	 * {@link URL}.
 	 * 
@@ -853,15 +825,17 @@ public class SslContextUtil {
 	 * 
 	 * @param keyStoreUri key store URI. Use
 	 *            {@link #getInputStreamFromUri(String)} to read the key store,
-	 *            and {@link #getKeyStoreConfigurationFromUri(String)} to
+	 *            and {@link #getKeyStoreTypeFromUri(String)} to
 	 *            determine the type of the key store.
 	 * @param storePassword password for key store.
+	 * @param configuration password for key store.
 	 * @return key store
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
 	 * @throws NullPointerException if keyStoreUri or storePassword is null.
+	 * @since 3.0 (changed parameter type to KeyStoreType)
 	 */
-	private static KeyStore loadKeyStore(String keyStoreUri, char[] storePassword, KeyStoreConfiguration configuration)
+	private static KeyStore loadKeyStore(String keyStoreUri, char[] storePassword, KeyStoreType configuration)
 			throws GeneralSecurityException, IOException {
 		if (null == storePassword) {
 			throw new NullPointerException("storePassword must be provided!");
@@ -889,8 +863,9 @@ public class SslContextUtil {
 	 * @return credentials
 	 * @throws GeneralSecurityException if credentials could not be read
 	 * @throws IOException if key store could not be read
+	 * @since 3.0 (changed parameter type to KeyStoreType)
 	 */
-	private static Credentials loadSimpleKeyStore(String keyStoreUri, KeyStoreConfiguration configuration)
+	private static Credentials loadSimpleKeyStore(String keyStoreUri, KeyStoreType configuration)
 			throws GeneralSecurityException, IOException {
 		InputStream inputStream = getInputStreamFromUri(keyStoreUri);
 		try {
@@ -1092,7 +1067,7 @@ public class SslContextUtil {
 		try {
 			/* key used for creating a non-persistent KeyStore */
 			char[] key = "intern".toCharArray();
-			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(DEFAULT_ENDING);
+			KeyStoreType configuration = getKeyStoreTypeFromUri(DEFAULT_ENDING);
 			KeyStore ks = KeyStore.getInstance(configuration.type);
 			ks.load(null);
 			ks.setKeyEntry(alias, privateKey, key, chain);
@@ -1126,7 +1101,7 @@ public class SslContextUtil {
 		}
 		try {
 			int index = 1;
-			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(DEFAULT_ENDING);
+			KeyStoreType configuration = getKeyStoreTypeFromUri(DEFAULT_ENDING);
 			KeyStore ks = KeyStore.getInstance(configuration.type);
 			ks.load(null);
 			for (Certificate certificate : trusts) {
@@ -1435,13 +1410,56 @@ public class SslContextUtil {
 		Credentials load(InputStream inputStream) throws GeneralSecurityException, IOException;
 	}
 
-	public static class KeyStoreConfiguration {
+	/**
+	 * Key store type.
+	 * 
+	 * Either a type supported by {@link KeyStore#getInstance(String)}, or a
+	 * {@link SimpleKeyStore} custom-reader.
+	 * 
+	 * @since 3.0 (renamed, was KeyStoreConfiguration)
+	 */
+	public static class KeyStoreType {
 
+		/**
+		 * Type supported by {@link KeyStore#getInstance(String)}.
+		 */
 		public final String type;
+		/**
+		 * Custom key store reader.
+		 */
 		public final SimpleKeyStore simpleStore;
 
-		public KeyStoreConfiguration(String type, SimpleKeyStore simpleStore) {
+		/**
+		 * Create type supported by {@link KeyStore#getInstance(String)}.
+		 * 
+		 * @param type type supported by {@link KeyStore#getInstance(String)}.
+		 * @throws NullPointerException if type is {@code null}
+		 * @throws IllegalArgumentException if type is empty
+		 * @since 3.0
+		 */
+		public KeyStoreType(String type) {
+			if (type == null) {
+				throw new NullPointerException("key store type must not be null!");
+			}
+			if (type.isEmpty()) {
+				throw new IllegalArgumentException("key store type must not be empty!");
+			}
 			this.type = type;
+			this.simpleStore = null;
+		}
+
+		/**
+		 * Create type with custom key store reader.
+		 * 
+		 * @param simpleStore custom key store reader
+		 * @throws NullPointerException if simpleStore is {@code null}
+		 * @since 3.0
+		 */
+		public KeyStoreType(SimpleKeyStore simpleStore) {
+			if (simpleStore == null) {
+				throw new NullPointerException("simple key store must not be null!");
+			}
+			this.type = null;
 			this.simpleStore = simpleStore;
 		}
 	}

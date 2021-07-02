@@ -28,6 +28,7 @@ import java.net.MalformedURLException;
 import java.security.GeneralSecurityException;
 
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.eclipse.californium.elements.util.SslContextUtil.KeyStoreType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -122,28 +123,28 @@ public class SslContextUtilConfigurationTest {
 
 	@Test(expected = NullPointerException.class)
 	public void testConfigureKeyStoreTypeWithoutEnding() throws IOException, GeneralSecurityException {
-		SslContextUtil.configure(null, CUSTOM_TYPE);
+		SslContextUtil.configure(null, new KeyStoreType(CUSTOM_TYPE));
 	}
 
 	@Test(expected = NullPointerException.class)
 	public void testConfigureKeyStoreTypeWithoutType() throws IOException, GeneralSecurityException {
-		SslContextUtil.configure(CUSTOM_ENDING, (String) null);
+		SslContextUtil.configure(CUSTOM_ENDING, (KeyStoreType) null);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testConfigureKeyStoreTypeWithInvalidEnding() throws IOException, GeneralSecurityException {
-		SslContextUtil.configure(CUSTOM_TYPE, CUSTOM_TYPE);
+		SslContextUtil.configure(CUSTOM_TYPE, new KeyStoreType(CUSTOM_TYPE));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testConfigureKeyStoreTypeWithInvalidType() throws IOException, GeneralSecurityException {
-		SslContextUtil.configure(CUSTOM_ENDING, "");
+		SslContextUtil.configure(CUSTOM_ENDING, new KeyStoreType(""));
 	}
 
 	@Test
 	public void testConfigureKeyStoreType() throws IOException, GeneralSecurityException {
 		try {
-			SslContextUtil.configure(SslContextUtil.JKS_ENDING, CUSTOM_TYPE);
+			SslContextUtil.configure(SslContextUtil.JKS_ENDING, new KeyStoreType(CUSTOM_TYPE));
 			SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			fail("custom key store type \"" + CUSTOM_TYPE + "\" is not intended to be supported!");
 		} catch (GeneralSecurityException ex) {
