@@ -34,6 +34,8 @@ public class ThreadsRule implements TestRule {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(ThreadsRule.class);
 
+	public static final String[] SYSTEM = { "Libgraal MBean Registration" };
+
 	/**
 	 * Description of current test.
 	 */
@@ -137,6 +139,14 @@ public class ThreadsRule implements TestRule {
 						boolean skip = false;
 						if (excludes != null) {
 							for (String pattern : excludes) {
+								if (thread.getName().matches(pattern)) {
+									skip = true;
+									break;
+								}
+							}
+						}
+						if (!skip && SYSTEM != null) {
+							for (String pattern : SYSTEM) {
 								if (thread.getName().matches(pattern)) {
 									skip = true;
 									break;
