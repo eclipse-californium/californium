@@ -29,10 +29,6 @@ Migrating [Eclipse/Hono](https://github.com/eclipse/hono) and [Eclipse/Leshan](h
 
 Since 3.0 the sub-class may be ignored, depending on the provided value of the `useClassInEquals` parameter in `Bytes(byte[], int, boolean, boolean)`. The default behavior is changed to ignore the sub-class.
 
-`Option(int number)`:
-
-Since 3.0, the value is not initialized and must be provided with a separate setter call or using a other `Option` constructor. Though the 3.0 will now validate the option value, using `Bytes.EMPTY` as default would fail in too many cases.
-
 `StringUtil.getUriHostname(InetAddress address)`:
 
 The IPv6-scope-separator "%" is replaced by the URL-encoded form "%25". If that causes issues, the  environment-variable or java-property "ENCODED_IPV6_SCOPE_SEPARATOR" may be used to disable this.
@@ -91,12 +87,15 @@ Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return
 
 `Request.setOnResponseError(Throwable error)` is not longer accompanied by `Request.setCanceled(boolean canceled)`.
 
+`Option(int number)`:
+
+Since 3.0, the value is not initialized and must be provided with a separate setter call or using a other `Option` constructor. Though the 3.0 will now validate the option value, using `Bytes.EMPTY` as default would fail in too many cases.
+
 The `OptionSet` and the `Option`s are now strictly validated. If that cause trouble, please check, if the value is valid according [RFC 7252, 5.10.  Option Definitions](https://tools.ietf.org/html/rfc7252#page-53) or the other specific RFCs.
 
 [RFC 7967, Option for No Server Response](https://tools.ietf.org/html/rfc7967) is introduced.
 
 Changing network configuration values during runtime is not supported by Californium's components. Therefore the `NetworkConfigObserver` is now removed.
- 
 
 ### Californium-Proxy2:
 
