@@ -40,8 +40,8 @@ public class EndpointContextUtil {
 	 * @param keys set of keys to be matched.
 	 * @param context1 endpoint context to be compared
 	 * @param context2 endpoint context to be compared
-	 * @return true, if all values in the endpoint contexts of the provided
-	 *         keys are equal, false, if not.
+	 * @return true, if all values in the endpoint contexts of the provided keys
+	 *         are equal, false, if not.
 	 */
 	public static boolean match(String name, Set<String> keys, EndpointContext context1, EndpointContext context2) {
 		boolean warn = LOGGER.isWarnEnabled();
@@ -57,7 +57,7 @@ public class EndpointContextUtil {
 			}
 			if (!match) {
 				/* logging differences with warning level */
-				WARN_FILTER.warn("{}, {}: \"{}\" != \"{}\"",  name, key, value1, value2);
+				WARN_FILTER.warn("{}, {}: \"{}\" != \"{}\"", name, key, value1, value2);
 			} else if (trace) {
 				/* logging matches with finest level */
 				LOGGER.trace("{}, {}: \"{}\" == \"{}\"", name, key, value1, value2);
@@ -88,8 +88,7 @@ public class EndpointContextUtil {
 		String mode = messageContext.getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
 		if (mode != null && mode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
 			// restore handshake-mode "none"
-			followUpEndpointContext = MapBasedEndpointContext.addEntries(connectionContext,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+			followUpEndpointContext = MapBasedEndpointContext.addEntries(connectionContext, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE);
 		} else {
 			followUpEndpointContext = connectionContext;
 		}

@@ -52,45 +52,6 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	private final Map<String, Object> entries;
 
 	/**
-	 * Creates a context for a socket address, authenticated identity and
-	 * arbitrary key/value pairs.
-	 * 
-	 * @param peerAddress peer address of endpoint context
-	 * @param peerIdentity peer identity of endpoint context
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...)
-	 * @throws NullPointerException if provided peer address is {@code null},
-	 *             the provided attributes is {@code null}, or one of the
-	 *             attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 */
-	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String... attributes) {
-
-		this(peerAddress, null, peerIdentity, attributes);
-	}
-
-	/**
-	 * Creates a context for a socket address, authenticated identity and
-	 * arbitrary key/value pairs.
-	 * 
-	 * @param peerAddress peer address of endpoint context
-	 * @param virtualHost the name of the virtual host at the peer
-	 * @param peerIdentity peer identity of endpoint context
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...)
-	 * @throws NullPointerException if provided peer address is {@code null},
-	 *             the provided attributes is {@code null}, or one of the
-	 *             attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 */
-	public MapBasedEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
-			String... attributes) {
-		this(peerAddress, virtualHost, peerIdentity, createAttributes(attributes));
-	}
-
-	/**
 	 * Creates a new endpoint context with correlation context support.
 	 * 
 	 * @param peerAddress peer address of endpoint context
@@ -127,39 +88,6 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		attributes.lock();
 		this.entries = Collections.unmodifiableMap(attributes.entries);
 		this.hasCriticalEntries = findCriticalEntries(entries);
-	}
-
-	/**
-	 * Create map of attributes.
-	 * 
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...)
-	 * @return create map
-	 * @throws NullPointerException if the provided attributes is {@code null},
-	 *             or one of the critical attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 */
-	private static final Attributes createAttributes(String... attributes) {
-		if (attributes == null) {
-			throw new NullPointerException("attributes must not null!");
-		}
-		if ((attributes.length & 1) != 0) {
-			throw new IllegalArgumentException("number of attributes must be even, not " + attributes.length + "!");
-		}
-		Attributes entries = new Attributes();
-		for (int index = 0; index < attributes.length; ++index) {
-			try {
-				String key = attributes[index];
-				String value = attributes[++index];
-				entries.add(key, value);
-			} catch (NullPointerException ex) {
-				throw new NullPointerException((index / 2) + ". " + ex.getMessage());
-			} catch (IllegalArgumentException ex) {
-				throw new IllegalArgumentException((index / 2) + ". " + ex.getMessage());
-			}
-		}
-		return entries;
 	}
 
 	/**
@@ -205,23 +133,6 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 * Set entries to endpoint context.
 	 * 
 	 * @param context original endpoint context.
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...)..
-	 * @return new endpoint context with attributes.
-	 * @throws NullPointerException if the provided attributes is {@code null},
-	 *             or one of the attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 *             @since 3.0
-	 */
-	public static MapBasedEndpointContext setEntries(EndpointContext context, String... attributes) {
-		return setEntries(context, createAttributes(attributes));
-	}
-
-	/**
-	 * Set entries to endpoint context.
-	 * 
-	 * @param context original endpoint context.
 	 * @param attributes map of attributes.
 	 * @return new endpoint context with attributes.
 	 * @throws NullPointerException if the provided attributes is {@code null}
@@ -230,23 +141,6 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	public static MapBasedEndpointContext setEntries(EndpointContext context, Attributes attributes) {
 		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
 				context.getPeerIdentity(), attributes);
-	}
-
-	/**
-	 * Add entries to endpoint context.
-	 * 
-	 * @param context original endpoint context.
-	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
-	 *            value_1, key_2, value_2 ...). The provided attributes may
-	 *            overwrite already available ones.
-	 * @return new endpoint context with additional attributes.
-	 * @throws NullPointerException if the provided attributes is {@code null},
-	 *             or one of the attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd size
-	 *             or contains a duplicate key.
-	 */
-	public static MapBasedEndpointContext addEntries(EndpointContext context, String... attributes) {
-		return addEntries(context, createAttributes(attributes));
 	}
 
 	/**
@@ -339,9 +233,12 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 
 		/**
 		 * Lock attributes. Protect from further modifications.
+		 * 
+		 * @return this for chaining
 		 */
-		public void lock() {
+		public Attributes lock() {
 			lock = true;
+			return this;
 		}
 
 		/**

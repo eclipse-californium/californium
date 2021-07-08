@@ -36,6 +36,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 
 /**
@@ -533,8 +534,9 @@ public class CoapExchange {
 	private EndpointContext applyHandshakeMode() {
 		EndpointContext context = exchange.getCurrentRequest().getSourceContext();
 		if (handshakeMode != null && context.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE) == null) {
-			context = MapBasedEndpointContext.addEntries(context, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
-					handshakeMode);
+			Attributes attributes = new Attributes();
+			attributes.add(DtlsEndpointContext.KEY_HANDSHAKE_MODE, handshakeMode);
+			context = MapBasedEndpointContext.addEntries(context, attributes);
 		}
 		return context;
 	}
