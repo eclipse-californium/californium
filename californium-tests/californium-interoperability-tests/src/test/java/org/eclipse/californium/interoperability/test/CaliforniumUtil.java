@@ -226,7 +226,7 @@ public class CaliforniumUtil extends ConnectorUtil {
 	public CoapResponse sendWithFullHandshake(Request request) {
 		EndpointContext destinationContext = request.getDestinationContext();
 		destinationContext = MapBasedEndpointContext.setEntries(destinationContext,
-				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
+				DtlsEndpointContext.ATTRIBUE_HANDSHAKE_MODE_FORCE_FULL);
 		request.setDestinationContext(destinationContext);
 		return send(request);
 	}

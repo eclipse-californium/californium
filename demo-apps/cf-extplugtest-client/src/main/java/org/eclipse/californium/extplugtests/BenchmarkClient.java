@@ -800,7 +800,7 @@ public class BenchmarkClient {
 					}
 				} else {
 					destinationContext = MapBasedEndpointContext.setEntries(destinationContext,
-							DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
+							DtlsEndpointContext.ATTRIBUE_HANDSHAKE_MODE_FORCE_FULL);
 					request.setDestinationContext(destinationContext);
 				}
 			}

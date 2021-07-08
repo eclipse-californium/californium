@@ -799,7 +799,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_FORCE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 
@@ -894,7 +894,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_PROBE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_PROBE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 
@@ -992,7 +992,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_PROBE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_PROBE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 
@@ -1078,7 +1078,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_PROBE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_PROBE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 
@@ -1188,7 +1188,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_PROBE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_PROBE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 
@@ -1275,7 +1275,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_PROBE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_PROBE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 
@@ -1803,7 +1803,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_FORCE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 
@@ -1900,7 +1900,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_FORCE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 
@@ -2311,7 +2311,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// force resuming handshake
 			EndpointContext context = new MapBasedEndpointContext(rawServer.getAddress(), null,
-					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_FORCE);
 			data = RawData.outbound("Hello World, Again!".getBytes(), context, null, false);
 			client.send(data);
 

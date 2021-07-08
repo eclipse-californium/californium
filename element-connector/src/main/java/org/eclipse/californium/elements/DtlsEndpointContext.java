@@ -109,12 +109,47 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 
 	/**
 	 * The name of the attribute that contains a auto session resumption timeout
-	 * in milliseconds as number.
+	 * in milliseconds as {@link Number}.
 	 * 
 	 * {@code -1}, disable auto session resumption. None critical attribute, not
 	 * considered for matching.
 	 */
 	public static final String KEY_RESUMPTION_TIMEOUT = KEY_PREFIX_NONE_CRITICAL + "DTLS_RESUMPTION_TIMEOUT";
+	/**
+	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_NONE}.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Attributes ATTRIBUTE_HANDSHAKE_MODE_NONE = new Attributes()
+			.add(KEY_HANDSHAKE_MODE, HANDSHAKE_MODE_NONE).lock();
+	/**
+	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_AUTO}.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Attributes ATTRIBUTE_HANDSHAKE_MODE_AUTO = new Attributes()
+			.add(KEY_HANDSHAKE_MODE, HANDSHAKE_MODE_AUTO).lock();
+	/**
+	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_PROBE}.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Attributes ATTRIBUTE_HANDSHAKE_MODE_PROBE = new Attributes()
+			.add(KEY_HANDSHAKE_MODE, HANDSHAKE_MODE_PROBE).lock();
+	/**
+	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_FORCE}.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Attributes ATTRIBUTE_HANDSHAKE_MODE_FORCE = new Attributes()
+			.add(KEY_HANDSHAKE_MODE, HANDSHAKE_MODE_FORCE).lock();
+	/**
+	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_FORCE_FULL}.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Attributes ATTRIBUE_HANDSHAKE_MODE_FORCE_FULL = new Attributes()
+			.add(KEY_HANDSHAKE_MODE, HANDSHAKE_MODE_FORCE_FULL).lock();
 
 	/**
 	 * Creates a context for DTLS session parameters.

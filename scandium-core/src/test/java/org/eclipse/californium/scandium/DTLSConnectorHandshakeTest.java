@@ -1698,7 +1698,7 @@ public class DTLSConnectorHandshakeTest {
 		SimpleMessageCallback callback = new SimpleMessageCallback();
 		RawData raw = RawData.outbound(
 				"Hello World, 2!".getBytes(), MapBasedEndpointContext.addEntries(endpointContext,
-						DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_AUTO),
+						DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_AUTO),
 				callback, false);
 		client.send(raw);
 
@@ -1721,7 +1721,7 @@ public class DTLSConnectorHandshakeTest {
 
 		EndpointContext endpointContext = new AddressEndpointContext(serverHelper.serverEndpoint);
 		startClientFailing(builder, MapBasedEndpointContext.addEntries(endpointContext,
-				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_NONE));
+				DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE));
 
 		SimpleMessageCallback callback = new SimpleMessageCallback();
 		RawData raw = RawData.outbound("Hello World, 2!".getBytes(), endpointContext, callback, false);

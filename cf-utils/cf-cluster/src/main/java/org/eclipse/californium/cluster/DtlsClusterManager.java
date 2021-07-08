@@ -585,8 +585,7 @@ public class DtlsClusterManager implements Readiness {
 				if (clusterManagementConnector.isRunning()) {
 					EndpointContext context;
 					if (secure) {
-						context = new MapBasedEndpointContext(node, null, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
-								DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+						context = new MapBasedEndpointContext(node, null, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_FORCE);
 					} else {
 						context = new AddressEndpointContext(node);
 					}

@@ -251,8 +251,7 @@ public class DeduplicationTest {
 		builder.ackRandomFactor(1.0F);
 
 		EndpointContext destination = new AddressEndpointContext(server.getSocketAddress());
-		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
-				DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE);
 		Request request = createRequest(GET, path, server);
 		request.setDestinationContext(destination);
 		request.setReliabilityLayerParameters(builder.build());
@@ -266,8 +265,7 @@ public class DeduplicationTest {
 		assertThat(request.getEffectiveDestinationContext().getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
 
 		destination = new AddressEndpointContext(server.getSocketAddress());
-		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
-				DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_FORCE);
 		request = createRequest(GET, path, server);
 		request.setDestinationContext(destination);
 		request.setReliabilityLayerParameters(builder.build());

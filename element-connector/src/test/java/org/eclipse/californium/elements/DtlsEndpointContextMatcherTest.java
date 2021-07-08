@@ -21,6 +21,7 @@ import static org.eclipse.californium.elements.DtlsEndpointContext.*;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
@@ -73,9 +74,10 @@ public class DtlsEndpointContextMatcherTest {
 
 		unsecureMessageContext = new UdpEndpointContext(ADDRESS);
 
-		noneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null, KEY_RESUMPTION_TIMEOUT, "30000");
-		scopedNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null, KEY_RESUMPTION_TIMEOUT,
-				"30000");
+		noneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null,
+				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 30000));
+		scopedNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null,
+				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 30000));
 
 		strictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null,
 				new Attributes().add(KEY_SESSION_ID, session).add(KEY_EPOCH, 1).add(KEY_CIPHER, "CIPHER")
@@ -174,28 +176,29 @@ public class DtlsEndpointContextMatcherTest {
 
 	@Test
 	public void testAddNewEntries() {
-		EndpointContext context = MapBasedEndpointContext.addEntries(strictMessageContext, KEY_RESUMPTION_TIMEOUT,
-				"30000");
+		EndpointContext context = MapBasedEndpointContext.addEntries(strictMessageContext,
+				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 30000));
 		assertThat(context.getPeerAddress(), is(strictMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(strictMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(strictMessageContext.getPeerIdentity()));
-		assertThat(context.getString(KEY_RESUMPTION_TIMEOUT), is("30000"));
+		assertThat(context.getNumber(KEY_RESUMPTION_TIMEOUT).intValue(), is(30000));
 
-		context = MapBasedEndpointContext.addEntries(scopedStrictMessageContext, KEY_RESUMPTION_TIMEOUT, "30000");
+		context = MapBasedEndpointContext.addEntries(scopedStrictMessageContext,
+				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 30000));
 		assertThat(context.getPeerAddress(), is(scopedStrictMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(scopedStrictMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(scopedStrictMessageContext.getPeerIdentity()));
-		assertThat(context.getString(KEY_RESUMPTION_TIMEOUT), is("30000"));
+		assertThat(context.getNumber(KEY_RESUMPTION_TIMEOUT).intValue(), is(30000));
 	}
 
 	@Test
 	public void testAddContainedEntries() {
-		EndpointContext context = MapBasedEndpointContext.addEntries(noneCriticalMessageContext, KEY_RESUMPTION_TIMEOUT,
-				"60000");
+		EndpointContext context = MapBasedEndpointContext.addEntries(noneCriticalMessageContext,
+				new Attributes().add(KEY_RESUMPTION_TIMEOUT, 60000));
 		assertThat(context.getPeerAddress(), is(noneCriticalMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(noneCriticalMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(noneCriticalMessageContext.getPeerIdentity()));
-		assertThat(context.getString(KEY_RESUMPTION_TIMEOUT), is("60000"));
+		assertThat(context.getNumber(KEY_RESUMPTION_TIMEOUT).intValue(), is(60000));
 	}
 
 }

@@ -30,7 +30,7 @@ public class UdpEndpointContext extends MapBasedEndpointContext {
 	 * @param peerAddress The peer's address.
 	 */
 	public UdpEndpointContext(InetSocketAddress peerAddress) {
-		super(peerAddress, null, KEY_PLAIN, "");
+		super(peerAddress, null, new Attributes().add(KEY_PLAIN, ""));
 	}
 
 	@Override

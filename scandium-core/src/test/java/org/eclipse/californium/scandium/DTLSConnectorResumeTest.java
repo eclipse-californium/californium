@@ -905,7 +905,7 @@ public class DTLSConnectorResumeTest {
 
 		// send message
 		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
-				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+				DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_FORCE);
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -938,7 +938,7 @@ public class DTLSConnectorResumeTest {
 
 		// send message
 		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
-				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
+				DtlsEndpointContext.ATTRIBUE_HANDSHAKE_MODE_FORCE_FULL);
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -1166,7 +1166,7 @@ public class DTLSConnectorResumeTest {
 		// suppress handshake
 		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
 		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
-				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+				DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE);
 		RawData raw = RawData.outbound("Hello World".getBytes(), context, callback, false);
 
 		client.start();
@@ -1190,7 +1190,7 @@ public class DTLSConnectorResumeTest {
 		// suppress handshake
 		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
 		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
-				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+				DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE);
 		RawData raw = RawData.outbound("Hello World".getBytes(), context, callback, false);
 		client.start();
 		client.send(raw);
