@@ -10,6 +10,18 @@ repositories {
 }
 
 android {
+    signingConfigs {
+        cali {
+
+            // requires a "gradle.properties" file with the
+            // RELEASE_??? properties below in the ".gradle" folder.         
+
+            storeFile file(RELEASE_STORE_FILE)
+            storePassword RELEASE_STORE_PASSWORD
+            keyPassword RELEASE_KEY_PASSWORD
+            keyAlias RELEASE_KEY_ALIAS
+        }
+    }
     compileSdkVersion 30
     buildToolsVersion "30.0.3"
 
@@ -24,6 +36,7 @@ android {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.cali
         }
     }
 
