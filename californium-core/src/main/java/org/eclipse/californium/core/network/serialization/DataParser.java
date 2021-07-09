@@ -42,9 +42,10 @@ import java.io.ByteArrayInputStream;
 public abstract class DataParser {
 
 	/**
-	 * Parses a byte array into a CoAP Message.
+	 * Parses and converts a incoming raw message into CoAP Message.
 	 * 
-	 * @param raw contains the byte array to parse.
+	 * @param raw raw message containing the byte array to parse and additional
+	 *            incoming information.
 	 * @return the message.
 	 * @throws MessageFormatException if the raw-data byte array cannot be
 	 *             parsed into a message.
