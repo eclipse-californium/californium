@@ -125,7 +125,11 @@ public class AddressEndpointContext implements EndpointContext {
 	public String getString(String key) {
 		Object value = get(key);
 		if (value != null) {
-			return value.toString();
+			if (value instanceof Bytes) {
+				return ((Bytes) value).getAsString();
+			} else {
+				return value.toString();
+			}
 		} else {
 			return null;
 		}
