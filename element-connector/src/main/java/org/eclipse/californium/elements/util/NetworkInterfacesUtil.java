@@ -127,6 +127,9 @@ public class NetworkInterfacesUtil {
 			}
 			try {
 				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+				if (interfaces == null) {
+					throw new SocketException("Network interfaces not available!");
+				}
 				while (interfaces.hasMoreElements()) {
 					NetworkInterface iface = interfaces.nextElement();
 					if (iface.isUp() && !iface.isLoopback()
