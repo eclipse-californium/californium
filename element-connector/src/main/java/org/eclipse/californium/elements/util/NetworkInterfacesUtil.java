@@ -126,6 +126,9 @@ public class NetworkInterfacesUtil {
 			}
 			try {
 				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+				if (interfaces == null) {
+					throw new SocketException("Network interfaces not available!");
+				}
 				while (interfaces.hasMoreElements()) {
 					NetworkInterface iface = interfaces.nextElement();
 					if (iface.isUp() && !iface.isLoopback()
@@ -183,11 +186,14 @@ public class NetworkInterfacesUtil {
 							for (InterfaceAddress interfaceAddress : iface.getInterfaceAddresses()) {
 								InetAddress broadcast = interfaceAddress.getBroadcast();
 								if (broadcast != null && !broadcast.isAnyLocalAddress()) {
-									broadcastAddresses.add(broadcast);
-									LOGGER.debug("Found broadcast address {} - {}.", broadcast, iface.getName());
-									if (broad4 == null) {
-										broad4 = (Inet4Address) broadcast;
-										++count;
+									InetAddress address = interfaceAddress.getAddress();
+									if (address != null && !address.equals(broadcast)) {
+										broadcastAddresses.add(broadcast);
+										LOGGER.debug("Found broadcast address {} - {}.", broadcast, iface.getName());
+										if (broad4 == null) {
+											broad4 = (Inet4Address) broadcast;
+											++count;
+										}
 									}
 								}
 							}
@@ -359,6 +365,9 @@ public class NetworkInterfacesUtil {
 		Collection<InetAddress> interfaces = new LinkedList<InetAddress>();
 		try {
 			Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+			if (nets == null) {
+				throw new SocketException("Network interfaces not available!");
+			}
 			while (nets.hasMoreElements()) {
 				NetworkInterface networkInterface = nets.nextElement();
 				if (networkInterface.isUp()) {
