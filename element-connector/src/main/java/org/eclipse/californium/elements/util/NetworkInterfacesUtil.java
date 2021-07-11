@@ -23,6 +23,7 @@ import java.net.NetworkInterface;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -108,15 +109,15 @@ public class NetworkInterfacesUtil {
 	 * 
 	 * @since 2.3
 	 */
-	private static final Set<InetAddress> broadcastAddresses = new HashSet<InetAddress>();
+	private static final Set<InetAddress> broadcastAddresses = new HashSet<>();
+	/**
+	 * Set of available IPv6 scopes.
+	 */
+	private static final Set<String> ipv6Scopes = new HashSet<>();
 
 	private synchronized static void initialize() {
 		if (anyMtu == 0) {
-			broadcastAddresses.clear();
-			broadcastIpv4 = null;
-			multicastInterfaceIpv4 = null;
-			multicastInterfaceIpv6 = null;
-			multicastInterface = null;
+			clear();
 			int mtu = MAX_MTU;
 			int ipv4mtu = MAX_MTU;
 			int ipv6mtu = MAX_MTU;
@@ -171,16 +172,20 @@ public class NetworkInterfacesUtil {
 										}
 									}
 								} else if (address instanceof Inet6Address) {
+									Inet6Address address6 = (Inet6Address) address;
 									anyIpv6 = true;
 									if (ifaceMtu > 0 && ifaceMtu < ipv6mtu) {
 										ipv6mtu = ifaceMtu;
 									}
 									if (site6 == null) {
 										if (address.isSiteLocalAddress()) {
-											site6 = (Inet6Address) address;
+											site6 = address6;
 										} else if (link4 == null && address.isLinkLocalAddress()) {
-											link6 = (Inet6Address) address;
+											link6 = address6;
 										}
+									}
+									if (address6.getScopeId() > 0) {
+										ipv6Scopes.add(iface.getName());
 									}
 								}
 							}
@@ -250,6 +255,28 @@ public class NetworkInterfacesUtil {
 			NetworkInterfacesUtil.ipv6Mtu = ipv6mtu;
 			NetworkInterfacesUtil.anyMtu = mtu;
 		}
+	}
+
+	/**
+	 * Clear discovered network parameters.
+	 * 
+	 * Intended to be called in changing network environments to (re-)discover
+	 * the netowrk's parameters.
+	 * 
+	 * @since 3.0
+	 */
+	public synchronized static void clear() {
+		anyMtu = 0;
+		ipv4Mtu = 0;
+		ipv6Mtu = 0;
+		anyIpv4 = false;
+		anyIpv6 = false;
+		ipv6Scopes.clear();
+		broadcastAddresses.clear();
+		broadcastIpv4 = null;
+		multicastInterfaceIpv4 = null;
+		multicastInterfaceIpv6 = null;
+		multicastInterface = null;
 	}
 
 	/**
@@ -366,6 +393,9 @@ public class NetworkInterfacesUtil {
 		Collection<InetAddress> interfaces = new LinkedList<InetAddress>();
 		try {
 			Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+			if (nets == null) {
+				throw new SocketException("Network interfaces not available!");
+			}
 			while (nets.hasMoreElements()) {
 				NetworkInterface networkInterface = nets.nextElement();
 				if (networkInterface.isUp()) {
@@ -379,6 +409,17 @@ public class NetworkInterfacesUtil {
 			LOGGER.error("could not fetch all interface addresses", e);
 		}
 		return interfaces;
+	}
+
+	/**
+	 * Gets available IPv6 scopes.
+	 * 
+	 * @return available IPv6 scopes
+	 * @since 3.0
+	 */
+	public static Set<String> getIpv6Scopes() {
+		initialize();
+		return Collections.unmodifiableSet(ipv6Scopes);
 	}
 
 	/**
