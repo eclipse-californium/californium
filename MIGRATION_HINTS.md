@@ -31,7 +31,7 @@ Since 3.0 the sub-class may be ignored, depending on the provided value of the `
 
 `StringUtil.getUriHostname(InetAddress address)`:
 
-The IPv6-scope-separator "%" is replaced by the URL-encoded form "%25". If that causes issues, the  environment-variable or java-property "ENCODED_IPV6_SCOPE_SEPARATOR" may be used to disable this.
+The IPv6-scope-separator "%" is replaced by the URL-encoded form "%25" (also fixed in 2.6.4).
 
 ### Scandium:
 
