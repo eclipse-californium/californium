@@ -17,10 +17,19 @@ package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assume.assumeFalse;
+
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.util.Set;
 
 import org.junit.Test;
 
 public class StringUtilTest {
+
 	@Test
 	public void testHex2ByteArray() {
 		String line = "4130010A";
@@ -55,6 +64,35 @@ public class StringUtilTest {
 	public void testHex2CharArrayIllegalArgumentContent() {
 		String line = "4130010A0Z";
 		StringUtil.hex2CharArray(line);
+	}
+
+	@Test
+	public void testGetUriHostname() throws URISyntaxException, UnknownHostException {
+		String hostname = StringUtil.getUriHostname(InetAddress.getLoopbackAddress());
+		assertThat(hostname, is("127.0.0.1"));
+
+		URI test = new URI("coap", null, hostname, 5683, null, null, null);
+		assertThat(test.toASCIIString(), is("coap://127.0.0.1:5683"));
+
+		hostname = StringUtil.getUriHostname(Inet6Address.getByName("[FF02::FD]"));
+		assertThat(hostname, is("ff02:0:0:0:0:0:0:fd"));
+
+		test = new URI("coap", null, hostname, 5683, null, null, null);
+		assertThat(test.toASCIIString(), is("coap://[ff02:0:0:0:0:0:0:fd]:5683"));
+	}
+
+	@Test
+	public void testGetUriHostnameWithScope() throws URISyntaxException, UnknownHostException {
+		Set<String> scopes = NetworkInterfacesUtil.getIpv6Scopes();
+		assumeFalse("scope networkinterfaces required!", scopes.isEmpty());
+
+		String scope = scopes.iterator().next();
+
+		String hostname = StringUtil.getUriHostname(Inet6Address.getByName("[FF02::FD%" + scope + "]"));
+		assertThat(hostname, is("ff02:0:0:0:0:0:0:fd%25" + scope));
+
+		URI test = new URI("coap", null, hostname, 5683, null, null, null);
+		assertThat(test.toASCIIString(), is("coap://[ff02:0:0:0:0:0:0:fd%25" + scope + "]:5683"));
 	}
 
 }
