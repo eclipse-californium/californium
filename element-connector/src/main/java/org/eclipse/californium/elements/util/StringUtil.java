@@ -417,11 +417,14 @@ public class StringUtil {
 	 * 
 	 * Apply workaround for JDK-8199396.
 	 * 
+	 * Note: since 2.6.4, a "%" in a IPv6 address is replaced by the encoded
+	 * form with "%25".
+	 * 
 	 * @param address address
 	 * @return uri hostname
 	 * @throws NullPointerException if address is {@code null}.
-	 * @throws URISyntaxException if address could not be converted into
-	 *             URI hostname.
+	 * @throws URISyntaxException if address could not be converted into URI
+	 *             hostname.
 	 * @since 2.1
 	 */
 	public static String getUriHostname(InetAddress address) throws URISyntaxException {
@@ -429,17 +432,33 @@ public class StringUtil {
 			throw new NullPointerException("address must not be null!");
 		}
 		String host = address.getHostAddress();
-		try {
-			new URI(null, null, host, -1, null, null, null);
-		} catch (URISyntaxException e) {
-			try {
-				// work-around for openjdk bug JDK-8199396.
-				// some characters are not supported for the ipv6 scope.
-				host = host.replaceAll("[-._~]", "");
-				new URI(null, null, host, -1, null, null, null);
-			} catch (URISyntaxException e2) {
-				// throw first exception before work-around
-				throw e;
+		if (address instanceof Inet6Address) {
+			Inet6Address address6 = (Inet6Address) address;
+			if (address6.getScopedInterface() != null || address6.getScopeId() > 0) {
+				int pos = host.indexOf('%');
+				if (pos > 0 && pos + 1 < host.length()) {
+					String separator = "%25";
+					String scope = host.substring(pos + 1);
+					String hostAddress = host.substring(0, pos);
+					host = hostAddress + separator + scope;
+					try {
+						new URI(null, null, host, -1, null, null, null);
+					} catch (URISyntaxException e) {
+						// work-around for openjdk bug JDK-8199396.
+						// some characters are not supported for the ipv6 scope.
+						scope = scope.replaceAll("[-._~]", "");
+						if (scope.isEmpty()) {
+							host = hostAddress;
+						} else {
+							host = hostAddress + separator + scope;
+							try {
+								new URI(null, null, host, -1, null, null, null);
+							} catch (URISyntaxException e2) {
+								throw e;
+							}
+						}
+					}
+				}
 			}
 		}
 		return host;
@@ -466,8 +485,10 @@ public class StringUtil {
 	}
 
 	/**
-	 * Get configuration value. Try first {@link System#getenv(String)}, if that
-	 * returns {@code null} or an empty value, then return {@link System#getProperty(String)}.
+	 * Get configuration value.
+	 * 
+	 * Try first {@link System#getenv(String)}, if that returns {@code null} or
+	 * an empty value, then return {@link System#getProperty(String)}.
 	 * 
 	 * @param name the name of the configuration value.
 	 * @return the value, or {@code null}, if neither
@@ -484,9 +505,10 @@ public class StringUtil {
 	}
 
 	/**
-	 * Get long configuration value. Try first {@link System#getenv(String)}, if
-	 * that returns {@code null} or an empty value, then return
-	 * {@link System#getProperty(String)}.
+	 * Get long configuration value.
+	 * 
+	 * Try first {@link System#getenv(String)}, if that returns {@code null} or
+	 * an empty value, then return {@link System#getProperty(String)}.
 	 * 
 	 * @param name the name of the configuration value.
 	 * @return the long value, or {@code null}, if neither
@@ -507,9 +529,10 @@ public class StringUtil {
 	}
 
 	/**
-	 * Get boolean configuration value. Try first {@link System#getenv(String)}, if
-	 * that returns {@code null} or an empty value, then return
-	 * {@link System#getProperty(String)}.
+	 * Get boolean configuration value.
+	 * 
+	 * Try first {@link System#getenv(String)}, if that returns {@code null} or
+	 * an empty value, then return {@link System#getProperty(String)}.
 	 * 
 	 * @param name the name of the configuration value.
 	 * @return the boolean value.
