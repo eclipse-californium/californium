@@ -1338,6 +1338,7 @@ public final class DtlsConnectorConfig {
 		cloned.protocolVersionForHelloVerifyRequests = protocolVersionForHelloVerifyRequests;
 		cloned.retransmissionTimeout = retransmissionTimeout;
 		cloned.maxRetransmissions = maxRetransmissions;
+		cloned.backOffRetransmission = backOffRetransmission;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
 		cloned.maxTransmissionUnitLimit = maxTransmissionUnitLimit;
 		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
