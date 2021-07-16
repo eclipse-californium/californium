@@ -23,6 +23,7 @@ import java.net.SocketException;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -33,8 +34,7 @@ public class HelloWorldServer extends CoapServer {
 
 	private static final int COAP_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
 	private static final int TCP_THREADS = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-	private static final int TCP_IDLE_TIMEOUT = NetworkConfig.getStandard()
-			.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+	private static final int TCP_IDLE_TIMEOUT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
 
 	/*
 	 * Application entry point.
@@ -94,18 +94,18 @@ public class HelloWorldServer extends CoapServer {
 
 		// provide an instance of a Hello-World resource
 		add(new HelloWorldResource());
+		add(new PubSubResource());
 	}
 
 	/*
 	 * Definition of the Hello-World Resource
 	 */
-	class HelloWorldResource extends CoapResource {
+	static class HelloWorldResource extends CoapResource {
 
 		public HelloWorldResource() {
 
 			// set resource identifier
 			super("helloWorld");
-
 			// set display name
 			getAttributes().setTitle("Hello-World Resource");
 		}
@@ -115,6 +115,37 @@ public class HelloWorldServer extends CoapServer {
 
 			// respond to the request
 			exchange.respond("Hello World!");
+		}
+	}
+	/*
+	 * Definition of the Hello-World Resource
+	 */
+	static class PubSubResource extends CoapResource {
+
+		private volatile String resource = "";
+
+		public PubSubResource() {
+
+			// set resource identifier
+			super("pub");
+			setObservable(true);
+			// set display name
+			getAttributes().setTitle("pub-sub Resource");
+		}
+
+		@Override
+		public void handleGET(CoapExchange exchange) {
+
+			// respond to the request
+			exchange.respond(resource);
+		}
+
+		@Override
+		public void handlePOST(CoapExchange exchange) {
+			resource = exchange.getRequestText();
+			// respond to the request
+			exchange.respond(ResponseCode.CHANGED);
+			changed();
 		}
 	}
 }
