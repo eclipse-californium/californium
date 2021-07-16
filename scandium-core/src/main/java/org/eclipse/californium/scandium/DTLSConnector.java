@@ -748,7 +748,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			}
 		}
 		if (count > 0 || size > 0) {
-			LOGGER.info("Cleanup {} recent handshakes, left {}!", count, size);
+			LOGGER.debug("Cleanup {} recent handshakes, left {}!", count, size);
 		}
 	}
 
@@ -992,7 +992,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			}
 		}
 		if (recentCounter > 0) {
-			LOGGER.warn("Restore {} recent handshakes!", recent.size());
+			LOGGER.info("Restore {} recent handshakes!", recent.size());
 			if (!recent.isEmpty()) {
 				Collections.sort(recent, new Comparator<Connection>() {
 
