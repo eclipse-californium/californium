@@ -49,7 +49,7 @@ public class ClientObserveRelation {
 	protected final Endpoint endpoint;
 
 	/** The re-registration backoff duration [ms]. */
-	private final long reregistrationBackoff;
+	private final long reregistrationBackoffMillis;
 
 	/**
 	 * Indicates, that an observe request or a (proactive) cancel observe
@@ -128,7 +128,7 @@ public class ClientObserveRelation {
 		this.request = request;
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
-		this.reregistrationBackoff = endpoint.getConfig()
+		this.reregistrationBackoffMillis = endpoint.getConfig()
 				.getLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
 		this.scheduler = executor;
 		this.request.addMessageObserver(pendingRequestObserver);
@@ -323,6 +323,7 @@ public class ClientObserveRelation {
 			isNew = orderer.isNew(response);
 			if (isNew) {
 				current = response;
+				LOGGER.debug("Updated with {}", response);
 			} else if (prepareNext) {
 				// renew preparation also for reregistration responses,
 				// which may still be unchanged
@@ -358,8 +359,9 @@ public class ClientObserveRelation {
 	}
 
 	private void prepareReregistration(Response response) {
-		long timeout = response.getOptions().getMaxAge() * 1000 + this.reregistrationBackoff;
+		long timeout = TimeUnit.SECONDS.toMillis(response.getOptions().getMaxAge()) + reregistrationBackoffMillis;
 		ScheduledFuture<?> f = scheduler.schedule(reregister, timeout, TimeUnit.MILLISECONDS);
 		setReregistrationHandle(f);
+		LOGGER.debug("Wait for {}ms fresh notifies.", timeout);
 	}
 }
