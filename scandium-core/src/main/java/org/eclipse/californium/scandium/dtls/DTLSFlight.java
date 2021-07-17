@@ -93,11 +93,6 @@ public class DTLSFlight {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSFlight.class);
 
 	/**
-	 * Maximum timeout according RFC 6347, Section 4.2.4.1, Timer Values.
-	 */
-	public static final int MAX_TIMEOUT_MILLIS = 60 * 1000; // 60s
-
-	/**
 	 * List of prepared records of flight.
 	 */
 	private final List<Record> records;
@@ -134,7 +129,9 @@ public class DTLSFlight {
 	private int tries;
 
 	/** The current timeout (in milliseconds). */
-	private int timeout = 0;
+	private int timeout;
+	/** The maximum timeout (in milliseconds). */
+	private int maxTimeout;
 
 	/**
 	 * Maximum datagram size.
@@ -585,7 +582,7 @@ public class DTLSFlight {
 	}
 
 	/**
-	 * Set timeout
+	 * Set timeout.
 	 * 
 	 * @param timeout timeout in milliseconds.
 	 */
@@ -600,7 +597,17 @@ public class DTLSFlight {
 	 * @see #incrementTimeout(int)
 	 */
 	public void incrementTimeout() {
-		this.timeout = incrementTimeout(this.timeout);
+		this.timeout = incrementTimeout(this.timeout, this.maxTimeout);
+	}
+
+	/**
+	 * Set maximum timeout.
+	 * 
+	 * @param maxTimeout maximum timeout in milliseconds.
+	 * @since 3.0
+	 */
+	public void setMaxTimeout(int maxTimeout) {
+		this.maxTimeout = maxTimeout;
 	}
 
 	/**
@@ -702,19 +709,20 @@ public class DTLSFlight {
 	}
 
 	/**
-	 * Increment the timeout, here we double it. Limit the timeout to
-	 * {@link #MAX_TIMEOUT_MILLIS}.
+	 * Increment the timeout, here we double it, limited by the provided
+	 * maximum.
 	 * 
 	 * @param timeoutMillis timeout in milliseconds
+	 * @param maxTimeoutMillis maximum timeout in milliseconds
 	 * @return doubled and limited timeout in milliseconds
 	 * @see #incrementTimeout()
-	 * @since 2.1
+	 * @since 3.0 (added maxTimeoutMillis)
 	 */
-	public static int incrementTimeout(int timeoutMillis) {
-		if (timeoutMillis < MAX_TIMEOUT_MILLIS) {
+	public static int incrementTimeout(int timeoutMillis, int maxTimeoutMillis) {
+		if (timeoutMillis < maxTimeoutMillis) {
 			timeoutMillis *= 2;
-			if (timeoutMillis > MAX_TIMEOUT_MILLIS) {
-				timeoutMillis = MAX_TIMEOUT_MILLIS;
+			if (timeoutMillis > maxTimeoutMillis) {
+				timeoutMillis = maxTimeoutMillis;
 			}
 		}
 		return timeoutMillis;
