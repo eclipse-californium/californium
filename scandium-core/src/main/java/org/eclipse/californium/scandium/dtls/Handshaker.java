@@ -390,6 +390,12 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private final int retransmissionTimeout;
 	/**
+	 * Maximum retransmission timeout.
+	 * 
+	 * @since 3.0
+	 */
+	private final int maxRetransmissionTimeout;
+	/**
 	 * Additional timeout for ECC.
 	 * 
 	 * @since 3.0
@@ -510,6 +516,7 @@ public abstract class Handshaker implements Destroyable {
 		this.peerToLog = StringUtil.toLog(connection.getPeerAddress());
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.retransmissionTimeout = config.getRetransmissionTimeout();
+		this.maxRetransmissionTimeout = config.getMaxRetransmissionTimeout();
 		this.additionalTimeoutForEcc = config.getAdditionalTimeoutForEcc();
 		this.backOffRetransmission = config.getBackOffRetransmission();
 		this.maxRetransmissions = config.getMaxRetransmissions();
@@ -535,10 +542,10 @@ public abstract class Handshaker implements Destroyable {
 		if (CipherSuite.containsEccBasedCipherSuite(config.getSupportedCipherSuites())) {
 			timeoutMillis += additionalTimeoutForEcc;
 		}
-		timeoutMillis = Math.min(timeoutMillis, DTLSFlight.MAX_TIMEOUT_MILLIS);
+		timeoutMillis = Math.min(timeoutMillis, maxRetransmissionTimeout);
 		int expireTimeoutMillis = timeoutMillis * 2;
 		for (int retry = 0; retry < maxRetransmissions; ++retry) {
-			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis);
+			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis, maxRetransmissionTimeout);
 			expireTimeoutMillis += timeoutMillis;
 		}
 		this.nanosExpireTimeout = TimeUnit.MILLISECONDS.toNanos(expireTimeoutMillis);
@@ -1893,8 +1900,9 @@ public abstract class Handshaker implements Destroyable {
 				timeout += additionalTimeoutForEcc;
 				eccExpected = false;
 			}
-			timeout = Math.min(timeout, DTLSFlight.MAX_TIMEOUT_MILLIS);
+			timeout = Math.min(timeout, maxRetransmissionTimeout);
 			flight.setTimeout(timeout);
+			flight.setMaxTimeout(maxRetransmissionTimeout);
 			flightSendNanos = ClockUtil.nanoRealtime();
 			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
 			int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);

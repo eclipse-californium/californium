@@ -152,6 +152,14 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final int RFC7925_RETRANSMISSION_TIMEOUT_MS = 9000;
 	/**
+	 * The maximum retransmission timeout according
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.4.1" target=
+	 * "_blank">RFC6347</a>.
+	 * 
+	 * @since 3.0
+	 */
+	public static final int DEFAULT_MAX_RETRANSMISSION_TIMEOUT_MS = 60000;
+	/**
 	 * The default value for the {@link #additionalTimeoutForEcc} property in
 	 * milliseconds.
 	 * 
@@ -260,6 +268,15 @@ public final class DtlsConnectorConfig {
 	 * @since 3.0
 	 */
 	private Integer additionalTimeoutForEcc;
+
+	/**
+	 * The maximum timer value for retransmission; rfc6347, section: 4.2.4.1
+	 * 
+	 * Value in milliseconds.  Default is 60s.
+	 * 
+	 * @since 3.0
+	 */
+	private Integer maxRetransmissionTimeout;
 
 	/**
 	 * Number of retransmissions before the attempt to transmit a flight in
@@ -707,6 +724,16 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getAdditionalTimeoutForEcc() {
 		return additionalTimeoutForEcc;
+	}
+
+	/**
+	 * Gets the maximum time to wait before a handshake flight of messages gets re-transmitted.
+	 * 
+	 * @return the maximum time to wait in milliseconds
+	 * @since 3.0
+	 */
+	public Integer getMaxRetransmissionTimeout() {
+		return maxRetransmissionTimeout;
 	}
 
 	/**
@@ -1446,6 +1473,7 @@ public final class DtlsConnectorConfig {
 		cloned.protocolVersionForHelloVerifyRequests = protocolVersionForHelloVerifyRequests;
 		cloned.retransmissionTimeout = retransmissionTimeout;
 		cloned.additionalTimeoutForEcc = additionalTimeoutForEcc;
+		cloned.maxRetransmissionTimeout = maxRetransmissionTimeout;
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
 		cloned.maxTransmissionUnitLimit = maxTransmissionUnitLimit;
@@ -2517,7 +2545,7 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the (starting) time to wait before a handshake package gets re-transmitted.
+		 * Sets the (initial) time to wait before a handshake package gets re-transmitted.
 		 * 
 		 * On each retransmission, the time is doubled.
 		 * 
@@ -2529,7 +2557,34 @@ public final class DtlsConnectorConfig {
 			if (timeout < 0) {
 				throw new IllegalArgumentException("Retransmission timeout must not be negative");
 			}
+			if (config.maxRetransmissionTimeout != null && config.maxRetransmissionTimeout < timeout) {
+				throw new IllegalArgumentException(
+						"Retransmission timeout must not be more than the provided maximum of "
+								+ config.maxRetransmissionTimeout);
+			}
 			config.retransmissionTimeout = timeout;
+			return this;
+		}
+
+		/**
+		 * Sets the maximum time to wait before a handshake package gets
+		 * re-transmitted.
+		 * 
+		 * @param maxTimeout the maximum time in milliseconds
+		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if the given timeout is negative
+		 * @since 3.0
+		 */
+		public Builder setMaxRetransmissionTimeout(int maxTimeout) {
+			if (maxTimeout < 0) {
+				throw new IllegalArgumentException("Maximum retransmission timeout must not be negative");
+			}
+			if (config.retransmissionTimeout != null && config.retransmissionTimeout > maxTimeout) {
+				throw new IllegalArgumentException(
+						"Maximum retransmission timeout must not be less than the provided initial value of "
+								+ config.retransmissionTimeout);
+			}
+			config.maxRetransmissionTimeout = maxTimeout;
 			return this;
 		}
 
@@ -3179,8 +3234,23 @@ public final class DtlsConnectorConfig {
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = Boolean.TRUE;
 			}
+			if (config.maxRetransmissionTimeout == null) {
+				if (config.retransmissionTimeout != null
+						&& config.retransmissionTimeout > DEFAULT_MAX_RETRANSMISSION_TIMEOUT_MS) {
+					config.maxRetransmissionTimeout = config.retransmissionTimeout;
+				} else {
+					config.maxRetransmissionTimeout = DEFAULT_MAX_RETRANSMISSION_TIMEOUT_MS;
+				}
+			}
 			if (config.retransmissionTimeout == null) {
-				config.retransmissionTimeout = DEFAULT_RETRANSMISSION_TIMEOUT_MS;
+				if (config.maxRetransmissionTimeout < DEFAULT_RETRANSMISSION_TIMEOUT_MS) {
+					config.retransmissionTimeout = config.maxRetransmissionTimeout;
+				} else {
+					config.retransmissionTimeout = DEFAULT_RETRANSMISSION_TIMEOUT_MS;
+				}
+			} else if (config.retransmissionTimeout > config.maxRetransmissionTimeout) {
+				throw new IllegalStateException("Retransmission timeout " + config.retransmissionTimeout
+						+ " is more than the maximum " + config.maxRetransmissionTimeout + "!");
 			}
 			if (config.additionalTimeoutForEcc == null) {
 				config.additionalTimeoutForEcc = DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_MS;
