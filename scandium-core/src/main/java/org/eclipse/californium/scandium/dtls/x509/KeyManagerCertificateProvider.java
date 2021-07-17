@@ -287,6 +287,19 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * Checks, if the CN part of the subject DN or one of the subject
 	 * alternative names matches the server name (SNI).
 	 * 
+	 * <pre>
+	 * GeneralName ::= CHOICE {
+	 *      otherName                       [0]     OtherName,
+	 *      rfc822Name                      [1]     IA5String,
+	 *      dNSName                         [2]     IA5String,
+	 *      x400Address                     [3]     ORAddress,
+	 *      directoryName                   [4]     Name,
+	 *      ediPartyName                    [5]     EDIPartyName,
+	 *      uniformResourceIdentifier       [6]     IA5String,
+	 *      iPAddress                       [7]     OCTET STRING,
+	 *      registeredID                    [8]     OBJECT IDENTIFIER}
+	 * </pre>
+	 * 
 	 * @param serverNames server names
 	 * @param node node certificate
 	 * @return {@code true}, if matching, {@code true}, if not.
@@ -294,23 +307,27 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	private boolean matchServerNames(ServerNames serverNames, X509Certificate node) {
 		ServerName serverNname = serverNames.getServerName(ServerName.NameType.HOST_NAME);
 		String name = serverNname.getNameAsString();
-		X500Principal principal = node.getSubjectX500Principal();
-		if (principal.getName().endsWith("CN=" + name)) {
-			return true;
-		}
 		try {
 			Collection<List<?>> alternativeNames = node.getSubjectAlternativeNames();
 			if (alternativeNames != null) {
 				for (List<?> alternativeName : alternativeNames) {
-					Object value = alternativeName.get(1);
-					if (value instanceof String) {
-						if (value.equals(name)) {
+					int type = (Integer) alternativeName.get(0);
+					String value = (String) alternativeName.get(1);
+					if (type == 2 || type == 7) {
+						if (name.equalsIgnoreCase((String) value)) {
 							return true;
 						}
 					}
 				}
 			}
+		} catch (ClassCastException e) {
 		} catch (CertificateParsingException e) {
+		}
+		if (!name.contains("CN=")) {
+			X500Principal principal = node.getSubjectX500Principal();
+			if (principal.getName().endsWith("CN=" + name)) {
+				return true;
+			}
 		}
 		return false;
 	}
