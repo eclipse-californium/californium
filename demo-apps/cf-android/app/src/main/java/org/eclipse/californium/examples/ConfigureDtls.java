@@ -20,6 +20,7 @@
 package org.eclipse.californium.examples;
 
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
@@ -29,6 +30,7 @@ import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVe
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
+import java.util.concurrent.TimeUnit;
 
 /**
  * class ConfigureDTLS.<br>
@@ -75,8 +77,8 @@ public class ConfigureDtls {
             if (CERTIFICATE_MODE && endpointCredentials != null && trustedCertificates != null) {
                 dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(endpointCredentials.getPrivateKey(), endpointCredentials.getCertificateChain(), CertificateType.X_509));
                 dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build());
-                dtlsConfig.setRetransmissionTimeout(2000);
-                dtlsConfig.setMaxRetransmissions(3);
+                dtlsConfig.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
+                dtlsConfig.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, 3);
                 credentialsSet = true;
             } else if (RPK_MODE && endpointCredentials != null) {
                 dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(endpointCredentials.getPrivateKey(), endpointCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY));

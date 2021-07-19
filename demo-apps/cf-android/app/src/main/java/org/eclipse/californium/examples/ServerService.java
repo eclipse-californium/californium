@@ -127,7 +127,7 @@ public class ServerService extends Service {
     }
 
     private void setupUdp(CoapServer server, Configuration config) {
-        UDPConnector connector = new UDPConnector(new InetSocketAddress(CoAP_PORT));
+        UDPConnector connector = new UDPConnector(new InetSocketAddress(CoAP_PORT), config);
         setupUdp(server, config, connector);
     }
 
@@ -136,13 +136,14 @@ public class ServerService extends Service {
         Inet4Address address4 = NetworkInterfacesUtil.getMulticastInterfaceIpv4();
 
         // listen on the same port requires to enable address reuse
-        UDPConnector connector = new UDPConnector(new InetSocketAddress(address4, CoAP_PORT));
+        UDPConnector connector = new UDPConnector(new InetSocketAddress(address4, CoAP_PORT), config);
         connector.setReuseAddress(true);
 
         UdpMulticastConnector.Builder builder = new UdpMulticastConnector.Builder();
         builder.setLocalAddress(CoAP.MULTICAST_IPV4, CoAP_PORT);
         builder.setMulticastReceiver(true);
         builder.addMulticastGroup(CoAP.MULTICAST_IPV4, multicast);
+        builder.setConfiguration(config);
         UdpMulticastConnector multicastConnector = builder.build();
         connector.addMulticastReceiver(multicastConnector);
         Log.i("coap", "multicast receiver " + CoAP.MULTICAST_IPV4 +
@@ -155,13 +156,14 @@ public class ServerService extends Service {
         Inet6Address address6 = NetworkInterfacesUtil.getMulticastInterfaceIpv6();
 
         // listen on the same port requires to enable address reuse
-        UDPConnector connector = new UDPConnector(new InetSocketAddress(address6, CoAP_PORT));
+        UDPConnector connector = new UDPConnector(new InetSocketAddress(address6, CoAP_PORT), config);
         connector.setReuseAddress(true);
 
         UdpMulticastConnector.Builder builder = new UdpMulticastConnector.Builder();
         builder.setLocalAddress(CoAP.MULTICAST_IPV6_SITELOCAL, CoAP_PORT);
         builder.setMulticastReceiver(true);
         builder.addMulticastGroup(CoAP.MULTICAST_IPV6_SITELOCAL, multicast);
+        builder.setConfiguration(config);
         UdpMulticastConnector multicastConnector = builder.build();
         connector.addMulticastReceiver(multicastConnector);
         Log.i("coap", "multicast receiver " + CoAP.MULTICAST_IPV6_SITELOCAL +
@@ -173,12 +175,12 @@ public class ServerService extends Service {
     private void setupUdp(CoapServer server, Configuration config, UDPConnector connector) {
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
         builder.setConfiguration(config);
-        builder.setConnectorWithAutoConfiguration(connector);
+        builder.setConnector(connector);
         server.addEndpoint(builder.build());
     }
 
     private void setupDtls(CoapServer server, Configuration config) {
-        DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+        DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
         dtlsConfig.setAddress(new InetSocketAddress(DTLS_PORT));
         ConfigureDtls.loadCredentials(dtlsConfig, SERVER_NAME);
         DTLSConnector connector = new DTLSConnector(dtlsConfig.build());

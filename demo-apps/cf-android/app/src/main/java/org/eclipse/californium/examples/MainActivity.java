@@ -37,6 +37,7 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 import java.util.concurrent.Executor;
@@ -166,9 +167,9 @@ public class MainActivity extends Activity {
         DtlsConfig.register();
         Configuration config = Configuration.createStandardWithoutFile();
         // setup coap EndpointManager to dtls connector
-        DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-        dtlsConfig.setClientOnly();
-        dtlsConfig.setAutoResumptionTimeoutMillis(TimeUnit.SECONDS.toMillis(30));
+        DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
+        dtlsConfig.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+        dtlsConfig.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
         ConfigureDtls.loadCredentials(dtlsConfig, CLIENT_NAME);
         DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
 
@@ -178,7 +179,7 @@ public class MainActivity extends Activity {
         EndpointManager.getEndpointManager().setDefaultEndpoint(dtlsEndpointBuilder.build());
         // setup coap EndpointManager to udp connector
         CoapEndpoint.Builder udpEndpointBuilder = new CoapEndpoint.Builder();
-        UDPConnector udpConnector = new UDPConnector();
+        UDPConnector udpConnector = new UDPConnector(null, config);
         udpEndpointBuilder.setConfiguration(config);
         udpEndpointBuilder.setConnector(udpConnector);
         EndpointManager.getEndpointManager().setDefaultEndpoint(udpEndpointBuilder.build());
