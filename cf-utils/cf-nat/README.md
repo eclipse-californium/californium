@@ -4,7 +4,7 @@ In order to test NAT and LoadBalancer specific situations, this module contains 
 
 Usage:
 
-```shell
+```sh
 java -jar cf-nat-<version>.jar [localinterface]:port destination:port [destination2:port2 ...] [-r] [-d<messageDropping%>|[-f<messageDropping%>][-b<messageDropping%>]] [-s<sizeLimit>]
 ```
 
@@ -14,14 +14,14 @@ If more than one destination is given, the load-balancer is activated.
 The load-balancer receives UDP messages on the local interface and port, creates outgoing sockets for each source endpoint of the received messages and selects a destination randomly from the provided ones, and forwards the message using the new outgoing socket (source-NAT). If the outgoing socket receives a message back, that is the "backwarded" using the local-interface and port. If the source the backwarded message is different from the destination of this NAT entry, such violations are counted. With "reverse address update" (parameter `-r`, or NAT console command `reverse (on|off)`) it is also possible, to adapt the NAT entry to that different destination.
 
 ```sh
-java -jar cf-nat-3.0.0-M2.jar :5684 node1.coap.cluster:5684 node2.coap.cluster:5684 node2.coap.cluster:5784
+java -jar cf-nat-3.0.0-M3.jar :5684 node1.coap.cluster:5684 node2.coap.cluster:5684 node2.coap.cluster:5784
 ```
 
 Creates a (s)NAT listening on any network interfaces at UDP port 5684 (default coaps) and forwards the traffic to 3 dtls-receivers.
 
 The application waits on the console input. If a empty newline is read, then the information with the current states is printed.
 
-```sh
+```
 10 NAT entries, 3 destinations.
 Destination: node1.coap.cluster:5684, usage: 4
 Destination: node2.coap.cluster:5684, usage: 3
