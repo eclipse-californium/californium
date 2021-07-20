@@ -1835,15 +1835,16 @@ public final class Configuration {
 	 * @return the value in the provided units as {@code int}
 	 * @throws NullPointerException if the definition or unit is {@code null}
 	 * @throws IllegalArgumentException if a different definition is already
-	 *             available for the key of the provided definition.
+	 *             available for the key of the provided definition. Or the
+	 *             resulting value exceeds the {@code int} range.
 	 */
 	public int getTimeAsInt(TimeDefinition definition, TimeUnit unit) {
 		Long time = get(definition, unit);
 		if (time != null) {
 			if (time > Integer.MAX_VALUE) {
-				return Integer.MAX_VALUE;
+				throw new IllegalArgumentException(time + " doesn't fit to int (Max. " + Integer.MAX_VALUE + ")!");
 			} else if (time < Integer.MIN_VALUE) {
-				return Integer.MIN_VALUE;
+				throw new IllegalArgumentException(time + " doesn't fit to int (Min. " + Integer.MIN_VALUE + ")!");
 			}
 			return time.intValue();
 		} else {

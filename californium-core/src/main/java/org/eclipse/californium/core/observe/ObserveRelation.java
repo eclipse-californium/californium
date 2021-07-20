@@ -94,10 +94,11 @@ public class ObserveRelation {
 		this.resource = resource;
 		this.exchange = exchange;
 		Configuration config = exchange.getEndpoint().getConfig();
-		checkIntervalTime = config.getTimeAsInt(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, TimeUnit.NANOSECONDS);
+		checkIntervalTime = config.get(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, TimeUnit.NANOSECONDS);
 		checkIntervalCount = config.get(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT);
 
 		this.key = StringUtil.toString(getSource()) + "#" + exchange.getRequest().getTokenString();
+		LOGGER.debug("Observe-relation, checks every {}ns or {} notifications.", checkIntervalTime, checkIntervalCount);
 	}
 
 	/**
@@ -212,11 +213,19 @@ public class ObserveRelation {
 	 *         CON-notification, {@code false}, otherwise.
 	 */
 	public boolean check() {
-		boolean check = false;
-		check |= (ClockUtil.nanoRealtime() - interestCheckTimer - checkIntervalTime) > 0;
-		check |= (++interestCheckCounter >= checkIntervalCount);
+		long now = ClockUtil.nanoRealtime();
+		boolean check = (++interestCheckCounter >= checkIntervalCount);
 		if (check) {
-			this.interestCheckTimer = ClockUtil.nanoRealtime();
+			LOGGER.trace("Observe-relation check, {} notifications reached.", checkIntervalCount);
+		} else {
+			check = (now - interestCheckTimer - checkIntervalTime) > 0;
+			if (check) {
+				LOGGER.trace("Observe-relation check, {}s interval reached.",
+						TimeUnit.NANOSECONDS.toSeconds(checkIntervalTime));
+			}
+		}
+		if (check) {
+			this.interestCheckTimer = now;
 			this.interestCheckCounter = 0;
 		}
 		return check;
