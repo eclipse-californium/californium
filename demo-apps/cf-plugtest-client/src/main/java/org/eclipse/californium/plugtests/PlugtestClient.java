@@ -81,7 +81,7 @@ public class PlugtestClient {
 			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
 			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 300, TimeUnit.SECONDS);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it

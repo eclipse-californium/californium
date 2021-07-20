@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
  * See {@link SystemConfig} as example.
  * 
  * To access the values always using the original {@link Definition}s of a
- * module, e.g. {@link SystemConfig#HEALTH_STATUS_INTERVAL_IN_SECONDS}.
+ * module, e.g. {@link SystemConfig#HEALTH_STATUS_INTERVAL}.
  * 
  * <code>
  *  Configuration config = Configuration.getStandard();

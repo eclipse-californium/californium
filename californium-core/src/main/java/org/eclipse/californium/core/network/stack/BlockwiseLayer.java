@@ -321,7 +321,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		});
 		strictBlock2Option = config.get(CoapConfig.BLOCKWISE_STRICT_BLOCK2_OPTION);
 
-		healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
+		healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 
 		enableAutoFailoverOn413 = config.get(CoapConfig.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 

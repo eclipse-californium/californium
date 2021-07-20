@@ -139,7 +139,7 @@ public class PlugtestServer extends AbstractTestServer {
 			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
 			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 300, TimeUnit.SECONDS);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
 		}
 	};
 
@@ -449,7 +449,7 @@ public class PlugtestServer extends AbstractTestServer {
 				ep.addInterceptor(new MessageTracer());
 				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
 				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
-				long interval = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
+				long interval = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 				final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
 						!CoAP.isTcpScheme(uri.getScheme()), interval, TimeUnit.MILLISECONDS, secondaryExecutor);
 				if (healthLogger.isEnabled()) {

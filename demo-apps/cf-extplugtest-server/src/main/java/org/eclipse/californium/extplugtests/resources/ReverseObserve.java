@@ -152,7 +152,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		getAttributes().setTitle("Reverse Observe");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
-		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
+		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			executor.scheduleWithFixedDelay(new Runnable() {
 

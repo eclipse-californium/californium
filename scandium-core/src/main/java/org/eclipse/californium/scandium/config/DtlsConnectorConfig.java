@@ -1229,12 +1229,12 @@ public final class DtlsConnectorConfig {
 	 * Gets health status interval.
 	 * 
 	 * @return health status interval in milliseconds. {@code 0} for disabled.
-	 * @see SystemConfig#HEALTH_STATUS_INTERVAL_IN_SECONDS
+	 * @see SystemConfig#HEALTH_STATUS_INTERVAL
 	 * @since 3.0 (renamed, was getHealthStatusInterval, changed return type to
 	 *        {@code int} and returns milliseconds instead of seconds)
 	 */
 	public int getHealthStatusIntervalMilliseconds() {
-		return configuration.getTimeAsInt(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
+		return configuration.getTimeAsInt(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 	}
 
 	/**
