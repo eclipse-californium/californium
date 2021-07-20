@@ -507,6 +507,25 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	@Test
+	public void testCipherSuiteOrderedByClientPriority() throws Exception {
+		serverHelper.serverBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
+				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		startServer();
+		// different order then the server
+		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+				CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256);
+		startClientPsk(null);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
+				is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+	}
+
+	@Test
 	public void testPskHandshakeClientWithoutSniAndServerWithoutSni() throws Exception {
 		startServer();
 		startClientPsk(null);
