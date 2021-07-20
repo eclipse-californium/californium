@@ -153,7 +153,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	private void startStatusLogging() {
-		final long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
+		final long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && executor != null) {

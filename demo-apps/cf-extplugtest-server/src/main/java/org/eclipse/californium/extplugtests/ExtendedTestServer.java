@@ -134,7 +134,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 60, TimeUnit.SECONDS);
 			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 1, TimeUnit.HOURS);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 60, TimeUnit.SECONDS);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
 			config.set(DTLS_HANDSHAKE_RESULT_DELAY, 0, TimeUnit.MILLISECONDS);
 			int processors = Runtime.getRuntime().availableProcessors();
 			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
@@ -407,7 +407,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					ep.addInterceptor(new MessageTracer());
 				}
 				if (ep.getPostProcessInterceptors().isEmpty()) {
-					long interval = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
+					long interval = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
 							!CoAP.isTcpScheme(uri.getScheme()), interval, TimeUnit.MILLISECONDS, executor);
 					if (healthLogger.isEnabled()) {
@@ -595,7 +595,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 		initCredentials();
 		int handshakeResultDelay = netConfig.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
-		Long healthStatusInterval = netConfig.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
+		Long healthStatusInterval = netConfig.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 
 		DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(netConfig);
 		dtlsConfigBuilder.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(nodeId, cidLength));

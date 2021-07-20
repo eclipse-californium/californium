@@ -77,7 +77,7 @@ public class BasicHttpForwardingProxy2 {
 			config.set(Proxy2Config.HTTPS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
 			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 60, TimeUnit.SECONDS);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
 		}
 
 	};

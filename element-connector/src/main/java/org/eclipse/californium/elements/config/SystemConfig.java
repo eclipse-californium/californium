@@ -32,7 +32,7 @@ public final class SystemConfig {
 	/**
 	 * Default health status interval. {@code 0} for disabled.
 	 */
-	public static final TimeDefinition HEALTH_STATUS_INTERVAL_IN_SECONDS = new TimeDefinition(
+	public static final TimeDefinition HEALTH_STATUS_INTERVAL = new TimeDefinition(
 			MODULE + "HEALTH_STATUS_INTERVAL", "Health status interval. 0 to disable health status.", 0L,
 			TimeUnit.SECONDS);
 
@@ -43,7 +43,7 @@ public final class SystemConfig {
 			public void applyDefinitions(Configuration config) {
 
 				// 0 for disable
-				config.set(HEALTH_STATUS_INTERVAL_IN_SECONDS, 0, TimeUnit.SECONDS);
+				config.set(HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS);
 
 			}
 		});

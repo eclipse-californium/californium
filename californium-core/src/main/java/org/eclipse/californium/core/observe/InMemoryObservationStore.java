@@ -159,7 +159,7 @@ public final class InMemoryObservationStore implements ObservationStore {
 
 	@Override
 	public synchronized void start() {
-		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, TimeUnit.MILLISECONDS);
+		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && executor != null) {
 			statusLogger = executor.scheduleAtFixedRate(new Runnable() {
