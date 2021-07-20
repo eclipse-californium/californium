@@ -208,7 +208,7 @@ public class NatTestHelper {
 				.set(CoapConfig.EXCHANGE_LIFETIME, RESPONSE_TIMEOUT, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.RESPONSE_MATCHING, mode)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, ackTimeout, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, 4);
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 4);
 	}
 
 	void createSecureServer(ConnectionIdGenerator... cidGenerators) throws IOException {

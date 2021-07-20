@@ -106,6 +106,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
@@ -395,6 +396,8 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 3.0
 	 */
 	private final int maxRetransmissionTimeout;
+	private final float retransmissionRandomFactor;
+	private final float retransmissionTimeoutScale;
 	/**
 	 * Additional timeout for ECC.
 	 * 
@@ -518,6 +521,8 @@ public abstract class Handshaker implements Destroyable {
 		this.retransmissionTimeout = config.getRetransmissionTimeout();
 		this.maxRetransmissionTimeout = config.getMaxRetransmissionTimeout();
 		this.additionalTimeoutForEcc = config.getAdditionalTimeoutForEcc();
+		this.retransmissionRandomFactor = config.getRetransmissionRandomFactor();
+		this.retransmissionTimeoutScale = config.getRetransmissionTimeoutScale();
 		this.backOffRetransmission = config.getBackOffRetransmission();
 		this.maxRetransmissions = config.getMaxRetransmissions();
 		this.recordSizeLimit = config.getRecordSizeLimit();
@@ -538,14 +543,16 @@ public abstract class Handshaker implements Destroyable {
 		this.ipv6 = connection.getPeerAddress().getAddress() instanceof Inet6Address;
 		// add all timeouts for retries and the initial timeout twice
 		// to get a short extra timespan for regular handshake timeouts
-		int timeoutMillis = retransmissionTimeout;
+		int timeoutMillis = Math.round(retransmissionTimeout * retransmissionRandomFactor);
 		if (CipherSuite.containsEccBasedCipherSuite(config.getSupportedCipherSuites())) {
 			timeoutMillis += additionalTimeoutForEcc;
 		}
 		timeoutMillis = Math.min(timeoutMillis, maxRetransmissionTimeout);
-		int expireTimeoutMillis = timeoutMillis * 2;
+		int expireTimeoutMillis = Math.min(Math.round(timeoutMillis * retransmissionTimeoutScale),
+				maxRetransmissionTimeout);
 		for (int retry = 0; retry < maxRetransmissions; ++retry) {
-			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis, maxRetransmissionTimeout);
+			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis, retransmissionTimeoutScale,
+					maxRetransmissionTimeout);
 			expireTimeoutMillis += timeoutMillis;
 		}
 		this.nanosExpireTimeout = TimeUnit.MILLISECONDS.toNanos(expireTimeoutMillis);
@@ -1896,13 +1903,16 @@ public abstract class Handshaker implements Destroyable {
 		completePendingFlight();
 		try {
 			int timeout = retransmissionTimeout;
+			float noise = retransmissionRandomFactor - 1.0F;
+			if (noise > 0.0) {
+				timeout += RandomManager.currentRandom().nextInt(Math.round(timeout * noise));
+			}
 			if (eccExpected) {
 				timeout += additionalTimeoutForEcc;
 				eccExpected = false;
 			}
 			timeout = Math.min(timeout, maxRetransmissionTimeout);
 			flight.setTimeout(timeout);
-			flight.setMaxTimeout(maxRetransmissionTimeout);
 			flightSendNanos = ClockUtil.nanoRealtime();
 			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
 			int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
@@ -1959,7 +1969,7 @@ public abstract class Handshaker implements Destroyable {
 							while (tries < maxRetransmissions) {
 								++tries;
 								flight.incrementTries();
-								flight.incrementTimeout();
+								flight.incrementTimeout(retransmissionTimeoutScale, maxRetransmissionTimeout);
 							}
 							// increment one more to indicate, that
 							// handshake times out without reaching
@@ -1978,7 +1988,7 @@ public abstract class Handshaker implements Destroyable {
 								peerToLog, maxRetransmissions - tries - 1);
 						try {
 							flight.incrementTries();
-							flight.incrementTimeout();
+							flight.incrementTimeout(retransmissionTimeoutScale, maxRetransmissionTimeout);
 							int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
 							int maxFragmentSize = getSession().getEffectiveFragmentLimit();
 							boolean backOff = backOffRetransmission > 0 && (tries + 1) > backOffRetransmission;
