@@ -203,7 +203,7 @@ public class NatTestHelper {
 		config = network.getStandardTestConfig()
 				// retransmit starting with 200 milliseconds
 				.set(CoapConfig.ACK_TIMEOUT, ackTimeout, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1.5f)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1.5f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1.5f)
 				.set(CoapConfig.EXCHANGE_LIFETIME, RESPONSE_TIMEOUT, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.RESPONSE_MATCHING, mode)

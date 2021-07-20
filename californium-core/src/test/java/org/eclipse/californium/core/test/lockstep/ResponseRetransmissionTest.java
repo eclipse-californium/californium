@@ -91,7 +91,7 @@ public class ResponseRetransmissionTest {
 		Configuration config = network.createTestConfig()
 				// server retransmits after 200 ms
 				.set(CoapConfig.ACK_TIMEOUT, TEST_ACK_TIMEOUT, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1F)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1F)
 				.set(CoapConfig.MAX_RETRANSMIT, 1)
 				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);

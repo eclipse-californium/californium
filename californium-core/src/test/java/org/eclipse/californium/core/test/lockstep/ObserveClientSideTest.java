@@ -115,7 +115,7 @@ public class ObserveClientSideTest {
 				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 16)
 				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS) // client retransmits after 200 ms
 				.set(CoapConfig.MAX_RETRANSMIT, 2)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
 				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)

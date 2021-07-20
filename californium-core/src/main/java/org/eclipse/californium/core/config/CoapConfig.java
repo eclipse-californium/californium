@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.network.GroupedMessageIdTracker;
 import org.eclipse.californium.core.network.TokenGenerator;
 import org.eclipse.californium.core.network.deduplication.CropRotation;
@@ -316,11 +315,16 @@ public final class CoapConfig {
 	public static final TimeDefinition ACK_TIMEOUT = new TimeDefinition(MODULE + "ACK_TIMEOUT",
 			"Initial CoAP acknowledge timeout.", 2000L, TimeUnit.MILLISECONDS);
 	/**
+	 * Maximum CoAP acknowledge timeout for CON messages. Not RFC7252 compliant.
+	 */
+	public static final TimeDefinition MAX_ACK_TIMEOUT = new TimeDefinition(MODULE + "MAX_ACK_TIMEOUT",
+			"Maximum CoAP acknowledge timeout.", 60000L, TimeUnit.MILLISECONDS);
+	/**
 	 * Random factor applied to the initial CoAP acknowledge timeout. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
-	public static final FloatDefinition ACK_RANDOM_FACTOR = new FloatDefinition(MODULE + "ACK_RANDOM_FACTOR",
+	public static final FloatDefinition ACK_INIT_RANDOM = new FloatDefinition(MODULE + "ACK_INIT_RANDOM",
 			"Random factor for initial CoAP acknowledge timeout.", 1.5F);
 	/**
 	 * Factor as back-off applied to follow-up CoAP acknowledge timeout. See
@@ -655,7 +659,7 @@ public final class CoapConfig {
 				config.set(COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
 
 				config.set(ACK_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
-				config.set(ACK_RANDOM_FACTOR, 1.5f);
+				config.set(ACK_INIT_RANDOM, 1.5f);
 				config.set(ACK_TIMEOUT_SCALE, 2f);
 				config.set(MAX_RETRANSMIT, 4);
 				config.set(EXCHANGE_LIFETIME, DEFAULT_EXCHANGE_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);

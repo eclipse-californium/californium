@@ -93,7 +93,7 @@ public class LossyBlockwiseTransferTest {
 
 		Configuration config = network.getStandardTestConfig()
 			.set(CoapConfig.ACK_TIMEOUT, 300, TimeUnit.MILLISECONDS)
-			.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+			.set(CoapConfig.ACK_INIT_RANDOM, 1f)
 			.set(CoapConfig.ACK_TIMEOUT_SCALE, 1.5f)
 			.set(CoapConfig.MAX_MESSAGE_SIZE, 32)
 			.set(CoapConfig.PREFERRED_BLOCK_SIZE, 32);

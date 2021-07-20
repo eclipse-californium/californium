@@ -121,7 +121,7 @@ public class ObserveServerSideTest {
 	public static void start() {
 		CONFIG = network.createTestConfig()
 				.set(CoapConfig.ACK_TIMEOUT, ACK_TIMEOUT, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
 				.set(CoapConfig.MAX_MESSAGE_SIZE, 32)
 				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 32)

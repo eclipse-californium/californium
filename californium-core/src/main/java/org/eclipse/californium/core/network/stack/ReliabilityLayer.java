@@ -89,8 +89,9 @@ public class ReliabilityLayer extends AbstractLayer {
 		defaultReliabilityLayerParameters = ReliabilityLayerParameters.builder().applyConfig(config).build();
 		maxLeisureMillis = config.getTimeAsInt(CoapConfig.LEISURE, TimeUnit.MILLISECONDS);
 		LOGGER.trace("Max. leisure for multicast server={}ms", maxLeisureMillis);
-		LOGGER.trace("ReliabilityLayer uses ACK_TIMEOUT={}ms, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={} as default",
+		LOGGER.trace("ReliabilityLayer uses ACK_TIMEOUT={}ms, MAX_ACK_TIMEOUT={}ms, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={} as default",
 				defaultReliabilityLayerParameters.getAckTimeout(),
+				defaultReliabilityLayerParameters.getMaxAckTimeout(),
 				defaultReliabilityLayerParameters.getAckRandomFactor(),
 				defaultReliabilityLayerParameters.getAckTimeoutScale());
 	}
@@ -435,6 +436,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		} else {
 			timeout = (int) (exchange.getTimeoutScale() * exchange.getCurrentTimeout());
 		}
+		timeout = Math.min(reliabilityLayerParameters.getMaxAckTimeout(), timeout);
 		exchange.setCurrentTimeout(timeout);
 	}
 

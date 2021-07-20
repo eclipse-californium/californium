@@ -502,6 +502,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	protected void updateRetransmissionTimeout(Exchange exchange,
 			ReliabilityLayerParameters reliabilityLayerParameters) {
 		int timeout;
+		int maxTimeout = Math.min(reliabilityLayerParameters.getMaxAckTimeout(), MAX_RTO);
+
 		RemoteEndpoint remoteEndpoint = getRemoteEndpoint(exchange);
 		if (exchange.getFailedTransmissionCount() == 0) {
 			if (defaultReliabilityLayerParameters == reliabilityLayerParameters) {
@@ -515,12 +517,12 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 				timeout = getRandomTimeout(timeout, reliabilityLayerParameters.getAckRandomFactor());
 			}
 			timeout = Math.max(MIN_RTO, timeout);
-			timeout = Math.min(MAX_RTO, timeout);
+			timeout = Math.min(maxTimeout, timeout);
 			float scale = calculateVBF(timeout, reliabilityLayerParameters.getAckTimeoutScale());
 			exchange.setTimeoutScale(scale);
 		} else {
 			timeout = (int) (exchange.getTimeoutScale() * exchange.getCurrentTimeout());
-			timeout = Math.min(MAX_RTO, timeout);
+			timeout = Math.min(maxTimeout, timeout);
 		}
 		exchange.setCurrentTimeout(timeout);
 	}
