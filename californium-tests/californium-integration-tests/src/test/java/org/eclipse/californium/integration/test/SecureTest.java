@@ -229,7 +229,7 @@ public class SecureTest {
 				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_TIMEOUT_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_TIMEOUT_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, NB_RETRANSMISSION);
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, NB_RETRANSMISSION);
 		// setup DTLS Config
 		Builder builder = DtlsConnectorConfig.builder(config)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
@@ -250,7 +250,7 @@ public class SecureTest {
 				.set(CoapConfig.ACK_TIMEOUT, coapTimeout, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.EXCHANGE_LIFETIME, exchangeTimeout, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, dtlsTimeout, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, TEST_DTLS_RETRANSMISSIONS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, TEST_DTLS_RETRANSMISSIONS)
 				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
 				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
 		// setup DTLS Config

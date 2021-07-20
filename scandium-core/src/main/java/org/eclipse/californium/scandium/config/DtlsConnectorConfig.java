@@ -402,6 +402,28 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets the random factor for the initial retransmission timeout.
+	 * 
+	 * @return the random factor for the initial retransmission timeout. Values range [1.0 - 2.0]
+	 * @see DtlsConfig#DTLS_RETRANSMISSION_INIT_RANDOM
+	 * @since 3.0
+	 */
+	public Float getRetransmissionRandomFactor() {
+		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM);
+	}
+
+	/**
+	 * Gets the scale factor for retransmission timeouts back-off.
+	 * 
+	 * @return the scale factor for retransmission timeout. Values range [1.0 - 2.0]
+	 * @see DtlsConfig#DTLS_RETRANSMISSION_TIMEOUT_SCALE
+	 * @since 3.0
+	 */
+	public Float getRetransmissionTimeoutScale() {
+		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE);
+	}
+
+	/**
 	 * Gets the additional (initial) time to wait before a handshake flight of
 	 * messages gets re-transmitted, when the other peer is expected to perform
 	 * ECC calculations.
@@ -462,10 +484,10 @@ public final class DtlsConnectorConfig {
 	 * re-transmitted to a peer.
 	 * 
 	 * @return the maximum number of re-transmissions
-	 * @see DtlsConfig#DTLS_RETRANSMISSION_MAX
+	 * @see DtlsConfig#DTLS_MAX_RETRANSMISSIONS
 	 */
 	public Integer getMaxRetransmissions() {
-		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_MAX);
+		return configuration.get(DtlsConfig.DTLS_MAX_RETRANSMISSIONS);
 	}
 
 	/**

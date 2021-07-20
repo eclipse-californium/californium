@@ -322,7 +322,7 @@ public class DTLSConnectorAdvancedTest {
 
 		serverHelper.serverBuilder
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, MAX_RETRANSMISSIONS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS)
 				.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024)
 				.setConnectionIdGenerator(serverCidGenerator)
 				.setHealthHandler(serverHealth)
@@ -418,7 +418,7 @@ public class DTLSConnectorAdvancedTest {
 		clientConfigBuilder = serverHelper.newClientConfigBuilder(network)
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, MAX_RETRANSMISSIONS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS)
 				.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024)
 				.setConnectionIdGenerator(clientCidGenerator)
 				.setAdvancedCertificateVerifier(clientCertificateVerifier)
@@ -523,14 +523,14 @@ public class DTLSConnectorAdvancedTest {
 		alternativeServerHelper = new ConnectorHelper(network);
 		alternativeServerHelper.serverBuilder
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS * 2, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, MAX_RETRANSMISSIONS * 2)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS * 2)
 				.set(DtlsConfig.DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE, 96)
 				.setHealthHandler(serverHealth)
 				.setConnectionIdGenerator(serverCidGenerator);
 
 		clientConfigBuilder
 				.set(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES, false)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, MAX_RETRANSMISSIONS * 2);
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS * 2);
 
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
@@ -1393,7 +1393,7 @@ public class DTLSConnectorAdvancedTest {
 
 		alternativeServerHelper.serverBuilder
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS * 2, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, MAX_RETRANSMISSIONS * 2)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS * 2)
 				.set(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES, false)
 				.setHealthHandler(serverHealth)
 				.setConnectionIdGenerator(serverCidGenerator);
@@ -3204,7 +3204,7 @@ public class DTLSConnectorAdvancedTest {
 
 		alternativeServerHelper.serverBuilder
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, MAX_RETRANSMISSIONS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS)
 				.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, false)
 				.setConnectionIdGenerator(serverCidGenerator)
 				.setHealthHandler(serverHealth);
@@ -3265,7 +3265,7 @@ public class DTLSConnectorAdvancedTest {
 
 		alternativeServerHelper.serverBuilder
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, MAX_RETRANSMISSIONS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS)
 				.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, false)
 				.setConnectionIdGenerator(serverCidGenerator)
 				.setHealthHandler(serverHealth);
@@ -3327,7 +3327,7 @@ public class DTLSConnectorAdvancedTest {
 
 		alternativeServerHelper.serverBuilder
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, MAX_RETRANSMISSIONS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS)
 				.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST, false)
 				.setConnectionIdGenerator(serverCidGenerator)
 				.setHealthHandler(serverHealth);

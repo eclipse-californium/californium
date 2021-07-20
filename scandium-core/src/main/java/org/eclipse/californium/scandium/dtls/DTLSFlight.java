@@ -128,9 +128,7 @@ public class DTLSFlight {
 	private int tries;
 
 	/** The current timeout (in milliseconds). */
-	private int timeout;
-	/** The maximum timeout (in milliseconds). */
-	private int maxTimeout;
+	private int timeoutMillis;
 
 	/**
 	 * Maximum datagram size.
@@ -569,7 +567,7 @@ public class DTLSFlight {
 	 * @return timeout in milliseconds.
 	 */
 	public int getTimeout() {
-		return timeout;
+		return timeoutMillis;
 	}
 
 	/**
@@ -577,28 +575,23 @@ public class DTLSFlight {
 	 * 
 	 * @param timeout timeout in milliseconds.
 	 */
-	public void setTimeout(int timeout) {
-		this.timeout = timeout;
+	public void setTimeout(int timeoutMillis) {
+		this.timeoutMillis = timeoutMillis;
 	}
 
 	/**
-	 * Called, when the flight needs to be retransmitted. Increment the timeout,
-	 * here we double it. Limit the timeout to {@link #maxTimeout}.
+	 * Called, when the flight needs to be retransmitted.
 	 * 
-	 * @see #incrementTimeout(int, int)
-	 */
-	public void incrementTimeout() {
-		this.timeout = incrementTimeout(this.timeout, this.maxTimeout);
-	}
-
-	/**
-	 * Set maximum timeout.
+	 * Increment the timeout, scale it by the provided factor. Limit the timeout
+	 * to the maximum timeout.
 	 * 
-	 * @param maxTimeout maximum timeout in milliseconds.
-	 * @since 3.0
+	 * @param scale timeout scale
+	 * @param maxTimeoutMillis maximum timeout
+	 * @see #incrementTimeout(int, float, int)
+	 * @since 3.0 (added scale and maxTimeoutMillis)
 	 */
-	public void setMaxTimeout(int maxTimeout) {
-		this.maxTimeout = maxTimeout;
+	public void incrementTimeout(float scale, int maxTimeoutMillis) {
+		this.timeoutMillis = incrementTimeout(this.timeoutMillis, scale, maxTimeoutMillis);
 	}
 
 	/**
@@ -688,8 +681,8 @@ public class DTLSFlight {
 				cancelTimeout();
 				// schedule retransmission task
 				try {
-					timeoutTask = timer.schedule(task, timeout, TimeUnit.MILLISECONDS);
-					LOGGER.trace("handshake flight to peer {}, retransmission {} ms.", peerToLog, timeout);
+					timeoutTask = timer.schedule(task, timeoutMillis, TimeUnit.MILLISECONDS);
+					LOGGER.trace("handshake flight to peer {}, retransmission {} ms.", peerToLog, timeoutMillis);
 				} catch (RejectedExecutionException ex) {
 					LOGGER.trace("handshake flight stopped by shutdown.");
 				}
@@ -707,14 +700,12 @@ public class DTLSFlight {
 	 * @param maxTimeoutMillis maximum timeout in milliseconds
 	 * @return doubled and limited timeout in milliseconds
 	 * @see #incrementTimeout()
-	 * @since 3.0 (added maxTimeoutMillis)
+	 * @since 3.0 (added scale and maxTimeoutMillis)
 	 */
-	public static int incrementTimeout(int timeoutMillis, int maxTimeoutMillis) {
+	public static int incrementTimeout(int timeoutMillis, float scale, int maxTimeoutMillis) {
 		if (timeoutMillis < maxTimeoutMillis) {
-			timeoutMillis *= 2;
-			if (timeoutMillis > maxTimeoutMillis) {
-				timeoutMillis = maxTimeoutMillis;
-			}
+			timeoutMillis = Math.round(timeoutMillis * scale);
+			timeoutMillis = Math.min(timeoutMillis, maxTimeoutMillis);
 		}
 		return timeoutMillis;
 	}

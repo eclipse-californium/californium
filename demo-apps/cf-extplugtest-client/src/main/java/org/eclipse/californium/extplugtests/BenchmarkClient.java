@@ -191,7 +191,7 @@ public class BenchmarkClient {
 			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
 			config.set(SystemConfig.HEALTH_STATUS_INTERVAL_IN_SECONDS, 0, TimeUnit.SECONDS);
 			config.set(BENCHMARK_CLIENT_THREADS, 0);
-			config.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, 2);
+			config.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 2);
 		}
 
 	};

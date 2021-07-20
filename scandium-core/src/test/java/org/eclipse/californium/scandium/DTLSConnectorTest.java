@@ -186,7 +186,7 @@ public class DTLSConnectorTest {
 
 		serverHelper.serverBuilder.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 500, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 2000, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, 2)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 2)
 				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED)
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
@@ -1068,7 +1068,7 @@ public class DTLSConnectorTest {
 				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
 				.setLoggingTag("client").setAddress(clientEndpoint)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 250, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, 1)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 1)
 				.setAdvancedPskStore(pskStoreWithBadCredentials).build();
 		client = serverHelper.createClient(clientConfig);
 		client.start();

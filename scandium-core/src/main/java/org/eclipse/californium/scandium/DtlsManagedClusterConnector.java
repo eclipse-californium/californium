@@ -138,7 +138,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 			SecretKey secretkey = clusterConfiguration.getSecretKey();
 			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration.getConfiguration())
 					.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 500, TimeUnit.MILLISECONDS)
-					.set(DtlsConfig.DTLS_RETRANSMISSION_MAX, 3)
+					.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 3)
 					.set(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF, 0)
 					.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1024)
 					.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 0)

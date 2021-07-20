@@ -28,6 +28,7 @@ import org.eclipse.californium.elements.config.Configuration.BooleanDefinition;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.EnumDefinition;
 import org.eclipse.californium.elements.config.Configuration.EnumListDefinition;
+import org.eclipse.californium.elements.config.Configuration.FloatDefinition;
 import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
 import org.eclipse.californium.elements.config.Configuration.StringSetDefinition;
 import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
@@ -159,7 +160,7 @@ public final class DtlsConfig {
 	 */
 	public static final int DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_IN_MILLISECONDS = 0;
 	/**
-	 * The default value for {@link #DTLS_RETRANSMISSION_MAX}.
+	 * The default value for {@link #DTLS_MAX_RETRANSMISSIONS}.
 	 */
 	public static final int DEFAULT_MAX_RETRANSMISSIONS = 4;
 	/**
@@ -261,6 +262,18 @@ public final class DtlsConfig {
 			MODULE + "MAX_RETRANSMISSION_TIMEOUT", "DTLS maximum retransmission timeout.",
 			DEFAULT_MAX_RETRANSMISSION_TIMEOUT_IN_MILLISECONDS, TimeUnit.MILLISECONDS);
 	/**
+	 * Random factor applied to the initial retransmission timeout. Harmonize
+	 * CoAP and DTLS.
+	 */
+	public static final FloatDefinition DTLS_RETRANSMISSION_INIT_RANDOM = new FloatDefinition(
+			MODULE + "RETRANSMISSION_INIT_RANDOM", "DTLS random factor for initial retransmission timeout.", 1.0F);
+	/**
+	 * Scale factor applied to the retransmission timeout. Harmonize CoAP and
+	 * DTLS.
+	 */
+	public static final FloatDefinition DTLS_RETRANSMISSION_TIMEOUT_SCALE = new FloatDefinition(
+			MODULE + "RETRANSMISSION_TIMEOUT_SCALE", "DTLS scale factor for retransmission backoff-timeout.", 2.0F);
+	/**
 	 * Specify the additional initial DTLS retransmission timeout, when the
 	 * other peer is expected to perform ECC calculations.
 	 * 
@@ -279,8 +292,9 @@ public final class DtlsConfig {
 	/**
 	 * Specify the maximum number of DTLS retransmissions.
 	 */
-	public static final IntegerDefinition DTLS_RETRANSMISSION_MAX = new IntegerDefinition(MODULE + "RETRANSMISSION_MAX",
-			"DTLS maximum number of flight retransmissions.", DEFAULT_MAX_RETRANSMISSIONS);
+	public static final IntegerDefinition DTLS_MAX_RETRANSMISSIONS = new IntegerDefinition(
+			MODULE + "MAX_RETRANSMISSIONS", "DTLS maximum number of flight retransmissions.",
+			DEFAULT_MAX_RETRANSMISSIONS);
 	/**
 	 * Specify the number of DTLS retransmissions before the attempt to transmit
 	 * a flight in back-off mode.
@@ -709,7 +723,9 @@ public final class DtlsConfig {
 						TimeUnit.MILLISECONDS);
 				config.set(DTLS_ADDITIONAL_ECC_TIMEOUT, DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_IN_MILLISECONDS,
 						TimeUnit.MILLISECONDS);
-				config.set(DTLS_RETRANSMISSION_MAX, DEFAULT_MAX_RETRANSMISSIONS);
+				config.set(DTLS_MAX_RETRANSMISSIONS, DEFAULT_MAX_RETRANSMISSIONS);
+				config.set(DTLS_RETRANSMISSION_INIT_RANDOM, 1.0F);
+				config.set(DTLS_RETRANSMISSION_TIMEOUT_SCALE, 2.0F);
 				config.set(DTLS_RETRANSMISSION_BACKOFF, null);
 				config.set(DTLS_CONNECTION_ID_LENGTH, null);
 				config.set(DTLS_CONNECTION_ID_NODE_ID, null);
