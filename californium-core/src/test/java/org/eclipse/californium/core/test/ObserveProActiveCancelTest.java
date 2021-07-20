@@ -162,7 +162,7 @@ public class ObserveProActiveCancelTest {
 		// retransmit constantly all 200 milliseconds
 		Configuration config = network.createTestConfig()
 				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f);
 
 		MessageTracer tracer = new MessageTracer();

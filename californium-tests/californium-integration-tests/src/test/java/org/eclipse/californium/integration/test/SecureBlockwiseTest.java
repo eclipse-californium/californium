@@ -127,7 +127,7 @@ public class SecureBlockwiseTest {
 		Configuration configuration = network.createTestConfig()
 				// retransmit constantly all 200 milliseconds
 				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
 				// set response timeout (indirect) to 10s
 				.set(CoapConfig.EXCHANGE_LIFETIME, 10, TimeUnit.SECONDS)

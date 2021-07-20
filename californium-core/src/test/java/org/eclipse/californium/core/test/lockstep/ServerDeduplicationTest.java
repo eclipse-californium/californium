@@ -90,7 +90,7 @@ public class ServerDeduplicationTest {
 				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, DEDUPLICATOR_SWEEP_INTERVAL, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.ACK_TIMEOUT, 1000, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1.0F)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1.0F);
+				.set(CoapConfig.ACK_INIT_RANDOM, 1.0F);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setConfiguration(config);

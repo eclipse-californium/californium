@@ -97,7 +97,7 @@ public class DeduplicationTest {
 				// client retransmits after 200 ms
 				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 128)
 				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1F);
+				.set(CoapConfig.ACK_INIT_RANDOM, 1F);
 		clientConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL, config);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);

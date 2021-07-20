@@ -88,7 +88,7 @@ public class ClusteringTest {
 				.set(CoapConfig.MAX_MESSAGE_SIZE, 16)
 				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 16)
 				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.ACK_RANDOM_FACTOR, 1f)
+				.set(CoapConfig.ACK_INIT_RANDOM, 1f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f);
 
 		store = new InMemoryObservationStore(config);
