@@ -573,7 +573,7 @@ public class DTLSFlight {
 	/**
 	 * Set timeout.
 	 * 
-	 * @param timeout timeout in milliseconds.
+	 * @param timeoutMillis timeout in milliseconds.
 	 */
 	public void setTimeout(int timeoutMillis) {
 		this.timeoutMillis = timeoutMillis;
@@ -693,13 +693,13 @@ public class DTLSFlight {
 	}
 
 	/**
-	 * Increment the timeout, here we double it, limited by the provided
-	 * maximum.
+	 * Increment the timeout, here we scale it, limited by the provided maximum.
 	 * 
 	 * @param timeoutMillis timeout in milliseconds
+	 * @param scale scale factor
 	 * @param maxTimeoutMillis maximum timeout in milliseconds
-	 * @return doubled and limited timeout in milliseconds
-	 * @see #incrementTimeout()
+	 * @return scaled and limited timeout in milliseconds
+	 * @see #incrementTimeout(float, int)
 	 * @since 3.0 (added scale and maxTimeoutMillis)
 	 */
 	public static int incrementTimeout(int timeoutMillis, float scale, int maxTimeoutMillis) {
