@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -44,12 +43,14 @@ import org.slf4j.LoggerFactory;
 /**
  * An object representation of the DTLS <em>Record</em> layer data structure(s).
  * <p>
- * The <em>Datagram Transport Layer Security</em> specification defines
- * a set of data structures at the <a href="https://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">
+ * The <em>Datagram Transport Layer Security</em> specification defines a set of
+ * data structures at the
+ * <a href="https://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">
  * Record</a> layer containing the data to be exchanged with peers.
  * <p>
- * This class is used to transform these data structures from their binary encoding
- * as received from the network interface to their object representation and vice versa.
+ * This class is used to transform these data structures from their binary
+ * encoding as received from the network interface to their object
+ * representation and vice versa.
  */
 public class Record {
 
@@ -71,8 +72,8 @@ public class Record {
 
 	public static final int CID_LENGTH_BITS = 8;
 
-	public static final int RECORD_HEADER_BITS = CONTENT_TYPE_BITS + VERSION_BITS + VERSION_BITS +
-			EPOCH_BITS + SEQUENCE_NUMBER_BITS + LENGTH_BITS;
+	public static final int RECORD_HEADER_BITS = CONTENT_TYPE_BITS + VERSION_BITS + VERSION_BITS + EPOCH_BITS
+			+ SEQUENCE_NUMBER_BITS + LENGTH_BITS;
 
 	/**
 	 * Bytes for dtls record header.
@@ -91,10 +92,17 @@ public class Record {
 	 * 
 	 * @since 3.0 (moved from {@link DTLSSession})
 	 */
-	public static final int DTLS_HANDSHAKE_HEADER_LENGTH = RECORD_HEADER_BYTES +
-								HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES;
+	public static final int DTLS_HANDSHAKE_HEADER_LENGTH = RECORD_HEADER_BYTES
+			+ HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES;
 
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
+
+	/**
+	 * Sequence number placeholder for CID records.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] SEQUENCE_NUMBER_PLACEHOLDER = { -1, -1, -1, -1, -1, -1, -1, -1 };
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -137,6 +145,12 @@ public class Record {
 
 	/** The connection id. */
 	private ConnectionId connectionId;
+	/**
+	 * Use deprecated MAC calculation.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean useDeprecatedMac;
 
 	/** Padding to be used with cid */
 	private int padding;
@@ -228,6 +242,8 @@ public class Record {
 		setType(type);
 		if (cid) {
 			this.connectionId = context.getWriteConnectionId();
+			// deprecated CID comes with the deprecated MAC calculation
+			this.useDeprecatedMac = context.useDeprecatedCid();
 			this.padding = pad;
 		}
 		setEncodedFragment(context.getWriteState(epoch), fragment);
@@ -312,13 +328,14 @@ public class Record {
 	 * @return a byte array containing the <em>DTLSCiphertext</em> structure
 	 */
 	public byte[] toByteArray() {
+		final boolean useCid = useConnectionId();
 		int length = fragmentBytes.length + RECORD_HEADER_BYTES;
-		if (useConnectionId()) {
+		if (useCid) {
 			length += connectionId.length();
 		}
 		DatagramWriter writer = new DatagramWriter(length);
 
-		if (useConnectionId()) {
+		if (useCid) {
 			writer.write(ContentType.TLS12_CID.getCode(), CONTENT_TYPE_BITS);
 		} else {
 			writer.write(type.getCode(), CONTENT_TYPE_BITS);
@@ -329,7 +346,7 @@ public class Record {
 
 		writer.write(epoch, EPOCH_BITS);
 		writer.writeLong(sequenceNumber, SEQUENCE_NUMBER_BITS);
-		if (useConnectionId()) {
+		if (useCid) {
 			writer.writeBytes(connectionId.getBytes());
 		}
 		writer.write(fragmentBytes.length, LENGTH_BITS);
@@ -481,50 +498,117 @@ public class Record {
 	}
 
 	/**
-	 * See <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.3" target="_blank">RFC 5246</a>:
+	 * Generates the additional authentication data.
 	 * 
-	 * <pre>
-	 * additional_data = seq_num + TLSCompressed.type +
-	 *                   TLSCompressed.version + TLSCompressed.length;
-	 * </pre>
-	 * 
-	 * where "+" denotes concatenation.
-	 * 
-	 * For the new tls_cid record, currently defined in
-	 * <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/" target="_blank">Draft dtls-connection-id</a>
-	 * this is extended by the conneciton id:
-	 * 
-	 * <pre>
-	 * additional_data = seq_num + TLSCompressed.type + TLSCompressed.version + 
-	 *                   connection_id + connection_id_length + TLSCompressed.length;
-	 * </pre>
-	 * 
-	 * with the connection_id_length encoded in one uint8 byte.
+	 * According {@link #useConnectionId()} and {@link #useDeprecatedMac}, use
+	 * {@link #generateAdditionalDataRfc6347(int)},
+	 * {@link #generateAdditionalDataCidDeprecated(int)}, or
+	 * {@link #generateAdditionalDataCid(int)}.
 	 * 
 	 * @param length length of the data to be authenticated
 	 * @return the additional authentication data.
 	 */
 	protected byte[] generateAdditionalData(int length) {
-		int additionDataLength = RECORD_HEADER_BYTES;
-		if (useConnectionId()) {
-			additionDataLength += (connectionId.length() + 1);
+		if (!useConnectionId()) {
+			return generateAdditionalDataRfc6347(length);
+		} else if (useDeprecatedMac) {
+			return generateAdditionalDataCidDeprecated(length);
+		} else {
+			return generateAdditionalDataCid(length);
 		}
-		DatagramWriter writer = new DatagramWriter(additionDataLength);
+	}
+
+	/**
+	 * Generate the additional authentication data according <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">draft dtls-connection-id</a>
+	 * 
+	 * <pre>
+	 * additional_data = seq_num_placeholder + tls_cid + connection_id_length + tls_cid + TLSCompressed.version + epoch
+	 * 		+ sequence_number + connection_id + TLSCompressed.length;
+	 * </pre>
+	 * 
+	 * where "+" denotes concatenation and the connection_id_length is encoded
+	 * in one uint8 byte.
+	 * 
+	 * @param length length of the data to be authenticated
+	 * @return the additional authentication data.
+	 * @since 3.0
+	 */
+	protected byte[] generateAdditionalDataCid(int length) {
+		DatagramWriter writer = new DatagramWriter(RECORD_HEADER_BYTES + connectionId.length() + 1 + 1 + 8);
+
+		writer.writeBytes(SEQUENCE_NUMBER_PLACEHOLDER);
+		writer.write(ContentType.TLS12_CID.getCode(), CONTENT_TYPE_BITS);
+		writer.write(connectionId.length(), CID_LENGTH_BITS);
+		writer.write(ContentType.TLS12_CID.getCode(), CONTENT_TYPE_BITS);
+		writer.write(version.getMajor(), VERSION_BITS);
+		writer.write(version.getMinor(), VERSION_BITS);
+		writer.write(epoch, EPOCH_BITS);
+		writer.writeLong(sequenceNumber, SEQUENCE_NUMBER_BITS);
+		writer.writeBytes(connectionId.getBytes());
+		writer.write(length, LENGTH_BITS);
+
+		return writer.toByteArray();
+	}
+
+	/**
+	 * Generates the additional authentication data according <a href=
+	 * "https://datatracker.ietf.org/doc/html/draft-ietf-tls-dtls-connection-id-08#section-5"
+	 * target= "_blank">draft dtls connection id (up to Version 8), 5. Record
+	 * Payload Protection</a>:
+	 * 
+	 * <pre>
+	 * additional_data = seq_num + tls_cid + TLSCompressed.version + connection_id + connection_id_length
+	 * 		+ TLSCompressed.length;
+	 * </pre>
+	 * 
+	 * where "+" denotes concatenation and the connection_id_length is encoded
+	 * in one uint8 byte.
+	 * 
+	 * @param length length of the data to be authenticated
+	 * @return the additional authentication data.
+	 */
+	protected byte[] generateAdditionalDataCidDeprecated(int length) {
+		DatagramWriter writer = new DatagramWriter(RECORD_HEADER_BYTES + connectionId.length() + 1);
 
 		writer.write(epoch, EPOCH_BITS);
 		writer.writeLong(sequenceNumber, SEQUENCE_NUMBER_BITS);
 
-		if (useConnectionId()) {
-			writer.write(ContentType.TLS12_CID.getCode(), CONTENT_TYPE_BITS);
-		} else {
-			writer.write(type.getCode(), CONTENT_TYPE_BITS);
-		}
+		writer.write(ContentType.TLS12_CID.getCode(), CONTENT_TYPE_BITS);
 		writer.write(version.getMajor(), VERSION_BITS);
 		writer.write(version.getMinor(), VERSION_BITS);
-		if (useConnectionId()) {
-			writer.writeBytes(connectionId.getBytes());
-			writer.write(connectionId.length(), CID_LENGTH_BITS);
-		}
+		writer.writeBytes(connectionId.getBytes());
+		writer.write(connectionId.length(), CID_LENGTH_BITS);
+		writer.write(length, LENGTH_BITS);
+
+		return writer.toByteArray();
+	}
+
+	/**
+	 * See <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.3" target=
+	 * "_blank">RFC 5246</a> and
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.1.2.1" target=
+	 * "_blank">RFC 6347</a>:
+	 * 
+	 * <pre>
+	 * additional_data = seq_num + TLSCompressed.type + TLSCompressed.version + TLSCompressed.length;
+	 * </pre>
+	 * 
+	 * where "+" denotes concatenation.
+	 * 
+	 * @param length length of the data to be authenticated
+	 * @return the additional authentication data.
+	 */
+	protected byte[] generateAdditionalDataRfc6347(int length) {
+		DatagramWriter writer = new DatagramWriter(RECORD_HEADER_BYTES);
+
+		writer.write(epoch, EPOCH_BITS);
+		writer.writeLong(sequenceNumber, SEQUENCE_NUMBER_BITS);
+
+		writer.write(type.getCode(), CONTENT_TYPE_BITS);
+		writer.write(version.getMajor(), VERSION_BITS);
+		writer.write(version.getMinor(), VERSION_BITS);
 		writer.write(length, LENGTH_BITS);
 
 		return writer.toByteArray();
@@ -660,11 +744,25 @@ public class Record {
 	}
 
 	/**
+	 * Set usage of deprecated MAC.
+	 * 
+	 * @param useDeprecatedMac {@code true}, if the deprecated MAC calculation
+	 *            is used, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public void setDeprecatedMac(boolean useDeprecatedMac) {
+		this.useDeprecatedMac = useDeprecatedMac;
+	}
+
+	/**
 	 * Decode the object representation of this record's
 	 * <em>DTLSPlaintext.fragment</em>.
 	 * 
 	 * If the record uses the new record type {@link ContentType#TLS12_CID} the
 	 * {@link #type} is updated with the type of the inner plaintext.
+	 * 
+	 * If CID is used, {@link #setDeprecatedMac(boolean)} must be called before
+	 * decoding a fragment.
 	 * 
 	 * @param readState read state of the epoch for incoming messages
 	 * @throws InvalidMacException if message authentication failed
@@ -675,8 +773,7 @@ public class Record {
 	 * @throws HandshakeException if the TLSPlaintext.fragment could not be
 	 *             parsed into a valid handshake message
 	 */
-	public void decodeFragment(DTLSConnectionState readState)
-			throws GeneralSecurityException, HandshakeException {
+	public void decodeFragment(DTLSConnectionState readState) throws GeneralSecurityException, HandshakeException {
 
 		if (fragment != null) {
 			LOGGER.error("DTLS read state already applied!");
@@ -696,7 +793,7 @@ public class Record {
 				throw new GeneralSecurityException("no inner type!");
 			}
 			int typeCode = decryptedMessage[index];
-			actualType =  ContentType.getTypeByValue(typeCode);
+			actualType = ContentType.getTypeByValue(typeCode);
 			if (actualType == null) {
 				throw new GeneralSecurityException("unknown inner type! " + typeCode);
 			}
@@ -752,7 +849,8 @@ public class Record {
 	 *             {@code null}.
 	 * @see #useConnectionId()
 	 */
-	private void setEncodedFragment(DTLSConnectionState outgoingWriteState, DTLSMessage fragment) throws GeneralSecurityException {
+	private void setEncodedFragment(DTLSConnectionState outgoingWriteState, DTLSMessage fragment)
+			throws GeneralSecurityException {
 		// serialize fragment and if necessary encrypt byte array
 		byte[] byteArray = fragment.toByteArray();
 		if (byteArray == null) {
@@ -771,8 +869,9 @@ public class Record {
 	 * Check, if new tls_cid record must be used.
 	 * 
 	 * See <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> 
-	 * 2019-feb-18: the last discussion agreement is NOT to use a empty CID for tls_cid records.
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft
+	 * dtls-connection-id</a> 2019-feb-18: the last discussion agreement is NOT
+	 * to use a empty CID for tls_cid records.
 	 * 
 	 * @return {@code true}, if a none empty cid is used.
 	 * @see #Record(ContentType, int, DTLSMessage, DTLSContext, boolean, int)
@@ -804,7 +903,8 @@ public class Record {
 		sb.append("==[ DTLS Record ]==============================================");
 		sb.append(StringUtil.lineSeparator()).append("Content Type: ").append(type.toString());
 		sb.append(StringUtil.lineSeparator()).append("Peer address: ").append(getPeerAddress());
-		sb.append(StringUtil.lineSeparator()).append("Version: ").append(version.getMajor()).append(", ").append(version.getMinor());
+		sb.append(StringUtil.lineSeparator()).append("Version: ").append(version.getMajor()).append(", ")
+				.append(version.getMinor());
 		sb.append(StringUtil.lineSeparator()).append("Epoch: ").append(epoch);
 		sb.append(StringUtil.lineSeparator()).append("Sequence Number: ").append(sequenceNumber);
 		if (connectionId != null) {

@@ -27,6 +27,11 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id">draft-ietf-tls-dtls-connection-id</a>
  * for additional details.
  *
+ * <b>Note:</b> Before version 9 of the specification, the value {@code 53} was
+ * used as extension ID along with a different calculated MAC.
+ * 
+ * @see ExtensionType#CONNECTION_ID
+ * @see ExtensionType#CONNECTION_ID_DEPRECATED
  */
 public final class ConnectionIdExtension extends HelloExtension {
 
@@ -45,9 +50,13 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension.
 	 * 
 	 * @param id connection id
+	 * @param deprecatedCid {@code true}, if the deprecated extension ID
+	 *            {@code 53} and the deprecated MAC is used, {@code false},
+	 *            otherwise.
+	 * @since 3.0 (added parameter deprecatedCid)
 	 */
-	private ConnectionIdExtension(ConnectionId id) {
-		super(ExtensionType.CONNECTION_ID);
+	private ConnectionIdExtension(ConnectionId id, boolean deprecatedCid) {
+		super(deprecatedCid ? ExtensionType.CONNECTION_ID_DEPRECATED : ExtensionType.CONNECTION_ID);
 		this.id = id;
 	}
 
@@ -58,6 +67,17 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 */
 	public ConnectionId getConnectionId() {
 		return id;
+	}
+
+	/**
+	 * Usage of deprecated definitions.
+	 * 
+	 * @return {@code true}, if the deprecated extension ID {@code 53} along
+	 *         with the deprecated MAC calculation is used, {@code false},
+	 *         otherwise.
+	 */
+	public boolean useDeprecatedCid() {
+		return getType() == ExtensionType.CONNECTION_ID_DEPRECATED;
 	}
 
 	@Override
@@ -78,48 +98,55 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension from connection id.
 	 * 
 	 * @param cid connection id
+	 * @param deprecatedCid {@code true}, {@code true}, if the deprecated
+	 *            extension ID {@code 53} along with the deprecated MAC
+	 *            calculation is used, {@code false}, otherwise.
 	 * @return created connection id extension
 	 * @throws NullPointerException if cid is {@code null}
+	 * @since 3.0 (added parameter deprecatedCid)
 	 */
-	public static ConnectionIdExtension fromConnectionId(ConnectionId cid) {
+	public static ConnectionIdExtension fromConnectionId(ConnectionId cid, boolean deprecatedCid) {
 		if (cid == null) {
 			throw new NullPointerException("cid must not be null!");
 		}
-		return new ConnectionIdExtension(cid);
+		return new ConnectionIdExtension(cid, deprecatedCid);
 	}
 
 	/**
 	 * Create connection id extension from extensions data bytes.
 	 * 
 	 * @param extensionDataReader extension data bytes
+	 * @param deprecatedCid {@code true}, if the deprecated extension ID
+	 *            {@code 53} along with the deprecated MAC calculation is used,
+	 *            {@code false}, otherwise.
 	 * @return created connection id extension
 	 * @throws NullPointerException if extensionData is {@code null}
 	 * @throws HandshakeException if the extension data could not be decoded
+	 * @since 3.0 (added parameter deprecatedCid)
 	 */
-	public static ConnectionIdExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
+	public static ConnectionIdExtension fromExtensionDataReader(DatagramReader extensionDataReader,
+			boolean deprecatedCid) throws HandshakeException {
 		if (extensionDataReader == null) {
 			throw new NullPointerException("cid must not be null!");
-		} 
+		}
 		int availableBytes = extensionDataReader.bitsLeft() / Byte.SIZE;
 		if (availableBytes == 0) {
 			throw new HandshakeException("Connection id length must be provided!",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		} else if (availableBytes > 256) {
-			throw new HandshakeException(
-					"Connection id length too large! 255 max, but has " + (availableBytes - 1),
+			throw new HandshakeException("Connection id length too large! 255 max, but has " + (availableBytes - 1),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 		int len = extensionDataReader.read(CID_FIELD_LENGTH_BITS);
 		if (len != (availableBytes - 1)) {
-			throw new HandshakeException(
-					"Connection id length " + len + " doesn't match " + (availableBytes - 1) + "!",
+			throw new HandshakeException("Connection id length " + len + " doesn't match " + (availableBytes - 1) + "!",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 		if (len == 0) {
-			return new ConnectionIdExtension(ConnectionId.EMPTY);
+			return new ConnectionIdExtension(ConnectionId.EMPTY, deprecatedCid);
 		} else {
 			byte[] cid = extensionDataReader.readBytes(len);
-			return new ConnectionIdExtension(new ConnectionId(cid));
+			return new ConnectionIdExtension(new ConnectionId(cid), deprecatedCid);
 		}
 	}
 

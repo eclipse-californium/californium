@@ -229,7 +229,16 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected final List<CertificateType> supportedServerCertificateTypes;
 
-	/** 
+	/**
+	 * Use the deprecated CID extension before version 9 of <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">Draft dtls-connection-id</a>.
+	 * 
+	 * @since 3.0
+	 */
+	private final boolean useDeprecatedCid;
+
+	/**
 	 * The server's {@link CertificateRequest}. Optional.
 	 */
 	private CertificateRequest certificateRequest;
@@ -264,6 +273,7 @@ public class ClientHandshaker extends Handshaker {
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAlgorithms = config.getSupportedSignatureAlgorithms();
+		this.useDeprecatedCid = config.useDeprecatedCid();
 		this.probe = probe;
 		getSession().setHostName(hostname);
 	}
@@ -293,7 +303,7 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case SERVER_KEY_EXCHANGE:
-			
+
 			switch (getSession().getKeyExchange()) {
 			case EC_DIFFIE_HELLMAN:
 				receivedEcdhEcdsaServerKeyExchange((EcdhEcdsaServerKeyExchange) message);
@@ -384,7 +394,7 @@ public class ClientHandshaker extends Handshaker {
 	protected void receivedServerHello(ServerHello message) throws HandshakeException {
 		// store the negotiated values
 
-		ProtocolVersion  usedProtocol = message.getServerVersion();
+		ProtocolVersion usedProtocol = message.getServerVersion();
 		if (!usedProtocol.equals(ProtocolVersion.VERSION_DTLS_1_2)) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION);
 			throw new HandshakeException("The client only supports DTLS v1.2, not " + usedProtocol + "!", alert);
@@ -408,13 +418,7 @@ public class ClientHandshaker extends Handshaker {
 		session.setCompressionMethod(message.getCompressionMethod());
 		verifyServerHelloExtensions(message);
 		if (supportsConnectionId()) {
-			ConnectionIdExtension extension = message.getConnectionIdExtension();
-			if (extension != null) {
-				ConnectionId connectionId = extension.getConnectionId();
-				DTLSContext context = getDtlsContext();
-				context.setWriteConnectionId(connectionId);
-				context.setReadConnectionId(getReadConnectionId());
-			}
+			receivedConnectionIdExtension(message.getConnectionIdExtension());
 		}
 		if (message.hasExtendedMasterSecret()) {
 			session.setExtendedMasterSecret(true);
@@ -424,6 +428,16 @@ public class ClientHandshaker extends Handshaker {
 		}
 		session.setSniSupported(message.hasServerNameExtension());
 		setExpectedStates(cipherSuite.requiresServerCertificateMessage() ? SEVER_CERTIFICATE : NO_SEVER_CERTIFICATE);
+	}
+
+	protected void receivedConnectionIdExtension(ConnectionIdExtension extension) throws HandshakeException {
+		if (extension != null) {
+			ConnectionId connectionId = extension.getConnectionId();
+			DTLSContext context = getDtlsContext();
+			context.setWriteConnectionId(connectionId);
+			context.setReadConnectionId(getReadConnectionId());
+			context.setDeprecatedCid(extension.useDeprecatedCid());
+		}
 	}
 
 	/**
@@ -807,8 +821,7 @@ public class ClientHandshaker extends Handshaker {
 					}
 				}
 			} else {
-				throw new IllegalArgumentException(
-						"Certificate type " + certificateType + " not supported!");
+				throw new IllegalArgumentException("Certificate type " + certificateType + " not supported!");
 			}
 			if (clientCertificate == null && negotiatedSignatureAndHashAlgorithm == null) {
 				// no matching algorithm, send empty certificate message
@@ -907,7 +920,7 @@ public class ClientHandshaker extends Handshaker {
 				// use empty cid
 				connectionId = ConnectionId.EMPTY;
 			}
-			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
+			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId, useDeprecatedCid);
 			helloMessage.addExtension(extension);
 		}
 	}

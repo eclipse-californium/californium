@@ -188,7 +188,8 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				serverResumptionVerifier.setDelay(0);
-				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+				builder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0)
+						.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}
 
@@ -210,8 +211,10 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				serverResumptionVerifier.setDelay(100);
-				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
+						.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
+						.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, true)
+						.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}
 
@@ -233,8 +236,8 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
 				serverResumptionVerifier.setDelay(0);
-				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
+						.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}
 
@@ -278,8 +281,8 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				serverResumptionVerifier.setDelay(100);
-				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
+						.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
 						.setAdvancedPskStore(clientPskStore);
 			}
 
@@ -346,8 +349,8 @@ public class DTLSConnectorResumeTest {
 				serverCertificateProvider.setDelay(100);
 				serverCertificateVerifier.setDelay(100);
 				serverResumptionVerifier.setDelay(100);
-				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
+						.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey,
 								clientCertificateChain, CertificateType.X_509))
 						.setAdvancedCertificateVerifier(clientCertificateVerifier);
@@ -370,8 +373,8 @@ public class DTLSConnectorResumeTest {
 				serverCertificateProvider.setDelay(0);
 				serverCertificateVerifier.setDelay(0);
 				serverResumptionVerifier.setDelay(0);
-				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
+						.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey,
 								clientCertificateChain, CertificateType.RAW_PUBLIC_KEY))
 						.setAdvancedCertificateVerifier(clientCertificateVerifier);
@@ -394,8 +397,8 @@ public class DTLSConnectorResumeTest {
 				serverCertificateProvider.setDelay(100);
 				serverCertificateVerifier.setDelay(100);
 				serverResumptionVerifier.setDelay(100);
-				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
+						.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey,
 								clientCertificateChain, CertificateType.RAW_PUBLIC_KEY))
 						.setAdvancedCertificateVerifier(clientCertificateVerifier);
@@ -441,8 +444,12 @@ public class DTLSConnectorResumeTest {
 		serverHelper.useSessionStore = true;
 
 		serverHelper.serverBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
-				.setApplicationLevelInfoSupplier(supplier).setAdvancedCertificateVerifier(serverCertificateVerifier)
-				.setAdvancedPskStore(serverPskStore).setCertificateIdentityProvider(serverCertificateProvider)
+				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6)
+				.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true)
+				.setApplicationLevelInfoSupplier(supplier)
+				.setAdvancedCertificateVerifier(serverCertificateVerifier)
+				.setAdvancedPskStore(serverPskStore)
+				.setCertificateIdentityProvider(serverCertificateProvider)
 				.setResumptionVerifier(serverResumptionVerifier);
 
 		serverHelper.startServer();

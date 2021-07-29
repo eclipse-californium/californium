@@ -1684,8 +1684,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				return;
 			}
 
-			if (!record.isDecoded() || record.getType() != ContentType.APPLICATION_DATA) {
+			if (!record.isDecoded()) {
 				// application data may be deferred again until the session is really established
+				record.setDeprecatedMac(context.useDeprecatedCid());
 				record.decodeFragment(context.getReadState());
 			}
 

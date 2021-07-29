@@ -59,6 +59,7 @@ import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.ConnectionIdExtension;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
@@ -404,7 +405,8 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Gets the random factor for the initial retransmission timeout.
 	 * 
-	 * @return the random factor for the initial retransmission timeout. Values range [1.0 - 2.0]
+	 * @return the random factor for the initial retransmission timeout. Values
+	 *         range [1.0 - 2.0]
 	 * @see DtlsConfig#DTLS_RETRANSMISSION_INIT_RANDOM
 	 * @since 3.0
 	 */
@@ -415,7 +417,8 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Gets the scale factor for retransmission timeouts back-off.
 	 * 
-	 * @return the scale factor for retransmission timeout. Values range [1.0 - 2.0]
+	 * @return the scale factor for retransmission timeout. Values range [1.0 -
+	 *         2.0]
 	 * @see DtlsConfig#DTLS_RETRANSMISSION_TIMEOUT_SCALE
 	 * @since 3.0
 	 */
@@ -715,6 +718,40 @@ public final class DtlsConnectorConfig {
 	 */
 	public ConnectionIdGenerator getConnectionIdGenerator() {
 		return connectionIdGenerator;
+	}
+
+	/**
+	 * Enable/disable the use of the deprecated CID before version 9 of <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">Draft dtls-connection-id</a> for the client.
+	 * 
+	 * @return {@code true}, if the deprecated extension ID 53 and the
+	 *         deprecated MAC is used, {@code false}, otherwise.
+	 * @see ConnectionIdExtension
+	 * @see DtlsConfig#DTLS_USE_DEPRECATED_CID
+	 * @since 3.0
+	 */
+	public Boolean useDeprecatedCid() {
+		return configuration.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
+	}
+
+	/**
+	 * Enable/disable the support for the deprecated CID before version 9 of
+	 * <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">Draft dtls-connection-id</a> for the server.
+	 * 
+	 * If enabled, the server will also accept the deprecated value {@code 53}
+	 * for the connection id extension and use the old MAC definition, if so.
+	 * 
+	 * @return {@code true}, for support the deprecated extension ID 53 along
+	 *         with the deprecated MAC calculation, {@code false}, otherwise.
+	 * @see ConnectionIdExtension
+	 * @see DtlsConfig#DTLS_SUPPORT_DEPRECATED_CID
+	 * @since 3.0
+	 */
+	public Boolean supportsDeprecatedCid() {
+		return configuration.get(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID);
 	}
 
 	/**
@@ -2000,7 +2037,7 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Set connection listener.
 		 * 
-		 * @param connectionListener
+		 * @param connectionListener connection listener
 		 * @return this builder for command chaining.
 		 * @see DtlsConnectorConfig#getConnectionListener()
 		 */
