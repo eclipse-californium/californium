@@ -226,13 +226,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			verifyServerHelloExtensions(message);
 			serverRandom = message.getRandom();
 			if (supportsConnectionId()) {
-				ConnectionIdExtension extension = message.getConnectionIdExtension();
-				if (extension != null) {
-					ConnectionId connectionId = extension.getConnectionId();
-					DTLSContext context = getDtlsContext(); 
-					context.setWriteConnectionId(connectionId);
-					context.setReadConnectionId(getReadConnectionId());
-				}
+				receivedConnectionIdExtension(message.getConnectionIdExtension());
 			}
 			setExpectedStates(ABBREVIATED_HANDSHAKE);
 			expectChangeCipherSpecMessage();

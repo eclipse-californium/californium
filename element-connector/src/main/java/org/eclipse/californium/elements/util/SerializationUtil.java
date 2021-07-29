@@ -21,11 +21,13 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.exception.VersionMismatchException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,6 +117,8 @@ public class SerializationUtil {
 	 * @param numBits number of bits for the item length
 	 * @return position of the item length
 	 * @see #writeFinishedItem(DatagramWriter, int, int)
+	 * @see #readStartItem(DataStreamReader, int, int)
+	 * @see #readStartItem(DataStreamReader, SupportedVersionsMatcher, int)
 	 */
 	public static int writeStartItem(DatagramWriter writer, int version, int numBits) {
 		if (version == NO_VERSION) {
@@ -133,6 +137,8 @@ public class SerializationUtil {
 	 * @param numBits number of bits for the item length used for
 	 *            {@link #writeStartItem(DatagramWriter, int, int)}.
 	 * @see #writeStartItem(DatagramWriter, int, int)
+	 * @see #readStartItem(DataStreamReader, int, int)
+	 * @see #readStartItem(DataStreamReader, SupportedVersionsMatcher, int)
 	 */
 	public static void writeFinishedItem(DatagramWriter writer, int position, int numBits) {
 		writer.writeSize(position, numBits);
@@ -141,25 +147,72 @@ public class SerializationUtil {
 	/**
 	 * Read item start.
 	 * 
+	 * <b>Note</b>: on version mismatch, it's not supported to retry with a
+	 * different version! Use
+	 * {@link #readStartItem(DataStreamReader, SupportedVersionsMatcher, int)}
+	 * instead!
+	 * 
 	 * @param reader reader
 	 * @param version version of item's serialization
 	 * @param numBits number of bits for the item length
 	 * @return length of the item, or {@code -1}, if
 	 *         {@link #writeNoItem(DatagramWriter)} was used.
-	 * @throws IllegalArgumentException if version doesn't match or the read
-	 *             length exceeds the available bytes.
+	 * @throws VersionMismatchException if version doesn't match.
+	 * @throws IllegalArgumentException if the read length exceeds the available
+	 *             bytes.
 	 * @see #writeStartItem(DatagramWriter, int, int)
 	 * @see #writeFinishedItem(DatagramWriter, int, int)
+	 * @see #readStartItem(DataStreamReader, SupportedVersionsMatcher, int)
 	 */
 	public static int readStartItem(DataStreamReader reader, int version, int numBits) {
 		if (version == NO_VERSION) {
-			throw new IllegalArgumentException("version must not be " + NO_VERSION + "!");
+			throw new IllegalArgumentException("Version must not be " + NO_VERSION + "!");
 		}
 		int read = reader.readNextByte() & 0xff;
 		if (read == NO_VERSION) {
 			return -1;
 		} else if (read != version) {
-			throw new IllegalArgumentException("Version mismatch! " + version + " is required, not " + read);
+			throw new VersionMismatchException("Version mismatch! " + version + " is required, not " + read + "!",
+					read);
+		}
+		return reader.read(numBits);
+	}
+
+	/**
+	 * Read item start.
+	 * 
+	 * <pre>
+	 * final SupportedVersions VERSIONS = new SupportedVersions(V1, V2, V3);
+	 * ...
+	 * SupportedVersionsMatcher matcher = VERSIONS.matcher();
+	 * int len = readStartItem(reader, matcher, 16);
+	 * ...
+	 * matcher.getReadVersion();
+	 * ...
+	 * </pre>
+	 * 
+	 * @param reader reader
+	 * @param versions supported versions matcher
+	 * @param numBits number of bits for the item length
+	 * @return length of the item, or {@code -1}, if
+	 *         {@link #writeNoItem(DatagramWriter)} was used.
+	 * @throws VersionMismatchException if version doesn't match.
+	 * @throws IllegalArgumentException if the read length exceeds the available
+	 *             bytes.
+	 * @see #writeStartItem(DatagramWriter, int, int)
+	 * @see #writeFinishedItem(DatagramWriter, int, int)
+	 * @see #readStartItem(DataStreamReader, int, int)
+	 */
+	public static int readStartItem(DataStreamReader reader, SupportedVersionsMatcher versions, int numBits) {
+		if (versions == null) {
+			throw new NullPointerException("Version must not be null!");
+		}
+		int read = reader.readNextByte() & 0xff;
+		if (read == NO_VERSION) {
+			return -1;
+		} else if (!versions.supports(read)) {
+			throw new VersionMismatchException("Version mismatch! " + versions + " are required, not " + read + "!",
+					read);
 		}
 		return reader.read(numBits);
 	}
@@ -382,6 +435,123 @@ public class SerializationUtil {
 		while ((reader.readNextByte() & 0xff) != NO_VERSION) {
 			int len = reader.read(numBits);
 			reader.skip(len);
+		}
+	}
+
+	/**
+	 * Supported versions.
+	 * 
+	 * Intended to be used as factory for {@code SupportedVersionsMatcher} using
+	 * {@link #matcher()}.
+	 */
+	public static class SupportedVersions {
+
+		/**
+		 * List of supported version.
+		 */
+		private final int[] versions;
+
+		/**
+		 * Create list of supported versions.
+		 * 
+		 * @param versions list of supported versions
+		 */
+		public SupportedVersions(int... versions) {
+			this(true, versions);
+		}
+
+		/**
+		 * Create list of supported versions.
+		 * 
+		 * @param copy {@code true} to copy list of supported versions,
+		 *            {@code false}, share list.
+		 * @param versions list of supported versions
+		 */
+		protected SupportedVersions(boolean copy, int... versions) {
+			if (versions == null) {
+				throw new NullPointerException("Versions must not be null!");
+			}
+			if (versions.length == 0) {
+				throw new IllegalArgumentException("Versions must not be empty!");
+			}
+			this.versions = copy ? Arrays.copyOf(versions, versions.length) : versions;
+			if (supports(NO_VERSION)) {
+				throw new IllegalArgumentException("Versions must not contain NO_VERSION!");
+			}
+		}
+
+		/**
+		 * Check, if read version is supported.
+		 * 
+		 * @param readVersion read version
+		 * @return {@code true}, if the read version is supported,
+		 *         {@code false}, otherwise.
+		 */
+		public boolean supports(int readVersion) {
+			for (int version : versions) {
+				if (readVersion == version) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		@Override
+		public String toString() {
+			return Arrays.toString(versions);
+		}
+
+		/**
+		 * Create matcher based on this supported versions.
+		 * 
+		 * @return matcher
+		 * @see SerializationUtil#readStartItem(DataStreamReader,
+		 *      SupportedVersionsMatcher, int)
+		 */
+		public SupportedVersionsMatcher matcher() {
+			return new SupportedVersionsMatcher(versions);
+		}
+	}
+
+	/**
+	 * Supported versions.
+	 */
+	public static class SupportedVersionsMatcher extends SupportedVersions {
+
+		/**
+		 * Read version. {@link SerializationUtil#NO_VERSION} on mismatch.
+		 */
+		private int readVersion;
+
+		/**
+		 * Create list of supported versions.
+		 * 
+		 * @param versions list of supported versions
+		 */
+		private SupportedVersionsMatcher(int... versions) {
+			super(false, versions);
+			this.readVersion = NO_VERSION;
+		}
+
+		@Override
+		public boolean supports(int readVersion) {
+			if (super.supports(readVersion)) {
+				this.readVersion = readVersion;
+				return true;
+			} else {
+				this.readVersion = NO_VERSION;
+				return false;
+			}
+		}
+
+		/**
+		 * Get read version.
+		 * 
+		 * @return read version, or {@link SerializationUtil#NO_VERSION}, if not
+		 *         supported.
+		 */
+		public int getReadVersion() {
+			return readVersion;
 		}
 	}
 }

@@ -634,11 +634,15 @@ public final class ClientHello extends HandshakeMessage {
 	/**
 	 * Gets the <em>connection id</em> extension data from this message.
 	 * 
-	 * @return the extension data or {@code null}, if this message does not contain the
-	 *          <em>connection id</em> extension.
+	 * @return the extension data or {@code null}, if this message does not
+	 *         contain the <em>connection id</em> extension.
 	 */
 	public ConnectionIdExtension getConnectionIdExtension() {
-		return extensions.getExtension(ExtensionType.CONNECTION_ID);
+		ConnectionIdExtension extension = extensions.getExtension(ExtensionType.CONNECTION_ID);
+		if (extension == null) {
+			extension = extensions.getExtension(ExtensionType.CONNECTION_ID_DEPRECATED);
+		}
+		return extension;
 	}
 
 	/**

@@ -706,6 +706,20 @@ public final class DtlsConfig {
 	public static final SignatureAndHashAlgorithmsDefinition DTLS_SIGNATURE_AND_HASH_ALGORITHMS = new SignatureAndHashAlgorithmsDefinition(
 			MODULE + "SIGNATURE_AND_HASH_ALGORITHMS",
 			"DTLS list of signature- and hash-algorihtms.\nValues e.g SHA256withECDSA or ED25519.");
+	/**
+	 * Specify the usage of DTLS CID before version 9 of <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">Draft dtls-connection-id</a> for the client side.
+	 */
+	public static final BooleanDefinition DTLS_USE_DEPRECATED_CID = new BooleanDefinition(MODULE + "USE_DEPRECATED_CID",
+			"DTLS use deprecated CID for client (before version 9).", false);
+	/**
+	 * Specify the support of DTLS CID before version 9 of <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">Draft dtls-connection-id</a> for the server side.
+	 */
+	public static final BooleanDefinition DTLS_SUPPORT_DEPRECATED_CID = new BooleanDefinition(
+			MODULE + "SUPPORT_DEPRECATED_CID", "DTLS support deprecated CID for server (before version 9).", false);
 
 	static {
 		SystemConfig.register();
@@ -772,6 +786,8 @@ public final class DtlsConfig {
 				config.set(DTLS_CIPHER_SUITES, null);
 				config.set(DTLS_CURVES, null);
 				config.set(DTLS_SIGNATURE_AND_HASH_ALGORITHMS, null);
+				config.set(DTLS_USE_DEPRECATED_CID, false);
+				config.set(DTLS_SUPPORT_DEPRECATED_CID, false);
 			}
 		});
 	}

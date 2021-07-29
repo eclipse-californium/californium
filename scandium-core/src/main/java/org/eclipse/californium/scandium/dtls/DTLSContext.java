@@ -28,6 +28,8 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerializationUtil;
+import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersions;
+import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersionsMatcher;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -48,6 +50,12 @@ public final class DTLSContext implements Destroyable {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSContext.class);
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 
+	/**
+	 * Use deprecated MAC for CID.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean useDeprecatedCid;
 	/**
 	 * Connection id used for all outbound records.
 	 */
@@ -164,6 +172,30 @@ public final class DTLSContext implements Destroyable {
 	 */
 	public DTLSSession getSession() {
 		return session;
+	}
+
+	/**
+	 * Use deprecated definitions for extension ID and MAC calculation.
+	 * 
+	 * @return {@code true}, if the deprecated extension ID {@code 53} along
+	 *         with the deprecated MAC calculation is used, {@code false},
+	 *         otherwise.
+	 * @since 3.0
+	 */
+	public boolean useDeprecatedCid() {
+		return useDeprecatedCid;
+	}
+
+	/**
+	 * Set usage of deprecated definitions for extension ID and MAC calculation.
+	 * 
+	 * @param useDeprecatedCid {@code true}, if the deprecated extension ID
+	 *            {@code 53} along with the deprecated MAC calculation is used,
+	 *            {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	void setDeprecatedCid(boolean useDeprecatedCid) {
+		this.useDeprecatedCid = useDeprecatedCid;
 	}
 
 	/**
@@ -388,8 +420,8 @@ public final class DTLSContext implements Destroyable {
 	 * <p>
 	 * The information in the current read state is used to de-crypt messages
 	 * received from a peer. See
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
-	 * 1.2)</a> for details.
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target=
+	 * "_blank"> RFC 5246 (TLS 1.2)</a> for details.
 	 * <p>
 	 * The cipher suite of the returned object will be
 	 * {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, if the connection's crypto
@@ -406,8 +438,8 @@ public final class DTLSContext implements Destroyable {
 	 * 
 	 * The information in the current read state is used to de-crypt messages
 	 * received from a peer. See
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
-	 * 1.2)</a> for details.
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target=
+	 * "_blank"> RFC 5246 (TLS 1.2)</a> for details.
 	 * 
 	 * The <em>pending</em> read state becomes the <em>current</em> read state
 	 * whenever a <em>CHANGE_CIPHER_SPEC</em> message is received from a peer
@@ -445,8 +477,8 @@ public final class DTLSContext implements Destroyable {
 	 * <p>
 	 * The information in the current write state is used to en-crypt messages
 	 * sent to a peer. See
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
-	 * 1.2)</a> for details.
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target=
+	 * "_blank"> RFC 5246 (TLS 1.2)</a> for details.
 	 * <p>
 	 * The cipher suite of the returned object will be
 	 * {@link CipherSuite#TLS_NULL_WITH_NULL_NULL} if the connection's crypto
@@ -478,8 +510,8 @@ public final class DTLSContext implements Destroyable {
 	 * 
 	 * The information in the current write state is used to en-crypt messages
 	 * sent to a peer. See
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target="_blank"> RFC 5246 (TLS
-	 * 1.2)</a> for details.
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.1" target=
+	 * "_blank"> RFC 5246 (TLS 1.2)</a> for details.
 	 * 
 	 * The <em>pending</em> write state becomes the <em>current</em> write state
 	 * whenever a <em>CHANGE_CIPHER_SPEC</em> message is sent to a peer during a
@@ -569,8 +601,8 @@ public final class DTLSContext implements Destroyable {
 	 * current epoch.
 	 * 
 	 * The check is done based on a <em>sliding window</em> as described in
-	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.1.2.6" target="_blank"> section
-	 * 4.1.2.6 of the DTLS 1.2 spec</a>.
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.1.2.6" target=
+	 * "_blank"> section 4.1.2.6 of the DTLS 1.2 spec</a>.
 	 * 
 	 * @param sequenceNo the record's sequence number
 	 * @return {@code true}, if the record has already been received
@@ -768,7 +800,16 @@ public final class DTLSContext implements Destroyable {
 	/**
 	 * Version number for serialization.
 	 */
-	private static final int VERSION = 2;
+	private static final int VERSION = 3;
+
+	/**
+	 * Version number for serialization before introducing
+	 * {@link #useDeprecatedCid}.
+	 */
+	private static final int VERSION_DEPRECATED = 2;
+
+	private static final SupportedVersions VERSIONS = new SupportedVersions(VERSION,
+			VERSION_DEPRECATED);
 
 	/**
 	 * Write DTLS context state.
@@ -801,6 +842,7 @@ public final class DTLSContext implements Destroyable {
 		}
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
 		writeSequenceNumbers(writer);
+		writer.writeByte(useDeprecatedCid ? (byte) 1 : (byte) 0);
 		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 		return true;
 	}
@@ -818,10 +860,11 @@ public final class DTLSContext implements Destroyable {
 	 */
 	@WipAPI
 	public static DTLSContext fromReader(DatagramReader reader) {
-		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
+		SupportedVersionsMatcher matcher = VERSIONS.matcher();
+		int length = SerializationUtil.readStartItem(reader, matcher, Short.SIZE);
 		if (0 < length) {
 			DatagramReader rangeReader = reader.createRangeReader(length);
-			return new DTLSContext(rangeReader);
+			return new DTLSContext(matcher.getReadVersion(), rangeReader);
 		} else {
 			return null;
 		}
@@ -830,10 +873,11 @@ public final class DTLSContext implements Destroyable {
 	/**
 	 * Create instance from reader.
 	 * 
+	 * @param version version of serialized data.
 	 * @param reader reader with DTLS context state.
 	 * @throws IllegalArgumentException if the data is erroneous
 	 */
-	private DTLSContext(DatagramReader reader) {
+	private DTLSContext(int version, DatagramReader reader) {
 		handshakeTime = reader.readLong(Long.SIZE);
 		session = DTLSSession.fromReader(reader);
 		if (session == null) {
@@ -856,6 +900,11 @@ public final class DTLSContext implements Destroyable {
 			writeConnectionId = new ConnectionId(data);
 		}
 		readSequenceNumbers(reader);
+		if (version == VERSION_DEPRECATED) {
+			useDeprecatedCid = true;
+		} else if (version == VERSION) {
+			useDeprecatedCid = reader.readNextByte() == 1;
+		}
 		reader.assertFinished("dtls-context");
 	}
 

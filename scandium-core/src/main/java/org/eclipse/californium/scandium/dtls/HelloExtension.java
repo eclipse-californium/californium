@@ -148,8 +148,10 @@ public abstract class HelloExtension {
 				return MaxFragmentLengthExtension.fromExtensionDataReader(extensionDataReader);
 			case SERVER_NAME:
 				return ServerNameExtension.fromExtensionDataReader(extensionDataReader);
+			case CONNECTION_ID_DEPRECATED:
+				return ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, true);
 			case CONNECTION_ID:
-				return ConnectionIdExtension.fromExtensionDataReader(extensionDataReader);
+				return ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, false);
 			case RECORD_SIZE_LIMIT:
 				return RecordSizeLimitExtension.fromExtensionDataReader(extensionDataReader);
 			case EXTENDED_MASTER_SECRET:
@@ -258,11 +260,22 @@ public abstract class HelloExtension {
 		/** See <a href="https://www.iana.org/go/rfc4507" target="_blank">RFC 4507</a> **/
 		SESSION_TICKET_TLS(35, "SessionTicket TLS"),
 
+		/**
+		 * See <a href=
+		 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+		 * target="_blank">Draft dtls-connection-id</a> See <a href=
+		 * "https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY"
+		 * target="_blank">IANA code point assignment</a>
+		 * 
+		 * <b>Note:</b> Before version 9 of the specification, the value 53 was
+		 * used for the extension along with a different calculated MAC.
+		 **/
+		CONNECTION_ID_DEPRECATED(53, "Connection ID (deprecated)"),
 		/** 
 		 * See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/" target="_blank">Draft dtls-connection-id</a>
-		 * See <a href="https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY" target="_blank">IANA code point assignment</a>
+		 * See <a href="https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-1" target="_blank">IANA TLS ExtensionType Values</a>
 		 **/
-		CONNECTION_ID(53, "Connection ID"),
+		CONNECTION_ID(54, "Connection ID"),
 
 		/** See <a href="https://www.iana.org/go/rfc5746" target="_blank">RFC 5746</a> **/
 		RENEGOTIATION_INFO(65281, "renegotiation_info");

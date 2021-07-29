@@ -186,6 +186,15 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private final List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms;
 
+	/**
+	 * Support the deprecated CID extension before version 9 of <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+	 * target="_blank">Draft dtls-connection-id</a>.
+	 * 
+	 * @since 3.0
+	 */
+	private final boolean supportDeprecatedCid;
+
 	private CipherSuiteParameters cipherSuiteParameters;
 
 	/**
@@ -246,6 +255,7 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAndHashAlgorithms = config.getSupportedSignatureAlgorithms();
+		this.supportDeprecatedCid = config.supportsDeprecatedCid();
 		setExpectedStates(CLIENT_HELLO);
 	}
 
@@ -836,12 +846,17 @@ public class ServerHandshaker extends Handshaker {
 		if (supportsConnectionId()) {
 			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
 			if (connectionIdExtension != null) {
-				DTLSContext context = getDtlsContext();
-				context.setWriteConnectionId(connectionIdExtension.getConnectionId());
-				final ConnectionId connectionId = getReadConnectionId();
-				context.setReadConnectionId(connectionId);
-				ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
-				serverHello.addExtension(extension);
+				boolean useDeprecatedCid = connectionIdExtension.useDeprecatedCid();
+				if (!useDeprecatedCid || supportDeprecatedCid) {
+					ConnectionId connectionId = getReadConnectionId();
+					ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId,
+							useDeprecatedCid);
+					serverHello.addExtension(extension);
+					DTLSContext context = getDtlsContext();
+					context.setWriteConnectionId(connectionIdExtension.getConnectionId());
+					context.setReadConnectionId(connectionId);
+					context.setDeprecatedCid(useDeprecatedCid);
+				}
 			}
 		}
 	}
