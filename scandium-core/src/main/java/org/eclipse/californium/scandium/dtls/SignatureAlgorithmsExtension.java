@@ -29,7 +29,6 @@ import org.eclipse.californium.elements.util.StringUtil;
  * @since 2.3
  */
 public class SignatureAlgorithmsExtension extends HelloExtension {
-	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int LIST_LENGTH_BITS = 16;
 
@@ -39,13 +38,9 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 
 	private static final int HASH_BITS = 8;
 
-	// Members ////////////////////////////////////////////////////////
-
 	/** The list holding the supported signature and hash algorithms */
 
 	private final List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Creates an instance using the signature algorithms and the hash
@@ -59,12 +54,35 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 		this.signatureAndHashAlgorithms = signatureAndHashAlgorithms;
 	}
 
-	// Serialization //////////////////////////////////////////////////
+	public List<SignatureAndHashAlgorithm> getSupportedSignatureAndHashAlgorithms() {
+		return signatureAndHashAlgorithms;
+	}
 
 	@Override
-	protected void addExtensionData(DatagramWriter writer) {
+	public String toString() {
+		StringBuilder sb = new StringBuilder(super.toString());
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tSignature Algorithms (")
+				.append(signatureAndHashAlgorithms.size()).append(" algorithms):");
+
+		for (SignatureAndHashAlgorithm signatureAndHashAlgoritm : signatureAndHashAlgorithms) {
+			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tSignature and Hash Algorithm: ")
+					.append(signatureAndHashAlgoritm);
+		}
+		return sb.toString();
+	}
+
+	@Override
+	protected int getExtensionLength() {
+		// fixed: list length (2 bytes)
+		// variable: number of signature algorithms * 2 (1 byte for signature
+		// algorithm, 1 byte for hash algorithm )
+		return (LIST_LENGTH_BITS / Byte.SIZE)
+				+ (signatureAndHashAlgorithms.size() * (SIGNATURE_ALGORITHM_BITS / Byte.SIZE));
+	}
+
+	@Override
+	protected void writeExtensionTo(DatagramWriter writer) {
 		int listLength = signatureAndHashAlgorithms.size() * (SIGNATURE_ALGORITHM_BITS / Byte.SIZE);
-		writer.write(listLength + (LIST_LENGTH_BITS / Byte.SIZE), LENGTH_BITS);
 		writer.write(listLength, LIST_LENGTH_BITS);
 
 		for (SignatureAndHashAlgorithm signatureAndHashAlgorithm : signatureAndHashAlgorithms) {
@@ -73,7 +91,7 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 		}
 	}
 
-	public static HelloExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
+	public static SignatureAlgorithmsExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
 
 		List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms = new ArrayList<SignatureAndHashAlgorithm>();
 		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
@@ -88,44 +106,4 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 		return new SignatureAlgorithmsExtension(signatureAndHashAlgorithms);
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
-	@Override
-	public int getLength() {
-		// fixed: type (2 bytes), length (2 bytes), list length (2 bytes)
-		// variable: number of signature algorithms * 2 (1 byte for signature
-		// algorithm, 1 byte for hash algorithm )
-		return 6 + (signatureAndHashAlgorithms.size() * (SIGNATURE_ALGORITHM_BITS / Byte.SIZE));
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tSignature Algorithms Length: ").append(getLength() - 6);
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tSignature Algorithms (")
-				.append(signatureAndHashAlgorithms.size()).append(" algorithm):");
-
-		for (SignatureAndHashAlgorithm signatureAndHashAlgoritm : signatureAndHashAlgorithms) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tSignature Algorithm: ");
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\t\tSignature Hash Algorithm Hash: ");
-			if (signatureAndHashAlgoritm.getHash() != null) {
-				sb.append(signatureAndHashAlgoritm.getHash());
-			} else {
-				sb.append("unknown");
-			}
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\t\tSignature Hash Algorithm Signature: ");
-			if (signatureAndHashAlgoritm.getSignature() != null) {
-				sb.append(signatureAndHashAlgoritm.getSignature());
-			} else {
-				sb.append("unknown");
-			}
-		}
-		sb.append(StringUtil.lineSeparator());
-		return sb.toString();
-	}
-
-	public List<SignatureAndHashAlgorithm> getSupportedSignatureAndHashAlgorithms() {
-		return signatureAndHashAlgorithms;
-	}
 }

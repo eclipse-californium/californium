@@ -215,7 +215,7 @@ public class ClientHandshakerTest {
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertNotNull(clientHello);
 		CipherSuite cipherSuite = clientHello.getCipherSuites().get(0);
-		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), new Random(), new SessionId(),
+		ServerHello serverHello = new ServerHello(clientHello.getProtocolVersion(), new SessionId(),
 				cipherSuite, CompressionMethod.NULL);
 		serverHello.addExtension(new RecordSizeLimitExtension(100));
 		Record record =  DtlsTestTools.getRecordForMessage(0, 1, serverHello);

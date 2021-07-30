@@ -210,13 +210,13 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
-		} else if (session.useExtendedMasterSecret() && !message.hasExtendedMasterSecret()) {
+		} else if (session.useExtendedMasterSecret() && !message.hasExtendedMasterSecretExtension()) {
 			throw new HandshakeException(
 					"Server wants to change extended master secret in resumed session",
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
-		} else if (!session.getProtocolVersion().equals(message.getServerVersion())) {
+		} else if (!session.getProtocolVersion().equals(message.getProtocolVersion())) {
 			throw new HandshakeException(
 					"Server wants to change protocol version in resumed session",
 					new AlertMessage(

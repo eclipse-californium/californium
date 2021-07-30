@@ -32,13 +32,15 @@ public class ServerHelloTest {
 	@Test
 	public void testGetClientCertificateType() {
 		givenAServerHelloWith(null, CertificateType.RAW_PUBLIC_KEY);
-		assertThat(serverHello.getClientCertificateType(), is(CertificateType.RAW_PUBLIC_KEY));
+		assertThat(serverHello.getClientCertificateTypeExtension().getCertificateType(),
+				is(CertificateType.RAW_PUBLIC_KEY));
 	}
 
 	@Test
 	public void testGetServerCertificateType() {
 		givenAServerHelloWith(CertificateType.RAW_PUBLIC_KEY, null);
-		assertThat(serverHello.getServerCertificateType(), is(CertificateType.RAW_PUBLIC_KEY));
+		assertThat(serverHello.getServerCertificateTypeExtension().getCertificateType(),
+				is(CertificateType.RAW_PUBLIC_KEY));
 	}
 
 	@Test
@@ -63,7 +65,7 @@ public class ServerHelloTest {
 	}
 
 	private void givenAServerHelloWithEmptyExtensions() {
-		serverHello = new ServerHello(ProtocolVersion.VERSION_DTLS_1_2, new Random(), new SessionId(),
+		serverHello = new ServerHello(ProtocolVersion.VERSION_DTLS_1_2, new SessionId(),
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL);
 	}
 }

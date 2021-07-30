@@ -21,11 +21,9 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
-
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -42,10 +40,6 @@ public class ServerNameExtensionTest {
 	byte[] serverNameStructure;
 	ServerNameExtension extension;
 	byte[] iotEclipseOrg = "iot.eclipse.org".getBytes(ServerName.CHARSET);
-	byte[] emptyExtension = new byte[]{
-			(byte) 0x00, (byte) 0x00, // extension code 0x0000
-			(byte) 0x00, (byte) 0x00  // length: 0 bytes
-	};
 
 	/**
 	 * Verifies that an empty extension is serialized correctly.
@@ -56,9 +50,10 @@ public class ServerNameExtensionTest {
 		extension = ServerNameExtension.emptyServerNameIndication();
 
 		assertThat(extension.getServerNames(), is(nullValue()));
-		assertThat(extension.getLength(), is(4)); // 2 bytes extension type + 2 bytes extension length
-
-		assertThat(extension.toByteArray(), is(emptyExtension));
+		assertThat(extension.getExtensionLength(), is(0));
+		DatagramWriter writer = new DatagramWriter();
+		extension.writeExtensionTo(writer);
+		assertThat(writer.size(), is(0));
 	}
 
 	/**
@@ -89,13 +84,12 @@ public class ServerNameExtensionTest {
 	public void testToByteArrayResultCanBeParsedIntoExtensionAgain() throws HandshakeException {
 
 		// GIVEN a serialized server name extension object
-		ServerNameExtension ext = ServerNameExtension.forServerNames(ServerNames.newInstance("iot.eclipse.org"));
-		ByteBuffer b = ByteBuffer.allocate(1024);
-		writeLength(ext.getLength(), b); //extension length
-		b.put(ext.toByteArray());
-		((Buffer)b).flip();
-		serverNameStructure = new byte[b.limit()];
-		b.get(serverNameStructure);
+		DatagramWriter writer = new DatagramWriter();
+
+		HelloExtensions extensions = new HelloExtensions();
+		extensions.addExtension(ServerNameExtension.forServerNames(ServerNames.newInstance("iot.eclipse.org")));
+		extensions.writeTo(writer);
+		serverNameStructure = writer.toByteArray();
 
 		// WHEN parsing the serialized extension
 		whenParsingTheExtensionStruct();
@@ -141,45 +135,41 @@ public class ServerNameExtensionTest {
 		}
 	}
 
-	private void givenAnEmptyServerNameExtensionStruct() {
+	@Test
+	public void testDoubleServerNameType() {
+		ServerNames names = ServerNames.newInstance();
+		ServerName name1 = ServerName.fromHostName("server1");
+		ServerName name2 = ServerName.fromHostName("server2");
+		names.add(name1);
+		try {
+			names.add(name2);
+			fail("didn't detect double hostname.");
+		} catch (IllegalArgumentException ex) {
+		}
+	}
 
-		ByteBuffer b = ByteBuffer.allocate(1024);
-		writeLength(emptyExtension.length, b); // length of extensions list
-		b.put(emptyExtension);
-		((Buffer)b).flip();
-		serverNameStructure = new byte[b.limit()];
-		b.get(serverNameStructure);
+	private void givenAnEmptyServerNameExtensionStruct() {
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(4, 16);
+		writer.write(HelloExtension.ExtensionType.SERVER_NAME.getId(), 16);
+		writer.write(0, 16);
+		serverNameStructure = writer.toByteArray();
 	}
 
 	private void givenAServerNameExtensionStruct(final byte nameType, final byte[] name) {
+		DatagramWriter writer = new DatagramWriter();
+		writer.write(name.length + 9, 16); // id + length + length + type + length
+		writer.write(HelloExtension.ExtensionType.SERVER_NAME.getId(), 16);
+		writer.write(name.length + 2 + 1 + 2, 16); // length + type +  length
+		writer.write(name.length + 1 + 2, 16); // type + length
+		writer.writeByte(nameType);
+		writer.writeVarBytes(name, 16);
 
-		ByteBuffer nameEntry = ByteBuffer.allocate(1024);
-		nameEntry.put(nameType); // name type
-		writeLength(name.length, nameEntry);
-		nameEntry.put(name);
-		((Buffer)nameEntry).flip();
-
-		ByteBuffer ext = ByteBuffer.allocate(1024);
-		ext.put((byte) 0x00).put((byte) 0x00); // type code 0x0000 = server_name
-		writeLength(nameEntry.limit() + 2, ext); //extension_data length
-		writeLength(nameEntry.limit(), ext); // server name list length
-		ext.put(nameEntry);
-		((Buffer)ext).flip();
-
-		ByteBuffer b = ByteBuffer.allocate(1024);
-		writeLength(ext.limit(), b); // length of extensions list
-		b.put(ext);
-		((Buffer)b).flip();
-		serverNameStructure = new byte[b.limit()];
-		b.get(serverNameStructure);
+		serverNameStructure = writer.toByteArray();
 	}
 
 	private void whenParsingTheExtensionStruct() throws HandshakeException {
 		HelloExtensions helloExtensions = HelloExtensions.fromReader(new DatagramReader(serverNameStructure));
 		extension = (ServerNameExtension) helloExtensions.getExtension(ExtensionType.SERVER_NAME);
-	}
-
-	private static void writeLength(final int length, final ByteBuffer buf) {
-		buf.put((byte) (length >> 8 & 0xFF)).put((byte) (length & 0xFF));
 	}
 }

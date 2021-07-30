@@ -474,7 +474,7 @@ public class ServerHandshaker extends Handshaker {
 	 *             created
 	 */
 	protected void receivedClientHello(ClientHello clientHello) throws HandshakeException {
-		negotiateProtocolVersion(clientHello.getClientVersion());
+		negotiateProtocolVersion(clientHello.getProtocolVersion());
 
 		if (!clientHello.getCompressionMethods().contains(CompressionMethod.NULL)) {
 			// abort handshake
@@ -502,7 +502,7 @@ public class ServerHandshaker extends Handshaker {
 				clientHello.getClientCertificateTypeExtension());
 		List<SupportedGroup> commonGroups = getCommonSupportedGroups(clientHello.getSupportedEllipticCurvesExtension());
 		List<SignatureAndHashAlgorithm> commonSignatures = getCommonSignatureAndHashAlgorithms(
-				clientHello.getSupportedSignatureAlgorithms());
+				clientHello.getSupportedSignatureAlgorithmsExtension());
 		ECPointFormat format = negotiateECPointFormat(clientHello.getSupportedPointFormatsExtension());
 
 		this.cipherSuiteParameters = new CipherSuiteParameters(null, null, clientAuthenticationMode, commonCipherSuites,
@@ -568,15 +568,14 @@ public class ServerHandshaker extends Handshaker {
 
 	private void createServerHello(ClientHello clientHello, DTLSFlight flight) throws HandshakeException {
 
-		ProtocolVersion serverVersion = negotiateProtocolVersion(clientHello.getClientVersion());
+		ProtocolVersion serverVersion = negotiateProtocolVersion(clientHello.getProtocolVersion());
 
 		// store client and server random
 		clientRandom = clientHello.getRandom();
-		serverRandom = new Random();
 
 		DTLSSession session = getSession();
 		boolean useSessionId = this.useSessionId;
-		if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED) && !clientHello.hasExtendedMasterSecret()) {
+		if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED) && !clientHello.hasExtendedMasterSecretExtension()) {
 			useSessionId = false;
 		}
 		SessionId sessionId = useSessionId ? new SessionId() : SessionId.emptySessionId();
@@ -584,13 +583,14 @@ public class ServerHandshaker extends Handshaker {
 		session.setProtocolVersion(serverVersion);
 		session.setCompressionMethod(CompressionMethod.NULL);
 
-		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId, session.getCipherSuite(),
+		ServerHello serverHello = new ServerHello(serverVersion, sessionId, session.getCipherSuite(),
 				session.getCompressionMethod());
 		addHelloExtensions(clientHello, serverHello);
 		if (serverHello.getCipherSuite().isEccBased()) {
 			expectEcc();
 		}
 		wrapMessage(flight, serverHello);
+		serverRandom = serverHello.getRandom();
 	}
 
 	private void createCertificateMessage(DTLSFlight flight) {
@@ -766,7 +766,7 @@ public class ServerHandshaker extends Handshaker {
 
 		DTLSSession session = getSession();
 
-		if (clientHello.hasExtendedMasterSecret()) {
+		if (clientHello.hasExtendedMasterSecretExtension()) {
 			if (extendedMasterSecretMode != ExtendedMasterSecretMode.NONE) {
 				session.setExtendedMasterSecret(true);
 				serverHello.addExtension(ExtendedMasterSecretExtension.INSTANCE);

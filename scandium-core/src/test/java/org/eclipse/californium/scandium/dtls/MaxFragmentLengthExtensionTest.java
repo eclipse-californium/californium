@@ -21,6 +21,7 @@ import static org.junit.Assert.fail;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.junit.Test;
@@ -73,7 +74,9 @@ public class MaxFragmentLengthExtensionTest {
 		// when serializing the extension
 		HelloExtensions helloExtensions = new HelloExtensions();
 		helloExtensions.addExtension(extension);
-		maxFragmentLengthStructure = helloExtensions.toByteArray();
+		DatagramWriter writer = new DatagramWriter();
+		helloExtensions.writeTo(writer);
+		maxFragmentLengthStructure = writer.toByteArray();
 
 		assertThat(maxFragmentLengthStructure, is(EXT_512_BYTES));
 	}

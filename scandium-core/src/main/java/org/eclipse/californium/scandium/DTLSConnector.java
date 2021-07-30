@@ -2240,7 +2240,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		ProtocolVersion version = protocolVersionForHelloVerifyRequests;
 		if (version == null) {
 			// no fixed version configured, reply the client's version.
-			version = clientHello.getClientVersion();
+			version = clientHello.getProtocolVersion();
 			if (version.compareTo(ProtocolVersion.VERSION_DTLS_1_0) < 0) {
 				version = ProtocolVersion.VERSION_DTLS_1_0;
 			} else if (version.compareTo(ProtocolVersion.VERSION_DTLS_1_2) > 0) {

@@ -27,35 +27,27 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 
-
 /**
  * The supported elliptic curves extension.
  * 
- * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target= "_blank">RFC
- * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named curves" are
- * valid, the "prime" and "char2" curve descriptions are deprecated.
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target=
+ * "_blank">RFC 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named
+ * curves" are valid, the "prime" and "char2" curve descriptions are deprecated.
  */
 @NoPublicAPI
 public final class SupportedEllipticCurvesExtension extends HelloExtension {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int LIST_LENGTH_BITS = 16;
 
 	private static final int CURVE_BITS = 16;
-	
-	// Members ////////////////////////////////////////////////////////
-	
+
 	/** The list holding the supported groups (named curves) */
 	private final List<SupportedGroup> supportedGroups;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Create supported elliptic curves extension.
 	 * 
-	 * @param supportedGroups
-	 *            the list of supported groups (named curves).
+	 * @param supportedGroups the list of supported groups (named curves).
 	 * 
 	 * @since 2.3
 	 */
@@ -64,12 +56,39 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 		this.supportedGroups = supportedGroups;
 	}
 
-	// Serialization //////////////////////////////////////////////////
+	/**
+	 * Get list of contained supported (and usable) groups (curves).
+	 * 
+	 * @return list of supported groups.
+	 */
+	public List<SupportedGroup> getSupportedGroups() {
+		return supportedGroups;
+	}
 
 	@Override
-	protected void addExtensionData(DatagramWriter writer) {
+	public String toString() {
+		StringBuilder sb = new StringBuilder(super.toString());
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves (").append(supportedGroups.size())
+				.append(" curves):");
+
+		for (SupportedGroup group : supportedGroups) {
+			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tElliptic Curve: ");
+			sb.append(group.name()).append(" (").append(group.getId()).append(")");
+		}
+
+		return sb.toString();
+	}
+
+	@Override
+	protected int getExtensionLength() {
+		// fixed: list length (2 bytes)
+		// variable: number of named curves * 2 (2 bytes for each curve)
+		return (LIST_LENGTH_BITS / Byte.SIZE) + (supportedGroups.size() * (CURVE_BITS / Byte.SIZE));
+	}
+
+	@Override
+	protected void writeExtensionTo(DatagramWriter writer) {
 		int listLength = supportedGroups.size() * (CURVE_BITS / Byte.SIZE);
-		writer.write(listLength + (LIST_LENGTH_BITS / Byte.SIZE), LENGTH_BITS);
 		writer.write(listLength, LIST_LENGTH_BITS);
 
 		for (SupportedGroup group : supportedGroups) {
@@ -77,7 +96,7 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 		}
 	}
 
-	public static HelloExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
+	public static SupportedEllipticCurvesExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
 
 		List<SupportedGroup> groups = new ArrayList<>();
 		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
@@ -91,39 +110,6 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 		}
 
 		return new SupportedEllipticCurvesExtension(Collections.unmodifiableList(groups));
-	}
-
-	// Methods ////////////////////////////////////////////////////////
-
-	@Override
-	public int getLength() {
-		// fixed: type (2 bytes), length (2 bytes), list length (2 bytes)
-		// variable: number of named curves * 2 (2 bytes for each curve)
-		return 6 + (supportedGroups.size() * (CURVE_BITS / Byte.SIZE));
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves Length: ").append(getLength() - 6);
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves (").append(supportedGroups.size()).append(" curves):");
-
-		for (SupportedGroup group : supportedGroups) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tElliptic Curve: ");
-			sb.append(group.name()).append(" (").append(group.getId()).append(")");
-		}
-
-		return sb.toString();
-	}
-
-	/**
-	 * Get list of contained supported (and usable) groups (curves).
-	 * 
-	 * @return list of supported groups.
-	 */
-	public List<SupportedGroup> getSupportedGroups() {
-		return supportedGroups;
 	}
 
 }
