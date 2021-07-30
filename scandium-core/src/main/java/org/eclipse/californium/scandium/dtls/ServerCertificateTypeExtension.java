@@ -20,12 +20,9 @@ package org.eclipse.californium.scandium.dtls;
 import java.util.List;
 
 import org.eclipse.californium.elements.util.DatagramReader;
-import org.eclipse.californium.elements.util.StringUtil;
 
 public class ServerCertificateTypeExtension extends CertificateTypeExtension {
 
-	// Constructors ///////////////////////////////////////////////////
-	
 	private ServerCertificateTypeExtension(DatagramReader extensionDataReader) {
 		super(ExtensionType.SERVER_CERT_TYPE, extensionDataReader);
 	}
@@ -50,16 +47,9 @@ public class ServerCertificateTypeExtension extends CertificateTypeExtension {
 		super(ExtensionType.SERVER_CERT_TYPE, certificateType);
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
+	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-
-		for (CertificateType type : getCertificateTypes()) {
-			sb.append("\t\t\t\tServer certificate type: ").append(type).append(StringUtil.lineSeparator());
-		}
-
-		return sb.toString();
+		return super.toString("Server");
 	}
 
 	/**

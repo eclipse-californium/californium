@@ -26,13 +26,13 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 
-
 /**
  * The supported point formats extension.
  * 
- * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
- * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only only "UNCOMPRESSED"
- * as point format is valid, the other formats have been deprecated.
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target=
+ * "_blank">RFC 8422, 5.1.1. Supported Elliptic Curves Extension</a> only only
+ * "UNCOMPRESSED" as point format is valid, the other formats have been
+ * deprecated.
  */
 @NoPublicAPI
 public class SupportedPointFormatsExtension extends HelloExtension {
@@ -50,7 +50,8 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	 * 
 	 * @since 2.3
 	 */
-	public static final SupportedPointFormatsExtension DEFAULT_POINT_FORMATS_EXTENSION = new SupportedPointFormatsExtension(EC_POINT_FORMATS);
+	public static final SupportedPointFormatsExtension DEFAULT_POINT_FORMATS_EXTENSION = new SupportedPointFormatsExtension(
+			EC_POINT_FORMATS);
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -74,18 +75,10 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	}
 
 	@Override
-	public int getLength() {
-		// fixed: type (2 bytes), length (2 bytes), list length (1 byte)
-		// variable: number of point formats
-		return 5 + ecPointFormatList.size();
-	}
-
-	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\t\t\tLength: ").append(getLength() - 4);
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tEC point formats length: ").append(getLength() - 5);
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves Point Formats (").append(ecPointFormatList.size()).append("):");
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves Point Formats (")
+				.append(ecPointFormatList.size()).append(" formats):");
 
 		for (ECPointFormat format : ecPointFormatList) {
 			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tEC point format: ").append(format.toString());
@@ -94,14 +87,19 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		return sb.toString();
 	}
 
+	@Override
+	protected int getExtensionLength() {
+		// fixed: list length (1 byte)
+		// variable: number of point formats
+		return 1 + ecPointFormatList.size();
+	}
+
 	// Serialization //////////////////////////////////////////////////
 
 	@Override
-	protected void addExtensionData(DatagramWriter writer) {
-		int listLength = ecPointFormatList.size();
+	protected void writeExtensionTo(DatagramWriter writer) {
 		// list length + list length field (1 byte)
-		writer.write(listLength + 1, LENGTH_BITS);
-		writer.write(listLength, LIST_LENGTH_BITS);
+		writer.write(ecPointFormatList.size(), LIST_LENGTH_BITS);
 
 		for (ECPointFormat format : ecPointFormatList) {
 			writer.write(format.getId(), POINT_FORMAT_BITS);
@@ -133,9 +131,8 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	 * 5.1.2. Supported Point Formats Extension</a>.
 	 */
 	public enum ECPointFormat {
-		UNCOMPRESSED(0),
-		ANSIX962_COMPRESSED_PRIME(1),
-		ANSIX962_COMPRESSED_CHAR2(2);
+
+		UNCOMPRESSED(0), ANSIX962_COMPRESSED_PRIME(1), ANSIX962_COMPRESSED_CHAR2(2);
 
 		private final int id;
 

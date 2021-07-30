@@ -17,14 +17,15 @@ package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
 /**
  * Record size limit extension.
  * <p>
- * See <a href="https://tools.ietf.org/html/rfc8449" target="_blank">RFC 8449</a> for additional
- * details.
+ * See <a href="https://tools.ietf.org/html/rfc8449" target="_blank">RFC
+ * 8449</a> for additional details.
  * 
  * @since 2.4
  */
@@ -69,16 +70,21 @@ public final class RecordSizeLimitExtension extends HelloExtension {
 	}
 
 	@Override
-	public int getLength() {
-		// 2 bytes indicating extension type,
-		// 2 bytes overall length,
-		// 2 bytes record size limit
-		return (TYPE_BITS + LENGTH_BITS + RECORD_SIZE_LIMIT_BITS) / Byte.SIZE;
+	public String toString() {
+		StringBuilder sb = new StringBuilder(super.toString());
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tRecord Size Limit: ").append(recordSizeLimit)
+				.append(" bytes");
+		return sb.toString();
 	}
 
 	@Override
-	protected void addExtensionData(final DatagramWriter writer) {
-		writer.write(RECORD_SIZE_LIMIT_BITS / Byte.SIZE, LENGTH_BITS);
+	protected int getExtensionLength() {
+		// 2 bytes record size limit
+		return RECORD_SIZE_LIMIT_BITS / Byte.SIZE;
+	}
+
+	@Override
+	protected void writeExtensionTo(DatagramWriter writer) {
 		writer.write(recordSizeLimit, RECORD_SIZE_LIMIT_BITS);
 	}
 
@@ -90,7 +96,8 @@ public final class RecordSizeLimitExtension extends HelloExtension {
 	 * @throws NullPointerException if extensionData is {@code null}
 	 * @throws HandshakeException if the extension data could not be decoded
 	 */
-	public static RecordSizeLimitExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
+	public static RecordSizeLimitExtension fromExtensionDataReader(DatagramReader extensionDataReader)
+			throws HandshakeException {
 		if (extensionDataReader == null) {
 			throw new NullPointerException("record size limit must not be null!");
 		}

@@ -27,6 +27,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.ListUtils;
 
 /**
@@ -37,8 +38,6 @@ import org.eclipse.californium.scandium.util.ListUtils;
 public abstract class CertificateTypeExtension extends HelloExtension {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CertificateTypeExtension.class);
-
-	// DTLS-specific constants ////////////////////////////////////////
 
 	protected static final int LIST_FIELD_LENGTH_BITS = 8;
 
@@ -57,8 +56,6 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 	 */
 	public static final List<CertificateType> DEFAULT_X509 = asList(CertificateType.X_509);
 
-	// Members ////////////////////////////////////////////////////////
-
 	/**
 	 * Indicates whether this extension belongs to a client or a server. This
 	 * has an impact upon the message format. See
@@ -73,9 +70,8 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 	 * For the server: the certificate selected by the server out of the
 	 * client's list.
 	 */
-	private final List<CertificateType> certificateTypes;
+	protected final List<CertificateType> certificateTypes;
 
-	// Constructors ///////////////////////////////////////////////////
 	/**
 	 * Constructs a certificate type extension with a list of supported
 	 * certificate types, or a selected certificate type chosen by the server.
@@ -175,53 +171,9 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 		this.certificateTypes = asList(certificateType);
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	public boolean isClientExtension() {
 		return isClientExtension;
 	}
-
-	@Override
-	public int getLength() {
-		if (isClientExtension) {
-			// fixed: type (2 bytes), length (2 bytes), the list length field (1
-			// byte)
-			// each certificate type in the list uses 1 byte
-			return 5 + certificateTypes.size();
-		} else {
-			// type (2 bytes), length (2 bytes), the certificate type (1 byte)
-			return 5;
-		}
-	}
-
-	public String toString() {
-		return super.toString();
-	}
-
-	// Serialization //////////////////////////////////////////////////
-
-	@Override
-	protected void addExtensionData(DatagramWriter writer) {
-		if (isClientExtension) {
-			int listLength = certificateTypes.size();
-			// write overall number of bytes
-			// 1 byte for the number of certificate types +
-			// 1 byte for each certificate type
-			writer.write(1 + listLength, LENGTH_BITS);
-			// write number of certificate types
-			writer.write(listLength, LIST_FIELD_LENGTH_BITS);
-			// write one byte for each certificate type
-			for (CertificateType type : certificateTypes) {
-				writer.write(type.getCode(), EXTENSION_TYPE_BITS);
-			}
-		} else {
-			// we assume the list contains exactly one element
-			writer.write(1, LENGTH_BITS);
-			writer.write(certificateTypes.get(0).getCode(), EXTENSION_TYPE_BITS);
-		}
-	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	/**
 	 * Get list of supported certificate types.
@@ -272,6 +224,50 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 			}
 		}
 		return common;
+	}
+
+	public String toString(String side) {
+		StringBuilder sb = new StringBuilder(super.toString());
+		if (isClientExtension()) {
+			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t").append(side).append(" certificate types: (")
+					.append(getCertificateTypes().size()).append(" types)");
+			for (CertificateType type : getCertificateTypes()) {
+				sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\t").append(side).append(" certificate type: ")
+						.append(type);
+			}
+		} else {
+			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t").append(side).append(" certificate type: ")
+					.append(getCertificateType());
+		}
+
+		return sb.toString();
+	}
+
+	@Override
+	protected int getExtensionLength() {
+		if (isClientExtension) {
+			// fixed: the list length field (1 byte)
+			// each certificate type in the list uses 1 byte
+			return 1 + certificateTypes.size();
+		} else {
+			// fixed: the certificate type (1 byte)
+			return 1;
+		}
+	}
+
+	@Override
+	protected void writeExtensionTo(DatagramWriter writer) {
+		if (isClientExtension) {
+			// write number of certificate types
+			writer.write(certificateTypes.size(), LIST_FIELD_LENGTH_BITS);
+			// write one byte for each certificate type
+			for (CertificateType type : certificateTypes) {
+				writer.write(type.getCode(), EXTENSION_TYPE_BITS);
+			}
+		} else {
+			// we assume the list contains exactly one element
+			writer.write(certificateTypes.get(0).getCode(), EXTENSION_TYPE_BITS);
+		}
 	}
 
 	/**

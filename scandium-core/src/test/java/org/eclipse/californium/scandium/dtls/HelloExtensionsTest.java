@@ -51,7 +51,9 @@ public class HelloExtensionsTest {
 
 		HelloExtensions extensions = new HelloExtensions();
 		extensions.addExtension(ext);
-		byte[] serializedExtension = extensions.toByteArray();
+		DatagramWriter writer = new DatagramWriter();
+		extensions.writeTo(writer);
+		byte[] serializedExtension = writer.toByteArray();
 
 		HelloExtensions deserializedExt = HelloExtensions.fromReader(new DatagramReader(serializedExtension));
 		ClientCertificateTypeExtension certTypeExt = (ClientCertificateTypeExtension)
@@ -128,7 +130,7 @@ public class HelloExtensionsTest {
 		extensions.add(ext);
 
 		writer = new DatagramWriter();
-		writer.write(length, HelloExtensions.LENGTH_BITS);
+		writer.write(length, HelloExtensions.OVERALL_LENGTH_BITS);
 		for (byte[] extension : extensions) {
 			writer.writeBytes(extension);
 		}
@@ -147,7 +149,7 @@ public class HelloExtensionsTest {
 		extensions.add(ext);
 
 		DatagramWriter writer = new DatagramWriter();
-		writer.write(length, HelloExtensions.LENGTH_BITS);
+		writer.write(length, HelloExtensions.OVERALL_LENGTH_BITS);
 		for (byte[] extension : extensions) {
 			writer.writeBytes(extension);
 		}
@@ -168,7 +170,7 @@ public class HelloExtensionsTest {
 		extensions.add(ext);
 
 		DatagramWriter writer = new DatagramWriter();
-		writer.write(length, HelloExtensions.LENGTH_BITS);
+		writer.write(length, HelloExtensions.OVERALL_LENGTH_BITS);
 		for (byte[] extension : extensions) {
 			writer.writeBytes(extension);
 		}
@@ -180,7 +182,9 @@ public class HelloExtensionsTest {
 	}
 
 	private void whenSerializingToByteArray() {
-		helloExtensionBytes = helloExtensions.toByteArray();
+		DatagramWriter writer = new DatagramWriter();
+		helloExtensions.writeTo(writer);
+		helloExtensionBytes = writer.toByteArray();
 	}
 
 	private void whenDeserializingFromByteArray() throws HandshakeException {

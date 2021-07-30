@@ -38,15 +38,13 @@ public final class ExtendedMasterSecretExtension extends HelloExtension {
 	}
 
 	@Override
-	public int getLength() {
-		// 2 bytes indicating extension type,
-		// 2 bytes overall length,
-		return (TYPE_BITS + LENGTH_BITS) / Byte.SIZE;
+	protected int getExtensionLength() {
+		return 0;
 	}
 
 	@Override
-	protected void addExtensionData(final DatagramWriter writer) {
-		writer.write(0, LENGTH_BITS);
+	protected void writeExtensionTo(DatagramWriter writer) {
+		// empty
 	}
 
 	/**

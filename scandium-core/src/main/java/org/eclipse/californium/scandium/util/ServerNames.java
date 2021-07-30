@@ -21,7 +21,6 @@ import java.util.Set;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
-import org.eclipse.californium.scandium.dtls.HelloExtensions;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 
 /**
@@ -29,10 +28,11 @@ import org.eclipse.californium.scandium.util.ServerName.NameType;
  *
  */
 public final class ServerNames implements Iterable<ServerName> {
-	private static final int LIST_LENGTH_BITS = 16;
+
+	public static final int LIST_LENGTH_BITS = 16;
+	public static final int NAME_LENGTH_BITS = 16;
 
 	private final Set<ServerName> names;
-	int encodedLength; // overall length
 
 	private ServerNames() {
 		names = new LinkedHashSet<>();
@@ -85,29 +85,50 @@ public final class ServerNames implements Iterable<ServerName> {
 	 * 
 	 * @param serverName The server name to add.
 	 * @return This instance for command chaining.
+	 * @throws NullPointerException if serverName is {@code null}
+	 * @throws IllegalArgumentException if a serverName of the same type is
+	 *             already contained.
+	 * @since 3.0 (replaced IllegalStateException by IllegalArgumentException)
 	 */
 	public ServerNames add(final ServerName serverName) {
 
 		if (serverName == null) {
 			throw new NullPointerException("server name must not be null");
-		} else if (names.contains(serverName)) {
-			throw new IllegalStateException("there already is a name of the given type");
-		} else {
-			names.add(serverName);
-			encodedLength += 1; // type code
-			encodedLength += 2; // name length
-			encodedLength += serverName.getName().length;
-			return this;
+		} else if (getServerName(serverName.getType()) != null) {
+			throw new IllegalArgumentException("there is already a name of the given type");
 		}
+		names.add(serverName);
+		return this;
 	}
 
 	/**
 	 * Gets the number of bytes this server name list is encoded to.
 	 * 
-	 * @return The length in bytes.
+	 * Includes the overall length itself.
+	 * 
+	 * @return {@link #getServerNamesLength()} with the additional size of that
+	 *         encoded length.
+	 * @see #getServerNamesLength()
+	 * @since 3.0
 	 */
-	public int getEncodedLength() {
-		return encodedLength;
+	public int getLength() {
+		return getServerNamesLength() + (LIST_LENGTH_BITS / Byte.SIZE);
+	}
+
+	/**
+	 * Gets the number of bytes this server names are encoded to.
+	 * 
+	 * @return The length in bytes.
+	 * @see #getLength()
+	 * @since 3.0
+	 */
+	public int getServerNamesLength() {
+		int length = 0;
+		for (ServerName serverName : names) {
+			length += 1 + (NAME_LENGTH_BITS / Byte.SIZE);
+			length += serverName.getLength();
+		}
+		return length;
 	}
 
 	/**
@@ -123,23 +144,20 @@ public final class ServerNames implements Iterable<ServerName> {
 	 * Gets the name value of a server name of a particular type.
 	 * 
 	 * @param type The name type.
-	 * @return The name or {@code null} if no name of the given type is part of the extension.
+	 * @return The name or {@code null} if no name of the given type is part of
+	 *         the extension.
 	 */
-	public byte[] get(final ServerName.NameType type) {
-		for (ServerName name : names) {
-			if (name.getType().equals(type)) {
-				return name.getName();
-			}
-		}
-		return null;
+	public byte[] get(ServerName.NameType type) {
+		ServerName serverName = getServerName(type);
+		return serverName == null ? null : serverName.getName();
 	}
 
 	public void encode(DatagramWriter writer) {
-		writer.write(encodedLength, LIST_LENGTH_BITS); //server_names_list_length
+		writer.write(getServerNamesLength(), LIST_LENGTH_BITS); // server_names_list_length
 
 		for (ServerName serverName : names) {
 			writer.writeByte(serverName.getType().getCode()); // name type
-			writer.writeVarBytes(serverName.getName(), HelloExtensions.LENGTH_BITS); // name length
+			writer.writeVarBytes(serverName.getName(), NAME_LENGTH_BITS);
 		}
 	}
 
@@ -150,11 +168,12 @@ public final class ServerNames implements Iterable<ServerName> {
 			NameType nameType = NameType.fromCode(rangeReader.readNextByte());
 			switch (nameType) {
 			case HOST_NAME:
-				byte[] hostname = rangeReader.readVarBytes(HelloExtensions.LENGTH_BITS);
+				byte[] hostname = rangeReader.readVarBytes(NAME_LENGTH_BITS);
 				add(ServerName.from(nameType, hostname));
 				break;
 			default:
-				throw new IllegalArgumentException("ServerNames: unknown name_type!", new IllegalArgumentException(nameType.name()));
+				throw new IllegalArgumentException("ServerNames: unknown name_type!",
+						new IllegalArgumentException(nameType.name()));
 			}
 		}
 	}
@@ -163,12 +182,13 @@ public final class ServerNames implements Iterable<ServerName> {
 	 * Gets the server name of a particular type.
 	 * 
 	 * @param type The name type.
-	 * @return The server name or {@code null} if no server name of the given type is part of the extension.
+	 * @return The server name or {@code null} if no server name of the given
+	 *         type is part of the extension.
 	 */
-	public ServerName getServerName(final ServerName.NameType type) {
-		for (ServerName name : names) {
-			if (name.getType().equals(type)) {
-				return name;
+	public ServerName getServerName(ServerName.NameType type) {
+		for (ServerName serverName : names) {
+			if (serverName.getType().equals(type)) {
+				return serverName;
 			}
 		}
 		return null;

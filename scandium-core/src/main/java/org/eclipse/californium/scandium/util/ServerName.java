@@ -37,13 +37,9 @@ public class ServerName {
 	private final int hashCode;
 
 	private ServerName(final NameType type, final byte[] name) {
-		if (type == null) {
-			throw new NullPointerException("Name type must be provided!");
-		}
 		this.type = type;
 		this.name = name;
 		this.hashCode = 31 * Arrays.hashCode(name) + type.hashCode();
-		
 	}
 
 	/**
@@ -88,6 +84,15 @@ public class ServerName {
 		} else {
 			throw new IllegalArgumentException("not a valid host name");
 		}
+	}
+	/**
+	 * Gets the name's length.
+	 * 
+	 * @return The name's length.
+	 * @since 3.0
+	 */
+	public int getLength() {
+		return name.length;
 	}
 
 	/**

@@ -394,7 +394,7 @@ public class ClientHandshaker extends Handshaker {
 	protected void receivedServerHello(ServerHello message) throws HandshakeException {
 		// store the negotiated values
 
-		ProtocolVersion usedProtocol = message.getServerVersion();
+		ProtocolVersion usedProtocol = message.getProtocolVersion();
 		if (!usedProtocol.equals(ProtocolVersion.VERSION_DTLS_1_2)) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION);
 			throw new HandshakeException("The client only supports DTLS v1.2, not " + usedProtocol + "!", alert);
@@ -420,13 +420,13 @@ public class ClientHandshaker extends Handshaker {
 		if (supportsConnectionId()) {
 			receivedConnectionIdExtension(message.getConnectionIdExtension());
 		}
-		if (message.hasExtendedMasterSecret()) {
+		if (message.hasExtendedMasterSecretExtension()) {
 			session.setExtendedMasterSecret(true);
 		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.REQUIRED) {
 			throw new HandshakeException("Extended Master Secret required!",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
-		session.setSniSupported(message.hasServerNameExtension());
+		session.setSniSupported(message.getServerNameExtension() != null);
 		setExpectedStates(cipherSuite.requiresServerCertificateMessage() ? SEVER_CERTIFICATE : NO_SEVER_CERTIFICATE);
 	}
 
@@ -472,12 +472,12 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		DTLSSession session = getSession();
-		RecordSizeLimitExtension recordSizeLimitExt = message.getRecordSizeLimit();
+		RecordSizeLimitExtension recordSizeLimitExt = message.getRecordSizeLimitExtension();
 		if (recordSizeLimitExt != null) {
 			session.setRecordSizeLimit(recordSizeLimitExt.getRecordSizeLimit());
 		}
 
-		MaxFragmentLengthExtension maxFragmentLengthExtension = message.getMaxFragmentLength();
+		MaxFragmentLengthExtension maxFragmentLengthExtension = message.getMaxFragmentLengthExtension();
 		if (maxFragmentLengthExtension != null) {
 			if (recordSizeLimitExt != null) {
 				throw new HandshakeException("Server wants to use record size limit and max. fragment size",
@@ -493,8 +493,9 @@ public class ClientHandshaker extends Handshaker {
 			}
 		}
 
-		CertificateType serverCertificateType = message.getServerCertificateType();
-		if (serverCertificateType != null) {
+		CertificateTypeExtension certificateTypeExtension = message.getServerCertificateTypeExtension();
+		if (certificateTypeExtension != null) {
+			CertificateType serverCertificateType = certificateTypeExtension.getCertificateType();
 			if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
 				throw new HandshakeException(
 						"Server wants to use not supported server certificate type " + serverCertificateType,
@@ -502,8 +503,9 @@ public class ClientHandshaker extends Handshaker {
 			}
 			session.setReceiveCertificateType(serverCertificateType);
 		}
-		CertificateType clientCertificateType = message.getClientCertificateType();
-		if (clientCertificateType != null) {
+		certificateTypeExtension = message.getClientCertificateTypeExtension();
+		if (certificateTypeExtension != null) {
+			CertificateType clientCertificateType = certificateTypeExtension.getCertificateType();
 			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
 				throw new HandshakeException(
 						"Server wants to use not supported client certificate type " + clientCertificateType,

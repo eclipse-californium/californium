@@ -3477,13 +3477,13 @@ public class DTLSConnectorAdvancedTest {
 			record.decodeFragment(DTLSConnectionState.NULL);
 			final ClientHello clientHello = (ClientHello) record.getFragment();
 			if (!clientHello.hasCookie()) {
-				HelloVerifyRequest request = new HelloVerifyRequest(clientHello.getClientVersion(),
+				HelloVerifyRequest request = new HelloVerifyRequest(clientHello.getProtocolVersion(),
 						new byte[] { 0, 1, 2, 3 });
 				request.setMessageSeq(clientHello.getMessageSeq());
 				// use epoch 0 and sequence no from CLIENT_HELLO record as
 				// mandated by section 4.2.1 of the DTLS 1.2 spec
 				// see http://tools.ietf.org/html/rfc6347#section-4.2.1
-				Record helloVerify = new Record(ContentType.HANDSHAKE, clientHello.getClientVersion(),
+				Record helloVerify = new Record(ContentType.HANDSHAKE, clientHello.getProtocolVersion(),
 						record.getSequenceNumber(), request);
 				helloVerify.setAddress(record.getPeerAddress(), null);
 				byte[] helloVerifyBytes = helloVerify.toByteArray();

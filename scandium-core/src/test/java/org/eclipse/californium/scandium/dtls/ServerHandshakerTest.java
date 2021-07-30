@@ -156,7 +156,7 @@ public class ServerHandshakerTest {
 		assertThat(recordLayer.getSentFlight(), is(notNullValue()));
 		Record record = recordLayer.getSentFlight().get(0);
 		ServerHello serverHello = (ServerHello) record.getFragment();
-		MaxFragmentLengthExtension ext = serverHello.getMaxFragmentLength(); 
+		MaxFragmentLengthExtension ext = serverHello.getMaxFragmentLengthExtension(); 
 		assertThat(ext, is(notNullValue()));
 		assertThat(ext.getFragmentLength().length(), is(512));
 	}

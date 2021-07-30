@@ -286,16 +286,16 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			LOGGER.debug("Cipher-suite {} changed by client hello, switch to full-handshake with peer [{}]!",
 					cipherSuite, peerToLog);
 			return false;
-		} else if (!session.getProtocolVersion().equals(clientHello.getClientVersion())) {
+		} else if (!session.getProtocolVersion().equals(clientHello.getProtocolVersion())) {
 			LOGGER.debug("Protocol version {} changed by client hello {}, switch to full-handshake with peer [{}]!",
-					session.getProtocolVersion(), clientHello.getClientVersion(), peerToLog);
+					session.getProtocolVersion(), clientHello.getProtocolVersion(), peerToLog);
 			return false;
 		} else if (!clientHello.getCompressionMethods().contains(compressionMethod)) {
 			LOGGER.debug("Compression method {} changed by client hello, switch to full-handshake with peer [{}]!",
 					session.getCompressionMethod(), peerToLog);
 			return false;
 		} else if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED)
-				&& !clientHello.hasExtendedMasterSecret()) {
+				&& !clientHello.hasExtendedMasterSecretExtension()) {
 			// https://tools.ietf.org/html/rfc7627#section-5.3
 			//
 			// If the original session used the
@@ -315,7 +315,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					peerToLog);
 			return false;
 		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.OPTIONAL && session.useExtendedMasterSecret()
-				&& !clientHello.hasExtendedMasterSecret()) {
+				&& !clientHello.hasExtendedMasterSecretExtension()) {
 			// https://tools.ietf.org/html/rfc7627#section-5.3
 			//
 			// If the original session used the
@@ -356,15 +356,15 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 		LOGGER.debug("Start resumption-handshake with peer [{}].", peerToLog);
 		clientRandom = clientHello.getRandom();
-		serverRandom = new Random();
 
 		flightNumber += 2;
 		DTLSFlight flight = createFlight();
 
-		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom,
+		ServerHello serverHello = new ServerHello(clientHello.getProtocolVersion(),
 				session.getSessionIdentifier(), cipherSuite, session.getCompressionMethod());
 		addHelloExtensions(clientHello, serverHello);
 		wrapMessage(flight, serverHello);
+		serverRandom = serverHello.getRandom();
 
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 		wrapMessage(flight, changeCipherSpecMessage);

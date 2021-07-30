@@ -17,6 +17,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
@@ -81,16 +82,20 @@ public final class ConnectionIdExtension extends HelloExtension {
 	}
 
 	@Override
-	public int getLength() {
-		// 2 bytes indicating extension type, 2 bytes overall length,
-		// 1 byte cid length + cid
-		return 2 + 2 + 1 + id.length();
+	public String toString() {
+		StringBuilder sb = new StringBuilder(super.toString());
+		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tDTLS Conection ID: ").append(id);
+		return sb.toString();
 	}
 
 	@Override
-	protected void addExtensionData(final DatagramWriter writer) {
-		int length = id.length();
-		writer.write(1 + length, LENGTH_BITS);
+	protected int getExtensionLength() {
+		// 1 byte cid length + cid
+		return (CID_FIELD_LENGTH_BITS / Byte.SIZE) + id.length();
+	}
+
+	@Override
+	protected void writeExtensionTo(DatagramWriter writer) {
 		writer.writeVarBytes(id, CID_FIELD_LENGTH_BITS);
 	}
 
