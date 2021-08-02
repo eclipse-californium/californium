@@ -879,7 +879,9 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * Returns this CoAPCode
+	 * Returns this CoAPCode.
+	 * 
+	 * @return the coap code
 	 */
 	public Code getCoAPCode() {
 		return CoAPCode;

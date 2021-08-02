@@ -1119,7 +1119,7 @@ public class NioNatUtil implements Runnable {
 	 * Get socket address of proxy.
 	 * 
 	 * @return socket address of proxy
-	 * @throws IOException
+	 * @throws IOException If an I/O error occurs
 	 */
 	public InetSocketAddress getProxySocketAddress() throws IOException {
 		return (InetSocketAddress) proxyChannel.getLocalAddress();
