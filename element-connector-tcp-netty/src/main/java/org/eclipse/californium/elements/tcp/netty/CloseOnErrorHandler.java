@@ -30,8 +30,8 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.ssl.NotSslRecordException;
 
 /**
@@ -45,7 +45,7 @@ import io.netty.handler.ssl.NotSslRecordException;
  * all other exceptions are logged as ERROR with a stack trace of the provided
  * cause.
  */
-class CloseOnErrorHandler extends ChannelHandlerAdapter {
+class CloseOnErrorHandler extends ChannelInboundHandlerAdapter {
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(CloseOnErrorHandler.class);
 
