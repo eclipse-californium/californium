@@ -2,10 +2,10 @@
 
 # Californium (Cf) - Migration Hints
 
-June, 2021
+August, 2021
 
-The version 2.x is now out for about more than a year and reached version 2.6.3.
-We currently started to work on a 3.0 starting with removing deprecates APIs.
+The version 2.x is now out for about more than a year and reached version 2.6.4.
+We have already started to work on a 3.0 starting with removing deprecates APIs.
 
 To migrate to the 3.0 this gives some hints to do so. If you miss something, don't hesitate to create an issue.
 
@@ -15,7 +15,9 @@ Please, keep in mind, that the 3.0 API is under develop.
 
 This document doesn't contain hints for migrating versions before 2.0. That excludes also hints to migrate any of the 2.0 MILESTONE releases.
 
-If a 2.0.0 or newer is used, it's recommended to update first to 2.6.3 and cleanup all deprecation using the documentation on the deprecation.
+If a 2.0.0 or newer is used, it's recommended to update first to 2.6.4 and cleanup all deprecation using the documentation on the deprecation.
+
+The version 3.0.0-M3 is the last one with the old `NetworkConfig` and `DtlsConnectorConfig.Builder`. Depending on the usage of these classes, it may be easier to first migrate to that 3.0.0-M3 and then in a final step migrate to the 3.0 adapting for these changes in the configuration.
 
 ## First Experience
 
@@ -121,6 +123,8 @@ The updated proxy2 now processes more coap-options and http-headers.
 
 5) The `SslContextUtil.configure(String, String)` is removed, use `SslContextUtil.configure(String, KeyStoreType)` instead. `KeyStoreType` requires now either a type for the java `KeyStore` implementation, or a `SimpleKeyStore` custom reader.
 
+6) The `Configuration` with the `SystemConfig`, `UdpConfig`, `TcpConfig`, `DtlsConfig`, `CoapConfig`, and `Proxy2Config` replaces the `NetworkConfig`.
+
 ### Scandium:
 
 1) `PskStore`, `StaticPskStore`, `StringPskStore` and `InMemoryPskStore`
@@ -164,6 +168,8 @@ are removed and must be replaced by
 
 16) Change `DtlsConnectorConfig.getPrivateKey`, `getPublicKey`, and `getCertificateChain` are replaced by the introduced `CertificateProvider`. `DtlsConnectorConfig.getCertificateIdentityProvider` is added to access the `CertificateProvider`. The `SingleCertificateProvider` is provided, if only  a single certificate based identity is required. The related setters in the `DtlsConnectorConfig.Builder` are replaced also by `setCertificateIdentityProvider`.
 
+17) Many parameters are moved from `DtlsConnectorConfig.Builder` to `DtlsConfig` and `Configuration`.
+
 ### Californium-Core:
 
 1) The `MessageObserver2` interface is integrated in `MessageObserver`.
@@ -198,6 +204,8 @@ are removed and must be replaced by
 
 14) Removed `CoapEndpoint.Builder.setConnectorWithAutoConfiguration(UDPConnector)`. `Configuration` must now be provided to the Connector's constructors.
 
+15) The `NetworkConfig` is replaced by `SystemConfig`, `UdpConfig`, `TcpConfig`, `CoapConfig` and `Configuration`.
+
 ### Californium-Proxy2:
 
 1) Update to http-client 5.0.3 and http-core 5.0.2. The apache http-components are not encapsulated. Therefore this update causes several API changes, where these classes are used. Please consider the migration information on the [apache http-components web-page](https://hc.apache.org/)
@@ -205,3 +213,5 @@ are removed and must be replaced by
 2) Add package `org.eclipse.californium.proxy2.http` and moved all http-translation relevant classes into that. Rename `HttpTranslator` into `CrossProtocolTranslator`
 
 3) Add package `org.eclipse.californium.proxy2.http.server` and moved the http-server specific classes into that.
+
+4) Add `Proxy2Config`.
