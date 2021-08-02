@@ -35,6 +35,14 @@ import java.util.Arrays;
  * methods, which are based on {@link ByteArrayInputStream#available()}.
  */
 public final class DatagramReader extends DataStreamReader {
+	/**
+	 * Copy of {@link #currentByte}, when {@link #mark()} is called.
+	 */
+	private byte markByte;
+	/**
+	 * Copy of {@link #currentBitIndex}, when {@link #mark()} is called.
+	 */
+	private int markBitIndex;
 
 	/**
 	 * Creates a new reader for an copied array of bytes.
@@ -80,9 +88,35 @@ public final class DatagramReader extends DataStreamReader {
 	 */
 	public DatagramReader(final ByteArrayInputStream byteStream) {
 		super(byteStream);
+		markByte = currentByte;
+		markBitIndex = currentBitIndex;
 	}
 
 	// Methods /////////////////////////////////////////////////////////////////
+	/**
+	 * Mark current position to be reseted afterwards.
+	 * 
+	 * @see #reset()
+	 */
+	public void mark() {
+		markByte = currentByte;
+		markBitIndex = currentBitIndex;
+		byteStream.mark(0);
+	}
+
+	/**
+	 * Reset reader to last mark.
+	 * 
+	 * @see #mark()
+	 */
+	public void reset() {
+		try {
+			byteStream.reset();
+		} catch (IOException e) {
+		}
+		currentByte = markByte;
+		currentBitIndex = markBitIndex;
+	}
 
 	/**
 	 * Close reader. Free resource and clear left bytes.
