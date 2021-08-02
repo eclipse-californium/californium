@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.config.Configuration;
@@ -64,6 +65,7 @@ public class MulticastTestServer {
 		CoapServer server = new CoapServer(config);
 		createEndpoints(server, unicastPort, multicastPort, config);
 		server.add(new HelloWorldResource());
+		server.add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 		server.start();
 	}
 

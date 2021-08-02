@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2020 Bosch.IO GmbH and others.
+ * Copyright (c) 2021 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -12,12 +12,12 @@
  * 
  * Contributors:
  *    Bosch.IO GmbH - initial creation
+ *                    moved from cf-plugtest-server
  ******************************************************************************/
-package org.eclipse.californium.plugtests.resources;
+package org.eclipse.californium.core.server.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
-import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XML;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
@@ -29,25 +29,26 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.util.StringUtil;
-
-import com.upokecenter.cbor.CBORObject;
 
 /**
  * My IP resource.
  * 
- * @since 2.5
+ * In (too) many cases CoAP depends on the used components on the messages IP
+ * route. Especially unaware NATs cause communication problems after a quiet
+ * period. Using this resource enables a coap-client to check, if the address
+ * the server is aware of it, is stable or changing over the time.
+ * 
+ * @since 3.0 (moved from plugtest-server)
  */
-public class MyIp extends CoapResource {
+public class MyIpResource extends CoapResource {
 
 	public static final String RESOURCE_NAME = "myip";
 
-	public MyIp(String name, boolean visible) {
+	public MyIpResource(String name, boolean visible) {
 		super(name, visible);
-		getAttributes().setTitle("MyIp");
+		getAttributes().setTitle("MyIP");
 		getAttributes().addContentType(TEXT_PLAIN);
-		getAttributes().addContentType(APPLICATION_CBOR);
 		getAttributes().addContentType(APPLICATION_JSON);
 		getAttributes().addContentType(APPLICATION_XML);
 	}
@@ -69,16 +70,13 @@ public class MyIp extends CoapResource {
 		byte[] payload = null;
 		switch (accept) {
 		case TEXT_PLAIN:
-			payload = handleGetFormat(exchange, "ip:%s\nport:%d");
-			break;
-		case APPLICATION_CBOR:
-			payload = handleGetCbor(exchange);
+			payload = handleGetFormat(exchange, "%1$s");
 			break;
 		case APPLICATION_JSON:
-			payload = handleGetFormat(exchange, "{ \"ip\" : \"%s\",\n \"port\" : %d }");
+			payload = handleGetFormat(exchange, "{ \"ip\" : \"%2$s\",\n \"port\" : %3$d }");
 			break;
 		case APPLICATION_XML:
-			payload = handleGetFormat(exchange, "<ip host=\"%s\" port=\"%d\" />");
+			payload = handleGetFormat(exchange, "<ip host=\"%2$s\" port=\"%3$d\" />");
 			break;
 		default:
 			String ct = MediaTypeRegistry.toString(accept);
@@ -89,18 +87,10 @@ public class MyIp extends CoapResource {
 		exchange.respond(response);
 	}
 
-	private byte[] handleGetCbor(CoapExchange exchange) {
-		InetSocketAddress source = exchange.advanced().getRequest().getSourceContext().getPeerAddress();
-
-		CBORObject map = CBORObject.NewMap();
-		map.set("ip", CBORObject.FromObject(StringUtil.toString(source.getAddress())));
-		map.set("port", CBORObject.FromObject(source.getPort()));
-		return map.EncodeToBytes();
-	}
-
 	private byte[] handleGetFormat(CoapExchange exchange, String format) {
 		InetSocketAddress source = exchange.advanced().getRequest().getSourceContext().getPeerAddress();
+		String address = StringUtil.toString(source);
 		String host = StringUtil.toString(source.getAddress());
-		return String.format(format, host, source.getPort()).getBytes();
+		return String.format(format, address, host, source.getPort()).getBytes();
 	}
 }

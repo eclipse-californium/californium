@@ -34,6 +34,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -157,6 +158,7 @@ public class SimpleFileServer extends AbstractTestServer {
 	public SimpleFileServer(Configuration config, Map<Select, Configuration> protocolConfig, String coapRootPath, File filesRoot) throws SocketException {
 		super(config, protocolConfig);
 		add(new FileResource(config, coapRootPath, filesRoot));
+		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 	}
 
 	class FileResource extends CoapResource {

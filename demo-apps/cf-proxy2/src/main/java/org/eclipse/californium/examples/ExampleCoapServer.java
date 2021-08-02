@@ -25,6 +25,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -99,6 +100,7 @@ public class ExampleCoapServer {
 			}
 
 		});
+		coapServer.add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 		coapServer.start();
 		System.out.println("Started CoAP server on port " + port);
 		System.out.println("Request: coap://localhost:" + port + RESOURCE);

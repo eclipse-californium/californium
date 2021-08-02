@@ -55,6 +55,7 @@ import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -73,7 +74,6 @@ import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.plugtests.resources.MyContext;
-import org.eclipse.californium.plugtests.resources.MyIp;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
 import org.eclipse.californium.scandium.DtlsManagedClusterConnector;
@@ -567,7 +567,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		// add resources to the server
 		add(new RequestStatistic());
 		add(new Benchmark(noBenchmark, maxResourceSize));
-		add(new MyIp(MyIp.RESOURCE_NAME, true));
+		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 		add(new MyContext(MyContext.RESOURCE_NAME, true));
 	}
 

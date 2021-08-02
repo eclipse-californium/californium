@@ -59,6 +59,7 @@ import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.ServersSerializationUtil;
+import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -85,7 +86,6 @@ import org.eclipse.californium.plugtests.resources.LocationQuery;
 import org.eclipse.californium.plugtests.resources.LongPath;
 import org.eclipse.californium.plugtests.resources.MultiFormat;
 import org.eclipse.californium.plugtests.resources.MyContext;
-import org.eclipse.californium.plugtests.resources.MyIp;
 import org.eclipse.californium.plugtests.resources.Observe;
 import org.eclipse.californium.plugtests.resources.ObserveLarge;
 import org.eclipse.californium.plugtests.resources.ObserveNon;
@@ -674,7 +674,7 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new Shutdown());
 		add(new Hono("telemetry"));
 		add(new Hono("event"));
-		add(new MyIp(MyIp.RESOURCE_NAME, false));
+		add(new MyIpResource(MyIpResource.RESOURCE_NAME, false));
 		add(new MyContext(MyContext.RESOURCE_NAME, false));
 	}
 }

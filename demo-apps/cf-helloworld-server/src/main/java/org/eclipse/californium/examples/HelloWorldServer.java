@@ -27,6 +27,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
@@ -96,6 +97,7 @@ public class HelloWorldServer extends CoapServer {
 		// provide an instance of a Hello-World resource
 		add(new HelloWorldResource());
 		add(new PubSubResource());
+		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 	}
 
 	/*
