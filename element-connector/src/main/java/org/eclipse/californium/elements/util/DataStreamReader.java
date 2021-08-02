@@ -85,15 +85,6 @@ public class DataStreamReader {
 	protected byte currentByte;
 	protected int currentBitIndex;
 
-	/**
-	 * Copy of {@link #currentByte}, when {@link #mark()} is called.
-	 */
-	private byte markByte;
-	/**
-	 * Copy of {@link #currentBitIndex}, when {@link #mark()} is called.
-	 */
-	private int markBitIndex;
-
 	// Constructors ////////////////////////////////////////////////////////////
 
 	/**
@@ -112,36 +103,9 @@ public class DataStreamReader {
 		// initialize bit buffer
 		currentByte = 0;
 		currentBitIndex = -1; // indicates that no byte read yet
-		markByte = currentByte;
-		markBitIndex = currentBitIndex;
 	}
 
 	// Methods /////////////////////////////////////////////////////////////////
-
-	/**
-	 * Mark current position to be reseted afterwards.
-	 * 
-	 * @see #reset()
-	 */
-	public void mark() {
-		markByte = currentByte;
-		markBitIndex = currentBitIndex;
-		byteStream.mark(0);
-	}
-
-	/**
-	 * Reset reader to last mark.
-	 * 
-	 * @see #mark()
-	 */
-	public void reset() {
-		try {
-			byteStream.reset();
-		} catch (IOException e) {
-		}
-		currentByte = markByte;
-		currentBitIndex = markBitIndex;
-	}
 
 	/**
 	 * Close reader. Free resource and clear left bytes.
