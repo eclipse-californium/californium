@@ -460,7 +460,8 @@ public class CertPathUtil {
 		List<X509Certificate> chain = new ArrayList<>(certificates.size());
 		for (Certificate cert : certificates) {
 			if (!(cert instanceof X509Certificate)) {
-				throw new IllegalArgumentException("Given certificate is not X.509! " + cert);
+				throw new IllegalArgumentException(
+						"Given certificate is not X.509!" + cert.getClass());
 			}
 			chain.add((X509Certificate) cert);
 		}

@@ -37,9 +37,6 @@ public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage 
 	/** The reassembled fragments handshake body. */
 	private final byte[] reassembledBytes;
 
-	/** The handshake message's type. */
-	private final HandshakeType type;
-
 	/** The list of fragment ranges. */
 	private final List<FragmentRange> fragments = new ArrayList<>();
 
@@ -122,7 +119,6 @@ public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage 
 	public ReassemblingHandshakeMessage(FragmentedHandshakeMessage message) {
 		super(message.getMessageType());
 		setMessageSeq(message.getMessageSeq());
-		this.type = message.getMessageType();
 		this.reassembledBytes = new byte[message.getMessageLength()];
 		add(0, 0, new FragmentRange(message.getFragmentOffset(), message.getFragmentLength()), message);
 	}
@@ -151,9 +147,9 @@ public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage 
 	 *             fragment exceeds the handshake message.
 	 */
 	public void add(FragmentedHandshakeMessage message) {
-		if (type != message.getMessageType()) {
+		if (getMessageType() != message.getMessageType()) {
 			throw new IllegalArgumentException(
-					"Fragment message type " + message.getMessageType() + " differs from " + type + "!");
+					"Fragment message type " + message.getMessageType() + " differs from " + getMessageType() + "!");
 		} else if (getMessageSeq() != message.getMessageSeq()) {
 			throw new IllegalArgumentException("Fragment message sequence number " + message.getMessageSeq()
 					+ " differs from " + getMessageSeq() + "!");
@@ -235,26 +231,25 @@ public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage 
 	}
 
 	@Override
-	public HandshakeType getMessageType() {
-		return type;
-	}
-
-	@Override
 	public int getMessageLength() {
 		return reassembledBytes.length;
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		sb.append("\tReassembled Handshake Protocol");
-		sb.append(StringUtil.lineSeparator()).append("\tType: ").append(getMessageType());
-		sb.append(StringUtil.lineSeparator()).append("\tMessage Sequence No: ").append(getMessageSeq());
-		sb.append(StringUtil.lineSeparator()).append("\tFragment Offset: ").append(getFragmentOffset());
-		sb.append(StringUtil.lineSeparator()).append("\tFragment Length: ").append(getFragmentLength());
-		sb.append(StringUtil.lineSeparator()).append("\tLength: ").append(getMessageLength());
-		sb.append(StringUtil.lineSeparator());
+	protected String getImplementationTypePrefix() {
+		return "Reassembling ";
+	}
 
+	@Override
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent);
+		String indentation2 = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Reassembled Fragments: ").append(fragments.size()).append(StringUtil.lineSeparator());
+		for (FragmentRange range : fragments) {
+			sb.append(indentation2).append(range).append(StringUtil.lineSeparator());
+		}
 		return sb.toString();
 	}
 

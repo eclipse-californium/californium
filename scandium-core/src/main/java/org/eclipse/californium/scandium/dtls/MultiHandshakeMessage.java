@@ -95,4 +95,9 @@ public class MultiHandshakeMessage extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
+	@Override
+	protected String getImplementationTypePrefix() {
+		return "Multi ";
+	}
+
 }

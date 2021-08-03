@@ -102,15 +102,17 @@ public final class EcdhPskServerKeyExchange extends ECDHServerKeyExchange {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("PSK Identity Hint: ");
 		if (hint.isEmpty()) {
-			sb.append("\t\tPSK Identity Hint: ").append("psk hint not present");
+			sb.append("not present");
 		} else {
-			sb.append("\t\tPSK Identity Hint: ").append(hint);
+			sb.append(hint);
 		}
 		sb.append(StringUtil.lineSeparator());
-		sb.append(super.toString());
 
 		return sb.toString();
 	}

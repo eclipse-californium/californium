@@ -70,10 +70,11 @@ public final class RecordSizeLimitExtension extends HelloExtension {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tRecord Size Limit: ").append(recordSizeLimit)
-				.append(" bytes");
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Record Size Limit: ").append(recordSizeLimit)
+				.append(" bytes").append(StringUtil.lineSeparator());
 		return sb.toString();
 	}
 

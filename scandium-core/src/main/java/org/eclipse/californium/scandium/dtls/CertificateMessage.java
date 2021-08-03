@@ -273,20 +273,26 @@ public final class CertificateMessage extends HandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		String indentation2 = StringUtil.indentation(indent + 2);
 		if (rawPublicKeyBytes == null && certPath != null) {
-			sb.append("\t\tCertificate chain length: ").append(getMessageLength() - 3).append(StringUtil.lineSeparator());
+			List<? extends Certificate> certificates = certPath.getCertificates();
+			sb.append(indentation).append("Certificate chain: ").append(certificates.size()).append(" certificates").append(StringUtil.lineSeparator());
 			int index = 0;
-			for (Certificate cert : certPath.getCertificates()) {
-				sb.append("\t\t\tCertificate Length: ").append(encodedChain.get(index).length).append(StringUtil.lineSeparator());
-				sb.append("\t\t\tCertificate: ").append(cert).append(StringUtil.lineSeparator());
+			for (Certificate cert : certificates) {
+				sb.append(indentation2).append("Certificate Length: ").append(encodedChain.get(index).length).append(" bytes").append(StringUtil.lineSeparator());
+				String text = StringUtil.toDisplayString(cert);
+				sb.append(indentation2).append("Certificate[").append(index).append(".]: ");
+				sb.append(text.replaceAll("\n", "\n" + indentation2)).append(StringUtil.lineSeparator());
 				index++;
 			}
 		} else if (rawPublicKeyBytes != null && certPath == null) {
-			sb.append("\t\tRaw Public Key: ");
-			sb.append(getPublicKey().toString());
+			sb.append(indentation).append("Raw Public Key: ");
+			String text = StringUtil.toDisplayString(publicKey); 
+			sb.append(text.replaceAll("\n", "\n" + indentation2));
 			sb.append(StringUtil.lineSeparator());
 		}
 

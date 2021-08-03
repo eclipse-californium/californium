@@ -148,11 +148,12 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
-		sb.append("\t\tDiffie-Hellman public key: ");
-		sb.append(supportedGroup.name()).append("-").append(StringUtil.byteArray2HexString(encodedPoint, StringUtil.NO_SEPARATOR, 10));
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Diffie-Hellman public key: ");
+		sb.append(supportedGroup.name()).append("-").append(StringUtil.byteArray2HexString(encodedPoint, StringUtil.NO_SEPARATOR, 16));
 		sb.append(StringUtil.lineSeparator());
 
 		return sb.toString();

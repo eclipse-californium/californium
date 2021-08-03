@@ -17,6 +17,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
@@ -47,10 +48,11 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\t\t\tCode: ").append(fragmentLength.code()).append(" (").append(fragmentLength.length())
-				.append(" bytes)");
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Code: ").append(fragmentLength.code()).append(" (").append(fragmentLength.length())
+				.append(" bytes)").append(StringUtil.lineSeparator());
 		return sb.toString();
 	}
 

@@ -40,14 +40,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Represents a general handshake message and defines the common header. The
- * subclasses are responsible for the rest of the message body. See <a
- * href="https://tools.ietf.org/html/rfc6347#section-4.2.2" target="_blank">RFC 6347</a> for the
- * message format.
+ * subclasses are responsible for the rest of the message body. See
+ * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.2" target=
+ * "_blank">RFC 6347</a> for the message format.
  */
 @NoPublicAPI
 public abstract class HandshakeMessage implements DTLSMessage {
 
-	// message header specific constants ////////////////////////////////////////
+	private static final Logger LOGGER = LoggerFactory.getLogger(HandshakeMessage.class);
 
 	public static final int MESSAGE_TYPE_BITS = 8;
 
@@ -59,25 +59,20 @@ public abstract class HandshakeMessage implements DTLSMessage {
 
 	public static final int FRAGMENT_LENGTH_BITS = 24;
 
-	public static final int MESSAGE_HEADER_LENGTH_BYTES = (MESSAGE_TYPE_BITS + MESSAGE_LENGTH_BITS
-			+ MESSAGE_SEQ_BITS + FRAGMENT_OFFSET_BITS + FRAGMENT_LENGTH_BITS) / 8; // 12 bytes
-
-	// Logging ////////////////////////////////////////////////////////
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(HandshakeMessage.class);
-
-	// Members ////////////////////////////////////////////////////////
+	public static final int MESSAGE_HEADER_LENGTH_BYTES = (MESSAGE_TYPE_BITS + MESSAGE_LENGTH_BITS + MESSAGE_SEQ_BITS
+			+ FRAGMENT_OFFSET_BITS + FRAGMENT_LENGTH_BITS) / 8; // 12 bytes
 
 	/**
-	 * Whenever each message is assigned to a flight, the message_seq is set 
+	 * Whenever each message is assigned to a flight, the message_seq is set
 	 * with an incremented value from the {@link Handshaker}.
 	 */
 	private int messageSeq;
 
 	/**
-	 * Used to store the raw incoming message this instance has been created from. Only set
-	 * if this message has been received from an other peer. The rawMessage is used
-	 * to calculate the hash/message digest value sent in the <em>Finished</em> message.
+	 * Used to store the raw incoming message this instance has been created
+	 * from. Only set if this message has been received from an other peer. The
+	 * rawMessage is used to calculate the hash/message digest value sent in the
+	 * <em>Finished</em> message.
 	 */
 	private byte[] rawMessage;
 
@@ -106,8 +101,6 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	protected HandshakeMessage() {
 	}
 
-	// Abstract methods ///////////////////////////////////////////////
-
 	@Override
 	public int size() {
 		return getFragmentLength() + MESSAGE_HEADER_LENGTH_BYTES;
@@ -132,32 +125,45 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	/**
 	 * The serialization of the handshake body (without the handshake header).
 	 * Must be implemented by each subclass. Except the {@link ClientHello}, the
-	 * fragments are considered to be not modified. If a modification is required,
-	 * call {@link #fragmentChanged()}.
+	 * fragments are considered to be not modified. If a modification is
+	 * required, call {@link #fragmentChanged()}.
 	 * 
 	 * @return the raw byte representation of the handshake body.
 	 */
 	public abstract byte[] fragmentToByteArray();
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public final ContentType getContentType() {
 		return ContentType.HANDSHAKE;
 	}
 
+	/**
+	 * Gets the implementation type prefix for logging.
+	 * 
+	 * @return implementation type prefix.
+	 * @since 3.0
+	 */
+	protected String getImplementationTypePrefix() {
+		return "";
+	}
+
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tHandshake Protocol");
-		sb.append(StringUtil.lineSeparator()).append("\tType: ").append(getMessageType());
-		sb.append(StringUtil.lineSeparator()).append("\tMessage Sequence No: ").append(messageSeq);
-		sb.append(StringUtil.lineSeparator()).append("\tLength: ").append(getMessageLength()).append(StringUtil.lineSeparator());
+		String indentation = StringUtil.indentation(indent);
+		sb.append(indentation).append(getImplementationTypePrefix()).append("Handshake Message").append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Type: ").append(getMessageType()).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Message Sequence No: ").append(messageSeq).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Length: ").append(getMessageLength()).append(" bytes")
+				.append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}
 
-	// Serialization //////////////////////////////////////////////////
+	@Override
+	public String toString() {
+		return toString(0);
+	}
 
 	/**
 	 * Returns the raw binary representation of the handshake message. for
@@ -227,8 +233,7 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	 * @return created handshake message
 	 * @throws HandshakeException if handshake message could not be read.
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray)
-			throws HandshakeException {
+	public static HandshakeMessage fromByteArray(byte[] byteArray) throws HandshakeException {
 		try {
 			int offset = 0;
 			HandshakeMessage first = null;
@@ -250,8 +255,8 @@ public abstract class HandshakeMessage implements DTLSMessage {
 				int left = reader.bitsLeft() / Byte.SIZE;
 				if (fragmentLength > left) {
 					throw new HandshakeException(
-							String.format("Message %s fragment length %d exceeds available data %d", type, fragmentLength,
-									left),
+							String.format("Message %s fragment length %d exceeds available data %d", type,
+									fragmentLength, left),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 				}
 
@@ -346,7 +351,8 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	 * @throws HandshakeException if handshake message could not be created.
 	 * @since 2.4
 	 */
-	private static HandshakeMessage fromReader(HandshakeType type, DatagramReader reader, HandshakeParameter parameter) throws HandshakeException {
+	private static HandshakeMessage fromReader(HandshakeType type, DatagramReader reader, HandshakeParameter parameter)
+			throws HandshakeException {
 
 		HandshakeMessage body;
 		switch (type) {
@@ -404,15 +410,14 @@ public abstract class HandshakeMessage implements DTLSMessage {
 			break;
 
 		default:
-			throw new HandshakeException(
-					String.format("Cannot parse unsupported message type %s", type),
+			throw new HandshakeException(String.format("Cannot parse unsupported message type %s", type),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 
 		if (reader.bytesAvailable()) {
 			int bytesLeft = reader.bitsLeft() / Byte.SIZE;
-			throw new HandshakeException(
-					String.format("Too many bytes, %d left, message not completely parsed! message type %s", bytesLeft, type),
+			throw new HandshakeException(String
+					.format("Too many bytes, %d left, message not completely parsed! message type %s", bytesLeft, type),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 		}
 
@@ -438,8 +443,7 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		case ECDHE_PSK:
 			return EcdhPskServerKeyExchange.fromReader(reader);
 		default:
-			throw new HandshakeException(
-					"Unsupported key exchange algorithm",
+			throw new HandshakeException("Unsupported key exchange algorithm",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 
@@ -464,8 +468,7 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		case ECDHE_PSK:
 			return EcdhPskClientKeyExchange.fromReader(reader);
 		default:
-			throw new HandshakeException(
-					"Unknown key exchange algorithm",
+			throw new HandshakeException("Unknown key exchange algorithm",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 	}
@@ -511,7 +514,8 @@ public abstract class HandshakeMessage implements DTLSMessage {
 			throw new IllegalStateException("message is already serialized!");
 		}
 		if (messageSeq < 0 || messageSeq > 0xffff) {
-			throw new IllegalArgumentException("Handshake message sequence number " + messageSeq + " out of range [0...65535]!");
+			throw new IllegalArgumentException(
+					"Handshake message sequence number " + messageSeq + " out of range [0...65535]!");
 		}
 		this.messageSeq = messageSeq;
 	}
@@ -536,13 +540,12 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	}
 
 	/**
-	 * Gets the raw bytes of the message received from a client that this instance
-	 * has been created from.
-	 * The raw message is used for calculating the handshake hash sent in the
-	 * <em>FINISHED</em> message.
+	 * Gets the raw bytes of the message received from a client that this
+	 * instance has been created from. The raw message is used for calculating
+	 * the handshake hash sent in the <em>FINISHED</em> message.
 	 * 
 	 * @return the message or <code>null</code> if this instance has not been
-	 *            created from a message received from a client.
+	 *         created from a message received from a client.
 	 */
 	protected final byte[] getRawMessage() {
 		return rawMessage;

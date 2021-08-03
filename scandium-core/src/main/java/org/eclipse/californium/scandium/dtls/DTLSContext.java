@@ -262,7 +262,7 @@ public final class DTLSContext implements Destroyable {
 				mac.init(clusterWriteMacKey);
 				return mac;
 			} catch (InvalidKeyException e) {
-				LOGGER.info("cluster write MAC failed!", e);
+				LOGGER.info("cluster write MAC error", e);
 			}
 		}
 		return null;
@@ -282,7 +282,7 @@ public final class DTLSContext implements Destroyable {
 				mac.init(clusterReadMacKey);
 				return mac;
 			} catch (InvalidKeyException e) {
-				LOGGER.info("cluster read MAC failed!", e);
+				LOGGER.info("cluster read MAC error!", e);
 			}
 		}
 		return null;
@@ -661,8 +661,10 @@ public final class DTLSContext implements Destroyable {
 		long bitMask = 1L << (sequenceNo - receiveWindowLowerBoundary);
 		// mark sequence number as "received" in receive window
 		receivedRecordsVector |= bitMask;
-		LOGGER.debug("Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
-				sequenceNo, receiveWindowUpperCurrent, Long.toBinaryString(receivedRecordsVector));
+		if (LOGGER.isDebugEnabled()) {
+			LOGGER.debug("Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
+					sequenceNo, receiveWindowUpperCurrent, Long.toBinaryString(receivedRecordsVector));
+		}
 		return newest;
 	}
 

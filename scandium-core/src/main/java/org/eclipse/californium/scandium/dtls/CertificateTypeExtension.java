@@ -226,18 +226,20 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 		return common;
 	}
 
-	public String toString(String side) {
-		StringBuilder sb = new StringBuilder(super.toString());
+	public String toString(int indent, String side) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
 		if (isClientExtension()) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t").append(side).append(" certificate types: (")
-					.append(getCertificateTypes().size()).append(" types)");
+			sb.append(indentation).append(side).append(" certificate types: (").append(getCertificateTypes().size())
+					.append(" types)").append(StringUtil.lineSeparator());
+			String indentation2 = StringUtil.indentation(indent + 2);
 			for (CertificateType type : getCertificateTypes()) {
-				sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\t").append(side).append(" certificate type: ")
-						.append(type);
+				sb.append(indentation2).append(side).append(" certificate type: ").append(type)
+						.append(StringUtil.lineSeparator());
 			}
 		} else {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t").append(side).append(" certificate type: ")
-					.append(getCertificateType());
+			sb.append(indentation).append(side).append(" certificate type: ").append(getCertificateType())
+					.append(StringUtil.lineSeparator());
 		}
 
 		return sb.toString();

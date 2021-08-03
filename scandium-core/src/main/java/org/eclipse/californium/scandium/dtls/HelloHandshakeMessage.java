@@ -168,16 +168,17 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
-		sb.append("\t\tVersion: ").append(protocolVersion.getMajor()).append(", ").append(protocolVersion.getMinor());
-		sb.append(StringUtil.lineSeparator()).append("\t\tRandom:").append(StringUtil.lineSeparator()).append(random);
-		sb.append("\t\tSession ID Length: ").append(sessionId.length());
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Version: ").append(protocolVersion.getMajor()).append(", ").append(protocolVersion.getMinor()).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Random:").append(StringUtil.lineSeparator());
+		sb.append(random.toString(indent + 2));
+		sb.append(indentation).append("Session ID Length: ").append(sessionId.length()).append(" bytes").append(StringUtil.lineSeparator());
 		if (sessionId.length() > 0) {
-			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(sessionId);
+			sb.append(indentation).append("Session ID: ").append(sessionId).append(StringUtil.lineSeparator());
 		}
-
 		return sb.toString();
 	}
 

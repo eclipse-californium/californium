@@ -114,12 +114,15 @@ public class DtlsBlockConnectionState extends DTLSConnectionState {
 
 	@Override
 	public final String toString() {
-		StringBuilder b = new StringBuilder("DtlsBlockConnectionState:");
-		b.append(StringUtil.lineSeparator()).append("\tCipher suite: ").append(cipherSuite);
-		b.append(StringUtil.lineSeparator()).append("\tCompression method: ").append(compressionMethod);
-		b.append(StringUtil.lineSeparator()).append("\tMAC key: ").append(macKey == null ? "null" : "not null");
-		b.append(StringUtil.lineSeparator()).append("\tEncryption key: ")
-				.append(encryptionKey == null ? "null" : "not null");
+		StringBuilder b = new StringBuilder("DtlsBlockConnectionState:").append(StringUtil.lineSeparator());
+		String indentation = StringUtil.indentation(1);
+		b.append(indentation).append("Cipher suite: ").append(cipherSuite).append(StringUtil.lineSeparator());
+		b.append(indentation).append("Compression method: ").append(compressionMethod)
+				.append(StringUtil.lineSeparator());
+		b.append(indentation).append("MAC key: ").append(macKey == null ? "null" : "not null")
+				.append(StringUtil.lineSeparator());
+		b.append(indentation).append("Encryption key: ").append(encryptionKey == null ? "null" : "not null")
+				.append(StringUtil.lineSeparator());
 		return b.toString();
 	}
 

@@ -215,15 +215,21 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tAlert Protocol").append(StringUtil.lineSeparator());
-		sb.append("\tLevel: ").append(level).append(StringUtil.lineSeparator());
-		sb.append("\tDescription: ").append(description).append(StringUtil.lineSeparator());
+		String indentation = StringUtil.indentation(indent);
+		sb.append(indentation).append("Alert Protocol").append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Level: ").append(level).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Description: ").append(description).append(StringUtil.lineSeparator());
 		if (protocolVersion != null) {
-			sb.append("\tProtocol Version: ").append(protocolVersion).append(StringUtil.lineSeparator());
+			sb.append(indentation).append("Protocol Version: ").append(protocolVersion).append(StringUtil.lineSeparator());
 		}
 		return sb.toString();
+	}
+
+	@Override
+	public String toString() {
+		return toString(0);
 	}
 
 	// Serialization //////////////////////////////////////////////////

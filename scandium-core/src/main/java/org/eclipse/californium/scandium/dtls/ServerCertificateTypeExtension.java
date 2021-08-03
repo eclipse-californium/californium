@@ -48,8 +48,8 @@ public class ServerCertificateTypeExtension extends CertificateTypeExtension {
 	}
 
 	@Override
-	public String toString() {
-		return super.toString("Server");
+	public String toString(int indent) {
+		return super.toString(indent, "Server");
 	}
 
 	/**

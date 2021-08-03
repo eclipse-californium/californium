@@ -27,8 +27,9 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 public interface DTLSMessage {
 
 	/**
-	 * Gets the number of bytes representing this message as defined
-	 * by <a href="https://tools.ietf.org/html/rfc5246#appendix-A" target="_blank">TLS 1.2, Appendix A</a>.
+	 * Gets the number of bytes representing this message as defined by
+	 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A" target=
+	 * "_blank">TLS 1.2, Appendix A</a>.
 	 * 
 	 * @return number of bytes
 	 * @since 2.4
@@ -36,8 +37,9 @@ public interface DTLSMessage {
 	int size();
 
 	/**
-	 * Gets the byte array representation of this message as defined
-	 * by <a href="https://tools.ietf.org/html/rfc5246#appendix-A" target="_blank">TLS 1.2, Appendix A</a>.
+	 * Gets the byte array representation of this message as defined by
+	 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A" target=
+	 * "_blank">TLS 1.2, Appendix A</a>.
 	 * 
 	 * @return the byte array
 	 */
@@ -50,4 +52,12 @@ public interface DTLSMessage {
 	 */
 	ContentType getContentType();
 
+	/**
+	 * Gets the textual presentation of this message.
+	 * 
+	 * @param indent line indentation
+	 * @return textual presentation
+	 * @since 3.0
+	 */
+	String toString(int indent);
 }

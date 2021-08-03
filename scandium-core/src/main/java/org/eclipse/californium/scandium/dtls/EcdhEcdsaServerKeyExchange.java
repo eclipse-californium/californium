@@ -38,15 +38,16 @@ import org.slf4j.LoggerFactory;
 /**
  * The server's ephemeral ECDH with ECDSA signatures.
  * 
- * See <a href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
- * RFC 4492, section 5.4 Server Key Exchange</a> for details regarding
- * the message format.
+ * See
+ * <a href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
+ * RFC 4492, section 5.4 Server Key Exchange</a> for details regarding the
+ * message format.
  * 
- * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
- * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named curves" are
- * valid, the "prime" and "char2" curve descriptions are deprecated. Also only
- * "UNCOMPRESSED" as point format is valid, the other formats have been
- * deprecated.
+ * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target=
+ * "_blank">RFC 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named
+ * curves" are valid, the "prime" and "char2" curve descriptions are deprecated.
+ * Also only "UNCOMPRESSED" as point format is valid, the other formats have
+ * been deprecated.
  * 
  * @since 2.3
  */
@@ -65,7 +66,10 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 	private final byte[] signatureEncoded;
 
-	/** The signature and hash algorithm which must be included into the digitally-signed struct. */
+	/**
+	 * The signature and hash algorithm which must be included into the
+	 * digitally-signed struct.
+	 */
 	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
 
 	// Constructors //////////////////////////////////////////////////
@@ -73,19 +77,14 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	/**
 	 * Called by server with generated ephemeral keys and generates signature.
 	 * 
-	 * @param signatureAndHashAlgorithm
-	 *            the algorithm to use
-	 * @param ecdhe
-	 *            the ECDHE helper class. Contains generated ephemeral keys.
-	 * @param serverPrivateKey
-	 *            the server's private key
-	 * @param clientRandom
-	 *            the client's random (used for signature)
-	 * @param serverRandom
-	 *            the server's random (used for signature)
+	 * @param signatureAndHashAlgorithm the algorithm to use
+	 * @param ecdhe the ECDHE helper class. Contains generated ephemeral keys.
+	 * @param serverPrivateKey the server's private key
+	 * @param clientRandom the client's random (used for signature)
+	 * @param serverRandom the server's random (used for signature)
 	 * @throws HandshakeException if generating the signature providing prove of
-	 *            possession of the private key fails, e.g. due to an unsupported
-	 *            signature or hash algorithm or an invalid key
+	 *             possession of the private key fails, e.g. due to an
+	 *             unsupported signature or hash algorithm or an invalid key
 	 */
 	public EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
 			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom) throws HandshakeException {
@@ -106,8 +105,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 			updateSignature(signature, clientRandom, serverRandom);
 			signatureEncoded = signature.sign();
 		} catch (GeneralSecurityException e) {
-			throw new HandshakeException(
-					String.format("Server failed to sign key exchange: %s", e.getMessage()),
+			throw new HandshakeException(String.format("Server failed to sign key exchange: %s", e.getMessage()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 	}
@@ -115,17 +113,14 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	/**
 	 * Called when reconstructing from the byte array.
 	 * 
-	 * @param signatureAndHashAlgorithm
-	 *            the algorithm to use
-	 * @param supportedGroup
-	 *            the supported group (curve)
-	 * @param encodedPoint
-	 *            the encoded point of the other peeer (public key)
-	 * @param signatureEncoded
-	 *            the signature (encoded)
+	 * @param signatureAndHashAlgorithm the algorithm to use
+	 * @param supportedGroup the supported group (curve)
+	 * @param encodedPoint the encoded point of the other peer (public key)
+	 * @param signatureEncoded the signature (encoded)
+	 * @throws NullPointerException if any of the parameters are {@code null}
 	 */
-	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, SupportedGroup supportedGroup, byte[] encodedPoint,
-			byte[] signatureEncoded) {
+	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm,
+			SupportedGroup supportedGroup, byte[] encodedPoint, byte[] signatureEncoded) {
 		super(supportedGroup, encodedPoint);
 		if (signatureAndHashAlgorithm == null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
@@ -150,7 +145,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 		// signature
 		if (signatureEncoded != null) {
-			// according to http://tools.ietf.org/html/rfc5246#section-A.7 the
+			// according to
+			// https://datatracker.ietf.org/doc/html/rfc5246#appendix-A.7 the
 			// signature algorithm must also be included
 			writer.write(signatureAndHashAlgorithm.getHash().getCode(), HASH_ALGORITHM_BITS);
 			writer.write(signatureAndHashAlgorithm.getSignature().getCode(), SIGNATURE_ALGORITHM_BITS);
@@ -163,7 +159,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	public static HandshakeMessage fromReader(DatagramReader reader) throws HandshakeException {
 		EcdhData ecdhData = readNamedCurve(reader);
 		// default is SHA256withECDSA
-		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
+		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(
+				SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
 
 		byte[] signatureEncoded = null;
 		if (reader.bytesAvailable()) {
@@ -172,7 +169,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 			signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 			signatureEncoded = reader.readVarBytes(SIGNATURE_LENGTH_BITS);
 		}
-		return new EcdhEcdsaServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint, signatureEncoded);
+		return new EcdhEcdsaServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint,
+				signatureEncoded);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -181,16 +179,13 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 * Called by the client after receiving the server's
 	 * {@link ServerKeyExchange} message. Verifies the contained signature.
 	 * 
-	 * @param serverPublicKey
-	 *            the server's public key.
-	 * @param clientRandom
-	 *            the client's random (used in signature).
-	 * @param serverRandom
-	 *            the server's random (used in signature).
-	 * @throws HandshakeException
-	 *             if the signature could not be verified.
+	 * @param serverPublicKey the server's public key.
+	 * @param clientRandom the client's random (used in signature).
+	 * @param serverRandom the server's random (used in signature).
+	 * @throws HandshakeException if the signature could not be verified.
 	 */
-	public void verifySignature(PublicKey serverPublicKey, Random clientRandom, Random serverRandom) throws HandshakeException {
+	public void verifySignature(PublicKey serverPublicKey, Random clientRandom, Random serverRandom)
+			throws HandshakeException {
 		if (signatureEncoded == null) {
 			// no signature available, nothing to verify
 			return;
@@ -206,9 +201,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 			verified = signature.verify(signatureEncoded);
 
 		} catch (GeneralSecurityException e) {
-			LOGGER.error("Could not verify the server's signature.",e);
+			LOGGER.error("Could not verify the server's signature.", e);
 		}
-
 		if (!verified) {
 			String message = "The server's ECDHE key exchange message's signature could not be verified.";
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
@@ -218,34 +212,35 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 	/**
 	 * Update the signature: SHA(ClientHello.random + ServerHello.random +
-	 * ServerKeyExchange.params). See <a
-	 * href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">RFC 4492, Section
-	 * 5.4. Server Key Exchange</a> for further details on the signature format.
+	 * ServerKeyExchange.params). See
+	 * <a href="https://tools.ietf.org/html/rfc4492#section-5.4" target=
+	 * "_blank">RFC 4492, Section 5.4. Server Key Exchange</a> for further
+	 * details on the signature format.
 	 * 
-	 * @param signature
-	 *            the signature
-	 * @param clientRandom
-	 *            the client random
-	 * @param serverRandom
-	 *            the server random
-	 * @throws SignatureException
-	 *             the signature exception
+	 * @param signature the signature
+	 * @param clientRandom the client random
+	 * @param serverRandom the server random
+	 * @throws SignatureException the signature exception
 	 */
-	private void updateSignature(Signature signature, Random clientRandom, Random serverRandom) throws SignatureException {
+	private void updateSignature(Signature signature, Random clientRandom, Random serverRandom)
+			throws SignatureException {
 		signature.update(clientRandom.getBytes());
 		signature.update(serverRandom.getBytes());
 		updateSignatureForNamedCurve(signature);
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
-		if (signatureEncoded != null)
-		sb.append("\t\tSignature: ");
-		sb.append(signatureAndHashAlgorithm.toString()).append("-").append(StringUtil.byteArray2HexString(signatureEncoded, StringUtil.NO_SEPARATOR, 10));
-		sb.append(StringUtil.lineSeparator());
-
-		return sb.toString();
+	public String toString(int indent) {
+		String text = super.toString(indent);
+		if (signatureEncoded != null) {
+			StringBuilder sb = new StringBuilder(text);
+			String indentation = StringUtil.indentation(indent + 1);
+			sb.append(indentation).append("Signature: ");
+			sb.append(signatureAndHashAlgorithm).append("-");
+			sb.append(StringUtil.byteArray2HexString(signatureEncoded, StringUtil.NO_SEPARATOR, 16));
+			sb.append(StringUtil.lineSeparator());
+			text = sb.toString();
+		}
+		return text;
 	}
 }

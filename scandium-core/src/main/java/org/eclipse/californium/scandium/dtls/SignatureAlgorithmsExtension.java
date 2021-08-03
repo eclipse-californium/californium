@@ -59,14 +59,16 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tSignature Algorithms (")
-				.append(signatureAndHashAlgorithms.size()).append(" algorithms):");
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		String indentation2 = StringUtil.indentation(indent + 2);
+		sb.append(indentation).append("Signature Algorithms (").append(signatureAndHashAlgorithms.size())
+				.append(" algorithms):").append(StringUtil.lineSeparator());
 
 		for (SignatureAndHashAlgorithm signatureAndHashAlgoritm : signatureAndHashAlgorithms) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tSignature and Hash Algorithm: ")
-					.append(signatureAndHashAlgoritm);
+			sb.append(indentation2).append("Signature and Hash Algorithm: ").append(signatureAndHashAlgoritm)
+					.append(StringUtil.lineSeparator());
 		}
 		return sb.toString();
 	}

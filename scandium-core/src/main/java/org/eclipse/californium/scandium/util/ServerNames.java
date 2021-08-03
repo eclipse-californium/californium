@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 
 /**
@@ -199,18 +200,20 @@ public final class ServerNames implements Iterable<ServerName> {
 		return names.iterator();
 	}
 
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder();
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Server Names[").append(size()).append(" entries");
+		for (ServerName serverName : this) {
+			sb.append(", '").append(serverName.getNameAsString()).append("' (").append(serverName.getType()).append(")");
+		}
+		sb.append("]");
+		return sb.toString();
+	}
+
 	@Override
 	public String toString() {
-		StringBuilder b = new StringBuilder("ServerNames[");
-		Iterator<ServerName> iter = names.iterator();
-		while (iter.hasNext()) {
-			b.append(iter.next().getNameAsString());
-			if (iter.hasNext()) {
-				b.append(", ");
-			}
-		}
-		b.append("]");
-		return b.toString();
+		return toString(0);
 	}
 
 	@Override

@@ -47,8 +47,9 @@ public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 		super(ExtensionType.CLIENT_CERT_TYPE, certificateType);
 	}
 
-	public String toString() {
-		return super.toString("Client");
+	@Override
+	public String toString(int indent) {
+		return super.toString(indent, "Client");
 	}
 
 	/**

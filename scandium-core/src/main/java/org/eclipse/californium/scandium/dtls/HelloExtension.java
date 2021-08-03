@@ -21,6 +21,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.slf4j.Logger;
@@ -89,12 +90,25 @@ public abstract class HelloExtension {
 	 */
 	protected abstract void writeExtensionTo(DatagramWriter writer);
 
+	
+	/**
+	 * Gets the textual presentation of this message.
+	 * 
+	 * @param indent line indentation
+	 * @return textual presentation
+	 * @since 3.0
+	 */
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder();
+		String indentation = StringUtil.indentation(indent);
+		sb.append(indentation).append("Extension: ").append(type).append(" (").append(type.getId()).append("), ")
+				.append(getExtensionLength()).append(" bytes").append(StringUtil.lineSeparator());
+		return sb.toString();
+	}
+
 	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		sb.append("\t\t\tExtension: ").append(type).append(" (").append(type.getId()).append("), ")
-				.append(getExtensionLength()).append(" bytes");
-		return sb.toString();
+		return toString(0);
 	}
 
 	final ExtensionType getType() {

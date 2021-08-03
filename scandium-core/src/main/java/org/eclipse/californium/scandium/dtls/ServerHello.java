@@ -158,12 +158,12 @@ public final class ServerHello extends HelloHandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suite: ").append(cipherSuite);
-		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Method: ").append(compressionMethod);
-
-		sb.append(StringUtil.lineSeparator()).append(extensions);
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Cipher Suite: ").append(cipherSuite).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Compression Method: ").append(compressionMethod).append(StringUtil.lineSeparator());
+		sb.append(extensions.toString(indent + 1));
 
 		return sb.toString();
 	}
