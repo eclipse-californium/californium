@@ -20,7 +20,6 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -98,18 +97,12 @@ public final class ServerNameExtension extends HelloExtension {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
+	public String toString(int indent) {
+		String text = super.toString(indent);
 		if (serverNames != null) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\tServer Names: (").append(serverNames.size())
-					.append(" names)");
-
-			for (ServerName serverName : serverNames) {
-				sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tServer Name: ")
-						.append(serverName.getNameAsString()).append(" (").append(serverName.getType()).append(")");
-			}
+			text = text + serverNames.toString(indent + 1) + StringUtil.lineSeparator();
 		}
-		return sb.toString();
+		return text;
 	}
 
 	@Override

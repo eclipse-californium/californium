@@ -60,9 +60,10 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append("\t\tPSK Identity Hint: ").append(hint).append(StringUtil.lineSeparator());
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("PSK Identity Hint: ").append(hint).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

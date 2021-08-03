@@ -119,11 +119,12 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
-		sb.append("\t\tDiffie-Hellman public value: ");
-		sb.append(StringUtil.byteArray2HexString(encodedPoint));
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Diffie-Hellman public value: ");
+		sb.append(StringUtil.byteArray2HexString(encodedPoint, StringUtil.NO_SEPARATOR, 16));
 		sb.append(StringUtil.lineSeparator());
 
 		return sb.toString();

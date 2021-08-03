@@ -51,8 +51,7 @@ public class Random extends Bytes {
 		}
 	}
 
-	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
 		byte[] randomBytes = getBytes();
 		// get the UNIX timestamp from the first 4 bytes
@@ -65,13 +64,20 @@ public class Random extends Bytes {
 
 		Date date = new Date(gmtUnixTime * 1000L);
 
-		sb.append("\t\t\tGMT Unix Time: ").append(date).append(StringUtil.lineSeparator());
+		String indentation = StringUtil.indentation(indent);
+
+		sb.append(indentation).append("GMT Unix Time: ").append(date).append(StringUtil.lineSeparator());
 
 		// output the remaining 28 random bytes
 		byte[] rand = Arrays.copyOfRange(randomBytes, 4, 32);
-		sb.append("\t\t\tRandom Bytes: ").append(StringUtil.byteArray2Hex(rand)).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Random Bytes: ").append(StringUtil.byteArray2Hex(rand)).append(StringUtil.lineSeparator());
 
 		return sb.toString();
+	}
+
+	@Override
+	public String toString() {
+		return toString(0);
 	}
 
 	/**

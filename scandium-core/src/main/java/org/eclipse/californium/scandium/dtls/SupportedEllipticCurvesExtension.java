@@ -66,14 +66,15 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append(StringUtil.lineSeparator()).append("\t\t\t\tElliptic Curves (").append(supportedGroups.size())
-				.append(" curves):");
-
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		String indentation2 = StringUtil.indentation(indent + 2);
+		sb.append(indentation).append("Elliptic Curves (").append(supportedGroups.size()).append(" curves):")
+				.append(StringUtil.lineSeparator());
 		for (SupportedGroup group : supportedGroups) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\t\t\tElliptic Curve: ");
-			sb.append(group.name()).append(" (").append(group.getId()).append(")");
+			sb.append(indentation2).append("Elliptic Curve: ").append(group.name()).append(" (").append(group.getId())
+					.append(")").append(StringUtil.lineSeparator());
 		}
 
 		return sb.toString();

@@ -20,6 +20,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 
@@ -80,8 +81,13 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 	}
 
 	@Override
+	public String toString(int indent) {
+		return StringUtil.indentation(indent) + "Change Cipher Spec Message" + StringUtil.lineSeparator();
+	}
+
+	@Override
 	public String toString() {
-		return "\tChange Cipher Spec Message\n";
+		return toString(0);
 	}
 
 	@Override

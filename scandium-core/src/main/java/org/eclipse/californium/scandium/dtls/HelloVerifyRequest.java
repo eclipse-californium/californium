@@ -176,14 +176,14 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
-		sb.append("\t\tServer Version: ").append(serverVersion).append(StringUtil.lineSeparator());
-		sb.append("\t\tCookie Length: ").append(cookie.length).append(StringUtil.lineSeparator());
-		sb.append("\t\tCookie: ").append(StringUtil.byteArray2HexString(cookie)).append(StringUtil.lineSeparator());
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Server Version: ").append(serverVersion.getMajor()).append(", ").append(serverVersion.getMinor()).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Cookie Length: ").append(cookie.length).append(" bytes").append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Cookie: ").append(StringUtil.byteArray2HexString(cookie)).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}
-
 }

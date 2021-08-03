@@ -135,7 +135,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testToX509CertificatesListUsingInvalidCertificate() throws Exception {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Given certificate is not X.509! Dummy");
+		exception.expectMessage("Given certificate is not X.509!");
 
 		List<Certificate> list = new ArrayList<Certificate>(clientChainExtUsageList);
 		list.add(new Certificate("Dummy") {

@@ -900,24 +900,24 @@ public class Record {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("==[ DTLS Record ]==============================================");
-		sb.append(StringUtil.lineSeparator()).append("Content Type: ").append(type.toString());
-		sb.append(StringUtil.lineSeparator()).append("Peer address: ").append(getPeerAddress());
-		sb.append(StringUtil.lineSeparator()).append("Version: ").append(version.getMajor()).append(", ")
-				.append(version.getMinor());
-		sb.append(StringUtil.lineSeparator()).append("Epoch: ").append(epoch);
-		sb.append(StringUtil.lineSeparator()).append("Sequence Number: ").append(sequenceNumber);
+		sb.append("==[ DTLS Record ]==============================================").append(StringUtil.lineSeparator());
+		sb.append("Content Type: ").append(type).append(StringUtil.lineSeparator());
+		sb.append("Peer address: ").append(getPeerAddress()).append(StringUtil.lineSeparator());
+		sb.append("Version: ").append(version.getMajor()).append(", ")
+				.append(version.getMinor()).append(StringUtil.lineSeparator());
+		sb.append("Epoch: ").append(epoch).append(StringUtil.lineSeparator());
+		sb.append("Sequence Number: ").append(sequenceNumber).append(StringUtil.lineSeparator());
 		if (connectionId != null) {
-			sb.append(StringUtil.lineSeparator()).append("connection id: ").append(connectionId.getAsString());
+			sb.append("connection id: ").append(connectionId.getAsString()).append(StringUtil.lineSeparator());
 		}
-		sb.append(StringUtil.lineSeparator()).append("Length: ").append(fragmentBytes.length);
-		sb.append(StringUtil.lineSeparator()).append("Fragment:");
+		sb.append("Length: ").append(fragmentBytes.length).append(" bytes").append(StringUtil.lineSeparator());
+		sb.append("Fragment:").append(StringUtil.lineSeparator());
 		if (fragment != null) {
-			sb.append(StringUtil.lineSeparator()).append(fragment);
+			sb.append(fragment.toString(1));
 		} else {
-			sb.append(StringUtil.lineSeparator()).append("fragment is not decrypted yet");
+			sb.append("fragment is not decrypted yet").append(StringUtil.lineSeparator());
 		}
-		sb.append(StringUtil.lineSeparator()).append("===============================================================");
+		sb.append("===============================================================").append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

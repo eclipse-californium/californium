@@ -88,12 +88,12 @@ public final class EcdhPskClientKeyExchange extends ECDHClientKeyExchange {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\t\t Encoded identity value: ");
-		sb.append(identity).append(StringUtil.lineSeparator());;
-		sb.append(super.toString());
-		sb.append(StringUtil.lineSeparator());
+		sb.append(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		sb.append(indentation).append("Encoded identity value: ");
+		sb.append(identity).append(StringUtil.lineSeparator());
 		return sb.toString();
 	}
 

@@ -26,6 +26,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.PublicKey;
+import java.security.cert.Certificate;
 import java.util.regex.Pattern;
 
 /**
@@ -74,7 +76,19 @@ public class StringUtil {
 	 */
 	private final static char[] BIN_TO_HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
+	/**
+	 * Table with tabs for pretty printing.
+	 * 
+	 * @since 3.0
+	 */
+	private static final String[] TABS = new String[10];
+
 	static {
+		String tab = "";
+		for (int i = 0; i < TABS.length; ++i) {
+			TABS[i] = tab;
+			tab += "\t";
+		}
 		boolean support = false;
 		try {
 			Method method = InetSocketAddress.class.getMethod("getHostString");
@@ -98,6 +112,22 @@ public class StringUtil {
 
 	private static String toHostString(InetSocketAddress address) {
 		return address.getHostString();
+	}
+
+	/**
+	 * Get indentation-prefix.
+	 * 
+	 * @param indentIndex indent
+	 * @return indentation prefix.
+	 * @since 3.0
+	 */
+	public static String indentation(int indentIndex) {
+		if (indentIndex < 0) {
+			return "";
+		} else if (indentIndex >= TABS.length) {
+			return TABS[TABS.length - 1];
+		}
+		return TABS[indentIndex];
 	}
 
 	/**
@@ -447,7 +477,8 @@ public class StringUtil {
 
 	/**
 	 * Checks if a given string is a valid host name as defined by
-	 * <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC 1123</a>.
+	 * <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC
+	 * 1123</a>.
 	 * 
 	 * @param name The name to check.
 	 * @return {@code true} if the name is a valid host name.
@@ -515,13 +546,13 @@ public class StringUtil {
 	/**
 	 * Normalize logging tag.
 	 * 
-	 * The normalized tag is either a empty string {@code ""}, or terminated by a
-	 * space {@code ' '}.
+	 * The normalized tag is either a empty string {@code ""}, or terminated by
+	 * a space {@code ' '}.
 	 * 
 	 * @param tag tag to be normalized. {@code null} will be normalized to a
 	 *            empty string {@code ""}.
-	 * @return normalized tag. Either a empty string {@code ""}, or terminated by
-	 *         a space {@code ' '}
+	 * @return normalized tag. Either a empty string {@code ""}, or terminated
+	 *         by a space {@code ' '}
 	 */
 	public static String normalizeLoggingTag(String tag) {
 		if (tag == null) {
@@ -530,6 +561,72 @@ public class StringUtil {
 			tag += " ";
 		}
 		return tag;
+	}
+
+	/**
+	 * Get display text for Certificate.
+	 * 
+	 * @param cert certificate
+	 * @return display text
+	 * @since 3.0
+	 */
+	public static String toDisplayString(Certificate cert) {
+		int indentIndex = 0;
+		String[] lines = cert.toString().split("\n");
+		StringBuilder text = new StringBuilder();
+		for (String line : lines) {
+			line = line.trim();
+			if (!line.isEmpty()) {
+				int indent = indentDelta(line);
+				if (indent < 0 && line.length() == 1) {
+					indentIndex += indent;
+					indent = 0;
+				}
+				text.append(indentation(indentIndex)).append(line).append("\n");
+				indentIndex += indent;
+			} else {
+				text.append("\n");
+			}
+		}
+		return text.toString();
+	}
+
+	/**
+	 * Get indent delta for provided lines.
+	 * 
+	 * Counts {@code '['} (+1) and {@code ']'} (-1).
+	 * 
+	 * @param line line
+	 * @return indent change.
+	 * @since 3.0
+	 */
+	private static int indentDelta(String line) {
+		int index = 0;
+		for (int i = line.length(); i > 0;) {
+			--i;
+			char c = line.charAt(i);
+			if (c == '[') {
+				++index;
+			} else if (c == ']') {
+				--index;
+			}
+		}
+		if (index != 0 && line.matches("\\d+:\\s+.*")) {
+			// escape hex-dumps
+			return 0;
+		}
+		return index;
+	}
+
+	/**
+	 * Get display text for public key.
+	 * 
+	 * @param publicKey public key
+	 * @return display text
+	 * @since 3.0
+	 */
+	public static String toDisplayString(PublicKey publicKey) {
+		return publicKey.toString().replaceAll("\n\\s+", "\n");
 	}
 
 	/**

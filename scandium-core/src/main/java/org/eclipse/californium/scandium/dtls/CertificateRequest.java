@@ -57,8 +57,6 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	/* See http://tools.ietf.org/html/rfc5246#section-7.4.4 for message format. */
 
-	private static final String THREE_TABS = "\t\t\t";
-
 	private static final int CERTIFICATE_TYPES_LENGTH_BITS = 8;
 
 	private static final int CERTIFICATE_TYPE_BITS = 8;
@@ -134,24 +132,26 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		String indentation2 = StringUtil.indentation(indent + 2);
 		if (!certificateTypes.isEmpty()) {
-			sb.append("\t\tClient certificate type:").append(StringUtil.lineSeparator());
+			sb.append(indentation).append("Client certificate type:").append(StringUtil.lineSeparator());
 			for (ClientCertificateType type : certificateTypes) {
-				sb.append(THREE_TABS).append(type).append(StringUtil.lineSeparator());
+				sb.append(indentation2).append(type).append(StringUtil.lineSeparator());
 			}
 		}
 		if (!supportedSignatureAlgorithms.isEmpty()) {
-			sb.append("\t\tSignature and hash algorithm:").append(StringUtil.lineSeparator());
+			sb.append(indentation).append("Signature and hash algorithm:").append(StringUtil.lineSeparator());
 			for (SignatureAndHashAlgorithm algo : supportedSignatureAlgorithms) {
-				sb.append(THREE_TABS).append(algo).append(StringUtil.lineSeparator());
+				sb.append(indentation2).append(algo).append(StringUtil.lineSeparator());
 			}
 		}
 		if (!certificateAuthorities.isEmpty()) {
-			sb.append("\t\tCertificate authorities:").append(StringUtil.lineSeparator());
+			sb.append(indentation).append("Certificate authorities:").append(StringUtil.lineSeparator());
 			for (X500Principal subject : certificateAuthorities) {
-				sb.append(THREE_TABS).append(subject.getName()).append(StringUtil.lineSeparator());
+				sb.append(indentation2).append(subject.getName()).append(StringUtil.lineSeparator());
 			}
 		}
 		return sb.toString();

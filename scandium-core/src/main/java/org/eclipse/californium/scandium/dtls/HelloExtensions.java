@@ -148,18 +148,36 @@ public final class HelloExtensions {
 		return null;
 	}
 
+	/**
+	 * Get list of extensions.
+	 * 
+	 * @return (unmodifiable) list of extensions
+	 */
 	public List<HelloExtension> getExtensions() {
 		return Collections.unmodifiableList(extensions);
 	}
 
-	@Override
-	public String toString() {
+	/**
+	 * Gets the textual presentation of this message.
+	 * 
+	 * @param indent line indentation
+	 * @return textual presentation
+	 * @since 3.0
+	 */
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\t\tExtensions Length: ").append(getExtensionsLength());
+		String indentation = StringUtil.indentation(indent);
+		sb.append(indentation).append("Extensions Length: ").append(getExtensionsLength()).append(" bytes")
+				.append(StringUtil.lineSeparator());
 		for (HelloExtension ext : extensions) {
-			sb.append(StringUtil.lineSeparator()).append(ext);
+			sb.append(ext.toString(indent + 1));
 		}
 		return sb.toString();
+	}
+
+	@Override
+	public String toString() {
+		return toString(0);
 	}
 
 	// Serialization //////////////////////////////////////////////////

@@ -60,6 +60,11 @@ public class GenericHandshakeMessage extends HandshakeMessage {
 		return Arrays.copyOfRange(rawMessage, MESSAGE_HEADER_LENGTH_BYTES, rawMessage.length);
 	}
 
+	@Override
+	protected String getImplementationTypePrefix() {
+		return "Generic ";
+	}
+
 	/**
 	 * Read generic generic handshake message from bytes.
 	 * 

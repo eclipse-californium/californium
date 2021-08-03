@@ -60,10 +60,16 @@ public final class ApplicationMessage implements DTLSMessage {
 	}
 
 	@Override
-	public String toString() {
+	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tApplication Data: ").append(StringUtil.byteArray2Hex(data)).append(StringUtil.lineSeparator());
+		String indentation = StringUtil.indentation(indent);
+		sb.append(indentation).append("Application Data: ").append(StringUtil.byteArray2HexString(data, StringUtil.NO_SEPARATOR, 32)).append(StringUtil.lineSeparator());
 		return sb.toString();
+	}
+
+	@Override
+	public String toString() {
+		return toString();
 	}
 
 	// Serialization //////////////////////////////////////////////////

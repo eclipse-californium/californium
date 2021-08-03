@@ -185,27 +185,28 @@ public final class ClientHello extends HelloHandshakeMessage {
 	}
 
 	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder(super.toString());
-		sb.append(StringUtil.lineSeparator()).append("\t\tCookie Length: ").append(cookie.length);
+	public String toString(int indent) {
+		StringBuilder sb = new StringBuilder(super.toString(indent));
+		String indentation = StringUtil.indentation(indent + 1);
+		String indentation2 = StringUtil.indentation(indent + 2);
+		sb.append(indentation).append("Cookie Length: ").append(cookie.length).append(" bytes")
+				.append(StringUtil.lineSeparator());
 		if (cookie.length > 0) {
-			sb.append(StringUtil.lineSeparator()).append("\t\tCookie: ").append(StringUtil.byteArray2HexString(cookie));
+			sb.append(indentation).append("Cookie: ").append(StringUtil.byteArray2HexString(cookie))
+					.append(StringUtil.lineSeparator());
 		}
-		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suites Length: ")
-				.append(supportedCipherSuites.size() * CipherSuite.CIPHER_SUITE_BITS / Byte.SIZE);
-		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suites (").append(supportedCipherSuites.size())
-				.append(" suites)");
+		sb.append(indentation).append("Cipher Suites (").append(supportedCipherSuites.size()).append(" suites, ")
+				.append(supportedCipherSuites.size() * CipherSuite.CIPHER_SUITE_BITS / Byte.SIZE).append(" bytes)")
+				.append(StringUtil.lineSeparator());
 		for (CipherSuite cipher : supportedCipherSuites) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\tCipher Suite: ").append(cipher);
+			sb.append(indentation2).append("Cipher Suite: ").append(cipher).append(StringUtil.lineSeparator());
 		}
-		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Methods Length: ")
-				.append(compressionMethods.size());
-		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Methods (").append(compressionMethods.size())
-				.append(" methods)");
+		sb.append(indentation).append("Compression Methods (").append(compressionMethods.size()).append(" methods, ")
+				.append(compressionMethods.size()).append(" bytes)").append(StringUtil.lineSeparator());
 		for (CompressionMethod method : compressionMethods) {
-			sb.append(StringUtil.lineSeparator()).append("\t\t\tCompression Method: ").append(method);
+			sb.append(indentation2).append("Compression Method: ").append(method).append(StringUtil.lineSeparator());
 		}
-		sb.append(StringUtil.lineSeparator()).append(extensions);
+		sb.append(extensions.toString(indent + 1));
 		return sb.toString();
 	}
 

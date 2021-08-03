@@ -103,14 +103,6 @@ public class ReassemblingHandshakeMessageTest {
 		}
 	}
 
-	private void log(ReassemblingHandshakeMessage reassembledMessage) {
-		List<Object> ranges = reassembledMessage.getRanges();
-		LOGGER.info("{} ranges", ranges.size());
-		for (Object range : ranges) {
-			LOGGER.info("  {}", range);
-		}
-	}
-
 	@Test
 	public void testReassembleFragmentedHandshakeMessages() {
 		boolean complete = false;
@@ -119,7 +111,7 @@ public class ReassemblingHandshakeMessageTest {
 			assertFalse("message completed with left fragments", complete);
 			message.add(msg);
 			complete = message.isComplete();
-			log(message);
+			LOGGER.info("{}", message);
 		}
 		assertTrue("message incomplete", complete);
 		assertArrayEquals(payload, message.fragmentToByteArray());
@@ -134,7 +126,7 @@ public class ReassemblingHandshakeMessageTest {
 			assertFalse("message completed with left fragments", complete);
 			message.add(msg);
 			complete = message.isComplete();
-			log(message);
+			LOGGER.info("{}", message);
 		}
 		assertTrue("message incomplete", complete);
 		assertArrayEquals(payload, message.fragmentToByteArray());
@@ -151,7 +143,7 @@ public class ReassemblingHandshakeMessageTest {
 			assertFalse("message completed with left fragments", complete);
 			message.add(msg);
 			complete = message.isComplete();
-			log(message);
+			LOGGER.info("{}", message);
 		}
 		assertTrue("message incomplete", complete);
 		assertArrayEquals(payload, message.fragmentToByteArray());
@@ -170,7 +162,7 @@ public class ReassemblingHandshakeMessageTest {
 			message.add(msg);
 			complete = message.isComplete() || complete;
 			log(msg);
-			log(message);
+			LOGGER.info("{}", message);
 		}
 		assertTrue("message incomplete", complete);
 		assertArrayEquals(payload, message.fragmentToByteArray());
@@ -186,7 +178,7 @@ public class ReassemblingHandshakeMessageTest {
 			assertFalse("message completed with left fragments", complete);
 			message.add(msg);
 			complete = message.isComplete();
-			log(message);
+			LOGGER.info("{}", message);
 		}
 		assertFalse("message completed with incomplete fragments", complete);
 	}
@@ -202,7 +194,7 @@ public class ReassemblingHandshakeMessageTest {
 		for (FragmentedHandshakeMessage msg : fragments) {
 			message.add(msg);
 			complete = message.isComplete();
-			log(message);
+			LOGGER.info("{}", message);
 		}
 		assertTrue("message incomplete", complete);
 		assertArrayEquals(payload, message.fragmentToByteArray());
