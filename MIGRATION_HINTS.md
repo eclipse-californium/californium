@@ -72,6 +72,12 @@ The `SignatureAndHashAlgorithm` supports now `isRecommended` to address the upco
 
 The lifetime of cookies, used during initial stateless phase of a handshake, is reduced from 5 minutes to 1 minute. With the already available support for the past cookie, a HELLO_VERIFY_REQUEST is valid from 1 minute up to 2 minutes. The CLIENT_HELLO deduplication filter is extended from 1 minute to 2m15s. The intention is a slightly improvement of protection against spoofed CLIENT_HELLOs. 
 
+The implementation of 
+[draft-ietf-tls-dtls-connection](https://www.ietf.org/archive/id/draft-ietf-tls-dtls-connection-id-13.html) has been updated to use the new [IANA assigned code point 54](https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-1) for the extension and the new MAC definition introduced with version 09 of that draft.
+The old code point 53 and the old MAC definition maybe still used, if configured using `DtlsConfig.DTLS_USE_DEPRECATED_CID` and `DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID`.
+
+**Note:** mbedtls up to version 2.27 still uses a undefined code-point (254) and the deprecated MAC definition before version 09. To use mbedtls, please adjust the extension code point [MBEDTLS_TLS_EXT_CID](https://github.com/ARMmbed/mbedtls/blob/v2.27.0/include/mbedtls/ssl.h#L416) to 53 and configure Californium accordingly to `DtlsConfig.DTLS_USE_DEPRECATED_CID` or `DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID`.
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:
