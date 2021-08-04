@@ -31,17 +31,11 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public final class PSKServerKeyExchange extends ServerKeyExchange {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int IDENTITY_HINT_LENGTH_BITS = 16;
-
-	// Members ////////////////////////////////////////////////////////
 
 	/** The hint in cleartext. */
 	private final PskPublicInformation hint;
 
-	// Constructors ///////////////////////////////////////////////////
-	
 	public PSKServerKeyExchange(PskPublicInformation hint) {
 		this.hint = hint;
 	}
@@ -49,8 +43,6 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	private PSKServerKeyExchange(byte[] hintEncoded) {
 		this.hint = PskPublicInformation.fromByteArray(hintEncoded);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public int getMessageLength() {
@@ -68,8 +60,6 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 		return sb.toString();
 	}
 
-	// Serialization //////////////////////////////////////////////////
-
 	@Override
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter(hint.length() + 2);
@@ -85,8 +75,6 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 
 		return new PSKServerKeyExchange(hintEncoded);
 	}
-	
-	// Getters and Setters ////////////////////////////////////////////
 
 	public PskPublicInformation getHint() {
 		return hint;

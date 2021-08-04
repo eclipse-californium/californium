@@ -473,8 +473,6 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		}
 	}
 
-	// Getters and Setters ////////////////////////////////////////////
-
 	/**
 	 * Get fragment offset.
 	 * 

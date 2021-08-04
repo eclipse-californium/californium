@@ -120,7 +120,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A base class for the DTLS handshake protocol.
  * 
- * Contains all functionality and fields needed by all types of handshakers.
+ * Contains functionality and fields needed by all types of handshakers.
  */
 public abstract class Handshaker implements Destroyable {
 
@@ -470,8 +470,6 @@ public abstract class Handshaker implements Destroyable {
 	 * Application level info supplier. May be {@code null}.
 	 */
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a given
@@ -1302,8 +1300,6 @@ public abstract class Handshaker implements Destroyable {
 		return otherPeersCertificateVerified;
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	/**
 	 * Get message digest for FINISH message.
 	 * 
@@ -1627,8 +1623,6 @@ public abstract class Handshaker implements Destroyable {
 
 		return null;
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	protected abstract boolean isClient();
 

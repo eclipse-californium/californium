@@ -48,8 +48,6 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
 @NoPublicAPI
 public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int CURVE_TYPE_BITS = 8;
 	private static final int NAMED_CURVE_BITS = 16;
 	private static final int PUBLIC_LENGTH_BITS = 8;
@@ -58,14 +56,10 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 	// a named curve is used
 	private static final int NAMED_CURVE = 3;
 
-	// Members ////////////////////////////////////////////////////////
-
 	/** ephemeral keys */
 	private final SupportedGroup supportedGroup;
 
 	private final byte[] encodedPoint;
-
-	// Constructors //////////////////////////////////////////////////
 
 	/**
 	 * Called when reconstructing the byte array.
@@ -84,8 +78,6 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 		this.supportedGroup = supportedGroup;
 		this.encodedPoint = encodedPoint;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	protected int getNamedCurveLength() {
 		return 4 + encodedPoint.length;
@@ -126,8 +118,6 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 		signature.update((byte) encodedPoint.length);
 		signature.update(encodedPoint);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	/**
 	 * Get supported group for ECDH.

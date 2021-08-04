@@ -117,6 +117,13 @@ public interface RecordLayer {
 	 */
 	void processRecord(Record record, Connection connection);
 
+	/**
+	 * Process handshake exceptions occurred outside the direct processing of records.
+	 * 
+	 * @param connection affected connection
+	 * @param error handshake exception
+	 * @since 3.0
+	 */
 	void processHandshakeException(Connection connection, HandshakeException error);
 
 	/**

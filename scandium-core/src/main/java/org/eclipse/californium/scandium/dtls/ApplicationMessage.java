@@ -28,12 +28,8 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public final class ApplicationMessage implements DTLSMessage {
 
-	// Members ////////////////////////////////////////////////////////
-
 	/** The (to the record layer) transparent data. */
 	private final byte[] data;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Creates a new <em>APPLICATION_DATA</em> message containing specific data.
@@ -52,8 +48,6 @@ public final class ApplicationMessage implements DTLSMessage {
 		this.data = data;
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public ContentType getContentType() {
 		return ContentType.APPLICATION_DATA;
@@ -71,8 +65,6 @@ public final class ApplicationMessage implements DTLSMessage {
 	public String toString() {
 		return toString();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public int size() {
@@ -98,8 +90,6 @@ public final class ApplicationMessage implements DTLSMessage {
 	public static DTLSMessage fromByteArray(byte[] byteArray) {
 		return new ApplicationMessage(byteArray);
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	public byte[] getData() {
 		return data;

@@ -112,8 +112,6 @@ public final class DTLSContext implements Destroyable {
 	private final long handshakeTime;
 	private final DTLSSession session;
 
-	// Constructor ////////////////////////////////////////////////////
-
 	/**
 	 * Creates a new DTLS context initialized with a given record sequence
 	 * number.
@@ -138,8 +136,6 @@ public final class DTLSContext implements Destroyable {
 		this.handshakeTime = System.currentTimeMillis();
 		this.sequenceNumbers[0] = initialRecordSequenceNo;
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	@Override
 	public void destroy() throws DestroyFailedException {

@@ -40,18 +40,12 @@ import org.eclipse.californium.elements.util.StringUtil;
 @NoPublicAPI
 public class ECDHClientKeyExchange extends ClientKeyExchange {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int LENGTH_BITS = 8; // opaque point <1..2^8-1>
-
-	// Members ////////////////////////////////////////////////////////
 
 	/**
 	 * Ephemeral public key of client as encoded point.
 	 */
 	private final byte[] encodedPoint;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Create a {@link ClientKeyExchange} message.
@@ -66,8 +60,6 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 		}
 		this.encodedPoint = encodedPoint;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
@@ -101,8 +93,6 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 		byte[] pointEncoded = readEncodedPoint(reader);
 		return new ECDHClientKeyExchange(pointEncoded);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public int getMessageLength() {

@@ -60,13 +60,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class CertificateMessage extends HandshakeMessage {
 
-	// Logging ///////////////////////////////////////////////////////////
-
 	private static final String CERTIFICATE_TYPE_X509 = "X.509";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateMessage.class);
-
-	// DTLS-specific constants ///////////////////////////////////////////
 
 	/**
 	 * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target="_blank">RFC 5246</a>:
@@ -94,8 +90,6 @@ public final class CertificateMessage extends HandshakeMessage {
 	 */
 	private static final List<X509Certificate> EMPTY = Collections.emptyList();
 
-	// Members ///////////////////////////////////////////////////////////
-
 	/**
 	 * A chain of certificates asserting the sender's identity.
 	 * The sender's identity is reflected by the certificate at index 0.
@@ -114,8 +108,6 @@ public final class CertificateMessage extends HandshakeMessage {
 
 	// length is at least 3 bytes containing the message's overall number of bytes
 	private final int length;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Creates a empty <em>CERTIFICATE</em> message containing a empty
@@ -260,8 +252,6 @@ public final class CertificateMessage extends HandshakeMessage {
 		}
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public HandshakeType getMessageType() {
 		return HandshakeType.CERTIFICATE;
@@ -326,8 +316,6 @@ public final class CertificateMessage extends HandshakeMessage {
 	public boolean isEmpty() {
 		return encodedChain != null && encodedChain.isEmpty();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {

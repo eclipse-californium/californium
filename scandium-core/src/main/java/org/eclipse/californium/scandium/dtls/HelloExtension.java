@@ -116,7 +116,7 @@ public abstract class HelloExtension {
 	}
 
 	/**
-	 * Gets the length of the ecoding of this extension's.
+	 * Gets the length of the encoding of this extension's.
 	 * <p>
 	 * Note this includes the 2 bytes indicating the extension type and the 2
 	 * bytes for the length.
@@ -148,7 +148,7 @@ public abstract class HelloExtension {
 	 * <a href="https://tools.ietf.org/html/rfc7250#section-4.2" target=
 	 * "_blank"> Section 4.2 of RFC 7250</a> mandates that a server
 	 * implementation must simply ignore extensions of type
-	 * <em>client_certificate_type</em> or <em>server_certificate_type</em> if
+	 * <em>client_certificate_type</em> or <em>server_certificate_type</em>, if
 	 * it does not support these extensions.
 	 * 
 	 * This (lenient) approach seems feasible for the server to follow in

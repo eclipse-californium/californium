@@ -155,8 +155,6 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 		return false;
 	}
 
-	// Serialization //////////////////////////////////////////////////
-
 	protected void writeHeader(DatagramWriter writer) {
 
 		writer.write(protocolVersion.getMajor(), VERSION_BITS);

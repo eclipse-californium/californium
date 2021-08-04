@@ -53,8 +53,6 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateRequest.class);
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	/* See http://tools.ietf.org/html/rfc5246#section-7.4.4 for message format. */
 
 	private static final int CERTIFICATE_TYPES_LENGTH_BITS = 8;
@@ -71,14 +69,10 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	private static final int MAX_LENGTH_CERTIFICATE_AUTHORITIES = (1 << 16) - 1;
 
-	// Members ////////////////////////////////////////////////////////
-
 	private final List<ClientCertificateType> certificateTypes = new ArrayList<>();
 	private final List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms = new ArrayList<>();
 	private final List<X500Principal> certificateAuthorities = new ArrayList<>();
 	private int certificateAuthoritiesEncodedLength = 0;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Initializes an empty certificate request.
@@ -87,6 +81,7 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	/**
+	 * Create certificate request.
 	 * 
 	 * @param certificateTypes
 	 *            the list of allowed client certificate types.
@@ -109,8 +104,6 @@ public final class CertificateRequest extends HandshakeMessage {
 			addCerticiateAuthorities(certificateAuthorities);
 		}
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public HandshakeType getMessageType() {
@@ -156,8 +149,6 @@ public final class CertificateRequest extends HandshakeMessage {
 		}
 		return sb.toString();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
@@ -219,8 +210,6 @@ public final class CertificateRequest extends HandshakeMessage {
 
 		return new CertificateRequest(certificateTypes, supportedSignatureAlgorithms, certificateAuthorities);
 	}
-
-	// Enums //////////////////////////////////////////////////////////
 
 	/**
 	 * Certificate types that the client may offer. See <a
@@ -301,8 +290,6 @@ public final class CertificateRequest extends HandshakeMessage {
 			return null;
 		}
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	/**
 	 * Adds a certificate type to the list of supported certificate types.

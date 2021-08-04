@@ -35,21 +35,13 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  */
 public final class ChangeCipherSpecMessage implements DTLSMessage {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int CCS_BITS = 8;
 
-	// Members ////////////////////////////////////////////////////////
-
 	private final CCSType CCSProtocolType;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	public ChangeCipherSpecMessage() {
 		CCSProtocolType = CCSType.CHANGE_CIPHER_SPEC;
 	}
-
-	// Change Cipher Spec Enum ////////////////////////////////////////
 
 	/**
 	 * See <a href="https://tools.ietf.org/html/rfc5246#section-7.1" target="_blank">RFC 5246</a>
@@ -68,8 +60,6 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 			return code;
 		}
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public ContentType getContentType() {
@@ -94,8 +84,6 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 	public int size() {
 		return CCS_BITS / Byte.SIZE;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] toByteArray() {

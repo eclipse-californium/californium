@@ -151,8 +151,6 @@ public class ClientHandshaker extends Handshaker {
 			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
 			new HandshakeState(HandshakeType.FINISHED) };
 
-	// Members ////////////////////////////////////////////////////////
-
 	private ProtocolVersion maxProtocolVersion = ProtocolVersion.VERSION_DTLS_1_2;
 
 	/**
@@ -248,8 +246,6 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected byte[] handshakeHash;
 
-	// Constructors ///////////////////////////////////////////////////
-
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a server.
 	 * 
@@ -277,8 +273,6 @@ public class ClientHandshaker extends Handshaker {
 		this.probe = probe;
 		getSession().setHostName(hostname);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	protected boolean isClient() {

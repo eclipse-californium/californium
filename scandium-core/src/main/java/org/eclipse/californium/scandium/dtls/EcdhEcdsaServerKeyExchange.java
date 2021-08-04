@@ -56,13 +56,9 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(EcdhEcdsaServerKeyExchange.class);
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int HASH_ALGORITHM_BITS = 8;
 	private static final int SIGNATURE_ALGORITHM_BITS = 8;
 	private static final int SIGNATURE_LENGTH_BITS = 16;
-
-	// Members ////////////////////////////////////////////////////////
 
 	private final byte[] signatureEncoded;
 
@@ -71,8 +67,6 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 * digitally-signed struct.
 	 */
 	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
-
-	// Constructors //////////////////////////////////////////////////
 
 	/**
 	 * Called by server with generated ephemeral keys and generates signature.
@@ -129,8 +123,6 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 		this.signatureEncoded = signatureEncoded;
 	}
 
-	// Serialization //////////////////////////////////////////////////
-
 	@Override
 	public int getMessageLength() {
 		// the signature length field uses 2 bytes, if a signature available
@@ -172,8 +164,6 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 		return new EcdhEcdsaServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint,
 				signatureEncoded);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	/**
 	 * Called by the client after receiving the server's

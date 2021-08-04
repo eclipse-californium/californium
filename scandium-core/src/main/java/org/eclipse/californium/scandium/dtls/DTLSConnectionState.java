@@ -139,12 +139,8 @@ public abstract class DTLSConnectionState implements Destroyable {
 		}
 	}
 
-	// Members ////////////////////////////////////////////////////////
-
 	protected final CipherSuite cipherSuite;
 	protected final CompressionMethod compressionMethod;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Initializes all fields with given values.
@@ -165,8 +161,6 @@ public abstract class DTLSConnectionState implements Destroyable {
 		this.compressionMethod = compressionMethod;
 	}
 
-	// Getters ////////////////////////////////////////////
-
 	CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
@@ -181,7 +175,6 @@ public abstract class DTLSConnectionState implements Destroyable {
 	CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
-
 
 	/**
 	 * Checks whether the cipher suite is not the <em>NULL_CIPHER</em>.
