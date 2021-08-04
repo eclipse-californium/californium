@@ -88,9 +88,24 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 		}
 	}
 
+	private DtlsConnectorConfig.Builder builder;
+
 	@Before
 	public void start() {
 		processUtil.setTag(name.getName());
+		// mbedtls v2.27 still supports only the deprecated MAC calculation.
+		// Ensure/adjust the extension id in mbedtls - include/mbedtls/ssl.h
+		// for compatibility to 53
+		// 
+		// #define MBEDTLS_TLS_EXT_CID                        53
+		// 
+		// For libcoap enable the passive use of CID in src/coap_mbedtls.c,
+		// coap_dtls_new_mbedtls_env, before mbedtls_ssl_set_bio with
+		// 
+		// mbedtls_ssl_set_cid(&m_env->ssl, MBEDTLS_SSL_CID_ENABLED, NULL, 0);
+
+		builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
 	}
 
 	@After
@@ -104,7 +119,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientPsk() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, null, cipherSuite);
+		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -114,8 +129,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientPskMultiFragment() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
-				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
+		builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
@@ -126,8 +140,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientPskNoSessionId() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
-				.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
+		builder.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
 		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
@@ -138,7 +151,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientEcdsa() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, null, cipherSuite);
+		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", CHAIN, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -148,7 +161,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientEcdsaRsa() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, true, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.start(BIND, true, builder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", CHAIN, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -158,7 +171,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientEcdsaTrust() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, null, cipherSuite);
+		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", TRUST, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -168,7 +181,8 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientEcdsaTrustFails() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, null, cipherSuite);
+		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+
 		processUtil.setTrusts(SERVER_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", TRUST, "Hello, CoAP!", cipherSuite);
 		connect(null, "X509 - Certificate verification failed");
@@ -178,7 +192,8 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientEcdsaCaFails() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, null, cipherSuite);
+		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+
 		processUtil.setCa(SERVER_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", CA, "Hello, CoAP!", cipherSuite);
 		connect(null, "X509 - Certificate verification failed");
@@ -188,7 +203,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapClientEcdsaRsaTrust() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, true, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.start(BIND, true, builder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", TRUST, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
