@@ -137,7 +137,6 @@ public class ServerHandshaker extends Handshaker {
 			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
 			new HandshakeState(HandshakeType.FINISHED) };
 
-	// Members ////////////////////////////////////////////////////////
 	private final Logger LOGGER_NEGOTIATION = LoggerFactory.getLogger(LOGGER.getName() + ".negotiation");
 
 	/** Does the server use session id? */
@@ -216,8 +215,6 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private XECDHECryptography ecdhe;
 
-	// Constructors ///////////////////////////////////////////////////
-
 	/**
 	 * Creates a handshaker for negotiating a DTLS session with a client
 	 * following the full DTLS handshake protocol.
@@ -258,8 +255,6 @@ public class ServerHandshaker extends Handshaker {
 		this.supportDeprecatedCid = config.supportsDeprecatedCid();
 		setExpectedStates(CLIENT_HELLO);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	protected boolean isClient() {

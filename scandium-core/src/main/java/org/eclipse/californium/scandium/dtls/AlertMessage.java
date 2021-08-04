@@ -37,12 +37,9 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public final class AlertMessage implements DTLSMessage, Serializable {
 
-	// CoAP-specific constants/////////////////////////////////////////
 	private static final long serialVersionUID = 1L;
 
 	private static final int BITS = 8;
-
-	// Members ////////////////////////////////////////////////////////
 
 	/** The level of the alert (warning or fatal). */
 	private final AlertLevel level;
@@ -56,8 +53,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 * @since 2.6
 	 */
 	private final ProtocolVersion protocolVersion;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Create new instance of alert message.
@@ -98,8 +93,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		this.protocolVersion = protocolVersion;
 	}
 
-	// Alert Level Enum ///////////////////////////////////////////////
-
 	/**
 	 * See <a href="https://tools.ietf.org/html/rfc5246#appendix-A.3" target="_blank">Alert
 	 * Messages</a> for the listing.
@@ -138,8 +131,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 			}
 		}
 	}
-
-	// Alert Description Enum /////////////////////////////////////////
 
 	/**
 	 * See <a href="https://tools.ietf.org/html/rfc5246#appendix-A.3" target="_blank">Alert
@@ -207,8 +198,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		}
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public ContentType getContentType() {
 		return ContentType.ALERT;
@@ -231,8 +220,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	public String toString() {
 		return toString(0);
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public int size() {

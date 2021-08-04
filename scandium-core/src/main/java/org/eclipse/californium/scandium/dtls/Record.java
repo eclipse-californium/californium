@@ -54,11 +54,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Record {
 
-	// Logging ////////////////////////////////////////////////////////
-
 	private static final Logger LOGGER = LoggerFactory.getLogger(Record.class);
-
-	// DTLS specific constants/////////////////////////////////////////
 
 	public static final int CONTENT_TYPE_BITS = 8;
 
@@ -103,8 +99,6 @@ public class Record {
 	 * @since 3.0
 	 */
 	private static final byte[] SEQUENCE_NUMBER_PLACEHOLDER = { -1, -1, -1, -1, -1, -1, -1, -1 };
-
-	// Members ////////////////////////////////////////////////////////
 
 	/** The higher-level protocol used to process the enclosed fragment */
 	private ContentType type;
@@ -160,8 +154,6 @@ public class Record {
 
 	/** The router address. */
 	private InetSocketAddress router;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Creates a record from a <em>DTLSCiphertext</em> struct received from the network.
@@ -319,8 +311,6 @@ public class Record {
 		this.peerAddress = peerAddress;
 		this.router = router;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	/**
 	 * Encodes this record into its corresponding <em>DTLSCiphertext</em> structure.
@@ -480,8 +470,6 @@ public class Record {
 		return connectionId;
 	}
 
-	// Cryptography Helper Methods ////////////////////////////////////
-
 	/**
 	 * Generates the explicit part of the nonce to be used with the AEAD Cipher.
 	 * 
@@ -614,7 +602,6 @@ public class Record {
 		return writer.toByteArray();
 	}
 
-	// Getters and Setters ////////////////////////////////////////////
 	/**
 	 * Get follow-up-record marker for received record.
 	 * 

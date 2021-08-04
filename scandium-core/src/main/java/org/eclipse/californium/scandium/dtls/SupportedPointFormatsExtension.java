@@ -37,8 +37,6 @@ import org.eclipse.californium.elements.util.StringUtil;
 @NoPublicAPI
 public class SupportedPointFormatsExtension extends HelloExtension {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int LIST_LENGTH_BITS = 8;
 
 	private static final int POINT_FORMAT_BITS = 8;
@@ -53,22 +51,16 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	public static final SupportedPointFormatsExtension DEFAULT_POINT_FORMATS_EXTENSION = new SupportedPointFormatsExtension(
 			EC_POINT_FORMATS);
 
-	// Members ////////////////////////////////////////////////////////
-
 	/**
 	 * Items in here are ordered according to the client's preferences (favorite
 	 * choice first).
 	 */
 	private final List<ECPointFormat> ecPointFormatList;
 
-	// Constructors ///////////////////////////////////////////////////
-
 	private SupportedPointFormatsExtension(List<ECPointFormat> ecPointFormatList) {
 		super(ExtensionType.EC_POINT_FORMATS);
 		this.ecPointFormatList = ecPointFormatList;
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	public boolean contains(ECPointFormat format) {
 		return ecPointFormatList.contains(format);
@@ -94,8 +86,6 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		// variable: number of point formats
 		return 1 + ecPointFormatList.size();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	protected void writeExtensionTo(DatagramWriter writer) {
@@ -124,8 +114,6 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 			return new SupportedPointFormatsExtension(ecPointFormatList);
 		}
 	}
-
-	// EC point format Enum ///////////////////////////////////////////
 
 	/**
 	 * See <a href="https://tools.ietf.org/html/rfc4492#section-5.1.2">RFC 4492,

@@ -86,7 +86,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
 			new HandshakeState(HandshakeType.FINISHED) };
 
-	// Members ////////////////////////////////////////////////////////
 	private final ResumptionVerifier resumptionHandler;
 
 	/**
@@ -105,8 +104,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 	/** The handshake hash used in the Finished messages. */
 	private byte[] handshakeHash;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Creates a new handshaker for resuming an session with a client.
@@ -134,8 +131,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			throw new IllegalArgumentException("Resumption verifier missing!");
 		}
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException {

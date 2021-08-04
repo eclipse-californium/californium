@@ -31,16 +31,10 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public final class PSKClientKeyExchange extends ClientKeyExchange {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	private static final int IDENTITY_LENGTH_BITS = 16;
-
-	// Members ////////////////////////////////////////////////////////
 
 	/** The identity in cleartext. */
 	private final PskPublicInformation identity;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	public PSKClientKeyExchange(PskPublicInformation identity) {
 		this.identity = identity;
@@ -49,8 +43,6 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	private PSKClientKeyExchange(byte[] identityEncoded) {
 		this.identity = PskPublicInformation.fromByteArray(identityEncoded);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public int getMessageLength() {
@@ -68,8 +60,6 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 		return sb.toString();
 	}
 
-	// Serialization //////////////////////////////////////////////////
-
 	@Override
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter(identity.length() + 2);
@@ -85,8 +75,6 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 
 		return new PSKClientKeyExchange(identityEncoded);
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	public PskPublicInformation getIdentity() {
 		return identity;

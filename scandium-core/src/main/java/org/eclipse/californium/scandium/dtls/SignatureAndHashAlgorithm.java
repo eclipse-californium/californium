@@ -612,8 +612,6 @@ public final class SignatureAndHashAlgorithm {
 		return null;
 	}
 
-	// Getters and Setters ////////////////////////////////////////////
-
 	/**
 	 * Gets the signature algorithm in use.
 	 * 

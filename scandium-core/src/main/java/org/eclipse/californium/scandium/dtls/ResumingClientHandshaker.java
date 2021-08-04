@@ -114,8 +114,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	// flag to indicate if we must do a full handshake or an abbreviated one
 	private boolean fullHandshake = false;
 
-	// Constructor ////////////////////////////////////////////////////
-
 	/**
 	 * Creates a new handshaker for resuming an existing session with a server.
 	 * 
@@ -145,8 +143,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		}
 		getSession().set(session);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException {

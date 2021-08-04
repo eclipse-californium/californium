@@ -28,8 +28,6 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public final class FragmentedHandshakeMessage extends HandshakeMessage {
 
-	// Members ////////////////////////////////////////////////////////
-
 	/** The fragmented handshake body. */
 	private final byte[] fragmentedBytes;
 
@@ -43,8 +41,6 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 	 * The number of bytes contained in previous fragments.
 	 */
 	private final int fragmentOffset;
-
-	// Constructors ///////////////////////////////////////////////////
 
 	/**
 	 * Called when reassembling a handshake message or received a fragment
@@ -69,8 +65,6 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 		this.fragmentOffset = fragmentOffset;
 		setMessageSeq(messageSeq);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public HandshakeType getMessageType() {
@@ -107,8 +101,6 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 
 		return sb.toString();
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {

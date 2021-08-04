@@ -16,7 +16,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 /**
- * Handshake state. Used for handsahke validation.
+ * Handshake state. Used for handshake validation.
  * 
  * Contains expected {@link ContentType} and {@link HandshakeType} with an flag
  * to mark the state as optional.
@@ -50,7 +50,7 @@ public class HandshakeState {
 	/**
 	 * Create state for specific handshake messages.
 	 * 
-	 * @param handshakeType specifc handshake message type
+	 * @param handshakeType specific handshake message type
 	 */
 	public HandshakeState(HandshakeType handshakeType) {
 		this(ContentType.HANDSHAKE, handshakeType, false);
@@ -59,7 +59,7 @@ public class HandshakeState {
 	/**
 	 * Create optional state for specific handshake messages.
 	 * 
-	 * @param handshakeType specifc handshake message type
+	 * @param handshakeType specific handshake message type
 	 * @param optional marker for optional states. {@code true}, if state is
 	 *            {@link #isOptional()}.
 	 */
@@ -71,7 +71,7 @@ public class HandshakeState {
 	 * Create state.
 	 * 
 	 * @param contentType record content type,
-	 * @param handshakeType specifc handshake message type, or {@code nul}, for
+	 * @param handshakeType specific handshake message type, or {@code null}, for
 	 *            none handshake messages
 	 * @param optional marker for optional states. {@code true}, if state is
 	 *            {@link #isOptional()}.
@@ -94,7 +94,7 @@ public class HandshakeState {
 	/**
 	 * Get handshake message type.
 	 * 
-	 * @return expected handshake message type, or {@code nul}, for none
+	 * @return expected handshake message type, or {@code null}, for none
 	 *         handshake messages
 	 */
 	public HandshakeType getHandshakeType() {
@@ -104,7 +104,7 @@ public class HandshakeState {
 	/**
 	 * Check, if state is optional.
 	 * 
-	 * If a optional state doesn't mahct, try the next state.
+	 * If a optional state doesn't match, try the next state.
 	 * 
 	 * @return {@code true}, if optional, {@code false}, otherwise.
 	 */
@@ -151,12 +151,12 @@ public class HandshakeState {
 	}
 
 	/**
-	 * Concats the content type name and the hadnsahke type name, if available.
+	 * Concatenate the content type name and the handshake type name, if available.
 	 * 
 	 * @param contentType record content type
-	 * @param handshakeType handshake message type, or {@code nul}, for none
+	 * @param handshakeType handshake message type, or {@code null}, for none
 	 *            handshake messages
-	 * @return concated type names
+	 * @return Concatenated type names
 	 */
 	private static String toString(ContentType contentType, HandshakeType handshakeType) {
 		if (handshakeType != null) {

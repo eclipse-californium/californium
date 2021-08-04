@@ -38,21 +38,13 @@ import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
  */
 public final class HelloExtensions {
 
-	// DTLS-specific constants ////////////////////////////////////////
-
 	public static final int OVERALL_LENGTH_BITS = 16;
-
-	// Members ////////////////////////////////////////////////////////
 
 	/** The list of extensions. */
 	private final List<HelloExtension> extensions = new ArrayList<HelloExtension>();
 
-	// Constructors ///////////////////////////////////////////////////
-
 	public HelloExtensions() {
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	/**
 	 * Checks if this container actually holds any extensions.
@@ -179,8 +171,6 @@ public final class HelloExtensions {
 	public String toString() {
 		return toString(0);
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	/**
 	 * Write extensions.

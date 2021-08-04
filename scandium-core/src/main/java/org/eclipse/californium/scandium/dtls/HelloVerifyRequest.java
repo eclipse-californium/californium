@@ -105,13 +105,9 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public final class HelloVerifyRequest extends HandshakeMessage {
 
-	// DTLS-specific constants ///////////////////////////////////////////
-
 	private static final int VERSION_BITS = 8; // for major and minor each
 
 	private static final int COOKIE_LENGTH_BITS = 8;
-
-	// Members ///////////////////////////////////////////////////////////
 
 	/**
 	 * This field will contain the lower of that suggested by the client in the
@@ -122,14 +118,10 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 	/** The cookie which needs to be replayed by the client. */
 	private final byte[] cookie;
 
-	// Constructor ////////////////////////////////////////////////////
-
 	public HelloVerifyRequest(ProtocolVersion version, byte[] cookie) {
 		this.serverVersion = version;
 		this.cookie = cookie;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
@@ -153,8 +145,6 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 
 		return new HelloVerifyRequest(version, cookie);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public HandshakeType getMessageType() {

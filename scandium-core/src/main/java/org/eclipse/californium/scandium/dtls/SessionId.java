@@ -30,9 +30,7 @@ import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
  */
 public final class SessionId extends Bytes {
 
-	// Members ////////////////////////////////////////////////////////
 	private static final SessionId EMPTY_SESSION_ID = new SessionId(Bytes.EMPTY);
-	// Constructors ///////////////////////////////////////////////////
 
 	public SessionId() {
 		this(Bytes.createBytes(RandomManager.currentSecureRandom(), 32));
@@ -49,8 +47,6 @@ public final class SessionId extends Bytes {
 	public SessionId(byte[] sessionId) {
 		super(sessionId);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	/**
 	 * Creates a new instance with an empty byte array as the ID.

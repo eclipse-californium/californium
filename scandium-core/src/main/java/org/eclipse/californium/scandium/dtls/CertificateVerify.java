@@ -46,19 +46,13 @@ import org.slf4j.LoggerFactory;
  */
 public final class CertificateVerify extends HandshakeMessage {
 
-	// Logging ///////////////////////////////////////////////////////////
-
 	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateVerify.class);
-
-	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int HASH_ALGORITHM_BITS = 8;
 
 	private static final int SIGNATURE_ALGORITHM_BITS = 8;
 
 	private static final int SIGNATURE_LENGTH_BITS = 16;
-
-	// Members ////////////////////////////////////////////////////////
 
 	/** The digitally signed handshake messages. */
 	private final byte[] signatureBytes;
@@ -68,8 +62,6 @@ public final class CertificateVerify extends HandshakeMessage {
 	 * digitally-signed struct.
 	 */
 	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
-
-	// Constructor ////////////////////////////////////////////////////
 
 	/**
 	 * Called by client to create its CertificateVerify message.
@@ -98,8 +90,6 @@ public final class CertificateVerify extends HandshakeMessage {
 		this.signatureBytes = signatureBytes;
 	}
 
-	// Methods ////////////////////////////////////////////////////////
-
 	@Override
 	public HandshakeType getMessageType() {
 		return HandshakeType.CERTIFICATE_VERIFY;
@@ -113,8 +103,6 @@ public final class CertificateVerify extends HandshakeMessage {
 		 */
 		return 4 + signatureBytes.length;
 	}
-
-	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
@@ -154,8 +142,6 @@ public final class CertificateVerify extends HandshakeMessage {
 
 		return new CertificateVerify(signAndHash, signature);
 	}
-
-	// Methods ////////////////////////////////////////////////////////
 
 	/**
 	 * Creates the signature and signs it with the client's private key.

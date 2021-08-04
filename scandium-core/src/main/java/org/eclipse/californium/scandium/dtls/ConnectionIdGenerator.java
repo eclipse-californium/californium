@@ -27,7 +27,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
  * identify the DTLS Connection. The DTLS connection ID draft defines a way to
  * identify connection using Connection ID and so supports environments where IP
  * address/port changes. See <a href=
- * "https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-03">draft-ietf-tls-dtls-connection-id-03</a>.
+ * "https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-13">draft-ietf-tls-dtls-connection-id-03</a>.
  * 
  * The draft enables the peers to chose the level of support or usage. The dtls
  * client peer informs the dtls server peer about its preference using a new

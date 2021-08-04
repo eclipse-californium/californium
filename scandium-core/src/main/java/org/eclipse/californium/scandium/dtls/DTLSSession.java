@@ -172,8 +172,6 @@ public final class DTLSSession implements Destroyable {
 	private ServerNames serverNames;
 	private boolean peerSupportsSni;
 
-	// Constructor ////////////////////////////////////////////////////
-
 	/**
 	 * Creates a session using default values for all fields.
 	 */
@@ -203,8 +201,6 @@ public final class DTLSSession implements Destroyable {
 	public DTLSSession(DTLSSession session) {
 		set(session);
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	/**
 	 * Sets session.
