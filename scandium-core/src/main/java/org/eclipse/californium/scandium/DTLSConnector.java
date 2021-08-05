@@ -186,9 +186,11 @@ import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.HandshakeResult;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.ContentType;
+import org.eclipse.californium.scandium.dtls.DTLSMessage;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsException;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeException;
+import org.eclipse.californium.scandium.dtls.FragmentedHandshakeMessage;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -1890,7 +1892,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 		try {
 			// CLIENT_HELLO with epoch 0 is not encrypted, so use DTLSConnectionState.NULL 
 			record.applySession(null);
-			final ClientHello clientHello = (ClientHello) record.getFragment();
+			DTLSMessage message = record.getFragment();
+			if (message instanceof FragmentedHandshakeMessage) {
+				LOGGER.debug("Received unsupported fragmented CLIENT_HELLO from peer [{}].", peerAddress);
+				discardRecord(record, new DtlsException("Fragmented CLIENT_HELLO is not supported!", peerAddress));
+				return;
+			}
+			final ClientHello clientHello = (ClientHello) message;
 
 			// before starting a new handshake or resuming an established
 			// session we need to make sure that the peer is in possession of
