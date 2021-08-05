@@ -406,6 +406,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 * not using inner block-wise. If so it should not be sent.
 	 * 
 	 * @param message the CoAP message
+	 * @param outerBlockwise {@code true}, for outer, {@code false}, for inner blockwise
 	 * @param maxUnfragmentedSize the MAX_UNFRAGMENTED_SIZE value
 	 * 
 	 * @return if the message exceeds the MAX_UNFRAGMENTED_SIZE

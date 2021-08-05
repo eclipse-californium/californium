@@ -388,7 +388,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	 * default (60 seconds).
 	 * 
 	 * @param response the response
-	 * @param currentTime
+	 * @param currentTime the current nano realtime.
 	 * @return remaining life time in seconds
 	 */
 	private long getRemainingLifetime(Response response, long currentTime) {
