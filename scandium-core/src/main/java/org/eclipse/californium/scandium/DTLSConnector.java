@@ -197,9 +197,11 @@ import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSConnectionState;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
+import org.eclipse.californium.scandium.dtls.DTLSMessage;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsException;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
+import org.eclipse.californium.scandium.dtls.FragmentedHandshakeMessage;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -1990,7 +1992,13 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		try {
 			// CLIENT_HELLO with epoch 0 is not encrypted, so use DTLSConnectionState.NULL 
 			record.decodeFragment(DTLSConnectionState.NULL);
-			final ClientHello clientHello = (ClientHello) record.getFragment();
+			DTLSMessage message = record.getFragment();
+			if (message instanceof FragmentedHandshakeMessage) {
+				LOGGER.debug("Received unsupported fragmented CLIENT_HELLO from peer {}.", StringUtil.toLog(peerAddress));
+				discardRecord(record, new DtlsException("Fragmented CLIENT_HELLO is not supported!"));
+				return;
+			}
+			final ClientHello clientHello = (ClientHello) message;
 
 			byte[] expectedCookie = cookieGenerator.generateCookie(peerAddress, clientHello);
 
