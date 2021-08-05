@@ -17,7 +17,6 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.util.FilteredLogger;
@@ -34,20 +33,22 @@ public class EndpointContextUtil {
 	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
 
 	/**
-	 * Match endpoint contexts based on a set of keys.
+	 * Match endpoint contexts based on a set of definitions.
 	 * 
 	 * @param name name of matcher for logging.
-	 * @param keys set of keys to be matched.
+	 * @param definitions set of definitions to be matched.
 	 * @param context1 endpoint context to be compared
 	 * @param context2 endpoint context to be compared
 	 * @return true, if all values in the endpoint contexts of the provided keys
 	 *         are equal, false, if not.
+	 * @since 3.0 (changed Set to Definitions)
 	 */
-	public static boolean match(String name, Set<String> keys, EndpointContext context1, EndpointContext context2) {
+	public static boolean match(String name, Definitions<Definition<?>> definitions, EndpointContext context1,
+			EndpointContext context2) {
 		boolean warn = LOGGER.isWarnEnabled();
 		boolean trace = LOGGER.isTraceEnabled();
 		boolean matchAll = true;
-		for (String key : keys) {
+		for (Definition<?> key : definitions) {
 			Object value1 = context1.get(key);
 			Object value2 = context2.get(key);
 			boolean match = (value1 == value2) || (null != value1 && value1.equals(value2));
@@ -88,7 +89,8 @@ public class EndpointContextUtil {
 		String mode = messageContext.getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
 		if (mode != null && mode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
 			// restore handshake-mode "none"
-			followUpEndpointContext = MapBasedEndpointContext.addEntries(connectionContext, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE);
+			followUpEndpointContext = MapBasedEndpointContext.addEntries(connectionContext,
+					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE);
 		} else {
 			followUpEndpointContext = connectionContext;
 		}

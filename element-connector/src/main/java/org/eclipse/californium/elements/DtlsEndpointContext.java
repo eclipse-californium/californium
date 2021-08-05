@@ -31,47 +31,55 @@ import org.eclipse.californium.elements.util.StringUtil;
 public class DtlsEndpointContext extends MapBasedEndpointContext {
 
 	/**
-	 * The name of the attribute that contains the DTLS session ID as {@link Bytes}.
+	 * The name of the attribute that contains the DTLS session ID as
+	 * {@link Bytes}.
 	 */
-	public static final String KEY_SESSION_ID = "DTLS_SESSION_ID";
+	public static final Definition<Bytes> KEY_SESSION_ID = new Definition<>("DTLS_SESSION_ID", Bytes.class,
+			ATTRIBUTE_DEFINITIONS);
 	/**
 	 * The name of the attribute that contains the <em>epoch</em> of the DTLS
 	 * session as {@link Number}.
 	 */
-	public static final String KEY_EPOCH = "DTLS_EPOCH";
+	public static final Definition<Integer> KEY_EPOCH = new Definition<>("DTLS_EPOCH", Integer.class,
+			ATTRIBUTE_DEFINITIONS);
 	/**
 	 * The name of the attribute that contains the cipher suite used with the
 	 * DTLS session as {@link String}.
 	 */
-	public static final String KEY_CIPHER = "DTLS_CIPHER";
+	public static final Definition<String> KEY_CIPHER = new Definition<>("DTLS_CIPHER", String.class,
+			ATTRIBUTE_DEFINITIONS);
 	/**
 	 * The name of the attribute that contains the timestamp of the last
 	 * handshake of the DTLS session as {@link Number}.
 	 * 
 	 * In milliseconds since midnight, January 1, 1970 UTC.
 	 */
-	public static final String KEY_HANDSHAKE_TIMESTAMP = "DTLS_HANDSHAKE_TIMESTAMP";
+	public static final Definition<Long> KEY_HANDSHAKE_TIMESTAMP = new Definition<>("DTLS_HANDSHAKE_TIMESTAMP",
+			Long.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * The name of the attribute that contains the DTLS Connection ID of the
 	 * other peer as {@link Bytes}, if used.
 	 * 
 	 * @since 2.5
 	 */
-	public static final String KEY_READ_CONNECTION_ID = "DTLS_READ_CONNECTION_ID";
+	public static final Definition<Bytes> KEY_READ_CONNECTION_ID = new Definition<>("DTLS_READ_CONNECTION_ID",
+			Bytes.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * The name of the attribute that contains the DTLS Connection ID of the
 	 * other peer as {@link Bytes}, if used.
 	 * 
 	 * @since 2.5
 	 */
-	public static final String KEY_WRITE_CONNECTION_ID = "DTLS_WRITE_CONNECTION_ID";
+	public static final Definition<Bytes> KEY_WRITE_CONNECTION_ID = new Definition<>("DTLS_WRITE_CONNECTION_ID",
+			Bytes.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * The name of the attribute that indicates, that the record is received via
 	 * a DTLS_CID router.
 	 * 
 	 * @since 2.5
 	 */
-	public static final String KEY_VIA_ROUTER = KEY_PREFIX_NONE_CRITICAL + "DTLS_VIA_ROUTER";
+	public static final Definition<String> KEY_VIA_ROUTER = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_VIA_ROUTER", String.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * The name of the attribute that contains a handshake mode. Values see
 	 * {@link #HANDSHAKE_MODE_FORCE_FULL}, {@link #HANDSHAKE_MODE_FORCE},
@@ -81,7 +89,8 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * not configured to act as server only. None critical attribute, not
 	 * considered for matching.
 	 */
-	public static final String KEY_HANDSHAKE_MODE = KEY_PREFIX_NONE_CRITICAL + "DTLS_HANDSHAKE_MODE";
+	public static final Definition<String> KEY_HANDSHAKE_MODE = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_HANDSHAKE_MODE", String.class, ATTRIBUTE_DEFINITIONS);
 
 	/**
 	 * Force full handshake before send this message. Doesn't start a handshake,
@@ -116,7 +125,8 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * 
 	 * @since 3.0 (renamed, was KEY_RESUMPTION_TIMEOUT)
 	 */
-	public static final String KEY_AUTO_HANDSHAKE_TIMEOUT = KEY_PREFIX_NONE_CRITICAL + "DTLS_AUTO_HANDSHAKE_TIMEOUT";
+	public static final Definition<Integer> KEY_AUTO_HANDSHAKE_TIMEOUT = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_AUTO_HANDSHAKE_TIMEOUT", Integer.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_NONE}.
 	 * 
@@ -193,8 +203,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @since 2.5
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
-			Bytes sessionId, int epoch, String cipher, long timestamp, Bytes writeCid, Bytes readCid,
-			String via) {
+			Bytes sessionId, int epoch, String cipher, long timestamp, Bytes writeCid, Bytes readCid, String via) {
 		super(peerAddress, virtualHost, peerIdentity,
 				new Attributes().add(KEY_SESSION_ID, sessionId).add(KEY_CIPHER, cipher).add(KEY_EPOCH, epoch)
 						.add(KEY_HANDSHAKE_TIMESTAMP, timestamp).add(KEY_WRITE_CONNECTION_ID, writeCid)
@@ -221,7 +230,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @return The identifier.
 	 */
 	public final Bytes getSessionId() {
-		return getBytes(KEY_SESSION_ID);
+		return get(KEY_SESSION_ID);
 	}
 
 	/**
@@ -230,7 +239,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @return The epoch number.
 	 */
 	public final Number getEpoch() {
-		return getNumber(KEY_EPOCH);
+		return get(KEY_EPOCH);
 	}
 
 	/**
@@ -239,7 +248,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @return The name.
 	 */
 	public final String getCipher() {
-		return getString(KEY_CIPHER);
+		return get(KEY_CIPHER);
 	}
 
 	/**
@@ -250,7 +259,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @see System#currentTimeMillis()
 	 */
 	public final Number getHandshakeTimestamp() {
-		return getNumber(KEY_HANDSHAKE_TIMESTAMP);
+		return get(KEY_HANDSHAKE_TIMESTAMP);
 	}
 
 	@Override

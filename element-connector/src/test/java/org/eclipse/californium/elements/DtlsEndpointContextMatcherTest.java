@@ -23,8 +23,11 @@ import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * Verifies behavior of the {@link StrictDtlsEndpointContextMatcher} and
@@ -35,6 +38,9 @@ public class DtlsEndpointContextMatcherTest {
 
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
 	private static final String SCOPE = "californium.eclipseprojects.io";
+
+	@Rule
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	private EndpointContext connectorContext;
 	private EndpointContext scopedConnectorContext;
@@ -81,10 +87,10 @@ public class DtlsEndpointContextMatcherTest {
 
 		strictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null,
 				new Attributes().add(KEY_SESSION_ID, session).add(KEY_EPOCH, 1).add(KEY_CIPHER, "CIPHER")
-						.add(KEY_AUTO_HANDSHAKE_TIMEOUT, "30000"));
+						.add(KEY_AUTO_HANDSHAKE_TIMEOUT, 30000));
 		scopedStrictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null,
 				new Attributes().add(KEY_SESSION_ID, session).add(KEY_EPOCH, 1).add(KEY_CIPHER, "CIPHER")
-						.add(KEY_AUTO_HANDSHAKE_TIMEOUT, "30000"));
+						.add(KEY_AUTO_HANDSHAKE_TIMEOUT, 30000));
 	}
 
 	@Test
@@ -181,14 +187,14 @@ public class DtlsEndpointContextMatcherTest {
 		assertThat(context.getPeerAddress(), is(strictMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(strictMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(strictMessageContext.getPeerIdentity()));
-		assertThat(context.getNumber(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(30000));
+		assertThat(context.get(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(30000));
 
 		context = MapBasedEndpointContext.addEntries(scopedStrictMessageContext,
 				new Attributes().add(KEY_AUTO_HANDSHAKE_TIMEOUT, 30000));
 		assertThat(context.getPeerAddress(), is(scopedStrictMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(scopedStrictMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(scopedStrictMessageContext.getPeerIdentity()));
-		assertThat(context.getNumber(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(30000));
+		assertThat(context.get(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(30000));
 	}
 
 	@Test
@@ -198,7 +204,15 @@ public class DtlsEndpointContextMatcherTest {
 		assertThat(context.getPeerAddress(), is(noneCriticalMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(noneCriticalMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(noneCriticalMessageContext.getPeerIdentity()));
-		assertThat(context.getNumber(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(60000));
+		assertThat(context.get(KEY_AUTO_HANDSHAKE_TIMEOUT).intValue(), is(60000));
 	}
 
+	@Test
+	public void testAddWithUnsupportedType() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("is not supported");
+		Definition<Float> FAIL = new Definition<>("F", Float.class);
+		Attributes attributes = new Attributes();
+		attributes.add(FAIL, 1.0F);
+	}
 }

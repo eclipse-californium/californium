@@ -409,10 +409,10 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(connection.getEstablishedDtlsContext(), is(notNullValue()));
 		assertThat(connection.getEstablishedDtlsContext().useDeprecatedCid(), is(deprecatedCid));
 
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(notNullValue()));
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_READ_CONNECTION_ID).length(), is(readCidlength));
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(notNullValue()));
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID).length(), is(writeCidlength));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(notNullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID).length(), is(readCidlength));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(notNullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID).length(), is(writeCidlength));
 	}
 
 	private void startServer() throws IOException, GeneralSecurityException {
@@ -1041,8 +1041,8 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(nullValue()));
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
 	}
 
 	@Test
@@ -1057,8 +1057,8 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(nullValue()));
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
 	}
 
 	@Test
@@ -1093,8 +1093,8 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(nullValue()));
-		assertThat(endpointContext.getBytes(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
 	}
 
 	@Test

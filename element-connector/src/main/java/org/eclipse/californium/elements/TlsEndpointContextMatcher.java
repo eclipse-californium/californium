@@ -18,12 +18,13 @@ package org.eclipse.californium.elements;
 /**
  * TLS endpoint context matcher.
  */
-public class TlsEndpointContextMatcher extends KeySetEndpointContextMatcher {
+public class TlsEndpointContextMatcher extends DefinitionsEndpointContextMatcher {
 
-	private static final String KEYS[] = { TcpEndpointContext.KEY_CONNECTION_ID, TlsEndpointContext.KEY_SESSION_ID,
-			TlsEndpointContext.KEY_CIPHER };
+	private static final Definitions<Definition<?>> DEFINITIONS = new Definitions<>("tls context")
+			.add(TcpEndpointContext.KEY_CONNECTION_ID).add(TlsEndpointContext.KEY_SESSION_ID)
+			.add(TlsEndpointContext.KEY_CIPHER);
 
 	public TlsEndpointContextMatcher() {
-		super("tls context", KEYS);
+		super(DEFINITIONS);
 	}
 }

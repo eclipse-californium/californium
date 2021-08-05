@@ -21,6 +21,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.EndpointContextOperator;
+import org.eclipse.californium.elements.Definition;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
@@ -54,13 +55,17 @@ public class OSCoreEndpointContextInfo {
 
 	private final static String PREFIX = MapBasedEndpointContext.KEY_PREFIX_NONE_CRITICAL;
 
-	public final static String OSCORE_SENDER_ID = PREFIX + "OSCORE_SENDER_ID";
+	public final static Definition<String> OSCORE_SENDER_ID = new Definition<>(PREFIX + "OSCORE_SENDER_ID", String.class,
+			MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS);
 
-	public final static String OSCORE_RECIPIENT_ID = PREFIX + "OSCORE_RECIPIENT_ID";
+	public final static Definition<String> OSCORE_RECIPIENT_ID = new Definition<>(PREFIX + "OSCORE_RECIPIENT_ID", String.class,
+			MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS);
 
-	public final static String OSCORE_CONTEXT_ID = PREFIX + "OSCORE_CONTEXT_ID";
+	public final static Definition<String> OSCORE_CONTEXT_ID = new Definition<>(PREFIX + "OSCORE_CONTEXT_ID", String.class,
+			MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS);
 
-	public final static String OSCORE_URI = PREFIX + "OSCORE_URI";
+	public final static Definition<String> OSCORE_URI = new Definition<>(PREFIX + "OSCORE_URI", String.class,
+			MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS);
 
 	/**
 	 * Sets information in a destination endpoint context for outgoing requests.
