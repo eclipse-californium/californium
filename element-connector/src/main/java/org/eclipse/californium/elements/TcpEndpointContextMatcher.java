@@ -18,11 +18,12 @@ package org.eclipse.californium.elements;
 /**
  * TCP endpoint context matcher.
  */
-public class TcpEndpointContextMatcher extends KeySetEndpointContextMatcher {
+public class TcpEndpointContextMatcher extends DefinitionsEndpointContextMatcher {
 
-	private static final String KEYS[] = { TcpEndpointContext.KEY_CONNECTION_ID };
+	private static final Definitions<Definition<?>> DEFINITIONS = new Definitions<>("tcp context")
+			.add(TcpEndpointContext.KEY_CONNECTION_ID);
 
 	public TcpEndpointContextMatcher() {
-		super("tcp context", KEYS);
+		super(DEFINITIONS);
 	}
 }

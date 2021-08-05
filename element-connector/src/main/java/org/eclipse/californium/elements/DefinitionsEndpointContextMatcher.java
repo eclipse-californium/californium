@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2021 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -11,77 +11,71 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Bosch Software Innovations GmbH - add flexible correlation context matching
- *                                      (fix GitHub issue #104)
- *    Achim Kraus (Bosch Software Innovations GmbH) - add isToBeSent to control
- *                                                    outgoing messages
- *                                                    (fix GitHub issue #104)
- *    Achim Kraus (Bosch Software Innovations GmbH) - use inhibitNewConnection 
- *                                                    for isToBeSent.
- *    Bosch Software Innovations GmbH - support matching of virtual host name
+ *    Bosch IO.GmbH - derived from KeySetEndpointContextMatcher
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
- * Key set based endpoint context matcher.
+ * Definitions based endpoint context matcher.
+ * 
+ * @since 3.0 (derived from KeySetEndpointContextMatcher)
  */
-public abstract class KeySetEndpointContextMatcher implements EndpointContextMatcher {
+public abstract class DefinitionsEndpointContextMatcher implements EndpointContextMatcher {
 
 	/**
 	 * Name of matcher. Used for logging.
 	 */
-	private final String name;
 	private final String sendTag;
 	private final String recvTag;
 	/**
-	 * Key set to be used for matching.
+	 * Definitions to be used for matching.
 	 * 
-	 * @see EndpointContextUtil#match(String, Set, EndpointContext,
+	 * @see EndpointContextUtil#match(String, Definitions, EndpointContext,
 	 *      EndpointContext)
 	 */
-	private final Set<String> keys;
+	private final Definitions<Definition<?>> definitions;
 	private final boolean compareHostname;
 
 	/**
-	 * Creates a matcher for a set of keys to compare.
+	 * Creates a matcher for a set of definitions to compare.
 	 * <p>
 	 * The new matcher will not compare the virtual host names of contexts.
 	 * 
-	 * @param name name (used for logging).
-	 * @param keys the names of the keys whose values will be compared when matching contexts.
+	 * @param definitions the definitions whose values will be compared when
+	 *            matching contexts.
+	 * @throws NullPointerException if definitions is {@code null}
 	 */
-	public KeySetEndpointContextMatcher(String name, String keys[]) {
-		this(name, keys, false);
+	public DefinitionsEndpointContextMatcher(Definitions<Definition<?>> definitions) {
+		this(definitions, false);
 	}
 
 	/**
-	 * Creates a matcher for a set of keys to compare.
+	 * Creates a matcher for a set of definitions to compare.
 	 * 
-	 * @param name name (used for logging).
-	 * @param keys the names of the keys whose values will be compared when matching contexts.
+	 * @param definitions the definitions whose values will be compared when
+	 *            matching contexts.
 	 * @param compareHostname {@code true} if the matcher should also
-	 *                 {@linkplain #isSameVirtualHost(EndpointContext, EndpointContext) compare
-	 *                 virtual host names} when matching contexts.
+	 *            {@linkplain #isSameVirtualHost(EndpointContext, EndpointContext)
+	 *            compare virtual host names} when matching contexts.
+	 * @throws NullPointerException if definitions is {@code null}
 	 */
-	public KeySetEndpointContextMatcher(String name, String keys[], boolean compareHostname) {
-		this.name = name;
-		this.sendTag = name + " sending";
-		this.recvTag = name + " receiving";
-		this.keys = createKeySet(keys);
+	public DefinitionsEndpointContextMatcher(Definitions<Definition<?>> definitions, boolean compareHostname) {
+		if (definitions == null) {
+			throw new NullPointerException("Definitions must not be null!");
+		}
+		this.sendTag = definitions.getName() + " sending";
+		this.recvTag = definitions.getName() + " receiving";
+		this.definitions = definitions;
 		this.compareHostname = compareHostname;
 	}
 
 	@Override
 	public String getName() {
-		return name;
+		return definitions.getName();
 	}
 
 	@Override
@@ -109,11 +103,12 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 		return result && internalMatch(sendTag, messageContext, connectionContext);
 	}
 
-	private final boolean internalMatch(String tag, EndpointContext requestedContext, EndpointContext availableContext) {
+	private final boolean internalMatch(String tag, EndpointContext requestedContext,
+			EndpointContext availableContext) {
 		if (!requestedContext.hasCriticalEntries()) {
 			return true;
 		}
-		return EndpointContextUtil.match(tag, keys, requestedContext, availableContext);
+		return EndpointContextUtil.match(tag, definitions, requestedContext, availableContext);
 	}
 
 	@Override
@@ -126,23 +121,13 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 	}
 
 	/**
-	 * Create key set from keys.
-	 * 
-	 * @param keys keys
-	 * @return key set
-	 */
-	public static Set<String> createKeySet(String... keys) {
-		return Collections.unmodifiableSet(new CopyOnWriteArraySet<String>(Arrays.asList(keys)));
-	}
-
-
-	/**
-	 * Checks if two endpoint contexts have the same virtual host property value.
+	 * Checks if two endpoint contexts have the same virtual host property
+	 * value.
 	 * 
 	 * @param firstContext The first context.
 	 * @param secondContext The second context.
-	 * @return {@code true} if the second context is {@code null} of if both contexts'
-	 *         virtualHost properties have the same value.
+	 * @return {@code true} if the second context is {@code null} of if both
+	 *         contexts' virtualHost properties have the same value.
 	 * @throws NullPointerException if the first context is {@code null}.
 	 */
 	public static final boolean isSameVirtualHost(EndpointContext firstContext, EndpointContext secondContext) {
@@ -155,8 +140,8 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 			String firstVirtualHost = firstContext.getVirtualHost();
 			String otherVirtualHost = secondContext.getVirtualHost();
 
-			return firstVirtualHost == otherVirtualHost ||
-					(firstVirtualHost != null && firstVirtualHost.equals(otherVirtualHost));
+			return firstVirtualHost == otherVirtualHost
+					|| (firstVirtualHost != null && firstVirtualHost.equals(otherVirtualHost));
 		}
 	}
 }

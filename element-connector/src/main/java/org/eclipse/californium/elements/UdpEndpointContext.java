@@ -22,7 +22,7 @@ import java.net.InetSocketAddress;
  */
 public class UdpEndpointContext extends MapBasedEndpointContext {
 
-	public static final String KEY_PLAIN = "PLAIN";
+	public static final Definition<String> KEY_PLAIN = new Definition<>("PLAIN", String.class, ATTRIBUTE_DEFINITIONS);
 
 	/**
 	 * Creates a new context for a socket address.

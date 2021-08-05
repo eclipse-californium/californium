@@ -117,13 +117,13 @@ public class AddressEndpointContext implements EndpointContext {
 	 * If not override in an extending class, only {@code null} will be returned.
 	 */
 	@Override
-	public Object get(String key) {
+	public <T> T get(Definition<T> definition) {
 		return null;
 	}
 
 	@Override
-	public String getString(String key) {
-		Object value = get(key);
+	public <T> String getString(Definition<T> definition) {
+		T value = get(definition);
 		if (value != null) {
 			if (value instanceof Bytes) {
 				return ((Bytes) value).getAsString();
@@ -135,33 +135,13 @@ public class AddressEndpointContext implements EndpointContext {
 		}
 	}
 
-	@Override
-	public Number getNumber(String key) {
-		Object value = get(key);
-		if (value != null) {
-			return (Number) value;
-		} else {
-			return null;
-		}
-	}
-
-	@Override
-	public Bytes getBytes(String key) {
-		Object value = get(key);
-		if (value != null) {
-			return (Bytes) value;
-		} else {
-			return null;
-		}
-	}
-
 	/**
 	 * {@inheritDoc}
 	 * 
 	 * @return an empty map
 	 */
 	@Override
-	public Map<String, Object> entries() {
+	public Map<Definition<?>, Object> entries() {
 		return Collections.emptyMap();
 	}
 

@@ -34,9 +34,11 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class TlsEndpointContext extends TcpEndpointContext {
 
-	public static final String KEY_SESSION_ID = "TLS_SESSION_ID";
+	public static final Definition<String> KEY_SESSION_ID = new Definition<>("TLS_SESSION_ID", String.class,
+			ATTRIBUTE_DEFINITIONS);
 
-	public static final String KEY_CIPHER = "TLS_CIPHER";
+	public static final Definition<String> KEY_CIPHER = new Definition<>("TLS_CIPHER", String.class,
+			ATTRIBUTE_DEFINITIONS);
 
 	/**
 	 * Creates a new correlation context from TLS session parameters.
@@ -45,7 +47,7 @@ public class TlsEndpointContext extends TcpEndpointContext {
 	 * @param peerIdentity peer identity of endpoint context
 	 * @param connectionId the connectionn's ID.
 	 * @param sessionId the session's ID.
-	 * @param timestamp the timestamp in milliseconds of the last connect. 
+	 * @param timestamp the timestamp in milliseconds of the last connect.
 	 * @param cipher the cipher suite of the session's current read/write state.
 	 * @throws NullPointerException if any of the params is {@code null}.
 	 * @since 3.0 (added timestamp)
@@ -57,11 +59,11 @@ public class TlsEndpointContext extends TcpEndpointContext {
 	}
 
 	public String getSessionId() {
-		return getString(KEY_SESSION_ID);
+		return get(KEY_SESSION_ID);
 	}
 
 	public String getCipher() {
-		return getString(KEY_CIPHER);
+		return get(KEY_CIPHER);
 	}
 
 	@Override

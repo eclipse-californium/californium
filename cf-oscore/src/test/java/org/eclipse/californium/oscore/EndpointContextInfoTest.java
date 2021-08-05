@@ -29,6 +29,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.eclipse.californium.oscore.OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID;
+import static org.eclipse.californium.oscore.OSCoreEndpointContextInfo.OSCORE_SENDER_ID;
+import static org.eclipse.californium.oscore.OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID;
+import static org.eclipse.californium.oscore.OSCoreEndpointContextInfo.OSCORE_URI;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapServer;
@@ -81,12 +85,6 @@ public class EndpointContextInfoTest {
 	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
 			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
 	private final static byte[] context_id = { 0x74, 0x65, 0x73, 0x74 };
-
-	// Keys used in the endpoint context map of strings
-	private final static String OSCORE_SENDER_ID = OSCoreEndpointContextInfo.OSCORE_SENDER_ID;
-	private final static String OSCORE_RECIPIENT_ID = OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID;
-	private final static String OSCORE_CONTEXT_ID = OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID;
-	private final static String OSCORE_URI = OSCoreEndpointContextInfo.OSCORE_URI;
 
 	@Before
 	public void initLogger() {

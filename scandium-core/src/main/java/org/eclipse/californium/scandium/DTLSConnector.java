@@ -2964,7 +2964,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	private Long getAutoHandshakeTimeout(RawData message) {
 		Long timeout = autoResumptionTimeoutMillis;
-		Number contextTimeout = message.getEndpointContext().getNumber(DtlsEndpointContext.KEY_AUTO_HANDSHAKE_TIMEOUT);
+		Number contextTimeout = message.getEndpointContext().get(DtlsEndpointContext.KEY_AUTO_HANDSHAKE_TIMEOUT);
 		if (contextTimeout != null) {
 			if (contextTimeout.longValue() >= 0) {
 				timeout = contextTimeout.longValue();

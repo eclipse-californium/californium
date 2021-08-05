@@ -38,11 +38,12 @@ import org.slf4j.LoggerFactory;
  * 
  * Optionally checks address for request-response matching.
  */
-public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
+public class UdpEndpointContextMatcher extends DefinitionsEndpointContextMatcher {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(UdpEndpointContextMatcher.class);
 
-	private static final String KEYS[] = { UdpEndpointContext.KEY_PLAIN };
+	private static final Definitions<Definition<?>> DEFINITIONS = new Definitions<>("udp context")
+			.add(UdpEndpointContext.KEY_PLAIN);
 
 	/**
 	 * Enable address check for request-response matching.
@@ -64,7 +65,7 @@ public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 	 *            without
 	 */
 	public UdpEndpointContextMatcher(boolean checkAddress) {
-		super("udp plain", KEYS);
+		super(DEFINITIONS);
 		this.checkAddress = checkAddress;
 	}
 
@@ -79,7 +80,8 @@ public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 		if (checkAddress) {
 			InetSocketAddress peerAddress1 = requestContext.getPeerAddress();
 			InetSocketAddress peerAddress2 = responseContext.getPeerAddress();
-			if (!peerAddress1.equals(peerAddress2) && !NetworkInterfacesUtil.isMultiAddress(peerAddress1.getAddress())) {
+			if (!peerAddress1.equals(peerAddress2)
+					&& !NetworkInterfacesUtil.isMultiAddress(peerAddress1.getAddress())) {
 				LOGGER.info("request {}:{} doesn't match {}:{}!", peerAddress1.getAddress().getHostAddress(),
 						peerAddress1.getPort(), peerAddress2.getAddress().getHostAddress(), peerAddress2.getPort());
 				return false;

@@ -20,7 +20,6 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.net.InetSocketAddress;
-import java.util.Set;
 
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.util.Bytes;
@@ -30,6 +29,8 @@ import org.junit.Test;
 public class EndpointContextUtilTest {
 
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
+	public static final Definition<String> ID = new Definition<>("ID", String.class);
+	public static final Definition<String> UNKNOWN = new Definition<>("UNKNOWN", String.class);
 
 	private EndpointContext connectorContext;
 	private EndpointContext relaxedMessageContext;
@@ -47,17 +48,18 @@ public class EndpointContextUtilTest {
 		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, null, session, 1, "CIPHER", 100);
 		differentMessageContext = new DtlsEndpointContext(ADDRESS, null, null, newSession, 1, "CIPHER", 100);
 		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext(ADDRESS, null,
-				new Attributes().add("ID", "session").add("UNKNOWN", "secret"));
+				new Attributes().add(ID, "session").add(UNKNOWN, "secret"));
 		unsecureMessageContext = mapBasedContext;
 		mapBasedContext = new MapBasedEndpointContext(ADDRESS, null,
-				new Attributes().add("ID", "session").add("UNKNOWN", "topsecret"));
+				new Attributes().add(ID, "session").add(UNKNOWN, "topsecret"));
 		unsecureMessageContext2 = mapBasedContext;
 	}
 
 	@Test
 	public void testEndpointContextUtil() {
-		Set<String> keys = KeySetEndpointContextMatcher.createKeySet(DtlsEndpointContext.KEY_SESSION_ID,
-				DtlsEndpointContext.KEY_CIPHER);
+		Definitions<Definition<?>> keys = new Definitions<>("test")
+				.add(DtlsEndpointContext.KEY_SESSION_ID)
+				.add(DtlsEndpointContext.KEY_CIPHER);
 		assertThat(EndpointContextUtil.match("test-1", keys, strictMessageContext, connectorContext), is(true));
 		assertThat(EndpointContextUtil.match("test-2", keys, relaxedMessageContext, connectorContext), is(true));
 		assertThat(EndpointContextUtil.match("test-3", keys, differentMessageContext, connectorContext), is(false));
@@ -69,8 +71,10 @@ public class EndpointContextUtilTest {
 
 	@Test
 	public void testEndpointContextUtilWithAdditionalKey() {
-		Set<String> keys = KeySetEndpointContextMatcher.createKeySet(DtlsEndpointContext.KEY_SESSION_ID,
-				DtlsEndpointContext.KEY_CIPHER, "UNKNOWN");
+		Definitions<Definition<?>> keys = new Definitions<>("test")
+				.add(DtlsEndpointContext.KEY_SESSION_ID)
+				.add(DtlsEndpointContext.KEY_CIPHER)
+				.add(UNKNOWN);
 		assertThat(EndpointContextUtil.match("test-1", keys, strictMessageContext, connectorContext), is(true));
 		assertThat(EndpointContextUtil.match("test-2", keys, relaxedMessageContext, connectorContext), is(true));
 		assertThat(EndpointContextUtil.match("test-3", keys, differentMessageContext, connectorContext), is(false));

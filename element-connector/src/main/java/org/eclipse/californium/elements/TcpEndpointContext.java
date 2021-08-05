@@ -32,7 +32,8 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 	/**
 	 * Key for TCP connection ID as {@link String}.
 	 */
-	public static final String KEY_CONNECTION_ID = "CONNECTION_ID";
+	public static final Definition<String> KEY_CONNECTION_ID = new Definition<>("CONNECTION_ID", String.class,
+			ATTRIBUTE_DEFINITIONS);
 	/**
 	 * Key for TCP connection timestamp as {@link String}.
 	 * 
@@ -40,19 +41,21 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String KEY_CONNECTION_TIMESTAMP = "CONNECTION_TIMESTAMP";
+	public static final Definition<Long> KEY_CONNECTION_TIMESTAMP = new Definition<>("CONNECTION_TIMESTAMP", Long.class,
+			ATTRIBUTE_DEFINITIONS);
 
 	/**
 	 * Creates a new endpoint context from TCP connection ID.
 	 * 
 	 * @param peerAddress peer address of endpoint context
 	 * @param connectionId the connectionn's ID.
-	 * @param timestamp the timestamp in milliseconds of the last connect. 
+	 * @param timestamp the timestamp in milliseconds of the last connect.
 	 * @throws NullPointerException if connectionId or peer address is
 	 *             {@code null}.
 	 */
 	public TcpEndpointContext(InetSocketAddress peerAddress, String connectionId, long timestamp) {
-		this(peerAddress, null, new Attributes().add(KEY_CONNECTION_ID, connectionId).add(KEY_CONNECTION_TIMESTAMP, timestamp));
+		this(peerAddress, null,
+				new Attributes().add(KEY_CONNECTION_ID, connectionId).add(KEY_CONNECTION_TIMESTAMP, timestamp));
 	}
 
 	/**
@@ -84,7 +87,7 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 	 * @return TCP connection id
 	 */
 	public String getConnectionId() {
-		return getString(KEY_CONNECTION_ID);
+		return get(KEY_CONNECTION_ID);
 	}
 
 	/**
@@ -96,7 +99,7 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 	 * @since 3.0
 	 */
 	public final Number getConnectionTimestamp() {
-		return getNumber(KEY_CONNECTION_TIMESTAMP);
+		return get(KEY_CONNECTION_TIMESTAMP);
 	}
 
 	@Override

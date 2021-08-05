@@ -36,6 +36,14 @@ import org.eclipse.californium.elements.util.Bytes;
 public class MapBasedEndpointContext extends AddressEndpointContext {
 
 	/**
+	 * Set of attribute definitions.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Definitions<Definition<?>> ATTRIBUTE_DEFINITIONS = new Definitions<>(
+			"EndpointContextAttributes");
+
+	/**
 	 * Prefix for none critical attributes. These attributes are not considered
 	 * for context matching nor {@link #hasCriticalEntries()}.
 	 */
@@ -49,7 +57,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	/**
 	 * (Unmodifiable) map of attributes.
 	 */
-	private final Map<String, Object> entries;
+	private final Map<Definition<?>, Object> entries;
 
 	/**
 	 * Creates a new endpoint context with correlation context support.
@@ -100,22 +108,23 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 * @param attributes map of attributes
 	 * @return {@code true}, if at least one critical attribute is contained.
 	 */
-	private static final boolean findCriticalEntries(Map<String, Object> attributes) {
-		for (String key : attributes.keySet()) {
-			if (!key.startsWith(KEY_PREFIX_NONE_CRITICAL)) {
+	private static final boolean findCriticalEntries(Map<Definition<?>, Object> attributes) {
+		for (Definition<?> key : attributes.keySet()) {
+			if (!key.getKey().startsWith(KEY_PREFIX_NONE_CRITICAL)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public Object get(String key) {
-		return entries.get(key);
+	public <T> T get(Definition<T> key) {
+		return (T) entries.get(key);
 	}
 
 	@Override
-	public Map<String, Object> entries() {
+	public Map<Definition<?>, Object> entries() {
 		return entries;
 	}
 
@@ -171,14 +180,14 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 *             contained in the original context.
 	 * @since 2.1
 	 */
-	public static MapBasedEndpointContext removeEntries(EndpointContext context, String... attributes) {
+	public static MapBasedEndpointContext removeEntries(EndpointContext context, Definition<?>... attributes) {
 		if (attributes == null) {
 			throw new NullPointerException("attributes must not null!");
 		}
 		Attributes entries = new Attributes(context.entries());
 		for (int index = 0; index < attributes.length; ++index) {
 			try {
-				String key = attributes[index];
+				Definition<?> key = attributes[index];
 				if (!entries.remove(key)) {
 					throw new IllegalArgumentException(index + ". key '" + key + "' is not contained");
 				}
@@ -210,7 +219,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		/**
 		 * Map of attributes.
 		 */
-		private final Map<String, Object> entries = new HashMap<>();
+		private final Map<Definition<?>, Object> entries = new HashMap<>();
 		/**
 		 * Protect attributes from further modification.
 		 */
@@ -227,7 +236,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		 * 
 		 * @param entries available entries.
 		 */
-		private Attributes(Map<String, Object> entries) {
+		private Attributes(Map<Definition<?>, Object> entries) {
 			this.entries.putAll(entries);
 		}
 
@@ -263,114 +272,55 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		/**
 		 * Add value for key.
 		 * 
+		 * @param <T> value type. Support String, Integer, Long, Boolean,
+		 *            InetSocketAddress and Bytes. Other types may break
+		 *            serialization, especially custom serialization!
 		 * @param key key to add
 		 * @param value value to add
+		 * @return this for chaining
 		 * @throws NullPointerException if key is {@code null}, or a critical
 		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
+		 * @throws IllegalArgumentException if key is empty or the value type is
+		 *             not supported
 		 * @throws IllegalStateException if instance is locked
 		 */
-		private void addObject(String key, Object value) {
+		public <T> Attributes add(Definition<T> key, T value) {
 			if (lock) {
 				throw new IllegalStateException("Already in use!");
 			} else if (null == key) {
 				throw new NullPointerException("key is null");
-			} else if (key.isEmpty()) {
-				throw new IllegalArgumentException("key is empty");
 			} else if (null == value) {
-				if (!key.startsWith(KEY_PREFIX_NONE_CRITICAL)) {
+				if (!key.getKey().startsWith(KEY_PREFIX_NONE_CRITICAL)) {
 					throw new NullPointerException("value is null");
 				}
+			}
+			Class<T> valueType = key.getValueType();
+			if (valueType != String.class && valueType != Integer.class && valueType != Long.class
+					&& valueType != InetSocketAddress.class && valueType != Boolean.class
+					&& !Bytes.class.isAssignableFrom(valueType)) {
+				throw new IllegalArgumentException(valueType
+						+ " is not supported, only String, Integer, Long, Boolean, InetSocketAddress and Bytes!");
+			}
+			if (value == null) {
+				entries.remove(key);
 			} else if (entries.put(key, value) != null) {
 				throw new IllegalArgumentException("'" + key + "' already contained!");
 			}
-		}
-
-		/**
-		 * Add {@link String} value with key.
-		 * 
-		 * Provides a fluent API to chain add functions.
-		 * 
-		 * @param key key to add
-		 * @param value value to add
-		 * @return this for chaining
-		 * @throws NullPointerException if key is {@code null}, or a critical
-		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
-		 * @throws IllegalStateException if instance is locked
-		 */
-		public Attributes add(String key, String value) {
-			addObject(key, value);
-			return this;
-		}
-
-		/**
-		 * Add {@link Integer} value with key.
-		 * 
-		 * Provides a fluent API to chain add functions.
-		 * 
-		 * @param key key to add
-		 * @param value value to add
-		 * @return this for chaining
-		 * @throws NullPointerException if key is {@code null}, or a critical
-		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
-		 * @throws IllegalStateException if instance is locked
-		 */
-		public Attributes add(String key, Integer value) {
-			addObject(key, value);
-			return this;
-		}
-
-		/**
-		 * Add {@link Long} value with key.
-		 * 
-		 * Provides a fluent API to chain add functions.
-		 * 
-		 * @param key key to add
-		 * @param value value to add
-		 * @return this for chaining
-		 * @throws NullPointerException if key is {@code null}, or a critical
-		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
-		 * @throws IllegalStateException if instance is locked
-		 */
-		public Attributes add(String key, Long value) {
-			addObject(key, value);
-			return this;
-		}
-
-		/**
-		 * Add {@link Bytes} value with key.
-		 * 
-		 * Provides a fluent API to chain add functions.
-		 * 
-		 * @param key key to add
-		 * @param value value to add
-		 * @return this for chaining
-		 * @throws NullPointerException if key is {@code null}, or a critical
-		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty
-		 * @throws IllegalStateException if instance is locked
-		 */
-		public Attributes add(String key, Bytes value) {
-			addObject(key, value);
 			return this;
 		}
 
 		/**
 		 * Check, if attribute is available.
 		 * 
+		 * @param <T> value type
 		 * @param key the key to check
 		 * @return {@code true}, if available, {@code false}, if not.
 		 * @throws NullPointerException if key is {@code null}
 		 * @throws IllegalArgumentException if key is empty
 		 */
-		public boolean contains(String key) {
+		public <T> boolean contains(Definition<T> key) {
 			if (null == key) {
 				throw new NullPointerException("key is null");
-			} else if (key.isEmpty()) {
-				throw new IllegalArgumentException("key is empty");
 			}
 			return entries.containsKey(key);
 		}
@@ -378,19 +328,18 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		/**
 		 * Remove attribute.
 		 * 
+		 * @param <T> value type
 		 * @param key key to remove
 		 * @return {@code true}, if available, {@code false}, if not.
 		 * @throws NullPointerException if key is {@code null}
 		 * @throws IllegalArgumentException if key is empty
 		 * @throws IllegalStateException if instance is locked
 		 */
-		public boolean remove(String key) {
+		public <T> boolean remove(Definition<T> key) {
 			if (lock) {
 				throw new IllegalStateException("Already in use!");
 			} else if (null == key) {
 				throw new NullPointerException("key is null");
-			} else if (key.isEmpty()) {
-				throw new IllegalArgumentException("key is empty");
 			}
 			return entries.remove(key) != null;
 		}

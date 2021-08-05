@@ -25,6 +25,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.elements.Definition;
+import org.eclipse.californium.elements.Definitions;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.exception.VersionMismatchException;
@@ -83,6 +85,14 @@ public class SerializationUtil {
 	 * Attribute type {@link Long}.
 	 */
 	private static final int ATTRIBUTES_LONG = 4;
+	/**
+	 * Attribute type {@link Boolean}.
+	 */
+	private static final int ATTRIBUTES_BOOLEAN = 5;
+	/**
+	 * Attribute type {@link InetSocketAddress}.
+	 */
+	private static final int ATTRIBUTES_INET_SOCKET_ADDRESS = 6;
 	/**
 	 * Serialization version for nanotime synchronization mark.
 	 */
@@ -308,13 +318,13 @@ public class SerializationUtil {
 	 * @param writer writer
 	 * @param entries attributes.
 	 */
-	public static void write(DatagramWriter writer, Map<String, Object> entries) {
+	public static void write(DatagramWriter writer, Map<Definition<?>, Object> entries) {
 		if (entries == null) {
 			writeNoItem(writer);
 		} else {
 			int position = writeStartItem(writer, ATTRIBUTES_VERSION, Short.SIZE);
-			for (Map.Entry<String, Object> entry : entries.entrySet()) {
-				write(writer, entry.getKey(), Byte.SIZE);
+			for (Map.Entry<Definition<?>, Object> entry : entries.entrySet()) {
+				write(writer, entry.getKey().getKey(), Byte.SIZE);
 				Object value = entry.getValue();
 				if (value instanceof String) {
 					writer.writeByte((byte) ATTRIBUTES_STRING);
@@ -328,6 +338,12 @@ public class SerializationUtil {
 				} else if (value instanceof Long) {
 					writer.writeByte((byte) ATTRIBUTES_LONG);
 					writer.writeLong((Long) value, Long.SIZE);
+				} else if (value instanceof Boolean) {
+					writer.writeByte((byte) ATTRIBUTES_BOOLEAN);
+					writer.writeByte((Boolean) value ? (byte) 1 : (byte) 0);
+				} else if (value instanceof InetSocketAddress) {
+					writer.writeByte((byte) ATTRIBUTES_INET_SOCKET_ADDRESS);
+					write(writer, (InetSocketAddress) value);
 				}
 			}
 			writeFinishedItem(writer, position, Short.SIZE);
@@ -337,10 +353,14 @@ public class SerializationUtil {
 	/**
 	 * Read {@link EndpointContext} attributes.
 	 * 
+	 * @param <T> definitions type
 	 * @param reader reader
+	 * @param definitions set of definitions to read
 	 * @return read attributes, or {@code null}, if no attributes are written.
 	 */
-	public static Attributes readEndpointContexAttributes(DataStreamReader reader) {
+	@SuppressWarnings("unchecked")
+	public static <T extends Definition<?>> Attributes readEndpointContexAttributes(DataStreamReader reader,
+			Definitions<T> definitions) {
 		int length = readStartItem(reader, ATTRIBUTES_VERSION, Short.SIZE);
 		if (length < 0) {
 			return null;
@@ -349,26 +369,40 @@ public class SerializationUtil {
 		Attributes attributes = new Attributes();
 		while (rangeReader.bytesAvailable()) {
 			String key = readString(rangeReader, Byte.SIZE);
+			Definition<?> definition = definitions.get(key);
+			if (definition == null) {
+				throw new IllegalArgumentException("'" + key + "' is not in definitions!");
+			}
 			try {
 				int type = rangeReader.readNextByte() & 0xff;
 				switch (type) {
 				case ATTRIBUTES_STRING:
 					String stringValue = readString(rangeReader, Byte.SIZE);
-					attributes.add(key, stringValue);
+					attributes.add((Definition<String>) definition, stringValue);
 					break;
 				case ATTRIBUTES_BYTES:
 					byte[] data = rangeReader.readVarBytes(Byte.SIZE);
-					attributes.add(key, new Bytes(data));
+					attributes.add((Definition<Bytes>) definition, new Bytes(data));
 					break;
 				case ATTRIBUTES_INTEGER:
 					int intValue = rangeReader.read(Integer.SIZE);
-					attributes.add(key, intValue);
+					attributes.add((Definition<Integer>) definition, Integer.valueOf(intValue));
 					break;
 				case ATTRIBUTES_LONG:
 					long longValue = rangeReader.readLong(Long.SIZE);
-					attributes.add(key, longValue);
+					attributes.add((Definition<Long>) definition, Long.valueOf(longValue));
+					break;
+				case ATTRIBUTES_BOOLEAN:
+					byte booleanValue = rangeReader.readNextByte();
+					attributes.add((Definition<Boolean>) definition, booleanValue == 1 ? Boolean.TRUE : Boolean.FALSE);
+					break;
+				case ATTRIBUTES_INET_SOCKET_ADDRESS:
+					InetSocketAddress address = readAddress(rangeReader);
+					attributes.add((Definition<InetSocketAddress>) definition, address);
 					break;
 				}
+			} catch (ClassCastException ex) {
+				LOGGER.warn("Read attribute {}:", key, ex);
 			} catch (IllegalArgumentException ex) {
 				LOGGER.warn("Read attribute {}:", key, ex);
 			}

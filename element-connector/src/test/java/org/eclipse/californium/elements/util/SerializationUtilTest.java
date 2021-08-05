@@ -24,6 +24,8 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.elements.Definition;
+import org.eclipse.californium.elements.Definitions;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.rule.TestTimeRule;
@@ -102,19 +104,31 @@ public class SerializationUtilTest {
 
 	@Test
 	public void testEndpointContextAttributes() {
-		Attributes writeAttributes = new Attributes();
-		writeAttributes.add("K1", "String");
-		writeAttributes.add("K2", 10);
-		writeAttributes.add("K3", 1000L);
-		writeAttributes.add("K4", new Bytes("bytes".getBytes()));
+		Definitions<Definition<?>> test = new Definitions<>("test");
+		Definition<String> K1 = new Definition<>("K1", String.class, test);
+		Definition<Integer> K2 = new Definition<>("K2", Integer.class, test);
+		Definition<Long> K3 = new Definition<>("K3", Long.class, test);
+		Definition<Bytes> K4 = new Definition<>("K4", Bytes.class, test);
+		Definition<Boolean> K5 = new Definition<>("K5", Boolean.class, test);
+		Definition<InetSocketAddress> K6 = new Definition<>("K6", InetSocketAddress.class, test);
+
 		InetSocketAddress dummy = new InetSocketAddress(0);
+		InetSocketAddress address = new InetSocketAddress("192.168.0.1", 5683);
+
+		Attributes writeAttributes = new Attributes();
+		writeAttributes.add(K1, "String");
+		writeAttributes.add(K2, 10);
+		writeAttributes.add(K3, 1000L);
+		writeAttributes.add(K4, new Bytes("bytes".getBytes()));
+		writeAttributes.add(K5, true);
+		writeAttributes.add(K6, address);
 		MapBasedEndpointContext context = new MapBasedEndpointContext(dummy, null, writeAttributes);
-		Map<String, Object> write = context.entries();
+		Map<Definition<?>, Object> write = context.entries();
 		SerializationUtil.write(writer, write);
 		swap();
-		Attributes readAttributes = SerializationUtil.readEndpointContexAttributes(reader);
+		Attributes readAttributes = SerializationUtil.readEndpointContexAttributes(reader, test);
 		context = new MapBasedEndpointContext(dummy, null, readAttributes);
-		Map<String, Object> read = context.entries();
+		Map<Definition<?>, Object> read = context.entries();
 		assertEquals(write, read);
 		assertEquals(writeAttributes, readAttributes);
 	}
@@ -129,8 +143,8 @@ public class SerializationUtilTest {
 		long delta = SerializationUtil.readNanotimeSynchronizationMark(reader);
 		timePassed += ClockUtil.nanoRealtime();
 		assertThat(delta, is(inRange(-MILLISECOND_IN_NANOS, timePassed + MILLISECOND_IN_NANOS)));
-
 	}
+
 	@Test
 	public void testNanotimeSynchronizationMarkWithTimeshift() {
 		long timePassed = ClockUtil.nanoRealtime();
