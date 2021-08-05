@@ -207,7 +207,7 @@ public class OptionJuggle {
 	 * Sets the fake code in the coap header and returns the real code.
 	 * 
 	 * @param request the request that receives its fake code.
-	 * @return realCode the real code.
+	 * @return request with fake code.
 	 */
 	public static Request setFakeCodeRequest(Request request) {
 		Code fakeCode = request.getOptions().hasObserve() ? Code.FETCH : Code.POST;
@@ -229,7 +229,7 @@ public class OptionJuggle {
 	 * Sets the fake code in the coap header and returns the real code.
 	 * 
 	 * @param response the response that receives its fake code.
-	 * @return realCode the real code.
+	 * @return response with fake code.
 	 */
 	public static Response setFakeCodeResponse(Response response) {
 		return responseWithNewCode(response, ResponseCode.CHANGED);
@@ -251,6 +251,7 @@ public class OptionJuggle {
 	 * 
 	 * @param request the Request having its CoAP Code changed
 	 * @param code the new CoAP Code
+	 * @return request with new code.
 	 */
 	private static Request requestWithNewCode(Request request, Code code) {
 		OptionSet options = request.getOptions();
@@ -283,6 +284,7 @@ public class OptionJuggle {
 	 * 
 	 * @param response the Response having its ResponseCode changed
 	 * @param code the new ResponseCode
+	 * @return response with new code.
 	 */
 	private static Response responseWithNewCode(Response response, ResponseCode code) {
 		OptionSet options = response.getOptions();

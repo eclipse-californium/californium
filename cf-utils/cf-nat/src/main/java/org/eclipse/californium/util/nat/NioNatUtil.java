@@ -1399,6 +1399,7 @@ public class NioNatUtil implements Runnable {
 	/**
 	 * Get logging string for destinations.
 	 * 
+	 * @return logging string for destinations
 	 * @since 2.5
 	 */
 	private String getDestinationForLogging() {

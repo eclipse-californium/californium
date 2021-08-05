@@ -16,7 +16,6 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -80,7 +79,7 @@ public class ContextRederivation {
 	{
 		try {
 			initiateRequest(db, uri);
-		} catch (ConnectorException | IOException | OSException e) {
+		} catch (ConnectorException | OSException e) {
 			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 			throw new CoapOSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED, ResponseCode.BAD_REQUEST);
 		}
@@ -93,11 +92,12 @@ public class ContextRederivation {
 	 * initiates the context re-derivation procedure. This request is identified
 	 * as request #1 in Appendix B.2.
 	 * 
-	 * @throws IOException
-	 * @throws ConnectorException
-	 * @throws OSException
+	 * @param db context db
+	 * @param uri uri
+	 * @throws ConnectorException if send/receiving messages failed
+	 * @throws OSException if context re-derivation fails
 	 */
-	private static void initiateRequest(OSCoreCtxDB db, String uri) throws ConnectorException, IOException, OSException {
+	private static void initiateRequest(OSCoreCtxDB db, String uri) throws ConnectorException, OSException {
 
 		// Retrieve the context for the target URI
 		OSCoreCtx ctx = db.getContext(uri);
@@ -474,6 +474,7 @@ public class ContextRederivation {
 	 * @param ctx the OSCORE context to re-derive
 	 * @param contextID the new context ID to use
 	 * @return the new re-derived context
+	 * @throws OSException if the KDF is not supported
 	 */
 	private static OSCoreCtx rederiveWithContextID(OSCoreCtx ctx, byte[] contextID) throws OSException {
 		OSCoreCtx newCtx = new OSCoreCtx(ctx.getMasterSecret(), true, ctx.getAlg(), ctx.getSenderId(),
@@ -508,6 +509,7 @@ public class ContextRederivation {
 	 * byte string is returned.
 	 * 
 	 * @param array the input Java byte array to encode
+	 * @return encoded bytes
 	 */
 	private static byte[] encodeToCborBstrBytes(byte[] array) {
 		CBORObject arrayBstr = CBORObject.FromObject(array);
@@ -521,6 +523,7 @@ public class ContextRederivation {
 	 * CBOR byte string is returned.
 	 * 
 	 * @param bstr a byte array containing the encoded CBOR byte string
+	 * @return decoded bytes
 	 */
 	private static byte[] decodeFromCborBstrBytes(byte[] bstr) {
 		CBORObject arrayBstr = CBORObject.DecodeFromBytes(bstr);
