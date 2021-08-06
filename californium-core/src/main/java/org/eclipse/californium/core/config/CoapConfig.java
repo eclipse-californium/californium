@@ -381,14 +381,14 @@ public final class CoapConfig {
 	 * target="_blank">RFC7390, 2.5. Request and Response Model</a>.
 	 */
 	public static final TimeDefinition MAX_SERVER_RESPONSE_DELAY = new TimeDefinition(
-			MODULE + "MAX_SERVER_RESPONSE_DELAY", "Maximum server response delay.");
+			MODULE + "MAX_SERVER_RESPONSE_DELAY", "Maximum server response delay.", 250, TimeUnit.SECONDS);
 	/**
 	 * The number of concurrent maximum server response delay. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final IntegerDefinition NSTART = new IntegerDefinition(MODULE + "NSTART",
-			"Maximum concurrent transmissions.");
+			"Maximum concurrent transmissions.", 1);
 	/**
 	 * The leisure of a multicast server for response delays. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
@@ -598,7 +598,7 @@ public final class CoapConfig {
 	 */
 	public static final EnumDefinition<CongestionControlMode> CONGESTION_CONTROL_ALGORITHM = new EnumDefinition<>(
 			MODULE + "CONGESTION_CONTROL_ALGORITHM", "Congestion-Control algorithm (still experimental).",
-			CongestionControlMode.values());
+			CongestionControlMode.NULL, CongestionControlMode.values());
 
 	/**
 	 * Number of threads to process coap-exchanges.

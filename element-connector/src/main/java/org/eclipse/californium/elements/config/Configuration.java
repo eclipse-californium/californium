@@ -39,6 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.elements.Definition;
+import org.eclipse.californium.elements.Definitions;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,15 +63,15 @@ import org.slf4j.LoggerFactory;
  * android-os-permission to do so.
  * 
  * In order to use this {@link Configuration} with modules (sets of
- * {@link Definition}), {@link #addModule(String, DefinitionsProvider)} is used
+ * {@link DocumentedDefinition}), {@link #addModule(String, DefinitionsProvider)} is used
  * to register a {@link DefinitionsProvider} for such a module. When creating a
  * new {@link Configuration}, all registered {@link DefinitionsProvider} are
- * called and will fill the map of {@link Definition}s and values. In order to
+ * called and will fill the map of {@link DocumentedDefinition}s and values. In order to
  * ensure, that the modules are register in a early stage, a application should
  * call e.g. {@link SystemConfig#register()} of the used modules at the begin.
  * See {@link SystemConfig} as example.
  * 
- * To access the values always using the original {@link Definition}s of a
+ * To access the values always using the original {@link DocumentedDefinition}s of a
  * module, e.g. {@link SystemConfig#HEALTH_STATUS_INTERVAL}.
  * 
  * <code>
@@ -81,7 +83,7 @@ import org.slf4j.LoggerFactory;
  * 
  * When primitive types (e.g. {@code int}) are used to process configuration
  * values, care must be taken to define a proper default value instead of
- * returning {@code null}. The {@link Definition}s therefore offer variants,
+ * returning {@code null}. The {@link DocumentedDefinition}s therefore offer variants,
  * where such a default could be provided, e.g.
  * {@link IntegerDefinition#IntegerDefinition(String, String, Integer)}.
  * 
@@ -110,7 +112,7 @@ public final class Configuration {
 	private static Configuration standard;
 
 	/** The properties definitions. */
-	private static ConcurrentMap<String, Definition<?>> definitions = new ConcurrentHashMap<>();
+	private static Definitions<DocumentedDefinition<?>> definitions = new Definitions<>("Configuration");
 
 	/** The properties. */
 	private Map<String, Object> values = new HashMap<>();
@@ -120,7 +122,7 @@ public final class Configuration {
 	 * 
 	 * Message contains the value and details about the failure.
 	 * 
-	 * @see Definition#parseValue(String)
+	 * @see DocumentedDefinition#parseValue(String)
 	 */
 	private static class ValueParsingException extends IllegalArgumentException {
 
@@ -141,12 +143,8 @@ public final class Configuration {
 	 *
 	 * @param <T> type of configuration value
 	 */
-	public static abstract class Definition<T> {
+	public static abstract class DocumentedDefinition<T> extends Definition<T> {
 
-		/**
-		 * Key for properties.
-		 */
-		private final String key;
 		/**
 		 * Documentation for properties.
 		 */
@@ -161,10 +159,11 @@ public final class Configuration {
 		 * 
 		 * @param key key for properties. Must be global unique.
 		 * @param documentation documentation for properties.
+		 * @param valueType value type.
 		 * @throws NullPointerException if key is {@code null}
 		 */
-		private Definition(String key, String documentation) {
-			this(key, documentation, null);
+		private DocumentedDefinition(String key, String documentation, Class<T> valueType) {
+			this(key, documentation, valueType, null);
 		}
 
 		/**
@@ -177,14 +176,12 @@ public final class Configuration {
 		 * 
 		 * @param key key for properties. Must be global unique.
 		 * @param documentation documentation for properties.
+		 * @param valueType value type.
 		 * @param defaultValue default value returned instead of {@code null}.
 		 * @throws NullPointerException if key is {@code null}
 		 */
-		private Definition(String key, String documentation, T defaultValue) {
-			if (key == null) {
-				throw new NullPointerException("Key must not be null!");
-			}
-			this.key = key;
+		private DocumentedDefinition(String key, String documentation, Class<T> valueType, T defaultValue) {
+			super(key, valueType);
 			this.documentation = documentation;
 			this.defaultValue = defaultValue;
 		}
@@ -194,7 +191,9 @@ public final class Configuration {
 		 * 
 		 * @return type name
 		 */
-		public abstract String getTypeName();
+		public String getTypeName() {
+			return getValueType().getSimpleName();
+		}
 
 		/**
 		 * Write typed value in textual presentation.
@@ -204,15 +203,6 @@ public final class Configuration {
 		 * @throws NullPointerException if value is {@code null}.
 		 */
 		public abstract String writeValue(T value);
-
-		/**
-		 * Gets key for properties.
-		 * 
-		 * @return key for properties
-		 */
-		public String getKey() {
-			return key;
-		}
 
 		/**
 		 * Gets documentation for properties.
@@ -246,24 +236,24 @@ public final class Configuration {
 		 */
 		public T readValue(String value) {
 			if (value == null) {
-				LOGGER.debug("key [{}] is undefined", key);
+				LOGGER.debug("key [{}] is undefined", getKey());
 				return null;
 			}
 			if (useTrim()) {
 				value = value.trim();
 			}
 			if (value.isEmpty()) {
-				LOGGER.debug("key [{}] is empty", key);
+				LOGGER.debug("key [{}] is empty", getKey());
 				return null;
 			}
 			try {
 				return parseValue(value);
 			} catch (NumberFormatException e) {
-				LOGGER.warn("Key '{}': value '{}' is no {}", key, value, getTypeName());
+				LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
 			} catch (ValueParsingException e) {
-				LOGGER.warn("Key '{}': {}", key, e.getMessage());
+				LOGGER.warn("Key '{}': {}", getKey(), e.getMessage());
 			} catch (IllegalArgumentException e) {
-				LOGGER.warn("Key '{}': value '{}' is no {}", key, value, getTypeName());
+				LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
 			}
 			return null;
 		}
@@ -318,17 +308,18 @@ public final class Configuration {
 	 * @see Configuration#get(BasicDefinition)
 	 * @see Configuration#set(BasicDefinition, Object)
 	 */
-	public static abstract class BasicDefinition<T> extends Definition<T> {
+	public static abstract class BasicDefinition<T> extends DocumentedDefinition<T> {
 
 		/**
 		 * Creates basic definition.
 		 * 
 		 * @param key key for properties. Must be global unique.
 		 * @param documentation documentation for properties.
+		 * @param valueType value type.
 		 * @throws NullPointerException if key is {@code null}
 		 */
-		protected BasicDefinition(String key, String documentation) {
-			super(key, documentation);
+		protected BasicDefinition(String key, String documentation, Class<T> valueType) {
+			super(key, documentation, valueType);
 		}
 
 		/**
@@ -341,11 +332,26 @@ public final class Configuration {
 		 * 
 		 * @param key key for properties. Must be global unique.
 		 * @param documentation documentation for properties.
+		 * @param valueType value type.
 		 * @param defaultValue default value returned instead of {@code null}.
 		 * @throws NullPointerException if key is {@code null}
 		 */
-		protected BasicDefinition(String key, String documentation, T defaultValue) {
-			super(key, documentation, defaultValue);
+		protected BasicDefinition(String key, String documentation, Class<T> valueType, T defaultValue) {
+			super(key, documentation, valueType, defaultValue);
+		}
+
+		/**
+		 * Creates basic definition with default value for generic collections.
+		 * 
+		 * @param key key for properties. Must be global unique.
+		 * @param documentation documentation for properties.
+		 * @param dummyValue dummy value to get value type.
+		 * @param defaultValue default value returned instead of {@code null}.
+		 * @throws NullPointerException if key is {@code null}
+		 */
+		@SuppressWarnings("unchecked")
+		protected BasicDefinition(String key, String documentation, T dummyValue, T defaultValue) {
+			super(key, documentation, (Class<T>) dummyValue.getClass(), defaultValue);
 		}
 	}
 
@@ -362,7 +368,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public StringDefinition(String key, String documentation) {
-			super(key, documentation);
+			super(key, documentation, String.class);
 		}
 
 		/**
@@ -374,7 +380,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public StringDefinition(String key, String documentation, String defaultValue) {
-			super(key, documentation, defaultValue);
+			super(key, documentation, String.class, defaultValue);
 		}
 
 		@Override
@@ -427,7 +433,7 @@ public final class Configuration {
 		 *             {@code null}
 		 */
 		public StringSetDefinition(String key, String documentation, String... values) {
-			super(key, documentation);
+			super(key, documentation, String.class);
 			if (values == null) {
 				throw new NullPointerException("Value set must not be null!");
 			}
@@ -469,7 +475,7 @@ public final class Configuration {
 		 *             {@code null}
 		 */
 		public StringSetDefinition(String key, String documentation, String defaultValue, String[] values) {
-			super(key, documentation);
+			super(key, documentation, String.class);
 			if (values == null) {
 				throw new NullPointerException("Value set must not be null!");
 			}
@@ -540,7 +546,6 @@ public final class Configuration {
 	 */
 	public static class EnumDefinition<E extends Enum<?>> extends BasicDefinition<E> {
 
-		private final String typeName;
 		private final E defaultValue;
 		private final E[] values;
 		private final String valuesDocumentation;
@@ -560,7 +565,7 @@ public final class Configuration {
 		 */
 		@SuppressWarnings("unchecked")
 		public EnumDefinition(String key, String documentation, E... values) {
-			super(key, documentation);
+			super(key, documentation, Configuration.getClass(values));
 			if (values == null) {
 				throw new NullPointerException("Enum set must not be null!");
 			}
@@ -580,7 +585,6 @@ public final class Configuration {
 					break;
 				}
 			}
-			this.typeName = values[0].getClass().getSimpleName();
 			if (found) {
 				this.defaultValue = defaultValue;
 				this.values = Arrays.copyOfRange(values, 1, values.length);
@@ -603,7 +607,7 @@ public final class Configuration {
 		 *             {@code null}
 		 */
 		public EnumDefinition(String key, String documentation, E defaultValue, E[] values) {
-			super(key, documentation);
+			super(key, documentation, Configuration.getClass(values));
 			if (values == null) {
 				throw new NullPointerException("Enum set must not be null!");
 			}
@@ -615,18 +619,12 @@ public final class Configuration {
 					throw new IllegalArgumentException("Enum set must not contain null!");
 				}
 			}
-			this.typeName = values[0].getClass().getSimpleName();
 			this.defaultValue = defaultValue;
 			this.values = Arrays.copyOf(values, values.length);
 			this.valuesDocumentation = toNameList(Arrays.asList(values), true);
 			if (defaultValue != null) {
 				isAssignableFrom(defaultValue);
 			}
-		}
-
-		@Override
-		public String getTypeName() {
-			return typeName;
 		}
 
 		@Override
@@ -663,7 +661,6 @@ public final class Configuration {
 	public static class EnumListDefinition<E extends Enum<?>> extends BasicDefinition<List<E>> {
 
 		private final String typeName;
-		private final List<E> defaultValue;
 		private final E[] values;
 		private final String valuesDocumentation;
 
@@ -693,7 +690,7 @@ public final class Configuration {
 		 *             {@code null}
 		 */
 		public EnumListDefinition(String key, String documentation, List<E> defaultValue, E[] values) {
-			super(key, documentation);
+			super(key, documentation, new ArrayList<E>(), defaultValue);
 			if (values == null) {
 				throw new NullPointerException("Enum set must not be null!");
 			}
@@ -705,8 +702,7 @@ public final class Configuration {
 					throw new IllegalArgumentException("Enum set must not contain null!");
 				}
 			}
-			this.typeName = values[0].getClass().getSimpleName();
-			this.defaultValue = defaultValue;
+			this.typeName = "List<" + values[0].getClass().getSimpleName() + ">";
 			this.values = Arrays.copyOf(values, values.length);
 			this.valuesDocumentation = toNameList(Arrays.asList(values), true);
 			if (defaultValue != null) {
@@ -727,11 +723,6 @@ public final class Configuration {
 		@Override
 		public String getDocumentation() {
 			return super.getDocumentation() + "\nList of " + valuesDocumentation + ".";
-		}
-
-		@Override
-		public List<E> defaultValue() {
-			return defaultValue;
 		}
 
 		@Override
@@ -773,7 +764,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public BooleanDefinition(String key, String documentation) {
-			super(key, documentation);
+			super(key, documentation, Boolean.class);
 		}
 
 		/**
@@ -785,7 +776,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public BooleanDefinition(String key, String documentation, Boolean defaultValue) {
-			super(key, documentation, defaultValue);
+			super(key, documentation, Boolean.class, defaultValue);
 		}
 
 		@Override
@@ -822,7 +813,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public IntegerDefinition(String key, String documentation) {
-			super(key, documentation);
+			super(key, documentation, Integer.class);
 		}
 
 		/**
@@ -834,7 +825,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public IntegerDefinition(String key, String documentation, Integer defaultValue) {
-			super(key, documentation, defaultValue);
+			super(key, documentation, Integer.class, defaultValue);
 		}
 
 		@Override
@@ -871,7 +862,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public LongDefinition(String key, String documentation) {
-			super(key, documentation);
+			super(key, documentation, Long.class);
 		}
 
 		/**
@@ -883,7 +874,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public LongDefinition(String key, String documentation, Long defaultValue) {
-			super(key, documentation, defaultValue);
+			super(key, documentation, Long.class, defaultValue);
 		}
 
 		@Override
@@ -920,7 +911,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public FloatDefinition(String key, String documentation) {
-			super(key, documentation);
+			super(key, documentation, Float.class);
 		}
 
 		/**
@@ -932,7 +923,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public FloatDefinition(String key, String documentation, Float defaultValue) {
-			super(key, documentation, defaultValue);
+			super(key, documentation, Float.class, defaultValue);
 		}
 
 		@Override
@@ -969,7 +960,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public DoubleDefinition(String key, String documentation) {
-			super(key, documentation);
+			super(key, documentation, Double.class);
 		}
 
 		/**
@@ -981,7 +972,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public DoubleDefinition(String key, String documentation, Double defaultValue) {
-			super(key, documentation, defaultValue);
+			super(key, documentation, Double.class, defaultValue);
 		}
 
 		@Override
@@ -1015,7 +1006,7 @@ public final class Configuration {
 	 * @see Configuration#get(TimeDefinition, TimeUnit)
 	 * @see Configuration#getTimeAsInt(TimeDefinition, TimeUnit)
 	 */
-	public static class TimeDefinition extends Definition<Long> {
+	public static class TimeDefinition extends DocumentedDefinition<Long> {
 
 		/**
 		 * Creates time definition.
@@ -1025,7 +1016,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key is {@code null}
 		 */
 		public TimeDefinition(String key, String documentation) {
-			super(key, documentation);
+			super(key, documentation, Long.class);
 		}
 
 		/**
@@ -1038,7 +1029,7 @@ public final class Configuration {
 		 * @throws NullPointerException if key or unit is {@code null}
 		 */
 		public TimeDefinition(String key, String documentation, long defaultValue, TimeUnit unit) {
-			super(key, documentation, TimeUnit.NANOSECONDS.convert(defaultValue, unit));
+			super(key, documentation, Long.class, TimeUnit.NANOSECONDS.convert(defaultValue, unit));
 		}
 
 		@Override
@@ -1166,7 +1157,7 @@ public final class Configuration {
 	}
 
 	/**
-	 * Handler for (custom) setup of configuration {@link Definition}s.
+	 * Handler for (custom) setup of configuration {@link DocumentedDefinition}s.
 	 */
 	public interface DefinitionsProvider {
 
@@ -1196,6 +1187,17 @@ public final class Configuration {
 			message.append(']');
 		}
 		return message.toString();
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <E extends Enum<?>> Class<E> getClass(E[] list) {
+		if (list == null) {
+			throw new NullPointerException("Enums must not be null!");
+		}
+		if (list.length == 0) {
+			throw new IllegalArgumentException("Enums must not be empty!");
+		}
+		return (Class<E>)list[0].getClass();
 	}
 
 	private static <E extends Enum<?>> String toNameList(List<E> list, boolean brackets) {
@@ -1451,7 +1453,7 @@ public final class Configuration {
 	/**
 	 * Loads properties from a file.
 	 * 
-	 * Requires to add the {@link Definition}s of the modules ahead.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead.
 	 *
 	 * For Android, please use {@link Configuration#load(InputStream)}.
 	 * 
@@ -1475,7 +1477,7 @@ public final class Configuration {
 	/**
 	 * Loads properties from a input stream.
 	 * 
-	 * Requires to add the {@link Definition}s of the modules ahead.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead.
 	 *
 	 * @param inStream the input stream
 	 * @throws NullPointerException if the inStream is {@code null}.
@@ -1495,8 +1497,8 @@ public final class Configuration {
 	/**
 	 * Add properties.
 	 * 
-	 * Requires to add the {@link Definition}s of the modules ahead. Apply
-	 * conversion defined by that {@link Definition}s.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead. Apply
+	 * conversion defined by that {@link DocumentedDefinition}s.
 	 * 
 	 * @param properties properties to convert and add
 	 * @see #addModule(String, DefinitionsProvider)
@@ -1505,7 +1507,7 @@ public final class Configuration {
 		for (Object k : properties.keySet()) {
 			if (k instanceof String) {
 				String key = (String) k;
-				Definition<?> definition = definitions.get(key);
+				DocumentedDefinition<?> definition = definitions.get(key);
 				if (definition != null) {
 					String text = properties.getProperty(key);
 					Object value = definition.readValue(text);
@@ -1520,9 +1522,9 @@ public final class Configuration {
 	/**
 	 * Add dictionary.
 	 * 
-	 * Requires to add the {@link Definition}s of the modules ahead. Apply
-	 * conversion defined by that {@link Definition}s to String entries. Entries
-	 * of other types are added, if {@link Definition#isAssignableFrom(Object)}
+	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead. Apply
+	 * conversion defined by that {@link DocumentedDefinition}s to String entries. Entries
+	 * of other types are added, if {@link DocumentedDefinition#isAssignableFrom(Object)}
 	 * returns {@code true}.
 	 * 
 	 * @param dictionary dictionary to convert and add
@@ -1532,7 +1534,7 @@ public final class Configuration {
 		for (Enumeration<String> allKeys = dictionary.keys(); allKeys.hasMoreElements();) {
 			String key = allKeys.nextElement();
 			Object value = dictionary.get(key);
-			Definition<?> definition = definitions.get(key);
+			DocumentedDefinition<?> definition = definitions.get(key);
 			if (definition != null) {
 				if (value instanceof String) {
 					value = definition.readValue((String) value);
@@ -1644,7 +1646,7 @@ public final class Configuration {
 	/**
 	 * Write single property.
 	 * 
-	 * If {@link Definition} contains a {@link Definition#getDocumentation()},
+	 * If {@link DocumentedDefinition} contains a {@link DocumentedDefinition#getDocumentation()},
 	 * then first write that documentation as comment.
 	 * 
 	 * @param key key of definition.
@@ -1655,7 +1657,7 @@ public final class Configuration {
 	 * @see PropertiesUtility#normalizeComments(String)
 	 */
 	private void writeProperty(String key, Writer writer) throws IOException {
-		Definition<? extends Object> definition = definitions.get(key);
+		DocumentedDefinition<? extends Object> definition = definitions.get(key);
 		if (definition == null) {
 			throw new IllegalArgumentException("Definition for " + key + " not found!");
 		}
@@ -1701,12 +1703,12 @@ public final class Configuration {
 	 * @throws IllegalArgumentException if a different definition is already
 	 *             available for the key of the provided definition.
 	 */
-	public <T> Configuration setFromText(Definition<T> definition, String value) {
+	public <T> Configuration setFromText(DocumentedDefinition<T> definition, String value) {
 		setInternal(definition, null, value);
 		return this;
 	}
 
-	public <T> String getAsText(Definition<T> definition) {
+	public <T> String getAsText(DocumentedDefinition<T> definition) {
 		T value = getInternal(definition);
 		return definition.writeValue(value);
 	}
@@ -1858,17 +1860,17 @@ public final class Configuration {
 	 * @param <T> type of the value
 	 * @param definition definition of the value.
 	 * @return the associated value. if {@code null}, return the
-	 *         {@link Definition#defaultValue()} instead.
+	 *         {@link DocumentedDefinition#defaultValue()} instead.
 	 * @throws NullPointerException if the definition is {@code null}
 	 * @throws IllegalArgumentException if a different definition is already
 	 *             available for the key of the provided definition.
 	 */
 	@SuppressWarnings("unchecked")
-	private <T> T getInternal(Definition<T> definition) {
+	private <T> T getInternal(DocumentedDefinition<T> definition) {
 		if (definition == null) {
 			throw new NullPointerException("definition must not be null");
 		}
-		Definition<?> def = definitions.putIfAbsent(definition.getKey(), definition);
+		DocumentedDefinition<?> def = definitions.addIfAbsent(definition);
 		if (def != null && def != definition) {
 			throw new IllegalArgumentException("Definition " + definition + " doesn't match " + def);
 		}
@@ -1893,11 +1895,11 @@ public final class Configuration {
 	 * @throws IllegalArgumentException if a different definition is already
 	 *             available for the key of the provided definition.
 	 */
-	private <T> void setInternal(Definition<T> definition, T value, String text) {
+	private <T> void setInternal(DocumentedDefinition<T> definition, T value, String text) {
 		if (definition == null) {
 			throw new NullPointerException("definition must not be null");
 		}
-		Definition<?> def = definitions.putIfAbsent(definition.getKey(), definition);
+		DocumentedDefinition<?> def = definitions.addIfAbsent(definition);
 		if (def != null && def != definition) {
 			throw new IllegalArgumentException("Definition " + definition + " doesn't match " + def);
 		}

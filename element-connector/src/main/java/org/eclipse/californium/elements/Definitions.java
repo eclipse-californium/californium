@@ -60,7 +60,8 @@ public class Definitions<T extends Definition<?>> implements Iterable<T> {
 	 * @param definition definition with unique {@link Definition#getKey()}
 	 *            according this set.
 	 * @return the definition set for chaining
-	 * @throws IllegalArgumentException if definition was already added
+	 * @throws IllegalArgumentException if definition was already added or the
+	 *             value type is not supported by this definitions.
 	 */
 	public Definitions<T> add(T definition) {
 		T previous = addIfAbsent(definition);
@@ -78,12 +79,25 @@ public class Definitions<T extends Definition<?>> implements Iterable<T> {
 	 * @return the previous definition added with the same
 	 *         {@link Definition#getKey()}, or {@code null}, if no previous
 	 *         definition was added with that {@link Definition#getKey()}.
+	 * @throws IllegalArgumentException if the value type is not supported by
+	 *             this definitions.
 	 */
 	public T addIfAbsent(T definition) {
 		if (definition == null) {
 			throw new NullPointerException();
 		}
 		return definitions.putIfAbsent(definition.getKey(), definition);
+	}
+
+	/**
+	 * Checks, if the definition is contained.
+	 * 
+	 * @param definition definition to check.
+	 * @return {@code true}, if contained, {@code false}, if not.
+	 */
+	public boolean contains(T definition) {
+		T contained = get(definition.getKey());
+		return definition == contained;
 	}
 
 	/**

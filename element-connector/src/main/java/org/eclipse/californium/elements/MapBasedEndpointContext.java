@@ -38,10 +38,28 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	/**
 	 * Set of attribute definitions.
 	 * 
+	 * Only String, Integer, Long, Boolean, InetSocketAddress and Bytes are
+	 * supported.
+	 * 
 	 * @since 3.0
 	 */
-	public static final Definitions<Definition<?>> ATTRIBUTE_DEFINITIONS = new Definitions<>(
-			"EndpointContextAttributes");
+	public static final Definitions<Definition<?>> ATTRIBUTE_DEFINITIONS = new Definitions<Definition<?>>(
+			"EndpointContextAttributes") {
+
+		public Definition<?> addIfAbsent(Definition<?> definition) {
+			if (definition == null) {
+				throw new NullPointerException();
+			}
+			Class<?> valueType = definition.getValueType();
+			if (valueType != String.class && valueType != Integer.class && valueType != Long.class
+					&& valueType != Boolean.class && valueType != InetSocketAddress.class
+					&& !Bytes.class.isAssignableFrom(valueType)) {
+				throw new IllegalArgumentException(valueType
+						+ " is not supported, only String, Integer, Long, Boolean, InetSocketAddress and Bytes!");
+			}
+			return super.addIfAbsent(definition);
+		}
+	};
 
 	/**
 	 * Prefix for none critical attributes. These attributes are not considered
@@ -275,36 +293,34 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		 * @param <T> value type. Support String, Integer, Long, Boolean,
 		 *            InetSocketAddress and Bytes. Other types may break
 		 *            serialization, especially custom serialization!
-		 * @param key key to add
+		 * @param definition definition to add. Must be contained in
+		 *            {@link MapBasedEndpointContext#ATTRIBUTE_DEFINITIONS}.
 		 * @param value value to add
 		 * @return this for chaining
 		 * @throws NullPointerException if key is {@code null}, or a critical
 		 *             value is {@code null}
-		 * @throws IllegalArgumentException if key is empty or the value type is
-		 *             not supported
+		 * @throws IllegalArgumentException if key is empty or the definition is
+		 *             not contained in
+		 *             {@link MapBasedEndpointContext#ATTRIBUTE_DEFINITIONS}.
 		 * @throws IllegalStateException if instance is locked
 		 */
-		public <T> Attributes add(Definition<T> key, T value) {
+		public <T> Attributes add(Definition<T> definition, T value) {
 			if (lock) {
 				throw new IllegalStateException("Already in use!");
-			} else if (null == key) {
+			} else if (null == definition) {
 				throw new NullPointerException("key is null");
 			} else if (null == value) {
-				if (!key.getKey().startsWith(KEY_PREFIX_NONE_CRITICAL)) {
+				if (!definition.getKey().startsWith(KEY_PREFIX_NONE_CRITICAL)) {
 					throw new NullPointerException("value is null");
 				}
 			}
-			Class<T> valueType = key.getValueType();
-			if (valueType != String.class && valueType != Integer.class && valueType != Long.class
-					&& valueType != InetSocketAddress.class && valueType != Boolean.class
-					&& !Bytes.class.isAssignableFrom(valueType)) {
-				throw new IllegalArgumentException(valueType
-						+ " is not supported, only String, Integer, Long, Boolean, InetSocketAddress and Bytes!");
+			if (!ATTRIBUTE_DEFINITIONS.contains(definition)) {
+				throw new IllegalArgumentException(definition + " is not supported!");
 			}
 			if (value == null) {
-				entries.remove(key);
-			} else if (entries.put(key, value) != null) {
-				throw new IllegalArgumentException("'" + key + "' already contained!");
+				entries.remove(definition);
+			} else if (entries.put(definition, value) != null) {
+				throw new IllegalArgumentException("'" + definition + "' already contained!");
 			}
 			return this;
 		}
