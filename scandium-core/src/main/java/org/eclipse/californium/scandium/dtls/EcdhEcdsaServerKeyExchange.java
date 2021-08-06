@@ -111,13 +111,18 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 * @param supportedGroup the supported group (curve)
 	 * @param encodedPoint the encoded point of the other peer (public key)
 	 * @param signatureEncoded the signature (encoded)
-	 * @throws NullPointerException if any of the parameters are {@code null}
+	 * @throws NullPointerException if only one of the parameters
+	 *             signatureAndHashAlgorithm and signatureEncoded is
+	 *             {@code null}, or any of the other parameters
 	 */
 	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm,
 			SupportedGroup supportedGroup, byte[] encodedPoint, byte[] signatureEncoded) {
 		super(supportedGroup, encodedPoint);
-		if (signatureAndHashAlgorithm == null) {
+		if (signatureAndHashAlgorithm == null && signatureEncoded != null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
+		}
+		if (signatureAndHashAlgorithm != null && signatureEncoded == null) {
+			throw new NullPointerException("signature cannot be null");
 		}
 		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
 		this.signatureEncoded = signatureEncoded;
@@ -150,10 +155,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 	public static HandshakeMessage fromReader(DatagramReader reader) throws HandshakeException {
 		EcdhData ecdhData = readNamedCurve(reader);
-		// default is SHA256withECDSA
-		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(
-				SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
 
+		SignatureAndHashAlgorithm signAndHash = null;
 		byte[] signatureEncoded = null;
 		if (reader.bytesAvailable()) {
 			int hashAlgorithm = reader.read(HASH_ALGORITHM_BITS);
@@ -177,8 +180,9 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	public void verifySignature(PublicKey serverPublicKey, Random clientRandom, Random serverRandom)
 			throws HandshakeException {
 		if (signatureEncoded == null) {
-			// no signature available, nothing to verify
-			return;
+			String message = "The server's ECDHE key exchange message has no signature.";
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
+			throw new HandshakeException(message, alert);
 		}
 		boolean verified = false;
 		try {
