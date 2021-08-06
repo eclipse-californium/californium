@@ -2129,10 +2129,11 @@ public final class DtlsConnectorConfig {
 			if (config.useReuseAddress == null) {
 				config.useReuseAddress = Boolean.FALSE;
 			}
-			if (config.getBackOffRetransmission() != null
-					&& config.getBackOffRetransmission() >= config.getMaxRetransmissions()) {
+			Integer backoff = config.configuration.get(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF);
+			if (backoff != null
+					&& backoff >= config.getMaxRetransmissions()) {
 				throw new IllegalStateException("Backoff for handshake retransmissions ("
-						+ config.getBackOffRetransmission() + ") must be less than the maximum retransmissions ("
+						+ backoff + ") must be less than the maximum retransmissions ("
 						+ config.getMaxRetransmissions() + ")!");
 			}
 

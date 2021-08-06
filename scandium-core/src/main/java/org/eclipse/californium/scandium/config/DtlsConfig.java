@@ -314,7 +314,7 @@ public final class DtlsConfig {
 	 * definition.
 	 * 
 	 * Value {@code 0}, to disable it, {@code null}, for default of
-	 * {@link #DTLS_MAX_CONNECTIONS} / 2.
+	 * {@link #DTLS_MAX_RETRANSMISSIONS} / 2.
 	 */
 	public static final IntegerDefinition DTLS_RETRANSMISSION_BACKOFF = new IntegerDefinition(
 			MODULE + "RETRANSMISSION_BACKOFF",
