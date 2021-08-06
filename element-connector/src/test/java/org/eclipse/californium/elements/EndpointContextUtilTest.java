@@ -29,8 +29,8 @@ import org.junit.Test;
 public class EndpointContextUtilTest {
 
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
-	public static final Definition<String> ID = new Definition<>("ID", String.class);
-	public static final Definition<String> UNKNOWN = new Definition<>("UNKNOWN", String.class);
+	public static final Definition<String> ID = new Definition<>("ID", String.class, MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS);
+	public static final Definition<String> UNKNOWN = new Definition<>("UNKNOWN", String.class, MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS);
 
 	private EndpointContext connectorContext;
 	private EndpointContext relaxedMessageContext;

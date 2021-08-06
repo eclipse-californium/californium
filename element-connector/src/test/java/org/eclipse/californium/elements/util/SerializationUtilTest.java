@@ -104,7 +104,7 @@ public class SerializationUtilTest {
 
 	@Test
 	public void testEndpointContextAttributes() {
-		Definitions<Definition<?>> test = new Definitions<>("test");
+		Definitions<Definition<?>> test = MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS;
 		Definition<String> K1 = new Definition<>("K1", String.class, test);
 		Definition<Integer> K2 = new Definition<>("K2", Integer.class, test);
 		Definition<Long> K3 = new Definition<>("K3", Long.class, test);

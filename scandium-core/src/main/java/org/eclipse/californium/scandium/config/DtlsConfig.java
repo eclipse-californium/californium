@@ -80,7 +80,7 @@ public final class DtlsConfig {
 	public static class SignatureAndHashAlgorithmsDefinition extends BasicDefinition<List<SignatureAndHashAlgorithm>> {
 
 		public SignatureAndHashAlgorithmsDefinition(String key, String documentation) {
-			super(key, documentation);
+			super(key, documentation, new ArrayList<SignatureAndHashAlgorithm>(), null);
 		}
 
 		@Override
