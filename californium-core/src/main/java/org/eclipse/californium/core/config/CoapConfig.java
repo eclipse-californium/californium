@@ -366,6 +366,16 @@ public final class CoapConfig {
 	public static final TimeDefinition MAX_LATENCY = new TimeDefinition(MODULE + "MAX_LATENCY",
 			"Maximum transmission latency for messages.", 100L, TimeUnit.SECONDS);
 	/**
+	 * The the maximum time from the first transmission
+      of a Confirmable message to the time when the sender gives up on
+      receiving an acknowledgement or reset. See
+	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
+	 * target="_blank">RFC7252, 4.8.2. Time Values Derived from Transmission
+	 * Parameters</a>.
+	 */
+	public static final TimeDefinition MAX_TRANSMIT_WAIT = new TimeDefinition(MODULE + "MAX_TRANSMIT_WAIT",
+			"Maximum time to wait for ACK or RST after the first transmission of a CON message.", 93L, TimeUnit.SECONDS);
+	/**
 	 * The maximum server response delay. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7390#section-2.5"
 	 * target="_blank">RFC7390, 2.5. Request and Response Model</a>.
@@ -670,6 +680,7 @@ public final class CoapConfig {
 				config.set(USE_MESSAGE_OFFLOADING, false);
 
 				config.set(MAX_LATENCY, 100, TimeUnit.SECONDS);
+				config.set(MAX_TRANSMIT_WAIT, 93, TimeUnit.SECONDS);
 				config.set(MAX_SERVER_RESPONSE_DELAY, 250, TimeUnit.SECONDS);
 
 				config.set(USE_RANDOM_MID_START, true);
