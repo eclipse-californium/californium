@@ -119,19 +119,26 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 * @param supportedGroup
 	 *            the supported group (curve)
 	 * @param encodedPoint
-	 *            the encoded point of the other peeer (public key)
+	 *            the encoded point of the other peer (public key)
 	 * @param signatureEncoded
 	 *            the signature (encoded)
 	 * @param peerAddress the IP address and port of the peer this
 	 *            message has been received from or should be sent to
-	 * @throws HandshakeException if the server's public key could not be re-constructed
-	 *            from the parameters contained in the message
+	 * @throws HandshakeException if the server's public key could not
+	 *            be re-constructed from the parameters contained in
+	 *            the message
+	 * @throws NullPointerException if only one of the parameters
+	 *            signatureAndHashAlgorithm and signatureEncoded is
+	 *            {@code null}, or any of the other parameters
 	 */
 	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, SupportedGroup supportedGroup, byte[] encodedPoint,
 			byte[] signatureEncoded, InetSocketAddress peerAddress) {
 		super(supportedGroup, encodedPoint, peerAddress);
-		if (signatureAndHashAlgorithm == null) {
+		if (signatureAndHashAlgorithm == null && signatureEncoded != null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
+		}
+		if (signatureAndHashAlgorithm != null && signatureEncoded == null) {
+			throw new NullPointerException("signature cannot be null");
 		}
 		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
 		this.signatureEncoded = signatureEncoded;
@@ -166,9 +173,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
 		EcdhData ecdhData = readNamedCurve(reader, peerAddress);
-		// default is SHA256withECDSA
-		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
 
+		SignatureAndHashAlgorithm signAndHash = null;
 		byte[] signatureEncoded = null;
 		if (reader.bytesAvailable()) {
 			int hashAlgorithm = reader.read(HASH_ALGORITHM_BITS);
@@ -197,8 +203,9 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 */
 	public void verifySignature(PublicKey serverPublicKey, Random clientRandom, Random serverRandom) throws HandshakeException {
 		if (signatureEncoded == null) {
-			// no signature available, nothing to verify
-			return;
+			String message = "The server's ECDHE key exchange message has no signature.";
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
+			throw new HandshakeException(message, alert);
 		}
 		boolean verified = false;
 		try {

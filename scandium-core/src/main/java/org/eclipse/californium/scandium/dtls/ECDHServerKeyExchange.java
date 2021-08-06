@@ -80,6 +80,9 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 	 */
 	protected ECDHServerKeyExchange(SupportedGroup supportedGroup, byte[] encodedPoint, InetSocketAddress peerAddress) {
 		super(peerAddress);
+		if (supportedGroup == null) {
+			throw new NullPointerException("supported group cannot be null!");
+		}
 		if (encodedPoint == null) {
 			throw new NullPointerException("encoded point cannot be null!");
 		}
