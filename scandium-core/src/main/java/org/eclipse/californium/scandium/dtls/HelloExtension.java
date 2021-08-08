@@ -90,7 +90,6 @@ public abstract class HelloExtension {
 	 */
 	protected abstract void writeExtensionTo(DatagramWriter writer);
 
-	
 	/**
 	 * Gets the textual presentation of this message.
 	 * 
@@ -192,19 +191,19 @@ public abstract class HelloExtension {
 			case SERVER_NAME:
 				extension = ServerNameExtension.fromExtensionDataReader(extensionDataReader);
 				break;
-			case CONNECTION_ID_DEPRECATED:
-				extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, true);
-				break;
-			case CONNECTION_ID:
-				extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, false);
-				break;
 			case RECORD_SIZE_LIMIT:
 				extension = RecordSizeLimitExtension.fromExtensionDataReader(extensionDataReader);
 				break;
 			case EXTENDED_MASTER_SECRET:
 				extension = ExtendedMasterSecretExtension.fromExtensionDataReader(extensionDataReader);
 				break;
+			case CONNECTION_ID:
+				extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, type);
+				break;
 			default:
+				if (type.replacement == ExtensionType.CONNECTION_ID) {
+					extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, type);
+				}
 				break;
 			}
 		}
@@ -339,21 +338,30 @@ public abstract class HelloExtension {
 		 * See <a href=
 		 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
 		 * target="_blank">Draft dtls-connection-id</a> See <a href=
-		 * "https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY"
-		 * target="_blank">IANA code point assignment</a>
-		 * 
-		 * <b>Note:</b> Before version 9 of the specification, the value 53 was
-		 * used for the extension along with a different calculated MAC.
-		 **/
-		CONNECTION_ID_DEPRECATED(53, "Connection ID (deprecated)"),
-		/**
-		 * See <a href=
-		 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-		 * target="_blank">Draft dtls-connection-id</a> See <a href=
 		 * "https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-1"
 		 * target="_blank">IANA TLS ExtensionType Values</a>
 		 **/
 		CONNECTION_ID(54, "Connection ID"),
+
+		/**
+		 * See <a href=
+		 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
+		 * target="_blank">Draft dtls-connection-id</a> See <a href=
+		 * "https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY"
+		 * target="_blank">IANA code point assignment</a>
+		 * 
+		 * <b>Note:</b> Before version 09 of the specification, the value 53 was
+		 * used for the extension along with a different calculated MAC.
+		 * 
+		 * <b>Note:</b> to support other, proprietary code points, just clone
+		 * this, using the proprietary code points, a different description and
+		 * a different name, e.g.:
+		 * 
+		 * <pre>
+		 * CONNECTION_ID_MEDTLS(254, "Connection ID (mbedtls)", CONNECTION_ID),
+		 * </pre>
+		 **/
+		CONNECTION_ID_DEPRECATED(53, "Connection ID (deprecated)", CONNECTION_ID),
 
 		/**
 		 * See <a href="https://www.iana.org/go/rfc5746" target="_blank">RFC
@@ -363,10 +371,17 @@ public abstract class HelloExtension {
 
 		private int id;
 		private String name;
+		private ExtensionType replacement;
 
 		ExtensionType(int id, String name) {
 			this.id = id;
 			this.name = name;
+		}
+
+		ExtensionType(int id, String name, ExtensionType replacement) {
+			this.id = id;
+			this.name = name;
+			this.replacement = replacement;
 		}
 
 		/**
@@ -392,8 +407,25 @@ public abstract class HelloExtension {
 			return name;
 		}
 
+		/**
+		 * IANA code point.
+		 * 
+		 * @return code point.
+		 */
 		public int getId() {
 			return id;
+		}
+
+		/**
+		 * Get replacement type.
+		 * 
+		 * Only used, if code point are changing during the development of a RFC
+		 * or to support early implementations.
+		 * 
+		 * @return replacement type, or {@code null}, if no such type exists.
+		 */
+		public ExtensionType getReplacementType() {
+			return replacement;
 		}
 	}
 }

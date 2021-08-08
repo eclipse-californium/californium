@@ -51,13 +51,12 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension.
 	 * 
 	 * @param id connection id
-	 * @param deprecatedCid {@code true}, if the deprecated extension ID
-	 *            {@code 53} and the deprecated MAC is used, {@code false},
-	 *            otherwise.
+	 * @param type {@link ExtensionType#CONNECTION_ID}, or a type, with that as
+	 *            {@link ExtensionType#getReplacementType()}.
 	 * @since 3.0 (added parameter deprecatedCid)
 	 */
-	private ConnectionIdExtension(ConnectionId id, boolean deprecatedCid) {
-		super(deprecatedCid ? ExtensionType.CONNECTION_ID_DEPRECATED : ExtensionType.CONNECTION_ID);
+	private ConnectionIdExtension(ConnectionId id, ExtensionType type) {
+		super(type);
 		this.id = id;
 	}
 
@@ -73,12 +72,18 @@ public final class ConnectionIdExtension extends HelloExtension {
 	/**
 	 * Usage of deprecated definitions.
 	 * 
-	 * @return {@code true}, if the deprecated extension ID {@code 53} along
-	 *         with the deprecated MAC calculation is used, {@code false},
-	 *         otherwise.
+	 * During the specification of <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id">draft-ietf-tls-dtls-connection-id</a>
+	 * a deprecated MAC calculation was used along with a also deprecated IANA
+	 * code point (53) was used before version 09. To support the deprecated
+	 * version as well, the return value indicates, which MAC variant must be
+	 * used.
+	 * 
+	 * @return {@code true}, if not the current extension ID {@code 54} along
+	 *         with the new MAC calculation is used, {@code false}, otherwise.
 	 */
 	public boolean useDeprecatedCid() {
-		return getType() == ExtensionType.CONNECTION_ID_DEPRECATED;
+		return getType() != ExtensionType.CONNECTION_ID;
 	}
 
 	@Override
@@ -104,18 +109,28 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension from connection id.
 	 * 
 	 * @param cid connection id
-	 * @param deprecatedCid {@code true}, {@code true}, if the deprecated
-	 *            extension ID {@code 53} along with the deprecated MAC
-	 *            calculation is used, {@code false}, otherwise.
+	 * @param type extension type. Must be one of
+	 *            {@link #isConnectionIdExtensionType(ExtensionType)}.
 	 * @return created connection id extension
-	 * @throws NullPointerException if cid is {@code null}
-	 * @since 3.0 (added parameter deprecatedCid)
+	 * @throws NullPointerException if cid or type is {@code null}
+	 * @throws IllegalArgumentException if type is not
+	 *             {@link ExtensionType#CONNECTION_ID} and
+	 *             {@link ExtensionType#getReplacementType()} is also not
+	 *             {@link ExtensionType#CONNECTION_ID}.
+	 * @since 3.0 (added parameter type to support deprecated cid code points
+	 *        and MAC calculation)
 	 */
-	public static ConnectionIdExtension fromConnectionId(ConnectionId cid, boolean deprecatedCid) {
+	public static ConnectionIdExtension fromConnectionId(ConnectionId cid, ExtensionType type) {
 		if (cid == null) {
 			throw new NullPointerException("cid must not be null!");
 		}
-		return new ConnectionIdExtension(cid, deprecatedCid);
+		if (type == null) {
+			throw new NullPointerException("type must not be null!");
+		}
+		if (type != ExtensionType.CONNECTION_ID && type.getReplacementType() != ExtensionType.CONNECTION_ID) {
+			throw new IllegalArgumentException(type + " type is not supported as Connection ID!");
+		}
+		return new ConnectionIdExtension(cid, type);
 	}
 
 	/**
@@ -126,14 +141,24 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 *            {@code 53} along with the deprecated MAC calculation is used,
 	 *            {@code false}, otherwise.
 	 * @return created connection id extension
-	 * @throws NullPointerException if extensionData is {@code null}
+	 * @throws NullPointerException if extensionData or type is {@code null}
+	 * @throws IllegalArgumentException if type is not
+	 *             {@link ExtensionType#CONNECTION_ID} and
+	 *             {@link ExtensionType#getReplacementType()} is also not
+	 *             {@link ExtensionType#CONNECTION_ID}.
 	 * @throws HandshakeException if the extension data could not be decoded
 	 * @since 3.0 (added parameter deprecatedCid)
 	 */
-	public static ConnectionIdExtension fromExtensionDataReader(DatagramReader extensionDataReader,
-			boolean deprecatedCid) throws HandshakeException {
+	public static ConnectionIdExtension fromExtensionDataReader(DatagramReader extensionDataReader, ExtensionType type)
+			throws HandshakeException {
 		if (extensionDataReader == null) {
 			throw new NullPointerException("cid must not be null!");
+		}
+		if (type == null) {
+			throw new NullPointerException("type must not be null!");
+		}
+		if (type != ExtensionType.CONNECTION_ID && type.getReplacementType() != ExtensionType.CONNECTION_ID) {
+			throw new IllegalArgumentException(type + " type is not supported as Connection ID!");
 		}
 		int availableBytes = extensionDataReader.bitsLeft() / Byte.SIZE;
 		if (availableBytes == 0) {
@@ -149,11 +174,10 @@ public final class ConnectionIdExtension extends HelloExtension {
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 		if (len == 0) {
-			return new ConnectionIdExtension(ConnectionId.EMPTY, deprecatedCid);
+			return new ConnectionIdExtension(ConnectionId.EMPTY, type);
 		} else {
 			byte[] cid = extensionDataReader.readBytes(len);
-			return new ConnectionIdExtension(new ConnectionId(cid), deprecatedCid);
+			return new ConnectionIdExtension(new ConnectionId(cid), type);
 		}
 	}
-
 }

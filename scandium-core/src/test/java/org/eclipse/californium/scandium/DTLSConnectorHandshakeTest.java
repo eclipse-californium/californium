@@ -82,6 +82,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
@@ -1067,7 +1068,7 @@ public class DTLSConnectorHandshakeTest {
 				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
-				.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, true);
+				.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, ExtensionType.CONNECTION_ID_DEPRECATED.getId());
 		startClientPsk(null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -1084,7 +1085,7 @@ public class DTLSConnectorHandshakeTest {
 				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
-				.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, true);
+				.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, ExtensionType.CONNECTION_ID_DEPRECATED.getId());
 		startClientPsk(null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();

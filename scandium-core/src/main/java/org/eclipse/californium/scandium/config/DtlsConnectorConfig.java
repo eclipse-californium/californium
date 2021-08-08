@@ -71,6 +71,7 @@ import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore
 import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
@@ -725,13 +726,14 @@ public final class DtlsConnectorConfig {
 	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
 	 * target="_blank">Draft dtls-connection-id</a> for the client.
 	 * 
-	 * @return {@code true}, if the deprecated extension ID 53 and the
-	 *         deprecated MAC is used, {@code false}, otherwise.
+	 * @return cid extension code point to use along with the deprecated MAC
+	 *         calculation, or, {@code null}, if final extension code point 54
+	 *         and MAC calculation should be used otherwise.
 	 * @see ConnectionIdExtension
 	 * @see DtlsConfig#DTLS_USE_DEPRECATED_CID
 	 * @since 3.0
 	 */
-	public Boolean useDeprecatedCid() {
+	public Integer useDeprecatedCid() {
 		return configuration.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
 	}
 
@@ -2130,11 +2132,9 @@ public final class DtlsConnectorConfig {
 				config.useReuseAddress = Boolean.FALSE;
 			}
 			Integer backoff = config.configuration.get(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF);
-			if (backoff != null
-					&& backoff >= config.getMaxRetransmissions()) {
-				throw new IllegalStateException("Backoff for handshake retransmissions ("
-						+ backoff + ") must be less than the maximum retransmissions ("
-						+ config.getMaxRetransmissions() + ")!");
+			if (backoff != null && backoff >= config.getMaxRetransmissions()) {
+				throw new IllegalStateException("Backoff for handshake retransmissions (" + backoff
+						+ ") must be less than the maximum retransmissions (" + config.getMaxRetransmissions() + ")!");
 			}
 
 			if (config.getRetransmissionTimeout() > config.getMaxRetransmissionTimeout()) {
@@ -2156,6 +2156,19 @@ public final class DtlsConnectorConfig {
 					&& config.advancedCertificateVerifier != null) {
 				throw new IllegalStateException(
 						"configured certificate verifier is not used for client authentication mode NONE!");
+			}
+
+			Integer cidCodePoint = config.useDeprecatedCid();
+			if (cidCodePoint != null) {
+				ExtensionType cidType = ExtensionType.getExtensionTypeById(cidCodePoint);
+				if (cidType == null) {
+					throw new IllegalStateException(cidCodePoint + " code point is not supported for extensions!");
+				}
+				if (cidType != ExtensionType.CONNECTION_ID
+						&& cidType.getReplacementType() != ExtensionType.CONNECTION_ID) {
+					throw new IllegalStateException(
+							cidCodePoint + " (" + cidType + ") is no supported CID extension code point!");
+				}
 			}
 
 			if (config.supportedGroups == null) {

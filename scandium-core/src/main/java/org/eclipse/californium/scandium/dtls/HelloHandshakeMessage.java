@@ -336,11 +336,7 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	 *         contain the <em>connection id</em> extension.
 	 */
 	public ConnectionIdExtension getConnectionIdExtension() {
-		ConnectionIdExtension extension = extensions.getExtension(ExtensionType.CONNECTION_ID);
-		if (extension == null) {
-			extension = extensions.getExtension(ExtensionType.CONNECTION_ID_DEPRECATED);
-		}
-		return extension;
+		return extensions.getExtension(ExtensionType.CONNECTION_ID);
 	}
 
 	/**
