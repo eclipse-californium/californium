@@ -121,11 +121,11 @@ public final class HelloExtensions {
 	 * Gets a hello extension of a particular type.
 	 * 
 	 * @param <T> java-type of extension
-	 * @param type the type of extension
+	 * @param type the type of extension or replacement type
 	 * @return the extension, or {@code null}, if no extension of the given type
-	 *         is present
+	 *         nor replacement type is present
 	 * @throws NullPointerException if type is {@code null}
-	 * @since 3.0 (added NullPointerException)
+	 * @since 3.0 (added NullPointerException and replacement type)
 	 */
 	@SuppressWarnings("unchecked")
 	public <T extends HelloExtension> T getExtension(ExtensionType type) {
@@ -133,7 +133,7 @@ public final class HelloExtensions {
 			throw new NullPointerException("Extension type must not be null!");
 		}
 		for (HelloExtension ext : extensions) {
-			if (type.equals(ext.getType())) {
+			if (type.equals(ext.getType()) || type.equals(ext.getType().getReplacementType())) {
 				return (T) ext;
 			}
 		}

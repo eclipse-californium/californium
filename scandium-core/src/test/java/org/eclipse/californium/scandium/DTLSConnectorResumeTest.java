@@ -83,6 +83,7 @@ import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
@@ -213,7 +214,7 @@ public class DTLSConnectorResumeTest {
 				serverResumptionVerifier.setDelay(100);
 				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
 						.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
-						.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, true)
+						.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, ExtensionType.CONNECTION_ID_DEPRECATED.getId())
 						.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}

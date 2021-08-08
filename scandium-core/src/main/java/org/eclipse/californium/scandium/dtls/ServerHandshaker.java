@@ -845,7 +845,7 @@ public class ServerHandshaker extends Handshaker {
 				if (!useDeprecatedCid || supportDeprecatedCid) {
 					ConnectionId connectionId = getReadConnectionId();
 					ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId,
-							useDeprecatedCid);
+							connectionIdExtension.getType());
 					serverHello.addExtension(extension);
 					DTLSContext context = getDtlsContext();
 					context.setWriteConnectionId(connectionIdExtension.getConnectionId());

@@ -59,6 +59,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -234,7 +235,7 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @since 3.0
 	 */
-	private final boolean useDeprecatedCid;
+	private final Integer useDeprecatedCid;
 
 	/**
 	 * The server's {@link CertificateRequest}. Optional.
@@ -360,7 +361,8 @@ public class ClientHandshaker extends Handshaker {
 	 * @param message the server's {@link HelloVerifyRequest}.
 	 */
 	protected void receivedHelloVerifyRequest(HelloVerifyRequest message) {
-		// HelloVerifyRequest and messages before are not included in the handshake hash
+		// HelloVerifyRequest and messages before
+		// are not included in the handshake hash
 		handshakeMessages.clear();
 
 		if (CipherSuite.containsEccBasedCipherSuite(clientHello.getCipherSuites())) {
@@ -452,7 +454,8 @@ public class ClientHandshaker extends Handshaker {
 			} else {
 				for (HelloExtension serverExtension : serverExtensions.getExtensions()) {
 					if (clientExtensions.getExtension(serverExtension.getType()) == null) {
-						throw new HandshakeException("Server wants " + serverExtension.getType() + ", but client didn't propose it!",
+						throw new HandshakeException(
+								"Server wants " + serverExtension.getType() + ", but client didn't propose it!",
 								new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION));
 					}
 				}
@@ -560,8 +563,8 @@ public class ClientHandshaker extends Handshaker {
 	private void receivedCertificateRequest(CertificateRequest message) throws HandshakeException {
 		// save for later, will be handled by server hello done
 		certificateRequest = message;
-		requestCertificateIdentity(certificateRequest.getCertificateAuthorities(),
-				getServerNames(), certificateRequest.getSupportedSignatureAlgorithms(), null);
+		requestCertificateIdentity(certificateRequest.getCertificateAuthorities(), getServerNames(),
+				certificateRequest.getSupportedSignatureAlgorithms(), null);
 	}
 
 	/**
@@ -607,8 +610,8 @@ public class ClientHandshaker extends Handshaker {
 	 * Depending on the cipher suite, the PSK credentials are fetched. That
 	 * calls {@link #processMasterSecret()} on available PSK credentials.
 	 * 
-	 * @throws HandshakeException if the client's handshake records cannot
-	 *             be created
+	 * @throws HandshakeException if the client's handshake records cannot be
+	 *             created
 	 * @since 3.0 (renamed, was receivedServerHelloDone)
 	 */
 	private void processServerHelloDone() throws HandshakeException {
@@ -721,8 +724,8 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	/**
-	 * Complete the client's response flight, when PSK credentials are available or
-	 * the certificate is verified.
+	 * Complete the client's response flight, when PSK credentials are available
+	 * or the certificate is verified.
 	 * 
 	 * @throws HandshakeException if an exception occurred processing the server
 	 *             hello done
@@ -792,7 +795,8 @@ public class ClientHandshaker extends Handshaker {
 				// empty certificate, if no proper public key is available
 				PublicKey publicKey = this.publicKey;
 				if (publicKey != null) {
-					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(publicKey, supported);
+					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(publicKey,
+							supported);
 					if (negotiatedSignatureAndHashAlgorithm != null) {
 						clientCertificate = new CertificateMessage(publicKey);
 						if (LOGGER.isDebugEnabled()) {
@@ -916,7 +920,13 @@ public class ClientHandshaker extends Handshaker {
 				// use empty cid
 				connectionId = ConnectionId.EMPTY;
 			}
-			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId, useDeprecatedCid);
+			ExtensionType cidType;
+			if (useDeprecatedCid  != null) {
+				cidType = ExtensionType.getExtensionTypeById(useDeprecatedCid);
+			} else {
+				cidType = ExtensionType.CONNECTION_ID;
+			}
+			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId, cidType);
 			helloMessage.addExtension(extension);
 		}
 	}
