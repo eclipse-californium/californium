@@ -746,7 +746,7 @@ public final class DtlsConnectorConfig {
 	 * a verify request is used to ensure, that the peer really owns that
 	 * endpoint. If a peer resumes a session, and the endpoint of the peer is
 	 * either unused or not related to a established session, this threshold
-	 * controls, if a verify request is sued or not. If more resumption
+	 * controls, if a verify request is used or not. If more resumption
 	 * handshakes without verified peers are pending than this threshold, then a
 	 * verify request is used.
 	 * 
@@ -755,6 +755,11 @@ public final class DtlsConnectorConfig {
 	 * If that implementation is expensive, please ensure, that this value is
 	 * configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid session
 	 * ids may be spoofed and gets too expensive.
+	 * 
+	 * Note: if spoofing is considered to be relevant for the used network
+	 * environment, please set this to {@code 0} using
+	 * {@link Builder#setVerifyPeersOnResumptionThreshold(int)} in order to
+	 * disable this function.
 	 * 
 	 * @return threshold handshakes without verified peer in percent of
 	 *         {@link #getMaxConnections()}.
@@ -3017,12 +3022,17 @@ public final class DtlsConnectorConfig {
 		 * is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
 		 * session ids may be spoofed and gets too expensive.
 		 * 
+		 * Note: if spoofing is considered to be relevant for the used network
+		 * environment, please set this to {@code 0} in order to disable this
+		 * function.
+		 * 
 		 * @param threshold 0 := always use HELLO_VERIFY_REQUEST, 1 ... 100 :=
 		 *            dynamically determine to use HELLO_VERIFY_REQUEST. Default
 		 *            is based on
 		 *            {@link DtlsConnectorConfig#DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}
 		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if threshold is not between 0 and 100
+		 * @throws IllegalArgumentException if threshold is not between 0 and
+		 *             100
 		 */
 		public Builder setVerifyPeersOnResumptionThreshold(int threshold) {
 			if (threshold < 0 || threshold > 100) {
