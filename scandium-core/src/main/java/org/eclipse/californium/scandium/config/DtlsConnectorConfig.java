@@ -642,6 +642,13 @@ public final class DtlsConnectorConfig {
 	 * CLIENT_HELLOs with invalid session IDs may be spoofed and gets too
 	 * expensive.
 	 * </p>
+	 * <p>
+	 * <b>Note:</b> if spoofing is considered to be relevant for the used
+	 * network environment, please set this to {@code 0} using
+	 * {@link Builder#set(BasicDefinition, Object)} with
+	 * {@link DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} in order to
+	 * disable this function.
+	 * </p>
 	 * 
 	 * @return threshold handshakes without verified peer in percent of
 	 *         {@link #getMaxConnections()}.

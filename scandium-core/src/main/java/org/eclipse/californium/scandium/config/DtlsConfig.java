@@ -37,7 +37,9 @@ import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
@@ -558,6 +560,33 @@ public final class DtlsConfig {
 	 * 1 ... 100 := dynamically determine to use a HELLO_VERIFY_REQUEST.
 	 * </pre>
 	 * 
+	 * Peers are identified by their endpoint (ip-address and port). To protect
+	 * the server from congestion by address spoofing, a HELLO_VERIFY_REQUEST is
+	 * used. That adds one exchange and with that, additional latency. In cases
+	 * of session resumption, the server may also use the dtls session ID as a
+	 * weaker proof of a valid client. Unfortunately there are several
+	 * elaborated attacks to that (e.g. on-path-attacker may alter the
+	 * source-address). To mitigate this vulnerability, this threshold defines a
+	 * maximum percentage of handshakes without HELLO_VERIFY_REQUEST. If more
+	 * resumption handshakes without verified peers are pending than this
+	 * threshold, then a HELLO_VERIFY_REQUEST is used again. Additionally, if a
+	 * peer resumes a session (by id), but a different session is related to its
+	 * endpoint, then a verify request is used to ensure, that the peer really
+	 * owns that endpoint.
+	 * <p>
+	 * <b>Note:</b> a value larger than 0 will call the
+	 * {@link ResumptionVerifier}. If that implementation is expensive, please
+	 * ensure, that this value is configured with {@code 0}. Otherwise,
+	 * CLIENT_HELLOs with invalid session IDs may be spoofed and gets too
+	 * expensive.
+	 * </p>
+	 * <p>
+	 * <b>Note:</b> if spoofing is considered to be relevant for the used
+	 * network environment, please set this to {@code 0} using
+	 * {@link Builder#set(BasicDefinition, Object)} with
+	 * {@link DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} in order to
+	 * disable this function.
+	 * </p>
 	 * Default {@link #DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}.
 	 */
 	public static final IntegerDefinition DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD = new IntegerDefinition(
