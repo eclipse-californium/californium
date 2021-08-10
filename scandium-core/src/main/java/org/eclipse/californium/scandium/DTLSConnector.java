@@ -2683,9 +2683,19 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 						// master secret. Instead, it SHOULD offer a full
 						// handshake.
 						full = !resume.useExtendedMasterSecret();
+						if (full) {
+							LOGGER.debug(
+									"Extended Master Secrets not supported by server {}, fallback to full handshake!",
+									StringUtil.toLog(message.getInetSocketAddress()));
+						}
 					}
 					if (!full) {
 						full = !ServerNames.equalsIgnoreCase(hostname, resume.getHostName());
+						if (full) {
+							LOGGER.debug(
+									"Server Name Indication changed for server {}, fallback to full handshake!",
+									StringUtil.toLog(message.getInetSocketAddress()));
+						}
 					}
 				}
 				ClientHandshaker newHandshaker;
