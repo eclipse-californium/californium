@@ -140,7 +140,12 @@ public final class XECDHECryptography implements Destroyable {
 
 	private static final String XDH_KEY_FACTORY_ALGORITHM = "XDH";
 
-	private static final ThreadLocalKeyFactory XDH_KEY_FACTORY = new ThreadLocalKeyFactory(XDH_KEY_FACTORY_ALGORITHM);
+	/**
+	 * XDH key factory.
+	 * 
+	 * May be used for {@link XDHPublicKeyApi}.
+	 */
+	public static final ThreadLocalKeyFactory XDH_KEY_FACTORY = new ThreadLocalKeyFactory(XDH_KEY_FACTORY_ALGORITHM);
 
 	/**
 	 * Elliptic Curve Diffie-Hellman algorithm name. See also <a href=
@@ -161,35 +166,7 @@ public final class XECDHECryptography implements Destroyable {
 	/**
 	 * Use java 11 XDH via reflection.
 	 */
-	private static final Class<?> XECPublicKeyClass;
-	private static final Method XECPublicKeyGetU;
-	private static final Method XECPublicKeyGetParams;
-	private static final Method NamedParameterSpecGetName;
-	private static final Constructor<?> XECPublicKeySpecInit;
-
-	static {
-		Class<?> cls =null;
-		Method getParams = null;
-		Method getU = null;
-		Method getName = null;
-		Constructor<?> init = null;
-		try {
-			cls = Class.forName("java.security.spec.XECPublicKeySpec");
-			init = cls.getConstructor(AlgorithmParameterSpec.class, BigInteger.class);
-			cls = Class.forName("java.security.spec.NamedParameterSpec");
-			getName = cls.getMethod("getName");
-			cls = Class.forName("java.security.interfaces.XECPublicKey");
-			getU = cls.getMethod("getU");
-			getParams = cls.getMethod("getParams");
-		} catch (Throwable t) {
-			LOGGER.info("X25519/X448 not supported!");
-		}
-		XECPublicKeyClass = cls;
-		XECPublicKeyGetU = getU;
-		XECPublicKeyGetParams = getParams;
-		NamedParameterSpecGetName = getName;
-		XECPublicKeySpecInit = init;
-	}
+	private static volatile XDHPublicKeyApi xDHPublicKeyApi = XDHPublicKeyReflection.init();
 
 	/**
 	 * Map of {@link SupportedGroup#getId()} to {@link SupportedGroup}.
@@ -319,11 +296,10 @@ public final class XECDHECryptography implements Destroyable {
 				throw new GeneralSecurityException(
 						"DHE: failed to decoded point! " + supportedGroup.name());
 			}
+		} else if (xDHPublicKeyApi != null && supportedGroup.getAlgorithmName().equals(XDH_KEYPAIR_GENERATOR_ALGORITHM)){
+			peerPublicKey = xDHPublicKeyApi.decode(supportedGroup.name(), encodedPoint, keySize);
 		} else {
-			BigInteger u = new BigInteger(1, revert(encodedPoint, keySize));
-			KeySpec spec = getXECPublicKeySpec(supportedGroup.name(), u);
-			KeyFactory keyFactory = XDH_KEY_FACTORY.currentWithCause();
-			peerPublicKey = keyFactory.generatePublic(spec);
+			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!");
 		}
 		check("IN: ", peerPublicKey, encodedPoint);
 
@@ -373,15 +349,14 @@ public final class XECDHECryptography implements Destroyable {
 			if (supportedGroup.getAlgorithmName().equals(EC_KEYPAIR_GENERATOR_ALGORITHM)) {
 				ECPublicKey ecPublicKey = (ECPublicKey) publicKey;
 				result = encodePoint(ecPublicKey.getW(), keySizeInBytes);
-			} else if (supportedGroup.getAlgorithmName().equals(XDH_KEYPAIR_GENERATOR_ALGORITHM)) {
-				BigInteger u = getXECPublicKeyU(publicKey);
-				result = revert(u.toByteArray(), keySizeInBytes);
+			} else if (xDHPublicKeyApi != null && supportedGroup.getAlgorithmName().equals(XDH_KEYPAIR_GENERATOR_ALGORITHM)) {
+				result = xDHPublicKeyApi.encode(publicKey, keySizeInBytes);
 			}
 		} catch (RuntimeException ex) {
 			throw new GeneralSecurityException("DHE: failed to encoded point! " + supportedGroup.name(), ex);
 		}
 		if (result == null) {
-			throw new GeneralSecurityException("DHE: failed to encoded point! " + supportedGroup.name());
+			throw new GeneralSecurityException("DHE: failed to encoded point! " + supportedGroup.name() + " - " + publicKey.getClass());
 		}
 		check("OUT: ", publicKey, result);
 		return result;
@@ -407,41 +382,6 @@ public final class XECDHECryptography implements Destroyable {
 	}
 
 	// Serialization //////////////////////////////////////////////////
-
-	private BigInteger getXECPublicKeyU(PublicKey publicKey) throws GeneralSecurityException {
-		if (XECPublicKeyGetU == null) {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!");
-		}
-		try {
-			return (BigInteger) XECPublicKeyGetU.invoke(publicKey);
-		} catch (Exception e) {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!", e);
-		}
-	}
-
-	private KeySpec getXECPublicKeySpec(String name, BigInteger u) throws GeneralSecurityException {
-		if (XECPublicKeySpecInit == null) {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!");
-		}
-		try {
-			ECGenParameterSpec parameterSpec = new ECGenParameterSpec(name);
-			return (KeySpec) XECPublicKeySpecInit.newInstance(parameterSpec, u);
-		} catch (Exception e) {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!", e);
-		}
-	}
-
-	private static String getXECPublicKeyName(PublicKey publicKey) throws GeneralSecurityException {
-		if (XECPublicKeyGetParams == null || NamedParameterSpecGetName == null) {
-			throw new GeneralSecurityException("X25519/X448 not supported by JRE!");
-		}
-		try {
-			Object params = XECPublicKeyGetParams.invoke(publicKey);
-			return (String) NamedParameterSpecGetName.invoke(params);
-		} catch (Exception e) {
-			throw new GeneralSecurityException("X25519/X448 not supported by JRE!");
-		}
-	}
 
 	/**
 	 * Get offset for none zero data.
@@ -500,7 +440,8 @@ public final class XECDHECryptography implements Destroyable {
 		int ybLength = yb.length - ybOffset;
 
 		if ((xbLength > keySizeInBytes) || (ybLength > keySizeInBytes)) {
-			throw new IllegalArgumentException("ec point exceeds size! " + xbLength + "," + ybLength + " > " + keySizeInBytes);
+			throw new IllegalArgumentException(
+					"ec point exceeds size! " + xbLength + "," + ybLength + " > " + keySizeInBytes);
 		}
 
 		// 1 byte (compression state) + twice field size
@@ -662,9 +603,9 @@ public final class XECDHECryptography implements Destroyable {
 				if (publicKey instanceof ECPublicKey) {
 					ECParameterSpec params = ((ECPublicKey) publicKey).getParams();
 					return EC_CURVE_MAP_BY_CURVE.get(params.getCurve());
-				} else if (XECPublicKeyClass != null && XECPublicKeyClass.isInstance(publicKey)) {
+				} else if (xDHPublicKeyApi != null && xDHPublicKeyApi.isSupporting(publicKey)) {
 					try {
-						String name = getXECPublicKeyName(publicKey);
+						String name = xDHPublicKeyApi.getCurveName(publicKey);
 						return SupportedGroup.valueOf(name);
 					} catch (GeneralSecurityException ex) {
 
@@ -695,7 +636,7 @@ public final class XECDHECryptography implements Destroyable {
 		public static boolean isEcPublicKey(PublicKey publicKey) {
 			if (publicKey instanceof ECPublicKey) {
 				return true;
-			} else if (XECPublicKeyClass != null && XECPublicKeyClass.isInstance(publicKey)) {
+			} else if (xDHPublicKeyApi != null && xDHPublicKeyApi.isSupporting(publicKey)) {
 				return true;
 			}
 			return false;
@@ -801,6 +742,214 @@ public final class XECDHECryptography implements Destroyable {
 			}
 			USABLE_GROUPS = Collections.unmodifiableList(usableGroups);
 			PREFERRED_GROUPS = Collections.unmodifiableList(preferredGroups);
+		}
+	}
+
+	/**
+	 * Set {@link XDHPublicKeyApi} implementation.
+	 * 
+	 * As default, java 11 is supported by a implementation using reflection (in
+	 * order to prevent a hard dependency to java 11). If other XDH providers
+	 * are used, then this reflection implementation must be replaced by a
+	 * implementation supporting that provider.
+	 * 
+	 * e.g. Bouncy Castle (simple example, no support):
+	 * <pre>
+	 * Security.removeProvider("BC");
+	 * BouncyCastleProvider bouncyCastleProvider = new BouncyCastleProvider();
+	 * Security.insertProviderAt(bouncyCastleProvider, 1);
+	 * XECDHECryptography.XDHPublicKeyApi api = new XECDHECryptography.XDHPublicKeyApi() {
+	 * 
+	 * 		&#64;Override
+	 * 		public boolean isSupporting(PublicKey publicKey) {
+	 * 			return publicKey instanceof BCXDHPublicKey;
+	 * 		}
+	 * 
+	 * 		&#64;Override
+	 * 		public String getCurveName(PublicKey publicKey) throws GeneralSecurityException {
+	 * 			return ((BCXDHPublicKey) publicKey).getAlgorithm();
+	 * 		}
+	 * 
+	 * 		&#64;Override
+	 * 		public byte[] encode(PublicKey publicKey, int keySizeInBytes) throws GeneralSecurityException {
+	 * 			byte[] encode = publicKey.getEncoded();
+	 * 			return Arrays.copyOfRange(encode, encode.length - keySizeInBytes, encode.length);
+	 * 		}
+	 * 
+	 * 		&#64;Override
+	 * 		public PublicKey decode(String name, byte[] data, int keySizeInBytes) throws GeneralSecurityException {
+	 * 			try {
+	 * 				AlgorithmIdentifier algID = null;
+	 * 				if (name.equalsIgnoreCase("X448")) {
+	 * 					algID = new AlgorithmIdentifier(EdECObjectIdentifiers.id_X448);
+	 * 				} else if (name.equalsIgnoreCase("X25519")) {
+	 * 					algID = new AlgorithmIdentifier(EdECObjectIdentifiers.id_X25519);
+	 * 				} else {
+	 * 					throw new GeneralSecurityException(name + " not supported by XDH/BC!");
+	 * 				}
+	 * 				SubjectPublicKeyInfo subjectPublicKeyInfo = new SubjectPublicKeyInfo(algID, data);
+	 * 				X509EncodedKeySpec keySpec = new X509EncodedKeySpec(subjectPublicKeyInfo.getEncoded(ASN1Encoding.DER));
+	 * 				KeyFactory keyFactory = XECDHECryptography.XDH_KEY_FACTORY.currentWithCause();
+	 * 				return keyFactory.generatePublic(keySpec);
+	 * 			} catch (IOException e) {
+	 * 				throw new GeneralSecurityException("XDH/BC: failed to decoded point! " + name, e);
+	 * 			}
+	 * 		}
+	 * 
+	 * };
+	 * XECDHECryptography.setXDHPublicKeyApi(api);
+	 * </pre>
+	 * 
+	 * @param api {@link XDHPublicKeyApi} implementation
+	 */
+	public static void setXDHPublicKeyApi(XDHPublicKeyApi api) {
+		xDHPublicKeyApi = api;
+	}
+
+	/**
+	 * API for XDH (X25519/X448) public keys.
+	 * 
+	 * @since 3.0
+	 */
+	public interface XDHPublicKeyApi {
+
+		/**
+		 * Check, if provided public key is a XDH (X25519/X448) public key
+		 * supported by this implementation.
+		 * 
+		 * @param publicKey public key to check.
+		 * @return {@code true}, if public key is a XDH (X25519/X448) public key
+		 *         and supported by this implementation.
+		 */
+		boolean isSupporting(PublicKey publicKey);
+
+		/**
+		 * Gets curve name of the public key.
+		 * 
+		 * @param publicKey public key.
+		 * @return curve name
+		 * @throws GeneralSecurityException if not supported by this
+		 *             implementation
+		 * @see #isSupporting(PublicKey)
+		 */
+		String getCurveName(PublicKey publicKey) throws GeneralSecurityException;
+
+		/**
+		 * Encodes public key for XDH.
+		 * 
+		 * @param publicKey public key
+		 * @param keySizeInBytes size in bytes
+		 * @return encoded public key.
+		 * @throws GeneralSecurityException if not supported by this
+		 *             implementation
+		 * @see #isSupporting(PublicKey)
+		 */
+		byte[] encode(PublicKey publicKey, int keySizeInBytes) throws GeneralSecurityException;
+
+		/**
+		 * Decode public key for XDH.
+		 * 
+		 * @param name name of curve
+		 * @param data encoded public key
+		 * @param keySizeInBytes size in bytes
+		 * @return public key
+		 * @throws GeneralSecurityException if not supported by this
+		 *             implementation
+		 * @see #isSupporting(PublicKey)
+		 */
+		PublicKey decode(String name, byte[] data, int keySizeInBytes) throws GeneralSecurityException;
+	}
+
+	/**
+	 * Implementation of {@link XDHPublicKeyApi} based on reflection running on
+	 * java 11 XDH.
+	 * 
+	 * @since 3.0
+	 */
+	private static class XDHPublicKeyReflection implements XDHPublicKeyApi {
+
+		private final Class<?> XECPublicKeyClass;
+		private final Constructor<?> XECPublicKeySpecInit;
+		private final Method XECPublicKeyGetParams;
+		private final Method XECPublicKeyGetU;
+		private final Method NamedParameterSpecGetName;
+
+		private XDHPublicKeyReflection(Class<?> XECPublicKeyClass, Constructor<?> XECPublicKeySpecInit,
+				Method XECPublicKeyGetParams, Method XECPublicKeyGetU, Method NamedParameterSpecGetName) {
+			if (XECPublicKeyClass == null) {
+				throw new NullPointerException("XECPublicKeyClass must not be null!");
+			}
+			if (XECPublicKeySpecInit == null) {
+				throw new NullPointerException("XECPublicKeySpecInit must not be null!");
+			}
+			if (XECPublicKeyGetParams == null) {
+				throw new NullPointerException("XECPublicKeyGetParams must not be null!");
+			}
+			if (XECPublicKeyGetU == null) {
+				throw new NullPointerException("XECPublicKeyGetU must not be null!");
+			}
+			if (NamedParameterSpecGetName == null) {
+				throw new NullPointerException("NamedParameterSpecGetName must not be null!");
+			}
+			this.XECPublicKeyClass = XECPublicKeyClass;
+			this.XECPublicKeySpecInit = XECPublicKeySpecInit;
+			this.XECPublicKeyGetParams = XECPublicKeyGetParams;
+			this.XECPublicKeyGetU = XECPublicKeyGetU;
+			this.NamedParameterSpecGetName = NamedParameterSpecGetName;
+		}
+
+		@Override
+		public boolean isSupporting(PublicKey publicKey) {
+			return XECPublicKeyClass.isInstance(publicKey);
+		}
+
+		@Override
+		public String getCurveName(PublicKey publicKey) throws GeneralSecurityException {
+			try {
+				Object params = XECPublicKeyGetParams.invoke(publicKey);
+				return (String) NamedParameterSpecGetName.invoke(params);
+			} catch (Exception e) {
+				throw new GeneralSecurityException("X25519/X448 not supported by JRE!", e);
+			}
+		}
+
+		@Override
+		public byte[] encode(PublicKey publicKey, int keySizeInBytes) throws GeneralSecurityException {
+			try {
+				BigInteger u = (BigInteger) XECPublicKeyGetU.invoke(publicKey);
+				return revert(u.toByteArray(), keySizeInBytes);
+			} catch (Exception e) {
+				throw new GeneralSecurityException("X25519/X448 not supported by JRE!", e);
+			}
+		}
+
+		@Override
+		public PublicKey decode(String name, byte[] encodedPoint, int keySizeInBytes) throws GeneralSecurityException {
+			try {
+				BigInteger u = new BigInteger(1, revert(encodedPoint, keySizeInBytes));
+				ECGenParameterSpec parameterSpec = new ECGenParameterSpec(name);
+				KeySpec spec = (KeySpec) XECPublicKeySpecInit.newInstance(parameterSpec, u);
+				KeyFactory keyFactory = XDH_KEY_FACTORY.currentWithCause();
+				return keyFactory.generatePublic(spec);
+			} catch (Exception e) {
+				throw new GeneralSecurityException("X25519/X448 not supported by JRE!", e);
+			}
+		}
+
+		private static XDHPublicKeyApi init() {
+			try {
+				Class<?> cls = Class.forName("java.security.spec.XECPublicKeySpec");
+				Constructor<?> init = cls.getConstructor(AlgorithmParameterSpec.class, BigInteger.class);
+				cls = Class.forName("java.security.spec.NamedParameterSpec");
+				Method getName = cls.getMethod("getName");
+				cls = Class.forName("java.security.interfaces.XECPublicKey");
+				Method getU = cls.getMethod("getU");
+				Method getParams = cls.getMethod("getParams");
+				return new XDHPublicKeyReflection(cls, init, getParams, getU, getName);
+			} catch (Throwable t) {
+				LOGGER.info("X25519/X448 not supported!");
+			}
+			return null;
 		}
 	}
 }

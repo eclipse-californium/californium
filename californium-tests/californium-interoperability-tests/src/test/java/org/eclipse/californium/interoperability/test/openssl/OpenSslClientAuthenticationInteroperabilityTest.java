@@ -244,7 +244,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 				.setSupportedSignatureAlgorithms(defaults);
 		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
-		String cipher = processUtil.startupClient(DESTINATION, TRUST, OpenSslProcessUtil.DEFAULT_CURVES,
+		String cipher = processUtil.startupClient(DESTINATION, TRUST, "X25519:prime256v1",
 				"ed25519:ECDSA+SHA256", "clientEdDsa.pem", cipherSuite);
 		connect(cipher);
 	}
