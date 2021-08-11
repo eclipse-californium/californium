@@ -281,11 +281,17 @@ public class ReliabilityLayerParameters {
 				throw new IllegalStateException("Maximum ack timeout " + maxAckTimeout
 						+ "ms must not be less than ack timeout " + ackTimeout + "ms!");
 			}
+			if (1 > maxRetransmit) {
+				throw new IllegalStateException("Maxium retransmit " + maxRetransmit + " must not be less than 1!");
+			}
+			if (1 > nstart) {
+				throw new IllegalStateException("Nstart " + nstart + " must not be less than 1!");
+			}
 			if (1.0 > ackRandomFactor) {
-				throw new IllegalStateException("Ack random factor " + ackRandomFactor + "must not be less than 1.0!");
+				throw new IllegalStateException("Ack random factor " + ackRandomFactor + " must not be less than 1.0!");
 			}
 			if (1.0 > ackTimeoutScale) {
-				throw new IllegalStateException("Ack scale factor " + ackTimeoutScale + "must not be less than 1.0!");
+				throw new IllegalStateException("Ack scale factor " + ackTimeoutScale + " must not be less than 1.0!");
 			}
 		}
 	}
