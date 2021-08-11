@@ -2149,6 +2149,31 @@ public final class DtlsConnectorConfig {
 						+ " is more than the maximum " + config.getMaxRetransmissionTimeout() + "!");
 			}
 
+			if (config.getRetransmissionTimeout() <= 0) {
+				throw new IllegalStateException("Retransmission timeout " + config.getRetransmissionTimeout()
+						+ " must not be 0 or less!");
+			}
+
+			if (config.getMaxRetransmissionTimeout() <= 0) {
+				throw new IllegalStateException("Maximum retransmission timeout " + config.getMaxRetransmissionTimeout()
+						+ " must not be 0 or less!");
+			}
+
+			if (config.getMaxRetransmissions() < 1) {
+				throw new IllegalStateException("Maximum retransmissions " + config.getMaxRetransmissions()
+						+ " must not be less than 1!");
+			}
+
+			if (config.getRetransmissionRandomFactor() < 1.0F) {
+				throw new IllegalStateException("Retransmission timeout random factor " + config.getRetransmissionRandomFactor()
+						+ " must not be less than 1.0!");
+			}
+
+			if (config.getRetransmissionTimeoutScale() < 1.0F) {
+				throw new IllegalStateException("Retransmission timeout scale factor " + config.getRetransmissionTimeoutScale()
+						+ " must not be less than 1.0!");
+			}
+
 			if (config.getMaxTransmissionUnit() != null && config.getMaxTransmissionUnitLimit() != null) {
 				int mtu = config.getMaxTransmissionUnit();
 				int limit = config.getMaxTransmissionUnitLimit();
