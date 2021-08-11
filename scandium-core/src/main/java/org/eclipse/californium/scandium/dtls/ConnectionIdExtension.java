@@ -109,8 +109,10 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension from connection id.
 	 * 
 	 * @param cid connection id
-	 * @param type extension type. Must be one of
-	 *            {@link #isConnectionIdExtensionType(ExtensionType)}.
+	 * @param type extension type. Must be of type
+	 *            {@link ExtensionType#CONNECTION_ID} or the
+	 *            {@link ExtensionType#getReplacementType()} must be
+	 *            {@link ExtensionType#CONNECTION_ID}.
 	 * @return created connection id extension
 	 * @throws NullPointerException if cid or type is {@code null}
 	 * @throws IllegalArgumentException if type is not
@@ -137,9 +139,10 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension from extensions data bytes.
 	 * 
 	 * @param extensionDataReader extension data bytes
-	 * @param deprecatedCid {@code true}, if the deprecated extension ID
-	 *            {@code 53} along with the deprecated MAC calculation is used,
-	 *            {@code false}, otherwise.
+	 * @param type extension type. Must be of type
+	 *            {@link ExtensionType#CONNECTION_ID} or the
+	 *            {@link ExtensionType#getReplacementType()} must be
+	 *            {@link ExtensionType#CONNECTION_ID}.
 	 * @return created connection id extension
 	 * @throws NullPointerException if extensionData or type is {@code null}
 	 * @throws IllegalArgumentException if type is not
