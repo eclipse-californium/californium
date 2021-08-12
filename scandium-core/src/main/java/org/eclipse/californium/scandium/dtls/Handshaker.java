@@ -78,6 +78,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
@@ -193,13 +194,6 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private int nextReceiveMessageSequence = 0;
 
-	/**
-	 * Indicates last flight of the handshake. The last flight is net
-	 * retransmitted by timeout, it's retransmitted, if the other peer
-	 * retransmits the flight before this.
-	 */
-	private boolean lastFlight;
-
 	/** Realtime nanoseconds of last sending a flight */
 	private long flightSendNanos;
 
@@ -250,6 +244,20 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.4
 	 */
 	private Runnable retransmitFlight;
+	/**
+	 * Future of completion timeout of the last flight.
+	 * 
+	 * This future indicates, that the last flight of the handshake is pending.
+	 * The last flight is not retransmitted by the retransmission timeout, it's
+	 * retransmitted, if the other peer retransmits the flight before this.
+	 * 
+	 * If no data is received within that completion timeout, the handshake is
+	 * completed without. The last flight is not longer kept, because the other
+	 * peer is not longer considered to retransmit its flight before this.
+	 * 
+	 * @since 3.0
+	 */
+	private ScheduledFuture<?> timeoutLastFlight;
 
 	/**
 	 * Scheduler for flight timeout and retransmission.
@@ -434,6 +442,7 @@ public abstract class Handshaker implements Destroyable {
 	private boolean eccExpected;
 	private boolean changeCipherSuiteMessageExpected;
 	private boolean contextEstablished;
+	private boolean handshakeCompleted;
 	private boolean handshakeAborted;
 	private boolean handshakeFailed;
 	private boolean pskRequestPending;
@@ -909,7 +918,7 @@ public abstract class Handshaker implements Destroyable {
 				GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) handshakeMessage;
 				handshakeMessage = HandshakeMessage.fromGenericHandshakeMessage(genericMessage, getParameter());
 			}
-			if (lastFlight) {
+			if (timeoutLastFlight != null) {
 				if (flight == null) {
 					if (cause != null) {
 						LOGGER.error("last flight missing, handshake already failed! {}", handshakeMessage, cause);
@@ -954,7 +963,7 @@ public abstract class Handshaker implements Destroyable {
 				}
 				LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
 						peerToLog);
-				if (!lastFlight) {
+				if (timeoutLastFlight == null) {
 					// last Flight may have changed processing
 					// the handshake message
 					++nextReceiveMessageSequence;
@@ -1882,7 +1891,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @see #sendFlight(DTLSFlight)
 	 */
 	public void sendLastFlight(DTLSFlight flight) {
-		lastFlight = true;
+		timeoutLastFlight = timer.schedule(new TimeoutCompletedTask(), nanosExpireTimeout, TimeUnit.NANOSECONDS);
 		flight.setRetransmissionNeeded(false);
 		sendFlight(flight);
 	}
@@ -2106,6 +2115,20 @@ public abstract class Handshaker implements Destroyable {
 		}
 	}
 
+	private class TimeoutCompletedTask extends ConnectionTask {
+
+		private TimeoutCompletedTask() {
+			super(new Runnable() {
+				@Override
+				public void run() {
+					if (recordLayer.isRunning()) {
+						handshakeCompleted();
+					}
+				}
+			}, false);
+		}
+	}
+
 	/**
 	 * Adds a listener to the list of listeners to be notified
 	 * about session life cycle events.
@@ -2169,12 +2192,18 @@ public abstract class Handshaker implements Destroyable {
 	 * Forward handshake completed to registered listeners.
 	 */
 	public final void handshakeCompleted() {
-		completePendingFlight();
-		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.handshakeCompleted(this);
+		if (!handshakeCompleted) {
+			if (timeoutLastFlight != null) {
+				timeoutLastFlight.cancel(false);
+			}
+			handshakeCompleted = true;
+			completePendingFlight();
+			for (SessionListener sessionListener : sessionListeners) {
+				sessionListener.handshakeCompleted(this);
+			}
+			SecretUtil.destroy(this);
+			LOGGER.debug("handshake completed {}", connection);
 		}
-		SecretUtil.destroy(this);
-		LOGGER.debug("handshake completed {}", connection);
 	}
 
 	/**
