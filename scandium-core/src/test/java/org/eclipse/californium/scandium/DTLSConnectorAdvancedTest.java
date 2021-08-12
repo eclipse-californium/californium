@@ -175,6 +175,7 @@ public class DTLSConnectorAdvancedTest {
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
 	private static final int RETRANSMISSION_TIMEOUT_MS = 400;
 	private static final int MAX_RETRANSMISSIONS = 2;
+	private static final int HANDSHAKE_EXPIRES_MS = RETRANSMISSION_TIMEOUT_MS * ((2 << MAX_RETRANSMISSIONS) + 1);
 
 	static AsyncAdvancedPskStore serverPskStore;
 	static AsyncCertificateProvider serverCertificateProvider;
@@ -572,7 +573,7 @@ public class DTLSConnectorAdvancedTest {
 			assertThat("unexpected messages!", records, is(nullValue()));
 
 			// retransmit reverse flight
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(1));
 
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(4L), MAX_TIME_TO_WAIT_SECS,
 					TimeUnit.SECONDS);
@@ -581,7 +582,7 @@ public class DTLSConnectorAdvancedTest {
 			assertThat("unexpected messages!", records, is(nullValue()));
 
 			// retransmit reverse flight again
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(1));
 			// Wait to receive response (should be CHANGE CIPHER SPEC, FINISHED)
 			rs = waitForFlightReceived("flight 6", collector, 2);
 			// Handle it
@@ -805,7 +806,7 @@ public class DTLSConnectorAdvancedTest {
 			drops.remove(2);
 
 			// drop last flight 3, server resends flight 2
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(2));
 
 			TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(2L),
 					MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -900,7 +901,7 @@ public class DTLSConnectorAdvancedTest {
 			drops.remove(2);
 
 			// drop last flight 3, server resends flight 2
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(2));
 
 			TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(2L), MAX_TIME_TO_WAIT_SECS,
 					TimeUnit.SECONDS);
@@ -1086,7 +1087,7 @@ public class DTLSConnectorAdvancedTest {
 					MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 
 			// probing would drop the FINISH epoch 1, therefore resend flight
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(2));
 
 			// Wait to receive response
 			// (CCS, client FINISHED, flight 3) + (application data)
@@ -1099,7 +1100,7 @@ public class DTLSConnectorAdvancedTest {
 					MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 
 			// drop last flight 3, server resends flight 2
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(1));
 
 
 			// Wait to receive response (CCS, client FINISHED, flight 3)
@@ -1349,7 +1350,7 @@ public class DTLSConnectorAdvancedTest {
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
 
 			// Ignore the receive response, client resends flight 5
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(1));
 
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(4L), MAX_TIME_TO_WAIT_SECS,
 					TimeUnit.SECONDS);
@@ -1439,7 +1440,7 @@ public class DTLSConnectorAdvancedTest {
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
 
 			// Ignore the receive response, client resends flight 5
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(1));
 
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(4L), MAX_TIME_TO_WAIT_SECS,
 					TimeUnit.SECONDS);
@@ -1452,7 +1453,7 @@ public class DTLSConnectorAdvancedTest {
 			assertThat(clientRecordLayer.getLastSentDatagrams(), is(1));
 
 			// Ignore the receive response, client resends flight 5
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(1));
 
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(8L), MAX_TIME_TO_WAIT_SECS,
 					TimeUnit.SECONDS);
@@ -1536,7 +1537,7 @@ public class DTLSConnectorAdvancedTest {
 
 			assertThat(serverRecordLayer.getLastSentDatagrams(), is(1));
 
-			timer.executeJobs();
+			assertThat("scheduled jobs", timer.executeJobs(), is(1));
 
 			// Wait for retransmission (CERTIFICATE, ... , FINISHED, flight 5)
 			rs = waitForFlightReceived("flight 3", collector, 5);
@@ -1544,7 +1545,7 @@ public class DTLSConnectorAdvancedTest {
 
 			assertThat(serverRecordLayer.getLastSentDatagrams(), is(1));
 
-			timer.executeJobs();
+			assertThat("scheduled jobs", timer.executeJobs(), is(1));
 			
 			// Wait for retransmission (CERTIFICATE, ... , FINISHED, flight 5)
 			rs = waitForFlightReceived("flight 3", collector, 5);
@@ -1608,7 +1609,10 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("flight 6", collector, 2);
 			processAll(clientHandshaker, rs);
 
+			timer.executeJobs();
 			serverHealth.reset();
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes succeeded", is(0L));
 
 			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
 			send(clientConnection, clientRecordLayer, close);
@@ -1813,7 +1817,7 @@ public class DTLSConnectorAdvancedTest {
 			TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(0L));
 
 			// drop last flight 3, server resends flight 2
-			assertThat(timer.executeJobs(), is(1));
+			assertThat("scheduled jobs", timer.executeJobs(), is(2));
 
 			// Wait to receive response (CCS, client FINISHED, flight 3)
 			// ("application data" doesn't belong to flight)
@@ -3445,6 +3449,61 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Test the server handshake completes also by timeout.
+	 * 
+	 * @throws Exception if the test fails
+	 */
+	@Test
+	public void testServerCompletesWithTimeout() throws Exception {
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
+		try {
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			Connection clientConnection = createClientConnection();
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
+					clientConnection, clientConfigBuilder.build(), false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Wait to receive response from server
+			// (CHANGE CIPHER SPEC, FINISHED)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			// Handle (CHANGE CIPHER SPEC, FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake is successfully done
+			assertTrue("client handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes succeeded", is(1L),
+					HANDSHAKE_EXPIRES_MS, TimeUnit.MILLISECONDS);
+
+		} finally {
+			rawClient.stop();
+			serverHealth.reset();
 		}
 	}
 
