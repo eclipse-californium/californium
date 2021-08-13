@@ -595,7 +595,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 		initCredentials();
 		int handshakeResultDelay = netConfig.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
-		Long healthStatusInterval = netConfig.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
+		long healthStatusInterval = netConfig.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 
 		DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(netConfig);
 		dtlsConfigBuilder.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(nodeId, cidLength));
@@ -658,7 +658,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 		builder.setConfiguration(netConfig);
 		CoapEndpoint endpoint = builder.build();
-		if (healthStatusInterval != null) {
+		if (healthStatusInterval > 0) {
 			String tag = CoAP.COAP_SECURE_URI_SCHEME;
 			tag += "-" + nodeId;
 			final HealthStatisticLogger healthLogger = new HealthStatisticLogger(tag, true, healthStatusInterval,

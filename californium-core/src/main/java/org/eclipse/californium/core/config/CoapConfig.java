@@ -289,7 +289,7 @@ public final class CoapConfig {
 	 * (servers).
 	 */
 	public static final IntegerDefinition MAX_ACTIVE_PEERS = new IntegerDefinition(MODULE + "MAX_ACTIVE_PEERS",
-			"Maximum number of active peers.", DEFAULT_MAX_ACTIVE_PEERS);
+			"Maximum number of active peers.", DEFAULT_MAX_ACTIVE_PEERS, 1);
 	/**
 	 * The maximum number of seconds a peer may be inactive for before it is
 	 * considered stale and all state associated with it can be discarded.
@@ -301,31 +301,31 @@ public final class CoapConfig {
 	/**
 	 * CoAP port.
 	 */
-	public static final IntegerDefinition COAP_PORT = new IntegerDefinition(MODULE + "COAP_PORT", "CoAP port.", 5683);
+	public static final IntegerDefinition COAP_PORT = new IntegerDefinition(MODULE + "COAP_PORT", "CoAP port.", 5683, 1);
 	/**
 	 * CoAPs port.
 	 */
 	public static final IntegerDefinition COAP_SECURE_PORT = new IntegerDefinition(MODULE + "COAP_SECURE_PORT",
-			"CoAP DTLS port.", 5684);
+			"CoAP DTLS port.", 5684, 1);
 	/**
 	 * Initial CoAP acknowledge timeout for CON messages. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252 4.8. Transmission Parameters</a>.
 	 */
 	public static final TimeDefinition ACK_TIMEOUT = new TimeDefinition(MODULE + "ACK_TIMEOUT",
-			"Initial CoAP acknowledge timeout.", 2000L, TimeUnit.MILLISECONDS);
+			"Initial CoAP acknowledge timeout.", 2000, TimeUnit.MILLISECONDS);
 	/**
 	 * Maximum CoAP acknowledge timeout for CON messages. Not RFC7252 compliant.
 	 */
 	public static final TimeDefinition MAX_ACK_TIMEOUT = new TimeDefinition(MODULE + "MAX_ACK_TIMEOUT",
-			"Maximum CoAP acknowledge timeout.", 60000L, TimeUnit.MILLISECONDS);
+			"Maximum CoAP acknowledge timeout.", 60000, TimeUnit.MILLISECONDS);
 	/**
 	 * Random factor applied to the initial CoAP acknowledge timeout. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final FloatDefinition ACK_INIT_RANDOM = new FloatDefinition(MODULE + "ACK_INIT_RANDOM",
-			"Random factor for initial CoAP acknowledge timeout.", 1.5F);
+			"Random factor for initial CoAP acknowledge timeout.", 1.5F, 1.0F);
 	/**
 	 * Factor as back-off applied to follow-up CoAP acknowledge timeout. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.2"
@@ -333,14 +333,14 @@ public final class CoapConfig {
 	 * doubled"</a>.
 	 */
 	public static final FloatDefinition ACK_TIMEOUT_SCALE = new FloatDefinition(MODULE + "ACK_TIMEOUT_SCALE",
-			"Scale factor for CoAP acknowledge backoff-timeout.", 2.0F);
+			"Scale factor for CoAP acknowledge backoff-timeout.", 2.0F, 1.0F);
 	/**
 	 * Maximum numbers of retransmissions. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final IntegerDefinition MAX_RETRANSMIT = new IntegerDefinition(MODULE + "MAX_RETRANSMIT",
-			"Maximum number of CoAP retransmissions.", 4);
+			"Maximum number of CoAP retransmissions.", 4, 1);
 	/**
 	 * The EXCHANGE_LIFETIME for CON requests. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
@@ -356,7 +356,7 @@ public final class CoapConfig {
 	 * Parameters</a>.
 	 */
 	public static final TimeDefinition NON_LIFETIME = new TimeDefinition(MODULE + "NON_LIFETIME",
-			"CoAP maximum lifetime for NON requests.", 145L, TimeUnit.SECONDS);
+			"CoAP maximum lifetime for NON requests.", 145, TimeUnit.SECONDS);
 	/**
 	 * The maximum latency assumed for message transmission. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
@@ -364,7 +364,7 @@ public final class CoapConfig {
 	 * Parameters</a>.
 	 */
 	public static final TimeDefinition MAX_LATENCY = new TimeDefinition(MODULE + "MAX_LATENCY",
-			"Maximum transmission latency for messages.", 100L, TimeUnit.SECONDS);
+			"Maximum transmission latency for messages.", 100, TimeUnit.SECONDS);
 	/**
 	 * The the maximum time from the first transmission
       of a Confirmable message to the time when the sender gives up on
@@ -374,7 +374,7 @@ public final class CoapConfig {
 	 * Parameters</a>.
 	 */
 	public static final TimeDefinition MAX_TRANSMIT_WAIT = new TimeDefinition(MODULE + "MAX_TRANSMIT_WAIT",
-			"Maximum time to wait for ACK or RST after the first transmission of a CON message.", 93L, TimeUnit.SECONDS);
+			"Maximum time to wait for ACK or RST after the first transmission of a CON message.", 93, TimeUnit.SECONDS);
 	/**
 	 * The maximum server response delay. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7390#section-2.5"
@@ -388,14 +388,14 @@ public final class CoapConfig {
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final IntegerDefinition NSTART = new IntegerDefinition(MODULE + "NSTART",
-			"Maximum concurrent transmissions.", 1);
+			"Maximum concurrent transmissions.", 1, 1);
 	/**
 	 * The leisure of a multicast server for response delays. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final TimeDefinition LEISURE = new TimeDefinition(MODULE + "LEISURE",
-			"Timespan a multicast server may spread the response.", 5L, TimeUnit.SECONDS);
+			"Timespan a multicast server may spread the response.", 5, TimeUnit.SECONDS);
 	/**
 	 * The probing rate for new destination endpoints. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
@@ -403,7 +403,7 @@ public final class CoapConfig {
 	 * used.
 	 */
 	public static final FloatDefinition PROBING_RATE = new FloatDefinition(MODULE + "PROBING_RATE",
-			"Probing rate to peers, which didn't response before. Currently not used.", 1F);
+			"Probing rate to peers, which didn't response before. Currently not used.", 1.0F);
 	/**
 	 * Configure message-off-loading.
 	 * 
@@ -431,7 +431,7 @@ public final class CoapConfig {
 	 * Number of groups for {@link GroupedMessageIdTracker}.
 	 */
 	public static final IntegerDefinition MID_TRACKER_GROUPS = new IntegerDefinition(MODULE + "MID_TRACKER_GROUPS",
-			"Number of MID tracker groups.", DEFAULT_MID_TRACKER_GROUPS);
+			"Number of MID tracker groups.", DEFAULT_MID_TRACKER_GROUPS, 4);
 	/**
 	 * Base MID for multicast MID range. All multicast requests use the same MID
 	 * provider, which generates MIDs in the range [base...65536). None
@@ -439,19 +439,19 @@ public final class CoapConfig {
 	 * support.
 	 */
 	public static final IntegerDefinition MULTICAST_BASE_MID = new IntegerDefinition(MODULE + "MULTICAST_BASE_MID",
-			"Base MID for multicast requests.", DEFAULT_MULTICAST_BASE_MID);
+			"Base MID for multicast requests.", DEFAULT_MULTICAST_BASE_MID, 0);
 	/**
 	 * Token size for {@link TokenGenerator}.
 	 */
 	public static final IntegerDefinition TOKEN_SIZE_LIMIT = new IntegerDefinition(MODULE + "TOKEN_SIZE_LIMIT",
-			"Limit of token size.", DEFAULT_TOKEN_SIZE_LIMIT);
+			"Limit of token size.", DEFAULT_TOKEN_SIZE_LIMIT, 1);
 	/**
 	 * The block size (number of bytes) to use when doing a blockwise transfer.
 	 * This value serves as the upper limit for block size in blockwise
 	 * transfers.
 	 */
 	public static final IntegerDefinition PREFERRED_BLOCK_SIZE = new IntegerDefinition(MODULE + "PREFERRED_BLOCK_SIZE",
-			"Preferred blocksize for blockwise transfer.", DEFAULT_PREFERRED_BLOCK_SIZE);
+			"Preferred blocksize for blockwise transfer.", DEFAULT_PREFERRED_BLOCK_SIZE, 16);
 	/**
 	 * The maximum payload size (in bytes) that can be transferred in a single
 	 * message, i.e. without requiring a blockwise transfer.
@@ -461,7 +461,7 @@ public final class CoapConfig {
 	 * network's MTU if UDP is used as the transport protocol.
 	 */
 	public static final IntegerDefinition MAX_MESSAGE_SIZE = new IntegerDefinition(MODULE + "MAX_MESSAGE_SIZE",
-			"Maximum payload size.", DEFAULT_MAX_MESSAGE_SIZE);
+			"Maximum payload size.", DEFAULT_MAX_MESSAGE_SIZE, 64);
 	/**
 	 * The maximum size of a resource body (in bytes) that will be accepted as
 	 * the payload of a POST/PUT or the response to a GET request in a
@@ -484,7 +484,7 @@ public final class CoapConfig {
 	 */
 	public static final IntegerDefinition MAX_RESOURCE_BODY_SIZE = new IntegerDefinition(
 			MODULE + "MAX_RESOURCE_BODY_SIZE",
-			"Maximum size of resource body. 0 to disable transparent blockwise mode.", DEFAULT_MAX_RESOURCE_BODY_SIZE);
+			"Maximum size of resource body. 0 to disable transparent blockwise mode.", DEFAULT_MAX_RESOURCE_BODY_SIZE, 0);
 	/**
 	 * The maximum amount of time allowed between transfers of individual blocks
 	 * in a blockwise transfer before the blockwise transfer state is discarded.
@@ -512,7 +512,7 @@ public final class CoapConfig {
 	 * message is always enabled while using TCP connector.
 	 */
 	public static final IntegerDefinition TCP_NUMBER_OF_BULK_BLOCKS = new IntegerDefinition(
-			MODULE + "TCP_NUMBER_OF_BULK_BLOCKS", "Number of block per TCP-blockwise bulk transfer.", 1);
+			MODULE + "TCP_NUMBER_OF_BULK_BLOCKS", "Number of block per TCP-blockwise bulk transfer.", 1, 1);
 
 	/**
 	 * Property to indicate if the response should always include the Block2
@@ -604,7 +604,7 @@ public final class CoapConfig {
 	 * Number of threads to process coap-exchanges.
 	 */
 	public static final IntegerDefinition PROTOCOL_STAGE_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "PROTOCOL_STAGE_THREAD_COUNT", "Protocol stage thread count.", 1);
+			MODULE + "PROTOCOL_STAGE_THREAD_COUNT", "Protocol stage thread count.", 1, 1);
 
 	/**
 	 * Deduplicator algorithm.
@@ -630,7 +630,7 @@ public final class CoapConfig {
 	public static final IntegerDefinition PEERS_MARK_AND_SWEEP_MESSAGES = new IntegerDefinition(
 			MODULE + "PEERS_MARK_AND_SWEEP_MESSAGES",
 			"Maximum messages kept per peer for " + DEDUPLICATOR_PEERS_MARK_AND_SWEEP + ".",
-			DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES);
+			DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES, 8);
 	/**
 	 * The interval after which the next crop run should occur.
 	 * 

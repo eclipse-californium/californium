@@ -241,7 +241,8 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_CONNECTION_ID_LENGTH = new IntegerDefinition(
 			MODULE + "CONNECTION_ID_LENGTH",
-			"DTLS connection ID length. <blank> disabled, 0 enables support, without active use of CID.");
+			"DTLS connection ID length. <blank> disabled, 0 enables support, without active use of CID.", null, 0);
+
 	/**
 	 * If {@link #DTLS_CONNECTION_ID_LENGTH} enables the use of a connection id,
 	 * this node id could be used to configure the generation of connection ids
@@ -249,7 +250,7 @@ public final class DtlsConfig {
 	 * as first byte in generated connection ids.
 	 */
 	public static final IntegerDefinition DTLS_CONNECTION_ID_NODE_ID = new IntegerDefinition(
-			MODULE + "CONNECTION_ID_NODE_ID", "DTLS node ID used for connection ID. <blank> not used.");
+			MODULE + "CONNECTION_ID_NODE_ID", "DTLS node ID used for connection ID. <blank> not used.", null, 0);
 
 	/**
 	 * Specify the initial DTLS retransmission timeout.
@@ -268,13 +269,13 @@ public final class DtlsConfig {
 	 * CoAP and DTLS.
 	 */
 	public static final FloatDefinition DTLS_RETRANSMISSION_INIT_RANDOM = new FloatDefinition(
-			MODULE + "RETRANSMISSION_INIT_RANDOM", "DTLS random factor for initial retransmission timeout.", 1.0F);
+			MODULE + "RETRANSMISSION_INIT_RANDOM", "DTLS random factor for initial retransmission timeout.", 1.0F, 1.0F);
 	/**
 	 * Scale factor applied to the retransmission timeout. Harmonize CoAP and
 	 * DTLS.
 	 */
 	public static final FloatDefinition DTLS_RETRANSMISSION_TIMEOUT_SCALE = new FloatDefinition(
-			MODULE + "RETRANSMISSION_TIMEOUT_SCALE", "DTLS scale factor for retransmission backoff-timeout.", 2.0F);
+			MODULE + "RETRANSMISSION_TIMEOUT_SCALE", "DTLS scale factor for retransmission backoff-timeout.", 2.0F, 1.0F);
 	/**
 	 * Specify the additional initial DTLS retransmission timeout, when the
 	 * other peer is expected to perform ECC calculations.
@@ -296,7 +297,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_MAX_RETRANSMISSIONS = new IntegerDefinition(
 			MODULE + "MAX_RETRANSMISSIONS", "DTLS maximum number of flight retransmissions.",
-			DEFAULT_MAX_RETRANSMISSIONS);
+			DEFAULT_MAX_RETRANSMISSIONS, 0);
 	/**
 	 * Specify the number of DTLS retransmissions before the attempt to transmit
 	 * a flight in back-off mode.
@@ -320,7 +321,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_RETRANSMISSION_BACKOFF = new IntegerDefinition(
 			MODULE + "RETRANSMISSION_BACKOFF",
-			"DTLS number of flight retransmissions before switching to backoff mode using single handshake messages in single record datagrams.");
+			"DTLS number of flight retransmissions before switching to backoff mode using single handshake messages in single record datagrams.", null, 0);
 
 	/**
 	 * Enable or disable the server to use a session ID in order to support or
@@ -346,7 +347,7 @@ public final class DtlsConfig {
 	 * 8449</a> for details.
 	 */
 	public static final IntegerDefinition DTLS_RECORD_SIZE_LIMIT = new IntegerDefinition(MODULE + "RECORD_SIZE_LIMIT",
-			"DTLS record size limit (RFC 8449). Between 64 and 65535.");
+			"DTLS record size limit (RFC 8449). Between 64 and 65535.", null, 64);
 
 	/**
 	 * Specify the maximum fragment length.
@@ -363,7 +364,7 @@ public final class DtlsConfig {
 	public static final IntegerDefinition DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = new IntegerDefinition(
 			MODULE + "MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH",
 			"DTLS maximum length of reassembled fragmented handshake message. Must be large enough for used certificates.",
-			DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH);
+			DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH, 64);
 
 	/**
 	 * Enable to use multiple DTLS records in UDP messages.
@@ -398,7 +399,7 @@ public final class DtlsConfig {
 	 * Specify the MTU (Maximum Transmission Unit).
 	 */
 	public static final IntegerDefinition DTLS_MAX_TRANSMISSION_UNIT = new IntegerDefinition(
-			MODULE + "MAX_TRANSMISSION_UNIT", "DTLS MTU (Maximum Transmission Unit).");
+			MODULE + "MAX_TRANSMISSION_UNIT", "DTLS MTU (Maximum Transmission Unit).", null, 64);
 
 	/**
 	 * Specify a MTU (Maximum Transmission Unit) limit for (link local) auto
@@ -413,7 +414,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_MAX_TRANSMISSION_UNIT_LIMIT = new IntegerDefinition(
 			MODULE + "MAX_TRANSMISSION_UNIT_LIMIT",
-			"DTLS MTU (Maximum Transmission Unit) limit for local auto detection.");
+			"DTLS MTU (Maximum Transmission Unit) limit for local auto detection.", null, 64);
 
 	/**
 	 * Specify default handshake mode.
@@ -444,7 +445,7 @@ public final class DtlsConfig {
 	 * The default value of this property is {@link #DEFAULT_MAX_CONNECTIONS}.
 	 */
 	public static final IntegerDefinition DTLS_MAX_CONNECTIONS = new IntegerDefinition(MODULE + "MAX_CONNECTIONS",
-			"DTLS maximum connections.", DEFAULT_MAX_CONNECTIONS);
+			"DTLS maximum connections.", DEFAULT_MAX_CONNECTIONS, 1);
 
 	/**
 	 * Specify the threshold without any data being exchanged before a
@@ -468,7 +469,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE = new IntegerDefinition(
 			MODULE + "OUTBOUND_MESSAGE_BUFFER_SIZE", "DTLS buffer size for outbound messages.",
-			DEFAULT_MAX_PENDING_OUTBOUND_MESSAGES);
+			DEFAULT_MAX_PENDING_OUTBOUND_MESSAGES, 64);
 
 	/**
 	 * Specify maximum number of deferred processed outgoing application data
@@ -482,7 +483,7 @@ public final class DtlsConfig {
 	public static final IntegerDefinition DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES = new IntegerDefinition(
 			MODULE + "MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES",
 			"DTLS maximum deferred outbound application messages.",
-			DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES);
+			DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES, 0);
 	/**
 	 * Specify maximum size of deferred processed incoming records.
 	 * 
@@ -494,7 +495,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE = new IntegerDefinition(
 			MODULE + "MAX_DEFERRED_INBOUND_RECORDS", "DTLS maximum deferred outbound application messages.",
-			DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE);
+			DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE, 0);
 
 	/**
 	 * Specify the number of receiver threads used by a {@link DTLSConnector}.
@@ -505,26 +506,26 @@ public final class DtlsConfig {
 	 * {@link #DTLS_CONNECTOR_THREAD_COUNT}.
 	 */
 	public static final IntegerDefinition DTLS_RECEIVER_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "RECEIVER_THREAD_COUNT", "Number of DTLS receiver threads.", 1);
+			MODULE + "RECEIVER_THREAD_COUNT", "Number of DTLS receiver threads.", 1, 1);
 	/**
 	 * Specify the number of connector threads used by a {@link DTLSConnector}.
 	 * The connector threads are responsible for the most cryptographic
 	 * functions for both incoming and outgoing messages.
 	 */
 	public static final IntegerDefinition DTLS_CONNECTOR_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "CONNECTOR_THREAD_COUNT", "Number of DTLS connector threads.", 1);
+			MODULE + "CONNECTOR_THREAD_COUNT", "Number of DTLS connector threads.", 1, 0);
 	/**
 	 * Specify the DTLS receive buffer size used for
 	 * {@link DatagramSocket#setReceiveBufferSize(int)}.
 	 */
 	public static final IntegerDefinition DTLS_RECEIVE_BUFFER_SIZE = new IntegerDefinition(
-			MODULE + "RECEIVE_BUFFER_SIZE", "DTLS receive-buffer size.");
+			MODULE + "RECEIVE_BUFFER_SIZE", "DTLS receive-buffer size.", null, 64);
 	/**
 	 * Specify the DTLS send buffer size used for
 	 * {@link DatagramSocket#setSendBufferSize(int)}.
 	 */
 	public static final IntegerDefinition DTLS_SEND_BUFFER_SIZE = new IntegerDefinition(MODULE + "SEND_BUFFER_SIZE",
-			"DTLS send-buffer size.");
+			"DTLS send-buffer size.", null, 64);
 
 	/**
 	 * Specify the usage and support of "server name indication".
@@ -591,7 +592,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD = new IntegerDefinition(
 			MODULE + "VERIFY_PEERS_ON_RESUMPTION_THRESHOLD", "DTLS verify peers on resumption threshold in percent.",
-			DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT);
+			DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT, 0);
 	/**
 	 * Enable/Disable the server's HELLO_VERIFY_REQUEST, if peers shares at
 	 * least one PSK based cipher suite.
@@ -654,7 +655,7 @@ public final class DtlsConfig {
 	public static final IntegerDefinition DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER = new IntegerDefinition(
 			MODULE + "USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER",
 			"DTLS use a disabled window for the anti-replay-filter. -1 := extend the disabled window to start of session, 0 := normal window, <n> := disabled window of size <n>.",
-			0);
+			0, -1);
 	/**
 	 * Update the ip-address from DTLS 1.2 CID records only for newer records
 	 * based on epoch/sequence_number.
@@ -741,7 +742,7 @@ public final class DtlsConfig {
 	 * target="_blank">Draft dtls-connection-id</a> for the client side.
 	 */
 	public static final IntegerDefinition DTLS_USE_DEPRECATED_CID = new IntegerDefinition(MODULE + "USE_DEPRECATED_CID",
-			"DTLS use deprecated CID extension code point for client (before version 09 of RFC-CID).");
+			"DTLS use deprecated CID extension code point for client (before version 09 of RFC-CID).", null, 53);
 	/**
 	 * Specify the support of DTLS CID before version 9 of <a href=
 	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
