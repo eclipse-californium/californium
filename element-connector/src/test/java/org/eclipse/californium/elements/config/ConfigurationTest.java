@@ -31,6 +31,7 @@ import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider
 import org.eclipse.californium.elements.config.Configuration.EnumDefinition;
 import org.eclipse.californium.elements.config.Configuration.EnumListDefinition;
 import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
+import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.StringDefinition;
 import org.eclipse.californium.elements.config.Configuration.StringSetDefinition;
 import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
@@ -54,7 +55,12 @@ public class ConfigurationTest {
 	private static final BooleanDefinition BOOL0 = new BooleanDefinition(MODULE + "BOOL0", "TEST", false);
 	private static final BooleanDefinition BOOL1 = new BooleanDefinition(MODULE + "BOOL1", "TEST", true);
 
-	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
+	private static final ModuleDefinitionsProvider DEFAULTS = new ModuleDefinitionsProvider() {
+
+		@Override
+		public String getModule() {
+			return MODULE;
+		}
 
 		@Override
 		public void applyDefinitions(Configuration config) {
@@ -70,7 +76,12 @@ public class ConfigurationTest {
 	private static final IntegerDefinition INT2 = new IntegerDefinition(MODULE2 + "INT2", "TEST", null, 1);
 	private static final StringDefinition STRING = new StringDefinition(MODULE2 + "STRING", "TEST");
 
-	private static final DefinitionsProvider DEFAULTS2 = new DefinitionsProvider() {
+	private static final ModuleDefinitionsProvider DEFAULTS2 = new ModuleDefinitionsProvider() {
+
+		@Override
+		public String getModule() {
+			return MODULE2;
+		}
 
 		@Override
 		public void applyDefinitions(Configuration config) {
@@ -82,7 +93,7 @@ public class ConfigurationTest {
 
 	@Test
 	public void testConfigurationAddModule() {
-		Configuration.addModule(MODULE, DEFAULTS);
+		Configuration.addModule(DEFAULTS);
 		Configuration configuration = Configuration.createStandardWithoutFile();
 		// assert default values
 		assertThat(configuration.get(INT), is(10));
@@ -93,7 +104,7 @@ public class ConfigurationTest {
 
 	@Test
 	public void testConfigurationCustomModule() {
-		Configuration.addModule(MODULE, DEFAULTS);
+		Configuration.addModule(DEFAULTS);
 		Configuration configuration = Configuration.createStandardWithoutFile();
 		configuration.set(STRING, "bye!");
 		configuration = reload(configuration, DEFAULTS2);
@@ -103,25 +114,65 @@ public class ConfigurationTest {
 		assertThat(configuration.get(STRING), is("bye!"));
 	}
 
-	@Test(expected = NullPointerException.class)
-	public void testConfigurationAddModuleNull1() {
-		Configuration.addModule(null, DEFAULTS);
+	@Test(expected = IllegalArgumentException.class)
+	public void testConfigurationAddModuleNull() {
+		Configuration.addModule(new ModuleDefinitionsProvider() {
+
+			@Override
+			public String getModule() {
+				return null;
+			}
+
+			@Override
+			public void applyDefinitions(Configuration config) {
+			}
+		});
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testConfigurationAddModuleEmpty() {
-		Configuration.addModule("", DEFAULTS);
+		Configuration.addModule(new ModuleDefinitionsProvider() {
+
+			@Override
+			public String getModule() {
+				return "";
+			}
+
+			@Override
+			public void applyDefinitions(Configuration config) {
+			}
+		});
 	}
 
 	@Test(expected = NullPointerException.class)
 	public void testConfigurationAddModuleNull2() {
-		Configuration.addModule(MODULE, null);
+		Configuration.addModule(null);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testConfigurationAddModuleTwice() {
-		Configuration.addModule(MODULE, DEFAULTS);
-		Configuration.addModule(MODULE, DEFAULTS2);
+		Configuration.addModule(new ModuleDefinitionsProvider() {
+
+			@Override
+			public String getModule() {
+				return "DOUBLE";
+			}
+
+			@Override
+			public void applyDefinitions(Configuration config) {
+			}
+		});
+		Configuration.addModule(new ModuleDefinitionsProvider() {
+
+			@Override
+			public String getModule() {
+				return "DOUBLE";
+			}
+
+			@Override
+			public void applyDefinitions(Configuration config) {
+			}
+		});
 	}
 
 	@Test

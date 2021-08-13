@@ -17,9 +17,9 @@ package org.eclipse.californium.elements.config;
 
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.EnumDefinition;
 import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
+import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 
 /**
@@ -86,22 +86,33 @@ public final class TcpConfig {
 			MODULE + "CLIENT_AUTHENTICATION_MODE", "TLS client authentication mode.",
 			CertificateAuthenticationMode.WANTED, CertificateAuthenticationMode.values());
 
-	static {
-		Configuration.addModule(MODULE, new DefinitionsProvider() {
+	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
-			@Override
-			public void applyDefinitions(Configuration config) {
-				config.set(TCP_WORKER_THREADS, 1);
-				config.set(TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT_IN_SECONDS,
-						TimeUnit.SECONDS);
-				config.set(TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-				config.set(TLS_HANDSHAKE_TIMEOUT, DEFAULT_TLS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-				config.set(TLS_SESSION_TIMEOUT, 1, TimeUnit.HOURS);
-				config.set(TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
-			}
-		});
+		@Override
+		public String getModule() {
+			return MODULE;
+		}
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+			config.set(TCP_WORKER_THREADS, 1);
+			config.set(TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(TLS_HANDSHAKE_TIMEOUT, DEFAULT_TLS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(TLS_SESSION_TIMEOUT, 1, TimeUnit.HOURS);
+			config.set(TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+		}
+
+	};
+
+	static {
+		Configuration.addModule(DEFINITIONS);
 	}
 
+	/**
+	 * Register definitions of this module to the default definitions. Register
+	 * the required definitions of {@link SystemConfig} as well.
+	 */
 	public static void register() {
 		SystemConfig.register();
 	}

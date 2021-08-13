@@ -17,7 +17,7 @@ package org.eclipse.californium.elements.config;
 
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 
 /**
@@ -36,19 +36,29 @@ public final class SystemConfig {
 			MODULE + "HEALTH_STATUS_INTERVAL", "Health status interval. 0 to disable the health status.", 0,
 			TimeUnit.SECONDS);
 
+	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
+
+		@Override
+		public String getModule() {
+			return MODULE;
+		}
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+
+			// 0 for disable
+			config.set(HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS);
+
+		}
+	};
+	
 	static {
-		Configuration.addModule(MODULE, new DefinitionsProvider() {
-
-			@Override
-			public void applyDefinitions(Configuration config) {
-
-				// 0 for disable
-				config.set(HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS);
-
-			}
-		});
+		Configuration.addModule(DEFINITIONS);
 	}
 
+	/**
+	 * Register definitions of this module to the default definitions.
+	 */
 	public static void register() {
 		// empty
 	}

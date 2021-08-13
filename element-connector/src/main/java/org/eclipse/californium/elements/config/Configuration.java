@@ -63,14 +63,18 @@ import org.slf4j.LoggerFactory;
  * android-os-permission to do so.
  * 
  * In order to use this {@link Configuration} with modules (sets of
- * {@link DocumentedDefinition}),
- * {@link #addModule(String, DefinitionsProvider)} is used to register a
- * {@link DefinitionsProvider} for such a module. When creating a new
- * {@link Configuration}, all registered {@link DefinitionsProvider} are called
- * and will fill the map of {@link DocumentedDefinition}s and values. In order
- * to ensure, that the modules are register in a early stage, a application
- * should call e.g. {@link SystemConfig#register()} of the used modules at the
- * begin. See {@link SystemConfig} as example.
+ * {@link DocumentedDefinition}), {@link #addModule(ModuleDefinitionsProvider)}
+ * is used to register a {@link ModuleDefinitionsProvider} for such a module.
+ * When creating a new {@link Configuration}, all registered
+ * {@link ModuleDefinitionsProvider} are called and will fill the map of
+ * {@link DocumentedDefinition}s and values. In order to ensure, that the
+ * modules are register in a early stage, a application should call e.g.
+ * {@link SystemConfig#register()} of the used modules at the begin. See
+ * {@link SystemConfig} as example.
+ * 
+ * Alternatively
+ * {@link Configuration#Configuration(ModuleDefinitionsProvider...)} may be used
+ * to provide the set of modules the {@link Configuration} is based of.
  * 
  * To access the values always using the original {@link DocumentedDefinition}s
  * of a module, e.g. {@link SystemConfig#HEALTH_STATUS_INTERVAL}.
@@ -121,14 +125,17 @@ public final class Configuration {
 	 */
 	private static final ConcurrentMap<String, DefinitionsProvider> MODULES = new ConcurrentHashMap<>();
 
+	/** The properties definitions. */
+	private static final Definitions<DocumentedDefinition<?>> DEFAULT_DEFINITIONS = new Definitions<>("Configuration");
+
 	/** The standard configuration that is used if none is defined. */
 	private static Configuration standard;
 
-	/** The properties definitions. */
-	private static Definitions<DocumentedDefinition<?>> definitions = new Definitions<>("Configuration");
+	private final Definitions<DocumentedDefinition<?>> definitions;
+	private final ConcurrentMap<String, DefinitionsProvider> modules;
 
 	/** The properties. */
-	private Map<String, Object> values = new HashMap<>();
+	private final Map<String, Object> values = new HashMap<>();
 
 	/**
 	 * Value exception.
@@ -1339,6 +1346,16 @@ public final class Configuration {
 		void applyDefinitions(Configuration config);
 	}
 
+	/**
+	 * Handler for (custom) setup of configuration
+	 * {@link DocumentedDefinition}s.
+	 */
+	public interface ModuleDefinitionsProvider extends DefinitionsProvider {
+
+		String getModule();
+
+	}
+
 	private static String toList(List<String> list, boolean brackets) {
 		StringBuilder message = new StringBuilder();
 		if (brackets) {
@@ -1431,27 +1448,45 @@ public final class Configuration {
 	/**
 	 * Add definitions provider for module.
 	 * 
-	 * @param module unique name of module
+	 * @param modules available modules to add the module
 	 * @param definitionsProvider definitions provider of module
 	 * @throws NullPointerException if any parameter is {@code null}
-	 * @throws IllegalArgumentException if the module name is empty or a
-	 *             different definitions provider is already registered with
-	 *             that module name.
+	 * @throws IllegalArgumentException if the module name is {@code null} or
+	 *             empty or a different definitions provider is already
+	 *             registered with that module name.
 	 */
-	public static void addModule(String module, DefinitionsProvider definitionsProvider) {
-		if (module == null) {
-			throw new NullPointerException("Module must not be null!");
-		}
-		if (module.isEmpty()) {
-			throw new IllegalArgumentException("Module name must not be empty!");
+	private static void addModule(ConcurrentMap<String, DefinitionsProvider> modules,
+			ModuleDefinitionsProvider definitionsProvider) {
+		if (modules == null) {
+			throw new NullPointerException("Modules must not be null!");
 		}
 		if (definitionsProvider == null) {
 			throw new NullPointerException("DefinitionsProvider must not be null!");
 		}
-		if (MODULES.putIfAbsent(module, definitionsProvider) != null) {
+		String module = definitionsProvider.getModule();
+		if (module == null) {
+			throw new IllegalArgumentException("DefinitionsProvider's module must not be null!");
+		}
+		if (module.isEmpty()) {
+			throw new IllegalArgumentException("DefinitionsProvider's module name must not be empty!");
+		}
+		if (modules.putIfAbsent(module, definitionsProvider) != null) {
 			throw new IllegalArgumentException("Module " + module + " already registered!");
 		}
 		LOGGER.info("add {}", module);
+	}
+
+	/**
+	 * Add definitions provider for module.
+	 * 
+	 * @param definitionsProvider definitions provider of module
+	 * @throws NullPointerException if any parameter is {@code null}
+	 * @throws IllegalArgumentException if the module name is {@code null} or
+	 *             empty or a different definitions provider is already
+	 *             registered with that module name.
+	 */
+	public static void addModule(ModuleDefinitionsProvider definitionsProvider) {
+		addModule(MODULES, definitionsProvider);
 	}
 
 	/**
@@ -1460,7 +1495,7 @@ public final class Configuration {
 	 * When a new endpoint or server is created without a specific
 	 * configuration, it will use this standard configuration.
 	 * 
-	 * Apply all {@link DefinitionsProvider} of registered modules.
+	 * Apply all {@link ModuleDefinitionsProvider} of registered modules.
 	 * 
 	 * For Android, please ensure, that either
 	 * {@link Configuration#setStandard(Configuration)},
@@ -1469,7 +1504,7 @@ public final class Configuration {
 	 * before!
 	 * 
 	 * @return the standard configuration
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
 	 */
 	public static Configuration getStandard() {
 		synchronized (Configuration.class) {
@@ -1492,10 +1527,10 @@ public final class Configuration {
 	 * Creates the standard configuration without reading it or writing it to a
 	 * file.
 	 *
-	 * Apply all {@link DefinitionsProvider} of registered modules.
+	 * Apply all {@link ModuleDefinitionsProvider} of registered modules.
 	 * 
 	 * @return the standard configuration
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
 	 */
 	public static Configuration createStandardWithoutFile() {
 		LOGGER.info("Creating standard configuration properties without a file");
@@ -1508,12 +1543,12 @@ public final class Configuration {
 	 *
 	 * Support environments without file access.
 	 * 
-	 * Apply all {@link DefinitionsProvider} of registered modules.
+	 * Apply all {@link ModuleDefinitionsProvider} of registered modules.
 	 * 
 	 * @param inStream input stream to read properties.
 	 * @return the standard configuration
 	 * @throws NullPointerException if the in stream is {@code null}.
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
 	 */
 	public static Configuration createStandardFromStream(InputStream inStream) {
 		standard = createFromStream(inStream, null);
@@ -1525,13 +1560,13 @@ public final class Configuration {
 	 *
 	 * Support environments without file access.
 	 * 
-	 * Apply all {@link DefinitionsProvider} of registered modules.
+	 * Apply all {@link ModuleDefinitionsProvider} of registered modules.
 	 * 
 	 * @param inStream input stream to read properties.
 	 * @param customProvider custom definitions handler. May be {@code null}.
 	 * @return the configuration
 	 * @throws NullPointerException if the in stream is {@code null}.
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
 	 */
 	public static Configuration createFromStream(InputStream inStream, DefinitionsProvider customProvider) {
 		LOGGER.info("Creating configuration properties from stream");
@@ -1551,7 +1586,7 @@ public final class Configuration {
 	 * If the provided file exists, the configuration reads the properties from
 	 * this file. Otherwise it creates the file.
 	 * 
-	 * Apply all {@link DefinitionsProvider} of registered modules.
+	 * Apply all {@link ModuleDefinitionsProvider} of registered modules.
 	 *
 	 * For Android, please use
 	 * {@link Configuration#createStandardWithoutFile()}, or
@@ -1560,7 +1595,7 @@ public final class Configuration {
 	 * @param file the configuration file
 	 * @return the standard configuration
 	 * @throws NullPointerException if the file is {@code null}.
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
 	 */
 	public static Configuration createStandardWithFile(File file) {
 		standard = createWithFile(file, DEFAULT_HEADER, null);
@@ -1573,7 +1608,7 @@ public final class Configuration {
 	 * If the provided file exists, the configuration reads the properties from
 	 * this file. Otherwise it creates the file with the provided header.
 	 * 
-	 * Apply all {@link DefinitionsProvider} of registered modules.
+	 * Apply all {@link ModuleDefinitionsProvider} of registered modules.
 	 * 
 	 * For Android, please use {@link Configuration#Configuration()}, and load
 	 * the values using {@link Configuration#load(InputStream)} or adjust the in
@@ -1584,7 +1619,7 @@ public final class Configuration {
 	 * @param customProvider custom definitions handler. May be {@code null}.
 	 * @return the configuration
 	 * @throws NullPointerException if the file or header is {@code null}.
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
 	 */
 	public static Configuration createWithFile(File file, String header, DefinitionsProvider customProvider) {
 		if (file == null) {
@@ -1602,12 +1637,14 @@ public final class Configuration {
 
 	/**
 	 * Instantiates a new configuration and sets the value definitions using the
-	 * registered module's {@link DefinitionsProvider}s.
+	 * registered module's {@link ModuleDefinitionsProvider}s.
 	 * 
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
 	 */
 	public Configuration() {
-		for (DefinitionsProvider handler : MODULES.values()) {
+		this.definitions = DEFAULT_DEFINITIONS;
+		this.modules = MODULES;
+		for (DefinitionsProvider handler : modules.values()) {
 			handler.applyDefinitions(this);
 		}
 	}
@@ -1619,7 +1656,26 @@ public final class Configuration {
 	 * @param config configuration to copy
 	 */
 	public Configuration(Configuration config) {
+		this.definitions = DEFAULT_DEFINITIONS == config.definitions ? DEFAULT_DEFINITIONS
+				: new Definitions<Configuration.DocumentedDefinition<?>>(config.definitions);
+		this.modules = MODULES == config.modules ? MODULES
+				: new ConcurrentHashMap<String, Configuration.DefinitionsProvider>(config.modules);
 		this.values.putAll(config.values);
+	}
+
+	/**
+	 * Instantiates a new configuration and sets the value definitions using the
+	 * provided {@link ModuleDefinitionsProvider}s.
+	 * 
+	 * @param providers module definitions provider
+	 */
+	public Configuration(ModuleDefinitionsProvider... providers) {
+		this.definitions = new Definitions<>("Configuration");
+		this.modules = new ConcurrentHashMap<>();
+		for (ModuleDefinitionsProvider provider : providers) {
+			addModule(provider);
+			provider.applyDefinitions(this);
+		}
 	}
 
 	/**
@@ -1631,7 +1687,8 @@ public final class Configuration {
 	 * 
 	 * @param file the file
 	 * @throws NullPointerException if the file is {@code null}.
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
+	 * @see #Configuration(ModuleDefinitionsProvider...)
 	 */
 	public void load(final File file) {
 		if (file == null) {
@@ -1655,7 +1712,8 @@ public final class Configuration {
 	 * @throws NullPointerException if the inStream is {@code null}.
 	 * @throws IOException if an error occurred when reading from the input
 	 *             stream
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
+	 * @see #Configuration(ModuleDefinitionsProvider...)
 	 */
 	public void load(final InputStream inStream) throws IOException {
 		if (inStream == null) {
@@ -1674,7 +1732,8 @@ public final class Configuration {
 	 * 
 	 * @param properties properties to convert and add
 	 * @throws NullPointerException if properties is {@code null}.
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
+	 * @see #Configuration(ModuleDefinitionsProvider...)
 	 */
 	public void add(Properties properties) {
 		if (properties == null) {
@@ -1706,7 +1765,8 @@ public final class Configuration {
 	 * 
 	 * @param dictionary dictionary to convert and add
 	 * @throws NullPointerException if dictionary is {@code null}.
-	 * @see #addModule(String, DefinitionsProvider)
+	 * @see #addModule(ModuleDefinitionsProvider)
+	 * @see #Configuration(ModuleDefinitionsProvider...)
 	 */
 	public void add(Dictionary<String, ?> dictionary) {
 		if (dictionary == null) {
@@ -1783,7 +1843,7 @@ public final class Configuration {
 			LOGGER.info("writing properties to {}", resourceName);
 		}
 		try {
-			Set<String> modules = MODULES.keySet();
+			Set<String> modules = this.modules.keySet();
 			List<String> generalKeys = new ArrayList<>();
 			List<String> moduleKeys = new ArrayList<>();
 			for (String key : values.keySet()) {

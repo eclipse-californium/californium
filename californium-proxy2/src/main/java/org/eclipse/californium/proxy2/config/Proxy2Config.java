@@ -19,8 +19,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
+import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 
 /**
@@ -73,30 +74,36 @@ public final class Proxy2Config {
 	public static final TimeDefinition HTTPS_HANDSHAKE_TIMEOUT = new TimeDefinition(MODULE + "HTTPS_HANDSHAKE_TIMEOUT",
 			"HTTPS handshake timeout", DEFAULT_HTTPS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 
+	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
+
+		@Override
+		public String getModule() {
+			return MODULE;
+		}
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+			config.set(HTTP_PORT, 8080);
+			config.set(HTTP_SERVER_SOCKET_TIMEOUT, 100000, TimeUnit.MILLISECONDS);
+			config.set(HTTP_SERVER_SOCKET_BUFFER_SIZE, 8192);
+			config.set(CACHE_RESPONSE_MAX_AGE, 1, TimeUnit.HOURS);
+			config.set(CACHE_SIZE, 1000);
+			config.set(HTTP_CONNECTION_IDLE_TIMEOUT, DEFAULT_HTTP_CONNECTION_IDLE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(HTTP_WORKER_THREADS, 1);
+			config.set(HTTP_CONNECT_TIMEOUT, DEFAULT_HTTP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(HTTPS_HANDSHAKE_TIMEOUT, DEFAULT_HTTPS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+
+		}
+	};
+
 	static {
-		Configuration.addModule(MODULE, new DefinitionsProvider() {
-
-			@Override
-			public void applyDefinitions(Configuration config) {
-				config.set(HTTP_PORT, 8080);
-				config.set(HTTP_SERVER_SOCKET_TIMEOUT, 100000, TimeUnit.MILLISECONDS);
-				config.set(HTTP_SERVER_SOCKET_BUFFER_SIZE, 8192);
-				config.set(CACHE_RESPONSE_MAX_AGE, 1, TimeUnit.HOURS);
-				config.set(CACHE_SIZE, 1000);
-				config.set(HTTP_CONNECTION_IDLE_TIMEOUT, DEFAULT_HTTP_CONNECTION_IDLE_TIMEOUT_IN_SECONDS,
-						TimeUnit.SECONDS);
-				config.set(HTTP_WORKER_THREADS, 1);
-				config.set(HTTP_CONNECT_TIMEOUT, DEFAULT_HTTP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-				config.set(HTTPS_HANDSHAKE_TIMEOUT, DEFAULT_HTTPS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-
-			}
-		});
+		Configuration.addModule(DEFINITIONS);
 	}
 
 	/**
-	 * Register configuration module.
-	 * 
-	 * Registers {@link CoapConfig} as well.
+	 * Register definitions of this module to the default definitions. Register
+	 * the required definitions of {@link CoapConfig} and {@link SystemConfig}
+	 * as well.
 	 */
 	public static void register() {
 		CoapConfig.register();

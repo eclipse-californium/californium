@@ -46,6 +46,26 @@ public class Definitions<T extends Definition<?>> implements Iterable<T> {
 	}
 
 	/**
+	 * Create definitions set.
+	 * 
+	 * @param definitions initial definition set
+	 */
+	public Definitions(Definitions<T> definitions) {
+		this(definitions.getName(), definitions);
+	}
+
+	/**
+	 * Create definitions set.
+	 * 
+	 * @param name name of definition set
+	 * @param definitions initial definition set
+	 */
+	public Definitions(String name, Definitions<T> definitions) {
+		this.name = name;
+		this.definitions.putAll(definitions.definitions);
+	}
+
+	/**
 	 * Gets name of definition set.
 	 * 
 	 * @return name of definition set.
