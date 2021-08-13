@@ -63,16 +63,17 @@ import org.slf4j.LoggerFactory;
  * android-os-permission to do so.
  * 
  * In order to use this {@link Configuration} with modules (sets of
- * {@link DocumentedDefinition}), {@link #addModule(String, DefinitionsProvider)} is used
- * to register a {@link DefinitionsProvider} for such a module. When creating a
- * new {@link Configuration}, all registered {@link DefinitionsProvider} are
- * called and will fill the map of {@link DocumentedDefinition}s and values. In order to
- * ensure, that the modules are register in a early stage, a application should
- * call e.g. {@link SystemConfig#register()} of the used modules at the begin.
- * See {@link SystemConfig} as example.
+ * {@link DocumentedDefinition}),
+ * {@link #addModule(String, DefinitionsProvider)} is used to register a
+ * {@link DefinitionsProvider} for such a module. When creating a new
+ * {@link Configuration}, all registered {@link DefinitionsProvider} are called
+ * and will fill the map of {@link DocumentedDefinition}s and values. In order
+ * to ensure, that the modules are register in a early stage, a application
+ * should call e.g. {@link SystemConfig#register()} of the used modules at the
+ * begin. See {@link SystemConfig} as example.
  * 
- * To access the values always using the original {@link DocumentedDefinition}s of a
- * module, e.g. {@link SystemConfig#HEALTH_STATUS_INTERVAL}.
+ * To access the values always using the original {@link DocumentedDefinition}s
+ * of a module, e.g. {@link SystemConfig#HEALTH_STATUS_INTERVAL}.
  * 
  * <code>
  *  Configuration config = Configuration.getStandard();
@@ -83,12 +84,20 @@ import org.slf4j.LoggerFactory;
  * 
  * When primitive types (e.g. {@code int}) are used to process configuration
  * values, care must be taken to define a proper default value instead of
- * returning {@code null}. The {@link DocumentedDefinition}s therefore offer variants,
- * where such a default could be provided, e.g.
+ * returning {@code null}. The {@link DocumentedDefinition}s therefore offer
+ * variants, where such a default could be provided, e.g.
  * {@link IntegerDefinition#IntegerDefinition(String, String, Integer)}.
+ * 
+ * For definitions a optional minimum value may be provided. That doesn't grant,
+ * that the resulting configuration is proper, neither general nor for specific
+ * conditions. If a minimum value is too high for your use-case, please create
+ * an issue in the
+ * <a href="https://github.com/eclipse/californium" target="_blank">Californium
+ * github repository</a>.
  * 
  * @see SystemConfig
  * @see TcpConfig
+ * @see UdpConfig
  * 
  * @since 3.0 (derived from the former NetworkConfig in
  *        org.eclipse.californium.core.network.config)
@@ -819,6 +828,13 @@ public final class Configuration {
 	public static class IntegerDefinition extends BasicDefinition<Integer> {
 
 		/**
+		 * Minimum value.
+		 * 
+		 * {@code null}, if no minimum value is applied.
+		 */
+		private final Integer minimumValue;
+
+		/**
 		 * Creates integer definition.
 		 * 
 		 * @param key key for properties. Must be global unique.
@@ -827,6 +843,7 @@ public final class Configuration {
 		 */
 		public IntegerDefinition(String key, String documentation) {
 			super(key, documentation, Integer.class);
+			this.minimumValue = null;
 		}
 
 		/**
@@ -839,6 +856,22 @@ public final class Configuration {
 		 */
 		public IntegerDefinition(String key, String documentation, Integer defaultValue) {
 			super(key, documentation, Integer.class, defaultValue);
+			this.minimumValue = null;
+		}
+
+		/**
+		 * Creates integer definition with default value.
+		 * 
+		 * @param key key for properties. Must be global unique.
+		 * @param documentation documentation for properties.
+		 * @param defaultValue default value returned instead of {@code null}.
+		 * @param minimumValue minimum value, or {@code null}, if no minimum
+		 *            value is applied.
+		 * @throws NullPointerException if key is {@code null}
+		 */
+		public IntegerDefinition(String key, String documentation, Integer defaultValue, Integer minimumValue) {
+			super(key, documentation, Integer.class, defaultValue);
+			this.minimumValue = minimumValue;
 		}
 
 		@Override
@@ -847,18 +880,26 @@ public final class Configuration {
 		}
 
 		@Override
-		public boolean isAssignableFrom(Object value) {
+		public String writeValue(Integer value) {
+			return value.toString();
+		}
+
+		@Override
+		public Integer checkValue(Integer value) {
+			if (minimumValue != null && value != null && value < minimumValue) {
+				throw new IllegalArgumentException("Value " + value + " must be not less than " + minimumValue + "!");
+			}
+			return value;
+		}
+
+		@Override
+		protected boolean isAssignableFrom(Object value) {
 			return value instanceof Integer;
 		}
 
 		@Override
-		public Integer parseValue(String value) {
+		protected Integer parseValue(String value) {
 			return Integer.parseInt(value);
-		}
-
-		@Override
-		public String writeValue(Integer value) {
-			return value.toString();
 		}
 	}
 
@@ -866,6 +907,12 @@ public final class Configuration {
 	 * Long definition.
 	 */
 	public static class LongDefinition extends BasicDefinition<Long> {
+		/**
+		 * Minimum value.
+		 * 
+		 * {@code null}, if no minimum value is applied.
+		 */
+		private final Long minimumValue;
 
 		/**
 		 * Creates long definition.
@@ -876,6 +923,7 @@ public final class Configuration {
 		 */
 		public LongDefinition(String key, String documentation) {
 			super(key, documentation, Long.class);
+			this.minimumValue = null;
 		}
 
 		/**
@@ -888,6 +936,22 @@ public final class Configuration {
 		 */
 		public LongDefinition(String key, String documentation, Long defaultValue) {
 			super(key, documentation, Long.class, defaultValue);
+			this.minimumValue = null;
+		}
+
+		/**
+		 * Creates long definition with {@code null}-value.
+		 * 
+		 * @param key key for properties. Must be global unique.
+		 * @param documentation documentation for properties.
+		 * @param defaultValue default value returned instead of {@code null}.
+		 * @param minimumValue minimum value, or {@code null}, if no minimum
+		 *            value is applied.
+		 * @throws NullPointerException if key is {@code null}
+		 */
+		public LongDefinition(String key, String documentation, Long defaultValue, Long minimumValue) {
+			super(key, documentation, Long.class, defaultValue);
+			this.minimumValue = minimumValue;
 		}
 
 		@Override
@@ -901,6 +965,14 @@ public final class Configuration {
 		}
 
 		@Override
+		public Long checkValue(Long value) {
+			if (minimumValue != null && value != null && value < minimumValue) {
+				throw new IllegalArgumentException("Value " + value + " must be not less than " + minimumValue + "!");
+			}
+			return value;
+		}
+
+		@Override
 		protected boolean isAssignableFrom(Object value) {
 			return value instanceof Long;
 		}
@@ -909,12 +981,19 @@ public final class Configuration {
 		protected Long parseValue(String value) {
 			return Long.parseLong(value);
 		}
+
 	}
 
 	/**
 	 * Float definition.
 	 */
 	public static class FloatDefinition extends BasicDefinition<Float> {
+		/**
+		 * Minimum value.
+		 * 
+		 * {@code null}, if no minimum value is applied.
+		 */
+		private final Float minimumValue;
 
 		/**
 		 * Creates float definition.
@@ -925,6 +1004,7 @@ public final class Configuration {
 		 */
 		public FloatDefinition(String key, String documentation) {
 			super(key, documentation, Float.class);
+			this.minimumValue = null;
 		}
 
 		/**
@@ -937,6 +1017,22 @@ public final class Configuration {
 		 */
 		public FloatDefinition(String key, String documentation, Float defaultValue) {
 			super(key, documentation, Float.class, defaultValue);
+			this.minimumValue = null;
+		}
+
+		/**
+		 * Creates float definition with default value.
+		 * 
+		 * @param key key for properties. Must be global unique.
+		 * @param documentation documentation for properties.
+		 * @param defaultValue default value returned instead of {@code null}.
+		 * @param minimumValue minimum value, or {@code null}, if no minimum
+		 *            value is applied.
+		 * @throws NullPointerException if key is {@code null}
+		 */
+		public FloatDefinition(String key, String documentation, Float defaultValue, Float minimumValue) {
+			super(key, documentation, Float.class, defaultValue);
+			this.minimumValue = minimumValue;
 		}
 
 		@Override
@@ -947,6 +1043,14 @@ public final class Configuration {
 		@Override
 		public String writeValue(Float value) {
 			return value.toString();
+		}
+
+		@Override
+		public Float checkValue(Float value) {
+			if (minimumValue != null && value != null && value < minimumValue) {
+				throw new IllegalArgumentException("Value " + value + " must be not less than " + minimumValue + "!");
+			}
+			return value;
 		}
 
 		@Override
@@ -964,6 +1068,12 @@ public final class Configuration {
 	 * Double definition.
 	 */
 	public static class DoubleDefinition extends BasicDefinition<Double> {
+		/**
+		 * Minimum value.
+		 * 
+		 * {@code null}, if no minimum value is applied.
+		 */
+		private final Double minimumValue;
 
 		/**
 		 * Creates double definition.
@@ -974,6 +1084,7 @@ public final class Configuration {
 		 */
 		public DoubleDefinition(String key, String documentation) {
 			super(key, documentation, Double.class);
+			this.minimumValue = null;
 		}
 
 		/**
@@ -986,6 +1097,20 @@ public final class Configuration {
 		 */
 		public DoubleDefinition(String key, String documentation, Double defaultValue) {
 			super(key, documentation, Double.class, defaultValue);
+			this.minimumValue = null;
+		}
+
+		/**
+		 * Creates double definition with default value.
+		 * 
+		 * @param key key for properties. Must be global unique.
+		 * @param documentation documentation for properties.
+		 * @param defaultValue default value returned instead of {@code null}.
+		 * @throws NullPointerException if key is {@code null}
+		 */
+		public DoubleDefinition(String key, String documentation, Double defaultValue, Double miniumValue) {
+			super(key, documentation, Double.class, defaultValue);
+			this.minimumValue = miniumValue;
 		}
 
 		@Override
@@ -996,6 +1121,14 @@ public final class Configuration {
 		@Override
 		public String writeValue(Double value) {
 			return value.toString();
+		}
+
+		@Override
+		public Double checkValue(Double value) {
+			if (minimumValue != null && value != null && value < minimumValue) {
+				throw new IllegalArgumentException("Value " + value + " must be not less than " + minimumValue + "!");
+			}
+			return value;
 		}
 
 		@Override
@@ -1084,6 +1217,14 @@ public final class Configuration {
 		}
 
 		@Override
+		public Long checkValue(Long value) {
+			if (value != null && value < 0) {
+				throw new IllegalArgumentException("Time " + value + " must be not less than 0!");
+			}
+			return value;
+		}
+
+		@Override
 		protected boolean isAssignableFrom(Object value) {
 			return value instanceof Long;
 		}
@@ -1117,14 +1258,6 @@ public final class Configuration {
 			}
 			long time = Long.parseLong(num);
 			return TimeUnit.NANOSECONDS.convert(time, valueUnit);
-		}
-
-		@Override
-		public Long checkValue(Long value) {
-			if (value != null && value < 0) {
-				throw new IllegalArgumentException("Time " + value + " must be not less than 0!");
-			}
-			return value;
 		}
 
 		/**
@@ -1178,7 +1311,8 @@ public final class Configuration {
 	}
 
 	/**
-	 * Handler for (custom) setup of configuration {@link DocumentedDefinition}s.
+	 * Handler for (custom) setup of configuration
+	 * {@link DocumentedDefinition}s.
 	 */
 	public interface DefinitionsProvider {
 
@@ -1218,7 +1352,7 @@ public final class Configuration {
 		if (list.length == 0) {
 			throw new IllegalArgumentException("Enums must not be empty!");
 		}
-		return (Class<E>)list[0].getClass();
+		return (Class<E>) list[0].getClass();
 	}
 
 	private static <E extends Enum<?>> String toNameList(List<E> list, boolean brackets) {
@@ -1518,8 +1652,8 @@ public final class Configuration {
 	/**
 	 * Add properties.
 	 * 
-	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead. Apply
-	 * conversion defined by that {@link DocumentedDefinition}s.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead.
+	 * Apply conversion defined by that {@link DocumentedDefinition}s.
 	 * 
 	 * @param properties properties to convert and add
 	 * @see #addModule(String, DefinitionsProvider)
@@ -1543,10 +1677,11 @@ public final class Configuration {
 	/**
 	 * Add dictionary.
 	 * 
-	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead. Apply
-	 * conversion defined by that {@link DocumentedDefinition}s to String entries. Entries
-	 * of other types are added, if {@link DocumentedDefinition#isAssignableFrom(Object)}
-	 * returns {@code true}.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead.
+	 * Apply conversion defined by that {@link DocumentedDefinition}s to String
+	 * entries. Entries of other types are added, if
+	 * {@link DocumentedDefinition#isAssignableFrom(Object)} returns
+	 * {@code true}.
 	 * 
 	 * @param dictionary dictionary to convert and add
 	 * @see #addModule(String, DefinitionsProvider)
@@ -1667,8 +1802,9 @@ public final class Configuration {
 	/**
 	 * Write single property.
 	 * 
-	 * If {@link DocumentedDefinition} contains a {@link DocumentedDefinition#getDocumentation()},
-	 * then first write that documentation as comment.
+	 * If {@link DocumentedDefinition} contains a
+	 * {@link DocumentedDefinition#getDocumentation()}, then first write that
+	 * documentation as comment.
 	 * 
 	 * @param key key of definition.
 	 * @param writer writer to write property

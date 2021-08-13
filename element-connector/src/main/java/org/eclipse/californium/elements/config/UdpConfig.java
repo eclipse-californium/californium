@@ -35,35 +35,35 @@ public final class UdpConfig {
 	 * Number of receiver threads for {@link UDPConnector}.
 	 */
 	public static final IntegerDefinition UDP_RECEIVER_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "RECEIVER_THREAD_COUNT", "Number of UDP receiver threads.", 1);
+			MODULE + "RECEIVER_THREAD_COUNT", "Number of UDP receiver threads.", 1, 1);
 	/**
 	 * Number of sender threads for {@link UDPConnector}.
 	 */
 	public static final IntegerDefinition UDP_SENDER_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "SENDER_THREAD_COUNT", "Number of UDP sender threads.", 1);
+			MODULE + "SENDER_THREAD_COUNT", "Number of UDP sender threads.", 1, 0);
 	/**
 	 * Size of {@link DatagramPacket} for {@link UDPConnector}.
 	 */
 	public static final IntegerDefinition UDP_DATAGRAM_SIZE = new IntegerDefinition(MODULE + "DATAGRAM_SIZE",
-			"Maxium size of UDP datagram.", 2048);
+			"Maxium size of UDP datagram.", 2048, 64);
 
 	/**
 	 * UDP receive buffer size used for
 	 * {@link DatagramSocket#setReceiveBufferSize(int)}.
 	 */
 	public static final IntegerDefinition UDP_RECEIVE_BUFFER_SIZE = new IntegerDefinition(
-			MODULE + "RECEIVE_BUFFER_SIZE", "UDP receive-buffer size.");
+			MODULE + "RECEIVE_BUFFER_SIZE", "UDP receive-buffer size.", null, 64);
 	/**
 	 * UDP send buffer size used for
 	 * {@link DatagramSocket#setSendBufferSize(int)}.
 	 */
 	public static final IntegerDefinition UDP_SEND_BUFFER_SIZE = new IntegerDefinition(MODULE + "SEND_BUFFER_SIZE",
-			"UDP send-buffer size.");
+			"UDP send-buffer size.", null, 64);
 	/**
 	 * Maximum number of pending outbound messages.
 	 */
 	public static final IntegerDefinition UDP_CONNECTOR_OUT_CAPACITY = new IntegerDefinition(
-			MODULE + "CONNECTOR_OUT_CAPACITY", "Maximum number of pending outgoing messages.", Integer.MAX_VALUE);
+			MODULE + "CONNECTOR_OUT_CAPACITY", "Maximum number of pending outgoing messages.", Integer.MAX_VALUE, 32);
 
 	static {
 		Configuration.addModule(MODULE, new DefinitionsProvider() {

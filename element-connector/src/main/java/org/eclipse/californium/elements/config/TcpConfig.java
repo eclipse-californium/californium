@@ -68,7 +68,7 @@ public final class TcpConfig {
 	 * Number of TCP worker threads.
 	 */
 	public static final IntegerDefinition TCP_WORKER_THREADS = new IntegerDefinition(MODULE + "WORKER_THREADS",
-			"Number of TCP worker threads.", 1);
+			"Number of TCP worker threads.", 1, 1);
 	/**
 	 * TLS handshake timeout.
 	 */
