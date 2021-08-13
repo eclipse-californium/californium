@@ -34,14 +34,13 @@ import org.eclipse.californium.core.network.stack.KeyUri;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.BooleanDefinition;
-import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.EnumDefinition;
 import org.eclipse.californium.elements.config.Configuration.FloatDefinition;
 import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
 import org.eclipse.californium.elements.config.Configuration.StringSetDefinition;
 import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
-import org.eclipse.californium.elements.config.UdpConfig;
 
 /**
  * Configuration definitions for CoAP.
@@ -319,7 +318,8 @@ public final class CoapConfig {
 	/**
 	 * CoAP port.
 	 */
-	public static final IntegerDefinition COAP_PORT = new IntegerDefinition(MODULE + "COAP_PORT", "CoAP port.", 5683, 1);
+	public static final IntegerDefinition COAP_PORT = new IntegerDefinition(MODULE + "COAP_PORT", "CoAP port.", 5683,
+			1);
 	/**
 	 * CoAPs port.
 	 */
@@ -384,9 +384,9 @@ public final class CoapConfig {
 	public static final TimeDefinition MAX_LATENCY = new TimeDefinition(MODULE + "MAX_LATENCY",
 			"Maximum transmission latency for messages.", 100, TimeUnit.SECONDS);
 	/**
-	 * The the maximum time from the first transmission
-      of a Confirmable message to the time when the sender gives up on
-      receiving an acknowledgement or reset. See
+	 * The the maximum time from the first transmission of a Confirmable message
+	 * to the time when the sender gives up on receiving an acknowledgement or
+	 * reset. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
 	 * target="_blank">RFC7252, 4.8.2. Time Values Derived from Transmission
 	 * Parameters</a>.
@@ -502,7 +502,8 @@ public final class CoapConfig {
 	 */
 	public static final IntegerDefinition MAX_RESOURCE_BODY_SIZE = new IntegerDefinition(
 			MODULE + "MAX_RESOURCE_BODY_SIZE",
-			"Maximum size of resource body. 0 to disable transparent blockwise mode.", DEFAULT_MAX_RESOURCE_BODY_SIZE, 0);
+			"Maximum size of resource body. 0 to disable transparent blockwise mode.", DEFAULT_MAX_RESOURCE_BODY_SIZE,
+			0);
 	/**
 	 * The maximum amount of time allowed between transfers of individual blocks
 	 * in a blockwise transfer before the blockwise transfer state is discarded.
@@ -672,75 +673,80 @@ public final class CoapConfig {
 	public static final EnumDefinition<MatcherMode> RESPONSE_MATCHING = new EnumDefinition<>(
 			MODULE + "RESPONSE_MATCHING", "Response matching mode.", MatcherMode.STRICT, MatcherMode.values());
 
+	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
+
+		@Override
+		public String getModule() {
+			return MODULE;
+		}
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+			final int CORES = Runtime.getRuntime().availableProcessors();
+
+			config.set(MAX_ACTIVE_PEERS, DEFAULT_MAX_ACTIVE_PEERS);
+			config.set(MAX_PEER_INACTIVITY_PERIOD, DEFAULT_MAX_PEER_INACTIVITY_PERIOD_IN_SECONDS, TimeUnit.SECONDS);
+
+			config.set(COAP_PORT, CoAP.DEFAULT_COAP_PORT);
+			config.set(COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
+
+			config.set(ACK_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
+			config.set(ACK_INIT_RANDOM, 1.5f);
+			config.set(ACK_TIMEOUT_SCALE, 2f);
+			config.set(MAX_RETRANSMIT, 4);
+			config.set(EXCHANGE_LIFETIME, DEFAULT_EXCHANGE_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(NON_LIFETIME, 145, TimeUnit.SECONDS);
+			config.set(NSTART, 1);
+			config.set(LEISURE, 5, TimeUnit.SECONDS);
+			config.set(PROBING_RATE, 1f);
+			config.set(USE_MESSAGE_OFFLOADING, false);
+
+			config.set(MAX_LATENCY, 100, TimeUnit.SECONDS);
+			config.set(MAX_TRANSMIT_WAIT, 93, TimeUnit.SECONDS);
+			config.set(MAX_SERVER_RESPONSE_DELAY, 250, TimeUnit.SECONDS);
+
+			config.set(USE_RANDOM_MID_START, true);
+			config.set(MID_TRACKER, DEFAULT_MID_TRACKER);
+			config.set(MID_TRACKER_GROUPS, DEFAULT_MID_TRACKER_GROUPS);
+			config.set(TOKEN_SIZE_LIMIT, 8);
+
+			config.set(PREFERRED_BLOCK_SIZE, DEFAULT_PREFERRED_BLOCK_SIZE);
+			config.set(MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
+			config.set(MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
+			config.set(BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(BLOCKWISE_STATUS_INTERVAL, DEFAULT_BLOCKWISE_STATUS_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
+			config.set(BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER, DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
+			// BERT enabled, when > 1
+			config.set(TCP_NUMBER_OF_BULK_BLOCKS, 4);
+
+			config.set(NOTIFICATION_CHECK_INTERVAL_TIME, 120, TimeUnit.SECONDS);
+			config.set(NOTIFICATION_CHECK_INTERVAL_COUNT, 100);
+			config.set(NOTIFICATION_REREGISTRATION_BACKOFF, 2000, TimeUnit.MILLISECONDS);
+
+			config.set(CONGESTION_CONTROL_ALGORITHM, CongestionControlMode.NULL);
+			config.set(PROTOCOL_STAGE_THREAD_COUNT, CORES);
+
+			config.set(DEDUPLICATOR, DEFAULT_DEDUPLICATOR);
+			config.set(MARK_AND_SWEEP_INTERVAL, DEFAULT_MARK_AND_SWEEP_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(PEERS_MARK_AND_SWEEP_MESSAGES, DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES);
+			config.set(CROP_ROTATION_PERIOD, DEFAULT_CROP_ROTATION_PERIOD_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(DEDUPLICATOR_AUTO_REPLACE, DEFAULT_DEDUPLICATOR_AUTO_REPLACE);
+			config.set(RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
+
+			config.set(MULTICAST_BASE_MID, DEFAULT_MULTICAST_BASE_MID);
+		}
+	};
+
 	static {
-		SystemConfig.register();
-		Configuration.addModule(MODULE, new DefinitionsProvider() {
-
-			@Override
-			public void applyDefinitions(Configuration config) {
-				final int CORES = Runtime.getRuntime().availableProcessors();
-
-				config.set(MAX_ACTIVE_PEERS, DEFAULT_MAX_ACTIVE_PEERS);
-				config.set(MAX_PEER_INACTIVITY_PERIOD, DEFAULT_MAX_PEER_INACTIVITY_PERIOD_IN_SECONDS, TimeUnit.SECONDS);
-
-				config.set(COAP_PORT, CoAP.DEFAULT_COAP_PORT);
-				config.set(COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
-
-				config.set(ACK_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
-				config.set(ACK_INIT_RANDOM, 1.5f);
-				config.set(ACK_TIMEOUT_SCALE, 2f);
-				config.set(MAX_RETRANSMIT, 4);
-				config.set(EXCHANGE_LIFETIME, DEFAULT_EXCHANGE_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);
-				config.set(NON_LIFETIME, 145, TimeUnit.SECONDS);
-				config.set(NSTART, 1);
-				config.set(LEISURE, 5, TimeUnit.SECONDS);
-				config.set(PROBING_RATE, 1f);
-				config.set(USE_MESSAGE_OFFLOADING, false);
-
-				config.set(MAX_LATENCY, 100, TimeUnit.SECONDS);
-				config.set(MAX_TRANSMIT_WAIT, 93, TimeUnit.SECONDS);
-				config.set(MAX_SERVER_RESPONSE_DELAY, 250, TimeUnit.SECONDS);
-
-				config.set(USE_RANDOM_MID_START, true);
-				config.set(MID_TRACKER, DEFAULT_MID_TRACKER);
-				config.set(MID_TRACKER_GROUPS, DEFAULT_MID_TRACKER_GROUPS);
-				config.set(TOKEN_SIZE_LIMIT, 8);
-
-				config.set(PREFERRED_BLOCK_SIZE, DEFAULT_PREFERRED_BLOCK_SIZE);
-				config.set(MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
-				config.set(MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
-				config.set(BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);
-				config.set(BLOCKWISE_STATUS_INTERVAL, DEFAULT_BLOCKWISE_STATUS_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
-				config.set(BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
-				config.set(BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER, DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
-				// BERT enabled, when > 1
-				config.set(TCP_NUMBER_OF_BULK_BLOCKS, 4);
-
-				config.set(NOTIFICATION_CHECK_INTERVAL_TIME, 120, TimeUnit.SECONDS);
-				config.set(NOTIFICATION_CHECK_INTERVAL_COUNT, 100);
-				config.set(NOTIFICATION_REREGISTRATION_BACKOFF, 2000, TimeUnit.MILLISECONDS);
-
-				config.set(CONGESTION_CONTROL_ALGORITHM, CongestionControlMode.NULL);
-				config.set(PROTOCOL_STAGE_THREAD_COUNT, CORES);
-
-				config.set(DEDUPLICATOR, DEFAULT_DEDUPLICATOR);
-				config.set(MARK_AND_SWEEP_INTERVAL, DEFAULT_MARK_AND_SWEEP_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
-				config.set(PEERS_MARK_AND_SWEEP_MESSAGES, DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES);
-				config.set(CROP_ROTATION_PERIOD, DEFAULT_CROP_ROTATION_PERIOD_IN_SECONDS, TimeUnit.SECONDS);
-				config.set(DEDUPLICATOR_AUTO_REPLACE, DEFAULT_DEDUPLICATOR_AUTO_REPLACE);
-				config.set(RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
-
-				config.set(MULTICAST_BASE_MID, DEFAULT_MULTICAST_BASE_MID);
-			}
-		});
+		Configuration.addModule(DEFINITIONS);
 	}
 
 	/**
-	 * Register configuration module.
-	 * 
-	 * Registers {@link UdpConfig} as well.
+	 * Register definitions of this module to the default definitions. Register
+	 * the required definitions of {@link SystemConfig} as well.
 	 */
 	public static void register() {
-		UdpConfig.register();
+		SystemConfig.register();
 	}
 }

@@ -18,7 +18,9 @@ package org.eclipse.californium.cluster.config;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 
 /**
@@ -81,23 +83,35 @@ public final class DtlsClusterManagerConfig {
 			"Cluster-Manager time to expire not responding nodes.",
 			DEFAULT_TIMER_INTERVAL_MILLIS + DEFAULT_REFRESH_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
 
+	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
+
+		@Override
+		public String getModule() {
+			return MODULE;
+		}
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+
+			config.set(TIMER_INTERVAL, DEFAULT_TIMER_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+			config.set(REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+			config.set(DISCOVER_INTERVAL, DEFAULT_DISCOVER_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+			config.set(EXPIRATION_TIME, DEFAULT_TIMER_INTERVAL_MILLIS + DEFAULT_REFRESH_INTERVAL_MILLIS,
+					TimeUnit.MILLISECONDS);
+
+		}
+	};
+
 	static {
-		Configuration.addModule(MODULE, new DefinitionsProvider() {
-
-			@Override
-			public void applyDefinitions(Configuration config) {
-
-				config.set(TIMER_INTERVAL, DEFAULT_TIMER_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
-				config.set(REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
-				config.set(DISCOVER_INTERVAL, DEFAULT_DISCOVER_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
-				config.set(EXPIRATION_TIME, DEFAULT_TIMER_INTERVAL_MILLIS + DEFAULT_REFRESH_INTERVAL_MILLIS,
-						TimeUnit.MILLISECONDS);
-
-			}
-		});
+		Configuration.addModule(DEFINITIONS);
 	}
 
+	/**
+	 * Register definitions of this module to the default definitions. Register
+	 * the required definitions of {@link DtlsConfig} and {@link SystemConfig}
+	 * as well.
+	 */
 	public static void register() {
-		// empty
+		DtlsConfig.register();
 	}
 }

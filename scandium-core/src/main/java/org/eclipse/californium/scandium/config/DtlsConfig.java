@@ -25,19 +25,14 @@ import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.BasicDefinition;
 import org.eclipse.californium.elements.config.Configuration.BooleanDefinition;
-import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.EnumDefinition;
 import org.eclipse.californium.elements.config.Configuration.EnumListDefinition;
 import org.eclipse.californium.elements.config.Configuration.FloatDefinition;
 import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
+import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.StringSetDefinition;
 import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
-import org.eclipse.californium.scandium.dtls.RecordLayer;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
@@ -46,6 +41,11 @@ import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.RecordLayer;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 
 /**
  * Configuration definitions for DTLS.
@@ -250,7 +250,8 @@ public final class DtlsConfig {
 	 * as first byte in generated connection ids.
 	 */
 	public static final IntegerDefinition DTLS_CONNECTION_ID_NODE_ID = new IntegerDefinition(
-			MODULE + "CONNECTION_ID_NODE_ID", "DTLS cluster-node ID used for connection ID. <blank> not used.", null, 0);
+			MODULE + "CONNECTION_ID_NODE_ID", "DTLS cluster-node ID used for connection ID. <blank> not used.", null,
+			0);
 
 	/**
 	 * Specify the initial DTLS retransmission timeout.
@@ -269,13 +270,15 @@ public final class DtlsConfig {
 	 * CoAP and DTLS.
 	 */
 	public static final FloatDefinition DTLS_RETRANSMISSION_INIT_RANDOM = new FloatDefinition(
-			MODULE + "RETRANSMISSION_INIT_RANDOM", "DTLS random factor for initial retransmission timeout.", 1.0F, 1.0F);
+			MODULE + "RETRANSMISSION_INIT_RANDOM", "DTLS random factor for initial retransmission timeout.", 1.0F,
+			1.0F);
 	/**
 	 * Scale factor applied to the retransmission timeout. Harmonize CoAP and
 	 * DTLS.
 	 */
 	public static final FloatDefinition DTLS_RETRANSMISSION_TIMEOUT_SCALE = new FloatDefinition(
-			MODULE + "RETRANSMISSION_TIMEOUT_SCALE", "DTLS scale factor for retransmission backoff-timeout.", 2.0F, 1.0F);
+			MODULE + "RETRANSMISSION_TIMEOUT_SCALE", "DTLS scale factor for retransmission backoff-timeout.", 2.0F,
+			1.0F);
 	/**
 	 * Specify the additional initial DTLS retransmission timeout, when the
 	 * other peer is expected to perform ECC calculations.
@@ -321,7 +324,8 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_RETRANSMISSION_BACKOFF = new IntegerDefinition(
 			MODULE + "RETRANSMISSION_BACKOFF",
-			"DTLS number of flight retransmissions before switching to backoff mode using single handshake messages in single record datagrams.", null, 0);
+			"DTLS number of flight retransmissions before switching to backoff mode using single handshake messages in single record datagrams.",
+			null, 0);
 
 	/**
 	 * Enable or disable the server to use a session ID in order to support or
@@ -393,8 +397,7 @@ public final class DtlsConfig {
 	 * Enable the DTLS client to verify the server certificate's subjects.
 	 */
 	public static final BooleanDefinition DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT = new BooleanDefinition(
-			MODULE + "VERIFY_SERVER_CERTIFICATES_SUBJECT", "DTLS verifies the server certificate's subjects.",
-			true);
+			MODULE + "VERIFY_SERVER_CERTIFICATES_SUBJECT", "DTLS verifies the server certificate's subjects.", true);
 
 	/**
 	 * Specify the supported DTLS roles.
@@ -758,79 +761,86 @@ public final class DtlsConfig {
 	public static final BooleanDefinition DTLS_SUPPORT_DEPRECATED_CID = new BooleanDefinition(
 			MODULE + "SUPPORT_DEPRECATED_CID", "DTLS support deprecated CID for server (before version 9).", false);
 
+	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
+
+		@Override
+		public String getModule() {
+			return MODULE;
+		}
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+			final int CORES = Runtime.getRuntime().availableProcessors();
+
+			config.set(DTLS_SESSION_TIMEOUT, 24, TimeUnit.HOURS);
+			config.set(DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DTLS_RETRANSMISSION_TIMEOUT, DEFAULT_RETRANSMISSION_TIMEOUT_IN_MILLISECONDS,
+					TimeUnit.MILLISECONDS);
+			config.set(DTLS_MAX_RETRANSMISSION_TIMEOUT, DEFAULT_MAX_RETRANSMISSION_TIMEOUT_IN_MILLISECONDS,
+					TimeUnit.MILLISECONDS);
+			config.set(DTLS_ADDITIONAL_ECC_TIMEOUT, DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_IN_MILLISECONDS,
+					TimeUnit.MILLISECONDS);
+			config.set(DTLS_MAX_RETRANSMISSIONS, DEFAULT_MAX_RETRANSMISSIONS);
+			config.set(DTLS_RETRANSMISSION_INIT_RANDOM, 1.0F);
+			config.set(DTLS_RETRANSMISSION_TIMEOUT_SCALE, 2.0F);
+			config.set(DTLS_RETRANSMISSION_BACKOFF, null);
+			config.set(DTLS_CONNECTION_ID_LENGTH, null);
+			config.set(DTLS_CONNECTION_ID_NODE_ID, null);
+			config.set(DTLS_SERVER_USE_SESSION_ID, true);
+			config.set(DTLS_USE_EARLY_STOP_RETRANSMISSION, true);
+			config.set(DTLS_RECORD_SIZE_LIMIT, null);
+			config.set(DTLS_MAX_FRAGMENT_LENGTH, null);
+			config.set(DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH, DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH);
+			config.set(DTLS_USE_MULTI_RECORD_MESSAGES, null);
+			config.set(DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, null);
+			config.set(DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+			config.set(DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, true);
+			config.set(DTLS_ROLE, DtlsRole.BOTH);
+			config.set(DTLS_MAX_TRANSMISSION_UNIT, null);
+			config.set(DTLS_MAX_TRANSMISSION_UNIT_LIMIT, DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT);
+			config.set(DTLS_DEFAULT_HANDSHAKE_MODE, null);
+			config.set(DTLS_MAX_CONNECTIONS, DEFAULT_MAX_CONNECTIONS);
+			config.set(DTLS_STALE_CONNECTION_THRESHOLD, DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS, TimeUnit.SECONDS);
+			config.set(DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE, DEFAULT_MAX_PENDING_OUTBOUND_MESSAGES);
+			config.set(DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES,
+					DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES);
+			config.set(DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE, DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE);
+
+			config.set(DTLS_RECEIVER_THREAD_COUNT, CORES > 3 ? 2 : 1);
+			config.set(DTLS_CONNECTOR_THREAD_COUNT, CORES);
+			config.set(DTLS_RECEIVE_BUFFER_SIZE, null);
+			config.set(DTLS_SEND_BUFFER_SIZE, null);
+			config.set(DTLS_USE_SERVER_NAME_INDICATION, false);
+			config.set(DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED);
+			config.set(DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD,
+					DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT);
+			config.set(DTLS_USE_HELLO_VERIFY_REQUEST, true);
+			config.set(DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, true);
+			config.set(DTLS_USE_ANTI_REPLAY_FILTER, true);
+			config.set(DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER, 0);
+			config.set(DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS, true);
+			config.set(DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH, true);
+			config.set(DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION, true);
+			config.set(DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, true);
+			config.set(DTLS_RECOMMENDED_CURVES_ONLY, true);
+			config.set(DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY, true);
+			config.set(DTLS_PRESELECTED_CIPHER_SUITES, null);
+			config.set(DTLS_CIPHER_SUITES, null);
+			config.set(DTLS_CURVES, null);
+			config.set(DTLS_SIGNATURE_AND_HASH_ALGORITHMS, null);
+			config.set(DTLS_USE_DEPRECATED_CID, null);
+			config.set(DTLS_SUPPORT_DEPRECATED_CID, false);
+		}
+	};
+
 	static {
-		SystemConfig.register();
-		Configuration.addModule(MODULE, new DefinitionsProvider() {
-
-			@Override
-			public void applyDefinitions(Configuration config) {
-				final int CORES = Runtime.getRuntime().availableProcessors();
-
-				config.set(DTLS_SESSION_TIMEOUT, 24, TimeUnit.HOURS);
-				config.set(DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
-				config.set(DTLS_RETRANSMISSION_TIMEOUT, DEFAULT_RETRANSMISSION_TIMEOUT_IN_MILLISECONDS,
-						TimeUnit.MILLISECONDS);
-				config.set(DTLS_MAX_RETRANSMISSION_TIMEOUT, DEFAULT_MAX_RETRANSMISSION_TIMEOUT_IN_MILLISECONDS,
-						TimeUnit.MILLISECONDS);
-				config.set(DTLS_ADDITIONAL_ECC_TIMEOUT, DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_IN_MILLISECONDS,
-						TimeUnit.MILLISECONDS);
-				config.set(DTLS_MAX_RETRANSMISSIONS, DEFAULT_MAX_RETRANSMISSIONS);
-				config.set(DTLS_RETRANSMISSION_INIT_RANDOM, 1.0F);
-				config.set(DTLS_RETRANSMISSION_TIMEOUT_SCALE, 2.0F);
-				config.set(DTLS_RETRANSMISSION_BACKOFF, null);
-				config.set(DTLS_CONNECTION_ID_LENGTH, null);
-				config.set(DTLS_CONNECTION_ID_NODE_ID, null);
-				config.set(DTLS_SERVER_USE_SESSION_ID, true);
-				config.set(DTLS_USE_EARLY_STOP_RETRANSMISSION, true);
-				config.set(DTLS_RECORD_SIZE_LIMIT, null);
-				config.set(DTLS_MAX_FRAGMENT_LENGTH, null);
-				config.set(DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH,
-						DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH);
-				config.set(DTLS_USE_MULTI_RECORD_MESSAGES, null);
-				config.set(DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, null);
-				config.set(DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
-				config.set(DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, true);
-				config.set(DTLS_ROLE, DtlsRole.BOTH);
-				config.set(DTLS_MAX_TRANSMISSION_UNIT, null);
-				config.set(DTLS_MAX_TRANSMISSION_UNIT_LIMIT, DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT);
-				config.set(DTLS_DEFAULT_HANDSHAKE_MODE, null);
-				config.set(DTLS_MAX_CONNECTIONS, DEFAULT_MAX_CONNECTIONS);
-				config.set(DTLS_STALE_CONNECTION_THRESHOLD, DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS,
-						TimeUnit.SECONDS);
-				config.set(DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE, DEFAULT_MAX_PENDING_OUTBOUND_MESSAGES);
-				config.set(DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES,
-						DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES);
-				config.set(DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE,
-						DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE);
-
-				config.set(DTLS_RECEIVER_THREAD_COUNT, CORES > 3 ? 2 : 1);
-				config.set(DTLS_CONNECTOR_THREAD_COUNT, CORES);
-				config.set(DTLS_RECEIVE_BUFFER_SIZE, null);
-				config.set(DTLS_SEND_BUFFER_SIZE, null);
-				config.set(DTLS_USE_SERVER_NAME_INDICATION, false);
-				config.set(DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED);
-				config.set(DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD,
-						DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT);
-				config.set(DTLS_USE_HELLO_VERIFY_REQUEST, true);
-				config.set(DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, true);
-				config.set(DTLS_USE_ANTI_REPLAY_FILTER, true);
-				config.set(DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER, 0);
-				config.set(DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS, true);
-				config.set(DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH, true);
-				config.set(DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION, true);
-				config.set(DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, true);
-				config.set(DTLS_RECOMMENDED_CURVES_ONLY, true);
-				config.set(DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY, true);
-				config.set(DTLS_PRESELECTED_CIPHER_SUITES, null);
-				config.set(DTLS_CIPHER_SUITES, null);
-				config.set(DTLS_CURVES, null);
-				config.set(DTLS_SIGNATURE_AND_HASH_ALGORITHMS, null);
-				config.set(DTLS_USE_DEPRECATED_CID, null);
-				config.set(DTLS_SUPPORT_DEPRECATED_CID, false);
-			}
-		});
+		Configuration.addModule(DEFINITIONS);
 	}
 
+	/**
+	 * Register definitions of this module to the default definitions. Register
+	 * the required definitions of {@link SystemConfig} as well.
+	 */
 	public static void register() {
 		SystemConfig.register();
 	}
