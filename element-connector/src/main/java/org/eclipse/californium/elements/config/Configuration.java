@@ -247,7 +247,8 @@ public final class Configuration {
 				return null;
 			}
 			try {
-				return parseValue(value);
+				T result = parseValue(value);
+				return checkValue(result);
 			} catch (NumberFormatException e) {
 				LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
 			} catch (ValueParsingException e) {
@@ -256,6 +257,18 @@ public final class Configuration {
 				LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
 			}
 			return null;
+		}
+
+		/**
+		 * Check, if value is valid.
+		 * 
+		 * @param value value to check
+		 * @return the provided value
+		 * @throws IllegalArgumentException if the value is not valid, e.g. out
+		 *             of the intended range.
+		 */
+		public T checkValue(T value) {
+			return value;
 		}
 
 		/**
@@ -1106,6 +1119,14 @@ public final class Configuration {
 			return TimeUnit.NANOSECONDS.convert(time, valueUnit);
 		}
 
+		@Override
+		public Long checkValue(Long value) {
+			if (value != null && value < 0) {
+				throw new IllegalArgumentException("Time " + value + " must be not less than 0!");
+			}
+			return value;
+		}
+
 		/**
 		 * Gets time unit as text.
 		 * 
@@ -1776,7 +1797,8 @@ public final class Configuration {
 	 * @return the configuration for chaining
 	 * @throws NullPointerException if the definition or unit is {@code null}
 	 * @throws IllegalArgumentException if a different definition is already
-	 *             available for the key of the provided definition.
+	 *             available for the key of the provided definition. Or the
+	 *             provided value is less than {@code 0}
 	 */
 	public Configuration set(TimeDefinition definition, Long value, TimeUnit unit) {
 		if (unit == null) {
@@ -1798,7 +1820,8 @@ public final class Configuration {
 	 * @return the configuration for chaining
 	 * @throws NullPointerException if the definition or unit is {@code null}
 	 * @throws IllegalArgumentException if a different definition is already
-	 *             available for the key of the provided definition.
+	 *             available for the key of the provided definition. Or the
+	 *             provided value is less than {@code 0}
 	 */
 	public Configuration set(TimeDefinition definition, int value, TimeUnit unit) {
 		return set(definition, (long) value, unit);
