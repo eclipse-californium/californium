@@ -340,6 +340,8 @@ public abstract class HelloExtension {
 		 * target="_blank">Draft dtls-connection-id</a> See <a href=
 		 * "https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-1"
 		 * target="_blank">IANA TLS ExtensionType Values</a>
+		 * 
+		 * @since 3.0
 		 **/
 		CONNECTION_ID(54, "Connection ID"),
 
@@ -360,6 +362,8 @@ public abstract class HelloExtension {
 		 * <pre>
 		 * CONNECTION_ID_MEDTLS(254, "Connection ID (mbedtls)", CONNECTION_ID),
 		 * </pre>
+		 * 
+		 * @since 3.0
 		 **/
 		CONNECTION_ID_DEPRECATED(53, "Connection ID (deprecated)", CONNECTION_ID),
 
@@ -423,6 +427,7 @@ public abstract class HelloExtension {
 		 * or to support early implementations.
 		 * 
 		 * @return replacement type, or {@code null}, if no such type exists.
+		 * @since 3.0
 		 */
 		public ExtensionType getReplacementType() {
 			return replacement;

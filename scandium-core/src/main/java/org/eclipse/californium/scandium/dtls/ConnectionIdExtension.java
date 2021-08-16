@@ -81,6 +81,7 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * 
 	 * @return {@code true}, if not the current extension ID {@code 54} along
 	 *         with the new MAC calculation is used, {@code false}, otherwise.
+	 * @since 3.0
 	 */
 	public boolean useDeprecatedCid() {
 		return getType() != ExtensionType.CONNECTION_ID;

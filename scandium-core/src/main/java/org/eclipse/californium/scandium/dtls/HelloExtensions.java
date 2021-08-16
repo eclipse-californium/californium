@@ -132,12 +132,15 @@ public final class HelloExtensions {
 		if (type == null) {
 			throw new NullPointerException("Extension type must not be null!");
 		}
+		HelloExtension replacement = null;
 		for (HelloExtension ext : extensions) {
-			if (type.equals(ext.getType()) || type.equals(ext.getType().getReplacementType())) {
+			if (type.equals(ext.getType())) {
 				return (T) ext;
+			} else if (type.equals(ext.getType().getReplacementType())) {
+				replacement = ext;
 			}
 		}
-		return null;
+		return (T) replacement;
 	}
 
 	/**
