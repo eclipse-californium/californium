@@ -1106,11 +1106,13 @@ public final class Configuration {
 		 * @param key key for properties. Must be global unique.
 		 * @param documentation documentation for properties.
 		 * @param defaultValue default value returned instead of {@code null}.
+		 * @param minimumValue minimum value, or {@code null}, if no minimum
+		 *            value is applied.
 		 * @throws NullPointerException if key is {@code null}
 		 */
-		public DoubleDefinition(String key, String documentation, Double defaultValue, Double miniumValue) {
+		public DoubleDefinition(String key, String documentation, Double defaultValue, Double minimumValue) {
 			super(key, documentation, Double.class, defaultValue);
-			this.minimumValue = miniumValue;
+			this.minimumValue = minimumValue;
 		}
 
 		@Override

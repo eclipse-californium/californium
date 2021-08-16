@@ -645,7 +645,7 @@ public final class DtlsConnectorConfig {
 	 * <p>
 	 * <b>Note:</b> if spoofing is considered to be relevant for the used
 	 * network environment, please set this to {@code 0} using
-	 * {@link Builder#set(BasicDefinition, Object)} with
+	 * {@link Builder#set} with
 	 * {@link DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} in order to
 	 * disable this function.
 	 * </p>
