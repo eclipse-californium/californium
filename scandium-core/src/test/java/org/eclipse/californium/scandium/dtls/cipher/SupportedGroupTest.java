@@ -18,13 +18,11 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.SecretKey;
@@ -59,26 +57,9 @@ public class SupportedGroupTest {
 		for (SupportedGroup group : SupportedGroup.getUsableGroups()) {
 			try {
 				XECDHECryptography ecdhe = new XECDHECryptography(group);
-				PublicKey publicKey = ecdhe.getPublicKey();
-				int size = group.getEncodedPointSizeInBytes();
-				byte[] encoded = publicKey.getEncoded();
 				byte[] point = ecdhe.getEncodedPoint();
-				byte[] enc = Arrays.copyOfRange(encoded, encoded.length - size, encoded.length);
-				assertArrayEquals(group.name() + " " + size, point, enc);
-			} catch (GeneralSecurityException e) {
-				fail(e.getMessage());
-			}
-		}
-	}
-
-	@Test
-	public void testCurveName() {
-		for (SupportedGroup group : SupportedGroup.getUsableGroups()) {
-			try {
-				XECDHECryptography ecdhe = new XECDHECryptography(group);
-				PublicKey publicKey = ecdhe.getPublicKey();
-				String algorithm = publicKey.getAlgorithm();
-				System.out.println(group.name() + ": " + algorithm);
+				PublicKey publicKey = group.decodedPoint(point);
+				assertThat(publicKey, is(ecdhe.getPublicKey()));
 			} catch (GeneralSecurityException e) {
 				fail(e.getMessage());
 			}
