@@ -48,6 +48,10 @@ public class GETClient {
 		}
 	};
 
+	static {
+		CoapConfig.register();
+	}
+
 	/*
 	 * Application entry point.
 	 * 
@@ -55,11 +59,11 @@ public class GETClient {
 	public static void main(String args[]) {
 		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		Configuration.setStandard(config);
-		
+
 		URI uri = null; // URI parameter of the request
-		
+
 		if (args.length > 0) {
-			
+
 			// input URI from command line arguments
 			try {
 				uri = new URI(args[0]);
@@ -67,37 +71,36 @@ public class GETClient {
 				System.err.println("Invalid URI: " + e.getMessage());
 				System.exit(-1);
 			}
-			
+
 			CoapClient client = new CoapClient(uri);
 
-			CoapResponse response = null;
 			try {
-				response = client.get();
+				CoapResponse response = client.get();
+				if (response != null) {
+
+					System.out.println(response.getCode());
+					System.out.println(response.getOptions());
+					if (args.length > 1) {
+						try (FileOutputStream out = new FileOutputStream(args[1])) {
+							out.write(response.getPayload());
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					} else {
+						System.out.println(response.getResponseText());
+
+						System.out.println(System.lineSeparator() + "ADVANCED" + System.lineSeparator());
+						// access advanced API with access to more details through
+						// .advanced()
+						System.out.println(Utils.prettyPrint(response));
+					}
+				} else {
+					System.out.println("No response received.");
+				}
 			} catch (ConnectorException | IOException e) {
 				System.err.println("Got an error: " + e);
 			}
 
-			if (response!=null) {
-				
-				System.out.println(response.getCode());
-				System.out.println(response.getOptions());
-				if (args.length > 1) {
-					try (FileOutputStream out = new FileOutputStream(args[1])) {
-						out.write(response.getPayload());
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				} else {
-					System.out.println(response.getResponseText());
-					
-					System.out.println(System.lineSeparator() + "ADVANCED" + System.lineSeparator());
-					// access advanced API with access to more details through
-					// .advanced()
-					System.out.println(Utils.prettyPrint(response));
-				}
-			} else {
-				System.out.println("No response received.");
-			}
 			client.shutdown();
 		} else {
 			// display help

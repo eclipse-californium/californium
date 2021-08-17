@@ -228,12 +228,15 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	private static final Config config = new Config();
 
+	static {
+		CoapConfig.register();
+		DtlsConfig.register();
+		TcpConfig.register();
+	}
+
 	private List<Readiness> components = new ArrayList<>();
 
 	public static void main(String[] args) {
-		TcpConfig.register();
-		CoapConfig.register();
-		DtlsConfig.register();
 		CommandLine cmd = new CommandLine(config);
 		config.register(cmd);
 		try {

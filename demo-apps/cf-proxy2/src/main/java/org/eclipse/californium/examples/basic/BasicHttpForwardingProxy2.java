@@ -24,6 +24,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.proxy2.ClientSingleEndpoint;
 import org.eclipse.californium.proxy2.config.Proxy2Config;
@@ -45,7 +46,7 @@ public class BasicHttpForwardingProxy2 {
 	/**
 	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("Californium3.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumProxy3.properties");
 	/**
 	 * Header for configuration.
 	 */
@@ -81,6 +82,12 @@ public class BasicHttpForwardingProxy2 {
 		}
 
 	};
+
+	static {
+		CoapConfig.register();
+		TcpConfig.register();
+		Proxy2Config.register();
+	}
 
 	private static final String COAP2COAP = "coap2coap";
 

@@ -36,6 +36,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -46,6 +47,7 @@ import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.unixhealth.NetStatLogger;
 import org.slf4j.Logger;
@@ -65,11 +67,11 @@ public class ExampleSecureProxy2 {
 	/**
 	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("Californium3.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumSecureProxy3.properties");
 	/**
 	 * Header for configuration.
 	 */
-	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Example Proxy";
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Secure Example Proxy";
 	/**
 	 * Default maximum resource size.
 	 */
@@ -102,6 +104,13 @@ public class ExampleSecureProxy2 {
 	};
 
 	private static final String COAP2COAP = "coap2coap";
+
+	static {
+		CoapConfig.register();
+		DtlsConfig.register();
+		TcpConfig.register();
+		Proxy2Config.register();
+	}
 
 	private static String start;
 

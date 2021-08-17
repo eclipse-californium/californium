@@ -38,6 +38,11 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 public class SecureServer {
 
+	static {
+		CoapConfig.register();
+		DtlsConfig.register();
+	}
+
 	public static final List<Mode> SUPPORTED_MODES = Arrays.asList(Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509,
 			Mode.WANT_AUTH, Mode.NO_AUTH);
 

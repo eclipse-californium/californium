@@ -35,6 +35,7 @@ import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -48,8 +49,12 @@ public class MulticastTestServer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MulticastTestServer.class);
 	private static final boolean LOOPBACK = false;
 
-	public static void main(String[] args) throws UnknownHostException {
+	static {
 		CoapConfig.register();
+		TcpConfig.register();
+	}
+
+	public static void main(String[] args) throws UnknownHostException {
 		Configuration config = Configuration.getStandard();
 		int unicastPort = config.get(CoapConfig.COAP_PORT);
 		int multicastPort = unicastPort;

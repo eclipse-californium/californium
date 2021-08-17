@@ -21,12 +21,14 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLContext;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.server.ServersSerializationUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +60,8 @@ public class JdkK8sMonitorService {
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(JdkK8sMonitorService.class);
 
+	private static final String DTLS_MAX_QUIET_IN_S = "DTLS_MAX_QUIET_IN_S";
+
 	/**
 	 * Indicates, that the CoAP servers has been stopped by
 	 * {@link RestoreHttpClient}.
@@ -79,11 +83,17 @@ public class JdkK8sMonitorService {
 	/**
 	 * List of related coap servers.
 	 */
-	private List<CoapServer> coapServers = new ArrayList<>();
+	private final List<CoapServer> coapServers = new ArrayList<>();
 	/**
 	 * List of ready components.
 	 */
-	private List<Readiness> components = new ArrayList<>();
+	private final List<Readiness> components = new ArrayList<>();
+	/**
+	 * Maximum quiet period in seconds to save the dtls context.
+	 * 
+	 * @since 3.0
+	 */
+	private final long maxQuietPeriodInSeconds;
 	/**
 	 * Executor for http server.
 	 */
@@ -109,6 +119,11 @@ public class JdkK8sMonitorService {
 		this.localAddress = localAddress;
 		this.localSecureAddress = localSecureAddress;
 		this.context = context;
+		Long quiet = StringUtil.getConfigurationLong(DTLS_MAX_QUIET_IN_S);
+		if (quiet == null) {
+			quiet = TimeUnit.HOURS.toSeconds(12);
+		}
+		maxQuietPeriodInSeconds = quiet;
 	}
 
 	/**
@@ -282,7 +297,7 @@ public class JdkK8sMonitorService {
 			LOGGER.info("request: {} {}", exchange.getRequestMethod(), exchange.getRequestURI());
 			exchange.sendResponseHeaders(200, 0);
 			try (OutputStream out = exchange.getResponseBody()) {
-				int count = ServersSerializationUtil.saveServers(out, 60 * 60 * 12, coapServers);
+				int count = ServersSerializationUtil.saveServers(out, maxQuietPeriodInSeconds, coapServers);
 				LOGGER.info("response: {} connections", count);
 			} catch (IOException e) {
 				LOGGER.warn("write response to {} failed!", exchange.getRemoteAddress(), e);

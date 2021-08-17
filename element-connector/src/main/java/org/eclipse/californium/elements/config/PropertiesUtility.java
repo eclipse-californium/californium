@@ -81,7 +81,9 @@ public class PropertiesUtility {
 	 * @return normalized comment
 	 */
 	public static String normalizeComments(String comments) {
-
+		if (comments == null) {
+			return "#";
+		}
 		int length = comments.length();
 		boolean eol = false;
 		StringBuilder builder = new StringBuilder(length + 1);

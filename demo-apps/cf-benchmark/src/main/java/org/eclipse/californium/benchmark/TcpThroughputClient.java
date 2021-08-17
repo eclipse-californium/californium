@@ -29,6 +29,7 @@ import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.tcp.netty.TcpClientConnector;
 import org.eclipse.californium.elements.util.Bytes;
@@ -37,6 +38,11 @@ import org.eclipse.californium.elements.util.StringUtil;
 public class TcpThroughputClient {
 	private static final File CONFIG_FILE = new File("CaliforniumTcpClient3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for TCP client";
+
+	static {
+		CoapConfig.register();
+		TcpConfig.register();
+	}
 
 	public static void main(String[] args) throws ConnectorException, IOException {
 		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, null);

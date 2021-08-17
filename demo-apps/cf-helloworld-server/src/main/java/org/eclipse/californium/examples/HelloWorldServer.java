@@ -35,13 +35,15 @@ import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
 public class HelloWorldServer extends CoapServer {
 
+	static {
+		CoapConfig.register();
+		TcpConfig.register();
+	}
 
 	/*
 	 * Application entry point.
 	 */
 	public static void main(String[] args) {
-		CoapConfig.register();
-		TcpConfig.register();
 		try {
 			// create server
 			boolean udp = true;

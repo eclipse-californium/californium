@@ -27,6 +27,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
@@ -60,6 +61,11 @@ public class ExampleCoapServer {
 			config.set(CoapConfig.COAP_PORT, DEFAULT_COAP_PORT);
 		}
 	};
+
+	static {
+		CoapConfig.register();
+		TcpConfig.register();
+	}
 
 	private CoapServer coapServer;
 

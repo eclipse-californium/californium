@@ -45,6 +45,10 @@ public class ObserveBenchmarkClient {
 	public static final int DEFAULT_SENDER_COUNT = WINDOWS ? CORES : 1;
 	public static final int DEFAULT_RECEIVER_COUNT = WINDOWS ? CORES : 1;
 
+	static {
+		CoapConfig.register();
+	}
+
 	public static void main(String[] args) throws Exception {
 		System.out.println("Californium (Cf) Observe Benchmark Client");
 		System.out.println("(c) 2015, Institute for Pervasive Computing, ETH Zurich");

@@ -26,12 +26,12 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
@@ -48,6 +48,23 @@ public class ExampleDTLSServer {
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
+	/**
+	 * Special configuration defaults handler.
+	 */
+	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
+			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+		}
+
+	};
+
+	static {
+		DtlsConfig.register();
+	}
+
 	private DTLSConnector dtlsConnector;
 
 	public ExampleDTLSServer() {
@@ -62,16 +79,14 @@ public class ExampleDTLSServer {
 			Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, "root", TRUST_STORE_PASSWORD);
 
-			Configuration configuration = Configuration.getStandard();
+			Configuration configuration = Configuration.createWithFile(Configuration.DEFAULT_FILE, "DTLS example server", DEFAULTS);
 			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration)
-					.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
 					.setAddress(new InetSocketAddress(DEFAULT_PORT))
 					.setAdvancedPskStore(pskStore)
 					.setCertificateIdentityProvider(
 							new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
 					.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
-							.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build())
-					.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(6));
+							.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build());
 
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector

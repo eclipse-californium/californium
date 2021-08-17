@@ -63,6 +63,10 @@ public class MulticastTestClient {
 
 	};
 
+	static {
+		CoapConfig.register();
+	}
+
 	private static void get(CoapClient client, int port, String resourcePath) throws ConnectorException, IOException {
 		String uri = "coap://localhost:" + port + "/" + resourcePath;
 		System.out.println("GET " + uri);

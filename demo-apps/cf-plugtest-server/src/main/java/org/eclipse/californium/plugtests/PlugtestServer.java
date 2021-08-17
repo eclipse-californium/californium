@@ -244,10 +244,13 @@ public class PlugtestServer extends AbstractTestServer {
 	private static File store;
 	private static byte[] state;
 
-	public static void main(String[] args) {
-		TcpConfig.register();
+	static {
 		CoapConfig.register();
 		DtlsConfig.register();
+		TcpConfig.register();
+	}
+
+	public static void main(String[] args) {
 		CommandLine cmd = new CommandLine(config);
 		try {
 			ParseResult result = cmd.parseArgs(args);

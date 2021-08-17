@@ -29,6 +29,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 
@@ -45,6 +46,11 @@ public class TcpThroughputServer {
 			config.set(CoapConfig.EXCHANGE_LIFETIME, 10000, TimeUnit.MILLISECONDS);
 		}
 	};
+
+	static {
+		CoapConfig.register();
+		TcpConfig.register();
+	}
 
 	public static void main(String[] args) {
 		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);

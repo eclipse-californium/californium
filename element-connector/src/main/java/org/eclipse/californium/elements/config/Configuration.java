@@ -106,6 +106,10 @@ public final class Configuration {
 
 	/** The default name for the configuration. */
 	public static final String DEFAULT_FILE_NAME = "Californium3.properties";
+	/**
+	 * The default file for the configuration.
+	 */
+	public static final File DEFAULT_FILE = new File(DEFAULT_FILE_NAME);
 
 	/** The default header for a configuration file. */
 	public static final String DEFAULT_HEADER = "Californium3 CoAP Properties file";
@@ -907,6 +911,7 @@ public final class Configuration {
 	 * Long definition.
 	 */
 	public static class LongDefinition extends BasicDefinition<Long> {
+
 		/**
 		 * Minimum value.
 		 * 
@@ -988,6 +993,7 @@ public final class Configuration {
 	 * Float definition.
 	 */
 	public static class FloatDefinition extends BasicDefinition<Float> {
+
 		/**
 		 * Minimum value.
 		 * 
@@ -1068,6 +1074,7 @@ public final class Configuration {
 	 * Double definition.
 	 */
 	public static class DoubleDefinition extends BasicDefinition<Double> {
+
 		/**
 		 * Minimum value.
 		 * 
@@ -1466,7 +1473,7 @@ public final class Configuration {
 	public static Configuration getStandard() {
 		synchronized (Configuration.class) {
 			if (standard == null)
-				createStandardWithFile(new File(DEFAULT_FILE_NAME));
+				createStandardWithFile(DEFAULT_FILE);
 		}
 		return standard;
 	}
@@ -1504,6 +1511,7 @@ public final class Configuration {
 	 * 
 	 * @param inStream input stream to read properties.
 	 * @return the standard configuration
+	 * @throws NullPointerException if the in stream is {@code null}.
 	 * @see #addModule(String, DefinitionsProvider)
 	 */
 	public static Configuration createStandardFromStream(InputStream inStream) {
@@ -1521,6 +1529,7 @@ public final class Configuration {
 	 * @param inStream input stream to read properties.
 	 * @param customProvider custom definitions handler. May be {@code null}.
 	 * @return the configuration
+	 * @throws NullPointerException if the in stream is {@code null}.
 	 * @see #addModule(String, DefinitionsProvider)
 	 */
 	public static Configuration createFromStream(InputStream inStream, DefinitionsProvider customProvider) {
@@ -1549,6 +1558,7 @@ public final class Configuration {
 	 * 
 	 * @param file the configuration file
 	 * @return the standard configuration
+	 * @throws NullPointerException if the file is {@code null}.
 	 * @see #addModule(String, DefinitionsProvider)
 	 */
 	public static Configuration createStandardWithFile(File file) {
@@ -1572,9 +1582,13 @@ public final class Configuration {
 	 * @param header The header to write to the top of the file.
 	 * @param customProvider custom definitions handler. May be {@code null}.
 	 * @return the configuration
+	 * @throws NullPointerException if the file or header is {@code null}.
 	 * @see #addModule(String, DefinitionsProvider)
 	 */
 	public static Configuration createWithFile(File file, String header, DefinitionsProvider customProvider) {
+		if (file == null) {
+			throw new NullPointerException("file must not be null!");
+		}
 		Configuration configuration = new Configuration();
 		apply(configuration, customProvider);
 		if (file.exists()) {
@@ -1658,9 +1672,13 @@ public final class Configuration {
 	 * Apply conversion defined by that {@link DocumentedDefinition}s.
 	 * 
 	 * @param properties properties to convert and add
+	 * @throws NullPointerException if properties is {@code null}.
 	 * @see #addModule(String, DefinitionsProvider)
 	 */
 	public void add(Properties properties) {
+		if (properties == null) {
+			throw new NullPointerException("properties must not be null!");
+		}
 		for (Object k : properties.keySet()) {
 			if (k instanceof String) {
 				String key = (String) k;
@@ -1686,9 +1704,13 @@ public final class Configuration {
 	 * {@code true}.
 	 * 
 	 * @param dictionary dictionary to convert and add
+	 * @throws NullPointerException if dictionary is {@code null}.
 	 * @see #addModule(String, DefinitionsProvider)
 	 */
 	public void add(Dictionary<String, ?> dictionary) {
+		if (dictionary == null) {
+			throw new NullPointerException("dictionary must not be null!");
+		}
 		for (Enumeration<String> allKeys = dictionary.keys(); allKeys.hasMoreElements();) {
 			String key = allKeys.nextElement();
 			Object value = dictionary.get(key);
@@ -1726,14 +1748,14 @@ public final class Configuration {
 	 * 
 	 * @param file The file to write to.
 	 * @param header The header to write to the top of the file.
-	 * @throws NullPointerException if the file is {@code null}.
+	 * @throws NullPointerException if the file or header is {@code null}.
 	 */
 	public void store(File file, String header) {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
 		} else {
 			try (FileOutputStream out = new FileOutputStream(file)) {
-				store(out, file.getAbsolutePath(), header);
+				store(out, header, file.getAbsolutePath());
 			} catch (IOException e) {
 				LOGGER.warn("cannot write properties to {}: {}", file.getAbsolutePath(), e.getMessage());
 			}
@@ -1744,59 +1766,61 @@ public final class Configuration {
 	 * Stores the configuration to a stream using a given header.
 	 * 
 	 * @param out stream to store
-	 * @param resourceName resource name of store, if available. May be
-	 *            {@code null}, if not.
 	 * @param header header to use
-	 * @throws NullPointerException if out stream is {@code null}
+	 * @param resourceName resource name of store for logging, if available. May
+	 *            be {@code null}, if not.
+	 * @throws NullPointerException if out stream or header is {@code null}
 	 */
-	public void store(OutputStream out, String resourceName, String header) {
+	public void store(OutputStream out, String header, String resourceName) {
 		if (out == null) {
-			throw new NullPointerException("output stream must not be null");
-		} else {
-			if (resourceName != null) {
-				LOGGER.info("writing properties to {}", resourceName);
+			throw new NullPointerException("output stream must not be null!");
+		}
+		if (header == null) {
+			throw new NullPointerException("header must not be null!");
+		}
+		if (resourceName != null) {
+			LOGGER.info("writing properties to {}", resourceName);
+		}
+		try {
+			Set<String> modules = MODULES.keySet();
+			List<String> generalKeys = new ArrayList<>();
+			List<String> moduleKeys = new ArrayList<>();
+			for (String key : values.keySet()) {
+				boolean add = true;
+				for (String head : modules) {
+					if (key.startsWith(head)) {
+						moduleKeys.add(key);
+						add = false;
+						break;
+					}
+				}
+				if (add) {
+					generalKeys.add(key);
+				}
 			}
-			try {
-				Set<String> modules = MODULES.keySet();
-				List<String> generalKeys = new ArrayList<>();
-				List<String> moduleKeys = new ArrayList<>();
-				for (String key : values.keySet()) {
-					boolean add = true;
-					for (String head : modules) {
-						if (key.startsWith(head)) {
-							moduleKeys.add(key);
-							add = false;
-							break;
-						}
-					}
-					if (add) {
-						generalKeys.add(key);
-					}
+			Collections.sort(generalKeys);
+			Collections.sort(moduleKeys);
+			try (OutputStreamWriter fileWriter = new OutputStreamWriter(out)) {
+				String line = PropertiesUtility.normalizeComments(header);
+				fileWriter.write(line);
+				fileWriter.write(StringUtil.lineSeparator());
+				line = PropertiesUtility.normalizeComments(new Date().toString());
+				fileWriter.write(line);
+				fileWriter.write(StringUtil.lineSeparator());
+				fileWriter.write("#");
+				fileWriter.write(StringUtil.lineSeparator());
+				for (String key : generalKeys) {
+					writeProperty(key, fileWriter);
 				}
-				Collections.sort(generalKeys);
-				Collections.sort(moduleKeys);
-				try (OutputStreamWriter fileWriter = new OutputStreamWriter(out)) {
-					String line = PropertiesUtility.normalizeComments(header);
-					fileWriter.write(line);
-					fileWriter.write(StringUtil.lineSeparator());
-					line = PropertiesUtility.normalizeComments(new Date().toString());
-					fileWriter.write(line);
-					fileWriter.write(StringUtil.lineSeparator());
-					fileWriter.write("#");
-					fileWriter.write(StringUtil.lineSeparator());
-					for (String key : generalKeys) {
-						writeProperty(key, fileWriter);
-					}
-					for (String key : moduleKeys) {
-						writeProperty(key, fileWriter);
-					}
+				for (String key : moduleKeys) {
+					writeProperty(key, fileWriter);
 				}
-			} catch (IOException e) {
-				if (resourceName != null) {
-					LOGGER.warn("cannot write properties to {}: {}", resourceName, e.getMessage());
-				} else {
-					LOGGER.warn("cannot write properties: {}", e.getMessage());
-				}
+			}
+		} catch (IOException e) {
+			if (resourceName != null) {
+				LOGGER.warn("cannot write properties to {}: {}", resourceName, e.getMessage());
+			} else {
+				LOGGER.warn("cannot write properties: {}", e.getMessage());
 			}
 		}
 	}

@@ -42,6 +42,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -99,7 +100,7 @@ public class ExampleCrossProxy2 {
 	/**
 	 * File name for configuration.
 	 */
-	private static final File CONFIG_FILE = new File("Californium3.properties");
+	private static final File CONFIG_FILE = new File("CaliforniumProxy3.properties");
 	/**
 	 * Header for configuration.
 	 */
@@ -136,6 +137,12 @@ public class ExampleCrossProxy2 {
 
 	};
 
+	static {
+		CoapConfig.register();
+		TcpConfig.register();
+		Proxy2Config.register();
+	}
+
 	private static final String COAP2COAP = "coap2coap";
 	private static final String COAP2HTTP = "coap2http";
 
@@ -165,8 +172,8 @@ public class ExampleCrossProxy2 {
 			endpoints = new EndpointPool(1000, 250, outgoingConfig, mainExecutor, secondaryExecutor);
 		} else {
 			outgoingConfig.set(CoapConfig.MID_TRACKER, TrackerMode.NULL);
-			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-			builder.setConfiguration(outgoingConfig);
+			CoapEndpoint.Builder builder = CoapEndpoint.builder()
+					.setConfiguration(outgoingConfig);
 			endpoints = new ClientSingleEndpoint(builder.build());
 		}
 		ProxyCacheResource cacheResource = null;

@@ -232,7 +232,7 @@ public class ConfigurationTest {
 
 	private static Configuration reload(Configuration configuration, DefinitionsProvider provider) {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		configuration.store(out, "Test", "Test Values");
+		configuration.store(out, "Test Values", "Test");
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
 		return Configuration.createFromStream(in, provider);
 	}

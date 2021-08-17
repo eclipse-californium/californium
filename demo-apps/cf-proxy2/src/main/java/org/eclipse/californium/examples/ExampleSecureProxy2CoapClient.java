@@ -21,7 +21,9 @@ import java.io.IOException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.examples.util.CoapResponsePrinter;
 import org.eclipse.californium.examples.util.SecureEndpointPool;
@@ -34,6 +36,11 @@ import org.eclipse.californium.examples.util.SecureEndpointPool;
 public class ExampleSecureProxy2CoapClient {
 
 	private static final int PROXY_PORT = 5683;
+
+	static {
+		CoapConfig.register();
+		TcpConfig.register();
+	}
 
 	private static void request(CoapClient client, Request request) {
 		try {
