@@ -221,7 +221,7 @@ public final class DtlsConfig {
 	 * new handshake. If possible a resumption/abbreviated handshake is used.
 	 */
 	public static final TimeDefinition DTLS_AUTO_HANDSHAKE_TIMEOUT = new TimeDefinition(
-			MODULE + "AUTO_HANDSHAKE_TIMEOUT", "DTLS auto-handshake timeout.");
+			MODULE + "AUTO_HANDSHAKE_TIMEOUT", "DTLS auto-handshake timeout. <blank>, disabled.");
 	/**
 	 * DTLS connection id length.
 	 * 
@@ -241,7 +241,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_CONNECTION_ID_LENGTH = new IntegerDefinition(
 			MODULE + "CONNECTION_ID_LENGTH",
-			"DTLS connection ID length. <blank> disabled, 0 enables support, without active use of CID.", null, 0);
+			"DTLS connection ID length. <blank> disabled, 0 enables support without active use of CID.", null, 0);
 
 	/**
 	 * If {@link #DTLS_CONNECTION_ID_LENGTH} enables the use of a connection id,
@@ -363,7 +363,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = new IntegerDefinition(
 			MODULE + "MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH",
-			"DTLS maximum length of reassembled fragmented handshake message. Must be large enough for used certificates.",
+			"DTLS maximum length of reassembled fragmented handshake message.\nMust be large enough for used certificates.",
 			DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH, 64);
 
 	/**
@@ -376,7 +376,7 @@ public final class DtlsConfig {
 	 */
 	public static final BooleanDefinition DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS = new BooleanDefinition(
 			MODULE + "USE_MULTI_HANDSHAKE_MESSAGE_RECORDS",
-			"Use multiple handshake messages in DTLS records. Not all libraries may have implemented this!");
+			"Use multiple handshake messages in DTLS records.\nNot all libraries may have implemented this!");
 
 	/**
 	 * Specify the client's certificate authentication mode.
@@ -386,7 +386,7 @@ public final class DtlsConfig {
 	 */
 	public static final EnumDefinition<CertificateAuthenticationMode> DTLS_CLIENT_AUTHENTICATION_MODE = new EnumDefinition<>(
 			MODULE + "CLIENT_AUTHENTICATION_MODE",
-			"DTLS client authentication mode for certificate based ciperh suites.",
+			"DTLS client authentication mode for certificate based cipher suites.",
 			CertificateAuthenticationMode.NEEDED, CertificateAuthenticationMode.values());
 
 	/**
@@ -494,7 +494,7 @@ public final class DtlsConfig {
 	 * received, these records are dropped.
 	 */
 	public static final IntegerDefinition DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE = new IntegerDefinition(
-			MODULE + "MAX_DEFERRED_INBOUND_RECORDS", "DTLS maximum deferred outbound application messages.",
+			MODULE + "MAX_DEFERRED_INBOUND_RECORDS", "DTLS maximum size of all deferred inbound messages.",
 			DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE, 0);
 
 	/**
@@ -729,13 +729,13 @@ public final class DtlsConfig {
 	 * Select curves ({@link SupportedGroup}s).
 	 */
 	public static final EnumListDefinition<SupportedGroup> DTLS_CURVES = new EnumListDefinition<>(MODULE + "CURVES",
-			"DTLS curvces (supported groups).", SupportedGroup.values());
+			"DTLS curves (supported groups). Defaults to all supported curves of the JVM.", SupportedGroup.values());
 	/**
 	 * Select ({@link SignatureAndHashAlgorithm}s).
 	 */
 	public static final SignatureAndHashAlgorithmsDefinition DTLS_SIGNATURE_AND_HASH_ALGORITHMS = new SignatureAndHashAlgorithmsDefinition(
 			MODULE + "SIGNATURE_AND_HASH_ALGORITHMS",
-			"DTLS list of signature- and hash-algorihtms.\nValues e.g SHA256withECDSA or ED25519.");
+			"DTLS list of signature- and hash-algorithms.\nValues e.g SHA256withECDSA or ED25519.");
 	/**
 	 * Specify the usage of DTLS CID before version 09 of <a href=
 	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
