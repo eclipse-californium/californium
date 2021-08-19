@@ -201,6 +201,14 @@ public final class Utils {
 		if (principal != null) {
 			sb.append(nl).append(">>> ").append(principal);
 		}
+		String cid = endpointContext.getString(DtlsEndpointContext.KEY_READ_CONNECTION_ID);
+		if (cid != null) {
+			sb.append(nl).append(">>> read-cid : ").append(cid);
+		}
+		cid = endpointContext.getString(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
+		if (cid != null) {
+			sb.append(nl).append(">>> write-cid: ").append(cid);
+		}
 		return sb.toString();
 	}
 }
