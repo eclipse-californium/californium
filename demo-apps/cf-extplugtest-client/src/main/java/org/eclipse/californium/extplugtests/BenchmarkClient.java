@@ -169,6 +169,7 @@ public class BenchmarkClient {
 
 		@Override
 		public void applyDefinitions(Configuration config) {
+			config.set(BENCHMARK_CLIENT_THREADS, 0);
 			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
 			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
@@ -176,22 +177,24 @@ public class BenchmarkClient {
 			config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
 			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
 			config.set(CoapConfig.NON_LIFETIME, 15, TimeUnit.SECONDS); // lifetime / timeout for non-requests
-			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
 			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
+			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 1);
+			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by cli option!
 			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 12, TimeUnit.HOURS);
 			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(TcpConfig.TCP_WORKER_THREADS, 2);
-			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by cli option!
 			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 1);
 			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 1);
-			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 1);
 			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
 			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS);
-			config.set(BENCHMARK_CLIENT_THREADS, 0);
+			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
 			config.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 2);
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, 8192);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS); // disabled
 		}
 
 	};
