@@ -15,10 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.cluster;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.security.GeneralSecurityException;
 import java.util.HashMap;
@@ -59,16 +61,47 @@ import com.google.gson.JsonParser;
  * <dd>node-id (number). Optional, if missing, extracted from the tail of the
  * hostname.</dd>
  * <dt>KUBECTL_HOST</dt>
- * <dd>k8s API host. e.g. "https://10.152.183.1"</dd>
+ * <dd>k8s API host. e.g. "https://10.152.183.1". Optional, if missing or empty,
+ * "kubernetes.default.svc" is used.</dd>
  * <dt>KUBECTL_TOKEN</dt>
- * <dd>bearer token for k8s API.</dd>
+ * <dd>bearer token for k8s API. Optional, if empty, the content of
+ * "/var/run/secrets/kubernetes.io/serviceaccount/token" is used.</dd>
  * <dt>KUBECTL_NAMESPACE</dt>
- * <dd>namespace to select cluster pods. Optional, default is "default".</dd>
+ * <dd>namespace to select cluster pods. Optional, if missing or empty, the
+ * content of "/var/run/secrets/kubernetes.io/serviceaccount/namespace" is
+ * used".</dd>
  * </dl>
+ * 
+ * @see <a href=
+ *      "https://kubernetes.io/docs/tasks/run-application/access-api-from-pod/"
+ *      target="_blank">kubernetes.io - Accessing the Kubernetes API from a
+ *      Pod</a>
  * 
  * @since 3.0 (extracted from {@link K8sManagementDiscoverClient}.
  */
 public abstract class K8sManagementClient {
+
+	/**
+	 * Default hostname for pods accessing the kubectl API.
+	 */
+	private static final String KUBECTL_DEFAULT_HOST = "kubernetes.default.svc";
+	/**
+	 * Default service-account for pods accessing the kubectl API.
+	 */
+	private static final File KUBECTL_DEFAULT_SERVICE_ACCOUNT = new File(
+			"/var/run/secrets/kubernetes.io/serviceaccount");
+	/**
+	 * Default token for pods accessing the kubectl API.
+	 */
+	private static final File KUBECTL_DEFAULT_TOKEN_FILE = new File(KUBECTL_DEFAULT_SERVICE_ACCOUNT, "token");
+	/**
+	 * Default namespace for pods accessing the kubectl API.
+	 */
+	private static final File KUBECTL_DEFAULT_NAMESPACE = new File(KUBECTL_DEFAULT_SERVICE_ACCOUNT, "namespace");
+	/**
+	 * Default CA cert for pods accessing the kubectl API.
+	 */
+	private static final File KUBECTL_DEFAULT_CA_CERT_FILE = new File(KUBECTL_DEFAULT_SERVICE_ACCOUNT, "ca.crt");
 
 	private static final String K8S_API_VERSION = "v1";
 	private static final String KUBECTL_NODE_ID = "KUBECTL_NODE_ID";
@@ -139,18 +172,32 @@ public abstract class K8sManagementClient {
 		} else {
 			throw new IllegalArgumentException("node-id not available!");
 		}
-		this.hostUrl = StringUtil.getConfiguration(KUBECTL_HOST);
-		this.token = StringUtil.getConfiguration(KUBECTL_TOKEN);
-		this.namespace = StringUtil.getConfiguration(KUBECTL_NAMESPACE);
+		String kubectlHost = StringUtil.getConfiguration(KUBECTL_HOST);
+		if (kubectlHost == null || kubectlHost.isEmpty()) {
+			kubectlHost = KUBECTL_DEFAULT_HOST;
+		}
+		String namespace = StringUtil.getConfiguration(KUBECTL_NAMESPACE);
+		if (namespace == null || namespace.isEmpty()) {
+			namespace = StringUtil.readFile(KUBECTL_DEFAULT_NAMESPACE, namespace);
+		}
+		this.namespace = namespace;
+		this.hostUrl = "https://" + kubectlHost;
+		String token = StringUtil.getConfiguration(KUBECTL_TOKEN);
+		if (token != null && token.isEmpty()) {
+			// replace "empty" token by default.
+			// but keep null, if no token is provided
+			token = StringUtil.readFile(KUBECTL_DEFAULT_TOKEN_FILE, token);
+		}
+		this.token = token;
 		LOGGER.info("Node-ID: {}, host: {}, namespace: {}", nodeId, hostUrl, namespace);
-		if (token != null) {
+		if (token != null && !token.isEmpty()) {
 			int len = token.length();
 			int end = len > 20 ? 10 : len / 2;
 			LOGGER.info("bearer token {}... ({} bytes)", token.substring(0, end), len);
 		} else {
 			LOGGER.info("no bearer token!");
 		}
-		sslContext = CredentialsUtil.getK8sHttpsClientContext();
+		sslContext = CredentialsUtil.getK8sHttpsClientContext(KUBECTL_DEFAULT_CA_CERT_FILE);
 	}
 
 	/**
@@ -223,8 +270,17 @@ public abstract class K8sManagementClient {
 			if (content != null) {
 				// Get the response
 				Reader reader = new InputStreamReader(content);
+				if (result.getResponseCode() != HttpURLConnection.HTTP_OK) {
+					if (LOGGER.isInfoEnabled()) {
+						JsonElement element = JsonParser.parseReader(reader);
+						GsonBuilder builder = new GsonBuilder();
+						builder.setPrettyPrinting();
+						Gson gson = builder.create();
+						LOGGER.info("{}", gson.toJson(element));
+					}
+					throw new HttpResultException(url, result);
+				}
 				JsonElement element = JsonParser.parseReader(reader);
-
 				if (LOGGER.isDebugEnabled()) {
 					GsonBuilder builder = new GsonBuilder();
 					builder.setPrettyPrinting();
@@ -265,7 +321,7 @@ public abstract class K8sManagementClient {
 				}
 				LOGGER.debug("host: {}", hostName);
 			} else {
-				throw new HttpResultException(result);
+				throw new HttpResultException(url, result);
 			}
 		} finally {
 			result.close();

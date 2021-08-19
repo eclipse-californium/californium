@@ -18,6 +18,10 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.Inet6Address;
@@ -698,5 +702,28 @@ public class StringUtil {
 			return Boolean.valueOf(value);
 		}
 		return null;
+	}
+
+	/**
+	 * Read file.
+	 * 
+	 * @param file file to read
+	 * @param defaultText default text
+	 * @return text contained in file, or defaultText, if file could not be
+	 *         read.
+	 * @since 3.0
+	 */
+	public static String readFile(File file, String defaultText) {
+		String content = defaultText;
+		if (file.canRead()) {
+			try (FileReader reader = new FileReader(file)) {
+				BufferedReader lineReader = new BufferedReader(reader);
+				content = lineReader.readLine();
+				lineReader.close();
+			} catch (FileNotFoundException e) {
+			} catch (IOException e) {
+			}
+		}
+		return content;
 	}
 }

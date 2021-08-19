@@ -30,18 +30,37 @@ public class HttpResultException extends Exception {
 	private static final long serialVersionUID = 1L;
 
 	/**
+	 * Http url.
+	 * @since 3.0
+	 */
+	private final String url;
+
+	/**
 	 * Http result.
 	 */
-	private HttpResult result;
+	private final HttpResult result;
 
 	/**
 	 * Create http result exception.
 	 * 
+	 * @param url url
 	 * @param result http result
+	 * @since 3.0 (added parameter url)
 	 */
-	public HttpResultException(HttpResult result) {
-		super(result.toString());
+	public HttpResultException(String url, HttpResult result) {
+		super(url + ": " + result.toString());
+		this.url = url;
 		this.result = result;
+	}
+
+	/**
+	 * Get URL.
+	 * 
+	 * @return url.
+	 * @since 3.0
+	 */
+	public String getUrl() {
+		return url;
 	}
 
 	/**

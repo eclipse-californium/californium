@@ -135,6 +135,9 @@
 	<logger name="org.eclipse.californium.cluster.K8sMonitorJdkService" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.cluster.JdkHttpClient" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.cluster.RestoreHttpClient" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>

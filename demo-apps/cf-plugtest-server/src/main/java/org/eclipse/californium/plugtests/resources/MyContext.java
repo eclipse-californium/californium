@@ -52,13 +52,16 @@ public class MyContext extends CoapResource {
 
 	public static final String RESOURCE_NAME = "mycontext";
 
-	public MyContext(String name, boolean visible) {
+	private final String version;
+
+	public MyContext(String name, String version, boolean visible) {
 		super(name, visible);
 		getAttributes().setTitle("Communication Context");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_CBOR);
 		getAttributes().addContentType(APPLICATION_JSON);
 		getAttributes().addContentType(APPLICATION_XML);
+		this.version = version;
 	}
 
 	@Override
@@ -143,8 +146,8 @@ public class MyContext extends CoapResource {
 		if (via != null) {
 			formatter.add("via", via);
 		}
-		if (StringUtil.CALIFORNIUM_VERSION != null) {
-			formatter.add("server", "Cf " + StringUtil.CALIFORNIUM_VERSION);
+		if (version != null) {
+			formatter.add("server", "Cf " + version);
 		}
 		return formatter.getPayload();
 	}

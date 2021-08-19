@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.cluster.config.DtlsClusterManagerConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -36,6 +37,7 @@ import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
 import org.eclipse.californium.scandium.DtlsManagedClusterConnector;
@@ -104,9 +106,9 @@ public class DtlsClusterManager implements Readiness {
 	 */
 	private final int nodeId;
 	/**
-	 * Cluster manager configuration.
+	 * Configuration for cluster manager.
 	 */
-	private final DtlsClusterManagerConfig configuration;
+	private final Configuration configuration;
 
 	/**
 	 * Random for order of messages.
@@ -161,7 +163,7 @@ public class DtlsClusterManager implements Readiness {
 	 * @param nodes cluster nodes discoverer
 	 * @param timer timer executor service
 	 */
-	public DtlsClusterManager(DtlsManagedClusterConnector clusterConnector, DtlsClusterManagerConfig configuration,
+	public DtlsClusterManager(DtlsManagedClusterConnector clusterConnector, Configuration configuration,
 			ClusterNodesDiscover nodes, ScheduledExecutorService timer) {
 		this.clusterConnector = clusterConnector;
 		this.nodeId = clusterConnector.getNodeID();
@@ -204,14 +206,13 @@ public class DtlsClusterManager implements Readiness {
 	/**
 	 * Start cluster manager.
 	 * 
-	 * Schedule timer with
-	 * {@link DtlsClusterManagerConfig#getTimerIntervalMillis()}.
+	 * Schedule timer with {@link DtlsClusterManagerConfig#TIMER_INTERVAL}.
 	 */
 	public synchronized void start() {
 		if (schedule != null) {
 			return;
 		}
-		long intervalMillis = configuration.getTimerIntervalMillis();
+		long intervalMillis = configuration.get(DtlsClusterManagerConfig.TIMER_INTERVAL, TimeUnit.MILLISECONDS);
 		long initialDelay = Math.min(intervalMillis / 2, 100);
 		schedule = timer.scheduleWithFixedDelay(new Runnable() {
 
@@ -488,7 +489,7 @@ public class DtlsClusterManager implements Readiness {
 					if (discover && clusterManagementConnector.isRunning()) {
 						discover(clusterManagementConnector);
 						nextDiscover = ClockUtil.nanoRealtime()
-								+ TimeUnit.MILLISECONDS.toNanos(configuration.getDiscoverIntervalMillis());
+								+ configuration.get(DtlsClusterManagerConfig.DISCOVER_INTERVAL, TimeUnit.NANOSECONDS);
 					}
 				}
 			}
@@ -537,9 +538,9 @@ public class DtlsClusterManager implements Readiness {
 		 */
 		private boolean refresh(long now, Connector clusterManagementConnector) {
 			boolean expired = false;
-			long freshTimeNanos = now - TimeUnit.MILLISECONDS.toNanos(configuration.getRefreshIntervalMillis());
+			long freshTimeNanos = now - configuration.get(DtlsClusterManagerConfig.REFRESH_INTERVAL, TimeUnit.NANOSECONDS);
 			long expireTimeNanos = freshTimeNanos
-					- TimeUnit.MILLISECONDS.toNanos(configuration.getExpirationTimeMillis());
+					- configuration.get(DtlsClusterManagerConfig.EXPIRATION_TIME, TimeUnit.NANOSECONDS);
 			List<Node> nodes = new ArrayList<>();
 			for (Node node : nodesById.values()) {
 				if (node.nodeId == nodeId) {

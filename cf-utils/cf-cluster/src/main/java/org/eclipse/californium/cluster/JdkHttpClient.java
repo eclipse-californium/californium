@@ -77,11 +77,7 @@ public class JdkHttpClient {
 			}
 			LOGGER.info("Sending 'GET' request to URL : {}", url);
 			LOGGER.info("Response Code : {} - {}", responseCode, responseMessage);
-			if (responseCode == HttpURLConnection.HTTP_OK) {
-				return new HttpResult(responseCode, responseMessage, peerPrincipal, con.getInputStream());
-			} else {
-				return new HttpResult(responseCode, responseMessage, peerPrincipal, null);
-			}
+			return new HttpResult(responseCode, responseMessage, peerPrincipal, con.getInputStream());
 		} catch (RuntimeException ex) {
 			LOGGER.info("Sending 'GET' request to URL : {} failed!", url, ex);
 			return new HttpResult(0, ex.getMessage(), null, null);
