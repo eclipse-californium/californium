@@ -24,14 +24,14 @@ Each node also uses the `DtlsClusterManager.ClusterNodesDiscover` to discover po
 
 The `refresh`, `discover` and `expiration` is executed by a timer (default interval 2s).
 
-## k8s Discover Client
+## k8s API Client - Discover and Read Pod's Metadata
 
-The `K8sManagementDiscoverJdkClient` implements `DtlsClusterManager.ClusterNodesDiscover` using the k8s REST API to discover the current Californium pods based on labels. See the javadoc there for more details.
+The `K8sManagementDiscoverJdkClient` implements `DtlsClusterManager.ClusterNodesDiscover` using the k8s REST API to discover the current Californium pods based on labels. The client requires therefore the permission to list and get pods. If no other trusted CA certificate is provided as "https_k8s_client_trust.pem", the trust CA of the service account is used. Also, if a empty token is provided, the token of that service account is used as default.
+If RBAC is activated in the k8s installation, the client requires the permissions to get and list pods. Therefore [rbac](../../demo-apps/cf-extplugtest-server/service/k8s_rbac.yaml) is applied to grant these rights to the service account.
+
+See the javadoc there for more details.
 
 The k8s demonstration setup uses a [statefulset](../../demo-apps/cf-extplugtest-server/service/k8sa.yaml) and each pod discovers the other pods using the k8s label "controller-revision-hash".
-
-**Note:**
-> Currently the demonstration setup is used with a single k8s-node only! Multiple pod replicas are then used to demonstrate the Californium's functionality.
 
 ## k8s Blue/Green Update With DTLS Graceful Restart
 
@@ -42,6 +42,7 @@ That enables a implementation of a blue-green update without losing the DTLS sta
 To implement a blue/green update with k8s, following k8s demonstration setup is used:
 
 - [service](../../demo-apps/cf-extplugtest-server/service/k8s.yaml)
+- [rbac](../../demo-apps/cf-extplugtest-server/service/k8s_rbac.yaml)
 - [statefulset a](../../demo-apps/cf-extplugtest-server/service/k8sa.yaml)
 - [statefulset b](../../demo-apps/cf-extplugtest-server/service/k8sb.yaml) same as `a`, but with different name.
 
@@ -65,10 +66,10 @@ The update process uses the following steps:
 - the new pods starts to report "ready", when they finished to restore the downloaded dtls states. That also starts the headless service to forward messages to the new pod.
 - when all new pods are "ready", then the old statefulset is deleted.
 
-The `cf-extplugtest-server` contains a [script](../../demo-apps/cf-extplugtest-server/service/deploy_microk8s.sh) for that approach.
+The `cf-extplugtest-server` contains a [script](../../demo-apps/cf-extplugtest-server/service/deploy_k8s.sh) for that approach.
 
 ```sh
-service/deploy_microk8s.sh update0
+service/deploy_k8s.sh update0
 
 ... docker ...
 

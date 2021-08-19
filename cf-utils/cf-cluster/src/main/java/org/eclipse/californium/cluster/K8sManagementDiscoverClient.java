@@ -62,7 +62,7 @@ public abstract class K8sManagementDiscoverClient extends K8sManagementClient im
 	private static final String KUBECTL_SELECTOR_LABEL = "KUBECTL_SELECTOR_LABEL";
 	private static final String DTLS_CID_MGMT_IDENTITY = "DTLS_CID_MGMT_IDENTITY";
 	private static final String DTLS_CID_MGMT_SECRET_BASE64 = "DTLS_CID_MGMT_SECRET_BASE64";
-	private static final String INITIAL_CLUSTERNODES_LABEL = "initialClusterNodes";
+	private static final String INITIAL_CLUSTERNODES_LABEL = "initialDtlsClusterNodes";
 
 	/**
 	 * External (exposed) ports for cluster internal management interfaces.

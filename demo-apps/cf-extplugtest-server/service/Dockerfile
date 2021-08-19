@@ -17,8 +17,8 @@
 FROM docker.io/openjdk:11-jre-slim
 
 RUN mkdir /opt/app
-COPY ./CaliforniumReceivetest.properties ./target/cf-extplugtest-server-3.0.0-SNAPSHOT.jar /opt/app/
-#COPY ./CaliforniumPlugtest.properties /opt/app
+COPY ./service/build ./CaliforniumReceivetest3.properties ./target/cf-extplugtest-server-3.0.0-SNAPSHOT.jar /opt/app/
+#COPY ./CaliforniumPlugtest3.properties /opt/app
 
 #EXPOSE 5683/udp
 #EXPOSE 5683/tcp
@@ -32,4 +32,5 @@ EXPOSE 5884/udp
 EXPOSE 5884/tcp
 EXPOSE 8080/tcp
 
-CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "/opt/app/cf-extplugtest-server-3.0.0-SNAPSHOT.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884", "--k8s-monitor", ":8080", "--k8s-restore", ":5884"]
+WORKDIR /opt/app
+CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "./cf-extplugtest-server-3.0.0-SNAPSHOT.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884", "--k8s-monitor", ":8080", "--k8s-restore", ":5884"]

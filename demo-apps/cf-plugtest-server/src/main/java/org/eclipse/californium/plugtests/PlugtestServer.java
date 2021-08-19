@@ -686,6 +686,6 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new Hono("telemetry"));
 		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, false));
-		add(new MyContext(MyContext.RESOURCE_NAME, false));
+		add(new MyContext(MyContext.RESOURCE_NAME, StringUtil.CALIFORNIUM_VERSION, false));
 	}
 }

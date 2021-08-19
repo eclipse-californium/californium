@@ -90,20 +90,24 @@ public class CredentialsUtil {
 	/**
 	 * Create ssl context for k8s management api https clients.
 	 * 
+	 * @param defaultTrust default trusted certificate. May be {@code null}
 	 * @return ssl context for k8s management api https clients.
 	 */
-	public static SSLContext getK8sHttpsClientContext() {
+	public static SSLContext getK8sHttpsClientContext(File defaultTrust) {
 		try {
 			String trusts = null;
 			File file = new File("/etc/certs/https_k8s_client_trust.pem");
 			if (file.exists()) {
-				trusts = "file:///etc/certs/https_k8s_client_trust.pem";
+				trusts = "file://" + file.getAbsolutePath();
+			} else if (defaultTrust != null && defaultTrust.exists()) {
+				trusts = "file://" + defaultTrust.getAbsolutePath();
 			}
+			LOGGER.info("https-k8s-client load's trusts from {}.", trusts);
 			return CredentialsUtil.getSslContext(null, trusts, false);
 		} catch (GeneralSecurityException e) {
-			LOGGER.warn("https-client:", e);
+			LOGGER.warn("https-k8s-client:", e);
 		} catch (IOException e) {
-			LOGGER.warn("https-client:", e);
+			LOGGER.warn("https-k8s-client:", e);
 		}
 		return null;
 	}
