@@ -52,6 +52,7 @@ public class ConfigurationTest {
 	private static final IntegerDefinition INT0 = new IntegerDefinition(MODULE + "INT0", "TEST", 0);
 	private static final BooleanDefinition BOOL = new BooleanDefinition(MODULE + "BOOL", "TEST");
 	private static final BooleanDefinition BOOL0 = new BooleanDefinition(MODULE + "BOOL0", "TEST", false);
+	private static final BooleanDefinition BOOL1 = new BooleanDefinition(MODULE + "BOOL1", "TEST", true);
 
 	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
@@ -61,6 +62,7 @@ public class ConfigurationTest {
 			config.set(INT0, null);
 			config.set(BOOL, true);
 			config.set(BOOL0, null);
+			config.set(BOOL1, null);
 		}
 	};
 
@@ -137,6 +139,19 @@ public class ConfigurationTest {
 		assertThat(configuration.get(BOOL0), is(false));
 		configuration.set(BOOL0, null);
 		assertThat(configuration.get(BOOL0), is(false));
+		configuration.set(BOOL1, true);
+		assertThat(configuration.get(BOOL1), is(true));
+		configuration.set(BOOL1, false);
+		assertThat(configuration.get(BOOL1), is(false));
+		configuration.set(BOOL1, null);
+		assertThat(configuration.get(BOOL1), is(true));
+	}
+
+	@Test
+	public void testConfigurationUnknownBoolean() {
+		Configuration configuration = Configuration.createStandardWithoutFile();
+		BooleanDefinition BOOL_DEF = new BooleanDefinition(MODULE + "BOOL_DEF", "TEST", true);
+		assertThat(configuration.get(BOOL_DEF), is(true));
 	}
 
 	@Test

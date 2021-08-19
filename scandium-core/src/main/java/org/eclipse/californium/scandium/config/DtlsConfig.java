@@ -807,6 +807,7 @@ public final class DtlsConfig {
 				config.set(DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, true);
 				config.set(DTLS_USE_ANTI_REPLAY_FILTER, true);
 				config.set(DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER, 0);
+				config.set(DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS, true);
 				config.set(DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH, true);
 				config.set(DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION, true);
 				config.set(DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, true);
