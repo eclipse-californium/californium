@@ -124,8 +124,8 @@ public class Nat {
 				if (line.equals("exit") || line.equals("quit")) {
 					util.stop();
 					break;
-				} else if (line.equals("help")) {
-					System.out.println("help - print this help");
+				} else if (line.equals("help") || line.equals("?")) {
+					System.out.println("help or ? - print this help");
 					System.out.println("info or <empty line> - list number of NAT entries and destinations");
 					System.out.println("exit or quit - stop and exit");
 					System.out.println("clear [n] - drop all NAT entries, or drop n NAT entries");
