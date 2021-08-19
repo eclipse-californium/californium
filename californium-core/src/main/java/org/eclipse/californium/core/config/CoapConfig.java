@@ -64,7 +64,12 @@ public final class CoapConfig {
 		/**
 		 * Principal based matching. Requires unique principals.
 		 */
-		PRINCIPAL
+		PRINCIPAL,
+		/**
+		 * Principal based matching using the principal also as identity.
+		 * Requires unique principals.
+		 */
+		PRINCIPAL_IDENTITY,
 	}
 
 	/**

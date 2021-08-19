@@ -84,9 +84,15 @@ public class EndpointContextMatcherFactory {
 			}
 		case PRINCIPAL:
 			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
-				return new UdpEndpointContextMatcher(false);
+				return new UdpEndpointContextMatcher(true);
 			} else {
 				return new PrincipalEndpointContextMatcher();
+			}
+		case PRINCIPAL_IDENTITY:
+			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
+				return new UdpEndpointContextMatcher(true);
+			} else {
+				return new PrincipalEndpointContextMatcher(true);
 			}
 		case STRICT:
 		default:
