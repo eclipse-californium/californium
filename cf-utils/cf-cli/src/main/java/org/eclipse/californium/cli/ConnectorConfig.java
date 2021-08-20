@@ -312,11 +312,11 @@ public class ConnectorConfig implements Cloneable {
 		 * @since 3.0
 		 */
 		public byte[] toKey() {
-			if (text != null) {
+			if (text != null && text.length() > 0) {
 				return text.getBytes();
-			} else if (hex != null) {
+			} else if (hex != null && hex.length() > 0) {
 				return StringUtil.hex2ByteArray(hex);
-			} else if (base64 != null) {
+			} else if (base64 != null && base64.length() > 0) {
 				return StringUtil.base64ToByteArray(base64);
 			} else {
 				return null;
