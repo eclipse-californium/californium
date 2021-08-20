@@ -35,7 +35,7 @@ public final class UdpConfig {
 	 * Number of receiver threads for {@link UDPConnector}.
 	 */
 	public static final IntegerDefinition UDP_RECEIVER_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "RECEIVER_THREAD_COUNT", "Number of UDP receiver threads.", 1, 1);
+			MODULE + "RECEIVER_THREAD_COUNT", "Number of UDP receiver threads.", 1, 0);
 	/**
 	 * Number of sender threads for {@link UDPConnector}.
 	 */

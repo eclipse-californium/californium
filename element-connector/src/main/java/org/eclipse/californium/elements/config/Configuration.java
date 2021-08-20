@@ -131,22 +131,23 @@ public final class Configuration {
 	private Map<String, Object> values = new HashMap<>();
 
 	/**
-	 * Value parsing exception.
+	 * Value exception.
 	 * 
 	 * Message contains the value and details about the failure.
 	 * 
 	 * @see DocumentedDefinition#parseValue(String)
+	 * @see DocumentedDefinition#checkValue(Object)
 	 */
-	private static class ValueParsingException extends IllegalArgumentException {
+	public static class ValueException extends Exception {
 
 		private static final long serialVersionUID = 3254131344341974160L;
 
 		/**
-		 * Create parsing exception with details description.
+		 * Create value exception with details description.
 		 * 
 		 * @param description message with value and details description
 		 */
-		private ValueParsingException(String description) {
+		public ValueException(String description) {
 			super(description);
 		}
 	}
@@ -264,10 +265,10 @@ public final class Configuration {
 				return checkValue(result);
 			} catch (NumberFormatException e) {
 				LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
-			} catch (ValueParsingException e) {
+			} catch (ValueException e) {
 				LOGGER.warn("Key '{}': {}", getKey(), e.getMessage());
 			} catch (IllegalArgumentException e) {
-				LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
+				LOGGER.warn("Key '{}': value '{}' {}", getKey(), value, e.getMessage());
 			}
 			return null;
 		}
@@ -277,10 +278,10 @@ public final class Configuration {
 		 * 
 		 * @param value value to check
 		 * @return the provided value
-		 * @throws IllegalArgumentException if the value is not valid, e.g. out
+		 * @throws ValueException if the value is not valid, e.g. out
 		 *             of the intended range.
 		 */
-		public T checkValue(T value) {
+		public T checkValue(T value) throws ValueException {
 			return value;
 		}
 
@@ -302,10 +303,10 @@ public final class Configuration {
 		 * @return value as type
 		 * @throws NullPointerException if value is {@code null}.
 		 * @throws IllegalArgumentException if the textual value doesn't fit.
-		 * @throws ValueParsingException if the textual value doesn't fit and
+		 * @throws ValueException if the textual value doesn't fit and
 		 *             details of the failure are available.
 		 */
-		protected abstract T parseValue(String value);
+		protected abstract T parseValue(String value) throws ValueException;
 
 		/**
 		 * {@code true} to trim the textual value before passing it to
@@ -555,13 +556,13 @@ public final class Configuration {
 		}
 
 		@Override
-		protected String parseValue(String value) {
+		protected String parseValue(String value) throws ValueException {
 			for (String in : values) {
 				if (in.equals(value)) {
 					return value;
 				}
 			}
-			throw new ValueParsingException(value + " is not in " + valuesDocumentation);
+			throw new ValueException(value + " is not in " + valuesDocumentation);
 		}
 	}
 
@@ -674,7 +675,7 @@ public final class Configuration {
 		}
 
 		@Override
-		protected E parseValue(String value) {
+		protected E parseValue(String value) throws ValueException {
 			return parse(valuesDocumentation, value, values);
 		}
 	}
@@ -765,7 +766,7 @@ public final class Configuration {
 		}
 
 		@Override
-		protected List<E> parseValue(String value) {
+		protected List<E> parseValue(String value) throws ValueException {
 			String[] list = value.split(",");
 			List<E> result = new ArrayList<>(list.length);
 			for (String in : list) {
@@ -889,9 +890,9 @@ public final class Configuration {
 		}
 
 		@Override
-		public Integer checkValue(Integer value) {
+		public Integer checkValue(Integer value) throws ValueException {
 			if (minimumValue != null && value != null && value < minimumValue) {
-				throw new IllegalArgumentException("Value " + value + " must be not less than " + minimumValue + "!");
+				throw new ValueException ("Value " + value + " must be not less than " + minimumValue + "!");
 			}
 			return value;
 		}
@@ -970,9 +971,9 @@ public final class Configuration {
 		}
 
 		@Override
-		public Long checkValue(Long value) {
+		public Long checkValue(Long value) throws ValueException {
 			if (minimumValue != null && value != null && value < minimumValue) {
-				throw new IllegalArgumentException("Value " + value + " must be not less than " + minimumValue + "!");
+				throw new ValueException("Value " + value + " must be not less than " + minimumValue + "!");
 			}
 			return value;
 		}
@@ -1052,9 +1053,9 @@ public final class Configuration {
 		}
 
 		@Override
-		public Float checkValue(Float value) {
+		public Float checkValue(Float value) throws ValueException {
 			if (minimumValue != null && value != null && value < minimumValue) {
-				throw new IllegalArgumentException("Value " + value + " must be not less than " + minimumValue + "!");
+				throw new ValueException("Value " + value + " must be not less than " + minimumValue + "!");
 			}
 			return value;
 		}
@@ -1133,9 +1134,9 @@ public final class Configuration {
 		}
 
 		@Override
-		public Double checkValue(Double value) {
+		public Double checkValue(Double value) throws ValueException {
 			if (minimumValue != null && value != null && value < minimumValue) {
-				throw new IllegalArgumentException("Value " + value + " must be not less than " + minimumValue + "!");
+				throw new ValueException("Value " + value + " must be not less than " + minimumValue + "!");
 			}
 			return value;
 		}
@@ -1226,9 +1227,9 @@ public final class Configuration {
 		}
 
 		@Override
-		public Long checkValue(Long value) {
+		public Long checkValue(Long value) throws ValueException {
 			if (value != null && value < 0) {
-				throw new IllegalArgumentException("Time " + value + " must be not less than 0!");
+				throw new ValueException("Time " + value + " must be not less than 0!");
 			}
 			return value;
 		}
@@ -1239,7 +1240,7 @@ public final class Configuration {
 		}
 
 		@Override
-		protected Long parseValue(String value) {
+		protected Long parseValue(String value) throws ValueException {
 			TimeUnit valueUnit = TimeUnit.MILLISECONDS;
 			String num = value;
 			int pos = value.indexOf('[');
@@ -1250,10 +1251,10 @@ public final class Configuration {
 					String textUnit = value.substring(pos + 1, end).trim();
 					valueUnit = getTimeUnit(textUnit);
 					if (valueUnit == null) {
-						throw new IllegalArgumentException(textUnit + " unknown unit!");
+						throw new ValueException(textUnit + " unknown unit!");
 					}
 				} else {
-					throw new IllegalArgumentException(value + " doesn't match value[unit]!");
+					throw new ValueException(value + " doesn't match value[unit]!");
 				}
 			} else {
 				char last = value.charAt(value.length() - 1);
@@ -1394,13 +1395,13 @@ public final class Configuration {
 	}
 
 	private static <E extends Enum<?>> E parse(String valuesDocumentation, String text,
-			@SuppressWarnings("unchecked") E... values) {
+			@SuppressWarnings("unchecked") E... values) throws ValueException {
 		for (E in : values) {
 			if (in.name().equals(text)) {
 				return in;
 			}
 		}
-		throw new ValueParsingException(text + " is not in " + valuesDocumentation);
+		throw new ValueException(text + " is not in " + valuesDocumentation);
 	}
 
 	/**
@@ -2094,6 +2095,11 @@ public final class Configuration {
 		if (value != null && !definition.isAssignableFrom(value)) {
 			throw new IllegalArgumentException(
 					value.getClass().getSimpleName() + " is not a " + definition.getTypeName());
+		}
+		try { 
+			definition.checkValue(value);
+		} catch (ValueException ex) {
+			throw new IllegalArgumentException(ex.getMessage());
 		}
 		values.put(definition.getKey(), value);
 	}

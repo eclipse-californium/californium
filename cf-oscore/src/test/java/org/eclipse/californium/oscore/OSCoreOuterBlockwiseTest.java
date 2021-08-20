@@ -393,8 +393,6 @@ public class OSCoreOuterBlockwiseTest {
 	 */
 	@Test
 	public void testOuterBlockwiseExceedMaxUnfragmentedSizeProxyServerBW() throws Exception {
-		Configuration config = network.createTestConfig();
-		config.set(CoapConfig.MAX_RETRANSMIT, 0); // Don't retransmit
 
 		startupServer(false);
 		startupProxy(true, false);
@@ -412,6 +410,7 @@ public class OSCoreOuterBlockwiseTest {
 
 		String payload = createRandomPayload(DEFAULT_BLOCK_SIZE * 4);
 		Request request = Request.newPut().setURI(proxyUri);
+		request.setConfirmable(false);
 		request.getOptions().setProxyUri(serverUri);
 		if (USE_OSCORE) {
 			request.getOptions().setOscore(Bytes.EMPTY);
@@ -445,8 +444,6 @@ public class OSCoreOuterBlockwiseTest {
 	 */
 	@Test
 	public void testOuterBlockwiseExceedMaxUnfragmentedSizeProxyClientBW() throws Exception {
-		Configuration config = network.createTestConfig();
-		config.set(CoapConfig.MAX_RETRANSMIT, 0); // Don't retransmit
 
 		startupServer(false);
 		startupProxy(false, true);
@@ -464,6 +461,7 @@ public class OSCoreOuterBlockwiseTest {
 		CoapEndpoint clientEndpoint = builder.build();
 
 		Request request = Request.newGet().setURI(proxyUri);
+		request.setConfirmable(false);
 		request.getOptions().setProxyUri(serverUri);
 		if (USE_OSCORE) {
 			request.getOptions().setOscore(Bytes.EMPTY);

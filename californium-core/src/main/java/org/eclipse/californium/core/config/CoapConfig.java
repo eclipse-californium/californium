@@ -466,7 +466,7 @@ public final class CoapConfig {
 	 * network's MTU if UDP is used as the transport protocol.
 	 */
 	public static final IntegerDefinition MAX_MESSAGE_SIZE = new IntegerDefinition(MODULE + "MAX_MESSAGE_SIZE",
-			"Maximum payload size.", DEFAULT_MAX_MESSAGE_SIZE, 64);
+			"Maximum payload size.", DEFAULT_MAX_MESSAGE_SIZE, 16);
 	/**
 	 * The maximum size of a resource body (in bytes) that will be accepted as
 	 * the payload of a POST/PUT or the response to a GET request in a
@@ -609,7 +609,7 @@ public final class CoapConfig {
 	 * Number of threads to process coap-exchanges.
 	 */
 	public static final IntegerDefinition PROTOCOL_STAGE_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "PROTOCOL_STAGE_THREAD_COUNT", "Protocol stage thread count.", 1, 1);
+			MODULE + "PROTOCOL_STAGE_THREAD_COUNT", "Protocol stage thread count.", 1, 0);
 
 	/**
 	 * Deduplicator algorithm.
@@ -635,7 +635,7 @@ public final class CoapConfig {
 	public static final IntegerDefinition PEERS_MARK_AND_SWEEP_MESSAGES = new IntegerDefinition(
 			MODULE + "PEERS_MARK_AND_SWEEP_MESSAGES",
 			"Maximum messages kept per peer for " + DEDUPLICATOR_PEERS_MARK_AND_SWEEP + ".",
-			DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES, 8);
+			DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES, 4);
 	/**
 	 * The interval after which the next crop run should occur.
 	 * 

@@ -33,7 +33,7 @@ public final class SystemConfig {
 	 * Default health status interval. {@code 0} for disabled.
 	 */
 	public static final TimeDefinition HEALTH_STATUS_INTERVAL = new TimeDefinition(
-			MODULE + "HEALTH_STATUS_INTERVAL", "Health status interval. 0 to disable health status.", 0,
+			MODULE + "HEALTH_STATUS_INTERVAL", "Health status interval. 0 to disable the health status.", 0,
 			TimeUnit.SECONDS);
 
 	static {

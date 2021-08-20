@@ -67,7 +67,7 @@ public class ConfigurationTest {
 	};
 
 	private static final String MODULE2 = "TEST2.";
-	private static final IntegerDefinition INT2 = new IntegerDefinition(MODULE2 + "INT2", "TEST");
+	private static final IntegerDefinition INT2 = new IntegerDefinition(MODULE2 + "INT2", "TEST", null, 1);
 	private static final StringDefinition STRING = new StringDefinition(MODULE2 + "STRING", "TEST");
 
 	private static final DefinitionsProvider DEFAULTS2 = new DefinitionsProvider() {
@@ -152,6 +152,12 @@ public class ConfigurationTest {
 		Configuration configuration = Configuration.createStandardWithoutFile();
 		BooleanDefinition BOOL_DEF = new BooleanDefinition(MODULE + "BOOL_DEF", "TEST", true);
 		assertThat(configuration.get(BOOL_DEF), is(true));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testConfigurationInvalidInteger() {
+		Configuration configuration = Configuration.createStandardWithoutFile();
+		configuration.set(INT2, 0);
 	}
 
 	@Test
