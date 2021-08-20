@@ -83,7 +83,7 @@ public final class TcpConfig {
 	 * TLS client authentication mode.
 	 */
 	public static final EnumDefinition<CertificateAuthenticationMode> TLS_CLIENT_AUTHENTICATION_MODE = new EnumDefinition<>(
-			MODULE + "CLIENT_AUTHENTICATION_MODE", "TLS client authentication mode",
+			MODULE + "CLIENT_AUTHENTICATION_MODE", "TLS client authentication mode.",
 			CertificateAuthenticationMode.WANTED, CertificateAuthenticationMode.values());
 
 	static {

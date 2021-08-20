@@ -31,6 +31,7 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -54,6 +55,9 @@ public class MapBasedMessageIdTrackerTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedExceptionWrapper.none();
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	private static final int INITIAL_MID = 0;
 
@@ -130,9 +134,9 @@ public class MapBasedMessageIdTrackerTest {
 	}
 
 	public void assertMessageIdRangeRollover(int min, int max) throws Exception {
-		// GIVEN a tracker with an EXCHANGE_LIFETIME of -1 (MID always expired)
+		// GIVEN a tracker with an EXCHANGE_LIFETIME of 0 (MID always expired)
 		Configuration config = network.createStandardTestConfig();
-		config.set(CoapConfig.EXCHANGE_LIFETIME, -1, TimeUnit.MILLISECONDS);
+		config.set(CoapConfig.EXCHANGE_LIFETIME, 0, TimeUnit.MILLISECONDS);
 		final int range = max - min;
 		final MapBasedMessageIdTracker tracker = new MapBasedMessageIdTracker(INITIAL_MID + min, min, max, config);
 		final String msg = "not next mid in range[" + min + "..." + max + ") for ";
@@ -155,6 +159,7 @@ public class MapBasedMessageIdTrackerTest {
 				maxMid = nextMid;
 			}
 			lastMid = nextMid;
+			time.addTestTimeShift(1, TimeUnit.MILLISECONDS);
 		}
 		assertThat("minimun not reached", minMid, is(min));
 		assertThat("maximun not reached", maxMid, is(max - 1));

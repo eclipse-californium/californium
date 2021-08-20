@@ -250,7 +250,7 @@ public final class DtlsConfig {
 	 * as first byte in generated connection ids.
 	 */
 	public static final IntegerDefinition DTLS_CONNECTION_ID_NODE_ID = new IntegerDefinition(
-			MODULE + "CONNECTION_ID_NODE_ID", "DTLS node ID used for connection ID. <blank> not used.", null, 0);
+			MODULE + "CONNECTION_ID_NODE_ID", "DTLS cluster-node ID used for connection ID. <blank> not used.", null, 0);
 
 	/**
 	 * Specify the initial DTLS retransmission timeout.
@@ -506,7 +506,7 @@ public final class DtlsConfig {
 	 * {@link #DTLS_CONNECTOR_THREAD_COUNT}.
 	 */
 	public static final IntegerDefinition DTLS_RECEIVER_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "RECEIVER_THREAD_COUNT", "Number of DTLS receiver threads.", 1, 1);
+			MODULE + "RECEIVER_THREAD_COUNT", "Number of DTLS receiver threads.", 1, 0);
 	/**
 	 * Specify the number of connector threads used by a {@link DTLSConnector}.
 	 * The connector threads are responsible for the most cryptographic
