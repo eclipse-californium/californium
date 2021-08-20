@@ -36,13 +36,14 @@ Type=simple
 TasksMax=256
 User=cali
 WorkingDirectory=/home/cali
-Environment="JAR=/home/cali/cf-plugtest-server-2.6.3.jar"
-Environment="ARGS=-noloopback"
-# Adapt the java heap configuration "-Xmx1600m" according your environment! 
+Environment="JAR=cf-extplugtest-server.jar"
+Environment="ARGS=--no-loopback --store-file=connections.bin --store-max-age=24 --store-password64=TDNLOmJTWi13JUs/YGdvNA=="
 Environment="OPTS=-XX:+UseG1GC -Xmx1600m -Dlogback.configurationFile=./logback.xml"
+ExecStartPre=/bin/cp -u cf-extplugtest-server-update.jar cf-extplugtest-server.jar
 ExecStart=/usr/bin/java $OPTS -jar ${JAR} $ARGS
 RestartSec=10
 Restart=always
+OOMPolicy=stop
 
 [Install]
 WantedBy=multi-user.target
