@@ -24,6 +24,17 @@
 #
 # to see the number of threads
 #
+# In order to update the service, cp the new .jar to
+# /home/cali/cf-extplugtest-server-update.jar
+#
+# on 
+#  systemctl restart cali
+#
+# that file is copied to cf-extplugtest-server.jar and executed.
+# If cf-extplugtest-server.jar is updated inplace when running,
+# that my cause unintended exceptions, which prevents Californium 
+# from successfully gracefull-restart of the dtls state. 
+# 
 
 [Unit]
 Description=Californium Test Server
