@@ -42,6 +42,7 @@ public class DecryptorTest {
 	private final static byte[] sid = new byte[] { 0x01 };
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	private static OSCoreCtx ctx = null;
 
@@ -58,7 +59,7 @@ public class DecryptorTest {
 	@Test
 	public void testRequestDecryptor() throws OSException {
 		//Set up OSCORE context
-		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, null, null);
+		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, null, null, MAX_UNFRAGMENTED_SIZE);
 		
 		OSCoreCtxDB db = new HashMapCtxDB();
 		db.addContext(ctx);
@@ -108,7 +109,7 @@ public class DecryptorTest {
 		byte[] rid = new byte[] { 0x01 };
 		int seq = 20;
 		
-		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 
 		//Create the encrypted response message from raw byte array
 		byte[] encryptedResponseBytes = new byte[] { 0x64, 0x44, 0x5d, 0x1f, 0x00, 0x00, 0x39, 0x74,

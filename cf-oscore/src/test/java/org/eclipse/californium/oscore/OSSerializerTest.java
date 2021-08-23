@@ -50,6 +50,7 @@ public class OSSerializerTest {
 	private final static int version = CoAP.VERSION;
 	private final static int seq = 1;
 	private final static byte[] partialIV = new byte[] { 0x01 };
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	private static OSCoreCtx ctx = null;
 
@@ -58,7 +59,7 @@ public class OSSerializerTest {
 
 	@Before
 	public void setUp() throws Exception {
-		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 	}
 
 	@After

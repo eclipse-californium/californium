@@ -71,7 +71,7 @@ import com.upokecenter.cbor.CBORObject;
 public class ContextRederivationTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
-	
+
 	private CoapServer server;
 	private Endpoint serverEndpoint;
 
@@ -91,6 +91,7 @@ public class ContextRederivationTest {
 	private final static byte[] sid = new byte[0];
 	private final static byte[] rid = new byte[] { 0x01 };
 	private final static byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	private static int SEGMENT_LENGTH = ContextRederivation.SEGMENT_LENGTH;
 
@@ -137,7 +138,7 @@ public class ContextRederivationTest {
 		// procedure. (But perform the procedure if the client initiates.)
 		createServer(false);
 
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 		String serverUri = serverEndpoint.getUri().toASCIIString();
 
 		// Enable context re-derivation functionality (in general)
@@ -224,7 +225,7 @@ public class ContextRederivationTest {
 		// reception of a request)
 		createServer(true);
 
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		// Enable context re-derivation functionality (for client)
 		ctx.setContextRederivationEnabled(true);
 		String serverUri = serverEndpoint.getUri().toASCIIString();
@@ -355,7 +356,7 @@ public class ContextRederivationTest {
 		//Set up OSCORE context information for response (server)
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, contextId);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, contextId, MAX_UNFRAGMENTED_SIZE);
 		String clientUri = "coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostAddress();
 
 		// Enable context re-derivation functionality in general

@@ -47,6 +47,7 @@ public class OSCoreCtxTest {
 	private final byte[] sid2 = new byte[] { 0x00 };
 	private final AlgorithmID cipher = AlgorithmID.AES_CCM_16_64_128;
 	private final AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	@Rule
 	public final ExpectedException exception = ExpectedExceptionWrapper.none();
@@ -63,7 +64,7 @@ public class OSCoreCtxTest {
 	public void testMinimal() throws OSException {
 		new OSCoreCtx(master_secret, true);
 		new OSCoreCtx(master_secret, false);
-		new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, null, null);
+		new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, null, null, MAX_UNFRAGMENTED_SIZE);
 	}
 
 	@Test
@@ -74,7 +75,7 @@ public class OSCoreCtxTest {
 
 	@Test
 	public void testInitVariables() throws OSException {
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, null, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, null, null, MAX_UNFRAGMENTED_SIZE);
 
 		assertEquals(this.cipher, ctx.getAlg());
 		assertEquals(this.kdf, ctx.getKdf());
@@ -95,7 +96,7 @@ public class OSCoreCtxTest {
 	@Test
 	public void testSenderKey() throws OSException {
 		//Test without salt
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, cipher, sid2, rid, kdf, 32, null, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, cipher, sid2, rid, kdf, 32, null, null, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedSenderKey = { 0x32, 0x1b, 0x26, (byte) 0x94, 0x32, 0x53, (byte) 0xc7, (byte) 0xff,
 				(byte) 0xb6, 0x00, 0x3b, 0x0b, 0x64, (byte) 0xd7, 0x40, 0x41 };		
@@ -103,7 +104,7 @@ public class OSCoreCtxTest {
 		assertArrayEquals(predictedSenderKey, ctx.getSenderKey());
 		
 		//Test with salt
-		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, null);
+		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedSenderKeySalt = { (byte) 0xf0, (byte) 0x91, 0x0e, (byte) 0xd7, 0x29, 0x5e, 0x6a, (byte) 0xd4,
 				(byte) 0xb5, 0x4f, (byte) 0xc7, (byte) 0x93, 0x15, 0x43, 0x02, (byte) 0xff };
@@ -111,7 +112,7 @@ public class OSCoreCtxTest {
 		assertArrayEquals(predictedSenderKeySalt, ctx.getSenderKey());
 		
 		//Test with context ID and salt
-		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, context_id);
+		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedSenderKeyContextID = { (byte) 0xaf, 0x2a, 0x13, 0x00, (byte) 0xa5, (byte) 0xe9, 0x57, (byte) 0x88,
 				(byte) 0xb3, 0x56, 0x33, 0x6e, (byte) 0xee, (byte) 0xcd, 0x2b, (byte) 0x92 };
@@ -128,7 +129,7 @@ public class OSCoreCtxTest {
 	@Test
 	public void testRecipientKey() throws OSException {
 		//Test without salt
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, cipher, sid2, rid, kdf, 32, null, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, cipher, sid2, rid, kdf, 32, null, null, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedRecipientKey = { (byte) 0xe5, 0x7b, 0x56, 0x35, (byte) 0x81, 0x51, 0x77, (byte) 0xcd,
 				0x67, (byte) 0x9a, (byte) 0xb4, (byte) 0xbc, (byte) 0xec, (byte) 0x9d, 0x7d, (byte) 0xda };		
@@ -136,7 +137,7 @@ public class OSCoreCtxTest {
 		assertArrayEquals(predictedRecipientKey, ctx.getRecipientKey());
 		
 		//Test with salt
-		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, null);
+		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedRecipientKeySalt = { (byte) 0xff, (byte) 0xb1, 0x4e, 0x09, 0x3c, (byte) 0x94, (byte) 0xc9, (byte) 0xca,
 				(byte) 0xc9, 0x47, 0x16, 0x48, (byte) 0xb4, (byte) 0xf9, (byte) 0x87, 0x10 };
@@ -144,7 +145,7 @@ public class OSCoreCtxTest {
 		assertArrayEquals(predictedRecipientKeySalt, ctx.getRecipientKey());
 		
 		//Test with context ID and salt
-		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, context_id);
+		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedRecipientKeyContextID = { (byte) 0xe3, (byte) 0x9a, 0x0c, 0x7c, 0x77, (byte) 0xb4, 0x3f, 0x03,
 				(byte) 0xb4, (byte) 0xb3, (byte) 0x9a, (byte) 0xb9, (byte) 0xa2, 0x68, 0x69, (byte) 0x9f };
@@ -161,7 +162,7 @@ public class OSCoreCtxTest {
 	@Test
 	public void testCommonIV() throws OSException {
 		//Test without salt
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, cipher, sid2, rid, kdf, 32, null, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, cipher, sid2, rid, kdf, 32, null, null, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedCommonIV = { (byte) 0xbe, 0x35, (byte) 0xae, 0x29, 0x7d, 0x2d, (byte) 0xac, (byte) 0xe9,
 				0x10, (byte) 0xc5, 0x2e, (byte) 0x99, (byte) 0xf9 };
@@ -169,7 +170,7 @@ public class OSCoreCtxTest {
 		assertArrayEquals(predictedCommonIV, ctx.getCommonIV());
 		
 		//Test with salt
-		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, null);
+		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedCommonIVSalt = { 0x46, 0x22, (byte) 0xd4, (byte) 0xdd, 0x6d, (byte) 0x94, 0x41, 0x68,
 				(byte) 0xee, (byte) 0xfb, 0x54, (byte) 0x98, 0x7c };
@@ -177,7 +178,7 @@ public class OSCoreCtxTest {
 		assertArrayEquals(predictedCommonIVSalt, ctx.getCommonIV());
 		
 		//Test with context ID and salt
-		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, context_id);
+		ctx = new OSCoreCtx(master_secret, true, cipher, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 
 		byte[] predictedCommonIVContextID = { 0x2c, (byte) 0xa5, (byte) 0x8f, (byte) 0xb8, 0x5f, (byte) 0xf1, (byte) 0xb8, 0x1c,
 				0x0b, 0x71, (byte) 0x81, (byte) 0xb8, 0x5e };

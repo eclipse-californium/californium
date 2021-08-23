@@ -68,7 +68,7 @@ public class OSCoreServerClientTest {
 	private CoapServer server;
 
 	private Endpoint serverEndpoint;
-	
+
 	//OSCORE context information shared between server and client
 	private final static HashMapCtxDB dbServer = new HashMapCtxDB();
 	private final static HashMapCtxDB dbClient = new HashMapCtxDB();
@@ -79,7 +79,8 @@ public class OSCoreServerClientTest {
 	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
 			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
 	private final static byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
-	
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+
 	@Before
 	public void initLogger() {
 		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
@@ -110,9 +111,9 @@ public class OSCoreServerClientTest {
 		//Set up OSCORE context information for request (client)
 		byte[] sid = new byte[0];
 		byte[] rid = new byte[] { 0x01 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
-		
+
 		// send request
 		Request request = new Request(CoAP.Code.POST);
 		request.getOptions().setOscore(new byte[0]); //Use OSCORE
@@ -144,7 +145,7 @@ public class OSCoreServerClientTest {
 		//Set up OSCORE context information for request (client)
 		byte[] sid = new byte[] { 0x77 }; //Modified sender ID to be incorrect
 		byte[] rid = new byte[] { 0x01 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
 		
 		// send request
@@ -183,13 +184,13 @@ public class OSCoreServerClientTest {
 		// But different ID Context.
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
-		OSCoreCtx serverCtxDup = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, Bytes.EMPTY);
+		OSCoreCtx serverCtxDup = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, Bytes.EMPTY, MAX_UNFRAGMENTED_SIZE);
 		dbServer.addContext("coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostName(), serverCtxDup);
 
 		//Set up OSCORE context information for request (client)
 		sid = Bytes.EMPTY;
 		rid = new byte[] { 0x01 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
 		
 		// send request
@@ -245,7 +246,7 @@ public class OSCoreServerClientTest {
 		//Set up OSCORE context information for response (server)
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		dbServer.addContext("coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostName(), ctx);
 
 		//Create server

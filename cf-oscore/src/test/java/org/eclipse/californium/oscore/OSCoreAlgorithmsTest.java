@@ -73,6 +73,7 @@ public class OSCoreAlgorithmsTest {
 	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
 			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
 	private final static byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	@Before
 	public void initLogger() {
@@ -139,7 +140,7 @@ public class OSCoreAlgorithmsTest {
 		// Set up OSCORE context information for request (client)
 		byte[] sid = new byte[] { 0x02 };
 		byte[] rid = new byte[] { 0x01 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
 
 		// send request
@@ -160,7 +161,7 @@ public class OSCoreAlgorithmsTest {
 		// Set up OSCORE context information for response (server)
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[] { 0x02 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		dbServer.addContext(ctx);
 
 		// Create server

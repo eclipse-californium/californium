@@ -91,6 +91,7 @@ public class OSCoreObserveTest {
 			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
 	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
 			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	@Before
 	public void init() {
@@ -213,7 +214,7 @@ public class OSCoreObserveTest {
 		byte[] rid = new byte[] { 0x01 };
 	
 		try {
-			OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+			OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 			dbClient.addContext("coap://" + serverName, ctx);
 		}
 		catch(OSException e) {
@@ -232,7 +233,7 @@ public class OSCoreObserveTest {
 		byte[] rid = Bytes.EMPTY;
 
 		try {
-			OSCoreCtx ctx_B = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
+			OSCoreCtx ctx_B = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 			dbServer.addContext("coap://" + clientName, ctx_B);
 		}
 		catch (OSException e) {

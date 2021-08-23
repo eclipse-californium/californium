@@ -174,7 +174,22 @@ public class OSCoreCtx {
 	 * @throws OSException if the default KDF is not supported
 	 */
 	public OSCoreCtx(byte[] master_secret, boolean client) throws OSException {
-		this(master_secret, client, null, null, null, null, null, null, null);
+		this(master_secret, client, Configuration.getStandard());
+	}
+
+	/**
+	 * Constructor. Generates the context from the base parameters with the
+	 * minimal input.
+	 * 
+	 * @param master_secret the master secret
+	 * @param client is this originally the client's context
+	 * @param configuration configuration to be used by this context
+	 * @throws OSException if the default KDF is not supported
+	 * @since 3.0
+	 */
+	public OSCoreCtx(byte[] master_secret, boolean client, Configuration configuration) throws OSException {
+		this(master_secret, client, null, null, null, null, null, null, null,
+				configuration.get(CoapConfig.MAX_RESOURCE_BODY_SIZE));
 	}
 
 	/**
@@ -190,11 +205,13 @@ public class OSCoreCtx {
 	 * @param replay_size the replay window size or null for the default
 	 * @param master_salt the optional master salt, can be null
 	 * @param contextId the context id, can be null
+	 * @param maxUnfragmentedSize maximum unfragmented size 
 	 *
 	 * @throws OSException if the KDF is not supported
+	 * @since 3.0 (added parameter maxUnfragmentedSize)
 	 */
 	public OSCoreCtx(byte[] master_secret, boolean client, AlgorithmID alg, byte[] sender_id, byte[] recipient_id,
-			AlgorithmID kdf, Integer replay_size, byte[] master_salt, byte[] contextId) throws OSException {
+			AlgorithmID kdf, Integer replay_size, byte[] master_salt, byte[] contextId, int maxUnfragmentedSize) throws OSException {
 
 		if (alg == null) {
 			this.common_alg = AlgorithmID.AES_CCM_16_64_128;
@@ -270,7 +287,7 @@ public class OSCoreCtx {
 		contextRederivationPhase = ContextRederivation.PHASE.INACTIVE;
 
 		// Set default value of MAX_UNFRAGMENTED_SIZE
-		maxUnfragmentedSize = Configuration.getStandard().get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
+		this.maxUnfragmentedSize = maxUnfragmentedSize;
 
 		//Set digest value depending on HKDF
 		String digest = null;

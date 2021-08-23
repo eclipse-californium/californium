@@ -47,6 +47,7 @@ public class HashMapCtxDBTest {
 	private final byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
 	private final byte[] context_id_2 = {  0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11 };
 	private final Integer seq = 42;
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	@Rule
 	public final ExpectedException exception = ExpectedExceptionWrapper.none();
@@ -72,7 +73,7 @@ public class HashMapCtxDBTest {
 	public void testAddGetContextRid() throws OSException {
 		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				null);
+				null, MAX_UNFRAGMENTED_SIZE);
 		db.addContext(ctx);
 
 		assertEquals(ctx, db.getContext(rid));
@@ -91,7 +92,7 @@ public class HashMapCtxDBTest {
 	public void testAddGetContextRidIDContext() throws OSException {
 		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id);
+				context_id, MAX_UNFRAGMENTED_SIZE);
 		db.addContext(ctx);
 
 		assertEquals(ctx, db.getContext(rid, ctx.getIdContext()));
@@ -110,9 +111,9 @@ public class HashMapCtxDBTest {
 	public void testAddGetContextRidIDContextMultiple() throws OSException {
 		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id);
+				context_id, MAX_UNFRAGMENTED_SIZE);
 		OSCoreCtx ctx2 = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id_2);
+				context_id_2, MAX_UNFRAGMENTED_SIZE);
 		db.addContext(ctx);
 		db.addContext(ctx2);
 
@@ -133,9 +134,9 @@ public class HashMapCtxDBTest {
 	public void testAddGetContextRidMultipleSuccess() throws OSException {
 		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id);
+				context_id, MAX_UNFRAGMENTED_SIZE);
 		OSCoreCtx ctx2 = new OSCoreCtx(master_secret, true, alg, sid, rid_2, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id_2);
+				context_id_2, MAX_UNFRAGMENTED_SIZE);
 
 		db.addContext(ctx);
 		db.addContext(ctx2);
@@ -160,9 +161,9 @@ public class HashMapCtxDBTest {
 
 		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id);
+				context_id, MAX_UNFRAGMENTED_SIZE);
 		OSCoreCtx ctx2 = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id_2);
+				context_id_2, MAX_UNFRAGMENTED_SIZE);
 
 		db.addContext(ctx);
 		db.addContext(ctx2);
@@ -187,9 +188,9 @@ public class HashMapCtxDBTest {
 
 		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx1 = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id);
+				context_id, MAX_UNFRAGMENTED_SIZE);
 		OSCoreCtx ctx2 = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				context_id_2);
+				context_id_2, MAX_UNFRAGMENTED_SIZE);
 
 		db.addContext(ctx1);
 		db.addContext(ctx2);
@@ -201,7 +202,7 @@ public class HashMapCtxDBTest {
 	public void testAddGetContextUri() throws OSException {
 		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				null);
+				null, MAX_UNFRAGMENTED_SIZE);
 		db.addContext(uri, ctx);
 
 		assertEquals(ctx, db.getContext(rid));
@@ -215,7 +216,7 @@ public class HashMapCtxDBTest {
 	public void testAddGetContextToken() throws OSException {
 		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
-				null);
+				null, MAX_UNFRAGMENTED_SIZE);
 		db.addContext(token, ctx);
 
 		assertEquals(ctx, db.getContext(rid));

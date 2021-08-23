@@ -41,9 +41,10 @@ public class HelloWorldServer {
 			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
 	private final static byte[] sid = new byte[] { 0x01 };
 	private final static byte[] rid = new byte[0];
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	public static void main(String[] args) throws OSException {
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 		db.addContext(uriLocal, ctx);
 		OSCoreCoapStackFactory.useAsDefault(db);
 

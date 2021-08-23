@@ -42,6 +42,7 @@ public class EncryptorTest {
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 	private final static int seq = 20;
+	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	private static OSCoreCtx ctx = null;
 
@@ -58,7 +59,7 @@ public class EncryptorTest {
 	@Test
 	public void testRequestEncryptor() throws OSException {
 		//Set up OSCORE context
-		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, null, null);
+		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, null, null, MAX_UNFRAGMENTED_SIZE);
 		ctx.setSenderSeq(seq);
 
 		//Create request message from raw byte array
@@ -117,7 +118,7 @@ public class EncryptorTest {
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
 		
-		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 		ctx.setSenderSeq(0);
 		ctx.setReceiverSeq(seq);
 

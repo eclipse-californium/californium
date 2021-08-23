@@ -478,7 +478,8 @@ public class ContextRederivation {
 	 */
 	private static OSCoreCtx rederiveWithContextID(OSCoreCtx ctx, byte[] contextID) throws OSException {
 		OSCoreCtx newCtx = new OSCoreCtx(ctx.getMasterSecret(), true, ctx.getAlg(), ctx.getSenderId(),
-				ctx.getRecipientId(), ctx.getKdf(), ctx.getRecipientReplaySize(), ctx.getSalt(), contextID);
+				ctx.getRecipientId(), ctx.getKdf(), ctx.getRecipientReplaySize(), ctx.getSalt(),
+				contextID, ctx.getMaxUnfragmentedSize());
 		newCtx.setContextRederivationKey(ctx.getContextRederivationKey());
 		newCtx.setContextRederivationEnabled(ctx.getContextRederivationEnabled());
 		return newCtx;
