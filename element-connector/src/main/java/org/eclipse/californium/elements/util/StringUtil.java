@@ -644,7 +644,10 @@ public class StringUtil {
 	public static String getConfiguration(String name) {
 		String value = System.getenv(name);
 		if (value == null || value.isEmpty()) {
-			value = System.getProperty(name);
+			String property = System.getProperty(name);
+			if (property != null) {
+				value = property;
+			}
 		}
 		return value;
 	}
