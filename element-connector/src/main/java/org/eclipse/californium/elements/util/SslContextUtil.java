@@ -140,11 +140,19 @@ public class SslContextUtil {
 	 */
 	public static final String PKCS12_ENDING = ".p12";
 	/**
-	 * Ending for key stores with pseudo type {@link #PEM_TYPE}.
+	 * Ending for CRT/PEM key stores.
 	 * 
-	 * @see #KEY_STORE_TYPES
+	 * @see SimpleKeyStore
+	 * @see #CRT_ENDING
 	 */
 	public static final String PEM_ENDING = ".pem";
+	/**
+	 * Ending for CRT/PEM key stores.
+	 * 
+	 * @see SimpleKeyStore
+	 * @see #PEM_ENDING
+	 */
+	public static final String CRT_ENDING = ".crt";
 	/**
 	 * Label to provide default key store type.
 	 */
@@ -161,12 +169,6 @@ public class SslContextUtil {
 	 * Key store type PKCS12.
 	 */
 	public static final String PKCS12_TYPE = "PKCS12";
-	/**
-	 * Pseudo key store type PEM.
-	 * 
-	 * @see #KEY_STORE_TYPES
-	 */
-	public static final String PEM_TYPE = "PEM";
 	/**
 	 * Default protocol used for
 	 * {@link #createSSLContext(String, PrivateKey, X509Certificate[], Certificate[])}.
@@ -638,7 +640,8 @@ public class SslContextUtil {
 	 * ".jks" to "JKS"
 	 * ".bks" to "BKS"
 	 * ".p12" to "PKCS12"
-	 * ".pem" to "PEM" (custom reader)
+	 * ".pem" to "CRT/PEM" (custom reader)
+	 * ".crt" to "CRT/PEM" (custom reader)
 	 * "*" to system default
 	 * </pre>
 	 * 
@@ -654,13 +657,17 @@ public class SslContextUtil {
 		KEY_STORE_TYPES.put(JKS_ENDING, new KeyStoreType(JKS_TYPE));
 		KEY_STORE_TYPES.put(BKS_ENDING, new KeyStoreType(BKS_TYPE));
 		KEY_STORE_TYPES.put(PKCS12_ENDING, new KeyStoreType(PKCS12_TYPE));
-		KEY_STORE_TYPES.put(PEM_ENDING, new KeyStoreType(new SimpleKeyStore() {
+
+		KeyStoreType simple = new KeyStoreType(new SimpleKeyStore() {
 
 			@Override
 			public Credentials load(InputStream inputStream) throws GeneralSecurityException, IOException {
 				return loadPemCredentials(inputStream);
 			}
-		}));
+		});
+
+		KEY_STORE_TYPES.put(PEM_ENDING, simple);
+		KEY_STORE_TYPES.put(CRT_ENDING, simple);
 		KEY_STORE_TYPES.put(DEFAULT_ENDING, new KeyStoreType(KeyStore.getDefaultType()));
 
 		INPUT_STREAM_FACTORIES.clear();
@@ -882,8 +889,9 @@ public class SslContextUtil {
 	 * @return credentials
 	 * @throws GeneralSecurityException if credentials could not be read
 	 * @throws IOException if key store could not be read
+	 * @since 3.0 (changed scope to public)
 	 */
-	private static Credentials loadPemCredentials(InputStream inputStream)
+	public static Credentials loadPemCredentials(InputStream inputStream)
 			throws GeneralSecurityException, IOException {
 		PemReader reader = new PemReader(inputStream);
 		try {
