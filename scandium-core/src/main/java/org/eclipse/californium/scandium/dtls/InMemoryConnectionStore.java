@@ -653,6 +653,8 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		int count = 0;
 		DatagramWriter writer = new DatagramWriter(4096);
 		long startNanos = ClockUtil.nanoRealtime();
+		boolean writeProgress = false;
+		long progressNanos = startNanos;
 		synchronized (connections) {
 			Iterator<Timestamped<Connection>> iterator = connections.timestampedIterator();
 			while (iterator.hasNext()) {
@@ -670,8 +672,16 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 						writer.reset();
 					}
 					if (progress > 100 && (count % progress) == 0) {
-						LOGGER.info("{}written {} connetions of {}", tag, count, size);
-					} 
+						writeProgress = true;
+					}
+					if (writeProgress) {
+						long now = ClockUtil.nanoRealtime();
+						if (writeProgress && (now - progressNanos) > TimeUnit.SECONDS.toNanos(2)) {
+							LOGGER.info("{}written {} connections of {}", tag, count, size);
+							writeProgress = false;
+							progressNanos = now;
+						}
+					}
 				}
 			}
 		}

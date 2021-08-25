@@ -423,7 +423,11 @@ public class PlugtestServer extends AbstractTestServer {
 			SecretKey key = toKey(password);
 			ByteArrayInputStream in = new ByteArrayInputStream(state);
 			loadServers(in, key);
-			LOGGER.info("Loaded: {} Bytes ({})", state.length, password);
+			if (key == null) {
+				LOGGER.info("Loaded: {} Bytes", state.length);
+			} else {
+				LOGGER.info("Loaded: {} Bytes (pw: {})", state.length, password);
+			}
 			state = null;
 			for (CoapServer server : servers) {
 				server.start();
@@ -533,7 +537,11 @@ public class PlugtestServer extends AbstractTestServer {
 			saveServers(out, key, 60 * 10);
 			state = out.toByteArray();
 			out.close();
-			LOGGER.info("Saved: {} Bytes ({})", state.length, password);
+			if (key == null) {
+				LOGGER.info("Saved: {} Bytes", state.length);
+			} else {
+				LOGGER.info("Saved: {} Bytes (pw: {})", state.length, password);
+			}
 		} catch (IOException ex) {
 			LOGGER.warn("saving failed:", ex);
 		} finally {
