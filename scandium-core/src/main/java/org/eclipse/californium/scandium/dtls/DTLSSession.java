@@ -60,7 +60,6 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerializationUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -808,13 +807,11 @@ public final class DTLSSession implements Destroyable {
 	 * Write dtls session state.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it. The encoding of the
-	 * content may also change in the future.
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param writer writer for dtls session state
 	 * @since 3.0
 	 */
-	@WipAPI
 	public void writeTo(DatagramWriter writer) {
 		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 		writer.writeLong(creationTime, Long.SIZE);
@@ -862,16 +859,12 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Read dtls session state.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. The
-	 * encoding of the content may also change in the future.
-	 * 
 	 * @param reader reader with dtls session state.
 	 * @return read dtls session.
 	 * @throws IllegalArgumentException if version differs or the data is
 	 *             erroneous
 	 * @since 3.0
 	 */
-	@WipAPI
 	public static DTLSSession fromReader(DatagramReader reader) {
 		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
 		if (0 < length) {

@@ -179,7 +179,6 @@ import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -1219,7 +1218,6 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		messageHandler = null;
 	}
 
-	@WipAPI
 	@Override
 	public int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
 		if (isRunning()) {
@@ -1228,13 +1226,11 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		return connectionStore.saveConnections(out, maxQuietPeriodInSeconds);
 	}
 
-	@WipAPI
 	@Override
 	public int loadConnections(InputStream in, long delta) throws IOException {
 		return connectionStore.loadConnections(in, delta);
 	}
 
-	@WipAPI
 	public boolean restoreConnection(Connection connection) {
 		return connectionStore.restore(connection);
 	}

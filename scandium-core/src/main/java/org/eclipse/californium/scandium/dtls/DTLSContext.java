@@ -31,7 +31,6 @@ import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersions;
 import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersionsMatcher;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -815,14 +814,12 @@ public final class DTLSContext implements Destroyable {
 	 * Only writes state, if not already marked as closed.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it. The encoding of the
-	 * content may also change in the future.
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param writer writer for DTLS context state
 	 * @return {@code true}, if connection was written, {@code false},
 	 *         otherwise, if the dtls context is marked as closed.
 	 */
-	@WipAPI
 	public boolean writeTo(DatagramWriter writer) {
 		if (markedAsclosed) {
 			return false;
@@ -848,15 +845,11 @@ public final class DTLSContext implements Destroyable {
 	/**
 	 * Read DTLS context state.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. The
-	 * encoding of the content may also change in the future.
-	 * 
 	 * @param reader reader with DTLS context state.
 	 * @return read DTLS context.
 	 * @throws IllegalArgumentException if version differs or the data is
 	 *             erroneous
 	 */
-	@WipAPI
 	public static DTLSContext fromReader(DatagramReader reader) {
 		SupportedVersionsMatcher matcher = VERSIONS.matcher();
 		int length = SerializationUtil.readStartItem(reader, matcher, Short.SIZE);
@@ -916,7 +909,6 @@ public final class DTLSContext implements Destroyable {
 	 * 
 	 * @param writer writer for DTLS context state
 	 */
-	@WipAPI
 	public void writeSequenceNumbers(DatagramWriter writer) {
 		int position = SerializationUtil.writeStartItem(writer, SEQN_VERSION, Byte.SIZE);
 		writer.writeLong(sequenceNumbers[writeEpoch], 48);
@@ -932,7 +924,6 @@ public final class DTLSContext implements Destroyable {
 	 * @param reader reader with sequence-number state for DTLS context state
 	 * @throws IllegalArgumentException if the data is erroneous
 	 */
-	@WipAPI
 	public void readSequenceNumbers(DatagramReader reader) {
 		int length = SerializationUtil.readStartItem(reader, SEQN_VERSION, Byte.SIZE);
 		if (0 < length) {

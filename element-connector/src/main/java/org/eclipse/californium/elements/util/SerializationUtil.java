@@ -458,12 +458,9 @@ public class SerializationUtil {
 	/**
 	 * Skip items until "no item" is read.
 	 * 
-	 * Note: this "Work In Progress"; the format may change!
-	 * 
 	 * @param in stream to skip items.
 	 * @param numBits number of bits of the item length.
 	 */
-	@WipAPI
 	public static void skipItems(InputStream in, int numBits) {
 		DataStreamReader reader = new DataStreamReader(in);
 		while ((reader.readNextByte() & 0xff) != NO_VERSION) {
