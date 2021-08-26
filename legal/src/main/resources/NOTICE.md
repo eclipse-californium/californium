@@ -73,16 +73,16 @@ project has been copied into the header along with additional information regard
 The java source files `EncryptCommon.java`, `Encrypt0Message.java` and `Message.java` have been copied with
 modifications. The header was added as for the other unmodified files.
 
-com.github.peteroupc.numbers (1.7.4)
+com.github.peteroupc.numbers (1.8.0)
 
 * License: CC0-1.0
 * Project & Source: https://github.com/peteroupc/Numbers-Java
 
-com.upokecenter.cbor (4.4.3)
+com.upokecenter.cbor (4.4.4)
 
 * License: CC-1.0
 * Project: https://github.com/peteroupc/CBOR-Java
-* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.4.3
+* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.4.4
 
 commons-logging (1.2)
 
@@ -92,7 +92,7 @@ Google Guava (28.2-android)
 
 * License: Apache License, 2.0
 
-gson (2.8.7)
+gson (2.8.8)
 
 * License: Apache-2.0 
 
@@ -126,9 +126,11 @@ logback-android (1.1.1)
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
-Netty (4.1.65)
+Netty (4.1.67)
 
 * License: Apache-2.0 AND BSD-3-Clause AND MIT
+* Project: https://netty.io/
+* Source: https://github.com/netty/netty/archive/refs/tags/netty-4.1.67.Final.zip
 
 OSGi Service Platform Compendium Companion Code (5.0)
 

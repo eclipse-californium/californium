@@ -11,7 +11,10 @@
 	<description>The set of custom assembly descriptors used for Californium.</description>
 
 	<properties>
+		<maven.source.skip>true</maven.source.skip>
 		<maven.javadoc.skip>true</maven.javadoc.skip>
+		<animal.sniffer.skip>true</animal.sniffer.skip>
+		<revapi.skip>true</revapi.skip>
 	</properties>
 
 </project>
