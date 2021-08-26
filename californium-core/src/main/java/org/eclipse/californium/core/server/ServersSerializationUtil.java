@@ -27,7 +27,6 @@ import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerializationUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,13 +35,11 @@ import org.slf4j.LoggerFactory;
  * 
  * Currently only the dtls connections are serialized.
  * 
- * Note: this is "Work In Progress"; the stream will contain not encrypted
- * critical credentials. It is required to protect this data before exporting
- * it. The encoding of the content may also change in the future.
+ * Note: the stream will contain not encrypted critical credentials. It is
+ * required to protect this data before exporting it.
  * 
  * @since 3.0
  */
-@WipAPI
 public class ServersSerializationUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServersSerializationUtil.class);
@@ -54,10 +51,6 @@ public class ServersSerializationUtil {
 	 * {@link SerializationUtil#readNanotimeSynchronizationMark(DataStreamReader)}
 	 * ahead in order to synchronize the nano-uptimes.
 	 * 
-	 * Note: this is "Work In Progress"; the stream will contain not encrypted
-	 * critical credentials. The encoding of the content may also change in the
-	 * future.
-	 * 
 	 * @param in input stream to load from
 	 * @param servers servers to load
 	 * @return number of loaded connections.
@@ -67,7 +60,6 @@ public class ServersSerializationUtil {
 	 * @see CoapServer#readConnectorIdentifier(InputStream)
 	 * @see PersistentConnector#loadConnections(InputStream, long)
 	 */
-	@WipAPI
 	public static int loadServers(InputStream in, CoapServer... servers) {
 		return loadServers(in, Arrays.asList(servers));
 	}
@@ -79,10 +71,6 @@ public class ServersSerializationUtil {
 	 * {@link SerializationUtil#readNanotimeSynchronizationMark(DataStreamReader)}
 	 * ahead in order to synchronize the nano-uptimes.
 	 * 
-	 * Note: this is "Work In Progress"; the stream will contain not encrypted
-	 * critical credentials. The encoding of the content may also change in the
-	 * future.
-	 * 
 	 * @param in input stream to load from
 	 * @param servers servers to load
 	 * @return number of loaded connections.
@@ -92,7 +80,6 @@ public class ServersSerializationUtil {
 	 * @see CoapServer#readConnectorIdentifier(InputStream)
 	 * @see PersistentConnector#loadConnections(InputStream, long)
 	 */
-	@WipAPI
 	public static int loadServers(InputStream in, List<CoapServer> servers) {
 		int count = 0;
 		long time = System.nanoTime();
@@ -142,9 +129,8 @@ public class ServersSerializationUtil {
 	 * {@link SerializationUtil#writeNanotimeSynchronizationMark(DatagramWriter)}
 	 * ahead in order to synchronize the nano-uptimes.
 	 * 
-	 * Note: this is "Work In Progress"; the stream will contain not encrypted
-	 * critical credentials. It is required to protect this data before
-	 * exporting it. The encoding of the content may also change in the future.
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param out output stream
 	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
@@ -157,7 +143,6 @@ public class ServersSerializationUtil {
 	 * @see CoapServer#saveAllConnectors(OutputStream, long)
 	 * @see PersistentConnector#saveConnections(OutputStream, long)
 	 */
-	@WipAPI
 	public static int saveServers(OutputStream out, long maxQuietPeriodInSeconds, CoapServer... servers)
 			throws IOException {
 		return saveServers(out, maxQuietPeriodInSeconds, Arrays.asList(servers));
@@ -170,9 +155,8 @@ public class ServersSerializationUtil {
 	 * {@link SerializationUtil#writeNanotimeSynchronizationMark(DatagramWriter)}
 	 * ahead in order to synchronize the nano-uptimes.
 	 * 
-	 * Note: this is "Work In Progress"; the stream will contain not encrypted
-	 * critical credentials. It is required to protect this data before
-	 * exporting it. The encoding of the content may also change in the future.
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param out output stream
 	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
@@ -185,7 +169,6 @@ public class ServersSerializationUtil {
 	 * @see CoapServer#saveAllConnectors(OutputStream, long)
 	 * @see PersistentConnector#saveConnections(OutputStream, long)
 	 */
-	@WipAPI
 	public static int saveServers(OutputStream out, long maxQuietPeriodInSeconds, List<CoapServer> servers)
 			throws IOException {
 		int count = 0;

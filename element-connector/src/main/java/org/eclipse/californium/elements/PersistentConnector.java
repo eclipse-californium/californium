@@ -19,18 +19,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import org.eclipse.californium.elements.util.WipAPI;
-
 /**
  * Interface for connector supporting persistent connections.
  * 
- * Note: this is "Work In Progress"; the stream will contain not encrypted
- * critical credentials. It is required to protect this data before exporting
- * it. The encoding of the content may also change in the future.
+ * Note: the stream will contain not encrypted critical credentials. It is
+ * required to protect this data before exporting it.
  * 
  * @since 3.0
  */
-@WipAPI
 public interface PersistentConnector {
 
 	/**
@@ -39,9 +35,8 @@ public interface PersistentConnector {
 	 * Connector must be stopped before saving connections. The connections are
 	 * removed after saving.
 	 * 
-	 * Note: this is "Work In Progress"; the stream will contain not encrypted
-	 * critical credentials. It is required to protect this data before
-	 * exporting it. The encoding of the content may also change in the future.
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param out output stream to save connections
 	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
@@ -51,7 +46,6 @@ public interface PersistentConnector {
 	 * @throws IOException if an io-error occurred
 	 * @throws IllegalStateException if connector is running
 	 */
-	@WipAPI
 	int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException;
 
 	/**
@@ -73,7 +67,6 @@ public interface PersistentConnector {
 	 *             to load other connection-stores may work, that may be not
 	 *             affected by this error.
 	 */
-	@WipAPI
 	int loadConnections(InputStream in, long delta) throws IOException;
 
 }

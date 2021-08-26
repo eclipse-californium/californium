@@ -52,7 +52,6 @@ import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Timestamped;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -645,7 +644,6 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		return connections.valuesIterator();
 	}
 
-	@WipAPI
 	@Override
 	public int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
 		int size = connections.size();
@@ -692,7 +690,6 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		return count;
 	}
 
-	@WipAPI
 	@Override
 	public int loadConnections(InputStream in, long delta) throws IOException {
 		boolean clear = true;
@@ -725,7 +722,6 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		return count;
 	}
 
-	@WipAPI
 	@Override
 	public boolean restore(Connection connection) {
 

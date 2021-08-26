@@ -30,7 +30,6 @@ import javax.security.auth.Destroyable;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 
@@ -118,16 +117,12 @@ public abstract class DTLSConnectionState implements Destroyable {
 	/**
 	 * Read cipher suite specific connection state from reader.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. The
-	 * encoding of the content may also change in the future.
-	 * 
 	 * @param cipherSuite cipher suite
 	 * @param compressionMethod compression method
 	 * @param reader reader with data
 	 * @return connection state
 	 * @since 3.0
 	 */
-	@WipAPI
 	public static DTLSConnectionState fromReader(CipherSuite cipherSuite, CompressionMethod compressionMethod, DatagramReader reader) {
 		switch (cipherSuite.getCipherType()) {
 		case BLOCK:
@@ -209,13 +204,11 @@ public abstract class DTLSConnectionState implements Destroyable {
 	 * Write cipher suite specific connection state to writer.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it. The encoding of the
-	 * content may also change in the future.
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param writer writer to write state to.
 	 * @since 3.0
 	 */
-	@WipAPI
 	public abstract void writeTo(DatagramWriter writer);
 
 }

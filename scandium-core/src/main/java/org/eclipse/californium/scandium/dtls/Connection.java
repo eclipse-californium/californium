@@ -57,7 +57,6 @@ import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerialExecutor.ExecutionListener;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -942,14 +941,12 @@ public final class Connection {
 	 * Write connection state.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it. The encoding of the
-	 * content may also change in the future.
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param writer writer for connection state
 	 * @return {@code true}, if connection is written, {@code false}, if not.
 	 * @since 3.0
 	 */
-	@WipAPI
 	public boolean writeTo(DatagramWriter writer) {
 		if (establishedDtlsContext == null || establishedDtlsContext.isMarkedAsClosed() || rootCause != null) {
 			return false;
@@ -975,16 +972,12 @@ public final class Connection {
 	/**
 	 * Read connection state.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. The
-	 * encoding of the content may also change in the future.
-	 * 
 	 * @param reader reader with connection state.
 	 * @param nanoShift adjusting shift for system time in nanoseconds.
 	 * @return read connection.
 	 * @throws IllegalArgumentException if version differs or data is erroneous.
 	 * @since 3.0
 	 */
-	@WipAPI
 	public static Connection fromReader(DataStreamReader reader, long nanoShift) {
 		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
 		if (0 < length) {

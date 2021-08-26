@@ -56,7 +56,6 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.elements.util.WipAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -476,9 +475,8 @@ public class CoapServer implements ServerInterface {
 	 * Each entry contains the {@link #tag}, followed by the
 	 * {@link Endpoint#getUri()} as ASCII string.
 	 * 
-	 * Note: this is "Work In Progress"; the stream will contain not encrypted
-	 * critical credentials. It is required to protect this data before
-	 * exporting it. The encoding of the content may also change in the future.
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param out output stream to write to
 	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
@@ -490,7 +488,6 @@ public class CoapServer implements ServerInterface {
 	 * @see PersistentConnector#saveConnections(OutputStream, long)
 	 * @since 3.0
 	 */
-	@WipAPI
 	public int saveAllConnectors(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
 		stop();
 		int count = 0;
@@ -524,7 +521,6 @@ public class CoapServer implements ServerInterface {
 	 * @see PersistentConnector#loadConnections(InputStream, long)
 	 * @since 3.0
 	 */
-	@WipAPI
 	public static ConnectorIdentifier readConnectorIdentifier(InputStream in) throws IOException {
 		DataStreamReader reader = new DataStreamReader(in);
 		String mark = SerializationUtil.readString(reader, Byte.SIZE);
@@ -566,7 +562,6 @@ public class CoapServer implements ServerInterface {
 	 * @see PersistentConnector#loadConnections(InputStream, long)
 	 * @since 3.0
 	 */
-	@WipAPI
 	public int loadConnector(ConnectorIdentifier identifier, InputStream in, long delta) throws IOException {
 		Endpoint endpoint = getEndpoint(identifier.uri);
 		if (endpoint == null) {
