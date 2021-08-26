@@ -270,7 +270,7 @@ echo "deploy to gcloud"
 
 export BUILD_FILE=cf-gcloud-build
 export REGISTRY=gcr.io/<gcloud-project>
-export KUBECTL_CONTEXT="--insecure-skip-tls-verify --context=<gcloud-k8s-context>"
+export KUBECTL_CONTEXT="--context=<gcloud-k8s-context>"
 
 if [ ! -d "service" ] ; then
    if [ -d "../service" ] ; then
