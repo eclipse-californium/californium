@@ -25,6 +25,7 @@ import java.util.List;
 
 import javax.net.ssl.X509ExtendedKeyManager;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -46,7 +47,7 @@ public final class DtlsTestTools extends TestCertificatesTools {
 	}
 
 	public static X509ExtendedKeyManager getDtlsServerKeyManager() {
-		if (XECDHECryptography.SupportedGroup.X25519.isUsable()) {
+		if (XECDHECryptography.SupportedGroup.X25519.isUsable() && Asn1DerDecoder.isSupported(Asn1DerDecoder.ED25519)) {
 			return TestCertificatesTools.getServerEdDsaKeyManager();
 		} else {
 			return TestCertificatesTools.getServerKeyManager();
