@@ -82,8 +82,6 @@ public class ReceivetestClient {
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
 
-	private static final int RESPONSE_HEADER_SIZE = 16;
-
 	/**
 	 * Properties filename for device UUID.
 	 */
@@ -176,13 +174,6 @@ public class ReceivetestClient {
 		final Request request = Request.newPost();
 		if (clientConfig.contentType != null) {
 			request.getOptions().setAccept(clientConfig.contentType.contentType);
-		}
-		if (clientConfig.recordSizeLimit != null) {
-			if (query == null || query.isEmpty()) {
-				query = "rlen=" + (clientConfig.recordSizeLimit - RESPONSE_HEADER_SIZE);
-			} else if (!query.contains("rlen=")) {
-				query += "&rlen=" + (clientConfig.recordSizeLimit - RESPONSE_HEADER_SIZE);
-			}
 		}
 		if (query == null || query.isEmpty()) {
 			query = "";
