@@ -88,6 +88,10 @@ public final class DTLSContext implements Destroyable {
 	 * sent
 	 */
 	private int writeEpoch = 0;
+	/**
+	 * The effective fragment size.
+	 */
+	private int effectiveMaxMessageSize;
 
 	/**
 	 * The next record sequence number per epoch.
@@ -317,12 +321,15 @@ public final class DTLSContext implements Destroyable {
 	 * @param epoch epoch of attributes
 	 */
 	private void addEndpointContext(MapBasedEndpointContext.Attributes attributes, int epoch) {
-		session.addEndpintContext(attributes);
+		session.addEndpointContext(attributes);
 		attributes.add(DtlsEndpointContext.KEY_EPOCH, epoch);
 		attributes.add(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP, handshakeTime);
 		if (writeConnectionId != null && readConnectionId != null) {
 			attributes.add(DtlsEndpointContext.KEY_READ_CONNECTION_ID, readConnectionId);
 			attributes.add(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID, writeConnectionId);
+		}
+		if (effectiveMaxMessageSize > 0) {
+			attributes.add(DtlsEndpointContext.KEY_MESSAGE_SIZE_LIMIT, effectiveMaxMessageSize);
 		}
 	}
 
@@ -541,6 +548,15 @@ public final class DTLSContext implements Destroyable {
 	}
 
 	/**
+	 * The effective maximum message size for outgoing application data.
+	 * 
+	 * @param size effective maximum message size
+	 */
+	public void setEffectiveMaxMessageSize(int size) {
+		effectiveMaxMessageSize = size;
+	}
+
+	/**
 	 * Checks whether a given record can be processed within this DTLS context.
 	 * 
 	 * This is the case if
@@ -704,6 +720,8 @@ public final class DTLSContext implements Destroyable {
 		result = prime * result + (int) (receivedRecordsVector ^ (receivedRecordsVector >>> 32));
 		result = prime * result + ((readConnectionId == null) ? 0 : readConnectionId.hashCode());
 		result = prime * result + ((writeConnectionId == null) ? 0 : writeConnectionId.hashCode());
+		result = prime * result + ((useDeprecatedCid) ? 1 : 0);
+		result = prime * result + effectiveMaxMessageSize;
 		result = prime * result + session.hashCode();
 		return result;
 	}
@@ -758,6 +776,12 @@ public final class DTLSContext implements Destroyable {
 			return false;
 		}
 		if (sequenceNumbers[writeEpoch] != other.sequenceNumbers[writeEpoch]) {
+			return false;
+		}
+		if (useDeprecatedCid != other.useDeprecatedCid) {
+			return false;
+		}
+		if (effectiveMaxMessageSize != other.effectiveMaxMessageSize) {
 			return false;
 		}
 		return true;
@@ -838,6 +862,7 @@ public final class DTLSContext implements Destroyable {
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
 		writeSequenceNumbers(writer);
 		writer.writeByte(useDeprecatedCid ? (byte) 1 : (byte) 0);
+		writer.write(effectiveMaxMessageSize, Short.SIZE);
 		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 		return true;
 	}
@@ -893,8 +918,10 @@ public final class DTLSContext implements Destroyable {
 		readSequenceNumbers(reader);
 		if (version == VERSION_DEPRECATED) {
 			useDeprecatedCid = true;
+			effectiveMaxMessageSize = 0;
 		} else if (version == VERSION) {
 			useDeprecatedCid = reader.readNextByte() == 1;
+			effectiveMaxMessageSize = reader.read(Short.SIZE);
 		}
 		reader.assertFinished("dtls-context");
 	}

@@ -162,6 +162,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
@@ -1783,14 +1784,22 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			// APPLICATION_DATA can only be processed within the context of
 			// an established, i.e. fully negotiated, session
 			ApplicationMessage message = (ApplicationMessage) record.getFragment();
-
-			updateConnectionAddress(record, connection);
+			InetSocketAddress previousAddress = connection.getPeerAddress();
+			boolean newest = updateConnectionAddress(record, connection);
 
 			final RawDataChannel channel = messageHandler;
 			// finally, forward de-crypted message to application layer
 			if (channel != null) {
 				// context
-				DtlsEndpointContext endpointContext = connection.getReadContext(record.getPeerAddress());
+				Attributes attributes = new Attributes();
+				if (newest) {
+					attributes.add(DtlsEndpointContext.KEY_NEWEST_RECORD, true);
+				}
+				if (previousAddress != null && !connection.equalsPeerAddress(previousAddress)) {
+					attributes.add(DtlsEndpointContext.KEY_PREVIOUS_ADDRESS, previousAddress);
+				}
+
+				DtlsEndpointContext endpointContext = connection.getReadContext(attributes, record.getPeerAddress());
 				LOGGER.trace("Received APPLICATION_DATA for {}", endpointContext);
 				// create application message.
 				RawData receivedApplicationMessage = RawData.inbound(message.getData(), endpointContext, false,
@@ -1867,11 +1876,13 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * 
 	 * @param record received record.
 	 * @param connection connection of received record
-	 * @since 3.0 (removed DTLS context parameter)
+	 * @return {@code true}, if the received record is the newest, {@code false}, otherwise.
+	 * @since 3.0 (removed DTLS context parameter, add return value)
 	 */
-	private void updateConnectionAddress(Record record, Connection connection) {
+	private boolean updateConnectionAddress(Record record, Connection connection) {
 		InetSocketAddress newAddress = null;
-		if (connection.markRecordAsRead(record) || !useCidUpdateAddressOnNewerRecordFilter) {
+		boolean newest = connection.markRecordAsRead(record);
+		if (newest || !useCidUpdateAddressOnNewerRecordFilter) {
 			// address update, it's a newer record!
 			connection.setRouter(record.getRouter());
 			newAddress = record.getPeerAddress();
@@ -1887,6 +1898,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				closeConnection(connection);
 			}
 		}
+		return newest;
 	}
 
 	/**
@@ -2734,7 +2746,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			DTLSContext dltsContext = connection.getEstablishedDtlsContext();
 			LOGGER.trace("send {}-{} using {}", connection.getConnectionId(),
 					StringUtil.toLog(connection.getPeerAddress()), dltsContext.getSession().getSessionIdentifier());
-			final DtlsEndpointContext context = connection.getWriteContext();
+			Attributes attributes = new Attributes();
+			final DtlsEndpointContext context = connection.getWriteContext(attributes);
 			if (!checkOutboundEndpointContext(message, context)) {
 				return;
 			}
@@ -2842,7 +2855,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			throw new IllegalStateException(
 					String.format("%s, datagram size %d, mtu %d", ipv6 ? "IPV6" : "IPv4", size, mtu));
 		}
-		return mtu - headerSize;
+		return size;
 	}
 
 	@NoPublicAPI

@@ -143,14 +143,23 @@ public class DTLSFlight {
 	 */
 	private int maxFragmentSize;
 	/**
-	 * Effective datagram size.
+	 * Effective maximum datagram size.
 	 * 
 	 * The smaller resulting datagram size of {@link #maxDatagramSize} and
 	 * {@link #maxFragmentSize}.
 	 * 
-	 * @since 2.4
+	 * @since 3.0 (renamed, was effectiveDatagramSize9
 	 */
-	private int effectiveDatagramSize;
+	private int effectiveMaxDatagramSize;
+	/**
+	 * Effective maximum message size.
+	 * 
+	 * The resulting message size of {@link #maxDatagramSize} and
+	 * {@link #maxFragmentSize} and cipher suite.
+	 * 
+	 * @since 3.0
+	 */
+	private int effectiveMaxMessageSize;
 
 	/**
 	 * Use dtls records with multiple handshake messages.
@@ -313,54 +322,66 @@ public class DTLSFlight {
 	 */
 	private void wrapHandshakeMessage(EpochMessage epochMessage) throws GeneralSecurityException {
 		HandshakeMessage handshakeMessage = (HandshakeMessage) epochMessage.message;
-		int messageLength = handshakeMessage.getMessageLength();
-		int maxPayloadLength = maxDatagramSize - Record.DTLS_HANDSHAKE_HEADER_LENGTH;
-		int effectiveMaxFragmentSize = maxFragmentSize;
+		int maxPayloadLength = maxDatagramSize - Record.RECORD_HEADER_BYTES;
+		int effectiveMaxMessageSize;
 		boolean useCid = false;
 
 		if (epochMessage.epoch > 0) {
-			maxPayloadLength -= context.getSession().getMaxCiphertextExpansion();
 			ConnectionId connectionId = context.getWriteConnectionId();
 			if (connectionId != null && !connectionId.isEmpty()) {
 				useCid = true;
-				// connection id + inner record type
-				maxPayloadLength -= (connectionId.length() + 1);
+				// reduce fragment length by connection id
+				maxPayloadLength -= connectionId.length();
 			}
 		}
 
-		if (effectiveMaxFragmentSize > maxPayloadLength) {
-			effectiveMaxFragmentSize = maxPayloadLength;
+		if (maxFragmentSize >= maxPayloadLength) {
+			effectiveMaxMessageSize = maxPayloadLength;
+			effectiveMaxDatagramSize = maxDatagramSize;
 		} else {
-			effectiveDatagramSize = effectiveMaxFragmentSize + (maxDatagramSize - maxPayloadLength);
+			effectiveMaxMessageSize = maxFragmentSize;
+			effectiveMaxDatagramSize = maxFragmentSize + (maxDatagramSize - maxPayloadLength);
 		}
 
-		if (messageLength <= effectiveMaxFragmentSize) {
+		if (epochMessage.epoch > 0) {
+			effectiveMaxMessageSize -= context.getSession().getMaxCiphertextExpansion();
+			if (useCid) {
+				// reduce message length by  inner record type
+				--effectiveMaxMessageSize;
+			}
+		}
+
+		this.effectiveMaxMessageSize = effectiveMaxMessageSize;
+
+		int messageSize = handshakeMessage.size();
+
+		if (messageSize <= effectiveMaxMessageSize) {
 			if (useMultiHandshakeMessageRecords) {
 				if (multiHandshakeMessage != null) {
 					if (multiEpoch == epochMessage.epoch && multiUseCid == useCid
-							&& multiHandshakeMessage.getMessageLength()
-									+ handshakeMessage.size() < effectiveMaxFragmentSize) {
+							&& multiHandshakeMessage.size()
+									+ messageSize < effectiveMaxMessageSize) {
 						multiHandshakeMessage.add(handshakeMessage);
-						LOGGER.debug("Add multi-handshake-message {} message of {} bytes for [{}]",
-								handshakeMessage.getMessageType(), messageLength, peerToLog);
+						LOGGER.debug("Add multi-handshake-message {} message of {} bytes, resulting in {} bytes for [{}]",
+								handshakeMessage.getMessageType(), messageSize, multiHandshakeMessage.getMessageLength(), peerToLog);
 						return;
 					}
 					flushMultiHandshakeMessages();
 				}
 				if (multiHandshakeMessage == null) {
-					if (messageLength + HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES < effectiveMaxFragmentSize) {
+					if (messageSize < effectiveMaxMessageSize) {
 						multiHandshakeMessage = new MultiHandshakeMessage();
 						multiHandshakeMessage.add(handshakeMessage);
 						multiEpoch = epochMessage.epoch;
 						multiUseCid = useCid;
 						LOGGER.debug("Start multi-handshake-message with {} message of {} bytes for [{}]",
-								handshakeMessage.getMessageType(), messageLength, peerToLog);
+								handshakeMessage.getMessageType(), messageSize, peerToLog);
 						return;
 					}
 				}
 			}
 			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch, handshakeMessage, context, useCid, 0));
-			LOGGER.debug("Add {} message of {} bytes for [{}]", handshakeMessage.getMessageType(), messageLength,
+			LOGGER.debug("Add {} message of {} bytes for [{}]", handshakeMessage.getMessageType(), messageSize,
 					peerToLog);
 			return;
 		}
@@ -368,28 +389,30 @@ public class DTLSFlight {
 		flushMultiHandshakeMessages();
 
 		// message needs to be fragmented
-		LOGGER.debug("Splitting up {} message of {} bytes for [{}] into multiple fragments of max. {} bytes",
-				handshakeMessage.getMessageType(), messageLength, peerToLog, effectiveMaxFragmentSize);
+		LOGGER.debug("Splitting up {} message of {} bytes for [{}] into multiple handshake fragments of max. {} bytes",
+				handshakeMessage.getMessageType(), messageSize, peerToLog, effectiveMaxMessageSize);
 		// create N handshake messages, all with the
 		// same message_seq value as the original handshake message
 		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
-		if (messageBytes.length != messageLength) {
+		int handshakeMessageLength = handshakeMessage.getMessageLength();
+		int maxHandshakeMessageLength = effectiveMaxMessageSize - HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES;
+		if (messageBytes.length != handshakeMessageLength) {
 			throw new IllegalStateException(
-					"message length " + messageLength + " differs from message " + messageBytes.length + "!");
+					"message length " + handshakeMessageLength + " differs from message " + messageBytes.length + "!");
 		}
 		int messageSeq = handshakeMessage.getMessageSeq();
 		int offset = 0;
-		while (offset < messageLength) {
-			int fragmentLength = effectiveMaxFragmentSize;
-			if (offset + fragmentLength > messageLength) {
+		while (offset < handshakeMessageLength) {
+			int fragmentLength = maxHandshakeMessageLength;
+			if (offset + fragmentLength > handshakeMessageLength) {
 				// the last fragment is normally shorter than the maximal size
-				fragmentLength = messageLength - offset;
+				fragmentLength = handshakeMessageLength - offset;
 			}
 			byte[] fragmentBytes = new byte[fragmentLength];
 			System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
 
 			FragmentedHandshakeMessage fragmentedMessage = new FragmentedHandshakeMessage(
-					handshakeMessage.getMessageType(), messageLength, messageSeq, offset, fragmentBytes);
+					handshakeMessage.getMessageType(), handshakeMessageLength, messageSeq, offset, fragmentBytes);
 
 			LOGGER.debug("fragment for offset {}, {} bytes", offset, fragmentedMessage.size());
 
@@ -409,8 +432,8 @@ public class DTLSFlight {
 		if (multiHandshakeMessage != null) {
 			records.add(new Record(ContentType.HANDSHAKE, multiEpoch, multiHandshakeMessage, context, multiUseCid, 0));
 			int count = multiHandshakeMessage.getNumberOfHandshakeMessages();
-			LOGGER.debug("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
-					multiHandshakeMessage.getMessageLength(), peerToLog);
+			LOGGER.debug("Add {} multi handshake message, epoch {} of {} bytes (max. {}) for [{}]", count, multiEpoch,
+					multiHandshakeMessage.getMessageLength(), effectiveMaxMessageSize, peerToLog);
 			multiHandshakeMessage = null;
 			multiEpoch = 0;
 			multiUseCid = false;
@@ -442,7 +465,7 @@ public class DTLSFlight {
 					records.set(index, new Record(record.getType(), epoch, fragment, context, useCid, 0));
 				}
 			} else {
-				this.effectiveDatagramSize = maxDatagramSize;
+				this.effectiveMaxDatagramSize = maxDatagramSize;
 				this.maxDatagramSize = maxDatagramSize;
 				this.maxFragmentSize = maxFragmentSize;
 				this.useMultiHandshakeMessageRecords = useMultiHandshakeMessageRecords;
@@ -493,14 +516,15 @@ public class DTLSFlight {
 
 		List<Record> records = getRecords(maxDatagramSize, maxFragmentSize, multiHandshakeMessages);
 
-		LOGGER.trace("Effective max. datagram size {}", effectiveDatagramSize);
+		LOGGER.trace("Effective max. datagram size {}, max. message size {}", effectiveMaxDatagramSize, effectiveMaxMessageSize);
 
 		for (int index = 0; index < records.size(); ++index) {
 			Record record = records.get(index);
 			byte[] recordBytes = record.toByteArray();
-			if (recordBytes.length > effectiveDatagramSize) {
+			if (recordBytes.length > effectiveMaxDatagramSize) {
 				LOGGER.error("{} record of {} bytes for peer [{}] exceeds max. datagram size [{}], discarding...",
-						record.getType(), recordBytes.length, peerToLog, effectiveDatagramSize);
+						record.getType(), recordBytes.length, peerToLog, effectiveMaxDatagramSize);
+				LOGGER.debug("{}", record);
 				// TODO: inform application layer, e.g. using error handler
 				continue;
 			}
@@ -513,7 +537,7 @@ public class DTLSFlight {
 				}
 			}
 			int left = multiRecords && !(backOff && useMultiRecordMessages == null)
-					? effectiveDatagramSize - recordBytes.length
+					? effectiveMaxDatagramSize - recordBytes.length
 					: 0;
 			if (writer.size() > left) {
 				// current record does not fit into datagram anymore
@@ -534,6 +558,17 @@ public class DTLSFlight {
 		LOGGER.debug("Sending datagram of {} bytes to peer [{}]", payload.length, peerToLog);
 		writer = null;
 		return datagrams;
+	}
+
+	/**
+	 * Gets the effective maximum message size of the last
+	 * {@link #getDatagrams(int, int, Boolean, Boolean, boolean)}.
+	 * 
+	 * @return the effective maximum message size
+	 * @since 3.0
+	 */
+	public int getEffectiveMaxMessageSize() {
+		return effectiveMaxMessageSize;
 	}
 
 	/**

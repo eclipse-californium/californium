@@ -16,6 +16,8 @@
 package org.eclipse.californium.integration.test;
 
 import static org.eclipse.californium.integration.test.NatTestHelper.SUPPORT_CID;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
@@ -97,12 +99,15 @@ public class SecureCidClusterTest {
 		CoapResponse coapResponse = client.get();
 
 		assertNotNull("Response not received", coapResponse);
+		assertThat(coapResponse.getResponseText(), is("Hello"));
 
 		helper.nat.reassignNewLocalAddresses();
 
 		coapResponse = client.get();
 
-		assertNotNull("Response still received", coapResponse);
+		assertNotNull("Response not received", coapResponse);
+		// response with address change.
+		assertThat(coapResponse.getResponseText(), is("Hello?"));
 	}
 
 	@Test

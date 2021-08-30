@@ -41,7 +41,7 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -85,7 +85,6 @@ public class NatTestHelper {
 	boolean first;
 	Random rand;
 	NioNatUtil nat;
-	MatcherMode mode;
 	Configuration config;
 
 	List<DebugConnectionStore> serverConnections = new ArrayList<>();
@@ -199,7 +198,6 @@ public class NatTestHelper {
 	}
 
 	void setupNetworkConfig(MatcherMode mode, int ackTimeout) {
-		this.mode = mode;
 		config = network.getStandardTestConfig()
 				// retransmit starting with 200 milliseconds
 				.set(CoapConfig.ACK_TIMEOUT, ackTimeout, TimeUnit.MILLISECONDS)
@@ -220,6 +218,10 @@ public class NatTestHelper {
 				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
 				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 4)
 				.set(DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD, 100);
+
+		if (configuration.get(CoapConfig.RESPONSE_MATCHING) == MatcherMode.PRINCIPAL) {
+			configuration.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
+		}
 
 		int count = 1;
 		for (ConnectionIdGenerator generator : cidGenerators) {
@@ -255,10 +257,6 @@ public class NatTestHelper {
 				DTLSConnector serverConnector = new MyDtlsConnector(dtlsConfig, serverConnectionStore);
 				serverConnector.setAlertHandler(new MyAlertHandler(dtlsConfig.getLoggingTag()));
 				builder.setConnector(serverConnector);
-			}
-			if (mode == MatcherMode.PRINCIPAL) {
-				// requires different client identities!
-				builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
 			}
 			builder.setConfiguration(configuration);
 			CoapEndpoint serverEndpoint = builder.build();
@@ -430,8 +428,14 @@ public class NatTestHelper {
 
 		@Override
 		public void handleGET(CoapExchange exchange) {
+			InetSocketAddress previousAddress = exchange.advanced().getRequest().getSourceContext()
+					.get(DtlsEndpointContext.KEY_PREVIOUS_ADDRESS);
 			Response response = new Response(ResponseCode.CONTENT);
-			response.setPayload("Hello");
+			if (previousAddress != null) {
+				response.setPayload("Hello?");
+			} else {
+				response.setPayload("Hello");
+			}
 			exchange.respond(response);
 		}
 	}

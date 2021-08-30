@@ -91,7 +91,40 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public static final Definition<String> KEY_HANDSHAKE_MODE = new Definition<>(
 			KEY_PREFIX_NONE_CRITICAL + "DTLS_HANDSHAKE_MODE", String.class, ATTRIBUTE_DEFINITIONS);
-
+	/**
+	 * The name of the attribute that contains a auto handshake timeout in
+	 * milliseconds as {@link Number}.
+	 * 
+	 * {@code -1}, disable auto handshake timeout. None critical attribute, not
+	 * considered for matching.
+	 * 
+	 * @since 3.0 (renamed, was KEY_RESUMPTION_TIMEOUT)
+	 */
+	public static final Definition<Integer> KEY_AUTO_HANDSHAKE_TIMEOUT = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_AUTO_HANDSHAKE_TIMEOUT", Integer.class, ATTRIBUTE_DEFINITIONS);
+	/**
+	 * The name of the attribute that contains the message size limit.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Definition<Integer> KEY_MESSAGE_SIZE_LIMIT = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_MESSAGE_SIZE_LIMIT", Integer.class, ATTRIBUTE_DEFINITIONS);
+	/**
+	 * The name of the attribute that contains a marker for newest received
+	 * records.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Definition<Boolean> KEY_NEWEST_RECORD = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_NEWEST_RECORD", Boolean.class, ATTRIBUTE_DEFINITIONS);
+	/**
+	 * The name of the attribute that contains a marker for newest received
+	 * records.
+	 * 
+	 * @since 3.0
+	 */
+	public static final Definition<InetSocketAddress> KEY_PREVIOUS_ADDRESS = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_PREVIOUS_ADDRESS", InetSocketAddress.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * Force full handshake before send this message. Doesn't start a handshake,
 	 * if the connector is configured to act as server only.
@@ -115,18 +148,6 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * Don't start a handshake, even, if no session is available.
 	 */
 	public static final String HANDSHAKE_MODE_NONE = "none";
-
-	/**
-	 * The name of the attribute that contains a auto handshake timeout in
-	 * milliseconds as {@link Number}.
-	 * 
-	 * {@code -1}, disable auto handshake timeout. None critical attribute, not
-	 * considered for matching.
-	 * 
-	 * @since 3.0 (renamed, was KEY_RESUMPTION_TIMEOUT)
-	 */
-	public static final Definition<Integer> KEY_AUTO_HANDSHAKE_TIMEOUT = new Definition<>(
-			KEY_PREFIX_NONE_CRITICAL + "DTLS_AUTO_HANDSHAKE_TIMEOUT", Integer.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_NONE}.
 	 * 

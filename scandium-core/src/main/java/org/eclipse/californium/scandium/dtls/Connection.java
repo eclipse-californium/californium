@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
-import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
@@ -357,15 +357,15 @@ public final class Connection {
 	/**
 	 * Get endpoint context for writing messages.
 	 * 
+	 * @param attributes initial attributes
 	 * @return endpoint context for writing messages.
 	 * @throws IllegalStateException if dtls context is not established
 	 * @since 3.0
 	 */
-	public DtlsEndpointContext getWriteContext() {
+	public DtlsEndpointContext getWriteContext(Attributes attributes) {
 		if (establishedDtlsContext == null) {
 			throw new IllegalStateException("DTLS context must be established!");
 		}
-		MapBasedEndpointContext.Attributes attributes = new MapBasedEndpointContext.Attributes();
 		establishedDtlsContext.addWriteEndpointContext(attributes);
 		if (router != null) {
 			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");
@@ -376,17 +376,17 @@ public final class Connection {
 
 	/**
 	 * Get endpoint context for reading messages.
-	 * 
+	 * @param attributes initial attributes
 	 * @param recordsPeer peer address of record. Only used, if connection has
 	 *            no {@link #peerAddress}.
+	 * 
 	 * @return endpoint context for reading messages.
 	 * @since 3.0
 	 */
-	public DtlsEndpointContext getReadContext(InetSocketAddress recordsPeer) {
+	public DtlsEndpointContext getReadContext(Attributes attributes, InetSocketAddress recordsPeer) {
 		if (establishedDtlsContext == null) {
 			throw new IllegalStateException("DTLS context must be established!");
 		}
-		MapBasedEndpointContext.Attributes attributes = new MapBasedEndpointContext.Attributes();
 		establishedDtlsContext.addReadEndpointContext(attributes);
 		if (router != null) {
 			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");

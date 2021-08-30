@@ -56,6 +56,8 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
@@ -292,6 +294,20 @@ public class ClientInitializer {
 		public static DtlsConnectorConfig.Builder createDtlsConfig(ClientBaseConfig clientConfig) {
 			Configuration config = clientConfig.configuration;
 			int localPort = clientConfig.localPort == null ? 0 : clientConfig.localPort;
+
+			int extra = RecordLayer.IPV4_HEADER_LENGTH + 20 + Record.RECORD_HEADER_BYTES;
+			Integer cidLength = clientConfig.cidLength;
+			if (cidLength == null) {
+				cidLength = config.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
+			}
+			if (cidLength != null) {
+				extra += cidLength;
+			}
+			if (clientConfig.mtu != null && clientConfig.recordSizeLimit == null) {
+				clientConfig.recordSizeLimit = clientConfig.mtu - extra;
+			} else if (clientConfig.mtu == null && clientConfig.recordSizeLimit != null) {
+				clientConfig.mtu = clientConfig.recordSizeLimit + extra;
+			}
 
 			if (clientConfig.mtu != null) {
 				config.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, clientConfig.mtu);
