@@ -45,6 +45,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
@@ -177,11 +178,7 @@ public class CaliforniumUtil extends ConnectorUtil {
 						} catch (NumberFormatException ex) {
 						}
 					}
-					byte[] message = new byte[size];
-					Arrays.fill(message, (byte) '#');
-					for (int index = 63; index < message.length; index += 64) {
-						message[index] = (byte) '\n';
-					}
+					byte[] message = createPayload(size);
 					exchange.respond(ResponseCode.CHANGED, message);
 				}
 			});
@@ -337,5 +334,42 @@ public class CaliforniumUtil extends ConnectorUtil {
 	public void assertPrincipalType(final Class<?> expectedPrincipalType) {
 		// assert that peer identity is of given type
 		assertThat(principal.get(), instanceOf(expectedPrincipalType));
+	}
+
+	/**
+	 * Create payload.
+	 * 
+	 * @param size size of payload.
+	 * @return created payload.
+	 * @since 3.0
+	 */
+	public byte[] createPayload(int size) {
+		byte[] message = new byte[size];
+		Arrays.fill(message, (byte) '#');
+		for (int index = 0; index < message.length; ++index) {
+			int page = index / 64;
+			message[index] = (byte) Character.forDigit((page / 16) % 16, 16);
+			++index;
+			if (index < message.length) {
+				message[index] = (byte) Character.forDigit(page % 16, 16);
+				index += 62;
+				if (index < message.length) {
+					message[index] = (byte) '\n';
+				}
+			}
+		}
+		return message;
+	}
+
+	/**
+	 * Create text payload.
+	 * 
+	 * @param size size of text payload.
+	 * @return created text payload.
+	 * @since 3.0
+	 */
+	public String createTextPayload(int size) {
+		byte[] message = createPayload(size);
+		return new String(message, StandardCharsets.US_ASCII);
 	}
 }

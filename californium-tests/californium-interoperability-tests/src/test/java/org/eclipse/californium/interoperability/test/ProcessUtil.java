@@ -63,11 +63,24 @@ public class ProcessUtil {
 
 	private boolean stopped;
 
+	private volatile boolean verbose;
+
 	/**
 	 * Create instance.
 	 */
 	public ProcessUtil() {
 		setTag("");
+	}
+
+	/**
+	 * Enable/disable verbose mode.
+	 * 
+	 * @param verbose {@code true}, enable verbose mode, {@code false}, disable
+	 *            it.
+	 * @since 3.0
+	 */
+	public void setDebug(boolean verbose) {
+		this.verbose = verbose;
 	}
 
 	/**
@@ -314,7 +327,10 @@ public class ProcessUtil {
 								break;
 							}
 							String out = new String(buffer, 0, read);
-							System.out.print(out);
+							if (verbose) {
+	 							System.out.println("> (" + out.length() + " bytes)");
+							}
+ 							System.out.print(out);
 							System.out.flush();
 							console.append(out);
 							setConsole(console.toString());
