@@ -34,8 +34,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.NoResponseOption;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.Configuration;
@@ -163,7 +165,7 @@ public class LibCoapClientOpensslInteroperabilityTest {
 
 		processUtil.startupClient(DESTINATION_URL + "large", PSK, "Hello, CoAP!", cipherSuite);
 		ProcessResult result = connect("Hello, CoAP!",
-				"###############################################################");
+				"0f#############################################################");
 		assertThat(result, is(notNullValue()));
 		assertThat(result.console, is(notNullValue()));
 		assertThat(result.console.length(), is(greaterThan(1024)));
@@ -178,7 +180,25 @@ public class LibCoapClientOpensslInteroperabilityTest {
 
 		processUtil.startupClient(DESTINATION_URL + "large?size=4096", PSK, "Hello, CoAP!", cipherSuite);
 		ProcessResult result = connect("Hello, CoAP!",
-				"###############################################################");
+				"3f#############################################################");
+		assertThat(result, is(notNullValue()));
+		assertThat(result.console, is(notNullValue()));
+		assertThat(result.console.length(), is(greaterThan(4096)));
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapClientPsk4k4kSmallBlocks() throws Exception {
+		processUtil.setVerboseLevel(null);
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		californiumUtil.start(BIND, null, cipherSuite);
+		String message = "Hello, CoAP! " + californiumUtil.createTextPayload(4096);
+		processUtil.setClientBlocksize(128);
+		int szx = BlockOption.size2Szx(128);
+		processUtil.setClientOption(new BlockOption(szx, false, 0).toOption(OptionNumberRegistry.BLOCK2));
+		processUtil.startupClient(DESTINATION_URL + "large?size=4096", PSK, message, cipherSuite);
+		ProcessResult result = connect(message,
+				"3f#############################################################");
 		assertThat(result, is(notNullValue()));
 		assertThat(result.console, is(notNullValue()));
 		assertThat(result.console.length(), is(greaterThan(4096)));

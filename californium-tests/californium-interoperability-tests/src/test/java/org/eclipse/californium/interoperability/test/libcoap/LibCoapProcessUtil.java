@@ -139,6 +139,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	private String ca;
 	private String trusts;
 
+	private Integer clientBlocksize;
 	private Option clientOption;
 	private CoAP.Type type;
 
@@ -158,6 +159,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		ca = null;
 		trusts = null;
 		clientOption = null;
+		clientBlocksize = null;
 		type = null;
 		serverMode = false;
 		valgrindActive = false;
@@ -394,6 +396,10 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		this.type = type;
 	}
 
+	public void setClientBlocksize(int blocksize) {
+		this.clientBlocksize = blocksize;
+	}
+
 	public void startupClient(String destination, LibCoapAuthenticationMode authMode, String message,
 			CipherSuite... ciphers) throws IOException, InterruptedException {
 		serverMode = false;
@@ -407,6 +413,8 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		}
 		if (message != null) {
 			message = message.replace(" ", "%20");
+			message = message.replace("\n", "%0a");
+			message = message.replace("\r", "%0d");
 			args.addAll(Arrays.asList("-m", "POST", "-e", message));
 		} else {
 			args.addAll(Arrays.asList("-m", "GET"));
@@ -435,6 +443,10 @@ public class LibCoapProcessUtil extends ProcessUtil {
 			args.add("-O");
 			byte[] value = clientOption.getValue();
 			args.add(clientOption.getNumber() + ",0x" + StringUtil.byteArray2Hex(value));
+		}
+		if (clientBlocksize != null) {
+			args.add("-b");
+			args.add(clientBlocksize.toString());
 		}
 		if (type == Type.NON) {
 			args.add("-N");
