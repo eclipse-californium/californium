@@ -404,7 +404,7 @@ public final class DTLSSession implements Destroyable {
 	 * 
 	 * @param attributes attributes to add the entries
 	 */
-	public void addEndpintContext(MapBasedEndpointContext.Attributes attributes) {
+	public void addEndpointContext(MapBasedEndpointContext.Attributes attributes) {
 		Bytes id = sessionIdentifier.isEmpty() ? new Bytes(("TIME:" + Long.toString(creationTime)).getBytes())
 				: sessionIdentifier;
 		attributes.add(DtlsEndpointContext.KEY_SESSION_ID, id);

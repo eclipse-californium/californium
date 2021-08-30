@@ -1931,6 +1931,10 @@ public abstract class Handshaker implements Destroyable {
 				retransmitFlight = new TimeoutPeerTask(flight);
 				flight.scheduleRetransmission(timer, retransmitFlight);
 			}
+			int effectiveMessageSize = flight.getEffectiveMaxMessageSize();
+			if (effectiveMessageSize > 0) {
+				context.setEffectiveMaxMessageSize(effectiveMessageSize);
+			}
 		} catch (HandshakeException e) {
 			handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " failed!", e));
 		} catch (IOException e) {

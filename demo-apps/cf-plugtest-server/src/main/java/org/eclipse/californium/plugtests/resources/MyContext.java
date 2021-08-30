@@ -146,6 +146,19 @@ public class MyContext extends CoapResource {
 		if (via != null) {
 			formatter.add("via", via);
 		}
+		Boolean newest = context.get(DtlsEndpointContext.KEY_NEWEST_RECORD);
+		if (newest != null) {
+			formatter.add("newest-record", newest);
+		}
+		Integer limit = context.get(DtlsEndpointContext.KEY_MESSAGE_SIZE_LIMIT);
+		if (limit != null) {
+			formatter.add("message-size-limit", new Long(limit));
+		}
+		InetSocketAddress previous = context.get(DtlsEndpointContext.KEY_PREVIOUS_ADDRESS);
+		if (previous != null) {
+			formatter.add("prev-ip", StringUtil.toString(previous.getAddress()));
+			formatter.add("prev-port", new Long(previous.getPort()));
+		}
 		if (version != null) {
 			formatter.add("server", "Cf " + version);
 		}
@@ -156,6 +169,8 @@ public class MyContext extends CoapResource {
 		void add(String name, String value);
 
 		void add(String name, Long value);
+
+		void add(String name, Boolean value);
 
 		byte[] getPayload();
 	}
@@ -170,6 +185,11 @@ public class MyContext extends CoapResource {
 
 		@Override
 		public void add(String name, Long value) {
+			payload.append(name).append(": ").append(value).append("\n");
+		}
+
+		@Override
+		public void add(String name, Boolean value) {
 			payload.append(name).append(": ").append(value).append("\n");
 		}
 
@@ -197,6 +217,11 @@ public class MyContext extends CoapResource {
 		}
 
 		@Override
+		public void add(String name, Boolean value) {
+			map.set(name, CBORObject.FromObject(value));
+		}
+
+		@Override
 		public byte[] getPayload() {
 			return map.EncodeToBytes();
 		}
@@ -213,6 +238,11 @@ public class MyContext extends CoapResource {
 
 		@Override
 		public void add(String name, Long value) {
+			payload.append("  \"").append(name).append("\": ").append(value).append(",\n");
+		}
+
+		@Override
+		public void add(String name, Boolean value) {
 			payload.append("  \"").append(name).append("\": ").append(value).append(",\n");
 		}
 
@@ -242,6 +272,11 @@ public class MyContext extends CoapResource {
 
 		@Override
 		public void add(String name, Long value) {
+			payload.append(name).append("=\"").append(value).append("\" ");
+		}
+
+		@Override
+		public void add(String name, Boolean value) {
 			payload.append(name).append("=\"").append(value).append("\" ");
 		}
 

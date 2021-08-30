@@ -34,8 +34,6 @@ import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.SslContextUtil.IncompleteCredentialsException;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
-import org.eclipse.californium.scandium.dtls.Record;
-import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -422,14 +420,6 @@ public class ConnectorConfig implements Cloneable {
 		DtlsConfig.register();
 		configuration = Configuration.createWithFile(configurationFile, configurationHeader,
 				customConfigurationDefaultsProvider);
-
-		int extra = RecordLayer.IPV4_HEADER_LENGTH + 20 - Record.DTLS_HANDSHAKE_HEADER_LENGTH
-				- CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getMaxCiphertextExpansion();
-		if (mtu != null && recordSizeLimit == null) {
-			recordSizeLimit = mtu - extra;
-		} else if (mtu == null && recordSizeLimit != null) {
-			mtu = recordSizeLimit + extra;
-		}
 	}
 
 	protected void defaultAuthenticationModes() {

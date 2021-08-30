@@ -80,6 +80,8 @@ The old code point 53 and the old MAC definition maybe still used, if configured
 
 ECDHE - `XECDHECryptography`: to use X25519/X448 with bouncy-castle as JCE provider, the `XDHPublicKeyApi` has been introduced. A java 11 implementation may also be used by applications in order to omit the usage of the reflection based implementation. The encoding/decoding of the related public key is now based on the x509/ASN.1 encoding of it. That is more generic and doesn't depend on the details of the internal structure of the public keys.
 
+The maximum message size calculations from [Record Size Limit](https://tools.ietf.org/html/rfc8449) and [Maximum Fragment Length](https://tools.ietf.org/html/rfc6066#section-4) is more precise and the resulting maximum message size is reported as `KEY_MESSAGE_SIZE_LIMIT` in the endpoint context.
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:
