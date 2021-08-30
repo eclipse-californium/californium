@@ -30,9 +30,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 
 import com.google.gson.Gson;
@@ -50,7 +55,7 @@ import com.upokecenter.cbor.CBORObject;
  * POST {@code <host>/requests?dev=<devid>&rid=<requestid>}
  * </pre>
  * 
- * or 
+ * or
  * 
  * <pre>
  * POST {@code <host>/requests?dev=<devid>&rid=<requestid>&ep}
@@ -171,7 +176,7 @@ public class RequestStatistic extends CoapResource {
 		String rid = null;
 		String dev = null;
 		Integer rlen = null;
-		boolean endpoint = false;
+		boolean sourceEndpoint = false;
 		for (String query : uriQuery) {
 			if (query.startsWith(URI_QUERY_OPTION_REQUEST_ID + "=")) {
 				rid = query.substring(4);
@@ -194,7 +199,7 @@ public class RequestStatistic extends CoapResource {
 					break;
 				}
 			} else if (query.equals(URI_QUERY_OPTION_ENDPOINT)) {
-				endpoint = true;
+				sourceEndpoint = true;
 			} else {
 				error = "URI-query-option " + query + " is not supported!";
 				break;
@@ -217,7 +222,7 @@ public class RequestStatistic extends CoapResource {
 			exchange.respond(response);
 			return;
 		}
-	
+
 		List<RequestInformation> history;
 		synchronized (requests) {
 			history = requests.get(dev);
@@ -228,7 +233,7 @@ public class RequestStatistic extends CoapResource {
 		}
 
 		if (history != null) {
-			InetSocketAddress source = endpoint ? request.getSourceContext().getPeerAddress() : null;
+			InetSocketAddress source = sourceEndpoint ? request.getSourceContext().getPeerAddress() : null;
 			RequestInformation information = new RequestInformation(rid, System.currentTimeMillis(), source);
 			synchronized (history) {
 				history.add(0, information);
@@ -240,7 +245,17 @@ public class RequestStatistic extends CoapResource {
 		}
 
 		Response response = new Response(CHANGED);
-		int maxPayloadLength = rlen == null ? DEFAULT_MAX_PAYLOAD_LENGTH : rlen;
+		response.setToken(request.getToken());
+		int maxPayloadLength = DEFAULT_MAX_PAYLOAD_LENGTH;
+		if (rlen != null) {
+			maxPayloadLength = rlen;
+		} else {
+			rlen = request.getSourceContext().get(DtlsEndpointContext.KEY_MESSAGE_SIZE_LIMIT);
+			if (rlen != null) {
+				maxPayloadLength = rlen - calculateMessageHeaderSize(response);
+			}
+		}
+
 		switch (exchange.getRequestOptions().getAccept()) {
 		case UNDEFINED:
 		case TEXT_PLAIN:
@@ -343,5 +358,44 @@ public class RequestStatistic extends CoapResource {
 			response = payload;
 		}
 		return response;
+	}
+
+	/**
+	 * Calculate size of the serialized message.
+	 * 
+	 * Assumes, that payload may be extended/applied later.
+	 * Ensure, that the token is already set.
+	 * 
+	 * @param message message to be serialized
+	 * @return message size
+	 * @since 3.0
+	 */
+	private int calculateMessageHeaderSize(Message message) {
+		// fixed header size for UDP
+		// assuming not more that 2 bytes length for TCP
+		int len = 4;
+		len += message.getToken().length();
+		OptionSet options = message.getOptions();
+		if (!options.hasContentFormat()) {
+			// ensure content format
+			options.setContentFormat(TEXT_PLAIN);
+		}
+		len += calculateOptionsSize(options);
+		len += 1; // 0xff payload marker
+		len += message.getPayloadSize();
+		return len;
+	}
+
+	/**
+	 * Calculate size of serialized options.
+	 * 
+	 * @param options option set to be serialized
+	 * @return options size
+	 * @since 3.0
+	 */
+	private int calculateOptionsSize(OptionSet options) {
+		DatagramWriter writer = new DatagramWriter(128);
+		DataSerializer.serializeOptionsAndPayload(writer, options, null);
+		return writer.size();
 	}
 }
