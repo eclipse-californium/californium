@@ -78,6 +78,8 @@ The old code point 53 and the old MAC definition maybe still used, if configured
 
 **Note:** mbedtls up to version 2.27 still uses a undefined code-point (254) and the deprecated MAC definition before version 09. To use mbedtls, please adjust the extension code point [MBEDTLS_TLS_EXT_CID](https://github.com/ARMmbed/mbedtls/blob/v2.27.0/include/mbedtls/ssl.h#L416) to 53 and configure Californium accordingly to `DtlsConfig.DTLS_USE_DEPRECATED_CID` or `DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID`.
 
+ECDHE - `XECDHECryptography`: to use X25519/X448 with bouncy-castle as JCE provider, the `XDHPublicKeyApi` has been introduced. A java 11 implementation may also be used by applications in order to omit the usage of the reflection based implementation. The encoding/decoding of the related public key is now based on the x509/ASN.1 encoding of it. That is more generic and doesn't depend on the details of the internal structure of the public keys.
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:
@@ -121,7 +123,7 @@ The updated proxy2 now processes more coap-options and http-headers.
 
 1) The `ExtendedConnector` interface is integrated in `Connector`.
 
-2) The `EndpointContext` supports now `String`, `Number`, and `Bytes`.
+2) The `EndpointContext` supports now `String`, `Long`, `Integer`, `Bytes`, `Boolean`, and `InetSocketAddress`.
 
 3) The `MulticastReceivers` interface (californium-core) is integrated in `UDPConnector`.
 
@@ -129,7 +131,7 @@ The updated proxy2 now processes more coap-options and http-headers.
 
 5) The `SslContextUtil.configure(String, String)` is removed, use `SslContextUtil.configure(String, KeyStoreType)` instead. `KeyStoreType` requires now either a type for the java `KeyStore` implementation, or a `SimpleKeyStore` custom reader.
 
-6) The `Configuration` with the `SystemConfig`, `UdpConfig`, `TcpConfig`, `DtlsConfig`, `CoapConfig`, and `Proxy2Config` replaces the `NetworkConfig`.
+6) The `NetworkConfig` is replaced by `Configuration` with the `SystemConfig`, `UdpConfig`, `TcpConfig`, `DtlsConfig`, `CoapConfig`, and `Proxy2Config`.
 
 ### Scandium:
 
