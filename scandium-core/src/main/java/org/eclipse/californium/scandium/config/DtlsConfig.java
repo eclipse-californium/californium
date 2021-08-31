@@ -717,14 +717,14 @@ public final class DtlsConfig {
 	public static final EnumListDefinition<CipherSuite> DTLS_PRESELECTED_CIPHER_SUITES = new EnumListDefinition<>(
 			MODULE + "PRESELECTED_CIPHER_SUITES",
 			"DTLS preselected cipher-suites. If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.",
-			CipherSuite.getSupportedCipherSuites(false));
+			CipherSuite.getCipherSuites(false, false));
 	/**
 	 * Select {@link CipherSuite}s.
 	 */
 	public static final EnumListDefinition<CipherSuite> DTLS_CIPHER_SUITES = new EnumListDefinition<>(
 			MODULE + "CIPHER_SUITES",
 			"DTLS cipher-suites. If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.",
-			CipherSuite.getSupportedCipherSuites(false));
+			CipherSuite.getCipherSuites(false, true));
 	/**
 	 * Select curves ({@link SupportedGroup}s).
 	 */

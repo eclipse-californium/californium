@@ -503,15 +503,20 @@ public enum CipherSuite {
 	 * 
 	 * @param recommendedCipherSuitesOnly {@code true} to include only
 	 *            recommended cipher suites.
-	 * @return array of supported cipher suites.
+	 * @param supportedCipherSuitesOnly {@code true} to include only supported
+	 *            cipher suites.
+	 * @return array of cipher suites.
 	 * @since 3.0
 	 */
-	public static CipherSuite[] getSupportedCipherSuites(boolean recommendedCipherSuitesOnly) {
+	public static CipherSuite[] getCipherSuites(boolean recommendedCipherSuitesOnly,
+			boolean supportedCipherSuitesOnly) {
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
-			if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
-				if (suite.isSupported() && suite != TLS_NULL_WITH_NULL_NULL) {
-					list.add(suite);
+			if (suite != TLS_NULL_WITH_NULL_NULL) {
+				if (!supportedCipherSuitesOnly || suite.isSupported()) {
+					if (!recommendedCipherSuitesOnly || suite.isRecommended()) {
+						list.add(suite);
+					}
 				}
 			}
 		}
