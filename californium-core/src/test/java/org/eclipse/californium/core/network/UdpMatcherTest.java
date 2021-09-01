@@ -49,7 +49,6 @@ import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
-import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -90,7 +89,7 @@ public class UdpMatcherTest {
 		scheduler = MatcherTestUtils.newScheduler();
 		cleanup.add(scheduler);
 		tokenProvider = new RandomTokenGenerator(config);
-		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider, new UdpEndpointContextMatcher());
+		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
 		observationStore =  new InMemoryObservationStore(config);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
@@ -207,7 +206,7 @@ public class UdpMatcherTest {
 		// GIVEN a request that has not been sent yet
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(request, dest, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		MessageExchangeStore exchangeStore = mock(MessageExchangeStore.class);
 		when(exchangeStore.registerOutboundRequest(exchange)).thenReturn(false);

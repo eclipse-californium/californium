@@ -42,7 +42,7 @@ public final class KeyMID {
 	 * @throws IllegalArgumentException if mid is &lt; 0 or &gt; 65535.
 	 * 
 	 */
-	public KeyMID(int mid,  Object peer) {
+	public KeyMID(int mid, Object peer) {
 		if (mid < 0 || mid > Message.MAX_MID) {
 			throw new IllegalArgumentException("MID must be a 16 bit unsigned int: " + mid);
 		} else if (peer == null) {

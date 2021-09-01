@@ -70,7 +70,8 @@ public class BlockwiseLayerTest {
 		blockwiseLayer.setUpperLayer(appLayer);
 
 		Request request = newReceivedBlockwiseRequest(256, 64);
-		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		Object peer = request.getSourceContext().getPeerAddress();
+		Exchange exchange = new Exchange(request, peer, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		blockwiseLayer.receiveRequest(exchange, request);
 
@@ -93,7 +94,8 @@ public class BlockwiseLayerTest {
 		blockwiseLayer.setLowerLayer(outbox);
 
 		Request request = newReceivedBlockwiseRequest(256, 64);
-		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		Object peer = request.getSourceContext().getPeerAddress();
+		Exchange exchange = new Exchange(request, peer, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		blockwiseLayer.receiveRequest(exchange, request);
 
@@ -114,15 +116,15 @@ public class BlockwiseLayerTest {
 		MessageObserver requestObserver = mock(MessageObserver.class);
 		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
 
-		Request req = Request.newGet();
-		req.setURI("coap://127.0.0.1/bigResource");
-		req.addMessageObserver(requestObserver);
+		Request request = Request.newGet();
+		request.setURI("coap://127.0.0.1/bigResource");
+		request.addMessageObserver(requestObserver);
+		Object peer = request.getDestinationContext().getPeerAddress();
 
-		Response response = receiveResponseFor(req);
+		Response response = receiveResponseFor(request);
 		response.getOptions().setSize2(256).setBlock2(BlockOption.size2Szx(64), true, 0);
 
-		Exchange exchange = new Exchange(req, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		exchange.setRequest(req);
+		Exchange exchange = new Exchange(request, peer, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		blockwiseLayer.receiveResponse(exchange, response);
 
 		verify(requestObserver).onResponseHandlingError(Mockito.any(IllegalStateException.class));
@@ -142,15 +144,16 @@ public class BlockwiseLayerTest {
 		blockwiseLayer.setUpperLayer(upperLayer);
 
 		// GIVEN an established observation of a resource with a body requiring blockwise transfer
-		Request req = Request.newGet();
-		req.setURI("coap://127.0.0.1/bigResource");
-		Exchange exchange = new Exchange(req, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		exchange.setRequest(req);
+		Request request = Request.newGet();
+		request.setURI("coap://127.0.0.1/bigResource");
+		Object peer = request.getDestinationContext().getPeerAddress();
+
+		Exchange exchange = new Exchange(request, peer, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 
 		// WHEN the request used to establish the observe relation has been canceled
 		// and a notification arrives
-		req.cancel();
-		Response response = receiveResponseFor(req);
+		request.cancel();
+		Response response = receiveResponseFor(request);
 		response.getOptions().setSize2(100).setBlock2(BlockOption.size2Szx(64), true, 0).setObserve(12);
 		blockwiseLayer.receiveResponse(exchange, response);
 

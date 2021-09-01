@@ -126,13 +126,7 @@ public class InMemoryMessageExchangeStoreTest {
 	@Test(expected = NullPointerException.class)
 	public void testShouldNotCreateInMemoryMessageExchangeStoreWithoutTokenProvider() {
 		// WHEN trying to create new InMemoryMessageExchangeStore without TokenProvider
-		store = new InMemoryMessageExchangeStore(config, null, null);
-	}
-
-	@Test(expected = NullPointerException.class)
-	public void testShouldNotCreateInMemoryMessageExchangeStoreWithoutResolver() {
-		// WHEN trying to create new InMemoryMessageExchangeStore without TokenProvider
-		store = new InMemoryMessageExchangeStore(config, new RandomTokenGenerator(config), null);
+		store = new InMemoryMessageExchangeStore(config, null);
 	}
 
 	public void testRegisterOutboundRequestAcceptsRetransmittedRequest() {
@@ -156,7 +150,7 @@ public class InMemoryMessageExchangeStoreTest {
 		Request request = Request.newGet();
 		String uri = TestTools.getUri(InetAddress.getLoopbackAddress(), PEER_PORT, "test");
 		request.setURI(uri);
-		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		return exchange;
 	}
 }

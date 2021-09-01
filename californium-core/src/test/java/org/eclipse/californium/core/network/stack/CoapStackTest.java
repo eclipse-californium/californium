@@ -84,8 +84,7 @@ public class CoapStackTest {
 	@Test public void cancelledMessageExpectExchangeComplete() {
 		Request request = new Request(CoAP.Code.GET);
 		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
-		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-
+		Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		ArgumentCaptor<Exchange> exchangeCaptor = ArgumentCaptor.forClass(Exchange.class);
 		doNothing().when(outbox).sendRequest(exchangeCaptor.capture(), eq(request));
 

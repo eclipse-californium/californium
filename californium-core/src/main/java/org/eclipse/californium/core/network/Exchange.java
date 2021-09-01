@@ -52,6 +52,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.List;
@@ -178,6 +179,14 @@ public class Exchange {
 	 * Mark exchange as notification.
 	 */
 	private final boolean notification;
+	/**
+	 * The other peer's identity.
+	 * 
+	 * Usually that's the peer's {@link InetSocketAddress}.
+	 * 
+	 * @since 3.0
+	 */
+	private final Object peersIdentity;
 	// indicates where the request of this exchange has been initiated.
 	// (as suggested by effective Java, item 40.)
 	private final Origin origin;
@@ -309,12 +318,16 @@ public class Exchange {
 	 * Creates a new exchange with the specified request and origin.
 	 * 
 	 * @param request the request that starts the exchange
+	 * @param peersIdentity peer's identity. Usually that's the peer's
+	 *            {@link InetSocketAddress}.
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
+	 * @param executor executor to be used for exchanges. Maybe {@code null} for
+	 *            unit tests.
 	 * @throws NullPointerException if request is {@code null}
+	 * @since 3.0 (added peersIdentity)
 	 */
-	public Exchange(Request request, Origin origin, Executor executor) {
-		this(request, origin, executor, null, false);
+	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor) {
+		this(request, peersIdentity, origin, executor, null, false);
 	}
 
 	/**
@@ -322,14 +335,17 @@ public class Exchange {
 	 * notification marker.
 	 * 
 	 * @param request the request that starts the exchange
+	 * @param peersIdentity peer's identity. Usually that's the peer's
+	 *            {@link InetSocketAddress}.
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
 	 * @param ctx the endpoint context of this exchange
 	 * @param notification {@code true} for notification exchange, {@code false}
 	 *            otherwise
 	 * @throws NullPointerException if request is {@code null}
+	 * @since 3.0 (added peersIdentity)
 	 */
-	public Exchange(Request request, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
+	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
 		// might only be the first block of the whole request
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
@@ -339,6 +355,7 @@ public class Exchange {
 		this.currentRequest = request;
 		this.request = request;
 		this.origin = origin;
+		this.peersIdentity = peersIdentity;
 		this.endpointContext.set(ctx);
 		this.keepRequestInStore = !notification && request.isObserve() && origin == Origin.LOCAL;
 		this.notification = notification;
@@ -702,6 +719,16 @@ public class Exchange {
 	 */
 	public void setEndpoint(Endpoint endpoint) {
 		this.endpoint = endpoint;
+	}
+
+	/**
+	 * Returns the other peer's identity.
+	 * 
+	 * @return the other peer's identity
+	 * @since 3.0
+	 */
+	public Object getPeersIdentity() {
+		return peersIdentity;
 	}
 
 	/**

@@ -25,6 +25,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Option;
@@ -61,13 +64,14 @@ public class ServerMessageDelivererTest {
 	 */
 	@Before
 	public void setUp() {
+		InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5683);
 		rootResource = mock(Resource.class);
 		when(rootResource.getChild(anyString())).thenReturn(rootResource);
 		when(rootResource.getExecutor()).thenReturn(null);
-		incomingRequest = new Exchange(new Request(Code.POST), Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		incomingRequest = new Exchange(new Request(Code.POST), dest, Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		incomingRequest.setRequest(incomingRequest.getCurrentRequest());
 		incomingResponse = new Response(ResponseCode.CONTENT);
-		outboundRequest = new Exchange(new Request(Code.GET), Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		outboundRequest = new Exchange(new Request(Code.GET), dest, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		outboundRequest.setRequest(outboundRequest.getCurrentRequest());
 	}
 

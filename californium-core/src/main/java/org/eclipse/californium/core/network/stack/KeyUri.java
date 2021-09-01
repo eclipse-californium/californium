@@ -20,9 +20,7 @@ package org.eclipse.californium.core.network.stack;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -35,26 +33,27 @@ import org.eclipse.californium.elements.util.StringUtil;
 public final class KeyUri {
 
 	private final String uri;
-	private final InetSocketAddress address;
+	private final Object peersIdentity;
 	private final int hash;
 
 	/**
 	 * Creates a new key for a URI scoped to an endpoint address.
 	 * 
 	 * @param requestUri The URI of the requested resource.
-	 * @param address the endpoint's address.
+	 * @param peersIdentity peer's identity. Usually that's the peer's
+	 *            {@link InetSocketAddress}.
 	 * @throws NullPointerException if uri or address is {@code null}
 	 * @since 3.0
 	 */
-	public KeyUri(final String requestUri, final InetSocketAddress address) {
+	public KeyUri(final String requestUri, final Object peersIdentity) {
 		if (requestUri == null) {
 			throw new NullPointerException("URI must not be null");
-		} else if (address == null) {
-			throw new NullPointerException("address must not be null");
+		} else if (peersIdentity == null) {
+			throw new NullPointerException("peer's identity must not be null");
 		} else {
 			this.uri = requestUri;
-			this.address = address;
-			this.hash = requestUri.hashCode() * 31 + address.hashCode();
+			this.peersIdentity = peersIdentity;
+			this.hash = requestUri.hashCode() * 31 + peersIdentity.hashCode();
 		}
 	}
 
@@ -70,7 +69,7 @@ public final class KeyUri {
 			return false;
 		}
 		KeyUri other = (KeyUri) obj;
-		if (!address.equals(other.address)) {
+		if (!peersIdentity.equals(other.peersIdentity)) {
 			return false;
 		}
 		if (!uri.equals(other.uri)) {
@@ -88,7 +87,11 @@ public final class KeyUri {
 	public String toString() {
 		StringBuilder b = new StringBuilder("KeyUri[");
 		b.append(uri);
-		b.append(", ").append(StringUtil.toDisplayString(address)).append("]");
+		Object peer = this.peersIdentity;
+		if (peer instanceof InetSocketAddress) {
+			peer = StringUtil.toDisplayString((InetSocketAddress) peer);
+		}
+		b.append(", ").append(peer).append("]");
 		return b.toString();
 	}
 
@@ -109,49 +112,20 @@ public final class KeyUri {
 	}
 
 	/**
-	 * Creates a new key for a request scoped to the other peer's address.
+	 * Creates a new key scoped to the other peer's identity.
 	 * 
-	 * @param exchange The exchange.
-	 * @param request The request with the URI of the resource.
+	 * @param exchange The exchange with the URI of the requested resource and
+	 *            the identity.
 	 * @return The key.
-	 * @throws NullPointerException if any of the parameters is {@code null}.
+	 * @throws NullPointerException if exchange is {@code null}.
 	 * @since 3.0
 	 */
-	public static KeyUri getKey(Exchange exchange, Request request) {
-		if (exchange == null) {
-			throw new NullPointerException("exchange must not be null");
-		}
-		String uri = getUri(request);
-		EndpointContext peer;
-		if (exchange.isOfLocalOrigin()) {
-			peer = request.getDestinationContext();
-		} else {
-			peer = request.getSourceContext();
-		}
-		return new KeyUri(uri, peer.getPeerAddress());
-	}
-
-	/**
-	 * Creates a new key for a response scoped to the other peer's address.
-	 * 
-	 * @param exchange The exchange with the URI of the requested resource.
-	 * @param response The response.
-	 * @return The key.
-	 * @throws NullPointerException if any of the parameters is {@code null}.
-	 * @since 3.0
-	 */
-	public static KeyUri getKey(final Exchange exchange, final Response response) {
+	public static KeyUri getKey(Exchange exchange) {
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
 		}
 		String uri = getUri(exchange.getRequest());
-		EndpointContext peer;
-		if (exchange.isOfLocalOrigin()) {
-			peer = response.getSourceContext();
-		} else {
-			peer = response.getDestinationContext();
-		}
-		return new KeyUri(uri, peer.getPeerAddress());
+		return new KeyUri(uri, exchange.getPeersIdentity());
 	}
 
 }

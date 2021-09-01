@@ -407,7 +407,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// by means of
 				// a transparent blockwise transfer.
 			} else {
-				KeyUri key = KeyUri.getKey(exchange, request);
+				KeyUri key = KeyUri.getKey(exchange);
 				Block2BlockwiseStatus status = getBlock2Status(key);
 				if (status != null) {
 					// Receiving a blockwise response in transparent mode
@@ -471,7 +471,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			BlockOption block2 = request.getOptions().getBlock2();
 			if (block2 != null && block2.getNum() > 0) {
 				// follow up block, respond from status?
-				KeyUri key = KeyUri.getKey(exchange, request);
+				KeyUri key = KeyUri.getKey(exchange);
 				Block2BlockwiseStatus status = getBlock2Status(key);
 				if (status != null) {
 					// The peer wants to retrieve the next block
@@ -503,7 +503,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			BlockOption block1 = request.getOptions().getBlock1();
 			LOGGER.debug("{}inbound request contains block1 option {}", tag, block1);
-			KeyUri key = KeyUri.getKey(exchange, request);
+			KeyUri key = KeyUri.getKey(exchange);
 			Block1BlockwiseStatus status = getInboundBlock1Status(key, exchange, request, false);
 			int blockOffset = block1.getOffset();
 
@@ -658,7 +658,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// has included a block2 option with num = 0 (early negotiation
 				// of block size)
 
-				KeyUri key = KeyUri.getKey(exchange, response);
+				KeyUri key = KeyUri.getKey(exchange);
 				// We can not handle several block2 transfer for the same
 				// client/resource.
 				// So we clean previous transfer (priority to the new one)
@@ -726,7 +726,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					}
 
 					// server is not able to process the payload we included
-					KeyUri key = KeyUri.getKey(exchange, exchange.getCurrentRequest());
+					KeyUri key = KeyUri.getKey(exchange);
 					Block1BlockwiseStatus status = getBlock1Status(key);
 					if (status != null) {
 						clearBlock1Status(status);
@@ -768,7 +768,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 
 			if (!isRandomAccess(exchange)) {
-				KeyUri key = KeyUri.getKey(exchange, response);
+				KeyUri key = KeyUri.getKey(exchange);
 				Block2BlockwiseStatus status = getBlock2Status(key);
 				if (discardBlock2(key, status, exchange, response)) {
 					return;
@@ -807,7 +807,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 	private boolean handleEntityTooLarge(Exchange exchange, Response response) {
 		if (enableAutoFailoverOn413) {
-			final KeyUri key = KeyUri.getKey(exchange, exchange.getRequest());
+			final KeyUri key = KeyUri.getKey(exchange);
 			try {
 				Request initialRequest = exchange.getRequest();
 				if (response.getOptions().hasBlock1()) {
@@ -907,7 +907,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		LOGGER.debug("{}received response acknowledging block1 {}", tag, block1);
 
 		// Block1 transfer has been originally created for an outbound request
-		final KeyUri key = KeyUri.getKey(exchange, exchange.getRequest());
+		final KeyUri key = KeyUri.getKey(exchange);
 
 		Block1BlockwiseStatus status = getBlock1Status(key);
 
@@ -1070,7 +1070,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private void handleBlock2Response(final Exchange exchange, final Response response) {
 
 		BlockOption block2 = response.getOptions().getBlock2();
-		KeyUri key = KeyUri.getKey(exchange, response);
+		KeyUri key = KeyUri.getKey(exchange);
 
 		if (exchange.getRequest().isCanceled()) {
 

@@ -122,6 +122,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -243,6 +244,7 @@ public class CoapEndpoint implements Endpoint {
 	/** The configuration of this endpoint */
 	private final Configuration config;
 
+	private final EndpointIdentityResolver identityResolver;
 	/**
 	 * The matcher which matches incoming responses, acks and rsts an exchange
 	 */
@@ -392,7 +394,7 @@ public class CoapEndpoint implements Endpoint {
 			coapStackFactory = getDefaultCoapStackFactory();
 		}
 		this.exchangeStore = (null != exchangeStore) ? exchangeStore
-				: new InMemoryMessageExchangeStore(tag, config, tokenGenerator, endpointContextMatcher);
+				: new InMemoryMessageExchangeStore(tag, config, tokenGenerator);
 		observationStore = (null != store) ? store : new InMemoryObservationStore(config);
 		if (null == endpointContextMatcher) {
 			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
@@ -412,6 +414,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 		};
 
+		this.identityResolver = endpointContextMatcher;
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{}{} uses {}", tag, getClass().getSimpleName(), endpointContextMatcher.getName());
 
@@ -421,7 +424,7 @@ public class CoapEndpoint implements Endpoint {
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.useRequestOffloading = false; // no deduplication
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
-					this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
+					this.exchangeStore, endpointContextMatcher, exchangeExecutionHandler);
 			this.serializer = serializer != null ? serializer : new TcpDataSerializer();
 			this.parser = parser != null ? parser : new TcpDataParser();
 		} else {
@@ -656,7 +659,8 @@ public class CoapEndpoint implements Endpoint {
 			return;
 		}
 
-		final Exchange exchange = new Exchange(request, Origin.LOCAL, executor);
+		Object identity = identityResolver.getEndpointIdentity(request.getDestinationContext());
+		final Exchange exchange = new Exchange(request, identity, Origin.LOCAL, executor);
 		exchange.execute(new Runnable() {
 
 			@Override
@@ -1633,7 +1637,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 			tag = StringUtil.normalizeLoggingTag(tag);
 			if (exchangeStore == null) {
-				exchangeStore = new InMemoryMessageExchangeStore(tag, config, tokenGenerator, endpointContextMatcher);
+				exchangeStore = new InMemoryMessageExchangeStore(tag, config, tokenGenerator);
 			}
 			if (coapStackFactory == null) {
 				coapStackFactory = getDefaultCoapStackFactory();
