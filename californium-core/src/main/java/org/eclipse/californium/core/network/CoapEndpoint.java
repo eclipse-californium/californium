@@ -645,7 +645,17 @@ public class CoapEndpoint implements Endpoint, Executor {
 			return;
 		}
 
-		Object identity = identityResolver.getEndpointIdentity(request.getDestinationContext());
+		Object identity;
+		try {
+			identity = identityResolver.getEndpointIdentity(request.getDestinationContext());
+		} catch (IllegalArgumentException ex) {
+			if (request.getRawCode() == 0) {
+				// set address as default identity for ping request
+				identity = request.getDestinationContext().getPeerAddress();
+			} else {
+				throw ex;
+			}
+		}
 		final Exchange exchange = new Exchange(request, identity, Origin.LOCAL, executor);
 		exchange.execute(new Runnable() {
 

@@ -46,7 +46,9 @@ package org.eclipse.californium.core;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
@@ -231,17 +233,32 @@ public class CoapClient {
 	/**
 	 * Sets the destination URI of this client.
 	 *
-	 * Resets {@link #destinationContext} also, if neither {@link #useProxy} is
-	 * {@code true}, nor a {@link #proxyScheme} is used. Therefore one of both
-	 * must be set before the URI, in order to prevent the (proxy-)destination
-	 * from being reset.
+	 * Resets {@link #destinationContext} also, if the destination host or port
+	 * differs and neither {@link #useProxy} is {@code true}, nor a
+	 * {@link #proxyScheme} is used. Therefore one of both must be set before
+	 * the URI, in order to prevent the (proxy-)destination from being reset.
 	 * 
 	 * @param uri the uri
 	 * @return the CoAP client
+	 * @since 3.0 (reset the {@link #destinationContext} only on different
+	 *        destination host or port)
 	 */
 	public CoapClient setURI(String uri) {
-		if (!useProxy && proxyScheme == null) {
-			this.destinationContext.set(null);
+		if (!useProxy && proxyScheme == null && !Objects.equals(this.uri, uri)) {
+			boolean resetContext = true;
+			if (this.uri != null && uri != null) {
+				try {
+					URI destUri = new URI(this.uri);
+					URI newDestUri = new URI(uri);
+					resetContext = destUri.getPort() != newDestUri.getPort()
+							|| !Objects.equals(destUri.getHost(), newDestUri.getHost());
+				} catch (URISyntaxException ex) {
+
+				}
+			}
+			if (resetContext) {
+				this.destinationContext.set(null);
+			}
 		}
 		this.uri = uri;
 		return this;
@@ -507,13 +524,20 @@ public class CoapClient {
 
 	private boolean ping(Long timeout) {
 		try {
-			Request request = new Request(null, Type.CON);
+			Request request = Request.newPing();
 			request.setToken(Token.EMPTY);
+			// the URI will not be serialized!
 			assignClientUriIfEmpty(request);
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
 			if (timeout == null) {
 				timeout = outEndpoint.getConfig().get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
 			}
+			request.addMessageObserver(new MessageObserverAdapter() {
+				@Override
+				public void onContextEstablished(EndpointContext endpointContext) {
+					destinationContext.compareAndSet(null, endpointContext);
+				}
+			});
 			send(request, outEndpoint).waitForResponse(timeout);
 			return request.isRejected();
 		} catch (InterruptedException e) {

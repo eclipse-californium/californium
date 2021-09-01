@@ -474,16 +474,27 @@ public final class UdpMatcher extends BaseMatcher {
 		// an empty ACK or RST always is received as a reply to a message
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
-		final Object peer = endpointContextMatcher.getEndpointIdentity(message.getSourceContext());
-		final KeyMID idByMID = new KeyMID(message.getMID(), peer);
-		final Exchange exchange = exchangeStore.get(idByMID);
+		EndpointContext context = message.getSourceContext();
+		Object identity = endpointContextMatcher.getEndpointIdentity(context);
+		KeyMID byMID = new KeyMID(message.getMID(), identity);
+		Exchange tempExchange = exchangeStore.get(byMID);
 
-		if (exchange == null) {
-			LOGGER.debug("ignoring {} message unmatchable by {}", message.getType(), idByMID);
+		if (tempExchange == null && identity != context.getPeerAddress()) {
+			KeyMID pongByMID = new KeyMID(message.getMID(), context.getPeerAddress());
+			tempExchange = exchangeStore.get(pongByMID);
+			if (tempExchange != null) {
+				byMID = pongByMID;
+			}
+		}
+
+		if (tempExchange == null) {
+			LOGGER.debug("ignoring {} message unmatchable by {}", message.getType(), byMID);
 			cancel(message, receiver);
 			return;
 		}
 
+		final KeyMID idByMID = byMID;
+		final Exchange exchange = tempExchange;
 		exchange.execute(new Runnable() {
 
 			@Override
