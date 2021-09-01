@@ -66,7 +66,7 @@ public final class MatcherTestUtils {
 	static TcpMatcher newTcpMatcher(Configuration config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
 		InMemoryMessageExchangeStore exchangeStore = new InMemoryMessageExchangeStore(config);
 		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				new InMemoryObservationStore(config), exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+				new InMemoryObservationStore(config), exchangeStore, correlationContextMatcher, TEST_EXCHANGE_EXECUTOR);
 		exchangeStore.setExecutor(scheduler);
 		matcher.start();
 		return matcher;
@@ -90,7 +90,7 @@ public final class MatcherTestUtils {
 	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(request, dest, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
 		matcher.sendRequest(exchange);
 		exchange.setEndpointContext(exchangeContext);
 		return exchange;
@@ -100,7 +100,7 @@ public final class MatcherTestUtils {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
 		request.setObserve();
-		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(request, dest, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
 		matcher.sendRequest(exchange);
 		exchange.setEndpointContext(exchangeContext);
 		return exchange;
@@ -109,7 +109,7 @@ public final class MatcherTestUtils {
 	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, Exchange.EndpointContextOperator preoperator, EndpointContext exchangeContext) {
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(request, dest, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
 		exchange.setEndpointContextPreOperator(preoperator);
 		matcher.sendRequest(exchange);
 		exchange.setEndpointContext(exchangeContext);

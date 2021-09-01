@@ -248,7 +248,7 @@ public class HttpStack {
 				// keep the receiving interface.
 				coapRequest.setLocalAddress(endpoint);
 				// handle the request
-				Exchange exchange = new Exchange(coapRequest, Origin.REMOTE, null) {
+				Exchange exchange = new Exchange(coapRequest, source, Origin.REMOTE, null) {
 
 					@Override
 					public void sendAccept() {

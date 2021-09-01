@@ -75,12 +75,12 @@ public class DeduplicatorTest {
 		incoming.setMID(10);
 		incoming.setSourceContext(new AddressEndpointContext(PEER));
 		key = new KeyMID(incoming.getMID(), PEER);
-		exchange1 = new Exchange(incoming, Exchange.Origin.REMOTE, null);
-		exchange2 = new Exchange(incoming, Exchange.Origin.REMOTE, null);
+		exchange1 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, null);
+		exchange2 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, null);
 		incoming = Request.newGet();
 		incoming.setMID(10);
 		incoming.setSourceContext(new AddressEndpointContext(PEER));
-		exchange3 = new Exchange(incoming, Exchange.Origin.REMOTE, null);
+		exchange3 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, null);
 	}
 
 	@Test

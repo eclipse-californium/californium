@@ -88,16 +88,16 @@ public final class TcpMatcher extends BaseMatcher {
 	 *            observations created by the endpoint this matcher is part of.
 	 * @param exchangeStore The store to use for keeping track of message
 	 *            exchanges.
-	 * @param executor executor to be used for exchanges.
 	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
-	 * @throws NullPointerException if one of the parameters is {@code null}.
-	 * @since 3.0 (changed parameter to Configuration)
+	 * @param executor executor to be used for exchanges.
+	 * @throws NullPointerException if any of the parameters is {@code null} (except the executor).
+	 * @since 3.0 (changed parameter to Configuration, moved executor to end of parameter list)
 	 */
 	public TcpMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
-			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
-			EndpointContextMatcher endpointContextMatcher) {
-		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, executor);
+			ObservationStore observationStore, MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher,
+			Executor executor) {
+		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, endpointContextMatcher, executor);
 		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
@@ -147,7 +147,8 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public void receiveRequest(final Request request, final EndpointReceiver receiver) {
 
-		final Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, executor);
+		Object peer = endpointContextMatcher.getEndpointIdentity(request.getSourceContext());
+		final Exchange exchange = new Exchange(request, peer, Exchange.Origin.REMOTE, executor);
 		exchange.setRemoveHandler(exchangeRemoveHandler);
 		exchange.execute(new Runnable() {
 

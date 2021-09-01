@@ -77,7 +77,8 @@ public class CoapTcpStackTest {
 
 	@Test public void sendRstExpectNotSend() {
 		Request request = new Request(CoAP.Code.GET);
-		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		request.setSourceContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		Exchange exchange = new Exchange(request, request.getSourceContext().getPeerAddress(), Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		EmptyMessage message = new EmptyMessage(CoAP.Type.RST);
 		stack.sendEmptyMessage(exchange, message);
 
@@ -87,7 +88,7 @@ public class CoapTcpStackTest {
 	@Test public void sendRequestExpectSent() {
 		Request message = new Request(CoAP.Code.GET);
 		message.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
-		Exchange exchange = new Exchange(message, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(message, message.getDestinationContext().getPeerAddress(), Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		stack.sendRequest(exchange, message);
 
 		verify(outbox).sendRequest(any(Exchange.class), eq(message));
@@ -96,7 +97,8 @@ public class CoapTcpStackTest {
 
 	@Test public void sendResponseExpectSent() {
 		Request request = new Request(CoAP.Code.GET);
-		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		request.setSourceContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		Exchange exchange = new Exchange(request, request.getSourceContext().getPeerAddress(), Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		exchange.setRequest(request);
 
 		Response response = new Response(CoAP.ResponseCode.CONTENT);

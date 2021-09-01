@@ -157,7 +157,7 @@ public class PeersBasedDeduplicatorTest {
 		Request incoming = Request.newGet();
 		incoming.setMID(mid);
 		incoming.setSourceContext(new AddressEndpointContext(peer));
-		Exchange exchange = new Exchange(incoming, Exchange.Origin.REMOTE, null);
+		Exchange exchange = new Exchange(incoming, peer, Exchange.Origin.REMOTE, null);
 		KeyMID key = new KeyMID(incoming.getMID(), peer);
 		return deduplicator.findPrevious(key, exchange);
 	}

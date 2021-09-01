@@ -21,11 +21,14 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.GroupedMessageIdTracker;
+import org.eclipse.californium.core.network.KeyMID;
+import org.eclipse.californium.core.network.KeyToken;
 import org.eclipse.californium.core.network.TokenGenerator;
 import org.eclipse.californium.core.network.deduplication.CropRotation;
 import org.eclipse.californium.core.network.deduplication.NoDeduplicator;
 import org.eclipse.californium.core.network.deduplication.SweepDeduplicator;
 import org.eclipse.californium.core.network.deduplication.SweepPerPeerDeduplicator;
+import org.eclipse.californium.core.network.stack.KeyUri;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.BooleanDefinition;
@@ -66,8 +69,9 @@ public final class CoapConfig {
 		 */
 		PRINCIPAL,
 		/**
-		 * Principal based matching using the principal also as identity.
-		 * Requires unique principals.
+		 * Principal based matching using the principal also as identity for
+		 * {@link KeyMID}, {@link KeyToken} and {@link KeyUri}. Requires unique
+		 * principals and incoming initiated traffic.
 		 */
 		PRINCIPAL_IDENTITY,
 	}

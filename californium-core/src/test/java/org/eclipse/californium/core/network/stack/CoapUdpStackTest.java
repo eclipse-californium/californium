@@ -74,18 +74,19 @@ public class CoapUdpStackTest {
 	}
 
 	@Test public void sendRequestExpectSent() {
-		Request message = new Request(CoAP.Code.GET);
-		message.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
-		Exchange exchange = new Exchange(message, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		stack.sendRequest(exchange, message);
+		Request request = new Request(CoAP.Code.GET);
+		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		stack.sendRequest(exchange, request);
 
-		verify(outbox).sendRequest(any(Exchange.class), eq(message));
+		verify(outbox).sendRequest(any(Exchange.class), eq(request));
 	}
 
 
 	@Test public void sendResponseExpectSent() {
 		Request request = new Request(CoAP.Code.GET);
-		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		request.setSourceContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		Exchange exchange = new Exchange(request, request.getSourceContext().getPeerAddress(), Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		exchange.setRequest(request);
 
 		Response response = new Response(CoAP.ResponseCode.CONTENT);

@@ -105,13 +105,13 @@ public final class UdpMatcher extends BaseMatcher {
 	 * @param executor executor to be used for exchanges.
 	 * @param matchingStrategy endpoint context matcher to relate responses with
 	 *            requests
-	 * @throws NullPointerException if one of the parameters is {@code null}.
+	 * @throws NullPointerException if any of the parameters is {@code null} (except the executor).
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	public UdpMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
 			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
 			EndpointContextMatcher matchingStrategy) {
-		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, executor);
+		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, matchingStrategy, executor);
 		this.endpointContextMatcher = matchingStrategy;
 	}
 
@@ -120,6 +120,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		// for observe request.
 		Request request = exchange.getCurrentRequest();
+
 		if (request.isObserve() && 0 == exchange.getFailedTransmissionCount()) {
 			if (exchangeStore.assignMessageId(request) != Message.NONE) {
 				registerObserve(request);
@@ -148,6 +149,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		boolean ready = true;
 		Response response = exchange.getCurrentResponse();
+
 		// ensure Token is set
 		response.ensureToken(exchange.getCurrentRequest().getToken());
 		// Insert CON to match ACKs and RSTs to the exchange.
@@ -213,10 +215,9 @@ public final class UdpMatcher extends BaseMatcher {
 		//      if ACK+response got lost => resend ACK+response
 		//      if nothing has been sent yet => do nothing
 		// (Retransmission is supposed to be done by the retransm. layer)
-
-		final KeyMID idByMID = new KeyMID(request.getMID(),
-				endpointContextMatcher.getEndpointIdentity(request.getSourceContext()));
-		final Exchange exchange = new Exchange(request, Origin.REMOTE, executor);
+		final Object peer = endpointContextMatcher.getEndpointIdentity(request.getSourceContext());
+		final KeyMID idByMID = new KeyMID(request.getMID(), peer);
+		final Exchange exchange = new Exchange(request, peer, Origin.REMOTE, executor);
 		final Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
 		boolean duplicate = previous != null;
 
@@ -305,7 +306,7 @@ public final class UdpMatcher extends BaseMatcher {
 		// - Retransmitted CON (because client got no ACK)
 		// => resend ACK
 
-		final Object peer = endpointContextMatcher.getEndpointIdentity( response.getSourceContext());
+		final Object peer = endpointContextMatcher.getEndpointIdentity(response.getSourceContext());
 		final KeyToken idByToken = tokenGenerator.getKeyToken(response.getToken(), peer);
 		LOGGER.trace("received response {} from {}", response, response.getSourceContext());
 		Exchange tempExchange = exchangeStore.get(idByToken);
@@ -473,8 +474,8 @@ public final class UdpMatcher extends BaseMatcher {
 		// an empty ACK or RST always is received as a reply to a message
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
-		final KeyMID idByMID = new KeyMID(message.getMID(),
-				endpointContextMatcher.getEndpointIdentity(message.getSourceContext()));
+		final Object peer = endpointContextMatcher.getEndpointIdentity(message.getSourceContext());
+		final KeyMID idByMID = new KeyMID(message.getMID(), peer);
 		final Exchange exchange = exchangeStore.get(idByMID);
 
 		if (exchange == null) {

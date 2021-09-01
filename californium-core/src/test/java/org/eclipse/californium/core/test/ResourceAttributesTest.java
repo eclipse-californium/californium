@@ -115,12 +115,11 @@ public class ResourceAttributesTest {
 		Request request = Request.newGet();
 		request.setURI("coap://localhost/.well-known/core?rt=light-lux&rt=temprature-cel");
 	
-		Exchange exchange = new Exchange(request, Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		exchange.setRequest(request);
+		Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		exchange.setEndpoint(new DummyEndpoint());
-		
+
 		DiscoveryResource discovery = new DiscoveryResource(root);
-		
+
 		discovery.handleRequest(exchange);
 		System.out.println(exchange.getResponse().getPayloadString());
 		Assert.assertEquals(ResponseCode.BAD_OPTION, exchange.getResponse().getCode());

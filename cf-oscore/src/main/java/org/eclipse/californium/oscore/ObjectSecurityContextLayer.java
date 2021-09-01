@@ -197,7 +197,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 					});
 					// send start rederivation request
 					LOGGER.info("Auxiliary Request: " + exchange.getRequest().toString());
-					final Exchange newExchange = new Exchange(startRederivation, Origin.LOCAL, executor);
+					final Exchange newExchange = new Exchange(startRederivation, exchange.getPeersIdentity(), Origin.LOCAL, executor);
 					newExchange.execute(new Runnable() {
 
 						@Override

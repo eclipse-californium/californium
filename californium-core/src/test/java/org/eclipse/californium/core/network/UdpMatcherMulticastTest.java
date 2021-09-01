@@ -93,7 +93,7 @@ public class UdpMatcherMulticastTest {
 		Request request = Request.newGet();
 		request.setType(Type.NON);
 		request.setDestinationContext(new AddressEndpointContext(multicast_dest));
-		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(request, multicast_dest, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		exchange.setRequest(request);
 		matcher.sendRequest(exchange);
 		exchange.setEndpointContext(exchangeEndpointContext);
