@@ -17,9 +17,11 @@ package org.eclipse.californium.core.config;
 
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.GroupedMessageIdTracker;
 import org.eclipse.californium.core.network.KeyMID;
 import org.eclipse.californium.core.network.KeyToken;
@@ -54,6 +56,8 @@ public final class CoapConfig {
 
 	/**
 	 * Matcher mode.
+	 * 
+	 * Used for UDP and DTLS.
 	 */
 	public enum MatcherMode {
 		/**
@@ -61,17 +65,22 @@ public final class CoapConfig {
 		 */
 		STRICT,
 		/**
-		 * Relaxed matching. Session may have been resumed.
+		 * Relaxed matching. DTLS session may have been resumed or UDP address
+		 * may have changed.
 		 */
 		RELAXED,
 		/**
-		 * Principal based matching. Requires unique principals.
+		 * DTLS principal based matching. Requires unique principals.
 		 */
 		PRINCIPAL,
 		/**
-		 * Principal based matching using the principal also as identity for
-		 * {@link KeyMID}, {@link KeyToken} and {@link KeyUri}. Requires unique
-		 * principals and incoming initiated traffic.
+		 * DTLS principal based matching using the principal also as identity
+		 * for {@link KeyMID}, {@link KeyToken} and {@link KeyUri}. Requires
+		 * unique principals and incoming initiated traffic. Only using ping may
+		 * enable a client to support this for later outgoing traffic.
+		 * 
+		 * @see CoapClient#ping()
+		 * @see Request#newPing()
 		 */
 		PRINCIPAL_IDENTITY,
 	}

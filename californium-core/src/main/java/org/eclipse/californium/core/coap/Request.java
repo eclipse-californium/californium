@@ -178,7 +178,11 @@ public class Request extends Message {
 	private static final Pattern IP_PATTERN = Pattern
 			.compile("(\\[[0-9a-fA-F:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
 
-	/** The request code. */
+	/**
+	 * The request code.
+	 * 
+	 * {@code null}, if ping-request.
+	 */
 	private final CoAP.Code code;
 
 	/** Marks this request as multicast request */
@@ -237,7 +241,7 @@ public class Request extends Message {
 	/**
 	 * Creates a request of type {@code CON} for a CoAP code.
 	 * 
-	 * @param code the request code.
+	 * @param code the request code. {@code null}, if ping-request.
 	 */
 	public Request(Code code) {
 		this(code, Type.CON);
@@ -246,7 +250,7 @@ public class Request extends Message {
 	/**
 	 * Creates a request for a CoAP code and message type.
 	 * 
-	 * @param code the request code.
+	 * @param code the request code. {@code null}, if ping-request.
 	 * @param type the message type.
 	 */
 	public Request(Code code, Type type) {
@@ -1186,5 +1190,16 @@ public class Request extends Message {
 	 */
 	public static Request newDelete() {
 		return new Request(Code.DELETE);
+	}
+
+	/**
+	 * Convenience factory method to construct a PING (pseudo) request and
+	 * equivalent to <code>new Request(null);</code>
+	 * 
+	 * @return a new PING request
+	 * @since 3.0
+	 */
+	public static Request newPing() {
+		return new Request(null);
 	}
 }
