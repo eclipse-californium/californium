@@ -45,6 +45,8 @@ public class UdpEndpointContextMatcher extends DefinitionsEndpointContextMatcher
 	private static final Definitions<Definition<?>> DEFINITIONS = new Definitions<>("udp context")
 			.add(UdpEndpointContext.KEY_PLAIN);
 
+	public static final String MULTICAST_IDENTITY = "MULTICAST";
+
 	/**
 	 * Enable address check for request-response matching.
 	 */
@@ -67,6 +69,23 @@ public class UdpEndpointContextMatcher extends DefinitionsEndpointContextMatcher
 	public UdpEndpointContextMatcher(boolean checkAddress) {
 		super(DEFINITIONS);
 		this.checkAddress = checkAddress;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @since 3.0 return {@link #MULTICAST_IDENTITY} for multicast addresses.
+	 */
+	@Override
+	public Object getEndpointIdentity(EndpointContext context) {
+		Object identity = super.getEndpointIdentity(context);
+		if (identity instanceof InetSocketAddress) {
+			InetSocketAddress address = (InetSocketAddress) identity;
+			if (NetworkInterfacesUtil.isMultiAddress(address.getAddress())) {
+				return MULTICAST_IDENTITY;
+			}
+		}
+		return identity;
 	}
 
 	/**

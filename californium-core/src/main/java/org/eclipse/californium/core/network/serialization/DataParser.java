@@ -34,8 +34,6 @@ import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
 
-import java.io.ByteArrayInputStream;
-
 /**
  * A base class for parsing CoAP messages from a byte array.
  */
@@ -79,7 +77,7 @@ public abstract class DataParser {
 	public final Message parseMessage(final byte[] msg) {
 
 		String errorMsg = "illegal message code";
-		DatagramReader reader = new DatagramReader(new ByteArrayInputStream(msg));
+		DatagramReader reader = new DatagramReader(msg);
 		MessageHeader header = parseHeader(reader);
 		try {
 			Message message = null;

@@ -609,6 +609,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		}
 
 		InetSocketAddress destinationAddress = request.getDestinationContext().getPeerAddress();
+		int mid = request.getMID();
 		if (request.isMulticast()) {
 			if (0 >= multicastBaseMid) {
 				LOGGER.warn(
@@ -623,17 +624,17 @@ public class CoapEndpoint implements Endpoint, Executor {
 						tag, StringUtil.toLog(destinationAddress));
 				request.setSendError(new IllegalArgumentException("multicast is not supported for CON!"));
 				return;
-			} else if (request.hasMID() && request.getMID() < multicastBaseMid) {
+			} else if (request.hasMID() && mid < multicastBaseMid) {
 				LOGGER.warn(
 						"{}multicast request to group {} has mid {} which is not in the MULTICAST_MID range [{}-65535]",
-						tag, StringUtil.toLog(destinationAddress), request.getMID(), multicastBaseMid);
+						tag, StringUtil.toLog(destinationAddress), mid, multicastBaseMid);
 				request.setSendError(
 						new IllegalArgumentException("multicast mid is not in range [" + multicastBaseMid + "-65535]"));
 				return;
 			}
-		} else if (0 < multicastBaseMid && request.getMID() >= multicastBaseMid) {
+		} else if (isMulticastMid(mid)) {
 			LOGGER.warn("{}request to {} has mid {}, which is in the MULTICAST_MID range [{}-65535]", tag,
-					StringUtil.toLog(destinationAddress), request.getMID(), multicastBaseMid);
+					StringUtil.toLog(destinationAddress), mid, multicastBaseMid);
 			request.setSendError(
 					new IllegalArgumentException("unicast mid is in multicast range [" + multicastBaseMid + "-65535]"));
 			return;
@@ -795,6 +796,18 @@ public class CoapEndpoint implements Endpoint, Executor {
 		for (MessageInterceptor interceptor : list) {
 			interceptor.receiveEmptyMessage(emptyMessage);
 		}
+	}
+
+	/**
+	 * Check, if provided mid is in multicast range.
+	 * 
+	 * @param mid mid to check
+	 * @return {@code true},m if mid is in multicast range, {@code false},
+	 *         otherwise.
+	 * @since 3.0
+	 */
+	private boolean isMulticastMid(int mid) {
+		return 0 < multicastBaseMid && multicastBaseMid <= mid && mid <= Message.MAX_MID;
 	}
 
 	/**
@@ -1000,7 +1013,6 @@ public class CoapEndpoint implements Endpoint, Executor {
 					if (raw.isMulticast()) {
 						LOGGER.debug("{}multicast-receiver silently ignoring responses from {}", tag,
 								raw.getEndpointContext());
-
 					} else {
 						receiveResponse((Response) msg);
 					}
@@ -1009,7 +1021,6 @@ public class CoapEndpoint implements Endpoint, Executor {
 					if (raw.isMulticast()) {
 						LOGGER.debug("{}multicast-receiver silently ignoring empty messages from {}", tag,
 								raw.getEndpointContext());
-
 					} else {
 						receiveEmptyMessage((EmptyMessage) msg);
 					}
@@ -1167,7 +1178,14 @@ public class CoapEndpoint implements Endpoint, Executor {
 					LOGGER.debug("{}responding to ping from {}", tag, message.getSourceContext());
 					endpointStackReceiver.reject(message);
 				} else {
-					matcher.receiveEmptyMessage(message, endpointStackReceiver);
+					if (isMulticastMid(message.getMID())) {
+						LOGGER.debug("{} silently ignoring empty messages for multicast request {}", tag,
+								message.getSourceContext());
+						message.setCanceled(true);
+						endpointStackReceiver.receiveEmptyMessage(null, message);
+					} else {
+						matcher.receiveEmptyMessage(message, endpointStackReceiver);
+					}
 				}
 			}
 		}
