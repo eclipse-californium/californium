@@ -50,6 +50,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -376,7 +377,7 @@ public class ServerHandshakerTest {
 	}
 
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config) throws HandshakeException {
-		Connection connection = new Connection(config.getAddress()).setConnectorContext(new SyncExecutor(), null);
+		Connection connection = new Connection(config.getAddress()).setConnectorContext(new TestSynchroneExecutor(), null);
 		connection.setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 		ServerHandshaker handshaker =  new ServerHandshaker(0, 0, recordLayer, timer, connection, config);
 		recordLayer.setHandshaker(handshaker);
