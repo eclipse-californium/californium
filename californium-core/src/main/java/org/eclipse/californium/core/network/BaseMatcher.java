@@ -113,8 +113,7 @@ public abstract class BaseMatcher implements Matcher {
 	 *            message exchanges with endpoints.
 	 * @param identityResolver identity resolver to reload notify exchanges.
 	 * @param executor executor to be used for exchanges.
-	 * @throws NullPointerException if any of the parameters is {@code null}
-	 *             (except the executor).
+	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @since 3.0 (changed parameter to Configuration, added EndpointIdentityResolver)
 	 */
 	public BaseMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
@@ -132,6 +131,8 @@ public abstract class BaseMatcher implements Matcher {
 			throw new NullPointerException("ObservationStore must not be null");
 		} else if (identityResolver == null) {
 			throw new NullPointerException("EndpointIdentityResolver must not be null");
+		} else if (executor == null) {
+			throw new NullPointerException("Executor must not be null");
 		} else {
 			this.config = config;
 			this.notificationListener = notificationListener;

@@ -269,7 +269,7 @@ public class ClientHandshakerTest {
 		}
 		DtlsConnectorConfig config = builder.build();
 		Connection connection = new Connection(config.getAddress());
-		connection.setConnectorContext(new TestSynchroneExecutor(), null);
+		connection.setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null);
 		connection.setConnectionId(ConnectionId.EMPTY);
 		handshaker = new ClientHandshaker(
 				virtualHost,

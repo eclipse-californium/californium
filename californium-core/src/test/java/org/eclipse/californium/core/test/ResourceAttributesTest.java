@@ -37,7 +37,6 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -46,6 +45,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -115,12 +115,18 @@ public class ResourceAttributesTest {
 		Request request = Request.newGet();
 		request.setURI("coap://localhost/.well-known/core?rt=light-lux&rt=temprature-cel");
 	
-		Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		final Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		exchange.setEndpoint(new DummyEndpoint());
+		exchange.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				DiscoveryResource discovery = new DiscoveryResource(root);
 
-		DiscoveryResource discovery = new DiscoveryResource(root);
+				discovery.handleRequest(exchange);
+			}
+		});
 
-		discovery.handleRequest(exchange);
 		System.out.println(exchange.getResponse().getPayloadString());
 		Assert.assertEquals(ResponseCode.BAD_OPTION, exchange.getResponse().getCode());
 	}

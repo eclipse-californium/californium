@@ -317,21 +317,6 @@ public class SerialExecutor extends AbstractExecutorService {
 	}
 
 	/**
-	 * Create serial executor from provided executor.
-	 * 
-	 * @param executor target executor. if {@code null}, no serial executor is
-	 *            created.
-	 * @return created serial executor, or {@code null}, if provided executor is
-	 *         {@code null}.
-	 */
-	public static SerialExecutor create(final Executor executor) {
-		if (executor != null) {
-			return new SerialExecutor(executor);
-		}
-		return null;
-	}
-
-	/**
 	 * Set execution listener.
 	 * 
 	 * Called before and after executing a task.

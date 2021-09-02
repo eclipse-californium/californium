@@ -25,6 +25,15 @@ import java.util.concurrent.Executor;
  * @since 3.0 (replaces SyncSerialExecutor)
  */
 public class TestSynchroneExecutor implements Executor {
+	/**
+	 * Synchronous executor.
+	 * 
+	 * For unit tests.
+	 */
+	public static final Executor TEST_EXECUTOR = new TestSynchroneExecutor();
+
+	private TestSynchroneExecutor() {
+	}
 
 	/**
 	 * Execute the job synchronous.

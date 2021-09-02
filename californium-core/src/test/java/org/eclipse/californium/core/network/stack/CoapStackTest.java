@@ -32,7 +32,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
@@ -40,6 +39,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Rule;
@@ -82,19 +82,25 @@ public class CoapStackTest {
 	}
 
 	@Test public void cancelledMessageExpectExchangeComplete() {
-		Request request = new Request(CoAP.Code.GET);
+		final Request request = new Request(CoAP.Code.GET);
 		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
-		Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		final Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.LOCAL, TestSynchroneExecutor.TEST_EXECUTOR);
 		ArgumentCaptor<Exchange> exchangeCaptor = ArgumentCaptor.forClass(Exchange.class);
 		doNothing().when(outbox).sendRequest(exchangeCaptor.capture(), eq(request));
 
-		stack.sendRequest(exchange, request);
+		exchange.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				stack.sendRequest(exchange, request);
+			}
+		});
 
 		// Capture exchange
-		exchange = exchangeCaptor.getValue();
-		assertFalse(exchange.isComplete());
+		Exchange sendExchange = exchangeCaptor.getValue();
+		assertFalse(sendExchange.isComplete());
 
 		request.setCanceled(true);
-		assertTrue(exchange.isComplete());
+		assertTrue(sendExchange.isComplete());
 	}
 }

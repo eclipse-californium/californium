@@ -91,7 +91,7 @@ public final class TcpMatcher extends BaseMatcher {
 	 * @param endpointContextMatcher endpoint context matcher to relate
 	 *            responses with requests
 	 * @param executor executor to be used for exchanges.
-	 * @throws NullPointerException if any of the parameters is {@code null} (except the executor).
+	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @since 3.0 (changed parameter to Configuration, moved executor to end of parameter list)
 	 */
 	public TcpMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,

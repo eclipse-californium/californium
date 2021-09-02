@@ -35,9 +35,9 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -68,11 +68,9 @@ public class ServerMessageDelivererTest {
 		rootResource = mock(Resource.class);
 		when(rootResource.getChild(anyString())).thenReturn(rootResource);
 		when(rootResource.getExecutor()).thenReturn(null);
-		incomingRequest = new Exchange(new Request(Code.POST), dest, Exchange.Origin.REMOTE, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		incomingRequest.setRequest(incomingRequest.getCurrentRequest());
+		incomingRequest = new Exchange(new Request(Code.POST), dest, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		incomingResponse = new Response(ResponseCode.CONTENT);
-		outboundRequest = new Exchange(new Request(Code.GET), dest, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		outboundRequest.setRequest(outboundRequest.getCurrentRequest());
+		outboundRequest = new Exchange(new Request(Code.GET), dest, Origin.LOCAL, TestSynchroneExecutor.TEST_EXECUTOR);
 	}
 
 	/**
@@ -85,7 +83,7 @@ public class ServerMessageDelivererTest {
 
 		// GIVEN a message deliverer subclass which processes all incoming requests
 		// in its preDeliverRequest method
-		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource) {
+		final ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource) {
 			@Override
 			protected boolean preDeliverRequest(Exchange exchange) {
 				Response response = new Response(ResponseCode.CREATED);
@@ -95,7 +93,13 @@ public class ServerMessageDelivererTest {
 		};
 
 		// WHEN a request is received
-		deliverer.deliverRequest(incomingRequest);
+		incomingRequest.execute(new Runnable() {
+			
+			@Override
+			public void run() {
+				deliverer.deliverRequest(incomingRequest);
+			}
+		});
 
 		// THEN the request is not delivered to the match-all root resource
 		verify(rootResource, never()).handleRequest(incomingRequest);
