@@ -19,6 +19,7 @@ package org.eclipse.californium.proxy2.http.server;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Locale;
+import java.util.concurrent.Executor;
 
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.EndpointDetails;
@@ -42,6 +43,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.InvalidFieldException;
 import org.eclipse.californium.proxy2.InvalidMethodException;
 import org.eclipse.californium.proxy2.TranslationException;
+import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.eclipse.californium.proxy2.http.ContentTypedEntity;
 import org.eclipse.californium.proxy2.http.CrossProtocolTranslator;
 import org.eclipse.californium.proxy2.http.Http2CoapTranslator;
@@ -80,48 +82,29 @@ public class HttpStack {
 	public static final String LOCAL_RESOURCE_NAME = "local";
 
 	private final HttpServer server;
-
-	private Http2CoapTranslator translator;
-	private MessageDeliverer requestDeliverer;
-
-	/**
-	 * Instantiates a new http stack on the requested port. It creates an http
-	 * listener thread on the port and the handlers as provided.
-	 * 
-	 * @param config configuration with HTTP_SERVER_SOCKET_TIMEOUT and
-	 *            HTTP_SERVER_SOCKET_BUFFER_SIZE.
-	 * @param httpPort the http port
-	 * @throws IOException Signals that an I/O exception has occurred.
-	 * @since 3.0 (changed parameter to Configuration)
-	 */
-	public HttpStack(Configuration config, int httpPort) throws IOException {
-		this(config, new InetSocketAddress(httpPort));
-	}
+	private final Executor executor;
+	private final MessageDeliverer requestDeliverer;
+	private final Http2CoapTranslator translator;
 
 	/**
 	 * Instantiates a new http stack on the requested interface. It creates an
 	 * http listener thread on the interface and the handlers as provided.
 	 * 
-	 * @param config configuration with HTTP_SERVER_SOCKET_TIMEOUT and
-	 *            HTTP_SERVER_SOCKET_BUFFER_SIZE.
+	 * @param config configuration with
+	 *            {@link Proxy2Config#HTTP_SERVER_SOCKET_TIMEOUT}, and
+	 *            {@link Proxy2Config#HTTP_SERVER_SOCKET_BUFFER_SIZE}.
+	 * @param executor the executor to process the coap-exchanges
 	 * @param httpInterface the http interface
+	 * @param translator http translator
+	 * @param requestDeliverer message deliverer for http request
 	 * @throws IOException Signals that an I/O exception has occurred.
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public HttpStack(Configuration config, InetSocketAddress httpInterface) throws IOException {
+	public HttpStack(Configuration config, Executor executor, InetSocketAddress httpInterface, Http2CoapTranslator translator, MessageDeliverer requestDeliverer) throws IOException {
 		server = new HttpServer(config, httpInterface);
-	}
-
-	/**
-	 * Set http translator for incoming http requests and outgoing http
-	 * responses.
-	 * 
-	 * set in {@link HttpStack} on {@link #start()}.
-	 * 
-	 * @param translator http translator
-	 */
-	void setHttpTranslator(Http2CoapTranslator translator) {
+		this.executor = executor;
 		this.translator = translator;
+		this.requestDeliverer = requestDeliverer;
 	}
 
 	/**
@@ -180,7 +163,17 @@ public class HttpStack {
 	}
 
 	/**
-	 * Start http server.
+	 * Get address of http network interface.
+	 * 
+	 * @return address of http network interface.
+	 * @since 3.0
+	 */
+	public InetSocketAddress getInterface() {
+		return server.getInterface();
+	}
+
+	/**
+	 * Starts the http server.
 	 */
 	public void start() {
 		server.start();
@@ -191,15 +184,6 @@ public class HttpStack {
 	 */
 	public void stop() {
 		server.stop();
-	}
-
-	/**
-	 * Set message deliverer for http request.
-	 * 
-	 * @param requestDeliverer message deliverer for http request
-	 */
-	public void setRequestDeliverer(MessageDeliverer requestDeliverer) {
-		this.requestDeliverer = requestDeliverer;
 	}
 
 	/**
@@ -248,7 +232,7 @@ public class HttpStack {
 				// keep the receiving interface.
 				coapRequest.setLocalAddress(endpoint);
 				// handle the request
-				Exchange exchange = new Exchange(coapRequest, source, Origin.REMOTE, null) {
+				final Exchange exchange = new Exchange(coapRequest, source, Origin.REMOTE, executor) {
 
 					@Override
 					public void sendAccept() {
@@ -268,7 +252,13 @@ public class HttpStack {
 						LOGGER.debug("HTTP returned {}", response);
 					}
 				};
-				requestDeliverer.deliverRequest(exchange);
+				exchange.execute(new Runnable() {
+
+					@Override
+					public void run() {
+						requestDeliverer.deliverRequest(exchange);
+					}
+				});
 			} catch (InvalidMethodException e) {
 				LOGGER.warn("Method not implemented", e);
 				sendSimpleHttpResponse(CrossProtocolTranslator.STATUS_WRONG_METHOD, e.getMessage(), responseTrigger,

@@ -29,7 +29,7 @@ import org.apache.hc.core5.http.Method;
 import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.impl.EnglishReasonPhraseCatalog;
 import org.apache.hc.core5.http.message.BasicHttpResponse;
-import org.apache.hc.core5.net.URLEncodedUtils;
+import org.apache.hc.core5.net.WWWFormCodec;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -208,7 +208,7 @@ public class Http2CoapTranslator {
 		} else if (proxyingEnabled && path.equals(httpResource)) {
 			String target = null;
 			if (uri.getQuery() != null) {
-				List<NameValuePair> query = URLEncodedUtils.parse(uri.getQuery(), StandardCharsets.UTF_8);
+				List<NameValuePair> query = WWWFormCodec.parse(uri.getQuery(), StandardCharsets.UTF_8);
 				for (NameValuePair arg : query) {
 					if (arg.getName().equalsIgnoreCase("target_uri")) {
 						target = arg.getValue();

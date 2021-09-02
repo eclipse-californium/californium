@@ -54,22 +54,22 @@ public final class Proxy2Config {
 	public static final int DEFAULT_HTTPS_HANDSHAKE_TIMEOUT_IN_SECONDS = 10;
 
 	public static final IntegerDefinition HTTP_PORT = new IntegerDefinition(MODULE + "HTTP_PORT", "HTTP server port.",
-			80);
+			80, 1);
 	public static final TimeDefinition HTTP_SERVER_SOCKET_TIMEOUT = new TimeDefinition(
 			MODULE + "HTTP_SERVER_SOCKET_TIMEOUT", "HTTP server socket timeout.", 10L, TimeUnit.SECONDS);
 	public static final IntegerDefinition HTTP_SERVER_SOCKET_BUFFER_SIZE = new IntegerDefinition(
-			MODULE + "HTTP_SERVER_SOCKET_BUFFER_SIZE", "HTTP server socker buffersize.", 8192);
+			MODULE + "HTTP_SERVER_SOCKET_BUFFER_SIZE", "HTTP server socker buffersize.", 8192, 2048);
 	public static final TimeDefinition CACHE_RESPONSE_MAX_AGE = new TimeDefinition(MODULE + "CACHE_RESPONSE_MAX_AGE",
 			"Maximum age to cache responses.", 1L, TimeUnit.HOURS);
 	public static final IntegerDefinition CACHE_SIZE = new IntegerDefinition(MODULE + "CACHE_SIZE",
-			"Size of response cache.", 1000);
+			"Size of response cache.", 1000, 10);
 	public static final TimeDefinition HTTP_CONNECTION_IDLE_TIMEOUT = new TimeDefinition(
 			MODULE + "HTTP_CONNECTION_IDLE_TIMEOUT", "HTTP connection idle timeout.",
 			DEFAULT_HTTP_CONNECTION_IDLE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 	public static final TimeDefinition HTTP_CONNECT_TIMEOUT = new TimeDefinition(MODULE + "HTTP_CONNECT_TIMEOUT",
 			"HTTP connect timeout", DEFAULT_HTTP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 	public static final IntegerDefinition HTTP_WORKER_THREADS = new IntegerDefinition(MODULE + "HTTP_WORKER_THREADS",
-			"HTTP worker threads", 1);
+			"HTTP worker threads", 1, 1);
 	public static final TimeDefinition HTTPS_HANDSHAKE_TIMEOUT = new TimeDefinition(MODULE + "HTTPS_HANDSHAKE_TIMEOUT",
 			"HTTPS handshake timeout", DEFAULT_HTTPS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 

@@ -98,20 +98,21 @@ public class BasicHttpForwardingProxy2 {
 		// initialize coap outgoing endpoint
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConfiguration(config);
-		ClientSingleEndpoint outgoingEndpoint = new ClientSingleEndpoint(builder.build());
-
-		int port = config.get(Proxy2Config.HTTP_PORT);
-
-		httpProxyServer = new ProxyHttpServer(config, port);
+		CoapEndpoint endpoint = builder.build();
+		ClientSingleEndpoint outgoingEndpoint = new ClientSingleEndpoint(endpoint);
 
 		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, false, null, outgoingEndpoint);
-
 		ForwardProxyMessageDeliverer proxyMessageDeliverer = new ForwardProxyMessageDeliverer(coap2coap);
 
-		httpProxyServer.setProxyCoapDeliverer(proxyMessageDeliverer);
+		httpProxyServer = ProxyHttpServer.buider()
+				.setConfiguration(config)
+				.setExecutor(endpoint)
+				.setProxyCoapDeliverer(proxyMessageDeliverer)
+				.build();
+
 		httpProxyServer.start();
 
-		System.out.println("** HTTP Proxy at: http://localhost:" + port);
+		System.out.println("** HTTP Proxy at: http://" + httpProxyServer.getInterface());
 	}
 
 	public static void main(String args[]) throws IOException {
