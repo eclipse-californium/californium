@@ -40,6 +40,7 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -157,7 +158,7 @@ public class PeersBasedDeduplicatorTest {
 		Request incoming = Request.newGet();
 		incoming.setMID(mid);
 		incoming.setSourceContext(new AddressEndpointContext(peer));
-		Exchange exchange = new Exchange(incoming, peer, Exchange.Origin.REMOTE, null);
+		Exchange exchange = new Exchange(incoming, peer, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		KeyMID key = new KeyMID(incoming.getMID(), peer);
 		return deduplicator.findPrevious(key, exchange);
 	}

@@ -41,6 +41,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -87,16 +88,22 @@ public class UdpMatcherMulticastTest {
 	@Test
 	public void testReceivedResponseExchangeWithMulticastRequestExchange() {
 
-		UdpMatcher matcher = newUdpMatcher(network.getStandardTestConfig(), endpointContextMatcher, scheduler);
+		final UdpMatcher matcher = newUdpMatcher(network.getStandardTestConfig(), endpointContextMatcher, scheduler);
 
 		// multicast request
 		Request request = Request.newGet();
 		request.setType(Type.NON);
 		request.setDestinationContext(new AddressEndpointContext(multicast_dest));
-		Exchange exchange = new Exchange(request, multicast_dest, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
-		exchange.setRequest(request);
-		matcher.sendRequest(exchange);
-		exchange.setEndpointContext(exchangeEndpointContext);
+		final Exchange exchange = new Exchange(request, multicast_dest, Origin.LOCAL,
+				TestSynchroneExecutor.TEST_EXECUTOR);
+		exchange.execute(new Runnable() {
+
+			@Override
+			public void run() {
+				matcher.sendRequest(exchange);
+				exchange.setEndpointContext(exchangeEndpointContext);
+			}
+		});
 
 		// 1. Response for the request //
 		Response response = new Response(ResponseCode.CONTENT);

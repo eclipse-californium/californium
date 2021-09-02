@@ -500,7 +500,7 @@ public class HandshakerTest {
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		TestHandshaker(DTLSSession session, RecordLayer recordLayer, DtlsConnectorConfig config) {
-			super(0, 0, recordLayer, timer, new Connection(config.getAddress()).setConnectorContext(new TestSynchroneExecutor(), null),
+			super(0, 0, recordLayer, timer, new Connection(config.getAddress()).setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null),
 					config);
 			getConnection().setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 			getSession().set(session);

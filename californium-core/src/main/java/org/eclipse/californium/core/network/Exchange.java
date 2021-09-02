@@ -163,8 +163,7 @@ public class Exchange {
 	/**
 	 * Executor for exchange jobs.
 	 * 
-	 * Note: for unit tests this may be {@code null} to escape the owner checking.
-	 * Otherwise many change in the tests would be required.
+	 * @since 3.0 (changed from optional (unit tests) to mandatory)
 	 */
 	private final SerialExecutor executor;
 	/** The nano timestamp when this exchange has been created */
@@ -338,20 +337,22 @@ public class Exchange {
 	 * @param peersIdentity peer's identity. Usually that's the peer's
 	 *            {@link InetSocketAddress}.
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
+	 * @param executor executor to be used for exchanges.
 	 * @param ctx the endpoint context of this exchange
 	 * @param notification {@code true} for notification exchange, {@code false}
 	 *            otherwise
-	 * @throws NullPointerException if request is {@code null}
-	 * @since 3.0 (added peersIdentity)
+	 * @throws NullPointerException if request or executor is {@code null}
+	 * @since 3.0 (added peersIdentity, executor adapted to mandatory)
 	 */
 	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
 		// might only be the first block of the whole request
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
+		} else if (executor == null) {
+			throw new NullPointerException("executor must not be null");
 		}
 		this.id = INSTANCE_COUNTER.incrementAndGet();
-		this.executor = SerialExecutor.create(executor);
+		this.executor = new SerialExecutor(executor);
 		this.currentRequest = request;
 		this.request = request;
 		this.origin = origin;
@@ -1045,7 +1046,7 @@ public class Exchange {
 		if (complete.get()) {
 			return false;
 		}
-		if (executor == null || checkOwner()) {
+		if (checkOwner()) {
 			setComplete();
 		} else {
 			execute(new Runnable() {
@@ -1269,7 +1270,7 @@ public class Exchange {
 	 */
 	public void execute(final Runnable command) {
 		try {
-			if (executor == null || checkOwner()) {
+			if (checkOwner()) {
 				command.run();
 			} else {
 				executor.execute(command);
@@ -1304,9 +1305,7 @@ public class Exchange {
 	 *             {@link #execute(Runnable)}.
 	 */
 	private void assertOwner() {
-		if (executor != null) {
-			executor.assertOwner();
-		}
+		executor.assertOwner();
 	}
 
 	/**
@@ -1316,11 +1315,7 @@ public class Exchange {
 	 *         {@code false}, otherwise.
 	 */
 	public boolean checkOwner() {
-		if (executor != null) {
-			return executor.checkOwner();
-		} else {
-			return true;
-		}
+		return executor.checkOwner();
 	}
 
 	/**

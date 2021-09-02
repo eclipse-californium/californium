@@ -30,6 +30,7 @@ import org.eclipse.californium.core.network.KeyMID;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -75,12 +76,12 @@ public class DeduplicatorTest {
 		incoming.setMID(10);
 		incoming.setSourceContext(new AddressEndpointContext(PEER));
 		key = new KeyMID(incoming.getMID(), PEER);
-		exchange1 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, null);
-		exchange2 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, null);
+		exchange1 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
+		exchange2 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		incoming = Request.newGet();
 		incoming.setMID(10);
 		incoming.setSourceContext(new AddressEndpointContext(PEER));
-		exchange3 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, null);
+		exchange3 = new Exchange(incoming, PEER, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 	}
 
 	@Test

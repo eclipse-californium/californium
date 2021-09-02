@@ -105,7 +105,7 @@ public final class UdpMatcher extends BaseMatcher {
 	 * @param executor executor to be used for exchanges.
 	 * @param matchingStrategy endpoint context matcher to relate responses with
 	 *            requests
-	 * @throws NullPointerException if any of the parameters is {@code null} (except the executor).
+	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	public UdpMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,

@@ -377,7 +377,7 @@ public class ServerHandshakerTest {
 	}
 
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config) throws HandshakeException {
-		Connection connection = new Connection(config.getAddress()).setConnectorContext(new TestSynchroneExecutor(), null);
+		Connection connection = new Connection(config.getAddress()).setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null);
 		connection.setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 		ServerHandshaker handshaker =  new ServerHandshaker(0, 0, recordLayer, timer, connection, config);
 		recordLayer.setHandshaker(handshaker);

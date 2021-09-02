@@ -51,6 +51,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -150,7 +151,7 @@ public class UdpMatcherTest {
 		UdpMatcher matcher = newUdpMatcher();
 		Exchange exchange = sendRequest(dest, matcher, null);
 		// WHEN request gets completed
-		exchange.setComplete();
+		exchange.executeComplete();
 
 		// THEN assert that token got released in both stores
 		Request request = exchange.getCurrentRequest();
@@ -167,7 +168,7 @@ public class UdpMatcherTest {
 		Exchange exchange = sendObserveRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN observe request gets completed
-		exchange.setComplete();
+		exchange.executeComplete();
 
 		// THEN assert that token got released in message exchange store
 		// THEN assert that token got not released in observation store
@@ -206,7 +207,7 @@ public class UdpMatcherTest {
 		// GIVEN a request that has not been sent yet
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(dest));
-		Exchange exchange = new Exchange(request, dest, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
+		Exchange exchange = new Exchange(request, dest, Origin.LOCAL, TestSynchroneExecutor.TEST_EXECUTOR);
 
 		MessageExchangeStore exchangeStore = mock(MessageExchangeStore.class);
 		when(exchangeStore.registerOutboundRequest(exchange)).thenReturn(false);
@@ -230,7 +231,7 @@ public class UdpMatcherTest {
 
 		UdpMatcher matcher = newUdpMatcher();
 
-		Exchange exchange = sendRequest(dest, matcher, endpointContextOperator, preEndpointContext);
+		Exchange exchange = sendRequest(dest, false, matcher, endpointContextOperator, preEndpointContext);
 		TestEndpointReceiver receiver = new TestEndpointReceiver();
 
 		// WHEN a response arrives with arbitrary additional endpoint information
