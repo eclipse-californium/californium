@@ -57,6 +57,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -499,7 +500,7 @@ public class HandshakerTest {
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		TestHandshaker(DTLSSession session, RecordLayer recordLayer, DtlsConnectorConfig config) {
-			super(0, 0, recordLayer, timer, new Connection(config.getAddress()).setConnectorContext(new SyncExecutor(), null),
+			super(0, 0, recordLayer, timer, new Connection(config.getAddress()).setConnectorContext(new TestSynchroneExecutor(), null),
 					config);
 			getConnection().setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 			getSession().set(session);

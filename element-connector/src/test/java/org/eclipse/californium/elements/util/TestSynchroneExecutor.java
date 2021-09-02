@@ -13,7 +13,7 @@
  * Contributors:
  *    Bosch IO.GmbH - initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.dtls;
+package org.eclipse.californium.elements.util;
 
 import java.util.concurrent.Executor;
 
@@ -24,7 +24,7 @@ import java.util.concurrent.Executor;
  * 
  * @since 3.0 (replaces SyncSerialExecutor)
  */
-public class SyncExecutor implements Executor {
+public class TestSynchroneExecutor implements Executor {
 
 	/**
 	 * Execute the job synchronous.

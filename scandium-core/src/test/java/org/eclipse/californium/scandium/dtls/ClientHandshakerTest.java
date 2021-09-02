@@ -40,6 +40,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -268,7 +269,7 @@ public class ClientHandshakerTest {
 		}
 		DtlsConnectorConfig config = builder.build();
 		Connection connection = new Connection(config.getAddress());
-		connection.setConnectorContext(new SyncExecutor(), null);
+		connection.setConnectorContext(new TestSynchroneExecutor(), null);
 		connection.setConnectionId(ConnectionId.EMPTY);
 		handshaker = new ClientHandshaker(
 				virtualHost,
