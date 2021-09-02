@@ -211,7 +211,7 @@ import org.slf4j.LoggerFactory;
  * incoming traffic.
  * 
  */
-public class CoapEndpoint implements Endpoint {
+public class CoapEndpoint implements Endpoint, Executor {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class);
@@ -400,20 +400,6 @@ public class CoapEndpoint implements Endpoint {
 			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
 		}
 
-		final Executor exchangeExecutionHandler = new Executor() {
-
-			@Override
-			public void execute(Runnable command) {
-				final Executor exchangeExecutor = executor;
-				if (exchangeExecutor == null) {
-					LOGGER.error("{}Executor not ready for exchanges!", tag,
-							new Throwable("exchange execution failed!"));
-				} else {
-					exchangeExecutor.execute(command);
-				}
-			}
-		};
-
 		this.identityResolver = endpointContextMatcher;
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{}{} uses {}", tag, getClass().getSimpleName(), endpointContextMatcher.getName());
@@ -424,13 +410,13 @@ public class CoapEndpoint implements Endpoint {
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.useRequestOffloading = false; // no deduplication
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
-					this.exchangeStore, endpointContextMatcher, exchangeExecutionHandler);
+					this.exchangeStore, endpointContextMatcher, this);
 			this.serializer = serializer != null ? serializer : new TcpDataSerializer();
 			this.parser = parser != null ? parser : new TcpDataParser();
 		} else {
 			this.useRequestOffloading = config.get(CoapConfig.USE_MESSAGE_OFFLOADING);
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
-					this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
+					this.exchangeStore, this, endpointContextMatcher);
 			this.serializer = serializer != null ? serializer : new UdpDataSerializer();
 			this.parser = parser != null ? parser : new UdpDataParser();
 		}
@@ -974,7 +960,7 @@ public class CoapEndpoint implements Endpoint {
 			} else {
 
 				// Create a new task to process this message
-				runInProtocolStage(new Runnable() {
+				execute(new Runnable() {
 
 					@Override
 					public void run() {
@@ -1278,25 +1264,31 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	/**
+	 * {@inheritDoc}
+	 * 
 	 * Execute the specified task on the endpoint's executor (protocol stage).
-	 *
-	 * @param task the task
 	 */
-	private void runInProtocolStage(final Runnable task) {
-		try {
-			executor.execute(new Runnable() {
+	@Override
+	public void execute(final Runnable task) {
+		final Executor exchangeExecutor = executor;
+		if (exchangeExecutor == null) {
+			LOGGER.error("{}Executor not ready!", tag, new Throwable("execution failed!"));
+		} else {
+			try {
+				exchangeExecutor.execute(new Runnable() {
 
-				@Override
-				public void run() {
-					try {
-						task.run();
-					} catch (final Throwable t) {
-						LOGGER.error("{}exception in protocol stage thread: {}", tag, t.getMessage(), t);
+					@Override
+					public void run() {
+						try {
+							task.run();
+						} catch (final Throwable t) {
+							LOGGER.error("{}exception in protocol stage thread: {}", tag, t.getMessage(), t);
+						}
 					}
-				}
-			});
-		} catch (RejectedExecutionException e) {
-			LOGGER.debug("{} execute:", tag, e);
+				});
+			} catch (RejectedExecutionException e) {
+				LOGGER.debug("{} execute:", tag, e);
+			}
 		}
 	}
 

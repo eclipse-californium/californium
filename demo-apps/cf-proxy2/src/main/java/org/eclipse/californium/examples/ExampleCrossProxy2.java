@@ -212,10 +212,14 @@ public class ExampleCrossProxy2 {
 
 		// HTTP Proxy which forwards http request to coap server and forwards
 		// translated coap response back to http client
-		httpServer = new ProxyHttpServer(config, 8080);
-		httpServer.setHttpTranslator(new Http2CoapTranslator());
-		httpServer.setLocalCoapDeliverer(local);
-		httpServer.setProxyCoapDeliverer(proxyMessageDeliverer);
+		httpServer = ProxyHttpServer.buider()
+				.setConfiguration(config)
+				.setPort(8080)
+				.setExecutor(mainExecutor)
+				.setHttpTranslator(new Http2CoapTranslator())
+				.setLocalCoapDeliverer(local)
+				.setProxyCoapDeliverer(proxyMessageDeliverer)
+				.build();
 		httpServer.start();
 		System.out.println("** HTTP Local at: http://localhost:" + httpPort + "/local/");
 		System.out.println("** HTTP Proxy at: http://localhost:" + httpPort + "/proxy/");
