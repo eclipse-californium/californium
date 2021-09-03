@@ -110,6 +110,7 @@ public class CC21 extends TestClientAbstract {
 				request = new Request(Code.GET, Type.CON);
 				request.getOptions().addETag(etagStep3);
 
+				addContextObserver(request);
 				request.setURI(uri);
 
 				request.send();
@@ -133,6 +134,7 @@ public class CC21 extends TestClientAbstract {
 							.getETags().get(0), "ETag");
 
 					request = new Request(Code.PUT, Type.CON);
+					addContextObserver(request);
 					request.setURI(uri);
 					request.setPayload("It should change");
 					request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
@@ -143,6 +145,7 @@ public class CC21 extends TestClientAbstract {
 					// Part C
 					request = new Request(Code.GET, Type.CON);
 					request.getOptions().addETag(etagStep3);
+					addContextObserver(request);
 
 					request.setURI(uri);
 

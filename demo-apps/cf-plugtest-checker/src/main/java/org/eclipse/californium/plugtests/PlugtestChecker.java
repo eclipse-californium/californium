@@ -40,6 +40,7 @@ import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.cli.ConnectorConfig;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.config.Configuration;
@@ -193,7 +194,12 @@ public class PlugtestChecker {
 
 		verbose = clientConfig.verbose;
 
-		clientConfig.ping &= !clientConfig.tcp;
+		if (clientConfig.tcp) {
+			clientConfig.ping = false;
+		} else if (clientConfig.secure
+				&& clientConfig.configuration.get(CoapConfig.RESPONSE_MATCHING) == MatcherMode.PRINCIPAL_IDENTITY) {
+			clientConfig.ping = true;
+		}
 
 		if (clientConfig.ping) {
 			System.out.println("===============\nCC31\n---------------");
@@ -220,7 +226,7 @@ public class PlugtestChecker {
 			request.setType(Type.CON);
 			request.setToken(Token.EMPTY);
 			request.setURI(address);
-
+			TestClientAbstract.addContextObserver(request);
 			System.out.println("++++++ Sending Ping ++++++");
 			request.send().waitForResponse(5000);
 			return request.isRejected();

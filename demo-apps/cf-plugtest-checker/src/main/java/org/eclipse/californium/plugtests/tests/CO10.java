@@ -62,6 +62,7 @@ public class CO10 extends TestClientAbstract {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
+		addContextObserver(request);
 		request.setURI(uri);
 
 		// for observing
@@ -121,6 +122,7 @@ public class CO10 extends TestClientAbstract {
 						System.out.println("+++++ Unrelated GET +++++");
 						// GET with different Token
 						Request asyncRequest = Request.newGet();
+						addContextObserver(asyncRequest);
 						asyncRequest.setURI(uri);
 						asyncRequest.send();
 						response = asyncRequest.waitForResponse(time / 2);

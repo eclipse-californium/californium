@@ -66,8 +66,8 @@ public class CC22 extends TestClientAbstract {
 					+ use.getMessage());
 		}
 
-		request.setURI(uri);
 		addContextObserver(request);
+		request.setURI(uri);
 
 		// print request info
 		if (verbose) {
@@ -113,6 +113,7 @@ public class CC22 extends TestClientAbstract {
 					request.getOptions().addIfMatch(etag1);
 					request.setPayload("TD_COAP_CORE_22 Part A");
 					request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+					addContextObserver(request);
 
 					request.setURI(uri);
 
@@ -135,6 +136,7 @@ public class CC22 extends TestClientAbstract {
 
 						// check new ETag
 						request = new Request(Code.GET, Type.CON);
+						addContextObserver(request);
 						request.setURI(uri);
 						request.send();
 
@@ -155,6 +157,7 @@ public class CC22 extends TestClientAbstract {
 
 								// change server resource
 								request = new Request(Code.PUT, Type.CON);
+								addContextObserver(request);
 								request.setURI(uri);
 								request.setPayload("It should change " + Math.random());
 								request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
@@ -166,6 +169,7 @@ public class CC22 extends TestClientAbstract {
 								request.getOptions().addIfMatch(etag1);
 								request.setPayload("TD_COAP_CORE_22 Part B");
 								request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+								addContextObserver(request);
 
 								request.setURI(uri);
 

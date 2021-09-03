@@ -45,6 +45,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -113,7 +114,14 @@ public class PlugtestClient {
 			System.exit(0);
 		}
 
-		clientConfig.ping &= !clientConfig.tcp;
+		if (clientConfig.tcp) {
+			clientConfig.ping = false;
+		} else if (clientConfig.secure
+				&& clientConfig.configuration.get(CoapConfig.RESPONSE_MATCHING) == MatcherMode.PRINCIPAL_IDENTITY) {
+			clientConfig.ping = true;
+		}
+
+		EndpointContext context = null;
 
 		if (clientConfig.ping) {
 			CoapClient clientPing = new CoapClient(clientConfig.uri);
@@ -124,27 +132,32 @@ public class PlugtestClient {
 			} else {
 				System.out.println(clientConfig.uri + " reponds to ping");
 			}
+			context = clientPing.getDestinationContext();
+			if (context != null) {
+				System.out.println(Utils.prettyPrint(context));
+			}
 		}
 
-		testCC(clientConfig.uri);
-		testCB(clientConfig.uri);
-		testCO(clientConfig.uri);
-		testCL(clientConfig.uri);
+		testCC(clientConfig.uri, context);
+		testCB(clientConfig.uri, context);
+		testCO(clientConfig.uri, context);
+		testCL(clientConfig.uri, context);
 
 		System.exit(0);
 	}
 
-	public static void testCC(String uri) throws ConnectorException, IOException {
+	public static void testCC(String uri, EndpointContext context) throws ConnectorException, IOException {
 
 		// re-usable response object
 		CoapResponse response;
 
 		CoapClient client = new CoapClient(uri + "/test");
+		client.setDestinationContext(context);
 
 		System.out.println("===============\nCC01+10");
 		System.out.println("---------------\nGET /test\n---------------");
 		response = client.get();
-		EndpointContext context = client.getDestinationContext();
+		context = client.getDestinationContext();
 		if (context != null) {
 			System.out.println(Utils.prettyPrint(context));
 		}
@@ -302,6 +315,7 @@ public class PlugtestClient {
 
 			System.out.println("---------------\nPUT /validate stimulus\n---------------");
 			CoapClient clientStimulus = new CoapClient(uri + "/validate");
+			clientStimulus.setDestinationContext(context);
 			response = clientStimulus.put("CC21 at " + new SimpleDateFormat("HH:mm:ss.SSS").format(new Date()),
 					MediaTypeRegistry.TEXT_PLAIN);
 			System.out.println(response.getCode());
@@ -338,6 +352,7 @@ public class PlugtestClient {
 
 			System.out.println("---------------\nPUT /validate stimulus\n---------------");
 			CoapClient clientStimulus = new CoapClient(uri + "/validate");
+			clientStimulus.setDestinationContext(context);
 			response = clientStimulus.put("CC22 at " + new SimpleDateFormat("HH:mm:ss.SSS").format(new Date()),
 					MediaTypeRegistry.TEXT_PLAIN);
 			System.out.println(response.getCode());
@@ -367,9 +382,10 @@ public class PlugtestClient {
 		client.shutdown();
 	}
 
-	public static void testCB(String uri) throws ConnectorException, IOException {
+	public static void testCB(String uri, EndpointContext context) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri + "/large");
+		client.setDestinationContext(context);
 		CoapResponse response;
 
 		client.useEarlyNegotiation(64);
@@ -377,6 +393,10 @@ public class PlugtestClient {
 		System.out.println("===============\nCB01");
 		System.out.println("---------------\nGET /large\n---------------");
 		response = client.get();
+		context = client.getDestinationContext();
+		if (context != null) {
+			System.out.println(Utils.prettyPrint(context));
+		}
 		System.out.println(response.getCode());
 		System.out.println(response.getResponseText());
 
@@ -431,9 +451,10 @@ public class PlugtestClient {
 		client.shutdown();
 	}
 
-	public static void testCO(String uri) throws ConnectorException, IOException {
+	public static void testCO(String uri, EndpointContext context) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri + "/obs");
+		client.setDestinationContext(context);
 
 		System.out.println("===============\nCO01+06");
 		System.out.println("---------------\nGET /obs with Observe");
@@ -516,6 +537,7 @@ public class PlugtestClient {
 		}
 		System.out.println("---------------\nReboot Server");
 		CoapClient clientStimulus = new CoapClient(uri + "/obs-reset");
+		clientStimulus.setDestinationContext(context);
 		clientStimulus.post("sesame", MediaTypeRegistry.TEXT_PLAIN);
 		try {
 			Thread.sleep((timeout + 6) * 1000);
@@ -588,14 +610,19 @@ public class PlugtestClient {
 		client.shutdown();
 	}
 
-	public static void testCL(String uri) throws ConnectorException, IOException {
+	public static void testCL(String uri, EndpointContext context) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri);
+		client.setDestinationContext(context);
 		Set<WebLink> links;
 
 		System.out.println("===============\nCL01");
 		System.out.println("---------------\nGET /.well-known/core\n---------------");
 		links = client.discover();
+		context = client.getDestinationContext();
+		if (context != null) {
+			System.out.println(Utils.prettyPrint(context));
+		}
 		for (WebLink link : links) {
 			System.out.println(link);
 		}

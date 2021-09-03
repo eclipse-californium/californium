@@ -62,6 +62,7 @@ public class CO02_05 extends TestClientAbstract {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
+		addContextObserver(request);
 		request.setURI(uri);
 
 		// for observing

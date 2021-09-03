@@ -64,8 +64,8 @@ public class CL09 extends TestClientAbstract {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
-		request.setURI(uri);
 		addContextObserver(request);
+		request.setURI(uri);
 
 		// print request info
 		if (verbose) {
@@ -110,6 +110,7 @@ public class CL09 extends TestClientAbstract {
 							+ use.getMessage());
 				}
 
+				addContextObserver(request);
 				request.setURI(uri);
 
 				request.send();
@@ -140,8 +141,9 @@ public class CL09 extends TestClientAbstract {
 								+ use.getMessage());
 					}
 
+					addContextObserver(request);
 					request.setURI(uri);
-					
+
 					request.send();
 					response = request.waitForResponse(6000);
 
