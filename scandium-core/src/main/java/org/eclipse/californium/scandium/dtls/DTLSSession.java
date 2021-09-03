@@ -409,6 +409,9 @@ public final class DTLSSession implements Destroyable {
 				: sessionIdentifier;
 		attributes.add(DtlsEndpointContext.KEY_SESSION_ID, id);
 		attributes.add(DtlsEndpointContext.KEY_CIPHER, cipherSuite.name());
+		if (extendedMasterSecret) {
+			attributes.add(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET, Boolean.TRUE);
+		}
 	}
 
 	/**

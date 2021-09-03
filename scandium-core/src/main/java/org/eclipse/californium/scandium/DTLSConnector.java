@@ -1793,7 +1793,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				// context
 				Attributes attributes = new Attributes();
 				if (newest) {
-					attributes.add(DtlsEndpointContext.KEY_NEWEST_RECORD, true);
+					attributes.add(DtlsEndpointContext.KEY_NEWEST_RECORD, Boolean.TRUE);
 				}
 				if (previousAddress != null && !connection.equalsPeerAddress(previousAddress)) {
 					attributes.add(DtlsEndpointContext.KEY_PREVIOUS_ADDRESS, previousAddress);
