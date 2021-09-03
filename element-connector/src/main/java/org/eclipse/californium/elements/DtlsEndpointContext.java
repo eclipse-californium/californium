@@ -110,6 +110,14 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	public static final Definition<Integer> KEY_MESSAGE_SIZE_LIMIT = new Definition<>(
 			KEY_PREFIX_NONE_CRITICAL + "DTLS_MESSAGE_SIZE_LIMIT", Integer.class, ATTRIBUTE_DEFINITIONS);
 	/**
+	 * The name of the attribute that contains a marker for the extended master secret 
+	 * (see <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>).
+	 * 
+	 * @since 3.0
+	 */
+	public static final Definition<Boolean> KEY_EXTENDED_MASTER_SECRET = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_EXTENDED_MASTER_SECRET", Boolean.class, ATTRIBUTE_DEFINITIONS);
+	/**
 	 * The name of the attribute that contains a marker for newest received
 	 * records.
 	 * 

@@ -146,6 +146,10 @@ public class MyContext extends CoapResource {
 		if (via != null) {
 			formatter.add("via", via);
 		}
+		Boolean extendedMasterSecret = context.get(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET);
+		if (extendedMasterSecret != null) {
+			formatter.add("ext-master-secret", extendedMasterSecret);
+		}
 		Boolean newest = context.get(DtlsEndpointContext.KEY_NEWEST_RECORD);
 		if (newest != null) {
 			formatter.add("newest-record", newest);
