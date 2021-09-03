@@ -4,8 +4,8 @@
 
 August, 2021
 
-The version 2.x is now out for about more than a year and reached version 2.6.4.
-We have already started to work on a 3.0 starting with removing deprecates APIs.
+The version 2.x is now out for about more than a year and reached version 2.6.5.
+We have already started to work on a 3.0 on December 2020 starting with removing deprecates APIs.
 
 To migrate to the 3.0 this gives some hints to do so. If you miss something, don't hesitate to create an issue.
 
@@ -15,9 +15,9 @@ Please, keep in mind, that the 3.0 API is under develop.
 
 This document doesn't contain hints for migrating versions before 2.0. That excludes also hints to migrate any of the 2.0 MILESTONE releases.
 
-If a 2.0.0 or newer is used, it's recommended to update first to 2.6.4 and cleanup all deprecation using the documentation on the deprecation.
+If a 2.0.0 or newer is used, it's recommended to update first to 2.6.5 and cleanup all deprecation using the documentation on the deprecation.
 
-The version 3.0.0-M3 is the last one with the old `NetworkConfig` and `DtlsConnectorConfig.Builder`. Depending on the usage of these classes, it may be easier to first migrate to that 3.0.0-M3 and then in a final step migrate to the 3.0 adapting for these changes in the configuration.
+The version 3.0.0-M4 is the last one with the old `NetworkConfig` and `DtlsConnectorConfig.Builder`. Depending on the usage of these classes, it may be easier to first migrate to that 3.0.0-M4 and then in a final step migrate to the 3.0 adapting for these changes in the configuration.
 
 ## First Experience
 
@@ -94,6 +94,7 @@ The local address of the receiving endpoint is now a separate field, the usage o
 
 Since 3.0 the blockwise implementation has been redesigned. That includes the blockwise request/response matching, which is not longer based on the block's `num` in the Block Option [RFC 7959 - 2.2.  Structure of a Block Option](https://tools.ietf.org/html/rfc7959#section-2.2). It's now based on the calculated block's offset `num * size` [IETF core-mailing list](https://mailarchive.ietf.org/arch/msg/core/z9_HsDxAQJ17cqFwz2QhViOsZDI/).
 Using the "transparent blockwise mode" (MAX_RESOURCE_BODY_SIZE larger than 0) in mix with application block options seems to be not completely defined. There are currently two use-cases, block2 early negotiation, and "random block access". But it seems to be hard, to document and test, what is exactly the API for such a mixed usage. Please consider to disable the "transparent blockwise mode" (MAX_RESOURCE_BODY_SIZE with 0), if application block options are required. Maybe these mixed (corner) cases gets discussed in a future version of Californium.
+(See also below, `EndpointIdentityResolver` is now used for blockwise as well.)
 
 `Message.getPayload()`:
 
@@ -110,6 +111,9 @@ The `OptionSet` and the `Option`s are now strictly validated. If that cause trou
 [RFC 7967, Option for No Server Response](https://tools.ietf.org/html/rfc7967) is introduced.
 
 Changing network configuration values during runtime is not supported by Californium's components. Therefore the `NetworkConfigObserver` is now removed.
+
+In order to support peers with dynamically assigned ip-addresses, Californium introduced the `EndpointIdentityResolver` for tokens and MIDs with 2.0. The returned identity depends then on the implementation. Using the provided ones, the `PrincipalEndpointContextMatcher` enables to use the `Principal` instead of the `InetSocketAddress`. That is configured using the `CoapConfig.RESPONSE_MATCHING`. The feature is mainly useful for the side, which initially accepts traffic (usually a server) and may cause errors on the side, which initiates the traffic.
+With 3.0 this will now be extended for blockwise transfers. If used on the server-side, that enables a client-side to PUT/POST payload, even if a quiet phase causes an address change.
 
 ### Californium-Proxy2:
 
