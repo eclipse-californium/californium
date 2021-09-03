@@ -112,7 +112,7 @@ The `OptionSet` and the `Option`s are now strictly validated. If that cause trou
 
 Changing network configuration values during runtime is not supported by Californium's components. Therefore the `NetworkConfigObserver` is now removed.
 
-In order to support peers with dynamically assigned ip-addresses, Californium introduced the `EndpointIdentityResolver` for tokens and MIDs with 2.0. The returned identity depends then on the implementation. Using the provided ones, the `PrincipalEndpointContextMatcher` enables to use the `Principal` instead of the `InetSocketAddress`. That is configured using the `CoapConfig.RESPONSE_MATCHING`. The feature is mainly useful for the side, which initially accepts traffic (usually a server) and may cause errors on the side, which initiates the traffic.
+In order to support peers with dynamically assigned ip-addresses, Californium introduced the `EndpointIdentityResolver` for tokens and MIDs with 2.0. The returned identity depends then on the implementation. Using the provided ones, the `PrincipalEndpointContextMatcher` enables to use the `Principal` instead of the `InetSocketAddress`. That is configured using the `CoapConfig.RESPONSE_MATCHING`. The feature is mainly useful for the side, which initially accepts traffic (usually a server) and may cause errors on the side, which initiates the traffic. A work-around for that is added only to a ping-exchange, which enables clients to use the `Principal`, if a ping is the first exchange. The plugtest clients has been adapted to demonstrate that.
 With 3.0 this will now be extended for blockwise transfers. If used on the server-side, that enables a client-side to PUT/POST payload, even if a quiet phase causes an address change.
 
 ### Californium-Proxy2:

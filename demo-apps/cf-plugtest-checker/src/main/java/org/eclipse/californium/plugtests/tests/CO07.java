@@ -69,6 +69,7 @@ public class CO07 extends TestClientAbstract {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
+		addContextObserver(request);
 		request.setURI(uri);
 
 		// for observing
@@ -132,6 +133,7 @@ public class CO07 extends TestClientAbstract {
 				// having another CoAP client perform a DELETE request)
 				System.out.println("+++++ Sending DELETE +++++");
 				Request asyncRequest = new Request(Code.DELETE, Type.CON);
+				addContextObserver(asyncRequest);
 				asyncRequest.setURI(uri);
 				asyncRequest.addMessageObserver(new MessageObserverAdapter() {
 

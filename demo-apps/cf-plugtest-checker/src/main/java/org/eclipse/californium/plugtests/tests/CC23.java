@@ -56,6 +56,7 @@ public class CC23 extends TestClientAbstract {
 		request.getOptions().setIfNoneMatch(true);
 		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		request.setPayload("TD_COAP_CORE_23 Part " + part);
+		addContextObserver(request);
 		++part;
 		return request;
 	}
@@ -76,8 +77,8 @@ public class CC23 extends TestClientAbstract {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
-		request.setURI(uri);
 		addContextObserver(request);
+		request.setURI(uri);
 
 		// print request info
 		if (verbose) {

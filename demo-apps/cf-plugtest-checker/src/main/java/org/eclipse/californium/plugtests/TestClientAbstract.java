@@ -29,7 +29,6 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
@@ -49,7 +48,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public abstract class TestClientAbstract {
 
-	private static final MessageObserver ENDPOINT_CONTEXT_TRACER = new EndpointContextTracer() {
+	private static final EndpointContextTracer ENDPOINT_CONTEXT_TRACER = new EndpointContextTracer() {
 		@Override
 		protected void onContextChanged(EndpointContext endpointContext) {
 			System.out.println(Utils.prettyPrint(endpointContext));
@@ -198,10 +197,11 @@ public abstract class TestClientAbstract {
 			System.err.println("Invalid URI: " + use.getMessage());
 		}
 
+		addContextObserver(request);
+
 		request.setURI(uri);
 
 		request.addMessageObserver(new TestResponseHandler(request));
-		addContextObserver(request);
 
 		// print request info
 		if (verbose) {
@@ -221,7 +221,17 @@ public abstract class TestClientAbstract {
 		}
 	}
 
-	protected void addContextObserver(Request request) {
+	/**
+	 * Add {@link #ENDPOINT_CONTEXT_TRACER} to request and set endpoint context, if
+	 * not already available.
+	 * 
+	 * @param request request to add observer and set context
+	 */
+	protected static void addContextObserver(Request request) {
+		EndpointContext context = ENDPOINT_CONTEXT_TRACER.getCurrentContext();
+		if (context != null && request.getDestinationContext() == null) {
+			request.setDestinationContext(context);
+		}
 		request.addMessageObserver(ENDPOINT_CONTEXT_TRACER);
 	}
 

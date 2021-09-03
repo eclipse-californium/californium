@@ -132,6 +132,7 @@ public class CO04 extends TestClientAbstract {
 								System.out.println("++++ obs-reset PUT ++++");
 								Request asyncRequest = new Request(Code.POST, Type.CON);
 								asyncRequest.setPayload("sesame");
+								addContextObserver(asyncRequest);
 								asyncRequest.setURI(serverURI + "/obs-reset");
 								asyncRequest.addMessageObserver(new MessageObserverAdapter() {
 
@@ -156,6 +157,7 @@ public class CO04 extends TestClientAbstract {
 							// do it manually
 							System.out.println("+++++ Re-registering +++++");
 							Request reregister = Request.newGet();
+							addContextObserver(reregister);
 							reregister.setURI(uri);
 							reregister.setToken(request.getToken());
 							reregister.setObserve();

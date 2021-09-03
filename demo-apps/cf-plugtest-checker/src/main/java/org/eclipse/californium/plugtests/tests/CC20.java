@@ -70,8 +70,8 @@ public class CC20 extends TestClientAbstract {
 					+ use.getMessage());
 		}
 
-		request.setURI(uri);
 		addContextObserver(request);
+		request.setURI(uri);
 
 		// print request info
 		if (verbose) {
@@ -91,18 +91,21 @@ public class CC20 extends TestClientAbstract {
 			if (success) {
 				// Part B
 				request = new Request(Code.GET, Type.CON);
+				addContextObserver(request);
 				request.setURI(uri);
 				success = executeRequest(request, MediaTypeRegistry.APPLICATION_XML, null);
 			}
 			if (success) {
 				// Part C
 				request = new Request(Code.GET, Type.CON);
+				addContextObserver(request);
 				request.setURI(uri);
 				success = executeRequest(request, MediaTypeRegistry.APPLICATION_JSON, new JsonDecoder());
 			}
 			if (success) {
 				// Part B
 				request = new Request(Code.GET, Type.CON);
+				addContextObserver(request);
 				request.setURI(uri);
 				success = executeRequest(request, MediaTypeRegistry.APPLICATION_CBOR, new CborDecoder());
 			}

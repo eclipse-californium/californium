@@ -68,6 +68,7 @@ public class CO09 extends TestClientAbstract {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
+		addContextObserver(request);
 		request.setURI(uri);
 
 		// for observing
@@ -133,6 +134,7 @@ public class CO09 extends TestClientAbstract {
 			// Client is requested to update the /obs resource on Server
 			System.out.println("+++++ Sending PUT +++++");
 			Request asyncRequest = new Request(Code.PUT, Type.CON);
+			addContextObserver(asyncRequest);
 			asyncRequest.setPayload(newValue);
 			asyncRequest.getOptions().setContentFormat(contentType);
 			asyncRequest.setURI(uri);

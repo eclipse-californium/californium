@@ -44,6 +44,16 @@ public class EndpointContextTracer extends MessageObserverAdapter {
 	}
 
 	/**
+	 * Get current endpoint context.
+	 * 
+	 * @return current endpoint context
+	 * @since 3.0
+	 */
+	public EndpointContext getCurrentContext() {
+		return endpointContext.get();
+	}
+
+	/**
 	 * Invoked when the resulting endpoint context is changing.
 	 * 
 	 * Note: usually this callback must be processed in a synchronous manner,

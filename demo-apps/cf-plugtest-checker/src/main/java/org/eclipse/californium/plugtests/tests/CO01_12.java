@@ -63,6 +63,7 @@ public class CO01_12 extends TestClientAbstract {
 			throw new IllegalArgumentException("Invalid URI: " + use.getMessage());
 		}
 
+		addContextObserver(request);
 		request.setURI(uri);
 
 		// for observing
@@ -132,6 +133,7 @@ public class CO01_12 extends TestClientAbstract {
 
 			System.out.println("+++++ De-registering +++++");
 			Request deregister = Request.newGet();
+			addContextObserver(deregister);
 			deregister.setURI(uri);
 			deregister.setToken(request.getToken());
 			deregister.setObserveCancel();
