@@ -150,7 +150,6 @@ public class ConnectorUtil {
 		List<CipherSuite> suites = Arrays.asList(cipherSuites);
 		if (dtlsBuilder == null) {
 			dtlsBuilder = DtlsConnectorConfig.builder(new Configuration());
-		} else {
 		}
 		dtlsBuilder.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 1000, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)

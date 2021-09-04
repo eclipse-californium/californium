@@ -45,6 +45,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -88,13 +89,7 @@ public class LibCoapClientOpensslInteroperabilityTest {
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-			californiumUtil = null;
-		}
-		if (processUtil != null) {
-			processUtil.shutdown();
-		}
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
 	}
 
 	@Before
@@ -104,10 +99,7 @@ public class LibCoapClientOpensslInteroperabilityTest {
 
 	@After
 	public void stop() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-		}
-		processUtil.shutdown();
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
 	}
 
 	@Test

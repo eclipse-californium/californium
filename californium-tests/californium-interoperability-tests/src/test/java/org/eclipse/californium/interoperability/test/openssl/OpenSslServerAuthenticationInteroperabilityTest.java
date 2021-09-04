@@ -34,6 +34,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
@@ -86,9 +87,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
-		if (processUtil != null) {
-			processUtil.shutdown();
-		}
+		ShutdownUtil.shutdown(scandiumUtil, processUtil);
 	}
 
 	@Before
@@ -98,10 +97,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@After
 	public void stop() throws InterruptedException {
-		if (scandiumUtil != null) {
-			scandiumUtil.shutdown();
-		}
-		processUtil.shutdown();
+		ShutdownUtil.shutdown(scandiumUtil, processUtil);
 	}
 
 	@Test

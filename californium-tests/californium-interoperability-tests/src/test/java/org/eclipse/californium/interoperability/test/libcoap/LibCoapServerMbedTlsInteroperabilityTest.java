@@ -44,6 +44,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -87,13 +88,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-			californiumUtil = null;
-		}
-		if (processUtil != null) {
-			processUtil.shutdown();
-		}
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
 	}
 
 	@Before
@@ -103,10 +98,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 
 	@After
 	public void stop() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-		}
-		processUtil.shutdown();
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
 	}
 
 	@Test
