@@ -31,6 +31,7 @@ import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -75,13 +76,7 @@ public class OpenSslClientInteroperabilityTest {
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
-		if (scandiumUtil != null) {
-			scandiumUtil.shutdown();
-			scandiumUtil = null;
-		}
-		if (processUtil != null) {
-			processUtil.shutdown();
-		}
+		ShutdownUtil.shutdown(scandiumUtil, processUtil);
 	}
 
 	@Parameter
@@ -109,10 +104,7 @@ public class OpenSslClientInteroperabilityTest {
 
 	@After
 	public void stop() throws InterruptedException {
-		if (scandiumUtil != null) {
-			scandiumUtil.shutdown();
-		}
-		processUtil.shutdown();
+		ShutdownUtil.shutdown(scandiumUtil, processUtil);
 	}
 
 	/**

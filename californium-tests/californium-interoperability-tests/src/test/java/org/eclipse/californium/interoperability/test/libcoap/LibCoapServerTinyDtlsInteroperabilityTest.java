@@ -40,6 +40,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
+import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -78,13 +79,7 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-			californiumUtil = null;
-		}
-		if (processUtil != null) {
-			processUtil.shutdown();
-		}
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
 	}
 
 	@Before
@@ -94,10 +89,7 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 
 	@After
 	public void stop() throws InterruptedException {
-		if (californiumUtil != null) {
-			californiumUtil.shutdown();
-		}
-		processUtil.shutdown();
+		ShutdownUtil.shutdown(californiumUtil, processUtil);
 	}
 
 	@Test
