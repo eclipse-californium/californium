@@ -81,6 +81,7 @@ public class CertPathUtilTest {
 
 	private X509Certificate[] clientChainExtUsage;
 	private X509Certificate[] clientSelfsigned;
+	private X509Certificate[] server;
 	private X509Certificate[] serverLarge;
 
 	private List<X509Certificate> clientChainExtUsageList;
@@ -97,6 +98,10 @@ public class CertPathUtilTest {
 		clientSelfsigned = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "self",
 				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
 		assumeThat(clientSelfsigned.length, is(1));
+
+		server = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "server",
+				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
+		assumeThat(server.length, is(2));
 
 		serverLarge = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "serverlarge",
 				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
@@ -607,4 +612,22 @@ public class CertPathUtilTest {
 		assertEquals(clientSelfsignedList, generateCertPath.getCertificates());
 	}
 
+	@Test
+	public void testMatchDestination() throws Exception {
+		assertTrue(CertPathUtil.matchDestination(serverLarge[0], "cf-serverlarge"));
+		assertFalse(CertPathUtil.matchDestination(server[0], "cf-server"));
+		assertTrue(CertPathUtil.matchDestination(server[0], "californium.eclipseprojects.io"));
+		assertFalse(CertPathUtil.matchDestination(server[0], "foreign.server"));
+		assertFalse(CertPathUtil.matchDestination(server[0], "*.server"));
+		assertTrue(CertPathUtil.matchLiteralIP(server[0], "127.0.0.1"));
+		assertFalse(CertPathUtil.matchLiteralIP(server[0], "127.0.0.2"));
+	}
+
+	@Test
+	public void testMatchLiteralIP() throws Exception {
+		assertTrue(CertPathUtil.matchLiteralIP("127.0.0.1", "127.0.0.1"));
+		assertTrue(CertPathUtil.matchLiteralIP("2001::1", "2001:0:0:0:0:0:0:1"));
+		assertFalse(CertPathUtil.matchLiteralIP("127.0.0.1", "127.0.0.2"));
+		assertFalse(CertPathUtil.matchLiteralIP("2001::2", "2001:0:0:0:0:0:0:1"));
+	}
 }
