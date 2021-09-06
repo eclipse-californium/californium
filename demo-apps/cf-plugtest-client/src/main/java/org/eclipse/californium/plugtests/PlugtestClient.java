@@ -121,28 +121,33 @@ public class PlugtestClient {
 			clientConfig.ping = true;
 		}
 
-		EndpointContext context = null;
+		try {
+			EndpointContext context = null;
 
-		if (clientConfig.ping) {
-			CoapClient clientPing = new CoapClient(clientConfig.uri);
-			System.out.println("===============\nCC31\n---------------");
-			if (!clientPing.ping(2000)) {
-				System.out.println(clientConfig.uri + " does not respond to ping, exiting...");
-				System.exit(-1);
-			} else {
-				System.out.println(clientConfig.uri + " reponds to ping");
+			if (clientConfig.ping) {
+				CoapClient clientPing = new CoapClient(clientConfig.uri);
+				System.out.println("===============\nCC31\n---------------");
+				if (!clientPing.ping(2000)) {
+					System.out.println(clientConfig.uri + " does not respond to ping, exiting...");
+					System.exit(-1);
+				} else {
+					System.out.println(clientConfig.uri + " reponds to ping");
+				}
+				context = clientPing.getDestinationContext();
+				if (context != null) {
+					System.out.println(Utils.prettyPrint(context));
+				}
 			}
-			context = clientPing.getDestinationContext();
-			if (context != null) {
-				System.out.println(Utils.prettyPrint(context));
-			}
+
+			testCC(clientConfig.uri, context);
+			testCB(clientConfig.uri, context);
+			testCO(clientConfig.uri, context);
+			testCL(clientConfig.uri, context);
+		} catch (IOException ex) {
+			System.err.println("IO-Error: " + ex.getMessage());
+		} catch (ConnectorException ex) {
+			System.err.println("Error: " + ex.getMessage());
 		}
-
-		testCC(clientConfig.uri, context);
-		testCB(clientConfig.uri, context);
-		testCO(clientConfig.uri, context);
-		testCL(clientConfig.uri, context);
-
 		System.exit(0);
 	}
 

@@ -390,6 +390,13 @@ public final class DtlsConfig {
 			CertificateAuthenticationMode.NEEDED, CertificateAuthenticationMode.values());
 
 	/**
+	 * Enable the DTLS client to verify the server certificate's subjects.
+	 */
+	public static final BooleanDefinition DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT = new BooleanDefinition(
+			MODULE + "VERIFY_SERVER_CERTIFICATES_SUBJECT", "DTLS verifies the server certificate's subjects.",
+			true);
+
+	/**
 	 * Specify the supported DTLS roles.
 	 */
 	public static final EnumDefinition<DtlsRole> DTLS_ROLE = new EnumDefinition<>(MODULE + "ROLE", "DTLS role.",
@@ -782,6 +789,7 @@ public final class DtlsConfig {
 				config.set(DTLS_USE_MULTI_RECORD_MESSAGES, null);
 				config.set(DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, null);
 				config.set(DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+				config.set(DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, true);
 				config.set(DTLS_ROLE, DtlsRole.BOTH);
 				config.set(DTLS_MAX_TRANSMISSION_UNIT, null);
 				config.set(DTLS_MAX_TRANSMISSION_UNIT_LIMIT, DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT);

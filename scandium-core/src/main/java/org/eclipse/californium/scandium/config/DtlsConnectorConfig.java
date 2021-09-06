@@ -947,6 +947,18 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Verify the server certificate's subject.
+	 * 
+	 * @return {@code true}, to the server certificate's subject, {@code false},
+	 *         to not verify it
+	 * @see DtlsConfig#DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT
+	 * @since 3.0
+	 */
+	public Boolean verifyServerCertificatesSubject() {
+		return configuration.get(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
+	}
+
+	/**
 	 * Gets the DTLS role the connector acts as.
 	 * 
 	 * @return role the connector acts as

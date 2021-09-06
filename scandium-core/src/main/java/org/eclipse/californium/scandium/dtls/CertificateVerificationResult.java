@@ -33,7 +33,7 @@ public final class CertificateVerificationResult extends HandshakeResult {
 
 	/**
 	 * Verified resulting certificate path for x.509. If
-	 * {@link NewAdvancedCertificateVerifier#verifyCertificate(ConnectionId, org.eclipse.californium.scandium.util.ServerNames, java.net.InetSocketAddress, boolean, boolean, CertificateMessage)}
+	 * {@link NewAdvancedCertificateVerifier#verifyCertificate(ConnectionId, org.eclipse.californium.scandium.util.ServerNames, java.net.InetSocketAddress, boolean, boolean, boolean, CertificateMessage)}
 	 * is called with {@code truncateCertificatePath} set to {@code true}, the
 	 * certificate path of the received certificate message is truncated to one
 	 * of the trust anchors. Maybe contain a empty path, if the received

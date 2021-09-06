@@ -134,13 +134,20 @@ public class PlugtestChecker {
 				Constructor<?> cons = testClass.getConstructor(String.class);
 
 				TestClientAbstract testClient = (TestClientAbstract) cons.newInstance(serverURI);
-				testClient.waitForUntilTestHasTerminated();
+				try {
+					testClient.waitForUntilTestHasTerminated();
+				} catch (Throwable e) {
+					System.err.println("Error: " + e.getMessage());
+					break;
+				}
 				reports.add(testClient.getReport());
 			}
 
-			System.out.println("\n==== SUMMARY ====");
-			for (Report report : reports) {
-				report.print();
+			if (!reports.isEmpty()) {
+				System.out.println("\n==== SUMMARY ====");
+				for (Report report : reports) {
+					report.print();
+				}
 			}
 
 		} catch (InstantiationException e) {
@@ -203,10 +210,15 @@ public class PlugtestChecker {
 
 		if (clientConfig.ping) {
 			System.out.println("===============\nCC31\n---------------");
-			if (ping(clientConfig.uri)) {
-				System.out.println("PASS: " + clientConfig.uri + " responds to ping");
-			} else {
-				System.out.println("FAIL:" + clientConfig.uri + " does not respond to ping, exiting...");
+			try {
+				if (ping(clientConfig.uri)) {
+					System.out.println("PASS: " + clientConfig.uri + " responds to ping");
+				} else {
+					System.out.println("FAIL:" + clientConfig.uri + " does not respond to ping, exiting...");
+					System.exit(-1);
+				}
+			} catch (Throwable ex) {
+				System.err.println("Error: " + clientConfig.uri + " - " + ex.getMessage());
 				System.exit(-1);
 			}
 		}
@@ -220,21 +232,19 @@ public class PlugtestChecker {
 		System.exit(0);
 	}
 
-	private static boolean ping(String address) {
-		try {
-			Request request = new Request(null);
-			request.setType(Type.CON);
-			request.setToken(Token.EMPTY);
-			request.setURI(address);
-			TestClientAbstract.addContextObserver(request);
-			System.out.println("++++++ Sending Ping ++++++");
-			request.send().waitForResponse(5000);
-			return request.isRejected();
-
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
+	private static boolean ping(String address) throws Throwable {
+		Request request = new Request(null);
+		request.setType(Type.CON);
+		request.setToken(Token.EMPTY);
+		request.setURI(address);
+		TestClientAbstract.addContextObserver(request);
+		System.out.println("++++++ Sending Ping ++++++");
+		request.send().waitForResponse(5000);
+		Throwable sendError = request.getSendError();
+		if (sendError != null) {
+			throw sendError;
 		}
+		return request.isRejected();
 	}
 
 	public static String getLargeRequestPayload() {

@@ -438,7 +438,7 @@ public class HandshakerTest {
 
 	private void assertThatCertificateVerificationSucceeds() {
 		try {
-			handshakerWithAnchors.verifyCertificate(message);
+			handshakerWithAnchors.verifyCertificate(message, false);
 			// all is well
 		} catch (HandshakeException e) {
 			failedHandshake(e);
@@ -447,7 +447,7 @@ public class HandshakerTest {
 
 	private void assertThatCertificateVerificationFails() {
 		try {
-			handshakerWithAnchors.verifyCertificate(message);
+			handshakerWithAnchors.verifyCertificate(message, false);
 			fail("Verification of certificate should have failed");
 		} catch (HandshakeException e) {
 			// all is well
@@ -456,7 +456,7 @@ public class HandshakerTest {
 
 	private void assertThatCertificateValidationFailsForEmptyTrustAnchor() {
 		try {
-			handshakerWithoutAnchors.verifyCertificate(message);
+			handshakerWithoutAnchors.verifyCertificate(message, false);
 			fail("Verification of certificate should have failed");
 		} catch (HandshakeException e) {
 			// all is well

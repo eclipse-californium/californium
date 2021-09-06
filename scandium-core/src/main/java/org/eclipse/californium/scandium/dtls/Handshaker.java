@@ -101,6 +101,7 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -2429,14 +2430,18 @@ public abstract class Handshaker implements Destroyable {
 	 * This method delegates both certificate validation to the
 	 * {@link NewAdvancedCertificateVerifier}. If a asynchronous implementation
 	 * of {@link NewAdvancedCertificateVerifier} is used, the result will be not
-	 * available after this call, but will be available after the callback of the
-	 * asynchronous implementation.
+	 * available after this call, but will be available after the callback of
+	 * the asynchronous implementation.
 	 *
 	 * @param message the certificate message
+	 * @param verifySubject {@code true} to verify the certificate's subject,
+	 *            {@code false}, if not.
 	 *
 	 * @throws HandshakeException if any of the checks fails
+	 * @see DtlsConfig#DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT
+	 * @since 3.0 (added parameter verifySubject)
 	 */
-	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
+	public void verifyCertificate(CertificateMessage message, boolean verifySubject) throws HandshakeException {
 		if (certificateVerifier == null) {
 			LOGGER.debug("Certificate validation failed: no verifier available!");
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
@@ -2445,9 +2450,10 @@ public abstract class Handshaker implements Destroyable {
 		LOGGER.info("Start certificate verification.");
 		certificateVerificationPending = true;
 		this.otherPeersPublicKey = message.getPublicKey();
+
 		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(
 				connection.getConnectionId(), getServerNames(), getPeerAddress(), !isClient(),
-				useTruncatedCertificatePathForVerification, message);
+				verifySubject, useTruncatedCertificatePathForVerification, message);
 		if (verificationResult != null) {
 			processCertificateVerificationResult(verificationResult);
 		}

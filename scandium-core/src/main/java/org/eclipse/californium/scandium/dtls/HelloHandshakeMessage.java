@@ -24,7 +24,6 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * Common base for {@link ClientHello} and {@link ServerHello}.
@@ -316,17 +315,6 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	 */
 	public ServerNameExtension getServerNameExtension() {
 		return extensions.getExtension(ExtensionType.SERVER_NAME);
-	}
-
-	/**
-	 * Gets the <em>Server Names</em> of the extension data from this message.
-	 * 
-	 * @return the server names, or {@code null}, if this message does not
-	 *         contain the <em>Server Name Indication</em> extension.
-	 */
-	public ServerNames getServerNames() {
-		ServerNameExtension extension = getServerNameExtension();
-		return extension == null ? null : extension.getServerNames();
 	}
 
 	/**
