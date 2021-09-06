@@ -113,7 +113,8 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 
 	@Override
 	public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
-			final InetSocketAddress remotePeer, final boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
+			final InetSocketAddress remotePeer, final boolean clientUsage, final boolean verifySubject,
+			final boolean truncateCertificatePath, final CertificateMessage message) {
 		if (delayMillis <= 0) {
 			if (delayMillis < 0) {
 				try {
@@ -121,13 +122,15 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 				} catch (InterruptedException e) {
 				}
 			}
-			return super.verifyCertificate(cid, serverName, remotePeer, clientUsage, truncateCertificatePath, message);
+			return super.verifyCertificate(cid, serverName, remotePeer, clientUsage, verifySubject,
+					truncateCertificatePath, message);
 		} else {
 			executorService.schedule(new Runnable() {
 
 				@Override
 				public void run() {
-					verifyCertificateAsynchronous(cid, serverName, remotePeer, clientUsage, truncateCertificatePath, message);
+					verifyCertificateAsynchronous(cid, serverName, remotePeer, clientUsage, verifySubject,
+							truncateCertificatePath, message);
 				}
 			}, delayMillis, TimeUnit.MILLISECONDS);
 			return null;
@@ -135,9 +138,10 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	}
 
 	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, InetSocketAddress remotePeer,
-			boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
+			boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath,
+			CertificateMessage message) {
 		CertificateVerificationResult result = super.verifyCertificate(cid, serverName, remotePeer, clientUsage,
-				truncateCertificatePath, message);
+				verifySubject, truncateCertificatePath, message);
 		CertPath certPath = result.getCertificatePath();
 		PublicKey publicKey = result.getPublicKey();
 		if (certPath == null && publicKey == null) {

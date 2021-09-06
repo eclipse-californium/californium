@@ -96,18 +96,24 @@ public interface NewAdvancedCertificateVerifier {
 	 * provided, check, if this public key is trusted.
 	 * 
 	 * @param cid connection ID
-	 * @param serverName indicated server names.
+	 * @param serverName indicated server names. May be {@code null}, if not
+	 *            available or SNI is not enabled.
 	 * @param remotePeer socket address of remote peer
 	 * @param clientUsage indicator to check certificate usage. {@code true},
 	 *            check key usage for client, {@code false} for server.
+	 * @param verifySubject {@code true} to verify the certificate's subjects,
+	 *            {@code false}, if not.
 	 * @param truncateCertificatePath {@code true} truncate certificate path at
 	 *            a trusted certificate before validation.
 	 * @param message certificate message to be validated
 	 * @return certificate verification result, or {@code null}, if result is
 	 *         provided asynchronous.
+	 * @since 3.0 (removed DTLSSession session, added remotePeer and
+	 *        verifySubject)
 	 */
-	CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName, InetSocketAddress remotePeer,
-			boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message);
+	CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
+			InetSocketAddress remotePeer, boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath,
+			CertificateMessage message);
 
 	/**
 	 * Return an list of certificate authorities which are trusted
@@ -125,7 +131,7 @@ public interface NewAdvancedCertificateVerifier {
 	 * 
 	 * @param resultHandler handler for asynchronous master secret results. This
 	 *            handler MUST NOT be called from the thread calling
-	 *            {@link #verifyCertificate(ConnectionId, ServerNames, InetSocketAddress, boolean, boolean, CertificateMessage)},
+	 *            {@link #verifyCertificate(ConnectionId, ServerNames, InetSocketAddress, boolean, boolean, boolean, CertificateMessage)},
 	 *            instead just return the result there.
 	 */
 	void setResultHandler(HandshakeResultHandler resultHandler);

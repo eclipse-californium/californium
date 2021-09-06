@@ -533,9 +533,15 @@ public class CoapClient {
 				timeout = outEndpoint.getConfig().get(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS);
 			}
 			request.addMessageObserver(new MessageObserverAdapter() {
+
 				@Override
 				public void onContextEstablished(EndpointContext endpointContext) {
 					destinationContext.compareAndSet(null, endpointContext);
+				}
+
+				@Override
+				public void onSendError(Throwable error) {
+					LOGGER.error("send error: {}", error.getMessage());
 				}
 			});
 			send(request, outEndpoint).waitForResponse(timeout);

@@ -82,6 +82,8 @@ ECDHE - `XECDHECryptography`: to use X25519/X448 with bouncy-castle as JCE provi
 
 The maximum message size calculations from [Record Size Limit](https://tools.ietf.org/html/rfc8449) and [Maximum Fragment Length](https://tools.ietf.org/html/rfc6066#section-4) is more precise and the resulting maximum message size is reported as `KEY_MESSAGE_SIZE_LIMIT` in the endpoint context.
 
+Using X509 to authenticate the server now includes to match the destination with the server certificate's subject. This is enabled per default, as requested by [RFC7252 - 9.1.3.3. X.509 Certificates](https://datatracker.ietf.org/doc/html/rfc7252#section-9.1.3.3). It could be disabled using `DTLS.VERIFY_SERVER_CERTIFICATES_SUBJECT`.
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:

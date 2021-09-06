@@ -101,7 +101,8 @@ public interface CertificateProvider {
 	 * @param client {@code true}, for client side certificates, {@code false},
 	 *            for server side certificates.
 	 * @param issuers list of trusted issuers. May be {@code null}.
-	 * @param serverNames indicated server names. May be {@code null}.
+	 * @param serverNames indicated server names. May be {@code null}, if not
+	 *            available or SNI is not enabled.
 	 * @param signatureAndHashAlgorithms signatures and hash Algorithms. May be
 	 *            {@code null}.
 	 * @param curves ec-curves (supported groups). May be {@code null}.

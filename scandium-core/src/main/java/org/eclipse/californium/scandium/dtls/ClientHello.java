@@ -35,8 +35,11 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * When a client first connects to a server, it is required to send the
@@ -150,6 +153,12 @@ public final class ClientHello extends HelloHandshakeMessage {
 		compressionMethods = CompressionMethod.listFromReader(rangeReader);
 
 		extensions.readFrom(reader);
+		ServerNameExtension extension = getServerNameExtension();
+		if (extension != null && extension.getServerNames() == null) {
+			throw new HandshakeException(
+					"ClientHello message contains empty ServerNameExtension",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
+		}
 	}
 
 	@Override
@@ -343,4 +352,16 @@ public final class ClientHello extends HelloHandshakeMessage {
 	public void addCompressionMethod(CompressionMethod compressionMethod) {
 		compressionMethods.add(compressionMethod);
 	}
+
+	/**
+	 * Gets the <em>Server Names</em> of the extension data from this message.
+	 * 
+	 * @return the server names, or {@code null}, if this message does not
+	 *         contain the <em>Server Name Indication</em> extension.
+	 */
+	public ServerNames getServerNames() {
+		ServerNameExtension extension = getServerNameExtension();
+		return extension == null ? null : extension.getServerNames();
+	}
+
 }

@@ -249,17 +249,17 @@ public class DTLSConnectorAdvancedTest {
 			@Override
 			public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
 					InetSocketAddress remotePeer, final boolean clientUsage,
-					final boolean truncateCertificatePath, final CertificateMessage message) {
+					boolean verifyDestination, final boolean truncateCertificatePath, final CertificateMessage message) {
 				LOGGER.info("verify certificate");
 				CertificateVerificationResult result = null;
 				if (0 < verifyHandshakeResponses) {
-					result = super.verifyCertificate(cid, serverName, remotePeer, clientUsage, truncateCertificatePath, message);
+					result = super.verifyCertificate(cid, serverName, remotePeer, clientUsage, verifyDestination, truncateCertificatePath, message);
 					if (1 < verifyHandshakeResponses) {
 						final int delay = getDelay();
 						try {
 							setDelay(1);
 							for (int index = 1; index < verifyHandshakeResponses; ++index) {
-								super.verifyCertificate(cid, serverName, remotePeer, clientUsage, truncateCertificatePath, message);
+								super.verifyCertificate(cid, serverName, remotePeer, clientUsage, verifyDestination, truncateCertificatePath, message);
 							}
 						} finally {
 							setDelay(delay);
@@ -2975,7 +2975,7 @@ public class DTLSConnectorAdvancedTest {
 		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder(serverHelper.serverConfig)
 				.set(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES, false)
 				.setAdvancedCertificateVerifier(verifier)
-				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.X_509));
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.X_509));
 
 		// Configure UDP connector we will use as Server
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
@@ -3014,7 +3014,7 @@ public class DTLSConnectorAdvancedTest {
 
 			LatchSessionListener clientSessionListener = getSessionListenerForEndpoint("client", rawServer);
 
-			// Wait for transmission (CERTIFICATE, CLIENT_KEY_EXCHANGE, CCS, FINISHED, flight 5)
+			// Wait for transmission (CERTIFICATE (empty), CLIENT_KEY_EXCHANGE, (no CERTIFICATE_VERIFY), CCS, FINISHED, flight 5)
 			rs = waitForFlightReceived("flight 3", collector, 4);
 			// Handle and answer (should be CCS, FINISHED, flight 6)
 			HandshakeException handshakeException = processAll(serverHandshaker, rs);

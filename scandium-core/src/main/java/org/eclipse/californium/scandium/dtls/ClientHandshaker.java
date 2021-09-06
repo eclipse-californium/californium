@@ -56,6 +56,7 @@ import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -236,6 +237,13 @@ public class ClientHandshaker extends Handshaker {
 	 * @since 3.0
 	 */
 	private final Integer useDeprecatedCid;
+	/**
+	 * Verify the server certificate's subject.
+	 * 
+	 * @see DtlsConfig#DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT
+	 * @since 3.0
+	 */
+	private final boolean verifyServerCertificatesSubject;
 
 	/**
 	 * The server's {@link CertificateRequest}. Optional.
@@ -271,6 +279,7 @@ public class ClientHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAlgorithms = config.getSupportedSignatureAlgorithms();
 		this.useDeprecatedCid = config.useDeprecatedCid();
+		this.verifyServerCertificatesSubject = config.verifyServerCertificatesSubject();
 		this.probe = probe;
 		getSession().setHostName(hostname);
 	}
@@ -526,7 +535,7 @@ public class ClientHandshaker extends Handshaker {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 			throw new HandshakeException("Empty server certificate!", alert);
 		}
-		verifyCertificate(message);
+		verifyCertificate(message, verifyServerCertificatesSubject);
 	}
 
 	/**

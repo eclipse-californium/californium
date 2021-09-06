@@ -18,11 +18,9 @@ package org.eclipse.californium.scandium.dtls.x509;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -30,6 +28,7 @@ import javax.net.ssl.X509ExtendedKeyManager;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.scandium.dtls.CertificateIdentityResult;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -284,52 +283,20 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	/**
 	 * Check, if provided node certificate matches the serverNames.
 	 * 
-	 * Checks, if the CN part of the subject DN or one of the subject
-	 * alternative names matches the server name (SNI).
-	 * 
-	 * <pre>
-	 * GeneralName ::= CHOICE {
-	 *      otherName                       [0]     OtherName,
-	 *      rfc822Name                      [1]     IA5String,
-	 *      dNSName                         [2]     IA5String,
-	 *      x400Address                     [3]     ORAddress,
-	 *      directoryName                   [4]     Name,
-	 *      ediPartyName                    [5]     EDIPartyName,
-	 *      uniformResourceIdentifier       [6]     IA5String,
-	 *      iPAddress                       [7]     OCTET STRING,
-	 *      registeredID                    [8]     OBJECT IDENTIFIER}
-	 * </pre>
-	 * 
 	 * @param serverNames server names
 	 * @param node node certificate
-	 * @return {@code true}, if matching, {@code true}, if not.
+	 * @return {@code true}, if matching, {@code false}, if not.
+	 * @see CertPathUtil#matchDestination(X509Certificate, String)
 	 */
 	private boolean matchServerNames(ServerNames serverNames, X509Certificate node) {
-		ServerName serverNname = serverNames.getServerName(ServerName.NameType.HOST_NAME);
-		String name = serverNname.getNameAsString();
-		try {
-			Collection<List<?>> alternativeNames = node.getSubjectAlternativeNames();
-			if (alternativeNames != null) {
-				for (List<?> alternativeName : alternativeNames) {
-					int type = (Integer) alternativeName.get(0);
-					String value = (String) alternativeName.get(1);
-					if (type == 2 || type == 7) {
-						if (name.equalsIgnoreCase((String) value)) {
-							return true;
-						}
-					}
-				}
-			}
-		} catch (ClassCastException e) {
-		} catch (CertificateParsingException e) {
+		ServerName serverName = serverNames.getServerName(ServerName.NameType.HOST_NAME);
+		if (serverName != null) {
+			// currently only hostnames are defined (and supported)
+			String name = serverName.getNameAsString();
+			return CertPathUtil.matchDestination(node, name);
+		} else {
+			return false;
 		}
-		if (!name.contains("CN=")) {
-			X500Principal principal = node.getSubjectX500Principal();
-			if (principal.getName().endsWith("CN=" + name)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	/**

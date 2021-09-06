@@ -57,6 +57,7 @@ public abstract class TestClientAbstract {
 
 	protected Report report = new Report();
 
+	private Throwable sendError;
 	protected Semaphore terminated = new Semaphore(0);
 
 	/** The test name. */
@@ -243,15 +244,18 @@ public abstract class TestClientAbstract {
 		return report;
 	}
 
-	public synchronized void tickOffTest() {
+	public void tickOffTest() {
 		terminated.release();
 	}
 
-	public void waitForUntilTestHasTerminated() {
+	public void waitForUntilTestHasTerminated() throws Throwable {
 		try {
 			terminated.acquire();
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+		if (sendError != null) {
+			throw sendError;
 		}
 	}
 
@@ -319,6 +323,16 @@ public abstract class TestClientAbstract {
 				}
 				tickOffTest();
 			}
+		}
+
+		@Override
+		public void onSendError(Throwable error) {
+			sendError = error;
+			tickOffTest();
+		}
+
+		protected void failed() {
+			tickOffTest();
 		}
 	}
 

@@ -515,6 +515,18 @@ public class CertPathUtil {
 	}
 
 	/**
+	 * Gets CN from certificate's subject DN.
+	 * 
+	 * @param certificate certificate
+	 * @return subject CN, or {@code null}, if not available.
+	 * @since 3.0
+	 */
+	public static String getSubjectsCn(X509Certificate certificate) {
+		X500Principal principal = certificate.getSubjectX500Principal();
+		return Asn1DerDecoder.readCNFromDN(principal.getEncoded());
+	}
+
+	/**
 	 * Checks, if the certificate matches the literal IP address.
 	 * 
 	 * Matches, if one of the subject alternative names of type iPAddress
@@ -630,8 +642,7 @@ public class CertPathUtil {
 				}
 			}
 			if (!hasSanDns) {
-				X500Principal principal = node.getSubjectX500Principal();
-				String cn = Asn1DerDecoder.readCNFromDN(principal.getEncoded());
+				String cn = getSubjectsCn(node);
 				if (cn != null) {
 					// RFC3280 - 4.1.2.4 Issuer - name comparison functionality
 					// https://datatracker.ietf.org/doc/html/rfc3280#section-4.1.2.4

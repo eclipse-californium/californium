@@ -111,6 +111,7 @@ public class ConnectorHelper {
 
 	static final String SERVERNAME = "my.test.server";
 	static final String SERVERNAME2 = "my.test.server2";
+	static final String SERVERNAME_WRONG = "other.bad.server";
 	static final String SCOPED_CLIENT_IDENTITY = "My_client_identity";
 	static final String SCOPED_CLIENT_IDENTITY_SECRET = "mySecretPSK";
 	static final String CLIENT_IDENTITY = "Client_identity";

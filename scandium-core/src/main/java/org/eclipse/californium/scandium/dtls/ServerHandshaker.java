@@ -369,7 +369,7 @@ public class ServerHandshaker extends Handshaker {
 			// message uses a empty certificate chain
 			setExpectedStates(EMPTY_CLIENT_CERTIFICATE);
 		} else {
-			verifyCertificate(message);
+			verifyCertificate(message, false);
 		}
 	}
 
@@ -500,11 +500,25 @@ public class ServerHandshaker extends Handshaker {
 				clientHello.getSupportedSignatureAlgorithmsExtension());
 		ECPointFormat format = negotiateECPointFormat(clientHello.getSupportedPointFormatsExtension());
 
+		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
+		if (serverNameExt != null) {
+			if (sniEnabled) {
+				// store the names indicated by peer for later reference during
+				// key exchange
+				DTLSSession session = getSession();
+				session.setServerNames(serverNameExt.getServerNames());
+				session.setSniSupported(true);
+				LOGGER.debug("using server name indication received from peer [{}]", peerToLog);
+			} else {
+				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled", peerToLog);
+			}
+		}
+
 		this.cipherSuiteParameters = new CipherSuiteParameters(null, null, clientAuthenticationMode, commonCipherSuites,
 				commonServerCertTypes, commonClientCertTypes, commonGroups, commonSignatures, format);
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(commonCipherSuites)) {
 			this.pendingClientHello = clientHello;
-			ServerNames serverNames = sniEnabled ? clientHello.getServerNames() : null;
+			ServerNames serverNames = getServerNames();
 			if (requestCertificateIdentity(null, serverNames, commonSignatures, commonGroups)) {
 				startInitialTimeout();
 			}
@@ -822,20 +836,11 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
-		if (serverNameExt != null) {
-			if (sniEnabled) {
-				// store the names indicated by peer for later reference during
-				// key exchange
-				session.setServerNames(serverNameExt.getServerNames());
-				// RFC6066, section 3 requires the server to respond with
-				// an empty SNI extension if it might make use of the value(s)
-				// provided by the client
-				serverHello.addExtension(ServerNameExtension.emptyServerNameIndication());
-				session.setSniSupported(true);
-				LOGGER.debug("using server name indication received from peer [{}]", peerToLog);
-			} else {
-				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled", peerToLog);
-			}
+		if (serverNameExt != null && sniEnabled) {
+			// RFC6066, section 3 requires the server to respond with
+			// an empty SNI extension if it might make use of the value(s)
+			// provided by the client
+			serverHello.addExtension(ServerNameExtension.emptyServerNameIndication());
 		}
 
 		if (supportsConnectionId()) {
