@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
@@ -28,10 +30,12 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -58,8 +62,8 @@ import org.slf4j.LoggerFactory;
  * </dl>
  * 
  * References:
- * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target="_blank">RFC5246, Section
- * 7.4.2, Server Certificate</a>
+ * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target=
+ * "_blank">RFC5246, Section 7.4.2, Server Certificate</a>
  * <p>
  * "Because certificate validation requires that root keys be distributed
  * independently, the self-signed certificate that specifies the root
@@ -68,21 +72,22 @@ import org.slf4j.LoggerFactory;
  * case."
  * </p>
  * 
- * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.6" target="_blank">RFC5246, Section
- * 7.4.6, Client Certificate </a>
+ * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.6" target=
+ * "_blank">RFC5246, Section 7.4.6, Client Certificate </a>
  * <p>
  * "If the certificate_authorities list in the certificate request message was
  * non-empty, one of the certificates in the certificate chain SHOULD be issued
  * by one of the listed CAs."
  * </p>
  * 
- * <a href="https://tools.ietf.org/html/rfc5280#section-6" target="_blank">RFC5280, Section 6,
- * Certification Path Validation</a>
+ * <a href="https://tools.ietf.org/html/rfc5280#section-6" target=
+ * "_blank">RFC5280, Section 6, Certification Path Validation</a>
  * <p>
  * "Valid paths begin with certificates issued by a trust anchor." ... "The
  * procedure performed to obtain this sequence of certificates is outside the
  * scope of this specification".
  * </p>
+ * 
  * @since 2.1
  */
 public class CertPathUtil {
@@ -110,6 +115,24 @@ public class CertPathUtil {
 	 * Bit for certificate signing in key usage.
 	 */
 	private static final int KEY_USAGE_CERTIFICATE_SIGNING = 5;
+	/**
+	 * Subject alternative names DNS.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int SUBJECT_ALTERNATIVE_NAMES_DNS = 2;
+	/**
+	 * Subject alternative names literal IP.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int SUBJECT_ALTERNATIVE_NAMES_LITERAL_IP = 7;
+	/**
+	 * Pattern to trim whitespace.
+	 * 
+	 * @since 3.0
+	 */
+	private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s{2,}");
 
 	/**
 	 * Check, if certificate is intended to be used to verify a signature of an
@@ -460,8 +483,7 @@ public class CertPathUtil {
 		List<X509Certificate> chain = new ArrayList<>(certificates.size());
 		for (Certificate cert : certificates) {
 			if (!(cert instanceof X509Certificate)) {
-				throw new IllegalArgumentException(
-						"Given certificate is not X.509!" + cert.getClass());
+				throw new IllegalArgumentException("Given certificate is not X.509!" + cert.getClass());
 			}
 			chain.add((X509Certificate) cert);
 		}
@@ -490,6 +512,149 @@ public class CertPathUtil {
 		} else {
 			return Collections.emptyList();
 		}
+	}
+
+	/**
+	 * Checks, if the certificate matches the literal IP address.
+	 * 
+	 * Matches, if one of the subject alternative names of type iPAddress
+	 * matches the literal IP address. The CN is not considered.
+	 * 
+	 * @param node node's certificate to check.
+	 * @param literalDestination destination literal IP.
+	 * @return {@code true}, if matching, {@code false}, otherwise
+	 * @throws NullPointerException if any of the parameter is {@code null}
+	 * @throws IllegalArgumentException if literal destination is no literal IP
+	 *             address
+	 * @see <a href=
+	 *      "https://datatracker.ietf.org/doc/html/rfc7252#section-9.1.3.3"
+	 *      target="_blank">RFC7252 - 9.1.3.3. X.509 Certificates</a>
+	 * @since 3.0
+	 */
+	public static boolean matchLiteralIP(X509Certificate node, String literalDestination) {
+		if (node == null) {
+			throw new NullPointerException("Certificate must not be null!");
+		}
+		if (literalDestination == null) {
+			throw new NullPointerException("Destination must not be null!");
+		}
+		if (!StringUtil.isLiteralIpAddress(literalDestination)) {
+			throw new IllegalArgumentException("Destination " + literalDestination + " is no literal IP!");
+		}
+		try {
+			Collection<List<?>> alternativeNames = node.getSubjectAlternativeNames();
+			if (alternativeNames != null) {
+				for (List<?> alternativeName : alternativeNames) {
+					int type = (Integer) alternativeName.get(0);
+					if (type == SUBJECT_ALTERNATIVE_NAMES_LITERAL_IP) {
+						String value = (String) alternativeName.get(1);
+						if (StringUtil.isLiteralIpAddress(value)) {
+							if (matchLiteralIP(value, literalDestination)) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+		} catch (ClassCastException e) {
+		} catch (CertificateParsingException e) {
+		} catch (IllegalArgumentException e) {
+		}
+		return false;
+	}
+
+	/**
+	 * Match literalIpAddresses.
+	 * 
+	 * @param subject subject as literal IP address.
+	 * @param literalDestination destination as literal IP address.
+	 * @return {@code true}, if the literal IP addresses are matching,
+	 *         {@code false}, if not.
+	 * @since 3.0
+	 */
+	public static boolean matchLiteralIP(String subject, String literalDestination) {
+		if (subject == null) {
+			throw new NullPointerException("Subject must not be null!");
+		}
+		if (literalDestination == null) {
+			throw new NullPointerException("Destination must nit be null!");
+		}
+		if (subject.equalsIgnoreCase(literalDestination)) {
+			return true;
+		}
+		try {
+			return InetAddress.getByName(subject).equals(InetAddress.getByName(literalDestination));
+		} catch (UnknownHostException e) {
+		} catch (SecurityException e) {
+		}
+		return false;
+	}
+
+	/**
+	 * Checks, if the certificate matches the destination.
+	 * 
+	 * Matches, if one of the subject alternative names of type dNSName matches
+	 * the destination. If no subject alternative name of type dNSName is
+	 * available, consider the CN.
+	 * 
+	 * According
+	 * <a href= "https://datatracker.ietf.org/doc/html/rfc7252#section-9.1.3.3"
+	 * target="_blank">RFC7252 - 9.1.3.3. X.509 Certificates</a> wildcards are
+	 * not supported.
+	 * 
+	 * @param node node's certificate to check.
+	 * @param destination destination hostname.
+	 * @return {@code true}, if matching, {@code false}, otherwise
+	 * @since 3.0
+	 */
+	public static boolean matchDestination(X509Certificate node, String destination) {
+		if (node == null) {
+			throw new NullPointerException("Certificate must not be null!");
+		}
+		if (destination == null) {
+			throw new NullPointerException("Destination must not be null!");
+		}
+		try {
+			boolean hasSanDns = false;
+			Collection<List<?>> alternativeNames = node.getSubjectAlternativeNames();
+			if (alternativeNames != null) {
+				for (List<?> alternativeName : alternativeNames) {
+					int type = (Integer) alternativeName.get(0);
+					if (type == SUBJECT_ALTERNATIVE_NAMES_DNS) {
+						hasSanDns = true;
+						String value = (String) alternativeName.get(1);
+						if (destination.equalsIgnoreCase(value)) {
+							return true;
+						}
+					}
+				}
+			}
+			if (!hasSanDns) {
+				X500Principal principal = node.getSubjectX500Principal();
+				String cn = Asn1DerDecoder.readCNFromDN(principal.getEncoded());
+				if (cn != null) {
+					// RFC3280 - 4.1.2.4 Issuer - name comparison functionality
+					// https://datatracker.ietf.org/doc/html/rfc3280#section-4.1.2.4
+					// "attribute values in PrintableString are compared after
+					// removing leading and trailing white space and converting
+					// internal
+					// substrings of one or more consecutive white space
+					// characters to a
+					// single space."
+					cn = WHITESPACE_PATTERN.matcher(cn.trim()).replaceAll(" ");
+					if (destination.equalsIgnoreCase(cn)) {
+						return true;
+					}
+				}
+			}
+		} catch (ClassCastException e) {
+			LOGGER.debug("match", e);
+		} catch (CertificateParsingException e) {
+			LOGGER.debug("match", e);
+		} catch (IllegalArgumentException e) {
+			LOGGER.debug("match", e);
+		}
+		return false;
 	}
 
 	/**
