@@ -50,7 +50,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -174,9 +173,6 @@ import org.eclipse.californium.elements.util.StringUtil;
  * @see Response
  */
 public class Request extends Message {
-
-	private static final Pattern IP_PATTERN = Pattern
-			.compile("(\\[[0-9a-fA-F:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
 
 	/**
 	 * The request code.
@@ -487,7 +483,7 @@ public class Request extends Message {
 		checkURI(uri);
 		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
 		final String uriScheme = uri.getScheme();
-		final boolean literalIp = IP_PATTERN.matcher(host).matches();
+		final boolean literalIp = StringUtil.isLiteralIpAddress(host);
 
 		try {
 			InetSocketAddress destinationAdress;
@@ -552,7 +548,7 @@ public class Request extends Message {
 		if (destinationContext == null) {
 			throw new IllegalStateException("destination must be set ahead!");
 		}
-		setOptionsInternal(uri, destinationContext.getPeerAddress(), IP_PATTERN.matcher(uri.getHost()).matches());
+		setOptionsInternal(uri, destinationContext.getPeerAddress(), StringUtil.isLiteralIpAddress(uri.getHost()));
 		this.uri = true;
 		return this;
 	}
