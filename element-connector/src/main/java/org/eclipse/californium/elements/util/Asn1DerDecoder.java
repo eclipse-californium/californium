@@ -17,6 +17,7 @@ package org.eclipse.californium.elements.util;
 
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
@@ -149,6 +150,11 @@ public class Asn1DerDecoder {
 	 */
 	private static final int TAG_SEQUENCE = 0x30;
 	/**
+	 * Tag for ASN.1 SET.
+	 * @since 3.0
+	 */
+	private static final int TAG_SET = 0x31;
+	/**
 	 * Maximum supported length for ASN.1 OID.
 	 */
 	private static final int MAX_OID_LENGTH = 0x20;
@@ -168,6 +174,48 @@ public class Asn1DerDecoder {
 	 * Tag for ASN.1 OCTET STRING.
 	 */
 	private static final int TAG_BIT_STRING = 0x03;
+	/**
+	 * Tag for ASN.1 UTF-8 STRING.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_UTF8_STRING = 0x0C;
+	/**
+	 * Tag for ASN.1 PRINTABLE STRING.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_PRINTABLE_STRING = 0x13;
+	/**
+	 * Tag for ASN.1 TELETEX STRING.
+	 * 
+	 * Support for deprecated CAs.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_TELETEX_STRING = 0x14;
+	/**
+	 * Tag for ASN.1 UNIVERSAL STRING.
+	 * 
+	 * Support for deprecated CAs.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_UNIVERSAL_STRING = 0x1C;
+	/**
+	 * Tag for ASN.1 BMP STRING.
+	 * 
+	 * Support for deprecated CAs.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_BMP_STRING = 0x1E;
+	/**
+	 * List of supported Tag for ASN.1 STRING.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int[] TAGS_STRING = {TAG_UTF8_STRING, TAG_PRINTABLE_STRING, TAG_BMP_STRING, TAG_UNIVERSAL_STRING, TAG_TELETEX_STRING};
 	/**
 	 * Tag for ASN.1 CONTEXT SPECIFIC 0.
 	 */
@@ -213,9 +261,19 @@ public class Asn1DerDecoder {
 	 */
 	private static final byte[] OID_ED448_PUBLIC_KEY = { 0x2b, 0x65, 0x71 };
 	/**
+	 * ASN.1 OID for CN.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] OID_CN = { 0x55, 4, 3 };
+	/**
 	 * ASN.1 entity definition for SEQUENCE.
 	 */
 	private static final EntityDefinition SEQUENCE = new EntityDefinition(TAG_SEQUENCE, MAX_DEFAULT_LENGTH, "SEQUENCE");
+	/**
+	 * ASN.1 entity definition for SET.
+	 */
+	private static final EntityDefinition SET = new EntityDefinition(TAG_SET, MAX_DEFAULT_LENGTH, "SET");
 	/**
 	 * ASN.1 entity definition for OID.
 	 */
@@ -292,6 +350,9 @@ public class Asn1DerDecoder {
 	 */
 	private static final String NET_I2P_CRYPTO_EDDSA = "net.i2p.crypto.eddsa";
 
+	private static final Charset UCS_2;
+	private static final Charset UCS_4;
+	
 	static {
 		boolean ed25519 = false;
 		boolean ed448 = false;
@@ -335,6 +396,19 @@ public class Asn1DerDecoder {
 		EDDSA_PROVIDER = provider;
 		ED25519_SUPPORT = ed25519;
 		ED448_SUPPORT = ed448;
+
+		Charset charset = null;
+		try {
+			charset = Charset.forName("ISO-10646-UCS-2");
+		} catch (Throwable t) {
+		}
+		UCS_2 = charset;
+		charset = null;
+		try {
+			charset = Charset.forName("ISO-10646-UCS-4");
+		} catch (Throwable t) {
+		}
+		UCS_4 = charset;
 	}
 
 	/**
@@ -956,6 +1030,34 @@ public class Asn1DerDecoder {
 	}
 
 	/**
+	 * Read CN from ASN.1 encoded DN.
+	 * 
+	 * @param data ASN.1 encoded DN
+	 * @return CN, or {@code null}, if not found.
+	 * @throws IllegalArgumentException if DN could not be read
+	 * @since 3.0
+	 */
+	public static String readCNFromDN(byte[] data) {
+		DatagramReader reader = new DatagramReader(data, false);
+		reader = SEQUENCE.createRangeReader(reader, false);
+		while (reader.bytesAvailable()) {
+			DatagramReader setReader = SET.createRangeReader(reader, false);
+			while (setReader.bytesAvailable()) {
+				DatagramReader subReader = SEQUENCE.createRangeReader(setReader, false);
+				byte[] oid = OID.readValue(subReader);
+				if (Arrays.equals(oid, OID_CN)) {
+					try {
+						StringEntityDefinition value = new StringEntityDefinition(TAGS_STRING);
+						return value.readStringValue(subReader);
+					} catch (IllegalArgumentException ex) {
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Decoded keys.
 	 * 
 	 * May contain a private key, or public key, or both.
@@ -1081,6 +1183,18 @@ public class Asn1DerDecoder {
 		}
 
 		/**
+		 * Check read tag.
+		 * 
+		 * @param tag read tag
+		 * @return {@code true}, if matching the {@link #expectedTag},
+		 *         {@code false}, otherwise.
+		 * @since 3.0
+		 */
+		public boolean checkTag(int tag) {
+			return tag == expectedTag;
+		}
+
+		/**
 		 * Read entity including tag and length into byte array.
 		 * 
 		 * @param reader reader containing the bytes to read.
@@ -1157,7 +1271,7 @@ public class Asn1DerDecoder {
 			reader.mark();
 			// check tag
 			int tag = reader.read(Byte.SIZE);
-			if (tag != expectedTag) {
+			if (!checkTag(tag)) {
 				reader.reset();
 				throw new IllegalArgumentException(
 						String.format("No %s, found %02x instead of %02x!", description, tag, expectedTag));
@@ -1272,6 +1386,65 @@ public class Asn1DerDecoder {
 				throw new IllegalArgumentException("INTEGER byte array value overflow!");
 			}
 			return result;
+		}
+	}
+
+	/**
+	 * String entity.
+	 * 
+	 * @since 3,0
+	 */
+	private static class StringEntityDefinition extends EntityDefinition {
+
+		private int tag;
+		private int[] expectedTags;
+
+		public StringEntityDefinition(int... expectedTags) {
+			super(expectedTags[0], MAX_DEFAULT_LENGTH, "STRING");
+			this.expectedTags = expectedTags;
+		}
+
+		@Override
+		public boolean checkTag(int tag) {
+			for (int expectedTag : expectedTags) {
+				if (expectedTag == tag) {
+					this.tag = tag;
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Read string.
+		 * 
+		 * @param reader reader containing the bytes to read.
+		 * @return string value.
+		 * @throws IllegalArgumentException if provided bytes doesn't contain a
+		 *             valid string entity.
+		 */
+		public String readStringValue(DatagramReader reader) {
+			byte[] stringByteArray = readValue(reader);
+			if (stringByteArray != null) {
+				if (tag == TAG_PRINTABLE_STRING) {
+					return new String(stringByteArray, StandardCharsets.US_ASCII);
+				} else if (tag == TAG_UTF8_STRING) {
+					return new String(stringByteArray, StandardCharsets.UTF_8);
+				} else if (tag == TAG_BMP_STRING) {
+					if (UCS_2 == null) {
+						throw new IllegalArgumentException("BMP_STRING not supported!");
+					}
+					return new String(stringByteArray, UCS_2);
+				} else if (tag == TAG_UNIVERSAL_STRING) {
+					if (UCS_2 == null) {
+						throw new IllegalArgumentException("UNIVERSAL_STRING not supported!");
+					}
+					return new String(stringByteArray, UCS_4);
+				} else if (tag == TAG_TELETEX_STRING) {
+					throw new IllegalArgumentException("TELETEX_STRING not supported!");
+				}
+			}
+			return null;
 		}
 	}
 }

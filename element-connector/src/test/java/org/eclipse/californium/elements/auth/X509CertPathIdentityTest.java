@@ -69,6 +69,12 @@ public class X509CertPathIdentityTest {
 	}
 
 	@Test
+	public void testGetCNReturnsCN() {
+		X509CertPath id = X509CertPath.fromCertificatesChain(ecCredentials.getCertificateChain());
+		assertThat(id.getCN(), is("cf-client"));
+	}
+
+	@Test
 	public void testGetTargetReturnsFirstCertificate() {
 		X509CertPath id = X509CertPath.fromCertificatesChain(ecCredentials.getCertificateChain());
 		assertThat(id.getTarget(), is(ecCredentials.getCertificateChain()[0]));
