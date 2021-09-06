@@ -53,6 +53,9 @@ public class StringUtil {
 	private static final Pattern HOSTNAME_PATTERN = Pattern.compile(
 			"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$");
 
+	private static final Pattern IP_PATTERN = Pattern
+			.compile("^(\\[[0-9a-fA-F:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})$");
+
 	/**
 	 * Workaround too support android API 16-18.
 	 * 
@@ -114,8 +117,31 @@ public class StringUtil {
 		CALIFORNIUM_VERSION = version;
 	}
 
-	private static String toHostString(InetSocketAddress address) {
-		return address.getHostString();
+	/**
+	 * Get host string of inet socket address.
+	 * 
+	 * @param socketAddress inet socket address.
+	 * @return host string
+	 * @since 3.0 (changed scope to public)
+	 */
+	public static String toHostString(InetSocketAddress socketAddress) {
+		if (SUPPORT_HOST_STRING) {
+			return socketAddress.getHostString();
+		} else {
+			InetAddress address = socketAddress.getAddress();
+			if (address != null) {
+				String textAddress = address.toString();
+				if (textAddress.startsWith("/")) {
+					// unresolved, return literal IP
+					return textAddress.substring(1);
+				} else {
+					// resolved, safe to call getHostName 
+					return address.getHostName();
+				}
+			} else {
+				return socketAddress.getHostName();
+			}
+		}
 	}
 
 	/**
@@ -492,6 +518,21 @@ public class StringUtil {
 			return false;
 		} else {
 			return HOSTNAME_PATTERN.matcher(name).matches();
+		}
+	}
+
+	/**
+	 * Checks if a given string is a literal IP address.
+	 * 
+	 * @param address address to check.
+	 * @return {@code true} if the address is a literal IP address.
+	 * @since 3.0
+	 */
+	public static boolean isLiteralIpAddress(final String address) {
+		if (address == null) {
+			return false;
+		} else {
+			return IP_PATTERN.matcher(address).matches();
 		}
 	}
 
