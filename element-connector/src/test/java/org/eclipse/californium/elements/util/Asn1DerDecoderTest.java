@@ -87,6 +87,14 @@ public class Asn1DerDecoderTest {
 	 * EdDSA v2 private key, ASN.1 DER / Base64 encoded.
 	 */
 	private static final String EDDSA_PRIVATE_KEY_V2_BASE64 = "MHICAQEwBQYDK2VwBCIEINTuctv5E1hK1bbY8fdp+K06/nwoy/HU++CXqI9EdVhCoB8wHQYKKoZIhvcNAQkJFDEPDA1DdXJkbGUgQ2hhaXJzgSEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=";
+	/**
+	 * X509Principal, ASN.1 DER / Base64 encoded.
+	 */
+	private static final String PRINCIPAL_BASE64 = "MF4xEjAQBgNVBAMTCWNmLXNlcnZlcjEUMBIGA1UECxMLQ2FsaWZvcm5pdW0xFDASBgNVBAoTC0VjbGlwc2UgSW9UMQ8wDQYDVQQHEwZPdHRhd2ExCzAJBgNVBAYTAkNB";
+	/**
+	 * X509Principal, ASN.1 DER / Base64 encoded.
+	 */
+	private static final String WILDCARD_PRINCIPAL_BASE64 = "MGAxFDASBgNVBAMMCyouY2Ytc2VydmVyMRQwEgYDVQQLEwtDYWxpZm9ybml1bTEUMBIGA1UEChMLRWNsaXBzZSBJb1QxDzANBgNVBAcTBk90dGF3YTELMAkGA1UEBhMCQ0E=";
 
 	/**
 	 * Sequence, ASN.1 DER encoded.
@@ -448,4 +456,21 @@ public class Asn1DerDecoderTest {
 		byte[] data = { 0x06, 0x04, 0x2A, (byte) 0x86, 0x48, (byte) 0xCE };
 		Asn1DerDecoder.readOidString(new DatagramReader(data, false));
 	}
+
+	@Test
+	public void testReadCNFromDN() {
+		byte[] dn = StringUtil.base64ToByteArray(PRINCIPAL_BASE64);
+		String cn = Asn1DerDecoder.readCNFromDN(dn);
+		assertThat(cn, is("cf-server"));
+		dn = StringUtil.base64ToByteArray(WILDCARD_PRINCIPAL_BASE64);
+		cn = Asn1DerDecoder.readCNFromDN(dn);
+		assertThat(cn, is("*.cf-server"));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testInvalidReadCNFromDN() {
+		byte[] dn = StringUtil.base64ToByteArray(EC_BASE64);
+		Asn1DerDecoder.readCNFromDN(dn);
+	}
+
 }

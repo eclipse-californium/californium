@@ -26,6 +26,7 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.CertPathUtil;
 
@@ -158,13 +159,24 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 	}
 
 	/**
-	 * Gets the Subject DN of the asserted identity of this certificate path.
+	 * Gets the subject DN of the asserted identity of this certificate path.
 	 * 
 	 * @return The subject.
 	 */
 	@Override
 	public String getName() {
 		return target.getSubjectX500Principal().getName();
+	}
+
+	/**
+	 * Gets the CN of the subject DN.
+	 * 
+	 * @return CN, or {@code null}, if not available.
+	 * @since 3.0
+	 */
+	public String getCN() {
+		byte[] encoded = target.getSubjectX500Principal().getEncoded();
+		return Asn1DerDecoder.readCNFromDN(encoded);
 	}
 
 	/**
