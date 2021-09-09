@@ -22,8 +22,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class EndpointContextUtilTest {
@@ -31,6 +33,9 @@ public class EndpointContextUtilTest {
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
 	public static final Definition<String> ID = new Definition<>("ID", String.class, MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS);
 	public static final Definition<String> UNKNOWN = new Definition<>("UNKNOWN", String.class, MapBasedEndpointContext.ATTRIBUTE_DEFINITIONS);
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	private EndpointContext connectorContext;
 	private EndpointContext relaxedMessageContext;
@@ -57,6 +62,8 @@ public class EndpointContextUtilTest {
 
 	@Test
 	public void testEndpointContextUtil() {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class);
+
 		Definitions<Definition<?>> keys = new Definitions<>("test")
 				.add(DtlsEndpointContext.KEY_SESSION_ID)
 				.add(DtlsEndpointContext.KEY_CIPHER);
@@ -71,6 +78,7 @@ public class EndpointContextUtilTest {
 
 	@Test
 	public void testEndpointContextUtilWithAdditionalKey() {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class);
 		Definitions<Definition<?>> keys = new Definitions<>("test")
 				.add(DtlsEndpointContext.KEY_SESSION_ID)
 				.add(DtlsEndpointContext.KEY_CIPHER)

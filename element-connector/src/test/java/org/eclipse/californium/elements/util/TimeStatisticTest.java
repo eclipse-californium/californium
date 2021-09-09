@@ -77,7 +77,6 @@ public class TimeStatisticTest {
 		assertThat("percentil 95", summary.getPercentileValue(0), is(inRange(900L, 1001L)));
 		assertThat("percentil 99", summary.getPercentileValue(1), is(inRange(950L, 1001L)));
 		assertThat("percentil 99.9", summary.getPercentileValue(2), is(inRange(970L, 1001L)));
-		System.out.println(summary);
 	}
 
 }

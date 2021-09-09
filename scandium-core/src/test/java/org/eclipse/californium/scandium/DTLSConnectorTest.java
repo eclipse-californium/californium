@@ -77,6 +77,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.DatagramReader;
@@ -155,6 +156,9 @@ public class DTLSConnectorTest {
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final PskPublicInformation CLIENT_IDENTITY = new PskPublicInformation("Client_identity");
@@ -1016,6 +1020,7 @@ public class DTLSConnectorTest {
 
 	@Test
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
+		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class);
 		serverHelper.serverConnectionStore.clear();
 		assertEquals(SERVER_CONNECTION_STORE_CAPACITY, serverHelper.serverConnectionStore.remainingCapacity());
 		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050))

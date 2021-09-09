@@ -22,6 +22,7 @@ import static org.eclipse.californium.elements.DtlsEndpointContext.*;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.junit.Before;
@@ -41,6 +42,9 @@ public class DtlsEndpointContextMatcherTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedExceptionWrapper.none();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	private EndpointContext connectorContext;
 	private EndpointContext scopedConnectorContext;
@@ -95,6 +99,7 @@ public class DtlsEndpointContextMatcherTest {
 
 	@Test
 	public void testRelaxedWithConnectionEndpointContext() {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class);
 
 		assertThat(relaxedMatcher.isToBeSent(relaxedMessageContext, connectorContext), is(true));
 		assertThat(relaxedMatcher.isToBeSent(scopedRelaxedMessageContext, connectorContext), is(false));
@@ -109,6 +114,7 @@ public class DtlsEndpointContextMatcherTest {
 
 	@Test
 	public void testRelaxedWithScopedConnectionEndpointContext() {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class);
 
 		assertThat(relaxedMatcher.isToBeSent(relaxedMessageContext, scopedConnectorContext), is(false));
 		assertThat(relaxedMatcher.isToBeSent(scopedRelaxedMessageContext, scopedConnectorContext), is(true));
@@ -125,6 +131,7 @@ public class DtlsEndpointContextMatcherTest {
 
 	@Test
 	public void testStrictWithConnectionEndpointContext() {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class);
 		assertThat(strictMatcher.isToBeSent(strictMessageContext, connectorContext), is(true));
 		assertThat(strictMatcher.isToBeSent(scopedStrictMessageContext, connectorContext), is(false));
 		assertThat(strictMatcher.isToBeSent(relaxedMessageContext, connectorContext), is(false));
@@ -138,6 +145,7 @@ public class DtlsEndpointContextMatcherTest {
 
 	@Test
 	public void testStrictWithScopedConnectionEndpointContext() {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class);
 
 		assertThat(strictMatcher.isToBeSent(strictMessageContext, scopedConnectorContext), is(false));
 		assertThat(strictMatcher.isToBeSent(scopedStrictMessageContext, scopedConnectorContext), is(true));

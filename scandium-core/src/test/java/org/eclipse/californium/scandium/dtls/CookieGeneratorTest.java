@@ -171,7 +171,7 @@ public class CookieGeneratorTest {
 			for (Bytes cookie : cookies) {
 				set.add(cookie);
 			}
-			LOGGER.warn("{} cookies of {}", set.size(), numOfCookies);
+			LOGGER.debug("{} cookies of {}", set.size(), numOfCookies);
 			assertThat("too many different cookies", set.size(), is(lessThanOrEqualTo(numOfCookies)));
 			if (!errors.isEmpty()) {
 				for (Throwable t : errors) {
