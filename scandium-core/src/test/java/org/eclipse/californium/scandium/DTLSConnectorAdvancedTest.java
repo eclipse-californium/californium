@@ -64,6 +64,7 @@ import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
@@ -170,6 +171,9 @@ public class DTLSConnectorAdvancedTest {
 
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
@@ -2915,6 +2919,7 @@ public class DTLSConnectorAdvancedTest {
 	 */
 	@Test
 	public void testServerx509DoubleResponse() throws Exception {
+		logging.setLoggingLevel("ERROR", DTLSConnector.class);
 		// Configure and create UDP connector
 		verifyHandshakeResponses = 2; // two x509 verification responses
 
@@ -2962,6 +2967,7 @@ public class DTLSConnectorAdvancedTest {
 
 	@Test
 	public void testClientX509WithoutMatchingCertificate() throws Exception {
+		logging.setLoggingLevel("OFF", LOGGER.getName());
 
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getServerRsaCertificateChain()).build();
@@ -3122,6 +3128,7 @@ public class DTLSConnectorAdvancedTest {
 	 */
 	@Test
 	public void testServerResumeVerifierDoubleResponse() throws Exception {
+		logging.setLoggingLevel("ERROR", DTLSConnector.class);
 		// Configure and create UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);

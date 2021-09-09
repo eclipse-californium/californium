@@ -32,8 +32,10 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.category.Large;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.DirectDatagramSocketImpl;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestScope;
@@ -73,6 +75,8 @@ public class DTLSConnectorStartStopTest {
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
+	@Rule 
+	public LoggingRule logging = new LoggingRule().setLoggingLevel("OFF", DirectDatagramSocketImpl.class, DTLSConnector.class);
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY	= 5;
 	private static final int MAX_TIME_TO_WAIT_SECS				= 5;

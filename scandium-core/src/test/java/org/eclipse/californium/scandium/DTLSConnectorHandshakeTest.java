@@ -64,6 +64,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
@@ -84,6 +85,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
@@ -145,6 +147,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	DtlsConnectorConfig.Builder serverBuilder;
 	ConnectorHelper serverHelper;
@@ -615,6 +619,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeWithServernameClientWithSniAndServerWithoutSni() throws Exception {
+		logging.setLoggingLevel("ERROR", ClientHandshaker.class);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true);
 		startClientPsk(SERVERNAME);

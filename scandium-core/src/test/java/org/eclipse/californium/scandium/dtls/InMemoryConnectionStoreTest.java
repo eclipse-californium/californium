@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestScope;
@@ -49,6 +50,8 @@ import org.junit.experimental.categories.Category;
 public class InMemoryConnectionStoreTest {
 	@Rule
 	public ThreadsRule cleanup = new ThreadsRule();
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	private static final int INITIAL_CAPACITY = 10;
 	InMemoryConnectionStore store;
@@ -342,6 +345,8 @@ public class InMemoryConnectionStoreTest {
 
 	@Test
 	public void testSaveAndLoadMaliciousConnections() throws Exception {
+		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class);
+
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 		assertTrue(store.put(con));
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 1));

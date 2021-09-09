@@ -28,9 +28,12 @@ import java.security.cert.X509Certificate;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.rule.LoggingRule;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -41,6 +44,11 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class CertificateRequestTest {
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	/**
 	 * Verifies that an ECDSA key is considered incompatible with the <em>dss_fixed_dh</em> certificate type.
@@ -78,6 +86,7 @@ public class CertificateRequestTest {
 	 */
 	@Test
 	public void testIsSupportedKeyTypeFailsForCertWithoutDigitalSignatureKeyUsage() throws Exception {
+		logging.setLoggingLevel("OFF", CertificateRequest.class);
 
 		X509Certificate cert = DtlsTestTools.getNoSigningCertificate();
 		CertificateRequest req = new CertificateRequest();
