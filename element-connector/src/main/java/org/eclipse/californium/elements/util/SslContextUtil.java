@@ -727,6 +727,26 @@ public class SslContextUtil {
 	}
 
 	/**
+	 * Check, if input stream from URI is available.
+	 * 
+	 * @param keyStoreUri URI of input stream
+	 * @return {@code true}, if available, {@code false}, if not.
+	 * @throws NullPointerException if the keyStoreUri is {@code null}
+	 * @since 3.0
+	 */
+	public static boolean isAvailableFromUri(String keyStoreUri) {
+		try {
+			InputStream in = getInputStreamFromUri(keyStoreUri);
+			if (in != null) {
+				in.close();
+				return true;
+			}
+		} catch (IOException ex) {
+		}
+		return false;
+	}
+
+	/**
 	 * Get key store type from URI.
 	 * 
 	 * Get the configured key store type for URI ending from

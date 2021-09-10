@@ -47,11 +47,14 @@ public final class DtlsTestTools extends TestCertificatesTools {
 	}
 
 	public static X509ExtendedKeyManager getDtlsServerKeyManager() {
+		X509ExtendedKeyManager keyManager = null;
 		if (XECDHECryptography.SupportedGroup.X25519.isUsable() && Asn1DerDecoder.isSupported(Asn1DerDecoder.ED25519)) {
-			return TestCertificatesTools.getServerEdDsaKeyManager();
-		} else {
-			return TestCertificatesTools.getServerKeyManager();
+			keyManager = TestCertificatesTools.getServerEdDsaKeyManager();
 		}
+		if (keyManager == null) {
+			keyManager = TestCertificatesTools.getServerKeyManager();
+		}
+		return keyManager;
 	}
 
 	public static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg) {
