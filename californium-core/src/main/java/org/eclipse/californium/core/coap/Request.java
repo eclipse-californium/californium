@@ -915,8 +915,13 @@ public class Request extends Message {
 	 * </p>
 	 * 
 	 * @param response the new response
+	 * @throws NullPointerException if response is {@code null}.
+	 * @since 3.0 (throws NullPointerException)
 	 */
 	public void setResponse(Response response) {
+		if (response == null) {
+			throw new NullPointerException("no CoAP response!");
+		}
 		synchronized (this) {
 			this.response = response;
 			notifyAll();

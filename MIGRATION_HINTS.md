@@ -117,6 +117,8 @@ Changing network configuration values during runtime is not supported by Califor
 In order to support peers with dynamically assigned ip-addresses, Californium introduced the `EndpointIdentityResolver` for tokens and MIDs with 2.0. The returned identity depends then on the implementation. Using the provided ones, the `PrincipalEndpointContextMatcher` enables to use the `Principal` instead of the `InetSocketAddress`. That is configured using the `CoapConfig.RESPONSE_MATCHING`. The feature is mainly useful for the side, which initially accepts traffic (usually a server) and may cause errors on the side, which initiates the traffic. A work-around for that is added only to a ping-exchange, which enables clients to use the `Principal`, if a ping is the first exchange. The plugtest clients has been adapted to demonstrate that.
 With 3.0 this will now be extended for blockwise transfers. If used on the server-side, that enables a client-side to PUT/POST payload, even if a quiet phase causes an address change.
 
+Ensure, that `onResponse(Response response)` and `onResponse(CoapResponse response)` are only called with `nonNull`. Some code smells seems to assume, it could be `null`, even if I can't see, that this would have been actually happen. Only user code may have cause this and will now cause a `NullPointerException`.
+ 
 ### Californium-Proxy2:
 
 The apache http-components have been updated to http-client 5.0.3 and http-core 5.0.2.
@@ -221,6 +223,8 @@ are removed and must be replaced by
 14) Removed `CoapEndpoint.Builder.setConnectorWithAutoConfiguration(UDPConnector)`. `Configuration` must now be provided to the Connector's constructors.
 
 15) The `NetworkConfig` is replaced by `SystemConfig`, `UdpConfig`, `TcpConfig`, `CoapConfig` and `Configuration`.
+
+16) The `Request.setResponse(Response response)` will now throw a `NullPointerException`, if called with `null`.
 
 ### Californium-Proxy2:
 
