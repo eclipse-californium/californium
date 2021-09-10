@@ -33,6 +33,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -1595,6 +1596,8 @@ public class DTLSConnectorHandshakeTest {
 	public void testX509Ed25519Handshake() throws Exception {
 		assumeTrue("X25519 requires JVM support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
 		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+		Credentials credentials = TestCertificatesTools.getCredentials("clienteddsa");
+		assumeNotNull("clienteddsa credentials missing!", credentials);
 
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(0, SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
@@ -1613,7 +1616,6 @@ public class DTLSConnectorHandshakeTest {
 				.setSupportedGroups(SupportedGroup.X25519, SupportedGroup.secp256r1)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
-		Credentials credentials = TestCertificatesTools.getCredentials("clienteddsa");
 		clientPrivateKey = credentials.getPrivateKey();
 		clientCertificateChain = credentials.getCertificateChain();
 		setupClientCertificateIdentity(CertificateType.X_509);

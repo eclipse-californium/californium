@@ -52,10 +52,12 @@ public class X509CertPathIdentityTest {
 		} catch (GeneralSecurityException e) {
 			assumeNoException("vm's without EC are not usable for CoAP!", e);
 		}
-		if (Asn1DerDecoder.isSupported("Ed25519")) {
+		if (Asn1DerDecoder.isSupported("Ed25519") && SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI)) {
 			try {
 				ed25519Credentials = SslContextUtil.loadCredentials(EDDSA_KEY_STORE_URI, "clienteddsa",
 						KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			} catch (IllegalArgumentException e) {
+				// ignores missing Ed25519
 			} catch (GeneralSecurityException e) {
 				// ignores missing Ed25519
 			}

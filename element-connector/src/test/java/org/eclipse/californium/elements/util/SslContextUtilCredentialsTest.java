@@ -297,6 +297,8 @@ public class SslContextUtilCredentialsTest {
 	@Test
 	public void testLoadEdDsaCredentials() throws IOException, GeneralSecurityException {
 		assumeTrue("ED25519 requires JVM support!", Asn1DerDecoder.isSupported("Ed25519"));
+		assumeTrue(EDDSA_KEY_STORE_URI + " missing!", SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI));
+
 		Credentials credentials = SslContextUtil.loadCredentials(EDDSA_KEY_STORE_URI, "clienteddsa",
 				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 		assertThat(credentials, is(notNullValue()));

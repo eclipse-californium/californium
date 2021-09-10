@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
 import java.security.GeneralSecurityException;
@@ -172,8 +173,9 @@ public class SignatureAndHashAlgorithmTest {
 	@Test
 	public void testEnsureSignatureAlgorithmForEdDsa() throws GeneralSecurityException {
 		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
-		List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>();
 		Credentials credentials = DtlsTestTools.getCredentials("clienteddsa");
+		assumeNotNull("clienteddsa credentials missing!", credentials);
+		List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>();
 		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, credentials.getPubicKey());
 		assertThat(algorithms.size(), is(1));
 		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519));
