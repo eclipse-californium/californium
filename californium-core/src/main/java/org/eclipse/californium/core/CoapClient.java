@@ -1489,10 +1489,8 @@ public class CoapClient {
 	}
 
 	private void setDestinationContextFromResponse(Response response) {
-		if (response != null) {
-			// use source context for further request
-			destinationContext.compareAndSet(null,  response.getSourceContext());
-		}
+		// use source context for further request
+		destinationContext.compareAndSet(null, response.getSourceContext());
 	}
 
 	/*
@@ -1552,7 +1550,7 @@ public class CoapClient {
 			if (!multicast) {
 				setDestinationContextFromResponse(response);
 			}
-			succeeded(response != null ? new CoapResponse(response) : null);
+			succeeded(new CoapResponse(response));
 		}
 
 		/**
