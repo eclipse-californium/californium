@@ -161,7 +161,9 @@ create_keys() {
    keytool -genkeypair -alias server -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server' \
         -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $KEY_STORE -storepass $KEY_STORE_PWD -storetype $DEFAULT_STORE_TYPE
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias server | \
-      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -ext 'san=dns:my.test.server,dns:californium.eclipseprojects.io,ip:127.0.0.1,ip:35.185.40.182' -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_CER
+      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -ext \
+      'san=dns:my.test.server,dns:californium.eclipseprojects.io,ip:35.185.40.182,dns:localhost,ip:127.0.0.1,ip:::1' \
+      -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_CER
    keytool -alias server -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_CER -storetype $DEFAULT_STORE_TYPE
 
    echo "creating CA2 key and certificate..."
@@ -175,7 +177,8 @@ create_keys() {
    keytool -genkeypair -alias serverlarge -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-serverlarge' \
         -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $KEY_STORE -storepass $KEY_STORE_PWD
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias serverlarge | \
-      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca2 -gencert -ext KU=dig -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_LARGE_CER
+      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca2 -gencert -ext KU=dig -ext \
+      'san=ip:127.0.0.1,ip:::1' -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_LARGE_CER
    keytool -alias serverlarge -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_LARGE_CER
 
    echo "creating CA RSA key and certificate..."
@@ -189,7 +192,8 @@ create_keys() {
    keytool -genkeypair -alias serverrsa -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa' \
         -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $KEY_STORE -storepass $KEY_STORE_PWD
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias serverrsa | \
-      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias carsa -gencert -ext KU=dig  -ext san=dns:my.test.server2 -validity $VALIDITY -sigalg SHA256withRSA -rfc > $SERVER_RSA_CER
+      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias carsa -gencert -ext KU=dig -ext \
+      'san=dns:my.test.server2,dns:localhost,ip:127.0.0.1,ip:::1' -validity $VALIDITY -sigalg SHA256withRSA -rfc > $SERVER_RSA_CER
    keytool -alias serverrsa -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_RSA_CER
 
    echo "creating client key and certificate..."
@@ -238,8 +242,8 @@ create_keys() {
       keytool -genkeypair -alias servereddsa -keyalg Ed25519 -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-eddsa' \
            -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -storetype $DEFAULT_STORE_TYPE
       keytool -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias servereddsa | \
-           keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig \
-           -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_EDDSA_CER
+           keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -ext \
+           'san=dns:localhost,ip:127.0.0.1,ip:::1' -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_EDDSA_CER
       keytool -alias servereddsa -importcert -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts \
            -file $SERVER_EDDSA_CER -storetype $DEFAULT_STORE_TYPE
 
