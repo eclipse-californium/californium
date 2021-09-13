@@ -19,7 +19,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 
 import org.eclipse.californium.elements.UDPConnector;
-import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 
 /**

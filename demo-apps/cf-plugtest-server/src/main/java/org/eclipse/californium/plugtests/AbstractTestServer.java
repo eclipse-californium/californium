@@ -44,7 +44,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
-import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
+import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;

@@ -17,10 +17,7 @@ package org.eclipse.californium.elements.config;
 
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.elements.config.Configuration.EnumDefinition;
-import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
-import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 
 /**
  * Configuration definitions for TCP/TLS.

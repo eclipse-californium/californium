@@ -44,12 +44,12 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.config.BasicDefinition;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
-import org.eclipse.californium.elements.config.Configuration.BasicDefinition;
-import org.eclipse.californium.elements.config.Configuration.EnumListDefinition;
-import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
+import org.eclipse.californium.elements.config.TimeDefinition;
+import org.eclipse.californium.elements.config.EnumListDefinition;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;

@@ -32,15 +32,15 @@ import org.eclipse.californium.core.network.deduplication.SweepDeduplicator;
 import org.eclipse.californium.core.network.deduplication.SweepPerPeerDeduplicator;
 import org.eclipse.californium.core.network.stack.KeyUri;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.elements.config.BooleanDefinition;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.config.Configuration.BooleanDefinition;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
-import org.eclipse.californium.elements.config.Configuration.EnumDefinition;
-import org.eclipse.californium.elements.config.Configuration.FloatDefinition;
-import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
-import org.eclipse.californium.elements.config.Configuration.StringSetDefinition;
-import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
+import org.eclipse.californium.elements.config.EnumDefinition;
+import org.eclipse.californium.elements.config.FloatDefinition;
+import org.eclipse.californium.elements.config.IntegerDefinition;
+import org.eclipse.californium.elements.config.StringSetDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TimeDefinition;
 
 /**
  * Configuration definitions for CoAP.

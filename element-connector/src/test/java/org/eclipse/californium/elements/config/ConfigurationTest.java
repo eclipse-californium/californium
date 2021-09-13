@@ -26,15 +26,8 @@ import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.elements.config.Configuration.BooleanDefinition;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
-import org.eclipse.californium.elements.config.Configuration.EnumDefinition;
-import org.eclipse.californium.elements.config.Configuration.EnumListDefinition;
-import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
-import org.eclipse.californium.elements.config.Configuration.StringDefinition;
-import org.eclipse.californium.elements.config.Configuration.StringSetDefinition;
-import org.eclipse.californium.elements.config.Configuration.TimeDefinition;
 import org.junit.Test;
 
 /**
