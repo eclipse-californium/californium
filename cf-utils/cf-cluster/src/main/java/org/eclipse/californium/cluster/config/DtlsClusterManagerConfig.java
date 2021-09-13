@@ -103,7 +103,7 @@ public final class DtlsClusterManagerConfig {
 	};
 
 	static {
-		Configuration.addModule(DEFINITIONS);
+		Configuration.addDefaultModule(DEFINITIONS);
 	}
 
 	/**

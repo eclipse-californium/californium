@@ -52,7 +52,7 @@ public final class SystemConfig {
 	};
 	
 	static {
-		Configuration.addModule(DEFINITIONS);
+		Configuration.addDefaultModule(DEFINITIONS);
 	}
 
 	/**
