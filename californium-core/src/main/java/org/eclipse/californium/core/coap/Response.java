@@ -228,6 +228,16 @@ public class Response extends Message {
 	}
 
 	/**
+	 * Checks whether this response's code indicates an success.
+	 * 
+	 * @return {@code true} if <em>code</em> indicates an success.
+	 * @since 3.0
+	 */
+	public final boolean isSuccess() {
+		return code.isSuccess();
+	}
+
+	/**
 	 * Checks whether this response's code indicates an error.
 	 * 
 	 * @return {@code true} if <em>code</em> indicates an error.
@@ -242,7 +252,7 @@ public class Response extends Message {
 	 * @return {@code true} if <em>code</em> indicates a client error.
 	 */
 	public final boolean isClientError() {
-		return ResponseCode.isClientError(code);
+		return code.isClientError();
 	}
 
 	/**
@@ -251,6 +261,6 @@ public class Response extends Message {
 	 * @return {@code true} if <em>code</em> indicates a server error.
 	 */
 	public final boolean isServerError() {
-		return ResponseCode.isServerError(code);
+		return code.isServerError();
 	}
 }

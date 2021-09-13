@@ -41,7 +41,7 @@ public class DelivererException extends Exception {
 	 */
 	public DelivererException(ResponseCode response, String message) {
 		super(message);
-		if (ResponseCode.isClientError(response) || ResponseCode.isServerError(response)) {
+		if (response.isClientError() || response.isServerError()) {
 			this.response = response;
 		} else {
 			throw new IllegalArgumentException("response code " + response + " must be an error-code!");

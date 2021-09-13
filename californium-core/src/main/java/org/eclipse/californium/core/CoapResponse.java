@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -67,7 +66,7 @@ public class CoapResponse {
 	 * @return true, if is success
 	 */
 	public boolean isSuccess() {
-		return CoAP.ResponseCode.isSuccess(response.getCode());
+		return response.isSuccess();
 	}
 
 	/**

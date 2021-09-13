@@ -159,8 +159,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 		}
 
 		// only the response with success codes should be cached
-		ResponseCode code = response.getCode();
-		if (ResponseCode.isSuccess(code)) {
+		if (response.isSuccess()) {
 			lock.lock();
 			try {
 				internalCacheResponse(cacheKey, response, true);
