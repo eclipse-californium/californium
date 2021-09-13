@@ -326,7 +326,7 @@ public class Http2CoapTranslator {
 			// response contains an error, then the content-type should set to
 			// text-plain
 			if (coapResponse.getOptions().getContentFormat() == MediaTypeRegistry.UNDEFINED
-					&& (ResponseCode.isClientError(coapCode) || ResponseCode.isServerError(coapCode))) {
+					&& (coapCode.isClientError() || coapCode.isServerError())) {
 				LOGGER.info("Set content-type to TEXT_PLAIN");
 				coapResponse.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 				if (coapResponse.getPayloadSize() == 0) {

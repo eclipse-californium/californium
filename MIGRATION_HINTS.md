@@ -226,6 +226,8 @@ are removed and must be replaced by
 
 16) The `Request.setResponse(Response response)` will now throw a `NullPointerException`, if called with `null`.
 
+17) The class methods `ResponseCode.is???(ResponseCode code)` are converted into instance methods `ResponseCode.is???()`.
+
 ### Californium-Proxy2:
 
 1) Update to http-client 5.0.3 and http-core 5.0.2. The apache http-components are not encapsulated. Therefore this update causes several API changes, where these classes are used. Please consider the migration information on the [apache http-components web-page](https://hc.apache.org/)

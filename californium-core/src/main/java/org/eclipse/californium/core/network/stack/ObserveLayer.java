@@ -36,7 +36,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -75,7 +74,7 @@ public class ObserveLayer extends AbstractLayer {
 
 			if (exchange.getRequest().isAcknowledged() || exchange.getRequest().getType() == Type.NON) {
 				// Transmit errors as CON
-				if (!ResponseCode.isSuccess(response.getCode())) {
+				if (!response.isSuccess()) {
 					LOGGER.debug("response has error code {} and must be sent as CON", response.getCode());
 					response.setType(Type.CON);
 					relation.cancel();

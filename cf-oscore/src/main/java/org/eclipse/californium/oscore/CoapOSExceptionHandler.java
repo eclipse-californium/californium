@@ -55,7 +55,7 @@ public class CoapOSExceptionHandler {
 
 		if (request != null) {
 			if (request.getType() != null) {
-				if (ResponseCode.isClientError(responseCode)) {
+				if (responseCode.isClientError()) {
 
 					error = Response.createResponse(request, responseCode);
 

@@ -569,7 +569,7 @@ public abstract class TestClientAbstract {
 	 */
 	protected boolean hasContentType(Response response) {
 		boolean success = response.getOptions().hasContentFormat() || response.getPayloadSize() == 0
-				|| !CoAP.ResponseCode.isSuccess(response.getCode());
+				|| !response.isSuccess();
 
 		if (!success) {
 			System.out.println("FAIL: Response without Content-Type");

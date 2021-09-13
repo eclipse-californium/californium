@@ -615,6 +615,36 @@ public final class CoAP {
 		}
 
 		/**
+		 * Checks if a response code indicates success.
+		 * 
+		 * @return {@code true} if the given code's class is {@link CodeClass#SUCCESS_RESPONSE}).
+		 * @since 3.0
+		 */
+		public  boolean isSuccess() {
+			return codeClass == CodeClass.SUCCESS_RESPONSE.value;
+		}
+
+		/**
+		 * Checks if a response code indicates a client error.
+		 * 
+		 * @return {@code true} if the given code's class is {@link CodeClass#ERROR_RESPONSE}).
+		 * @since 3.0
+		 */
+		public boolean isClientError() {
+			return codeClass == CodeClass.ERROR_RESPONSE.value;
+		}
+
+		/**
+		 * Checks if a response code indicates a server error.
+		 * 
+		 * @return {@code true} if the given code's class is {@link CodeClass#SERVER_ERROR_RESPONSE}).
+		 * @since 3.0
+		 */
+		public boolean isServerError() {
+			return codeClass == CodeClass.SERVER_ERROR_RESPONSE.value;
+		}
+
+		/**
 		 * Converts the specified integer value to a response code.
 		 *
 		 * @param value the value
@@ -698,48 +728,6 @@ public final class CoAP {
 		@Override
 		public String toString() {
 			return text;
-		}
-
-		/**
-		 * Checks if a response code indicates success.
-		 * 
-		 * @param code The response code to check.
-		 * @return {@code true} if the given code's class is {@link CodeClass#SUCCESS_RESPONSE}).
-		 * @throws NullPointerException if the code is {@code null}.
-		 */
-		public static boolean isSuccess(final ResponseCode code) {
-			if (null == code) {
-				throw new NullPointerException("ResponseCode must not be null!");
-			}
-			return code.codeClass == CodeClass.SUCCESS_RESPONSE.value;
-		}
-
-		/**
-		 * Checks if a response code indicates a client error.
-		 * 
-		 * @param code The response code to check.
-		 * @return {@code true} if the given code's class is {@link CodeClass#ERROR_RESPONSE}).
-		 * @throws NullPointerException if the code is {@code null}.
-		 */
-		public static boolean isClientError(final ResponseCode code) {
-			if (null == code) {
-				throw new NullPointerException("ResponseCode must not be null!");
-			}
-			return code.codeClass == CodeClass.ERROR_RESPONSE.value;
-		}
-
-		/**
-		 * Checks if a response code indicates a server error.
-		 * 
-		 * @param code The response code to check.
-		 * @return {@code true} if the given code's class is {@link CodeClass#SERVER_ERROR_RESPONSE}).
-		 * @throws NullPointerException if the code is {@code null}.
-		 */
-		public static boolean isServerError(final ResponseCode code) {
-			if (null == code) {
-				throw new NullPointerException("ResponseCode must not be null!");
-			}
-			return code.codeClass == CodeClass.SERVER_ERROR_RESPONSE.value;
 		}
 	}
 

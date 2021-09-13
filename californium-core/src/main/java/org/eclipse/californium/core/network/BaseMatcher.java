@@ -67,7 +67,6 @@ package org.eclipse.californium.core.network;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -229,7 +228,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final Exchange matchNotifyResponse(final Response response) {
 
 		Exchange exchange = null;
-		if (!CoAP.ResponseCode.isSuccess(response.getCode()) || response.getOptions().hasObserve()) {
+		if (!response.isSuccess() || response.getOptions().hasObserve()) {
 			Token token = response.getToken();
 			Observation obs = observationStore.get(token);
 			if (obs != null) {

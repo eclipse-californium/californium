@@ -40,7 +40,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -338,7 +337,7 @@ public  class CoapResource implements Resource {
 		if (relation == null || relation.isCanceled()) {
 			return; // because request did not try to establish a relation
 		}
-		if (CoAP.ResponseCode.isSuccess(response.getCode())) {
+		if (response.isSuccess()) {
 
 			if (!relation.isEstablished()) {
 				relation.setEstablished();
