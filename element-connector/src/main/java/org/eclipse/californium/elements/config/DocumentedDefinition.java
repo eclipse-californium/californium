@@ -16,6 +16,8 @@
 package org.eclipse.californium.elements.config;
 
 import org.eclipse.californium.elements.Definition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Definition of configuration value.
@@ -24,6 +26,8 @@ import org.eclipse.californium.elements.Definition;
  * @since 3.0
  */
 public abstract class DocumentedDefinition<T> extends Definition<T> {
+
+	protected static final Logger LOGGER = LoggerFactory.getLogger(DocumentedDefinition.class);
 
 	/**
 	 * Documentation for properties.
@@ -115,25 +119,25 @@ public abstract class DocumentedDefinition<T> extends Definition<T> {
 	 */
 	public T readValue(String value) {
 		if (value == null) {
-			Configuration.LOGGER.debug("key [{}] is undefined", getKey());
+			LOGGER.debug("key [{}] is undefined", getKey());
 			return null;
 		}
 		if (useTrim()) {
 			value = value.trim();
 		}
 		if (value.isEmpty()) {
-			Configuration.LOGGER.debug("key [{}] is empty", getKey());
+			LOGGER.debug("key [{}] is empty", getKey());
 			return null;
 		}
 		try {
 			T result = parseValue(value);
 			return checkValue(result);
 		} catch (NumberFormatException e) {
-			Configuration.LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
+			LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
 		} catch (ValueException e) {
-			Configuration.LOGGER.warn("Key '{}': {}", getKey(), e.getMessage());
+			LOGGER.warn("Key '{}': {}", getKey(), e.getMessage());
 		} catch (IllegalArgumentException e) {
-			Configuration.LOGGER.warn("Key '{}': value '{}' {}", getKey(), value, e.getMessage());
+			LOGGER.warn("Key '{}': value '{}' {}", getKey(), value, e.getMessage());
 		}
 		return null;
 	}

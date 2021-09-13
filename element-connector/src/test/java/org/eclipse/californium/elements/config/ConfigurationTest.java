@@ -86,7 +86,7 @@ public class ConfigurationTest {
 
 	@Test
 	public void testConfigurationAddModule() {
-		Configuration.addModule(DEFAULTS);
+		Configuration.addDefaultModule(DEFAULTS);
 		Configuration configuration = Configuration.createStandardWithoutFile();
 		// assert default values
 		assertThat(configuration.get(INT), is(10));
@@ -97,7 +97,7 @@ public class ConfigurationTest {
 
 	@Test
 	public void testConfigurationCustomModule() {
-		Configuration.addModule(DEFAULTS);
+		Configuration.addDefaultModule(DEFAULTS);
 		Configuration configuration = Configuration.createStandardWithoutFile();
 		configuration.set(STRING, "bye!");
 		configuration = reload(configuration, DEFAULTS2);
@@ -109,7 +109,7 @@ public class ConfigurationTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testConfigurationAddModuleNull() {
-		Configuration.addModule(new ModuleDefinitionsProvider() {
+		Configuration.addDefaultModule(new ModuleDefinitionsProvider() {
 
 			@Override
 			public String getModule() {
@@ -124,7 +124,7 @@ public class ConfigurationTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testConfigurationAddModuleEmpty() {
-		Configuration.addModule(new ModuleDefinitionsProvider() {
+		Configuration.addDefaultModule(new ModuleDefinitionsProvider() {
 
 			@Override
 			public String getModule() {
@@ -139,12 +139,12 @@ public class ConfigurationTest {
 
 	@Test(expected = NullPointerException.class)
 	public void testConfigurationAddModuleNull2() {
-		Configuration.addModule(null);
+		Configuration.addDefaultModule(null);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testConfigurationAddModuleTwice() {
-		Configuration.addModule(new ModuleDefinitionsProvider() {
+		Configuration.addDefaultModule(new ModuleDefinitionsProvider() {
 
 			@Override
 			public String getModule() {
@@ -155,7 +155,7 @@ public class ConfigurationTest {
 			public void applyDefinitions(Configuration config) {
 			}
 		});
-		Configuration.addModule(new ModuleDefinitionsProvider() {
+		Configuration.addDefaultModule(new ModuleDefinitionsProvider() {
 
 			@Override
 			public String getModule() {

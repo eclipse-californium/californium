@@ -97,7 +97,7 @@ public final class Proxy2Config {
 	};
 
 	static {
-		Configuration.addModule(DEFINITIONS);
+		Configuration.addDefaultModule(DEFINITIONS);
 	}
 
 	/**

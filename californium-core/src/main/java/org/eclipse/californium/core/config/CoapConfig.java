@@ -739,7 +739,7 @@ public final class CoapConfig {
 	};
 
 	static {
-		Configuration.addModule(DEFINITIONS);
+		Configuration.addDefaultModule(DEFINITIONS);
 	}
 
 	/**

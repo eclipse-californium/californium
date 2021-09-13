@@ -86,7 +86,7 @@ public final class UdpConfig {
 	};
 
 	static {
-		Configuration.addModule(DEFINITIONS);
+		Configuration.addDefaultModule(DEFINITIONS);
 	}
 
 	/**

@@ -103,7 +103,7 @@ public final class TcpConfig {
 	};
 
 	static {
-		Configuration.addModule(DEFINITIONS);
+		Configuration.addDefaultModule(DEFINITIONS);
 	}
 
 	/**
