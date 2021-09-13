@@ -295,6 +295,16 @@ public class ConfigurationTest {
 		assertThat(configuration.get(timeDefinition, TimeUnit.MILLISECONDS), is(10000L));
 	}
 
+	@Test
+	public void testConfigurationTransientTime() {
+		TimeDefinition timeDefinition = new TimeDefinition(MODULE2 + "TIME_TRANSIENT", "Test Time");
+		Configuration configuration = Configuration.createStandardWithoutFile();
+		configuration.set(timeDefinition, 10, TimeUnit.SECONDS);
+		configuration.setTransient(timeDefinition);
+		configuration = reload(configuration, null);
+		assertThat(configuration.get(timeDefinition, TimeUnit.MILLISECONDS), is(nullValue()));
+	}
+
 	private static Configuration reload(Configuration configuration, DefinitionsProvider provider) {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		configuration.store(out, "Test Values", "Test");

@@ -48,20 +48,43 @@ import org.slf4j.LoggerFactory;
 /**
  * The configuration for a Californium's components.
  * 
+ * In Californium the configuration is considered to be used via 3 interfaces:
+ * <ul>
+ * <li>The modules of Californium are consuming their configuration values using
+ * the get functions.</li>
+ * <li>The configuration values of the used modules are presented in a
+ * properties file in order to enable a end-user to provide values according the
+ * specific usage.</li>
+ * <li>The applications using Californium may use the set functions in order to
+ * provide application specific values.</li>
+ * </ul>
+ * <p>
+ * If both, the file-based provider and the provider setter-API, provides values
+ * for one configuration topic, the value of the setter has precedence over the
+ * one from the file. CLI parameters may be passed in with that. For other
+ * overwrites, please consider to document them in order to make it transparent
+ * for users.
+ * </p>
+ * <p>
  * Depending on the environment, the configuration is stored and loaded from
  * properties files. When missing, Californium will generated this properties
  * file. If file access is not possible, there are variants, which are marked as
  * "WithoutFile" or variants, which use a {@link InputStream} to read the
  * properties. Please use such a variant, e.g.
  * {@link #createStandardWithoutFile()}, if you want Californium to stop
- * generating a properties file.
- * 
- * Note: For Android it's recommended to use the AssetManager and pass in the
+ * generating a properties file. In order to still use the properties file to
+ * provide specific values, such a file may be generate on a system, where files
+ * are possible to write. Take that generated file as template, edit it
+ * accordingly and then use it as "read-only" source.
+ * </p>
+ * <p>
+ * <b>Note</b>: For Android it's recommended to use the AssetManager and pass in the
  * InputStream to the variants using that as parameter. Alternatively you may
  * chose to use the "WithoutFile" variant and, if required, adjust the defaults
  * in your code. If the "File" variants are used, ensure, that you have the
  * android-os-permission to do so.
- * 
+ * </p>
+ * <p>
  * In order to use this {@link Configuration} with modules (sets of
  * {@link DocumentedDefinition}),
  * {@link #addDefaultModule(ModuleDefinitionsProvider)} is used to register a
@@ -71,33 +94,46 @@ import org.slf4j.LoggerFactory;
  * order to ensure, that the modules are register in a early stage, a
  * application should call e.g. {@link SystemConfig#register()} of the used
  * modules at the begin. See {@link SystemConfig} as example.
- * 
+ * </p>
+ * <p>
  * Alternatively
  * {@link Configuration#Configuration(ModuleDefinitionsProvider...)} may be used
  * to provide the set of modules the {@link Configuration} is based of.
- * 
+ * </p>
+ * <p>
+ * Especially if Californium is used with a set of applications instead of a
+ * single one, ensure, that it's either clear, which file is used by which
+ * application, or use the same modules for all files, regardless, if a specific
+ * application of that set is using a module or not. The same applies, if single
+ * values are marked with {@link #setTransient(DocumentedDefinition)}.
+ * </p>
+ * <p>
  * To access the values always using the original {@link DocumentedDefinition}s
  * of a module, e.g. {@link SystemConfig#HEALTH_STATUS_INTERVAL}.
- * 
+ * </p>
+ * <pre>
  * <code>
  *  Configuration config = Configuration.getStandard();
  *  config.set(NetworkConfig.HEALTH_STATUS_INTERVAL, 30, TimeUnit.SECONDS);
  *  ...
  *  long timeMillis = config.get(NetworkConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISSECONDS); 
  * </code>
- * 
+ * </pre>
+ * <p>
  * When primitive types (e.g. {@code int}) are used to process configuration
  * values, care must be taken to define a proper default value instead of
  * returning {@code null}. The {@link DocumentedDefinition}s therefore offer
  * variants, where such a default could be provided, e.g.
  * {@link IntegerDefinition#IntegerDefinition(String, String, Integer)}.
- * 
+ * </p>
+ * <p>
  * For definitions a optional minimum value may be provided. That doesn't grant,
  * that the resulting configuration is proper, neither general nor for specific
  * conditions. If a minimum value is too high for your use-case, please create
  * an issue in the
  * <a href="https://github.com/eclipse/californium" target="_blank">Californium
  * github repository</a>.
+ * </p>
  * 
  * @see SystemConfig
  * @see TcpConfig
@@ -184,6 +220,10 @@ public final class Configuration {
 	 * The typed properties.
 	 */
 	private final Map<String, Object> values = new HashMap<>();
+	/**
+	 * The transient property names.
+	 */
+	private final Set<String> transientValues = new HashSet<>();
 
 	/**
 	 * Add definitions provider for module.
@@ -399,6 +439,7 @@ public final class Configuration {
 				: new Definitions<DocumentedDefinition<?>>(config.definitions);
 		this.modules = DEFAULT_MODULES == config.modules ? DEFAULT_MODULES
 				: new ConcurrentHashMap<String, Configuration.DefinitionsProvider>(config.modules);
+		this.transientValues.addAll(config.transientValues);
 		this.values.putAll(config.values);
 	}
 
@@ -513,12 +554,14 @@ public final class Configuration {
 			if (k instanceof String) {
 				String key = (String) k;
 				DocumentedDefinition<?> definition = definitions.get(key);
-				if (definition != null) {
+				if (definition == null) {
+					LOGGER.warn("Ignore {}, no configuration definition available!", key);
+				} else if (transientValues.contains(key)) {
+					LOGGER.info("Ignore {}, definition set transient!", key);
+				} else {
 					String text = properties.getProperty(key);
 					Object value = definition.readValue(text);
 					values.put(key, value);
-				} else {
-					LOGGER.warn("Ignore {}, no configuration definition available!", key);
 				}
 			}
 		}
@@ -546,7 +589,11 @@ public final class Configuration {
 			String key = allKeys.nextElement();
 			Object value = dictionary.get(key);
 			DocumentedDefinition<?> definition = definitions.get(key);
-			if (definition != null) {
+			if (definition == null) {
+				LOGGER.warn("Ignore {}, no configuration definition available!", key);
+			} else if (transientValues.contains(key)) {
+				LOGGER.info("Ignore {}, definition set transient!", key);
+			} else {
 				if (value instanceof String) {
 					value = definition.readValue((String) value);
 				} else if (value != null && !definition.isAssignableFrom(value)) {
@@ -554,8 +601,6 @@ public final class Configuration {
 							value.getClass().getSimpleName() + " is not a " + definition.getTypeName());
 				}
 				values.put(key, value);
-			} else {
-				LOGGER.warn("Ignore {}, no configuration definition available!", key);
 			}
 		}
 	}
@@ -617,6 +662,9 @@ public final class Configuration {
 			List<String> generalKeys = new ArrayList<>();
 			List<String> moduleKeys = new ArrayList<>();
 			for (String key : values.keySet()) {
+				if (transientValues.contains(key)) {
+					continue;
+				}
 				boolean add = true;
 				for (String head : modules) {
 					if (key.startsWith(head)) {
@@ -704,6 +752,28 @@ public final class Configuration {
 			writer.write(encoded);
 		}
 		writer.write(StringUtil.lineSeparator());
+	}
+
+	/**
+	 * Set definition transient.
+	 * 
+	 * {@link DocumentedDefinition} are used by the components to access their
+	 * configuration value. Usually, these values are kept in property files. If
+	 * an application wants to replace such a configuration value and set it
+	 * based on own custom values, the application may mark that definition as
+	 * transient in order to prevent loading or storing that value.
+	 * 
+	 * @param <T> value type of definition
+	 * @param definition definition to set transient
+	 * @return the configuration for chaining
+	 * @throws NullPointerException if the definition is {@code null}
+	 */
+	public <T> Configuration setTransient(DocumentedDefinition<T> definition) {
+		if (definition == null) {
+			throw new NullPointerException("Definition must not be null!");
+		}
+		transientValues.add(definition.getKey());
+		return this;
 	}
 
 	/**
