@@ -81,7 +81,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
-import org.eclipse.californium.elements.config.Configuration.IntegerDefinition;
+import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
