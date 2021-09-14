@@ -130,7 +130,8 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 
 	@Override
 	public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverNames,
-			InetSocketAddress remotePeer, boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath, CertificateMessage message) {
+			InetSocketAddress remotePeer, boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath,
+			CertificateMessage message) {
 		try {
 			CertPath certChain = message.getCertificateChain();
 			if (certChain == null) {
@@ -199,6 +200,8 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	 * @param peer remote peer
 	 * @param certificate server's certificate
 	 * @throws HandshakeException if the verification fails.
+	 * @throws NullPointerException if the certificate or both identities, the
+	 *             servernames and peer, is {@code null}.
 	 * @since 3.0
 	 */
 	public void verifyCertificatesSubject(ServerNames serverNames, InetSocketAddress peer, X509Certificate certificate)
@@ -211,17 +214,18 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 			return;
 		}
 		String literalIp = null;
-		String hostname = StringUtil.toHostString(peer);
+		String hostname = null;
+		if (peer != null) {
+			hostname = StringUtil.toHostString(peer);
+			InetAddress destination = peer.getAddress();
+			if (destination != null) {
+				literalIp = destination.getHostAddress();
+			}
+		}
 		if (serverNames != null) {
 			ServerName serverName = serverNames.getServerName(ServerName.NameType.HOST_NAME);
 			if (serverName != null) {
 				hostname = serverName.getNameAsString();
-			}
-		}
-		if (peer != null) {
-			InetAddress destination = peer.getAddress();
-			if (destination != null) {
-				literalIp = destination.getHostAddress();
 			}
 		}
 		if (hostname.equals(literalIp)) {
