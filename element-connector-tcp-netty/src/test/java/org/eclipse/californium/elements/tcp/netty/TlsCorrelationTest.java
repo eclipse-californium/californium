@@ -652,6 +652,7 @@ public class TlsCorrelationTest {
 		SSLTestContext serverContext = initializeContext("self", "self", null);
 
 		configuration.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		configuration.set(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
 		TlsServerConnector server = new TlsServerConnector(serverContext.context, createServerAddress(0), configuration);
 		TlsClientConnector client = new TlsClientConnector(clientContext.context, configuration);
 

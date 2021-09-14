@@ -82,6 +82,11 @@ public final class TcpConfig {
 	public static final EnumDefinition<CertificateAuthenticationMode> TLS_CLIENT_AUTHENTICATION_MODE = new EnumDefinition<>(
 			MODULE + "CLIENT_AUTHENTICATION_MODE", "TLS client authentication mode.",
 			CertificateAuthenticationMode.WANTED, CertificateAuthenticationMode.values());
+	/**
+	 * Enable the TLS client to verify the server certificate's subjects.
+	 */
+	public static final BooleanDefinition TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT = new BooleanDefinition(
+			MODULE + "VERIFY_SERVER_CERTIFICATES_SUBJECT", "TLS verifies the server certificate's subjects.", true);
 
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
