@@ -24,21 +24,27 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp.netty;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.security.Principal;
+import java.security.cert.X509Certificate;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLPeerUnverifiedException;
 
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TlsEndpointContext;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 import io.netty.channel.Channel;
@@ -59,6 +65,12 @@ public class TlsClientConnector extends TcpClientConnector {
 	 * Handshake timeout in milliseconds.
 	 */
 	private final int handshakeTimeoutMillis;
+	/**
+	 * Verify the server's subject.
+	 * 
+	 * @since 3.0
+	 */
+	private final boolean verifyServerSubject;
 
 	/**
 	 * Creates TLS client connector with custom SSL context. Useful for using
@@ -74,6 +86,7 @@ public class TlsClientConnector extends TcpClientConnector {
 		this.sslContext = sslContext;
 		this.handshakeTimeoutMillis = configuration.getTimeAsInt(TcpConfig.TLS_HANDSHAKE_TIMEOUT,
 				TimeUnit.MILLISECONDS);
+		this.verifyServerSubject = configuration.get(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
 	}
 
 	/**
@@ -100,6 +113,15 @@ public class TlsClientConnector extends TcpClientConnector {
 						if (context == null || context.get(TlsEndpointContext.KEY_SESSION_ID) == null) {
 							msg.onError(new IllegalStateException("Missing TlsEndpointContext " + context));
 							return;
+						}
+						if (verifyServerSubject) {
+							Principal principal = context.getPeerIdentity();
+							if (principal instanceof X509CertPath) {
+								X509Certificate target = ((X509CertPath) principal).getTarget();
+								InetSocketAddress address = context.getPeerAddress();
+								String hostname = context.getVirtualHost();
+								verifyCertificatesSubject(hostname, address, target);
+							}
 						}
 						/*
 						 * Handshake succeeded! Call super.send() to actually
@@ -146,4 +168,60 @@ public class TlsClientConnector extends TcpClientConnector {
 			return sslContext.createSSLEngine();
 		}
 	}
+
+	/**
+	 * Verify the certificate's subject.
+	 * 
+	 * Considers both destination variants, server names and inet address and
+	 * verifies that using the certificate's subject CN and subject alternative
+	 * names.
+	 * 
+	 * @param serverName server name
+	 * @param peer remote peer
+	 * @param certificate server's certificate
+	 * @throws NullPointerException if the certificate or both identities, the
+	 *             servername and peer, is {@code null}.
+	 * @throws SSLPeerUnverifiedException if the verification fails.
+	 * @since 3.0
+	 */
+	private void verifyCertificatesSubject(String serverName, InetSocketAddress peer, X509Certificate certificate)
+			throws SSLPeerUnverifiedException {
+		if (certificate == null) {
+			throw new NullPointerException("Certficate must not be null!");
+		}
+		if (serverName == null && peer == null) {
+			// nothing to verify
+			return;
+		}
+		String literalIp = null;
+		String hostname = serverName;
+		if (peer != null) {
+			InetAddress destination = peer.getAddress();
+			if (destination != null) {
+				literalIp = destination.getHostAddress();
+			}
+			if (hostname == null) {
+				hostname = StringUtil.toHostString(peer);
+			}
+		}
+		if (hostname.equals(literalIp)) {
+			hostname = null;
+		}
+		if (hostname != null) {
+			if (!CertPathUtil.matchDestination(certificate, hostname)) {
+				String cn = CertPathUtil.getSubjectsCn(certificate);
+				LOGGER.debug("Certificate {} validation failed: destination doesn't match", cn);
+				throw new SSLPeerUnverifiedException(
+						"Certificate " + cn + ": Destination '" + hostname + "' doesn't match!");
+			}
+		} else {
+			if (!CertPathUtil.matchLiteralIP(certificate, literalIp)) {
+				String cn = CertPathUtil.getSubjectsCn(certificate);
+				LOGGER.debug("Certificate {} validation failed: literal IP doesn't match", cn);
+				throw new SSLPeerUnverifiedException(
+						"Certificate " + cn + ": Literal IP " + literalIp + " doesn't match!");
+			}
+		}
+	}
+
 }

@@ -84,6 +84,10 @@ The maximum message size calculations from [Record Size Limit](https://tools.iet
 
 Using X509 to authenticate the server now includes to match the destination with the server certificate's subject. This is enabled per default, as requested by [RFC7252 - 9.1.3.3. X.509 Certificates](https://datatracker.ietf.org/doc/html/rfc7252#section-9.1.3.3). It could be disabled using `DTLS.VERIFY_SERVER_CERTIFICATES_SUBJECT`.
 
+### Element-Connector-TCP-Netty:
+
+Using X509 to authenticate the server now includes to match the destination with the server certificate's subject. This is enabled per default, as requested by [RFC7925 - 4.4.1. Certificates Used by Servers](https://datatracker.ietf.org/doc/html/rfc7925#section-4.1.1). It could be disabled using `TCP.VERIFY_SERVER_CERTIFICATES_SUBJECT`.
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:

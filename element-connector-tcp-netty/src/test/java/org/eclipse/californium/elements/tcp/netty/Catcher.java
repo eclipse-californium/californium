@@ -59,8 +59,11 @@ public class Catcher implements RawDataChannel {
 
 	public RawData getMessage(int index) {
 		synchronized (lock) {
-			return messages.get(index);
+			if (index < messages.size()) {
+				return messages.get(index);
+			}
 		}
+		return null;
 	}
 
 	/**
