@@ -44,20 +44,13 @@ public class CredentialsUtil {
 	/**
 	 * Create ssl context for https.
 	 * 
-	 * Supports "simple trust manager", validate certificate chains, but does
-	 * not validate the destination using the subject. Use with care! This
-	 * usually requires, that no public trust root is used!
-	 * 
 	 * @param identity credentials to identify this peer
 	 * @param trust certificates to trust by this peer.
-	 * @param simple {@code true}, to use a "simple trust manager",
-	 *            {@code false}, for regular trust manager.
 	 * @return ssl context.
 	 * @throws GeneralSecurityException if an crypto error occurred.
 	 * @throws IOException if an i/o error occurred
 	 */
-	public static SSLContext getSslContext(String identity, String trust, boolean simple)
-			throws GeneralSecurityException, IOException {
+	public static SSLContext getSslContext(String identity, String trust) throws GeneralSecurityException, IOException {
 		KeyManager[] keyManager;
 		TrustManager[] trustManager;
 		if (identity != null && !identity.isEmpty()) {
@@ -69,11 +62,7 @@ public class CredentialsUtil {
 		}
 		if (trust != null && !trust.isEmpty()) {
 			Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(trust);
-			if (simple) {
-				trustManager = SslContextUtil.createSimpleTrustManager(trustedCertificates);
-			} else {
-				trustManager = SslContextUtil.createTrustManager("https", trustedCertificates);
-			}
+			trustManager = SslContextUtil.createTrustManager("https", trustedCertificates);
 		} else {
 			trustManager = SslContextUtil.createTrustAllManager();
 		}
@@ -103,7 +92,7 @@ public class CredentialsUtil {
 				trusts = "file://" + defaultTrust.getAbsolutePath();
 			}
 			LOGGER.info("https-k8s-client load's trusts from {}.", trusts);
-			return CredentialsUtil.getSslContext(null, trusts, false);
+			return CredentialsUtil.getSslContext(null, trusts);
 		} catch (GeneralSecurityException e) {
 			LOGGER.warn("https-k8s-client:", e);
 		} catch (IOException e) {
@@ -115,16 +104,15 @@ public class CredentialsUtil {
 	/**
 	 * Create ssl context for cluster internal https clients.
 	 * 
-	 * Validate certificate chains, but does not validate the destination using
-	 * the subject. Use with care! This usually requires, that no public trust
-	 * root is used!
+	 * {@link RestoreHttpClient} disables hostname verification. Use with care!
+	 * This usually requires, that no public trust root is used!
 	 * 
 	 * @return ssl context for cluster internal https clients.
 	 */
 	public static SSLContext getClusterInternalHttpsClientContext() {
 		try {
 			return CredentialsUtil.getSslContext("file:///etc/certs/https_client_cert.pem",
-					"file:///etc/certs/https_client_trust.pem", true);
+					"file:///etc/certs/https_client_trust.pem");
 		} catch (GeneralSecurityException e) {
 			LOGGER.warn("https-client:", e);
 		} catch (IOException e) {
@@ -136,15 +124,15 @@ public class CredentialsUtil {
 	/**
 	 * Create ssl context for cluster internal https server.
 	 * 
-	 * Though the client uses a "simple trust manager", ensure, that no public
-	 * trust root is used!
+	 * Though the {@link RestoreHttpClient} disables hostname verification, use
+	 * with care! This usually requires, that no public trust root is used!
 	 * 
 	 * @return ssl context for cluster internal https server.
 	 */
 	public static SSLContext getClusterInternalHttpsServerContext() {
 		try {
 			return CredentialsUtil.getSslContext("file:///etc/certs/https_server_cert.pem",
-					"file:///etc/certs/https_server_trust.pem", false);
+					"file:///etc/certs/https_server_trust.pem");
 		} catch (GeneralSecurityException e) {
 			LOGGER.warn("https-server:", e);
 		} catch (IOException e) {
