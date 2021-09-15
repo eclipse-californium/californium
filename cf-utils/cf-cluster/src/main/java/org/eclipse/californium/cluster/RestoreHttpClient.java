@@ -124,7 +124,11 @@ public class RestoreHttpClient implements Readiness {
 	}
 
 	/**
-	 * Download the state to restore from the pod of the other statefulset,
+	 * Download the state to restore from the pod of the other statefulset.
+	 * 
+	 * <b>Note:</b> though the hostname verification of the x509 certificate is
+	 * not used, be careful and just use private trust-anchors in the related
+	 * trust-store.
 	 * 
 	 * @param restore pod to download the state
 	 * @param port port number of the download service on that pod
@@ -137,7 +141,7 @@ public class RestoreHttpClient implements Readiness {
 		for (int retries = 0; retries < 3; ++retries) {
 			try {
 				JdkHttpClient client = new JdkHttpClient();
-				HttpResult result = client.get(scheme + "://" + restore.address + ":" + port + "/restore", null,
+				HttpResult result = client.get(scheme + "://" + restore.address + ":" + port + "/restore", null, false,
 						sslContext);
 				LOGGER.info("download: {} from {}/{}: {} - {}", scheme, restore.name, restore.address,
 						result.getResponseCode(), result.getResponseMessage());
@@ -170,6 +174,10 @@ public class RestoreHttpClient implements Readiness {
 	 * is only executed, if the double has that label. Though the new pods are
 	 * not labeled with that, a restarting double (failover) will not execute a
 	 * reverse restore.
+	 * 
+	 * <b>Note:</b> though the hostname verification of the x509 certificate is
+	 * not used, be careful and just use private trust-anchors in the related
+	 * trust-store.
 	 * 
 	 * @param k8sClient k8s client to call the k8s management API (get pod).
 	 * @param port port number of https service to restore the servers.

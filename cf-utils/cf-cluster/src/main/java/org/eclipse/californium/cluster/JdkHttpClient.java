@@ -21,9 +21,14 @@ import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
+import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,19 +55,43 @@ public class JdkHttpClient {
 	 * 
 	 * @param url url for GET
 	 * @param token optional bearer token
+	 * @param verifyHostname {@code true} to verify principal of server
+	 *            certificate for weak hostname verification
 	 * @param sslContext ssl context for https
 	 * @return http result.
 	 * @throws IOException if an i/o error occurred
 	 * @throws GeneralSecurityException if an encryption error occurred
+	 * @since 3.0 (added serverPrincipal)
 	 */
-	public HttpResult get(String url, String token, SSLContext sslContext)
+	public HttpResult get(String url, String token, final boolean verifyHostname, SSLContext sslContext)
 			throws IOException, GeneralSecurityException {
 
 		try {
 			URL get = new URL(url);
 			HttpURLConnection con = (HttpURLConnection) get.openConnection();
 			if (sslContext != null && con instanceof HttpsURLConnection) {
-				((HttpsURLConnection) con).setSSLSocketFactory(sslContext.getSocketFactory());
+				HttpsURLConnection httpsCon = (HttpsURLConnection) con;
+				httpsCon.setSSLSocketFactory(sslContext.getSocketFactory());
+				httpsCon.setHostnameVerifier(new HostnameVerifier() {
+
+					@Override
+					public boolean verify(String hostname, SSLSession session) {
+						if (verifyHostname) {
+							String cn = "???";
+							try {
+								Principal principal = session.getPeerPrincipal();
+								if (principal instanceof X500Principal) {
+									cn = Asn1DerDecoder.readCNFromDN(((X500Principal) principal).getEncoded());
+								}
+							} catch (SSLPeerUnverifiedException e) {
+							}
+							LOGGER.warn("Hostname: {} for {} suspicious!", hostname, cn);
+							return false;
+						} else {
+							return true;
+						}
+					}
+				});
 			}
 			if (token != null && !token.isEmpty()) {
 				con.setRequestProperty("Authorization", "Bearer " + token);

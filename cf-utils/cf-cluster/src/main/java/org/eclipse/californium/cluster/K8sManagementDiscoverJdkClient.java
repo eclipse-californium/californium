@@ -43,6 +43,6 @@ public class K8sManagementDiscoverJdkClient extends K8sManagementDiscoverClient 
 	public HttpResult executeHttpRequest(String url, String token, SSLContext sslContext)
 			throws IOException, GeneralSecurityException {
 
-		return new JdkHttpClient().get(url, token, sslContext);
+		return new JdkHttpClient().get(url, token, true, sslContext);
 	}
 }
