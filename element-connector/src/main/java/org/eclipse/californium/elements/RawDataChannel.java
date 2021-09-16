@@ -21,7 +21,7 @@ package org.eclipse.californium.elements;
  * A processor for messages received from the network layer.
  * 
  * Applications should register an implementation of this interface with
- * a <code>Connector</code> via its {@link Connector#setRawDataReceiver(RawDataChannel)}
+ * a {@link Connector} via its {@link Connector#setRawDataReceiver(RawDataChannel)}
  * method in order to get notified about incoming messages.
  * 
  * Applications should use the {@link Connector#send(RawData)} method to send
@@ -38,8 +38,8 @@ public interface RawDataChannel {
 	 * An implementation of this method should return quickly in order to improve
 	 * message processing throughput. In cases where processing of a message is expected
 	 * to take some time, implementations should consider off-loading the processing of the
-	 * messages to a separate <code>Thread</code>, e.g. by employing a
-	 * <code>java.util.concurrent.ExecutorService</code>.
+	 * messages to a separate {@code Thread}, e.g. by employing a
+	 * {@code java.util.concurrent.ExecutorService}.
 	 * 
 	 * @param raw
 	 *            the raw message to process

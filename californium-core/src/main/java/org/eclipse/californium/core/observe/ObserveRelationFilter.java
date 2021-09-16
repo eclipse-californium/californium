@@ -24,8 +24,8 @@ public interface ObserveRelationFilter {
 	/**
 	 * Check, if the observe relation should be accepted by this filter.
 	 * @param relation observe relation
-	 * @return <code>true</code>, if the relation should be selected,
-	 *         <code>false</code>, if not
+	 * @return {@code true}, if the relation should be selected,
+	 *         {@code false}, if not
 	 */
 	boolean accept(ObserveRelation relation);
 }

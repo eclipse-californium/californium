@@ -125,7 +125,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @param certificateChain
 	 *            the certificate chain with the (first certificate must be the
 	 *            server's)
-	 * @throws NullPointerException if the certificate chain is <code>null</code>
+	 * @throws NullPointerException if the certificate chain is {@code null}
 	 *            (use an array of length zero to create an <em>empty</em> message)
 	 * @throws IllegalArgumentException if the certificate chain contains any
 	 *            non-X.509 certificates or does not form a valid chain of
@@ -144,7 +144,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @param certificateAuthorities the certificate authorities to truncate
 	 *            chain. Maybe {@code null} or empty.
 	 * @throws NullPointerException if the certificate chain is
-	 *             <code>null</code> (use an array of length zero to create an
+	 *             {@code null} (use an array of length zero to create an
 	 *             <em>empty</em> message)
 	 * @throws IllegalArgumentException if the certificate chain contains any
 	 *             non-X.509 certificates or does not form a valid chain of
@@ -217,7 +217,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * 
 	 * @param rawPublicKeyBytes
 	 *           the raw public key (SubjectPublicKeyInfo)
-	 * @throws NullPointerException if the raw public key byte array is <code>null</code>
+	 * @throws NullPointerException if the raw public key byte array is {@code null}
 	 *           (use an array of length zero to create an <em>empty</em> message)
 	 */
 	public CertificateMessage(byte[] rawPublicKeyBytes) {
@@ -296,7 +296,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * <em>X.509</em> certificates. In that case the returned array
 	 * contains the peer's public key certificate at position 0.
 	 * 
-	 * @return the certificate chain or <code>null</code> if
+	 * @return the certificate chain or {@code null}, if
 	 *        <em>RawPublicKey</em>s are used
 	 */
 	public CertPath getCertificateChain() {

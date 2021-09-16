@@ -60,7 +60,7 @@ public final class SessionId extends Bytes {
 	/**
 	 * Creates a string representation of this session ID.
 	 * 
-	 * @return the hexadecimal string representation of the <code>id</code> property value
+	 * @return the hexadecimal string representation of the ID
 	 */
 	@Override
 	public String toString() {

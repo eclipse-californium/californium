@@ -58,7 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An in-memory <code>ResumptionSupportingConnectionStore</code> with a
+ * An in-memory {@code ResumptionSupportingConnectionStore} with a
  * configurable maximum capacity and support for evicting stale connections
  * based on a <em>least recently used</em> policy.
  * <p>
@@ -79,7 +79,7 @@ import org.slf4j.LoggerFactory;
  * for the new connection to be added.</li>
  * </ul>
  * <p>
- * This implementation uses three <code>java.util.HashMap</code>. One with a
+ * This implementation uses three {@code java.util.HashMap}. One with a
  * connection's id as key as its backing store, one with the peer address as
  * key, and one with the session id as key. In addition to that the store keeps
  * a doubly-linked list of the connections in access-time order.

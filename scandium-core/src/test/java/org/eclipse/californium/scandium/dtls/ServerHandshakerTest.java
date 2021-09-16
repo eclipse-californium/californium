@@ -510,7 +510,7 @@ public class ServerHandshakerTest {
 	}
 
 	/**
-	 * Gets an arbitrary <code>SupportedGroup</code> implemented by the JRE's
+	 * Gets an arbitrary {@link SupportedGroup} implemented by the JRE's
 	 * cryptography provider(s).
 	 * 
 	 * @return the group

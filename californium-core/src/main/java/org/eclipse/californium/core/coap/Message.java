@@ -1349,6 +1349,10 @@ public abstract class Message {
 	 * Returns the observers registered for this message.
 	 * 
 	 * @return an immutable list of the registered observers.
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #addMessageObservers(List)
+	 * @see #removeMessageObserver(MessageObserver)
 	 */
 	public List<MessageObserver> getMessageObservers() {
 		if (null == unmodifiableMessageObserversFacade) {
@@ -1363,8 +1367,12 @@ public abstract class Message {
 	 *
 	 * @param observer the observer
 	 * @throws NullPointerException if the observer is {@code null}.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #addMessageObservers(List)
+	 * @see #removeMessageObserver(MessageObserver)
 	 */
-	public void addMessageObserver(final MessageObserver observer) {
+	public void addMessageObserver(MessageObserver observer) {
 		if (observer == null) {
 			throw new NullPointerException();
 		}
@@ -1377,9 +1385,13 @@ public abstract class Message {
 	 * @param observer the observer
 	 * @param index index at which the observer is to be inserted
 	 * @throws NullPointerException if the observer is {@code null}.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObservers(List)
+	 * @see #removeMessageObserver(MessageObserver)
 	 * @since 2.1
 	 */
-	public void addMessageObserver(int index, final MessageObserver observer) {
+	public void addMessageObserver(int index, MessageObserver observer) {
 		if (observer == null) {
 			throw new NullPointerException();
 		}
@@ -1391,8 +1403,12 @@ public abstract class Message {
 	 *
 	 * @param observers the observers to add
 	 * @throws NullPointerException if the list is {@code null}.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #removeMessageObserver(MessageObserver)
 	 */
-	public void addMessageObservers(final List<MessageObserver> observers) {
+	public void addMessageObservers(List<MessageObserver> observers) {
 		if (observers == null) {
 			throw new NullPointerException();
 		}
@@ -1406,8 +1422,12 @@ public abstract class Message {
 	 *
 	 * @param observer the observer
 	 * @throws NullPointerException if the observer is {@code null}.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #addMessageObservers(List)
 	 */
-	public void removeMessageObserver(final MessageObserver observer) {
+	public void removeMessageObserver(MessageObserver observer) {
 		if (observer == null) {
 			throw new NullPointerException();
 		}

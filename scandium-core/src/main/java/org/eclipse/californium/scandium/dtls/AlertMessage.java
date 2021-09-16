@@ -115,7 +115,7 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		 * Gets the alert level for a given code.
 		 * 
 		 * @param code the code
-		 * @return the corresponding level or <code>null</code> if no alert
+		 * @return the corresponding level or {@code null} if no alert
 		 *         level exists for the given code
 		 */
 		public static AlertLevel getLevelByCode(int code) {
@@ -185,7 +185,7 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		 * Gets the alert description for a given code.
 		 * 
 		 * @param code the code
-		 * @return the corresponding description or <code>null</code> if no
+		 * @return the corresponding description or {@code null}, if no
 		 *         alert description exists for the given code
 		 */
 		public static AlertDescription getDescriptionByCode(int code) {

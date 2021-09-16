@@ -394,7 +394,7 @@ public abstract class HelloExtension {
 		 * target="_blank">IANA</a>
 		 * 
 		 * @param id the numeric id of the extension
-		 * @return the corresponding extension type or <code>null</code> if the
+		 * @return the corresponding extension type or {@code null}, if the
 		 *         given id is unsupported.
 		 */
 		public static ExtensionType getExtensionTypeById(int id) {

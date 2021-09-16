@@ -194,7 +194,7 @@ public class Record {
 	 * 
 	 * The given <em>fragment</em> is encoded into its binary representation and
 	 * encrypted according to the given session's current write state. In order
-	 * to create a <code>Record</code> containing an un-encrypted fragment, use
+	 * to create a {@code Record} containing an un-encrypted fragment, use
 	 * the {@link #Record(ContentType, ProtocolVersion, long, DTLSMessage)}
 	 * constructor.
 	 * 
@@ -659,7 +659,7 @@ public class Record {
 	 * Gets the length of the fragment contained in this record in bytes.
 	 * <p>
 	 * The overall length of this record's <em>DTLSCiphertext</em>
-	 * representation is thus <code>Record.length</code> + 13 (DTLS record headers)
+	 * representation is thus {@code Record.length} + 13 (DTLS record headers) + CID
 	 * bytes.
 	 * 
 	 * @return the fragment length excluding record headers

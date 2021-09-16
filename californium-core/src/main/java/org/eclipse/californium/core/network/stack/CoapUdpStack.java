@@ -34,7 +34,7 @@ import org.eclipse.californium.elements.config.Configuration;
  * protocol.
  * <p>
  * The complete process for incoming and outgoing messages is visualized below.
- * The class <code>CoapStack</code> builds up the part between the Stack Top and
+ * The class {@link CoapStack} builds up the part between the Stack Top and
  * Bottom.
  * <hr><blockquote><pre>
  * +--------------------------+

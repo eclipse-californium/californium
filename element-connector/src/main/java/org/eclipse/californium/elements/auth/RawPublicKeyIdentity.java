@@ -43,7 +43,7 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	 * Creates a new instance for a given public key.
 	 * 
 	 * @param key the public key
-	 * @throws NullPointerException if the key is <code>null</code>
+	 * @throws NullPointerException if the key is {@code null}
 	 */
 	public RawPublicKeyIdentity(PublicKey key) {
 		this(key, null);
@@ -54,7 +54,7 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	 * 
 	 * @param key the public key
 	 * @param additionalInformation Additional information for this principal.
-	 * @throws NullPointerException if the key is <code>null</code>
+	 * @throws NullPointerException if the key is {@code null}
 	 */
 	private RawPublicKeyIdentity(PublicKey key, AdditionalInfo additionalInformation) {
 		super(additionalInformation);
@@ -70,7 +70,7 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	 * Creates a new instance for a given ASN.1 subject public key info structure.
 	 * 
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
-	 * @throws NullPointerException if the subject info is <code>null</code>
+	 * @throws NullPointerException if the subject info is {@code null}
 	 * @throws GeneralSecurityException if the JVM does not support the key
 	 *             algorithm used by the public key.
 	 */
@@ -87,7 +87,7 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	 *            supported key algorithms for serialization/deserialization.
 	 *            If {@code null}, the key algorithm provided by the ASN.1
 	 *            DER encoded subject public key is used.
-	 * @throws NullPointerException if the subject info is <code>null</code>
+	 * @throws NullPointerException if the subject info is {@code null}
 	 * @throws GeneralSecurityException if the JVM does not support the given key algorithm.
 	 */
 	public RawPublicKeyIdentity(byte[] subjectInfo, String keyAlgorithm) throws GeneralSecurityException {
@@ -104,7 +104,7 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	 *            If {@code null}, the key algorithm provided by the ASN.1
 	 *            DER encoded subject public key is used.
 	 * @param additionalInformation Additional information for this principal.
-	 * @throws NullPointerException if the subject info is <code>null</code>
+	 * @throws NullPointerException if the subject info is {@code null}
 	 * @throws GeneralSecurityException if the JVM does not support the given key algorithm.
 	 */
 	private RawPublicKeyIdentity(byte[] subjectInfo, String keyAlgorithm, AdditionalInfo additionalInformation) throws GeneralSecurityException {
@@ -220,7 +220,7 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	/**
 	 * Checks if this instance is equal to another object.
 	 * 
-	 * @return <code>true</code> if the other object is a <code>RawPublicKeyIdentity</code>
+	 * @return {@code true}, if the other object is a {@code RawPublicKeyIdentity}
 	 *           and has the same <em>SubjectPublicKeyInfo</em> as this instance
 	 */
 	@Override

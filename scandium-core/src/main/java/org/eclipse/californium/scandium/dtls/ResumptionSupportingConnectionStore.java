@@ -137,7 +137,7 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	 * Gets a connection by its peer address.
 	 * 
 	 * @param peerAddress the peer address
-	 * @return the matching connection or <code>null</code> if no connection
+	 * @return the matching connection or {@code null}, if no connection
 	 *         exists for the given address
 	 */
 	Connection get(InetSocketAddress peerAddress);
@@ -146,7 +146,7 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	 * Gets a connection by its connection id.
 	 * 
 	 * @param cid connection id
-	 * @return the matching connection or <code>null</code> if no connection
+	 * @return the matching connection or {@code null}, if no connection
 	 *         exists for the given connection id
 	 */
 	Connection get(ConnectionId cid);
@@ -155,7 +155,7 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	 * Finds a connection by its session ID.
 	 * 
 	 * @param id the session ID
-	 * @return the matching connection or <code>null</code> if no connection
+	 * @return the matching connection or {@code null}, if no connection
 	 *         with an established session with the given ID exists
 	 */
 	DTLSSession find(SessionId id);
@@ -164,11 +164,11 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	 * Removes a connection from the store and optional from the session store.
 	 * 
 	 * @param connection the connection to remove
-	 * @param removeFromSessionStore <code>true</code> if the session of the
+	 * @param removeFromSessionStore {@code true} if the session of the
 	 *            connection should be removed from the session store,
-	 *            <code>false</code>, otherwise
-	 * @return <code>true</code> if the connection was removed,
-	 *         <code>false</code>, otherwise
+	 *           {@code false}, otherwise
+	 * @return {@code true}, if the connection was removed,
+	 *         {@code false}, otherwise
 	 */
 	boolean remove(Connection connection, boolean removeFromSessionStore);
 

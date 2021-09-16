@@ -75,6 +75,7 @@ import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -1210,7 +1211,7 @@ public class Exchange {
 	 * Sets additional information about the context this exchange's request has
 	 * been sent in.
 	 * <p>
-	 * The information is usually obtained from the <code>Connector</code> this
+	 * The information is usually obtained from the {@link Connector} this
 	 * exchange is using to send and receive data. The information contained in
 	 * the context can be used in addition to the message ID and token of this
 	 * exchange to increase security when matching an incoming response to this
@@ -1241,7 +1242,7 @@ public class Exchange {
 	 * Gets transport layer specific information that can be used to correlate a
 	 * response with this exchange's original request.
 	 * 
-	 * @return the endpoint context information or <code>null</code> if no
+	 * @return the endpoint context information or {@code null}, if no
 	 *         information is available.
 	 */
 	public EndpointContext getEndpointContext() {

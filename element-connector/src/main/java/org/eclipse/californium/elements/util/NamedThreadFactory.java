@@ -58,7 +58,7 @@ public class NamedThreadFactory implements ThreadFactory {
 	 *
 	 * @param threadPrefix the prefix, that becomes part of the name of all
 	 *            threads, created by this factory.
-	 * @param threadGroup the thread group or <code>null</code>
+	 * @param threadGroup the thread group or {@code null}
 	 */
 	public NamedThreadFactory(final String threadPrefix, final ThreadGroup threadGroup) {
 		group = null == threadGroup ? COAP_THREAD_GROUP : threadGroup;

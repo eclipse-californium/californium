@@ -38,7 +38,7 @@ public class DaemonThreadFactory extends NamedThreadFactory {
 	 * @param threadPrefix the prefix, that becomes part of the name of all
 	 *            threads, created by this factory.
 	 * @param threadGroup The thread group that thread created by this factory should belong to,
-	 *                    may be <code>null</code>.
+	 *                    may be {@code null}.
 	 */
 	public DaemonThreadFactory(final String threadPrefix, final ThreadGroup threadGroup) {
 		super(threadPrefix, threadGroup);

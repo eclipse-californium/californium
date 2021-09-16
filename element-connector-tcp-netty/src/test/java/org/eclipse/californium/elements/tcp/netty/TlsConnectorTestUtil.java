@@ -84,7 +84,7 @@ public class TlsConnectorTestUtil {
 	/**
 	 * Initialize a SSL context.
 	 * 
-	 * @param aliasPrivateKey    alias for private key. If <code>null</code>,
+	 * @param aliasPrivateKey    alias for private key. If {@code null},
 	 *                           replaced by aliasChain.
 	 * @param aliasChain         alias for certificate chain.
 	 * @param aliasTrustsPattern alias pattern for trusts.

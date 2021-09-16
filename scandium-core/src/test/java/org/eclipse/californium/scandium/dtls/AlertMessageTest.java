@@ -56,7 +56,7 @@ public class AlertMessageTest {
 	}
 
 	/**
-	 * Verifies that an unknown alert level value results in a <code>HandshakeException</code>
+	 * Verifies that an unknown alert level value results in a {@code HandshakeException}
 	 * being thrown.
 	 */
 	@Test
@@ -76,7 +76,7 @@ public class AlertMessageTest {
 	}
 
 	/**
-	 * Verifies that an unknown description level value results in a <code>HandshakeException</code>
+	 * Verifies that an unknown description level value results in a {@code HandshakeException}
 	 * being thrown.
 	 */
 	@Test

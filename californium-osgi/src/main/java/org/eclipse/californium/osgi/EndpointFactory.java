@@ -32,23 +32,23 @@ public interface EndpointFactory {
 	 * The endpoints returned by this method are <em>not</em> started yet.
 	 * 
 	 * @param config the configuration properties to be used for creating the
-	 * endpoint or <code>null</code> if default values should be used
+	 * endpoint or {@code null} if default values should be used
 	 * @param address the IP address and port to bind to
 	 * @return the endpoint
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	Endpoint getEndpoint(Configuration config, InetSocketAddress address);
-	
+
 	/**
 	 * Gets an Endpoint that uses DTLS for secure communication.
 	 * 
 	 * The endpoints returned by this method are <em>not</em> started yet.
 	 * 
 	 * @param config the configuration properties to be used for creating the
-	 * endpoint or <code>null</code> if default values should be used
+	 *            endpoint or {@code null}, if default values should be used
 	 * @param address the address
-	 * @return the secure endpoint or <code>null</code> if this factory
-	 * does not support secure endpoints
+	 * @return the secure endpoint or {@code null}, if this factory does not
+	 *         support secure endpoints
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	Endpoint getSecureEndpoint(Configuration config, InetSocketAddress address);

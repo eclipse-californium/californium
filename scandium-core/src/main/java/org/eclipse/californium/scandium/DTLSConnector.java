@@ -1205,7 +1205,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	/**
 	 * Destroys the connector.
 	 * <p>
-	 * This method invokes {@link #stop()} and clears the <code>ConnectionStore</code>
+	 * This method invokes {@link #stop()} and clears the {@link ResumptionSupportingConnectionStore}
 	 * used to manage connections to peers. Thus, contrary to the behavior specified
 	 * for {@link Connector#destroy()}, this connector can be re-started using the
 	 * {@link #start()} method but subsequent invocations of the {@link #send(RawData)}

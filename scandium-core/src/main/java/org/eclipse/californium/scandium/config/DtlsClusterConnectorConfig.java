@@ -247,7 +247,7 @@ public final class DtlsClusterConnectorConfig {
 		}
 
 		/**
-		 * Creates an instance of <code>DtlsClusterConnectorConfig</code> based
+		 * Creates an instance of {@code DtlsClusterConnectorConfig} based
 		 * on the properties set on this builder.
 		 * <p>
 		 * Fills in default values.

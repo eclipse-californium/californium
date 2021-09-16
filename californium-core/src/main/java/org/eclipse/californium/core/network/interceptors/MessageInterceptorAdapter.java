@@ -18,7 +18,7 @@ package org.eclipse.californium.core.network.interceptors;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 
 /**
  * An abstract adapter class for reacting to a message's transfer events.
@@ -27,10 +27,9 @@ import org.eclipse.californium.core.network.CoapEndpoint;
  * <p>
  * Subclasses should override the methods for the events of interest.
  * <p>
- * An instance of the concrete message intercepter can then be registered with a
- * <code>CoapEndpoint</code> using <code>addInterceptor</code> method.
- * 
- * @see CoapEndpoint#addInterceptor(MessageInterceptor)
+ * An instance of the concrete message intercepter can then be registered with
+ * {@link Endpoint#addInterceptor(MessageInterceptor)} or
+ * {@link Endpoint#addPostProcessInterceptor(MessageInterceptor)}.
  */
 public abstract class MessageInterceptorAdapter implements MessageInterceptor {
 

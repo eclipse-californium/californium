@@ -49,7 +49,7 @@ public final class HelloExtensions {
 	/**
 	 * Checks if this container actually holds any extensions.
 	 * 
-	 * @return <code>true</code> if there are no extensions
+	 * @return {@code true}, if there are no extensions
 	 */
 	boolean isEmpty() {
 		return this.extensions.isEmpty();
