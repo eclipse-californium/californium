@@ -26,7 +26,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 /**
- * A listener for life-cycle events of <code>DTLSSession</code>s.
+ * A listener for life-cycle events of {@link DTLSSession}s.
  * 
  */
 public interface SessionListener {

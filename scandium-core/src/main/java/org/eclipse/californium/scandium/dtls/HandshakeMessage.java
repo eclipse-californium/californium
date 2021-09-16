@@ -542,7 +542,7 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	 * instance has been created from. The raw message is used for calculating
 	 * the handshake hash sent in the <em>FINISHED</em> message.
 	 * 
-	 * @return the message or <code>null</code> if this instance has not been
+	 * @return the message or {@code null}, if this instance has not been
 	 *         created from a message received from a client.
 	 */
 	protected final byte[] getRawMessage() {

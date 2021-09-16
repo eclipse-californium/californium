@@ -90,7 +90,7 @@ public interface Endpoint {
 	 * Executors are not managed by the endpoint, it must be shutdown
 	 * externally, if the resource should be freed.
 	 * 
-	 * Executors must not be <code>null</code>.
+	 * Executors must not be {@code null}.
 	 *
 	 * @param mainExecutor executors used for main tasks
 	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 

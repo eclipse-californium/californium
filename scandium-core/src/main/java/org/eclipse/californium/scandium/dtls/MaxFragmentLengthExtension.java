@@ -125,7 +125,7 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 		 * Creates an instance from its code.
 		 * 
 		 * @param code the code
-		 * @return the instance or <code>null</code> if the given code is
+		 * @return the instance or {@code null}, if the given code is
 		 *         unknown
 		 */
 		public static Length fromCode(int code) {

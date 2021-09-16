@@ -758,7 +758,7 @@ public  class CoapResource implements Resource {
 	 * executor, the thread that has called this method performs the
 	 * notification.
 	 * 
-	 * @param filter filter to select set of relations. <code>null</code>, if
+	 * @param filter filter to select set of relations. {@code null}, if
 	 *            all clients should be notified.
 	 * @throws IllegalStateException if method is called recursively from
 	 *             current thread (without executor).
@@ -796,7 +796,7 @@ public  class CoapResource implements Resource {
 	 * request that has established the relation.
 	 * 
 	 * @param filter filter to select set of relations. 
-	 *               <code>null</code>, if all clients should be notified.
+	 *               {@code null}, if all clients should be notified.
 	 */
 	protected void notifyObserverRelations(final ObserveRelationFilter filter) {
 		notificationOrderer.getNextObserveNumber();

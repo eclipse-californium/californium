@@ -38,7 +38,7 @@ import java.net.InetSocketAddress;
  * Implementations of the {@link #send(RawData)} method should be non-blocking
  * to allow the server application to continue working on other tasks. This could
  * be achieved by buffering outbound messages in a queue and off-loading the sending
- * of messages via the network to a separate <code>Thread</code>.
+ * of messages via the network to a separate {@code Thread}.
  */
 public interface Connector {
 

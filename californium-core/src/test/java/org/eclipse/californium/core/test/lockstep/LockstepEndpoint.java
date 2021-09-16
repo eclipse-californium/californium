@@ -334,6 +334,7 @@ public class LockstepEndpoint {
 	 * MID, if the repeated MID is not expected. If no next message arrives,
 	 * reports an assert.
 	 * 
+	 * <pre>
 	 * <code>
 	 *    ... expectRequest.storeMID("A").type(CON) ...
 	 * 
@@ -346,6 +347,7 @@ public class LockstepEndpoint {
 	 *    ... expectRequest.type(CON)... 
 	 * 
 	 * </code>
+	 * </pre>
 	 * 
 	 * MID expectations are based on {@link MessageExpectation#mid(int)},
 	 * {@link MessageExpectation#sameMID(String)} or

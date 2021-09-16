@@ -46,7 +46,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	 * @throws IllegalStateException if the message digest required for
 	 *             computing the FINISHED message hash cannot be instantiated.
 	 * @throws NullPointerException if session, recordLayer or config is
-	 *             <code>null</code>
+	 *             {@code null}
 	 */
 	public AdversaryClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config) {

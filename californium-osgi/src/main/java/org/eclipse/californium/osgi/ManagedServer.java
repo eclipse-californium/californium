@@ -74,12 +74,12 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	 * Sets all required collaborators.
 	 * 
 	 * Invoking this constructor is equivalent to invoking {@link #ManagedServer(BundleContext, EndpointFactory)}
-	 * with <code>null</code> as the server factory.
+	 * with {@code null} as the server factory.
 	 * 
 	 * @param bundleContext the bundle context to be used for tracking {@code Resource}s
 	 * @param endpointFactory the factory to use for creating endpoints for the managed
 	 * server
-	 * @throws NullPointerException if any of the parameters is <code>null</code>
+	 * @throws NullPointerException if any of the parameters is {@code null}
 	 */
 	public ManagedServer(BundleContext bundleContext, EndpointFactory endpointFactory) {
 		this(bundleContext, null, endpointFactory);
@@ -92,7 +92,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	 * @param serverFactory the factory to use for creating new server instances
 	 * @param endpointFactory the factory to use for creating endpoints for the managed
 	 * server
-	 * @throws NullPointerException if the bundle context or endpoint factory is <code>null</code>
+	 * @throws NullPointerException if the bundle context or endpoint factory is {@code null}
 	 */
 	public ManagedServer(BundleContext bundleContext, ServerInterfaceFactory serverFactory,
 			EndpointFactory endpointFactory) {

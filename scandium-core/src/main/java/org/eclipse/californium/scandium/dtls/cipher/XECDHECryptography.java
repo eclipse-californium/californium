@@ -622,7 +622,7 @@ public final class XECDHECryptography implements Destroyable {
 		/**
 		 * Checks whether this group can be used on this platform.
 		 * 
-		 * @return <code>true</code> if the group's domain params are known and
+		 * @return {@code true}, if the group's domain params are known and
 		 *         the JRE's crypto provider supports it
 		 */
 		public boolean isUsable() {
@@ -634,7 +634,7 @@ public final class XECDHECryptography implements Destroyable {
 		}
 
 		/**
-		 * Gets all <code>SupportedGroup</code>s that can be used on this
+		 * Gets all {@code SupportedGroup}s that can be used on this
 		 * platform.
 		 * 
 		 * @return the supported groups as unmodifiable list.

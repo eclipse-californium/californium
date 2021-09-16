@@ -354,7 +354,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * @param exchangeStore The store to use for keeping track of message
 	 *            exchanges.
 	 * @param endpointContextMatcher endpoint context matcher for relating
-	 *            responses to requests. If <code>null</code>, the result of
+	 *            responses to requests. If {@code null}, the result of
 	 *            {@link EndpointContextMatcherFactory#create(Connector, Configuration)}
 	 *            is used as matcher.
 	 * @param serializer message serializer. May be {@code null}.

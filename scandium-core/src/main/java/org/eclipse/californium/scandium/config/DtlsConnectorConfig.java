@@ -1393,9 +1393,8 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * A helper for creating instances of <code>DtlsConnectorConfig</code> based
+	 * A helper for creating instances of {@code DtlsConnectorConfig} based
 	 * on the builder pattern.
-	 *
 	 */
 	public static final class Builder {
 

@@ -37,15 +37,15 @@ import org.eclipse.californium.elements.EndpointContext;
  * An abstract adapter class for reacting to a message's lifecylce events.
  * <p>
  * The methods in this class are empty, except {@link #onReject()},
- *  {@link #onTimeout()}, and
- * {@link #onSendError(Throwable)}, which are calling {@link #failed()} as
- * default implementation. This class exists as convenience for creating message
- * observer objects.
+ * {@link #onTimeout()}, and {@link #onSendError(Throwable)}, which are calling
+ * {@link #failed()} as default implementation. This class exists as convenience
+ * for creating message observer objects.
  * <p>
  * Subclasses should override the methods for the events of interest.
  * <p>
  * An instance of the concrete message observer can then be registered with a
- * message using the message's <code>addMessageObserver</code> method.
+ * message using {@link Message#addMessageObserver(MessageObserver)} or
+ * {@link Message#addMessageObserver(int, MessageObserver)}.
  */
 public abstract class MessageObserverAdapter implements MessageObserver {
 

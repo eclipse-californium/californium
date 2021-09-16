@@ -44,7 +44,7 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 	 * Initializes the factory with collaborators.
 	 * 
 	 * @param secureConnectorFactory the factory to use for creating {@link Connector}s
-	 * implementing DTLS for secure Endpoints or <code>null</code> if this factory
+	 * implementing DTLS for secure Endpoints or {@code null}, if this factory
 	 * does not support the creation of secure Endpoints.
 	 */
 	public SimpleServerEndpointFactory(ConnectorFactory secureConnectorFactory) {

@@ -192,7 +192,7 @@ public enum CipherSuite {
 	 * Gets the Java Cryptography Architecture <em>transformation</em> corresponding
 	 * to the suite's underlying cipher algorithm.
 	 * 
-	 * The name can be used to instantiate a <code>javax.crypto.Cipher</code> object
+	 * The name can be used to instantiate a {@code javax.crypto.Cipher} object
 	 * (if a security provider is available in the JVM supporting the transformation).
 	 * See <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Cipher" target="_blank">
 	 * Java Security Documentation</a>.
@@ -296,13 +296,13 @@ public enum CipherSuite {
 	/**
 	 * Gets the name of the cipher suite's MAC algorithm.
 	 * 
-	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
+	 * The name can be used to instantiate a {@code javax.crypto.Mac}
 	 * instance.
 	 * 
 	 * See <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac" target="_blank">
 	 * Java Security Documentation</a>.
 	 * 
-	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
+	 * @return the name or {@code null} for the <em>NULL</em> MAC
 	 */
 	public String getMacName() {
 		return macAlgorithm.getName();
@@ -313,13 +313,13 @@ public enum CipherSuite {
 	 * suite MAC.
 	 * 
 	 * The name can be used to instantiate a
-	 * <code>java.security.MessageDigest</code> instance.
+	 * {@code java.security.MessageDigest} instance.
 	 * 
 	 * See <a href=
 	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest">
 	 * Java Security Documentation</a>.
 	 * 
-	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
+	 * @return the name or {@code null} for the <em>NULL</em> MAC
 	 */
 	public String getMessageDigestName() {
 		return macAlgorithm.getMessageDigestName();
@@ -413,7 +413,7 @@ public enum CipherSuite {
 	 * Gets the pseudo-random function used by the cipher suite
 	 * to create (pseudo-)random data from a seed.
 	 * 
-	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
+	 * The name can be used to instantiate a {@code javax.crypto.Mac}
 	 * instance.
 	 * 
 	 * See <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac" target="_blank">
@@ -430,7 +430,7 @@ public enum CipherSuite {
 	 * the cipher suite to create the hash over the handshake messages.
 	 * 
 	 * The name can be used to instantiate a
-	 * <code>java.security.MessageDigest</code> instance.
+	 * {@code java.security.MessageDigest} instance.
 	 * 
 	 * See <a href=
 	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest">
@@ -635,7 +635,7 @@ public enum CipherSuite {
 	 * @param code the cipher's
 	 *    <a href="https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4" target="_blank">
 	 *    IANA assigned code</a>
-	 * @return the cipher suite or <code>null</code> if the code is unknown
+	 * @return the cipher suite or {@code null}, if the code is unknown
 	 */
 	public static CipherSuite getTypeByCode(int code) {
 		for (CipherSuite suite : values()) {
@@ -655,7 +655,7 @@ public enum CipherSuite {
 	 * @param name the cipher's
 	 *    <a href="https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4" target="_blank">
 	 *    IANA assigned name</a>
-	 * @return the cipher suite or <code>null</code> if the name is unknown
+	 * @return the cipher suite or {@code null}, if the name is unknown
 	 */
 	public static CipherSuite getTypeByName(String name) {
 		for (CipherSuite suite : values()) {
@@ -829,13 +829,13 @@ public enum CipherSuite {
 		/**
 		 * Gets the MAC's name.
 		 * 
-		 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
+		 * The name can be used to instantiate a {@code javax.crypto.Mac}
 		 * instance.
 		 * 
 		 * See <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac" target="_blank">
 		 * Java Security Documentation</a>.
 		 * 
-		 * @return the name or <code>null</code> for the {@link #NULL} MAC
+		 * @return the name or {@code null} for the {@link #NULL} MAC
 		 */
 		public String getName() {
 			return name;
@@ -844,13 +844,13 @@ public enum CipherSuite {
 		/**
 		 * Gets the hash name.
 		 * 
-		 * The name can be used to instantiate a <code>java.security.MessageDigest</code>
+		 * The name can be used to instantiate a {@code java.security.MessageDigest}
 		 * instance.
 		 * 
 		 * See <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest" target="_blank">
 		 * Java Security Documentation</a>.
 		 * 
-		 * @return the name or <code>null</code> for the {@link #NULL} MAC
+		 * @return the name or {@code null} for the {@link #NULL} MAC
 		 */
 		public String getMessageDigestName() {
 			return mdName;
@@ -953,7 +953,7 @@ public enum CipherSuite {
 
 		/**
 		 * The <em>transformation</em> string of the corresponding Java Cryptography Architecture
-		 * <code>Cipher</code>
+		 * {@code Cipher}.
 		 */
 		private final String transformation;
 		private final CipherType type;
@@ -994,7 +994,7 @@ public enum CipherSuite {
 		 * Gets the Java Cryptography Architecture <em>transformation</em> corresponding
 		 * to the suite's underlying cipher algorithm.
 		 * 
-		 * The name can be used to instantiate a <code>javax.crypto.Cipher</code> object
+		 * The name can be used to instantiate a {@code javax.crypto.Cipher} object
 		 * (if a security provider is available in the JVM supporting the transformation).
 		 * See <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Cipher" target="_blank">
 		 * Java Security Documentation</a>.

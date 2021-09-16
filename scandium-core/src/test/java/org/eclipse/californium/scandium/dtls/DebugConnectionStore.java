@@ -23,7 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An debug <code>ConnectionStore</code> with dump and validate methods.
+ * An debug {@code ResumptionSupportingConnectionStore} with dump and validate methods.
  * Intended to be used for unit tests.
  */
 public final class DebugConnectionStore extends InMemoryConnectionStore {

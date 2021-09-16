@@ -41,7 +41,7 @@ public class Random extends Bytes {
 	 * Sets the random bytes explicitly.
 	 * 
 	 * @param randomBytes the bytes to use
-	 * @throws NullPointerException if the given array is <code>null</code>
+	 * @throws NullPointerException if the given array is {@code null}
 	 * @throws IllegalArgumentException if the given array's length is not 32
 	 */
 	public Random(byte[] randomBytes) {
