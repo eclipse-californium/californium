@@ -151,6 +151,24 @@ public class SignatureAndHashAlgorithmTest {
 	}
 
 	@Test
+	public void testValueOfEd25519() throws GeneralSecurityException {
+		assumeTrue("Ed25519 not supported!", eddsa25519 != null);
+		SignatureAndHashAlgorithm algorithm = SignatureAndHashAlgorithm.valueOf("ED25519");
+		assertNotNull(algorithm);
+		assertThat(algorithm.getHash(), is(HashAlgorithm.INTRINSIC));
+		assertThat(algorithm.getSignature(), is(SignatureAlgorithm.ED25519));
+	}
+
+	@Test
+	public void testValueOfEd448() throws GeneralSecurityException {
+		assumeTrue("Ed448 not supported!", eddsa448 != null);
+		SignatureAndHashAlgorithm algorithm = SignatureAndHashAlgorithm.valueOf("ED448");
+		assertNotNull(algorithm);
+		assertThat(algorithm.getHash(), is(HashAlgorithm.INTRINSIC));
+		assertThat(algorithm.getSignature(), is(SignatureAlgorithm.ED448));
+	}
+
+	@Test
 	public void testGetSignatureAlgorithms() throws GeneralSecurityException {
 		List<SignatureAndHashAlgorithm> algorithms = SignatureAndHashAlgorithm.getSignatureAlgorithms(DtlsTestTools.getServerRsaCertificateChainAsList());
 		assertThat(algorithms.size(), is(2));
