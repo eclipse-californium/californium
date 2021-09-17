@@ -175,13 +175,13 @@ public class CertPathUtil {
 		// (For more details see:
 		// https://github.com/eclipse/californium/issues/748)
 		if ((cert.getKeyUsage() != null && !cert.getKeyUsage()[KEY_USAGE_SIGNATURE])) {
-			LOGGER.debug("certificate: {}, not for signing!", cert.getSubjectDN());
+			LOGGER.debug("certificate: {}, not for signing!", cert.getSubjectX500Principal());
 			return false;
 		}
 		try {
 			List<String> list = cert.getExtendedKeyUsage();
 			if (list != null && !list.isEmpty()) {
-				LOGGER.trace("certificate: {}", cert.getSubjectDN());
+				LOGGER.trace("certificate: {}", cert.getSubjectX500Principal());
 				final String authentication = client ? CLIENT_AUTHENTICATION : SERVER_AUTHENTICATION;
 				boolean foundUsage = false;
 				for (String extension : list) {
@@ -191,11 +191,11 @@ public class CertPathUtil {
 					}
 				}
 				if (!foundUsage) {
-					LOGGER.debug("certificate: {}, not for {}!", cert.getSubjectDN(), client ? "client" : "server");
+					LOGGER.debug("certificate: {}, not for {}!", cert.getSubjectX500Principal(), client ? "client" : "server");
 					return false;
 				}
 			} else {
-				LOGGER.debug("certificate: {}, no extkeyusage!", cert.getSubjectDN());
+				LOGGER.debug("certificate: {}, no extkeyusage!", cert.getSubjectX500Principal());
 			}
 		} catch (CertificateParsingException e) {
 			LOGGER.warn("x509 certificate:", e);

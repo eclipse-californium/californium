@@ -368,7 +368,7 @@ public class Asn1DerDecoder {
 			try {
 				Class<?> clz = Class.forName(NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider");
 				if (clz != null) {
-					provider = (Provider) clz.getDeclaredConstructor().newInstance();
+					provider = (Provider) clz.getConstructor().newInstance();
 					Security.addProvider(provider);
 					ed25519 = true;
 					ed448 = false;
