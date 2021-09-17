@@ -65,7 +65,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	/**
 	 * Key type for credentials.
 	 */
-	private static final String[] KEY_TYPE_EC_EDDSA = { "EC", "EdDSA" };
+	private static final String[] KEY_TYPE_EC_EDDSA = { "EC", "EdDSA", "Ed25519", "Ed448"};
 
 	/**
 	 * Default alias. May be {@code null}.
@@ -273,7 +273,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				alias = keyManager.getServerAliases(keyType, issuers);
 			}
 			if (alias != null) {
-				LOGGER.debug("found {} {} keys", alias.length, keyType);
+				LOGGER.debug("found {} {} keys for {}", alias.length, keyType, client ? "client" : "server");
 				ListUtils.addIfAbsent(all, Arrays.asList(alias));
 			}
 		}
