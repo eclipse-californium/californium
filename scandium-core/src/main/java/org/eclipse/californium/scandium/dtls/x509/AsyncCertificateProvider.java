@@ -52,7 +52,7 @@ public class AsyncCertificateProvider extends SingleCertificateProvider {
 	/**
 	 * Thread factory.
 	 */
-	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncPskStoreTimer#");
+	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncCertProvider#", NamedThreadFactory.SCANDIUM_THREAD_GROUP);
 	/**
 	 * Executor for asynchronous behaviour.
 	 */

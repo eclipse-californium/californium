@@ -49,7 +49,7 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	/**
 	 * Thread factory.
 	 */
-	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncTimer#");
+	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncCertVerifier#", NamedThreadFactory.SCANDIUM_THREAD_GROUP);
 	/**
 	 * Executor for asynchronous behaviour.
 	 */
