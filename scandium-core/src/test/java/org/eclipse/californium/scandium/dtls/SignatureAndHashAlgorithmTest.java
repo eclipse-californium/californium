@@ -43,7 +43,9 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgor
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
+import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -51,6 +53,9 @@ import org.junit.rules.ExpectedException;
 
 @Category(Small.class)
 public class SignatureAndHashAlgorithmTest {
+	@ClassRule
+	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
+			DtlsNetworkRule.Mode.NATIVE);
 
 	@Rule
 	public ExpectedException exception = ExpectedExceptionWrapper.none();

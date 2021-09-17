@@ -12,6 +12,10 @@
 	<name>Scandium (Sc) Core</name>
 	<description>A library for exchanging data using DTLS over UDP</description>
 
+	<properties>
+		<bc.version>1.69</bc.version>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -24,6 +28,16 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcpkix-jdk15to18</artifactId>
+			<version>${bc.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk15to18</artifactId>
+			<version>${bc.version}</version>
 		</dependency>
 
 		<!-- test dependencies -->

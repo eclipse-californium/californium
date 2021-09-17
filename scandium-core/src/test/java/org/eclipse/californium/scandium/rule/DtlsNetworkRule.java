@@ -15,8 +15,13 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.rule;
 
+import java.security.GeneralSecurityException;
+import java.security.PublicKey;
+import java.security.Security;
 import java.util.List;
 
+import org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -27,6 +32,7 @@ import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +54,30 @@ import org.slf4j.LoggerFactory;
 public class DtlsNetworkRule extends NetworkRule {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(DtlsNetworkRule.class);
+
+	public static boolean useBc = true;
+	static {
+		if (useBc) {
+			Security.removeProvider("BC");
+			BouncyCastleProvider bouncyCastleProvider = new BouncyCastleProvider();
+			Security.insertProviderAt(bouncyCastleProvider, 1);
+			XECDHECryptography.XDHPublicKeyApi api = new XECDHECryptography.XDHPublicKeyApi() {
+
+				@Override
+				public boolean isSupporting(PublicKey publicKey) {
+					return publicKey instanceof BCXDHPublicKey;
+				}
+
+				@Override
+				public String getCurveName(PublicKey publicKey) throws GeneralSecurityException {
+					return ((BCXDHPublicKey) publicKey).getAlgorithm();
+				}
+
+			};
+			XECDHECryptography.setXDHPublicKeyApi(api);
+		}
+		DtlsConfig.register();
+	}
 
 	/**
 	 * CoAP datagram formatter. Used for logging.
