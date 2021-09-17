@@ -22,6 +22,7 @@ import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
@@ -49,8 +50,14 @@ import javax.security.auth.Destroyable;
 
 /**
  * A helper class to execute the XDH and ECDHE key agreement and key generation.
- * Support X25519 and X448 with java 11.
- * 
+ * <p>
+ * Supports X25519 and X448 with java 11. Experimentally Bouncy Castle 1.69
+ * could be used as alternative JCE.
+ * <p>
+ * <b>Note:</b> No support for Bouncy Castle issues with or without relation to
+ * Californium could be provided! You may report issues as common, but it's not
+ * ensured, that they could be considered.
+ * <p>
  * A ECDHE key exchange starts with negotiating a curve. The possible curves are
  * listed at <a href=
  * "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8">
@@ -61,7 +68,7 @@ import javax.security.auth.Destroyable;
  * directly a member, e.g. {@link SupportedGroup#X25519}, or get it by id
  * {@link SupportedGroup#fromId(int)} or by the curve-name
  * {@link SupportedGroup#valueOf(String)}.
- * 
+ * <p>
  * Once you have a curve negotiated, you create a instance of
  * {@link XECDHECryptography#XECDHECryptography(SupportedGroup)} providing this
  * curve as parameter. This will also create the ephemeral key-pair for the key
@@ -75,9 +82,8 @@ import javax.security.auth.Destroyable;
  * class only the encoded point and the {@link SupportedGroup} is used to do the
  * key exchange. Access to the {@link PrivateKey} nor {@link PublicKey} is
  * required outside.
- * 
  * <pre>
- * 
+ * <code>
  * SupportedGroup group = SupportedGroup.X25519;
  * 
  * // peer 1
@@ -95,9 +101,8 @@ import javax.security.auth.Destroyable;
  * 
  * // peer 1
  * SecretKey secret1 = ecdhe1.generateSecret(point2);
- * 
+ * </code>
  * </pre>
- * 
  * results in same secrets {@code secret1} and {@code secret2}.
  * 
  * @see <a href="https://tools.ietf.org/html/rfc7748" target="_blank">RFC
@@ -466,6 +471,7 @@ public final class XECDHECryptography implements Destroyable {
 
 		/**
 		 * Get algorithm name.
+		 * 
 		 * @return algorithm name
 		 */
 		public String getAlgorithmName() {
@@ -622,8 +628,8 @@ public final class XECDHECryptography implements Destroyable {
 		/**
 		 * Checks whether this group can be used on this platform.
 		 * 
-		 * @return {@code true}, if the group's domain params are known and
-		 *         the JRE's crypto provider supports it
+		 * @return {@code true}, if the group's domain params are known and the
+		 *         JRE's crypto provider supports it
 		 */
 		public boolean isUsable() {
 			return usable;
@@ -634,8 +640,7 @@ public final class XECDHECryptography implements Destroyable {
 		}
 
 		/**
-		 * Gets all {@code SupportedGroup}s that can be used on this
-		 * platform.
+		 * Gets all {@code SupportedGroup}s that can be used on this platform.
 		 * 
 		 * @return the supported groups as unmodifiable list.
 		 * @see #isUsable()
@@ -693,15 +698,29 @@ public final class XECDHECryptography implements Destroyable {
 
 	/**
 	 * Set {@link XDHPublicKeyApi} implementation.
-	 * 
+	 * <p>
 	 * As default, java 11 is supported by a implementation using reflection (in
-	 * order to prevent a hard dependency to java 11). If other XDH providers
-	 * are used, then this reflection implementation must be replaced by a
-	 * implementation supporting that provider.
-	 * 
-	 * e.g. Bouncy Castle (simple example, no support):
-	 * 
+	 * order to prevent a hard dependency to java 11). Bouncy Castle 1.69 is
+	 * experimentally also supported using a implementation based on reflection
+	 * (as well, to prevent a hard dependency). Ensure, Bouncy Castle is set as
+	 * provider before access.
 	 * <pre>
+	 * <code>
+	 * Security.removeProvider("BC");
+	 * BouncyCastleProvider bouncyCastleProvider = new BouncyCastleProvider();
+	 * Security.insertProviderAt(bouncyCastleProvider, 1);
+	 * </code>
+	 * </pre>
+	 * <b>Note:</b> No support for Bouncy Castle issues with or without relation
+	 * to Californium could be provided! You may report issues as common, but
+	 * it's not ensured, that they could be considered.
+	 * <p>
+	 * If other XDH providers are used, or the reflection ones should be
+	 * replaced, provide that custom implementation as parameter.
+	 * <p>
+	 * e.g. Bouncy Castle (simple example, no support):
+	 * <pre>
+	 * <code>
 	 * Security.removeProvider("BC");
 	 * BouncyCastleProvider bouncyCastleProvider = new BouncyCastleProvider();
 	 * Security.insertProviderAt(bouncyCastleProvider, 1);
@@ -719,6 +738,7 @@ public final class XECDHECryptography implements Destroyable {
 	 * 
 	 * };
 	 * XECDHECryptography.setXDHPublicKeyApi(api);
+	 * </code>
 	 * </pre>
 	 * 
 	 * @param api {@link XDHPublicKeyApi} implementation
@@ -759,7 +779,7 @@ public final class XECDHECryptography implements Destroyable {
 
 	/**
 	 * Implementation of {@link XDHPublicKeyApi} based on reflection running on
-	 * java 11 XDH.
+	 * java 11 XDH, or, experimentally, Bouncy Castle 1.69.
 	 * 
 	 * @since 3.0
 	 */
@@ -768,6 +788,15 @@ public final class XECDHECryptography implements Destroyable {
 		private final Class<?> XECPublicKeyClass;
 		private final Method XECPublicKeyGetParams;
 		private final Method NamedParameterSpecGetName;
+
+		private XDHPublicKeyReflection(Class<?> XECPublicKeyClass) {
+			if (XECPublicKeyClass == null) {
+				throw new NullPointerException("XECPublicKeyClass must not be null!");
+			}
+			this.XECPublicKeyClass = XECPublicKeyClass;
+			this.XECPublicKeyGetParams = null;
+			this.NamedParameterSpecGetName = null;
+		}
 
 		private XDHPublicKeyReflection(Class<?> XECPublicKeyClass, Method XECPublicKeyGetParams,
 				Method NamedParameterSpecGetName) {
@@ -792,25 +821,38 @@ public final class XECDHECryptography implements Destroyable {
 
 		@Override
 		public String getCurveName(PublicKey publicKey) throws GeneralSecurityException {
-			try {
-				Object params = XECPublicKeyGetParams.invoke(publicKey);
-				return (String) NamedParameterSpecGetName.invoke(params);
-			} catch (Exception e) {
-				throw new GeneralSecurityException("X25519/X448 not supported by JRE!", e);
+			if (XECPublicKeyClass.isInstance(publicKey)) {
+				if (XECPublicKeyGetParams != null && NamedParameterSpecGetName != null) {
+					try {
+						Object params = XECPublicKeyGetParams.invoke(publicKey);
+						return (String) NamedParameterSpecGetName.invoke(params);
+					} catch (Exception e) {
+						throw new GeneralSecurityException("X25519/X448 not supported by JRE!", e);
+					}
+				} else {
+					return publicKey.getAlgorithm();
+				}
 			}
+			throw new GeneralSecurityException(publicKey.getAlgorithm() + " not supported!");
 		}
 
 		private static XDHPublicKeyApi init() {
 			try {
-				Class<?> cls = Class.forName("java.security.spec.NamedParameterSpec");
-				Method getName = cls.getMethod("getName");
-				cls = Class.forName("java.security.interfaces.XECPublicKey");
-				Method getParams = cls.getMethod("getParams");
-				return new XDHPublicKeyReflection(cls, getParams, getName);
+				Provider provider = Asn1DerDecoder.getEdDsaProvider();
+				if (provider != null && provider.getName().equals("BC")) {
+					Class<?> cls = Class.forName("org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey");
+					return new XDHPublicKeyReflection(cls);
+				} else {
+					Class<?> cls = Class.forName("java.security.spec.NamedParameterSpec");
+					Method getName = cls.getMethod("getName");
+					cls = Class.forName("java.security.interfaces.XECPublicKey");
+					Method getParams = cls.getMethod("getParams");
+					return new XDHPublicKeyReflection(cls, getParams, getName);
+				}
 			} catch (Throwable t) {
 				LOGGER.info("X25519/X448 not supported!");
+				return null;
 			}
-			return null;
 		}
 	}
 }
