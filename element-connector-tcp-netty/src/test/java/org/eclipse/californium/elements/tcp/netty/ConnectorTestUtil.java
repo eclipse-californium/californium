@@ -39,6 +39,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * Utils for TCP based connector tests.
@@ -98,8 +99,7 @@ public class ConnectorTestUtil {
 
 	public static RawData createMessage(int messageSize, EndpointContext contextToSent, MessageCallback callback)
 			throws Exception {
-		byte[] data = new byte[messageSize];
-		random.nextBytes(data);
+		byte[] data = Bytes.createBytes(random, messageSize);
 
 		try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
 			if (messageSize < 13) {

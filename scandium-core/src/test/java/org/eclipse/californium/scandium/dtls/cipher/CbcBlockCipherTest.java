@@ -19,7 +19,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,9 +45,10 @@ public class CbcBlockCipherTest {
 	static final long SEQUENCE_NO = 5;
 	static final int TYPE_APPL_DATA = 23;
 	static final int EPOCH = 0;
-	
-	static final Random random = new SecureRandom();
-	
+
+	// only for unit test
+	static final Random random = new Random();
+
 	// byte representation of a 128 bit AES symmetric key
 	static final SecretKey aesKey = new SecretKeySpec(Bytes.createBytes(random, 16), "AES");
 	static final SecretKey aesKey256 = new SecretKeySpec(Bytes.createBytes(random, 32), "AES");
@@ -58,8 +58,7 @@ public class CbcBlockCipherTest {
 
 	@Parameterized.Parameters
 	public static List<Object[]> parameters() {
-		// Trying different messages size to hit sharp corners in Coap-over-TCP
-		// spec
+		// Trying different messages size to hit sharp corners in Coap-over-TCP spec
 		List<Object[]> parameters = new ArrayList<>();
 		parameters.add(new Object[] { 0, 2 });
 		parameters.add(new Object[] { 5, 2 });
