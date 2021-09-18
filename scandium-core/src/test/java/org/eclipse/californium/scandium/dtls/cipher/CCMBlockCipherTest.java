@@ -51,8 +51,7 @@ public class CCMBlockCipherTest {
 
 	@Parameterized.Parameters
 	public static List<Object[]> parameters() {
-		// Trying different messages size to hit sharp corners in Coap-over-TCP
-		// spec
+		// Trying different messages size to hit sharp corners in Coap-over-TCP spec
 		List<Object[]> parameters = new ArrayList<>();
 		parameters.add(new Object[] { 0, 0, 7 });
 		parameters.add(new Object[] { 5, 0, 7 });
@@ -69,7 +68,8 @@ public class CCMBlockCipherTest {
 		return parameters;
 	}
 
-	Random random;
+	static final Random random = new Random();
+
 	byte[] additionalData;
 	byte[] nonce;
 
@@ -89,9 +89,7 @@ public class CCMBlockCipherTest {
 		// salt: 32bit client write init vector (can be any four bytes)
 		byte[] client_iv = new byte[]{0x55, 0x23, 0x2F, (byte) 0xA3};
 		ProtocolVersion protocolVer = ProtocolVersion.VERSION_DTLS_1_2;
-		payloadData = new byte[payloadLength];
-		random = new Random(payloadLength);
-		random.nextBytes(payloadData);
+		payloadData = Bytes.createBytes(random, payloadLength);
 
 		// 64bit sequence number, consisting of 16bit epoch (0) + 48bit sequence number (5)
 		byte[] seq_num = new byte[]{0x00, (byte) EPOCH, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) SEQUENCE_NO};
@@ -109,15 +107,12 @@ public class CCMBlockCipherTest {
 	}
 
 	private byte[] adjustLength(byte[] data, int len) {
-		if (data.length > len) {
-			return Arrays.copyOf(data, len);
-		} else if (data.length < len) {
-			byte[] temp = new byte[len];
-			random.nextBytes(temp);
-			System.arraycopy(data, 0, temp, 0, data.length);
-			return temp;
+		byte[] adjusted = Arrays.copyOf(data, len);
+		if (data.length < len) {
+			byte[] temp = Bytes.createBytes(random, len - data.length);
+			System.arraycopy(temp, 0, adjusted, data.length, temp.length);
 		}
-		return data;
+		return adjusted;
 	}
 
 	@Test
