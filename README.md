@@ -62,7 +62,7 @@ $ mvn clean install -DuseToolchainJavadoc=true
 
 ## Build with jdk11 and EdDSA support
 
-To support EdDSA, either java 15, or java 11 with [ed25519-java](https://github.com/str4d/ed25519-java) is required at runtime. Using java 15 to build Californium, leaves out `ed25519-java`, 
+To support EdDSA, either java 15, java 16, or java 11 with [ed25519-java](https://github.com/str4d/ed25519-java) is required at runtime. Using java 15 to build Californium, leaves out `ed25519-java`, 
 using java 11 for building, includes `ed25519-java` by default. If `ed25519-java` should **NOT** be included into the californium's jars, add `-Dno.net.i2p.crypto.eddsa=true` to maven's arguments.
 
 ```sh
@@ -70,6 +70,30 @@ $ mvn clean install -Dno.net.i2p.crypto.eddsa=true
 ```
 
 In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar) is provided to the classpath separately.
+
+## Run unit tests using Bouncy Castle as alternative JCE provider
+
+With 3.0 a first, experimental support for using Bouncy Castle (1.69, bcprov-jdk15on, bcpkix-jdk15on) is implemented.
+
+To demonstrate the basic functions, run the unit-tests using the profile `bc-tests`
+
+```sh
+$ mvn clean install -Pbc-tests
+```
+
+If the system's JCE doesn't support EdDSA, then Bouncy Castle is tried. In order to force to use Bouncy Castle even if the system's JCE support EdDSA, use
+
+```sh
+$ mvn clean install -Pbc-tests -DCALIFORNIUM_JCE_PROVIDER=BC
+```
+
+Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but they may be not processed.
+
+On issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
+
+An other issue is, that the function seems to depend on the combination of the OS (Unix, Windows, Android), the java version (7, 8, 11, 15, or 16), and the Bouncy Castle build (jdk15on or jdk15to18). It makes also a difference, if it's used by Scandium (DTLS) or by netty.io (TLS). For Scandium internal adaption is possible, for netty.io it must be requested there.
+
+With that, it gets very time consuming to test all combinations. Therefore, if you need a specific one, please test it on your own. If you consider, that some adaption is required, let us know by creating an issue.
 
 # Using Californium in Maven Projects
 
