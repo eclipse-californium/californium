@@ -51,13 +51,13 @@ public class RawPublicKeyIdentityTest {
 	 */
 	@BeforeClass
 	public static void init() throws IOException {
+		Provider edDsaProvider = Asn1DerDecoder.getEdDsaProvider();
 		try {
 			KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
 			ecKeyPair = generator.generateKeyPair();
 		} catch (NoSuchAlgorithmException e) {
 			assumeNoException("vm's without EC are not usable for CoAP!", e);
 		}
-		Provider edDsaProvider = Asn1DerDecoder.getEdDsaProvider();
 		if (edDsaProvider != null) {
 			try {
 				KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED25519,
