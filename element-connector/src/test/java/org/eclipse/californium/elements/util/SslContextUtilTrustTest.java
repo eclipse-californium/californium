@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsNull.notNullValue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -179,6 +180,7 @@ public class SslContextUtilTrustTest {
 
 	@Test
 	public void testLoadP12TrustedCertificates() throws IOException, GeneralSecurityException {
+		assumeTrue("requires strong encryption", Asn1DerDecoder.isStrongEncryption());
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(TRUST_P12_LOCATION, null, TRUST_STORE_PASSWORD);
 		assertThat(trustedCertificates, is(notNullValue()));
 		assertThat(trustedCertificates.length, is(5));
@@ -189,6 +191,7 @@ public class SslContextUtilTrustTest {
 
 	@Test
 	public void testLoadP12TrustedCertificatesWithAlias() throws IOException, GeneralSecurityException {
+		assumeTrue("requires strong encryption", Asn1DerDecoder.isStrongEncryption());
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(TRUST_P12_LOCATION, ALIAS_CA, TRUST_STORE_PASSWORD);
 		assertThat(trustedCertificates, is(notNullValue()));
 		assertThat(trustedCertificates.length, is(1));
@@ -199,6 +202,7 @@ public class SslContextUtilTrustTest {
 
 	@Test
 	public void testLoadP12TrustManager() throws IOException, GeneralSecurityException {
+		assumeTrue("requires strong encryption", Asn1DerDecoder.isStrongEncryption());
 		TrustManager[] manager = SslContextUtil.loadTrustManager(TRUST_P12_LOCATION, null, TRUST_STORE_PASSWORD);
 		assertThat(manager, is(notNullValue()));
 		assertThat(manager.length, is(greaterThan(0)));
@@ -207,6 +211,7 @@ public class SslContextUtilTrustTest {
 
 	@Test
 	public void testLoadP12TrustManagerWithAlias() throws IOException, GeneralSecurityException {
+		assumeTrue("requires strong encryption", Asn1DerDecoder.isStrongEncryption());
 		TrustManager[] manager = SslContextUtil.loadTrustManager(TRUST_P12_LOCATION, ALIAS_CA, TRUST_STORE_PASSWORD);
 		assertThat(manager, is(notNullValue()));
 		assertThat(manager.length, is(greaterThan(0)));

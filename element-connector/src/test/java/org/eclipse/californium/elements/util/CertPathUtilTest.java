@@ -16,6 +16,8 @@
 package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -87,6 +89,11 @@ public class CertPathUtilTest {
 	private List<X509Certificate> clientChainExtUsageList;
 	private List<X509Certificate> clientSelfsignedList;
 	private List<X509Certificate> serverLargeList;
+
+	private void expectTrustAnchorError() {
+		exception.expectMessage(anyOf(containsString("Path does not chain with any of the trust anchors"),
+				containsString("Trust anchor for certification path not found")));
+	}
 
 	@Before
 	public void init() throws IOException, GeneralSecurityException {
@@ -237,7 +244,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testServerCertificateValidationUnknownTrust() throws Exception {
 		exception.expect(CertPathValidatorException.class);
-		exception.expectMessage("Path does not chain with any of the trust anchors");
+		expectTrustAnchorError();
 		List<X509Certificate> serverCertificates = TestCertificatesTools.getServerCertificateChainAsList();
 		CertPath certPath = CertPathUtil.generateCertPath(serverCertificates);
 		CertPathUtil.validateCertificatePathWithIssuer(false, certPath, clientSelfsigned);
@@ -366,7 +373,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testServerCertificateValidationWithIntermediateTrustFails() throws Exception {
 		exception.expect(CertPathValidatorException.class);
-		exception.expectMessage("Path does not chain with any of the trust anchors");
+		expectTrustAnchorError();
 		List<X509Certificate> certificates = TestCertificatesTools.getServerCertificateChainAsList();
 		X509Certificate[] trusts = new X509Certificate[] { TestCertificatesTools.getTrustedCA() };
 		CertPath certPath = CertPathUtil.generateCertPath(certificates);
@@ -451,7 +458,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testServerCertificateValidationWithSelfTrustFails() throws Exception {
 		exception.expect(CertPathValidatorException.class);
-		exception.expectMessage("Path does not chain with any of the trust anchors");
+		expectTrustAnchorError();
 		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
 		X509Certificate[] trusts = new X509Certificate[] {certificates[0]};
 		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));

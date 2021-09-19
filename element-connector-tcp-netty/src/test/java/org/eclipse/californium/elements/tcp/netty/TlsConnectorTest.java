@@ -188,7 +188,7 @@ public class TlsConnectorTest {
 
 		for (RawData message : messages) {
 			Catcher catcher = servers.get(message.getInetSocketAddress());
-			assertTrue(catcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
+			assertTrue(catcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS * 2));
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
 		}
 	}

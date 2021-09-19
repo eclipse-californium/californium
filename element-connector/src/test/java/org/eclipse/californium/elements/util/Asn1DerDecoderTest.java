@@ -191,16 +191,17 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testEqualKeyAlgorithmSynonyms() throws NoSuchAlgorithmException {
-		assertSynonym(true, "RSA", "RSA");
-		assertSynonym(true, "DH", "DiffieHellman");
-		assertSynonym(true, "DiffieHellman", "DiffieHellman");
-		assertSynonym(true, "DiffieHellman", "DH");
-		assertSynonym(false, "DH", "RSA");
-		assertSynonym(false, "DSA", "DiffieHellman");
-		assertSynonym(false, "EC", "ED25519");
-		assertSynonym(false, "ED448", "ED25519");
-		assertSynonym(true, "EdDSA", "ED25519");
-		assertSynonym(true, "EdDSA", "ED448");
+		assertSynonym("", true, "RSA", "RSA");
+		assertSynonym("", true, "DH", "DiffieHellman");
+		assertSynonym("", true, "DiffieHellman", "DiffieHellman");
+		assertSynonym("", true, "DiffieHellman", "DH");
+		assertSynonym("", false, "DH", "RSA");
+		assertSynonym("", false, "DSA", "DiffieHellman");
+		assertSynonym("", false, "EC", "ED25519");
+		assertSynonym("", false, "ED448", "ED25519");
+		assertSynonym("", true, "EdDSA", "ED25519");
+		assertSynonym("", true, "EdDSA", "ED448");
+		assertSynonym("", true, "ED25519.v2", "ED25519");
 	}
 
 	/**
@@ -348,9 +349,11 @@ public class Asn1DerDecoderTest {
 			KeyPairGenerator generator = Asn1DerDecoder.getKeyPairGenerator(algorithm);
 			KeyPair keyPair = generator.generateKeyPair();
 			byte[] data = keyPair.getPrivate().getEncoded();
-			assertThat("reading private key algorithm failed!", Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(algorithm));
+			String keyAlgo = Asn1DerDecoder.readPrivateKeyAlgorithm(data);
+			assertSynonym("reading private key algorithm failed!", true, keyAlgo, algorithm);
 			data = keyPair.getPublic().getEncoded();
-			assertThat("reading public key algorithm failed!", Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is(algorithm));
+			keyAlgo = Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data);
+			assertSynonym("reading public key algorithm failed!", true, keyAlgo, algorithm);
 		} catch (NoSuchAlgorithmException e) {
 			assumeNoException("vm doesn't support " + algorithm + ": " + e.getMessage(), e);
 		}
@@ -359,17 +362,18 @@ public class Asn1DerDecoderTest {
 	/**
 	 * Assert, that the provided key algorithms are handled as synonyms.
 	 * 
+	 * @param message message header to fail
 	 * @param expected {@code true}, if key algorithms should be valid synonyms,
 	 *            {@code false}, otherwise.
 	 * @param keyAlgorithm1 key algorithm
 	 * @param keyAlgorithm2 key algorithm
 	 */
-	private void assertSynonym(boolean expected, String keyAlgorithm1, String keyAlgorithm2) {
+	private void assertSynonym(String message, boolean expected, String keyAlgorithm1, String keyAlgorithm2) {
 		if (expected != Asn1DerDecoder.equalKeyAlgorithmSynonyms(keyAlgorithm1, keyAlgorithm2)) {
 			if (expected) {
-				fail(keyAlgorithm1 + " should be a valid synonym for " + keyAlgorithm2);
+				fail(message + " " + keyAlgorithm1 + " should be a valid synonym for " + keyAlgorithm2);
 			} else {
-				fail(keyAlgorithm1 + " should not be a valid synonym for " + keyAlgorithm2);
+				fail(message + " " + keyAlgorithm1 + " should not be a valid synonym for " + keyAlgorithm2);
 			}
 		}
 	}
