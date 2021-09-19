@@ -31,6 +31,7 @@ import java.security.cert.X509Certificate;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
+import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.junit.Test;
@@ -47,7 +48,7 @@ public class SslContextUtilCredentialsTest {
 	public static final String ALIAS_SERVER = "server";
 	public static final String ALIAS_CLIENT = "client";
 	public static final String ALIAS_MISSING = "missing";
-	public static final String DN_SERVER = "C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-server";
+	public static final X500Principal DN_SERVER = new X500Principal("C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-server");
 
 	@Test
 	public void testLoadCredentials() throws IOException, GeneralSecurityException {
@@ -60,7 +61,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain()[0], is(instanceOf(X509Certificate.class)));
 		X509Certificate x509 = (X509Certificate) credentials.getCertificateChain()[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
-		assertThat(x509.getSubjectDN().getName(), is(DN_SERVER));
+		assertThat(x509.getSubjectX500Principal(), is(DN_SERVER));
 	}
 
 	/**
@@ -141,7 +142,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain()[0], is(instanceOf(X509Certificate.class)));
 		X509Certificate x509 = (X509Certificate) credentials.getCertificateChain()[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
-		assertThat(x509.getSubjectDN().getName(), is(DN_SERVER));
+		assertThat(x509.getSubjectX500Principal(), is(DN_SERVER));
 	}
 
 	@Test
@@ -151,7 +152,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(chain, is(notNullValue()));
 		assertThat(chain.length, is(greaterThan(0)));
 		assertThat(chain[0].getPublicKey(), is(notNullValue()));
-		assertThat(chain[0].getSubjectDN().getName(), is(DN_SERVER));
+		assertThat(chain[0].getSubjectX500Principal(), is(DN_SERVER));
 	}
 
 	@Test(expected = NullPointerException.class)
@@ -224,7 +225,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain()[0], is(instanceOf(X509Certificate.class)));
 		X509Certificate x509 = (X509Certificate) credentials.getCertificateChain()[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
-		assertThat(x509.getSubjectDN().getName(), is(DN_SERVER));
+		assertThat(x509.getSubjectX500Principal(), is(DN_SERVER));
 	}
 
 	@Test
@@ -246,7 +247,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain()[0], is(instanceOf(X509Certificate.class)));
 		X509Certificate x509 = (X509Certificate) credentials.getCertificateChain()[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
-		assertThat(x509.getSubjectDN().getName(), is(DN_SERVER));
+		assertThat(x509.getSubjectX500Principal(), is(DN_SERVER));
 	}
 
 	@Test

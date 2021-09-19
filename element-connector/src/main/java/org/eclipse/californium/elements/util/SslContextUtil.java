@@ -858,12 +858,13 @@ public class SslContextUtil {
 			throw new NullPointerException("storePassword must be provided!");
 		}
 		InputStream inStream = getInputStreamFromUri(keyStoreUri);
+		KeyStore keyStore = KeyStore.getInstance(configuration.type);
 		try {
-			KeyStore keyStore = KeyStore.getInstance(configuration.type);
 			keyStore.load(inStream, storePassword);
 			return keyStore;
 		} catch (IOException ex) {
-			throw new IOException(ex + ", URI: " + keyStoreUri + ", type: " + configuration.type);
+			throw new IOException(ex + ", URI: " + keyStoreUri + ", type: " + configuration.type + ", "
+					+ keyStore.getProvider().getName());
 		} finally {
 			inStream.close();
 		}
@@ -1532,22 +1533,22 @@ public class SslContextUtil {
 		private static void validateChain(X509Certificate[] chain, boolean client)
 				throws CertificateException {
 			if (chain != null && chain.length > 0) {
-				LOGGER.debug("check certificate {} for {}", chain[0].getSubjectDN(), client ? "client" : "server");
+				LOGGER.debug("check certificate {} for {}", chain[0].getSubjectX500Principal(), client ? "client" : "server");
 				if (!CertPathUtil.canBeUsedForAuthentication(chain[0], client)) {
-					LOGGER.debug("check certificate {} for {} failed on key-usage!", chain[0].getSubjectDN(),
+					LOGGER.debug("check certificate {} for {} failed on key-usage!", chain[0].getSubjectX500Principal(),
 							client ? "client" : "server");
 					throw new CertificateException("Key usage not proper for " + (client ? "client" : "server"));
 				} else {
-					LOGGER.trace("check certificate {} for {} succeeded on key-usage!", chain[0].getSubjectDN(),
+					LOGGER.trace("check certificate {} for {} succeeded on key-usage!", chain[0].getSubjectX500Principal(),
 							client ? "client" : "server");
 				}
 				CertPath path = CertPathUtil.generateValidatableCertPath(Arrays.asList(chain), null);
 				try {
 					CertPathUtil.validateCertificatePathWithIssuer(true, path, EMPTY);
-					LOGGER.trace("check certificate {} [chain.length={}] for {} validated!", chain[0].getSubjectDN(),
+					LOGGER.trace("check certificate {} [chain.length={}] for {} validated!", chain[0].getSubjectX500Principal(),
 							chain.length, client ? "client" : "server");
 				} catch (GeneralSecurityException e) {
-					LOGGER.debug("check certificate {} for {} failed on {}!", chain[0].getSubjectDN(),
+					LOGGER.debug("check certificate {} for {} failed on {}!", chain[0].getSubjectX500Principal(),
 							client ? "client" : "server", e.getMessage());
 					if (e instanceof CertificateException) {
 						throw (CertificateException) e;

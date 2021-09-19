@@ -145,11 +145,11 @@ public class CertPathUtil {
 	public static boolean canBeUsedToVerifySignature(X509Certificate cert) {
 
 		if (cert.getBasicConstraints() < 0) {
-			LOGGER.debug("certificate: {}, not for CA!", cert.getSubjectDN());
+			LOGGER.debug("certificate: {}, not for CA!", cert.getSubjectX500Principal());
 			return false;
 		}
 		if ((cert.getKeyUsage() != null && !cert.getKeyUsage()[KEY_USAGE_CERTIFICATE_SIGNING])) {
-			LOGGER.debug("certificate: {}, not for certificate signing!", cert.getSubjectDN());
+			LOGGER.debug("certificate: {}, not for certificate signing!", cert.getSubjectX500Principal());
 			return false;
 		}
 		return true;
