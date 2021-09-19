@@ -38,6 +38,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
+import javax.crypto.Cipher;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -344,7 +346,12 @@ public class Asn1DerDecoder {
 	private static final Provider EDDSA_PROVIDER;
 	private static final boolean ED25519_SUPPORT;
 	private static final boolean ED448_SUPPORT;
-
+	/**
+	 * Indicates, the "strong encryption" is available.
+	 * 
+	 * @since 3.0
+	 */
+	private static final boolean STRONG_ENCRYPTION;
 	/**
 	 * Package name for external java 7 EdDSA provider.
 	 */
@@ -409,6 +416,12 @@ public class Asn1DerDecoder {
 		} catch (Throwable t) {
 		}
 		UCS_4 = charset;
+		boolean strongEncryption = false;
+		try {
+			strongEncryption = Cipher.getMaxAllowedKeyLength("AES") >= 256;
+		} catch (NoSuchAlgorithmException ex) {
+		}
+		STRONG_ENCRYPTION = strongEncryption;
 	}
 
 	/**
@@ -459,6 +472,19 @@ public class Asn1DerDecoder {
 			algorithm = version == 0 ? ED448 : ED448v2;
 		}
 		return algorithm;
+	}
+
+	/**
+	 * Checks, whether the JCE support strong encryption or not.
+	 * 
+	 * Checks for AES-256.
+	 * 
+	 * @return {@code true}, if strong encryption is available, {@code false},
+	 *         if not
+	 * @since 3.0
+	 */
+	public static boolean isStrongEncryption() {
+		return STRONG_ENCRYPTION;
 	}
 
 	/**
