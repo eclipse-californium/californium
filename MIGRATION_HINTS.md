@@ -25,6 +25,18 @@ Migrating [Eclipse/Hono](https://github.com/eclipse/hono) and [Eclipse/Leshan](h
 
 ## Noteworthy Behavior Changes
 
+## Experimental Bouncy Castle Support
+
+In order to use newer crypto function with java 7 and java 8 (e.g. on Android) first experimental steps in supporting Bouncy Castle (1.69, jdk15on) has been made. That may change the behavior, if Bouncy Castle is already used, because some adaption are applied in order to make it more functional.
+
+That uncovered a couple of differences just in order to make the unit test running. It is assumed, that more will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but they may be not processed.
+
+One issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
+
+An other issue is, that the function seems to depend on the combination of the OS (Unix, Windows, Android), the java version (7, 8, 11, 15, or 16), and the Bouncy Castle build (jdk15on or jdk15to18). It makes also a difference, if it's used by Scandium (DTLS) or by netty.io (TLS). For Scandium internal adaption is possible, for netty.io it must be requested there.
+
+With that, it gets very time consuming to test all combinations. Therefore, if you need a specific one, please test it on your own. If you consider, that some adaption is required, let us know by creating an issue.
+
 ### Element-Connector:
 
 `Bytes.equals(Object other)`:
