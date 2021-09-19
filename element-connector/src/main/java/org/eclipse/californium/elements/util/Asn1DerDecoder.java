@@ -15,7 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
@@ -37,6 +36,7 @@ import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
+import java.util.Properties;
 
 import javax.crypto.Cipher;
 
@@ -47,15 +47,36 @@ import org.slf4j.LoggerFactory;
  * ASN.1 DER decoder for SEQUENCEs and OIDs.
  * <p>
  * To support EdDSA, either java 15, or java 11 with
- * <a href="https://github.com/str4d/ed25519-java" target="_blank">ed25519-java</a> is required
- * at runtime. Using java 15 to build Californium, leaves out {@code ed25519-java}, using
- * java 11 for building, includes {@code ed25519-java} by default. If
- * {@code ed25519-java} should <b>NOT</b> be included into the Californium's
- * jars, add {@code -Dno.net.i2p.crypto.eddsa=true} to maven's arguments. In
- * that case, it's still possible to use {@code ed25519-java}, if the <a href=
- * "https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar" target="_blank">eddsa-0.3.0.jar</a>
- * is provided to the classpath separately.
- * </p>
+ * <a href="https://github.com/str4d/ed25519-java" target=
+ * "_blank">ed25519-java</a> is required at runtime. Using java 15 to build
+ * Californium, leaves out {@code ed25519-java}, using java 11 for building,
+ * includes {@code ed25519-java} by default. If {@code ed25519-java} should
+ * <b>NOT</b> be included into the Californium's jars, add
+ * {@code -Dno.net.i2p.crypto.eddsa=true} to maven's arguments. In that case,
+ * it's still possible to use {@code ed25519-java}, if the <a href=
+ * "https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar"
+ * target="_blank">eddsa-0.3.0.jar</a> is provided to the classpath separately.
+ * <p>
+ * With version 3.0 an experimental support for using Bouncy Castle (version
+ * 1.69) as JCE is available. On class startup, the default JCE is checked for
+ * providing EdDSA. If that fails, first Bouncy Castle is tested, and, if that
+ * fails as well, ed25519-java. Using Bouncy Castle will insert that provider as
+ * 1., while using ed25519-java will only apply for EdDSA.
+ * <p>
+ * If this JCE provider search should not be applied, please configure the
+ * environment variable "CALIFORNIUM_JCE_PROVIDER" with one of the values
+ * "SYSTEM" (keep to provides configured externally), "BC" (load and insert the
+ * Bouncy Castle provider), "ED" (load ed25519-java and use that for EdDSA).
+ * <p>
+ * Bouncy Castle seems to depend on the combination of the OS (Unix, Windows,
+ * Android), the java version (7, 8, 11, 15, or 16), and the Bouncy Castle build
+ * (jdk15on or jdk15to18). It makes also a difference, if it's used by Scandium
+ * (DTLS) or by netty.io (TLS). For Scandium internal adaption is possible, for
+ * netty.io it must be requested there.
+ * <p>
+ * With that, it gets very time consuming to test all combinations. Therefore,
+ * if you need a specific one, please test it on your own. If you consider, that
+ * some adaption is required, let us know by creating an issue.
  */
 public class Asn1DerDecoder {
 	/**
@@ -238,10 +259,18 @@ public class Asn1DerDecoder {
 	private static final byte[] OID_RSA_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01,
 			0x01, 0x01 };
 	/**
-	 * ASN.1 OID for DH public key.
+	 * ASN.1 OID for DH key agreement.
+	 * 
+	 * @since 3.0 (renamed, was OID_DH_PUBLIC_KEY)
 	 */
-	private static final byte[] OID_DH_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01,
+	private static final byte[] OID_DH_KEY_AGREEMENT = { 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01,
 			0x03, 0x01 };
+	/**
+	 * ASN.1 OID for DH public key.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] OID_DH_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0xCE, (byte) 0x3E, 0x02, 0x01 };
 	/**
 	 * ASN.1 OID for DSA public key.
 	 */
@@ -317,14 +346,14 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	private static final String[] ED25519_ALIASES = { ED25519, "1.3.101.112", OID_ED25519, EDDSA };
+	private static final String[] ED25519_ALIASES = { ED25519, "1.3.101.112", OID_ED25519, EDDSA, ED25519v2 };
 
 	/**
 	 * Alias algorithms for Ed448.
 	 * 
 	 * @since 3.0
 	 */
-	private static final String[] ED448_ALIASES = { ED448, "1.3.101.113", OID_ED448, EDDSA };
+	private static final String[] ED448_ALIASES = { ED448, "1.3.101.113", OID_ED448, EDDSA, ED448v2 };
 
 	/**
 	 * Table of algorithm aliases.
@@ -356,49 +385,99 @@ public class Asn1DerDecoder {
 	 * Package name for external java 7 EdDSA provider.
 	 */
 	private static final String NET_I2P_CRYPTO_EDDSA = "net.i2p.crypto.eddsa";
+	/**
+	 * Name of Bouncy Castle JCE provider.
+	 */
+	private static final String BOUNCY_CASTLE_PROVIDER = "org.bouncycastle.jce.provider.BouncyCastleProvider";
+	/**
+	 * Name of environment variable.
+	 * 
+	 * @since 3.0
+	 */
+	private static final String CALIFORNIUM_JCE_PROVIDER = "CALIFORNIUM_JCE_PROVIDER";
 
 	private static final Charset UCS_2;
 	private static final Charset UCS_4;
 	
 	static {
-		boolean ed25519 = false;
-		boolean ed448 = false;
+		boolean tryJce = true;
+		boolean tryBc = true;
+		boolean tryEd25519Java = true;
+		String jce = StringUtil.getConfiguration(CALIFORNIUM_JCE_PROVIDER);
+		if (jce != null && !jce.isEmpty()) {
+			if ("SYSTEM".equalsIgnoreCase(jce)) {
+				tryBc = false;
+				tryEd25519Java = false;
+			} else if ("BC".equalsIgnoreCase(jce)) {
+				tryJce = false;
+				tryEd25519Java = false;
+			} else if ("ED".equalsIgnoreCase(jce)) {
+				tryJce = false;
+				tryBc = false;
+			}
+		}
+		configureBC(Security.getProvider("BC"));
+		boolean found = false;
 		Provider provider = null;
 		try {
 			KeyFactory factory = KeyFactory.getInstance("EdDSA");
 			provider = factory.getProvider();
-			ed25519 = true;
-			ed448 = true;
-			LOGGER.trace("EdDSA from jvm {}", provider.getName());
+			if (tryJce) {
+				found = true;
+				LOGGER.trace("EdDSA from default jce {}", provider.getName());
+			}
 		} catch (NoSuchAlgorithmException e) {
-			Throwable cause = null;
-			try {
-				Class<?> clz = Class.forName(NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider");
-				if (clz != null) {
-					provider = (Provider) clz.getConstructor().newInstance();
-					Security.addProvider(provider);
-					ed25519 = true;
-					ed448 = false;
-					LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
+		}
+		if (!found && tryBc) {
+			if (provider != null && provider.getName().equals("BC")) {
+				found = true;
+				LOGGER.trace("EdDSA from BC");
+			} else {
+				provider = loadProvider(BOUNCY_CASTLE_PROVIDER);
+				if (provider != null) {
+					configureBC(provider);
+					try {
+						KeyFactory.getInstance("EdDSA", provider);
+						Security.removeProvider(provider.getName());
+						Security.insertProviderAt(provider, 1);
+						found = true;
+						LOGGER.trace("EdDSA from BC");
+					} catch (SecurityException e) {
+					} catch (NoSuchAlgorithmException e) {
+					}
 				}
-			} catch (ClassNotFoundException e2) {
-				cause = e2;
-			} catch (InstantiationException e2) {
-				cause = e2;
-			} catch (IllegalAccessException e2) {
-				cause = e2;
-			} catch (IllegalArgumentException e2) {
-				cause = e2;
-			} catch (InvocationTargetException e2) {
-				cause = e2;
-			} catch (NoSuchMethodException e2) {
-				cause = e2;
-			} catch (SecurityException e2) {
-				cause = e2;
 			}
-			if (provider == null) {
-				LOGGER.trace("{} is not available!", NET_I2P_CRYPTO_EDDSA, cause);
+		}
+		if (!found && tryEd25519Java) {
+			provider = loadProvider(NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider");
+			if (provider != null) {
+				try {
+					KeyFactory.getInstance("ED25519", provider);
+					Security.addProvider(provider);
+					found = true;
+					LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
+				} catch (SecurityException e) {
+				} catch (NoSuchAlgorithmException e) {
+				}
 			}
+		}
+		boolean ed25519 = false;
+		boolean ed448 = false;
+		if (!found) {
+			provider = null;
+			LOGGER.debug("EdDSA not supported!");
+		} else {
+			try {
+				KeyFactory.getInstance("ED25519", provider);
+				ed25519 = true;
+			} catch (NoSuchAlgorithmException e) {
+			}
+			try {
+				KeyFactory.getInstance("ED448", provider);
+				ed448 = true;
+			} catch (NoSuchAlgorithmException e) {
+			}
+			LOGGER.warn("EdDSA supported by {}, Ed25519: {}, Ed448: {}", provider.getName(), ed25519, ed448);
 		}
 		EDDSA_PROVIDER = provider;
 		ED25519_SUPPORT = ed25519;
@@ -422,6 +501,26 @@ public class Asn1DerDecoder {
 		} catch (NoSuchAlgorithmException ex) {
 		}
 		STRONG_ENCRYPTION = strongEncryption;
+	}
+
+	private static void configureBC(Provider provider ) {
+		if (provider instanceof Properties) {
+			// Bouncy Castle support
+			// add OIDs to KeyFactory
+			Properties properties = (Properties) provider;
+			properties.setProperty("Alg.Alias.KeyFactory.OID.1.3.101.112", "Ed25519");
+			properties.setProperty("Alg.Alias.KeyFactory.OID.1.3.101.113", "Ed448");
+		}
+	}
+
+	private static Provider loadProvider(String clzName) {
+		try {
+			Class<?> clz = Class.forName(clzName);
+			return (Provider) clz.getConstructor().newInstance();
+		} catch (Throwable e) {
+			LOGGER.debug("Loading {} failed!", clzName, e);
+			return null;
+		}
 	}
 
 	/**
@@ -465,6 +564,8 @@ public class Asn1DerDecoder {
 		} else if (Arrays.equals(oid, OID_DSA_PUBLIC_KEY)) {
 			algorithm = version == 0 ? DSA : null;
 		} else if (Arrays.equals(oid, OID_DH_PUBLIC_KEY)) {
+			algorithm = version == 0 ? DH : null;
+		} else if (Arrays.equals(oid, OID_DH_KEY_AGREEMENT)) {
 			algorithm = version == 0 ? DH : null;
 		} else if (Arrays.equals(oid, OID_ED25519_PUBLIC_KEY)) {
 			algorithm = version == 0 ? ED25519 : ED25519v2;
@@ -965,7 +1066,7 @@ public class Asn1DerDecoder {
 	 *         {@code false}, otherwise.
 	 */
 	public static boolean equalKeyAlgorithmSynonyms(String keyAlgorithm1, String keyAlgorithm2) {
-		if (keyAlgorithm1.equals(keyAlgorithm2)) {
+		if (keyAlgorithm1 != null && keyAlgorithm1.equals(keyAlgorithm2)) {
 			return true;
 		}
 		for (String[] aliases : ALGORITHM_ALIASES) {
