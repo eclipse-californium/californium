@@ -15,10 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.rule;
 
+import java.security.Provider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -187,6 +189,21 @@ public class ThreadsRule implements TestRule {
 					if (thread.isAlive()) {
 						++alive;
 						LOGGER.warn("Thread {} is still alive!", thread.getName());
+						if (LOGGER.isDebugEnabled()) {
+							StackTraceElement[] trace = thread.getStackTrace();
+							if (trace != null) {
+								for (int index = 0; index < trace.length; ++index) {
+									LOGGER.debug("   {}", trace[index]);
+								}
+							}
+						}
+					}
+				}
+				if (alive == 1) {
+					// bouncy castle hack - 1.69 uses a daemon thread for secure random ;-(.
+					Provider provider = Asn1DerDecoder.getEdDsaProvider();
+					if (provider != null && provider.getName().equals("BC")) {
+						alive = 0;
 					}
 				}
 				if (alive > 0) {
