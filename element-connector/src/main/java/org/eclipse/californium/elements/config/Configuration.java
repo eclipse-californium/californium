@@ -59,12 +59,44 @@ import org.slf4j.LoggerFactory;
  * provide application specific values.</li>
  * </ul>
  * <p>
- * If both, the file-based provider and the provider setter-API, provides values
- * for one configuration topic, the value of the setter has precedence over the
- * one from the file. CLI parameters may be passed in with that. For other
- * overwrites, please consider to document them in order to make it transparent
- * for users.
- * </p>
+ * In order to simplify the consumption by Californium itself, the data-model is
+ * kept (mostly) simple and usually already defines the defaults. That prevents
+ * to apply several different defaults when accessing them. If custom logic is
+ * required, please consider to {@link #setTransient(DocumentedDefinition)} such
+ * a value and replace it by a custom definition (with different name na
+ * detailed documentation!) It's then the responsibility of that custom code to
+ * determine the value for the original Californium configuration value and set
+ * that before passing the Configuration to Californium's functions.
+ * 
+ * <pre>
+ * <code>
+ * 	public static final TimeDefinition APPL_HEALTH_STATUS_INTERVAL = new TimeDefinition(
+ * 			"APPL_HEALTH_STATUS_INTERVAL", "Application Health status interval. 0 to disable the health status. Default depends on CLI parameter.");
+ *  ...
+ *  Configuration config = Configuration.getStandard();
+ *  config.setTransient(NetworkConfig.HEALTH_STATUS_INTERVAL);
+ *  config.set(APPL_HEALTH_STATUS_INTERVAL, null, TimeUnit.SECONDS);
+ *  ...
+ *  config.save();
+ *  config.load();
+ *  ...
+ *  Long time = config.get(APPL_HEALTH_STATUS_INTERVAL, TimeUnit.SECONDS);
+ *  if (time == null)  {
+ *    time = cli.healthInterval;
+ *  }
+ *  config.set(SystemConfig.HEALTH_STATUS_INTERVAL, time, TimeUnit.SECONDS);
+ *  ... 
+ * </code>
+ * </pre>
+ * 
+ * 
+ * <p>
+ * If both, the file-based provider and the setter-API, provides values for one
+ * configuration topic, the value of the setter has precedence over the one from
+ * the file. CLI parameters may be passed in with that. For other overwrites,
+ * please consider to document them in order to make it transparent for users.
+ * In cases, where the configuration value is always overwritten by a CLI
+ * parameter, consider to mark the value as transient.
  * <p>
  * Depending on the environment, the configuration is stored and loaded from
  * properties files. When missing, Californium will generated this properties
@@ -76,14 +108,12 @@ import org.slf4j.LoggerFactory;
  * provide specific values, such a file may be generate on a system, where files
  * are possible to write. Take that generated file as template, edit it
  * accordingly and then use it as "read-only" source.
- * </p>
  * <p>
- * <b>Note</b>: For Android it's recommended to use the AssetManager and pass in the
- * InputStream to the variants using that as parameter. Alternatively you may
- * chose to use the "WithoutFile" variant and, if required, adjust the defaults
- * in your code. If the "File" variants are used, ensure, that you have the
- * android-os-permission to do so.
- * </p>
+ * <b>Note</b>: For Android it's recommended to use the AssetManager and pass in
+ * the InputStream to the variants using that as parameter. Alternatively you
+ * may chose to use the "WithoutFile" variant and, if required, adjust the
+ * defaults in your code. If the "File" variants are used, ensure, that you have
+ * the android-os-permission to do so.
  * <p>
  * In order to use this {@link Configuration} with modules (sets of
  * {@link DocumentedDefinition}),
@@ -94,29 +124,26 @@ import org.slf4j.LoggerFactory;
  * order to ensure, that the modules are register in a early stage, a
  * application should call e.g. {@link SystemConfig#register()} of the used
  * modules at the begin. See {@link SystemConfig} as example.
- * </p>
  * <p>
  * Alternatively
  * {@link Configuration#Configuration(ModuleDefinitionsProvider...)} may be used
  * to provide the set of modules the {@link Configuration} is based of.
- * </p>
  * <p>
  * Especially if Californium is used with a set of applications instead of a
  * single one, ensure, that it's either clear, which file is used by which
  * application, or use the same modules for all files, regardless, if a specific
  * application of that set is using a module or not. The same applies, if single
  * values are marked with {@link #setTransient(DocumentedDefinition)}.
- * </p>
  * <p>
  * To access the values always using the original {@link DocumentedDefinition}s
  * of a module, e.g. {@link SystemConfig#HEALTH_STATUS_INTERVAL}.
- * </p>
+ * 
  * <pre>
  * <code>
  *  Configuration config = Configuration.getStandard();
- *  config.set(NetworkConfig.HEALTH_STATUS_INTERVAL, 30, TimeUnit.SECONDS);
+ *  config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 30, TimeUnit.SECONDS);
  *  ...
- *  long timeMillis = config.get(NetworkConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISSECONDS); 
+ *  long timeMillis = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS); 
  * </code>
  * </pre>
  * <p>
@@ -125,7 +152,6 @@ import org.slf4j.LoggerFactory;
  * returning {@code null}. The {@link DocumentedDefinition}s therefore offer
  * variants, where such a default could be provided, e.g.
  * {@link IntegerDefinition#IntegerDefinition(String, String, Integer)}.
- * </p>
  * <p>
  * For definitions a optional minimum value may be provided. That doesn't grant,
  * that the resulting configuration is proper, neither general nor for specific
@@ -133,7 +159,6 @@ import org.slf4j.LoggerFactory;
  * an issue in the
  * <a href="https://github.com/eclipse/californium" target="_blank">Californium
  * github repository</a>.
- * </p>
  * 
  * @see SystemConfig
  * @see TcpConfig
@@ -230,12 +255,14 @@ public final class Configuration {
 	 * 
 	 * @param modules available modules to add the module
 	 * @param definitionsProvider definitions provider of module
+	 * @return {@code true}, if module is added, {@code false}, if modules was
+	 *         already added.
 	 * @throws NullPointerException if any parameter is {@code null}
 	 * @throws IllegalArgumentException if the module name is {@code null} or
 	 *             empty or a different definitions provider is already
 	 *             registered with that module name.
 	 */
-	private static void addModule(ConcurrentMap<String, DefinitionsProvider> modules,
+	private static boolean addModule(ConcurrentMap<String, DefinitionsProvider> modules,
 			ModuleDefinitionsProvider definitionsProvider) {
 		if (modules == null) {
 			throw new NullPointerException("Modules must not be null!");
@@ -254,7 +281,7 @@ public final class Configuration {
 		if (previous != null && previous != definitionsProvider) {
 			throw new IllegalArgumentException("Module " + module + " already registered with different provider!");
 		}
-		LOGGER.info("add {}", module);
+		return previous == null;
 	}
 
 	/**
@@ -267,7 +294,9 @@ public final class Configuration {
 	 *             registered with that module name.
 	 */
 	public static void addDefaultModule(ModuleDefinitionsProvider definitionsProvider) {
-		addModule(DEFAULT_MODULES, definitionsProvider);
+		if (addModule(DEFAULT_MODULES, definitionsProvider)) {
+			LOGGER.info("defaults added {}", definitionsProvider.getModule());
+		}
 	}
 
 	/**
@@ -453,7 +482,9 @@ public final class Configuration {
 		this.definitions = new Definitions<>("Configuration");
 		this.modules = new ConcurrentHashMap<>();
 		for (ModuleDefinitionsProvider provider : providers) {
-			addModule(modules, provider);
+			if (addModule(modules, provider)) {
+				LOGGER.trace("added {}", provider.getModule());
+			}
 		}
 		applyModules();
 	}
@@ -492,7 +523,8 @@ public final class Configuration {
 	/**
 	 * Loads properties from a file.
 	 * 
-	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules or
+	 * custom definitions using a setter ahead.
 	 *
 	 * For Android, please use {@link Configuration#load(InputStream)}.
 	 * 
@@ -500,6 +532,10 @@ public final class Configuration {
 	 * @throws NullPointerException if the file is {@code null}.
 	 * @see #addDefaultModule(ModuleDefinitionsProvider)
 	 * @see #Configuration(ModuleDefinitionsProvider...)
+	 * @see #set(BasicDefinition, Object)
+	 * @see #set(TimeDefinition, int, TimeUnit)
+	 * @see #set(TimeDefinition, Long, TimeUnit)
+	 * @see #setFromText(DocumentedDefinition, String)
 	 */
 	public void load(final File file) {
 		if (file == null) {
@@ -517,7 +553,8 @@ public final class Configuration {
 	/**
 	 * Loads properties from a input stream.
 	 * 
-	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules or
+	 * custom definitions using a setter ahead.
 	 *
 	 * @param inStream the input stream
 	 * @throws NullPointerException if the inStream is {@code null}.
@@ -525,6 +562,10 @@ public final class Configuration {
 	 *             stream
 	 * @see #addDefaultModule(ModuleDefinitionsProvider)
 	 * @see #Configuration(ModuleDefinitionsProvider...)
+	 * @see #set(BasicDefinition, Object)
+	 * @see #set(TimeDefinition, int, TimeUnit)
+	 * @see #set(TimeDefinition, Long, TimeUnit)
+	 * @see #setFromText(DocumentedDefinition, String)
 	 */
 	public void load(final InputStream inStream) throws IOException {
 		if (inStream == null) {
@@ -538,13 +579,18 @@ public final class Configuration {
 	/**
 	 * Add properties.
 	 * 
-	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead.
-	 * Apply conversion defined by that {@link DocumentedDefinition}s.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules or
+	 * custom definitions using a setter ahead. Apply conversion defined by that
+	 * {@link DocumentedDefinition}s.
 	 * 
 	 * @param properties properties to convert and add
 	 * @throws NullPointerException if properties is {@code null}.
 	 * @see #addDefaultModule(ModuleDefinitionsProvider)
 	 * @see #Configuration(ModuleDefinitionsProvider...)
+	 * @see #set(BasicDefinition, Object)
+	 * @see #set(TimeDefinition, int, TimeUnit)
+	 * @see #set(TimeDefinition, Long, TimeUnit)
+	 * @see #setFromText(DocumentedDefinition, String)
 	 */
 	public void add(Properties properties) {
 		if (properties == null) {
@@ -570,16 +616,20 @@ public final class Configuration {
 	/**
 	 * Add dictionary.
 	 * 
-	 * Requires to add the {@link DocumentedDefinition}s of the modules ahead.
-	 * Apply conversion defined by that {@link DocumentedDefinition}s to String
-	 * entries. Entries of other types are added, if
-	 * {@link DocumentedDefinition#isAssignableFrom(Object)} returns
-	 * {@code true}.
+	 * Requires to add the {@link DocumentedDefinition}s of the modules or
+	 * custom definitions using a setter ahead. Apply conversion defined by that
+	 * {@link DocumentedDefinition}s to String entries. Entries of other types
+	 * are added, if {@link DocumentedDefinition#isAssignableFrom(Object)}
+	 * returns {@code true}.
 	 * 
 	 * @param dictionary dictionary to convert and add
 	 * @throws NullPointerException if dictionary is {@code null}.
 	 * @see #addDefaultModule(ModuleDefinitionsProvider)
 	 * @see #Configuration(ModuleDefinitionsProvider...)
+	 * @see #set(BasicDefinition, Object)
+	 * @see #set(TimeDefinition, int, TimeUnit)
+	 * @see #set(TimeDefinition, Long, TimeUnit)
+	 * @see #setFromText(DocumentedDefinition, String)
 	 */
 	public void add(Dictionary<String, ?> dictionary) {
 		if (dictionary == null) {
@@ -792,6 +842,13 @@ public final class Configuration {
 		return this;
 	}
 
+	/**
+	 * Get the textual configuration value of the definition.
+	 * 
+	 * @param <T> value type
+	 * @param definition the value definition
+	 * @return the configuration value of the definition
+	 */
 	public <T> String getAsText(DocumentedDefinition<T> definition) {
 		T value = getInternal(definition);
 		return definition.writeValue(value);
