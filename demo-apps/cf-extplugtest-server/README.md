@@ -141,7 +141,7 @@ Benchmark started.
 
 (Server Intel Pentium Silver J5005 , 16 GB RAM, Ubuntu 18.04)
 
-## Benchmarks - Graceful Shutdown
+## Benchmarks - DTLS Graceful Restart
 
 (3.0.0-M4)
 
