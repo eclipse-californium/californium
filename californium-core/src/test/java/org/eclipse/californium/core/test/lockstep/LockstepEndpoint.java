@@ -95,8 +95,11 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.assume.TimeAssume;
 import org.eclipse.californium.elements.config.Configuration;
 import org.junit.AssumptionViolatedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LockstepEndpoint {
+	private static final Logger LOGGER = LoggerFactory.getLogger(LockstepEndpoint.class);
 
 	private static boolean DEFAULT_VERBOSE = false;
 
@@ -157,7 +160,7 @@ public class LockstepEndpoint {
 
 	public void print(String text) {
 		if (verbose) {
-			System.out.println(text);
+			LOGGER.info("{}", text);
 		}
 	}
 

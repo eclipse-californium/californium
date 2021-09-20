@@ -58,6 +58,8 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Multicast unit test.
@@ -67,6 +69,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class MulticastTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MulticastTest.class);
 
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.NATIVE,
@@ -121,7 +124,7 @@ public class MulticastTest {
 				InetSocketAddress localAddress = exchange.advanced().getRequest().getLocalAddress();
 				String receiver = StringUtil.toString(localAddress.getAddress());
 				exchange.respond(ResponseCode.CONTENT, "Hello Multicast-World 1! " + receiver);
-				System.out.println("server 1 response");
+				LOGGER.debug("server 1 response");
 			}
 		});
 		server1.add(new CoapResource("no") {
@@ -130,9 +133,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.reject();
 				if (exchange.isMulticastRequest()) {
-					System.out.println("server 1 mc reject");
+					LOGGER.debug("server 1 mc reject");
 				} else {
-					System.out.println("server 1 reject");
+					LOGGER.debug("server 1 reject");
 				}
 			}
 		});
@@ -142,9 +145,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.NOT_FOUND);
 				if (exchange.isMulticastRequest()) {
-					System.out.println("server 1 mc error");
+					LOGGER.debug("server 1 mc error");
 				} else {
-					System.out.println("server 1 error");
+					LOGGER.debug("server 1 error");
 				}
 			}
 		});
@@ -167,7 +170,7 @@ public class MulticastTest {
 				InetSocketAddress localAddress = exchange.advanced().getRequest().getLocalAddress();
 				String receiver = StringUtil.toString(localAddress.getAddress());
 				exchange.respond(ResponseCode.CONTENT, "Hello Multicast-World 2! " + receiver);
-				System.out.println("server 2 response");
+				LOGGER.debug("server 2 response");
 			}
 		});
 		server2.add(new CoapResource("no") {
@@ -175,7 +178,7 @@ public class MulticastTest {
 			@Override
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.CONTENT, "no!");
-				System.out.println("server 2 no");
+				LOGGER.debug("server 2 no");
 			}
 		});
 		server2.add(new CoapResource("error") {
@@ -184,9 +187,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.NOT_FOUND);
 				if (exchange.isMulticastRequest()) {
-					System.out.println("server 2 mc error");
+					LOGGER.debug("server 2 mc error");
 				} else {
-					System.out.println("server 2 error");
+					LOGGER.debug("server 2 error");
 				}
 			}
 		});
@@ -218,10 +221,10 @@ public class MulticastTest {
 				String receiver = StringUtil.toString(localAddress.getAddress());
 				if (exchange.isMulticastRequest()) {
 					exchange.respond(ResponseCode.CONTENT, "Hello Multicast-Unicast-World! " + receiver);
-					System.out.println("server 3 mc-response");
+					LOGGER.debug("server 3 mc response");
 				} else {
 					exchange.respond(ResponseCode.CONTENT, "Hello Unicast-World! " + receiver);
-					System.out.println("server 3 response");
+					LOGGER.debug("server 3 response");
 				}
 			}
 		});
@@ -231,9 +234,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.reject();
 				if (exchange.isMulticastRequest()) {
-					System.out.println("server 3 mc reject");
+					LOGGER.debug("server 3 mc reject");
 				} else {
-					System.out.println("server 3 reject");
+					LOGGER.debug("server 3 reject");
 				}
 			}
 		});
@@ -243,9 +246,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.NOT_FOUND);
 				if (exchange.isMulticastRequest()) {
-					System.out.println("server 3 mc error");
+					LOGGER.debug("server 3 mc error");
 				} else {
-					System.out.println("server 3 error");
+					LOGGER.debug("server 3 error");
 				}
 			}
 		});
@@ -266,8 +269,8 @@ public class MulticastTest {
 		Request request = Request.newGet();
 		request.setURI(uri);
 		request.setType(Type.NON);
-		System.out.println("Multicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Multicast: {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -304,8 +307,8 @@ public class MulticastTest {
 		Request request = Request.newGet();
 		request.setURI(uri);
 		request.setType(Type.NON);
-		System.out.println("Multicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Multicast: {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -337,8 +340,8 @@ public class MulticastTest {
 		Request request = Request.newGet();
 		request.setURI(uri);
 		request.setType(Type.NON);
-		System.out.println("Multicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Multicast: {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -376,12 +379,12 @@ public class MulticastTest {
 		Request request = Request.newGet();
 		request.setURI(uri);
 		request.setType(Type.NON);
-		System.out.println("Unicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Unicast: {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		client.advanced(handler, request);
 		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
-		System.out.println(response.getResponseText());
+		LOGGER.info("{}", response.getResponseText());
 		assertThat(response.getResponseText(), is("Hello Unicast-World! " + receiver));
 		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
 		assertHealthCounter("send-rejects", is(0L));
@@ -408,8 +411,8 @@ public class MulticastTest {
 		Request request = Request.newGet();
 		request.setURI(uri);
 		request.setType(Type.NON);
-		System.out.println("Unicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Unicast: {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		client.advanced(handler, request);
 		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(nullValue()));
@@ -431,8 +434,8 @@ public class MulticastTest {
 		Request request = Request.newGet();
 		request.setURI(uri);
 		request.setType(Type.NON);
-		System.out.println("Multicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Multicast: {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -477,8 +480,8 @@ public class MulticastTest {
 		Request request = Request.newGet();
 		request.setURI(uri);
 		request.setType(Type.NON);
-		System.out.println("Unicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Unicast: : {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		client.advanced(handler, request);
 		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
@@ -501,8 +504,8 @@ public class MulticastTest {
 		Request request = Request.newGet();
 		request.setURI(uri);
 		request.setType(Type.NON);
-		System.out.println("Multicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Multicast: {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -542,8 +545,8 @@ public class MulticastTest {
 		request.setURI(uri);
 		request.setType(Type.NON);
 		request.getOptions().setNoResponse(NoResponseOption.SUPPRESS_SERVER_ERROR);
-		System.out.println("Multicast: " + uri);
-		System.out.println(Utils.prettyPrint(request));
+		LOGGER.info("Multicast: {}", uri);
+		LOGGER.info("\n{}", Utils.prettyPrint(request));
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();

@@ -32,6 +32,7 @@
 package org.eclipse.californium.core.test;
 
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -86,6 +87,7 @@ import org.slf4j.LoggerFactory;
  */
 @Category(Medium.class)
 public class MemoryLeakingHashMapTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -115,7 +117,6 @@ public class MemoryLeakingHashMapTest {
 	// The name of the resource of the server
 	private static final String URI = "test";
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class);
 	private static Endpoint serverEndpoint;
 
 	// The server endpoint that we test
@@ -144,8 +145,7 @@ public class MemoryLeakingHashMapTest {
 		try {
 			assertAllExchangesAreCompleted(network.getStandardTestConfig(), clientExchangeStore, serverExchangeStore, time);
 		} finally {
-			System.out.println(clientInterceptor.toString());
-			clientInterceptor.clear();
+			printServerLog(clientInterceptor);
 			clientExchangeStore.stop();
 			serverExchangeStore.stop();
 		}
@@ -339,7 +339,7 @@ public class MemoryLeakingHashMapTest {
 	public void testObserveReactive() throws Exception {
 
 		final String uri = uriOf(URI);
-		System.out.println("Test observe relation with a reactive cancelation to " + uri);
+		LOGGER.debug("Test observe relation with a reactive cancelation to {}", uri);
 
 		String currentResponseText = "Hello observer";
 		resource.setNotifies(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);

@@ -24,12 +24,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -39,6 +41,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class BlockOptionTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockOptionTest.class);
+
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
@@ -93,7 +97,6 @@ public class BlockOptionTest {
 	 */
 	@Test
 	public void testGetValue() {
-		System.out.println("Test getValue()");
 		assertArrayEquals(toBytes(0, false, 0), b());
 		assertArrayEquals(toBytes(0, false, 1), b(0x10));
 		assertArrayEquals(toBytes(0, false, 15), b(0xf0));
@@ -113,7 +116,6 @@ public class BlockOptionTest {
 	 */
 	@Test
 	public void testCombined() {
-		System.out.println("Test  setValue()");
 		testCombined(0, false, 0);
 		testCombined(0, false, 1);
 		testCombined(0, false, 15);
@@ -140,8 +142,8 @@ public class BlockOptionTest {
 		assertEquals("szx", block.getSzx(), copy.getSzx());
 		assertEquals("m", block.isM(), copy.isM());
 		assertEquals("num", block.getNum(), copy.getNum());
-		System.out.println(Utils.toHexString(block.getValue()) +" == " 
-			+ "(szx="+block.getSzx()+", m="+block.isM()+", num="+block.getNum()+")");
+		LOGGER.info("{} == (szx={}, m={}, num={})", StringUtil.byteArray2Hex(block.getValue()), block.getSzx(),
+				block.isM(), block.getNum());
 	}
 
 	/**
@@ -150,8 +152,7 @@ public class BlockOptionTest {
 	 */
 	private static byte[] toBytes(int szx, boolean m, int num) {
 		byte[] bytes = new BlockOption(szx, m, num).getValue();
-		 System.out.println("(szx="+szx+", m="+m+", num="+num+") => "
-				 + Utils.toHexString(bytes));
+		LOGGER.info("{} == (szx={}, m={}, num={})", StringUtil.byteArray2Hex(bytes), szx, m, num);
 		return bytes;
 	}
 
@@ -160,8 +161,9 @@ public class BlockOptionTest {
 	 */
 	private static byte[] b(int... a) {
 		byte[] ret = new byte[a.length];
-		for (int i = 0; i < a.length; i++)
+		for (int i = 0; i < a.length; i++) {
 			ret[i] = (byte) a[i];
+		}
 		return ret;
 	}
 }

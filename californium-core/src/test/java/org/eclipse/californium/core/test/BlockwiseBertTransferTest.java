@@ -18,6 +18,7 @@ package org.eclipse.californium.core.test;
 import static org.eclipse.californium.TestTools.LOCALHOST_EPHEMERAL;
 import static org.eclipse.californium.TestTools.generateRandomPayload;
 import static org.eclipse.californium.TestTools.getUri;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -51,6 +52,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This test tests the BERT blockwise transfer of requests and responses. Uses a
@@ -63,6 +66,7 @@ import org.junit.experimental.categories.Category;
 // because of pending BlockCleanupTask
 @Category(Medium.class)
 public class BlockwiseBertTransferTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseBertTransferTest.class);
 
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
@@ -132,7 +136,6 @@ public class BlockwiseBertTransferTest {
 
 	@Test
 	public void test_POST_long_long() throws Exception {
-		System.out.println("-- POST long long --");
 		executePOSTRequest();
 		// repeat test to check ongoing clean-up
 		executePOSTRequest();
@@ -140,7 +143,6 @@ public class BlockwiseBertTransferTest {
 
 	@Test
 	public void test_GET_long() throws Exception {
-		System.out.println("-- GET long --");
 		executeGETRequest();
 		// repeat test to check ongoing clean-up
 		executeGETRequest();
@@ -148,14 +150,12 @@ public class BlockwiseBertTransferTest {
 
 	@Test
 	public void test_GET_long_cancel() throws Exception {
-		System.out.println("-- GET long, cancel --");
 		executeGETRequest(true, false);
 
 	}
 
 	@Test
 	public void test_GET_long_M1() throws Exception {
-		System.out.println("-- GET long, accidently set M to 1 --");
 		executeGETRequest(false, true);
 	}
 
@@ -179,7 +179,7 @@ public class BlockwiseBertTransferTest {
 			final AtomicInteger counter = new AtomicInteger(0);
 			final Request request = Request.newGet();
 			String uri = getUri(serverEndpoint, RESOURCE_TEST);
-			System.out.println(uri);
+			LOGGER.info("{}", uri);
 			request.setURI(uri);
 			if (m) {
 				// set BLOCK 2 with wrong m
@@ -213,8 +213,8 @@ public class BlockwiseBertTransferTest {
 			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received payload [" + payload + "]" + System.lineSeparator()
-					+ interceptor.toString() + System.lineSeparator());
+			LOGGER.info("Client received payload [{}]", payload);
+			printServerLog(interceptor);
 		}
 	}
 
@@ -246,8 +246,8 @@ public class BlockwiseBertTransferTest {
 			assertEquals(getBertBlocks(LONG_POST_REQUEST) + getBertBlocks(LONG_POST_RESPONSE) - 1, counter.get());
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received payload [" + payload + "]" + System.lineSeparator()
-					+ interceptor.toString() + System.lineSeparator());
+			LOGGER.info("Client received payload [{}]", payload);
+			printServerLog(interceptor);
 		}
 	}
 
@@ -273,7 +273,7 @@ public class BlockwiseBertTransferTest {
 
 			@Override
 			public void handleGET(final CoapExchange exchange) {
-				System.out.println("Server received GET request");
+				LOGGER.info("Server received GET request");
 				applicationLayerGetRequestCount.incrementAndGet();
 				exchange.respond(LONG_GET_RESPONSE);
 			}
@@ -281,7 +281,7 @@ public class BlockwiseBertTransferTest {
 			@Override
 			public void handlePOST(final CoapExchange exchange) {
 				String payload = exchange.getRequestText();
-				System.out.println("Server received " + payload);
+				LOGGER.info("Server received {}", payload);
 				assertEquals(payload, LONG_POST_REQUEST);
 				exchange.respond(LONG_POST_RESPONSE);
 			}
@@ -295,7 +295,7 @@ public class BlockwiseBertTransferTest {
 		});
 
 		result.start();
-		System.out.println("serverPort: " + serverEndpoint.getAddress().getPort());
+		LOGGER.info("serverPort: {}", serverEndpoint.getAddress().getPort());
 		return result;
 	}
 

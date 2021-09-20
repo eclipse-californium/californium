@@ -79,6 +79,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -87,6 +89,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class BlockwiseServerSideTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseServerSideTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -146,7 +149,7 @@ public class BlockwiseServerSideTest {
 		server.start();
 		cleanup.add(server);
 		InetSocketAddress serverAddress = serverEndpoint.getAddress();
-		System.out.println("Server binds to port " + serverAddress.getPort());
+		LOGGER.info("Server binds to port {}", serverAddress.getPort());
 		client = createLockstepEndpoint(serverAddress, config);
 		cleanup.add(client);
 	}
@@ -189,7 +192,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testGETWithETag() throws Exception {
-		System.out.println("Simple blockwise GET:");
 		respPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 		etag = new byte[]{ 0x00, 0x01 };
@@ -229,7 +231,6 @@ public class BlockwiseServerSideTest {
 	@Test
 	public void testGETEarlyNegotiation() throws Exception {
 
-		System.out.println("Blockwise GET with early negotiation");
 		respPayload = generateRandomPayload(76); // smaller than MAX MESSAGE SIZE
 		Token tok = generateNextToken();
 
@@ -269,7 +270,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testGETLateNegotiation() throws Exception {
-		System.out.println("Blockwise GET with late negotiation:");
 		respPayload = generateRandomPayload(170);
 		Token tok = generateNextToken();
 
@@ -283,7 +283,6 @@ public class BlockwiseServerSideTest {
 
 	@Test
 	public void testGETLateNegotiationInTheMiddle() throws Exception {
-		System.out.println("Blockwise GET with late negotiation in the middle:");
 		respPayload = generateRandomPayload(400);
 		Token tok = generateNextToken();
 
@@ -333,7 +332,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testGETLateNegotiationLostACK() throws Exception {
-		System.out.println("Blockwise GET with late negotiation and lost ACK:");
 		respPayload = generateRandomPayload(220);
 		Token tok = generateNextToken();
 
@@ -372,7 +370,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testIncompleteGET() throws Exception {
-		System.out.println("Incomplete blockwise GET:");
 		time.setFixedTestTime(true);
 		respPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
@@ -424,7 +421,6 @@ public class BlockwiseServerSideTest {
 	@Test
 	public void testIncompletePUT() throws Exception {
 
-		System.out.println("Incomplete blockwise PUT:");
 		time.setFixedTestTime(true);
 		reqtPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
@@ -482,8 +478,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void test2ConsecutiveCompletePUT() throws Exception {
-
-		System.out.println("2 consecutive complete PUT with block1 transfer:");
 
 		TimeAssume assume = new TimeAssume(time);
 		reqtPayload = generateRandomPayload(300);
@@ -557,7 +551,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testSimpleAtomicBlockwisePUT() throws Exception {
-		System.out.println("Simple atomic blockwise PUT");
 		respPayload = generateRandomPayload(50);
 		reqtPayload = generateRandomPayload(300);
 
@@ -577,7 +570,6 @@ public class BlockwiseServerSideTest {
 
 	@Test
 	public void testSimpleAtomicBlockwisePUTWithLostAck() throws Exception {
-		System.out.println("Simple atomic blockwise PUT with lost ACK");
 		respPayload = generateRandomPayload(50);
 		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
@@ -599,7 +591,6 @@ public class BlockwiseServerSideTest {
 
 	@Test
 	public void testSimpleAtomicBlockwisePUTWithRestartOfTransfer() throws Exception {
-		System.out.println("Simple atomic blockwise PUT restart of the blockwise transfer");
 		respPayload = generateRandomPayload(50);
 		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
@@ -630,8 +621,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testPUTFailsWith413IfBodyExceedsMaxBodySize() throws Exception {
-
-		System.out.println("Blockwise PUT fails for excessive body size");
 		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(MAX_RESOURCE_BODY_SIZE + 10);
 
@@ -646,8 +635,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testPUTFailsWith408OnIncompleteTransfer() throws Exception {
-
-		System.out.println("Blockwise PUT fails for incomplete transfer");
 		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
 
@@ -695,7 +682,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testAtomicBlockwisePOSTWithBlockwiseResponse() throws Exception {
-		System.out.println("Atomic blockwise POST with blockwise response:");
 		respPayload = generateRandomPayload(500);
 		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
@@ -727,7 +713,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testAtomicBlockwisePOSTWithBlockwiseResponseLateNegotiation() throws Exception {
-		System.out.println("Atomic blockwise POST with blockwise response using late negotiation:");
 		respPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
@@ -789,7 +774,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testAtomicBlockwisePOSTWithBlockwiseResponseEarlyNegotiation() throws Exception {
-		System.out.println("Atomic blockwise POST with blockwise response using early negotiation:");
 		respPayload = generateRandomPayload(250);
 		Token tok = generateNextToken();
 		reqtPayload = generateRandomPayload(300);
@@ -835,10 +819,8 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testInterruptBlock2WithNewBlock2GET() throws Exception {
-		System.out.println("Block2 interrupted by new block2:");
 		respPayload = generateRandomPayload(386);
 		Token tok = generateNextToken();
-		System.out.println("Begin block2 exchange on " + RESOURCE_PATH);
 
 		// begin block2 transfer
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
@@ -868,7 +850,6 @@ public class BlockwiseServerSideTest {
 	 */
 	@Test
 	public void testRandomAccessPUTAttemp() throws Exception {
-		System.out.println("Random access PUT attempt: (try to put block 2 first is now allowed)");
 		respPayload = generateRandomPayload(50);
 		reqtPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
@@ -879,7 +860,6 @@ public class BlockwiseServerSideTest {
 
 	@Test
 	public void testRandomAccessGET() throws Exception {
-		System.out.println("Random access GET: (only access block 2 and 4 of response)");
 		respPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
@@ -892,7 +872,6 @@ public class BlockwiseServerSideTest {
 
 	@Test
 	public void testObserveWithBlockwiseResponse() throws Exception {
-		System.out.println("Observe sequence with blockwise response:");
 		respPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
@@ -908,7 +887,6 @@ public class BlockwiseServerSideTest {
 		 * token looks like a random access GET request to the server. There is
 		 * no way for the server to differentiate these cases.
 		 */
-		System.out.println("Establish observe relation to " + RESOURCE_PATH);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length()).storeObserve("O1").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
@@ -921,7 +899,6 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok1, mid).block2(2, false, 128).noOption(OBSERVE).payload(respPayload.substring(256, 300)).go();
 
 		serverInterceptor.logNewLine("... time passes ...");
-		System.out.println("Send first notification");
 		respPayload = generateRandomPayload(280);
 		testResource.changed();
 
@@ -936,7 +913,6 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).block2(2, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 128).noOption(OBSERVE).payload(respPayload.substring(256, 280)).go();
 
-		System.out.println("Send second notification");
 		serverInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(290);
 		testResource.changed();
@@ -957,10 +933,8 @@ public class BlockwiseServerSideTest {
 
 	@Test
 	public void testObserveWithBlockwiseResponseEarlyNegotiation() throws Exception {
-		System.out.println("Observe sequence with early negotiation:");
 		respPayload = generateRandomPayload(150);
 		Token tok = generateNextToken();
-		System.out.println("Establish observe relation to " + RESOURCE_PATH);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).block2(0, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).storeObserve("O1").size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
@@ -971,7 +945,6 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(2, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 64).noOption(OBSERVE).payload(respPayload.substring(128, 150)).go();
 
-		System.out.println("Send first notification");
 		serverInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(140);
 		testResource.changed(); // First notification
@@ -987,7 +960,6 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, GET, tok2, ++mid).path(RESOURCE_PATH).block2(2, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok2, mid).block2(2, false, 64).noOption(OBSERVE).payload(respPayload.substring(128, 140)).go();
 
-		System.out.println("Send second notification");
 		serverInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(145);
 		testResource.changed(); // Second notification
