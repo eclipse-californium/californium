@@ -51,12 +51,15 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This test checks for correct MID namespaces and deduplication.
  */
 @Category(Medium.class)
 public class ResponseRetransmissionTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ResponseRetransmissionTest.class);
 
 	private static final String PIGGYBACKED = "ack";
 	private static final String SEPARATE = "con";
@@ -108,7 +111,7 @@ public class ResponseRetransmissionTest {
 
 		client = createLockstepEndpoint(serverEndpoint.getAddress(), config);
 		cleanup.add(client);
-		System.out.println("Server binds to port " + serverEndpoint.getAddress().getPort());
+		LOGGER.info("Server binds to port {}", serverEndpoint.getAddress().getPort());
 	}
 
 	@After

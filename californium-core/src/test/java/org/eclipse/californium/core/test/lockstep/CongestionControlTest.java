@@ -49,6 +49,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test cases verifying the client side behavior of the examples from
@@ -56,6 +58,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class CongestionControlTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(CongestionControlTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -107,7 +110,7 @@ public class CongestionControlTest {
 		cleanup.add(client);
 		client.addInterceptor(clientInterceptor);
 		client.start();
-		System.out.println("Client binds to port " + client.getAddress().getPort());
+		LOGGER.info("Client binds to port {}", client.getAddress().getPort());
 		server = createLockstepEndpoint(client.getAddress(), config);
 		cleanup.add(server);
 	}

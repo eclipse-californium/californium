@@ -20,8 +20,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CountingMessageObserver extends MessageObserverAdapter {
+	private static final Logger LOGGER = LoggerFactory.getLogger(CountingMessageObserver.class);
 
 	public AtomicInteger cancelCalls = new AtomicInteger();
 	public AtomicInteger sentCalls = new AtomicInteger();
@@ -36,7 +39,7 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 			counter = sentCalls.incrementAndGet();
 			notifyAll();
 		}
-		System.out.println(counter + " messages sent!");
+		LOGGER.info("{} messages sent!", counter);
 	}
 
 	@Override
@@ -46,7 +49,7 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 			counter = cancelCalls.incrementAndGet();
 			notifyAll();
 		}
-		System.out.println(counter + " messages cancelled!");
+		LOGGER.info("{} messages cancelled!", counter);
 	}
 
 	@Override
@@ -56,7 +59,7 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 			counter = loadCalls.incrementAndGet();
 			notifyAll();
 		}
-		System.out.println("Received " + counter + ". Notification: " + response);
+		LOGGER.info("Received {}. Notification: {}", counter, response);
 	}
 
 	@Override
@@ -66,7 +69,7 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 			counter = errorCalls.incrementAndGet();
 			notifyAll();
 		}
-		System.out.println(counter + " Errors!");
+		LOGGER.info("{} errors!", counter);
 	}
 
 	@Override
@@ -76,7 +79,7 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 			counter = responseErrorCalls.incrementAndGet();
 			notifyAll();
 		}
-		System.out.println(counter + " Response-Errors!");
+		LOGGER.info("{} error-responses!", counter);
 	}
 
 	public boolean waitForSentCalls(final int counter, final long timeout, final TimeUnit unit)

@@ -78,6 +78,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests for server side observes.
@@ -89,6 +91,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class ObserveServerSideTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ObserveServerSideTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -140,7 +143,7 @@ public class ObserveServerSideTest {
 		serverEndpoint.addInterceptor(serverInterceptor);
 		server.start();
 		serverAddress = serverEndpoint.getAddress();
-		System.out.println("Server binds to port " + serverAddress.getPort());
+		LOGGER.info("Server binds to port {}", serverAddress.getPort());
 	}
 
 	@Before
@@ -165,7 +168,6 @@ public class ObserveServerSideTest {
 	@Test
 	public void testEstablishmentAndTimeout() throws Exception {
 
-		System.out.println("Establish an observe relation. Cancellation after timeout");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -212,7 +214,6 @@ public class ObserveServerSideTest {
 
 	@Test
 	public void testEstablishmentAndTimeoutWithUpdateInMiddle() throws Exception {
-		System.out.println("Establish an observe relation. Cancellation after timeout. During the timeouts, the resource still changes.");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -249,7 +250,6 @@ public class ObserveServerSideTest {
 
 	@Test
 	public void testEstablishmentAndRejectCancellation() throws Exception {
-		System.out.println("Establish an observe relation. Cancellation due to a reject from the client");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -274,7 +274,6 @@ public class ObserveServerSideTest {
 	@Test
 	public void testEstablishmentWithRestransmission() throws Exception {
 
-		System.out.println("Establish an observe relation resending the request.");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -292,7 +291,6 @@ public class ObserveServerSideTest {
 
 	@Test
 	public void testEstablishmentWithRestransmissionAndSeparateResponse() throws Exception {
-		System.out.println("Establish an observe relation resending the request.");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 		testObsResource.setSeparateResponse(true);
@@ -327,7 +325,6 @@ public class ObserveServerSideTest {
 
 	@Test
 	public void testObserveWithBlock() throws Exception {
-		System.out.println("Observe with blockwise");
 		respPayload = generateRandomPayload(80);
 		Token tok = generateNextToken();
 
@@ -374,7 +371,6 @@ public class ObserveServerSideTest {
 	@Test
 	public void testNON() throws Exception {
 
-		System.out.println("Establish an observe relation and receive NON notifications");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -408,7 +404,6 @@ public class ObserveServerSideTest {
 	@Test
 	public void testRejectPreviousNON() throws Exception {
 
-		System.out.println("Establish an observe relation and receive NON notifications");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -436,7 +431,6 @@ public class ObserveServerSideTest {
 	@Test
 	public void testNONWithBlock() throws Exception {
 
-		System.out.println("Establish an observe relation and receive NON notifications");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -477,7 +471,6 @@ public class ObserveServerSideTest {
 
 	@Test
 	public void testQuickChangeAndTimeout() throws Exception {
-		System.out.println("Establish an observe relation to a quickly changing resource and do no longer respond");
 		respPayload = generateRandomPayload(20);
 		Token tok = generateNextToken();
 
@@ -526,7 +519,6 @@ public class ObserveServerSideTest {
 	 */
 	@Test
 	public void testIncompleteBlock2Notification() throws Exception {
-		System.out.println("Observe with blockwise");
 		respPayload = generateRandomPayload(32);
 		Token tok = generateNextToken();
 
@@ -555,7 +547,6 @@ public class ObserveServerSideTest {
 	@Test
 	public void testFailedToSendNonNotification() throws Exception {
 
-		System.out.println("Establish an observe relation and failed to send NON notification");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -592,7 +583,6 @@ public class ObserveServerSideTest {
 	@Test
 	public void testRejectAfterFailedToSendNonNotification() throws Exception {
 
-		System.out.println("Establish an observe relation and failed to send NON notification");
 		respPayload = generateRandomPayload(30);
 		Token tok = generateNextToken();
 
@@ -661,7 +651,7 @@ public class ObserveServerSideTest {
 		}
 
 		public void change(final String newPayload) {
-			System.out.println("Resource body changed to: [" + newPayload + "]");
+			LOGGER.info("Resource body changed to: [{}]",  newPayload);
 			respPayload = newPayload;
 			changed();
 		}

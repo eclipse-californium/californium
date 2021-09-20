@@ -34,12 +34,16 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.config.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Common functionality for integration tests.
  *
  */
 public final class IntegrationTestTools {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(IntegrationTestTools.class);
 
 	private static int currentToken = 10;
 
@@ -92,7 +96,9 @@ public final class IntegrationTestTools {
 	}
 
 	public static void printServerLog(BlockwiseInterceptor interceptor) {
-		System.out.println(interceptor.toString());
+		if (LOGGER.isInfoEnabled()) {
+			System.out.println(interceptor.toString());
+		}
 		interceptor.clear();
 	}
 

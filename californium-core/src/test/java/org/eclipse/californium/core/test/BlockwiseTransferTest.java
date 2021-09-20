@@ -25,6 +25,7 @@ package org.eclipse.californium.core.test;
 import static org.eclipse.californium.TestTools.LOCALHOST_EPHEMERAL;
 import static org.eclipse.californium.TestTools.generateRandomPayload;
 import static org.eclipse.californium.TestTools.getUri;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -58,6 +59,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This test tests the blockwise transfer of requests and responses. This test
@@ -69,6 +72,7 @@ import org.junit.experimental.categories.Category;
 // because of pending BlockCleanupTask
 @Category(Medium.class)
 public class BlockwiseTransferTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseTransferTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -157,25 +161,21 @@ public class BlockwiseTransferTest {
 
 	@Test
 	public void test_POST_short_short() throws Exception {
-		System.out.println("-- POST short short --");
 		executePOSTRequest(true, true);
 	}
 
 	@Test
 	public void test_POST_long_short() throws Exception {
-		System.out.println("-- POST long short --");
 		executePOSTRequest(false, true);
 	}
 
 	@Test
 	public void test_POST_short_long() throws Exception {
-		System.out.println("-- POST short long --");
 		executePOSTRequest(true, false);
 	}
 
 	@Test
 	public void test_POST_long_long() throws Exception {
-		System.out.println("-- POST long long --");
 		executePOSTRequest(false, false);
 		// repeat test to check ongoing clean-up
 		executePOSTRequest(false, false);
@@ -183,13 +183,11 @@ public class BlockwiseTransferTest {
 
 	@Test
 	public void test_GET_short() throws Exception {
-		System.out.println("-- GET short --");
 		executeGETRequest(true);
 	}
 
 	@Test
 	public void test_GET_long() throws Exception {
-		System.out.println("-- GET long --");
 		executeGETRequest(false);
 		// repeat test to check ongoing clean-up
 		executeGETRequest(false);
@@ -197,13 +195,11 @@ public class BlockwiseTransferTest {
 
 	@Test
 	public void test_GET_long_cancel() throws Exception {
-		System.out.println("-- GET long, cancel --");
 		executeGETRequest(false, true, false);
 
 	}
 	@Test
 	public void test_GETlong_M1() throws Exception {
-		System.out.println("-- GET long, accidently set M to 1 --");
 		executeGETRequest(false, false, true);
 	}
 
@@ -264,7 +260,7 @@ public class BlockwiseTransferTest {
 		
 		assertEquals("Application layer did not receive two requests", 2, applicationLayerGetRequestCount.get());
 	}
-	
+
 	private void testGetRequestWithEarlyNegotiation(final boolean strictBlock2, String uriQueryResponseType) throws InterruptedException {
 
 		final Endpoint targetEndpoint = strictBlock2 ? serverEndpointStrictBlock2Option : serverEndpoint;
@@ -278,10 +274,10 @@ public class BlockwiseTransferTest {
 
 		// receive response and check
 		Response response = req.waitForResponse(1000);
-		
+
 		//ensure there is a response from the server
 		assertNotNull("No response received", response);
-		
+
 		BlockOption block2 = response.getOptions().getBlock2();
 
 		if (strictBlock2) {
@@ -306,7 +302,7 @@ public class BlockwiseTransferTest {
 			final AtomicInteger counter = new AtomicInteger(0);
 			final Request request = Request.newGet();
 			String uri = getUri(serverEndpoint, RESOURCE_TEST);
-			System.out.println(uri);
+			LOGGER.info("{}", uri);
 			request.setURI(uri);
 			if (m) {
 				// set BLOCK 2 with wrong m
@@ -344,8 +340,8 @@ public class BlockwiseTransferTest {
 			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received payload [" + payload + "]" + System.lineSeparator()
-				+ interceptor.toString() + System.lineSeparator());
+			LOGGER.info("Client received payload [{}]", payload);
+			printServerLog(interceptor);
 		}
 	}
 
@@ -378,8 +374,8 @@ public class BlockwiseTransferTest {
 			}
 		} finally {
 			Thread.sleep(100); // Quickly wait until last ACKs arrive
-			System.out.println("Client received payload [" + payload + "]" + System.lineSeparator()
-				+ interceptor.toString() + System.lineSeparator());
+			LOGGER.info("Client received payload [{}]", payload);
+			printServerLog(interceptor);
 		}
 	}
 
@@ -419,7 +415,7 @@ public class BlockwiseTransferTest {
 
 			@Override
 			public void handleGET(final CoapExchange exchange) {
-				System.out.println("Server received GET request");
+				LOGGER.info("Server received GET request");
 				applicationLayerGetRequestCount.incrementAndGet();
 				if (isShortResponseRequested(exchange)) {
 					
@@ -436,7 +432,7 @@ public class BlockwiseTransferTest {
 			@Override
 			public void handlePOST(final CoapExchange exchange) {
 				String payload = exchange.getRequestText();
-				System.out.println("Server received " + payload);
+				LOGGER.info("Server received {}", payload);
 				if (isShortRequest(exchange)) {
 					assertEquals(payload, SHORT_POST_REQUEST);
 				} else {
@@ -459,7 +455,7 @@ public class BlockwiseTransferTest {
 		});
 
 		result.start();
-		System.out.println("serverPort: " + serverEndpoint.getAddress().getPort());
+		LOGGER.info("serverPort: {}", serverEndpoint.getAddress().getPort());
 		return result;
 	}
 

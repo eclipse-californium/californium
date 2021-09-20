@@ -44,6 +44,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Verifies behavior of {@code InMemoryMessageIdProvider}.
@@ -51,6 +53,8 @@ import org.junit.rules.ExpectedException;
  */
 @Category(Small.class)
 public class InMemoryMessageIdProviderTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryMessageIdProviderTest.class);
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -111,7 +115,7 @@ public class InMemoryMessageIdProviderTest {
 			try {
 				provider.getNextMessageId(peerAddress);
 			} catch (IllegalStateException ex) {
-				System.out.println(ex.getMessage());
+				LOGGER.info("{}", ex.getMessage());
 				throw ex;
 			}
 		}
@@ -143,7 +147,7 @@ public class InMemoryMessageIdProviderTest {
 		try {
 			provider.getNextMessageId(getPeerAddress(MAX_PEERS + 1));
 		} catch (IllegalStateException ex) {
-			System.out.println(ex.getMessage());
+			LOGGER.info("{}", ex.getMessage());
 			throw ex;
 		}
 	}

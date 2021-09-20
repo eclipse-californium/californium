@@ -24,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
@@ -52,6 +53,8 @@ import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.IntendedTestException;
 import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test tools for MessageExchangeStore.
@@ -59,6 +62,7 @@ import org.eclipse.californium.elements.util.TestConditionTools;
  * Dumps exchanges, if MessageExchangeStore is not finally empty.
  */
 public class MessageExchangeStoreTool {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MessageExchangeStoreTool.class);
 
 	/**
 	 * Assert, that all exchanges in both stores are empty.
@@ -127,7 +131,7 @@ public class MessageExchangeStoreTool {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
-				System.out.println("check empty " + System.currentTimeMillis());
+				LOGGER.info("check empty {}", new Date());
 				return endpoint.isEmpty() && endpoint.getRequestChecker().allRequestsTerminated();
 			}
 		});
@@ -140,7 +144,7 @@ public class MessageExchangeStoreTool {
 			TestCondition check) {
 		try {
 			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
-			System.out.println("Wait until deduplicator should be empty (" + timeToWait / 1000f + " seconds)");
+			LOGGER.info("Wait until deduplicator should be empty ({} seconds)", timeToWait / 1000f);
 			TestConditionTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();

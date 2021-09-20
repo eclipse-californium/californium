@@ -23,8 +23,11 @@ import java.util.List;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.observe.NotificationListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SynchronousNotificationListener implements NotificationListener {
+	private static final Logger LOGGER = LoggerFactory.getLogger(SynchronousNotificationListener.class);
 
 	private final Request request; // request to listen
 	private Response response;
@@ -86,29 +89,28 @@ public class SynchronousNotificationListener implements NotificationListener {
 		synchronized (lock) {
 			if (notifies.isEmpty()) {
 				if (request == null) {
-					System.out.println("No notify received.");
+					LOGGER.info("No notify received.");
 				} else {
-					System.out.println("No notify received for " + request);
+					LOGGER.info("No notify received for {}", request);
 				}
 				return;
 			}
 			if (notifies.size() == 1) {
 				if (request == null) {
-					System.out.println("Notify received. " + notifies.get(0));
+					LOGGER.info("Notify received. {}", notifies.get(0));
 				} else {
-					System.out.println("Notify received for " + request);
-					System.out.println("   " + notifies.get(0));
+					LOGGER.info("Notify received for {}\n{}", request, notifies.get(0));
 				}
 				return;
 			}
 			int counter = 1;
 			if (request == null) {
-				System.out.println(notifies.size() + " Notifies received.");
+				LOGGER.info("{} Notifies received.", notifies.size());
 			} else {
-				System.out.println(notifies.size() + " Notifies received for " + request);
+				LOGGER.info("{} Notifies received for {}.", notifies.size(), request);
 			}
 			for (Response resp : notifies) {
-				System.out.println("[" + counter + "]: " + resp);
+				LOGGER.info("[{}]: {}", counter, resp);
 				++counter;
 			}
 		}

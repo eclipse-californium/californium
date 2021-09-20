@@ -81,6 +81,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test cases verifying the client side behavior of the examples from
@@ -88,6 +90,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class BlockwiseClientSideTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseClientSideTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -139,7 +142,7 @@ public class BlockwiseClientSideTest {
 		cleanup.add(client);
 		client.addInterceptor(clientInterceptor);
 		client.start();
-		System.out.println("Client binds to port " + client.getAddress().getPort());
+		LOGGER.info("Client binds to port {}", client.getAddress().getPort());
 		server = createLockstepEndpoint(client.getAddress(), config);
 		cleanup.add(server);
 	}
@@ -198,8 +201,7 @@ public class BlockwiseClientSideTest {
 	 * @throws Exception if the test fails.
 	 */
 	@Test
-	public void testGET() throws Exception {
-		System.out.println("Simple blockwise GET:");
+	public void testSimpleGET() throws Exception {
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 		byte[] etag = new byte[]{ 0x00, 0x01 };
@@ -247,8 +249,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void test2ConsecutiveCompleteGET() throws Exception {
-
-		System.out.println("2 consecutive complete GET with block2 transfers:");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -328,7 +328,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testGETEarlyNegotiation() throws Exception {
-		System.out.println("Blockwise GET with early negotiation:");
 		respPayload = generateRandomPayload(170);
 		String path = "test";
 
@@ -352,7 +351,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testLateNegotiationInTheMiddle() throws Exception {
-		System.out.println("Blockwise PUT with late negotiation in the middle");
 		reqtPayload = generateRandomPayload(290);
 		String path = "test";
 
@@ -405,7 +403,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testGETLateNegotiationAndLostACK() throws Exception {
 
-		System.out.println("Blockwise GET with late negotiation and lost ACK:");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -457,7 +454,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testGETWithDisorderedResponses() throws Exception {
-		System.out.println("Blockwise GET with responses disordered:");
 		respPayload = generateRandomPayload(170);
 		String path = "test";
 
@@ -494,7 +490,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testPUTFailsWith413IfBodyExceedsMaxBodySize() throws Exception {
 
-		System.out.println("Blockwise PUT fails for excessive body size");
 		reqtPayload = generateRandomPayload(MAX_RESOURCE_BODY_SIZE + 10);
 		String path = "test";
 
@@ -521,7 +516,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testBlockwisePUTWithBegining413AndSmallerSZX() throws Exception {
 
-		System.out.println("Block1 with  REQUEST_ENTITY_TOO_LARGE negotiation");
 		reqtPayload = generateRandomPayload(128 + 10);
 		String path = "test";
 
@@ -554,7 +548,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testPUTWithBeginning413WithSize1TurnInBlockPUT() throws Exception {
 
-		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller size1 turn PUT in blockwise transfer");
 		reqtPayload = generateRandomPayload(128);
 		String path = "test";
 
@@ -585,7 +578,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testPUTWithBeginning413WithoutOptionTurnInBlockPUT() throws Exception {
 
-		System.out.println("REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer");
 		reqtPayload = generateRandomPayload(128);
 		String path = "test";
 
@@ -616,7 +608,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testPUTWithBegining413WithoutOptionTurnInBlockPUTWith413Again() throws Exception {
 
-		System.out.println("REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer, then REQUEST_ENTITY_TOO_LARGE again");
 		reqtPayload = generateRandomPayload(128);
 		String path = "test";
 
@@ -646,8 +637,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testPUTWithBegining413WithoutOptionTurnInBlockPUTWith413BlockSizeNegotiation() throws Exception {
 
-		System.out.println(
-				"REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer, then REQUEST_ENTITY_TOO_LARGE with block size negotiation");
 		reqtPayload = generateRandomPayload(128);
 		String path = "test";
 
@@ -684,7 +673,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testPUTWithBegining413AndSmallerSZXTurnInBlockPUT() throws Exception {
 
-		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size turn PUT in blockwise transfer");
 		reqtPayload = generateRandomPayload(128);
 		String path = "test";
 
@@ -714,7 +702,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testBlockwisePUTWithMiddle413AndSmallerSZX() throws Exception {
 
-		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size received in the middle of block1");
 		reqtPayload = generateRandomPayload(260);
 		String path = "test";
 
@@ -743,7 +730,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testBlockwisePUTWithEnding413AndSmallerSZX() throws Exception {
 
-		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size received in the middle of block1");
 		reqtPayload = generateRandomPayload(250);
 		String path = "test";
 
@@ -771,7 +757,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testBlockwisePUTWith413AndEqualsSZX() throws Exception {
 
-		System.out.println("REQUEST_ENTITY_TOO_LARGE with same block size");
 		reqtPayload = generateRandomPayload(128 + 10);
 		respPayload = generateRandomPayload(30);
 		String path = "test";
@@ -799,7 +784,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testPUTFailsWith408OnIncompleteTransfer() throws Exception {
 
-		System.out.println("Blockwise PUT fails for incomplete transfer");
 		reqtPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -835,7 +819,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testConcurrentBlock1TransferCancelsOriginalRequest() throws Exception {
 
-		System.out.println("Concurrent blockwise PUT cancels original request/transfer");
 		reqtPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -897,7 +880,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testSimpleAtomicBlockwisePUT() throws Exception {
-		System.out.println("Simple atomic blockwise PUT");
 		reqtPayload = generateRandomPayload(300);
 		respPayload = generateRandomPayload(50);
 		String path = "test";
@@ -949,7 +931,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testSimpleAtomicBlockwisePUTWithSmallerNegotiation() throws Exception {
-		System.out.println("Simple atomic blockwise PUT with smaller size negotiation");
 		reqtPayload = generateRandomPayload(200);
 		respPayload = generateRandomPayload(50);
 		String path = "test";
@@ -1001,7 +982,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testSimpleAtomicBlockwisePUTWithBiggerNegotiation() throws Exception {
-		System.out.println("Simple atomic blockwise PUT with bigger size negotiation");
 		reqtPayload = generateRandomPayload(300);
 		respPayload = generateRandomPayload(50);
 		String path = "test";
@@ -1062,7 +1042,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testAtomicBlockwisePOSTWithBlockwiseResponse() throws Exception {
-		System.out.println("Atomic blockwise POST with blockwise response:");
 		reqtPayload = generateRandomPayload(300);
 		respPayload = generateRandomPayload(500);
 		String path = "test";
@@ -1100,7 +1079,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testRandomAccessGET() throws Exception {
 
-		System.out.println("Random access GET");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -1119,7 +1097,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testObserveWithBlockwiseResponse() throws Exception {
 
-		System.out.println("Observe sequence with blockwise response:");
 		respPayload = generateRandomPayload(300);
 		String path = "test1";
 
@@ -1129,7 +1106,7 @@ public class BlockwiseClientSideTest {
 		client.addNotificationListener(notificationListener);
 		client.sendRequest(request);
 
-		System.out.println("Establish observe relation to " + path);
+		clientInterceptor.logNewLine("Establish observe relation to " + path);
 
 		server.expectRequest(CON, GET, path).storeToken("At").storeMID("Am").observe(0).go();
 		server.sendResponse(ACK, CONTENT).loadToken("At").loadMID("Am").observe(62350).block2(0, true, 128).size2(respPayload.length())
@@ -1145,7 +1122,6 @@ public class BlockwiseClientSideTest {
 		assertResponseContainsExpectedPayload(response, respPayload);
 		notificationListener.resetNotificationCount();
 
-		System.out.println("Server sends first notification...");
 		clientInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(280);
 
@@ -1165,7 +1141,6 @@ public class BlockwiseClientSideTest {
 		assertResponseContainsExpectedPayload(notification1, respPayload);
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
 
-		System.out.println("Server sends second notification...");
 		clientInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(290);
 
@@ -1178,7 +1153,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("F").noOption(OBSERVE).block2(1, false, 128).go();
 		server.goMultiExpectation();
 
-		System.out.println("Server sends third notification during transfer ");
+		clientInterceptor.logNewLine("Server sends third notification during transfer ");
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(19).block2(0, true, 128).size2(respPayload.length())
 			.payload(respPayload.substring(0, 128)).go();
 
@@ -1193,7 +1168,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("G").noOption(OBSERVE).block2(1, false, 128).go();
 		server.goMultiExpectation();
 
-		System.out.println("Send old notification during transfer");
+		clientInterceptor.logNewLine("Send old notification during transfer");
 		// this old notification will be discarded by the client
 		server.sendResponse(CON, CONTENT).loadToken("At").mid(++mid).observe(18).block2(0, true, 128).size2(respPayload.length())
 			.payload(respPayload.substring(0, 128)).go();
@@ -1211,14 +1186,6 @@ public class BlockwiseClientSideTest {
 		Response notification2 = notificationListener.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(notification2, respPayload);
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
-	}
-
-	@Test
-	public void testObserveWithBlockwiseResponseEarlyNegotiation() throws Exception {
-		System.out.println("TODO: Observe sequence with early negotiation: (low priority for Cf client)");
-		// TODO: This is not really a problem for the Cf client because it has
-		// no block size preference. We might only allow a developer to enforce
-		// a specific block size but this currently has low priority.
 	}
 
 	/**
@@ -1251,7 +1218,6 @@ public class BlockwiseClientSideTest {
 		String path = "test";
 
 		CountingCoapHandler handler = new CountingCoapHandler();
-		System.out.println("Blockwise GET with Lost ACK:");
 
 		respPayload = generateRandomPayload(300);
 
@@ -1293,9 +1259,8 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testBlockwiseGetInterruptedByBlockwiseGet() throws Exception {
-		System.out.println("Blockwise Observe:");
 		String path = "test";
-		
+
 		// Send first GET request
 		Request firstRequest = createRequest(GET, path, server);
 		client.sendRequest(firstRequest);
@@ -1343,7 +1308,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testIncompleteBlock2NoAckNoResponse() throws Exception {
 
-		System.out.println("Incomplete  block2 transfer:");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -1378,7 +1342,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testIncompleteBlock1NoAckNoResponse() throws Exception {
 
-		System.out.println("Incomplete  block1 transfer:");
 		reqtPayload = generateRandomPayload(400);
 		String path = "test";
 
@@ -1411,7 +1374,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testCancelledBlock2() throws Exception {
 
-		System.out.println("cancelled block2 transfer:");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -1428,7 +1390,6 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
 		printServerLog(clientInterceptor);
 
-		System.out.println("Cancel request " + request);
 		request.cancel();
 		assertAllExchangesAreCompleted(config, client.getExchangeStore(), time);
 	}
@@ -1441,7 +1402,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testCancelledBlock1() throws Exception {
 
-		System.out.println("Cancelled  block1 transfer:");
 		reqtPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -1455,7 +1415,6 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
 		printServerLog(clientInterceptor);
 
-		System.out.println("Cancel request " + request);
 		request.cancel();
 		assertAllExchangesAreCompleted(config, client.getExchangeStore(), time);
 	}
@@ -1468,7 +1427,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testIncompleteBlock2AckNoResponse() throws Exception {
 
-		System.out.println("Incomplete Acknowledged block2 transfer:");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -1498,7 +1456,6 @@ public class BlockwiseClientSideTest {
 	@Test
 	public void testIncompleteBlock1AckNoResponse() throws Exception {
 
-		System.out.println("Incomplete Acknowledged block1 transfer:");
 		reqtPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -1522,7 +1479,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testBlock1FailureBeforeToSend() throws Exception {
-		System.out.println("blockwise PUT failed before to send a block1 request");
 		reqtPayload = generateRandomPayload(300);
 		String path = "test";
 
@@ -1558,7 +1514,6 @@ public class BlockwiseClientSideTest {
 	 */
 	@Test
 	public void testBlock2FailureBeforeToSend() throws Exception {
-		System.out.println("blockwise GET failed before to send a block2 request:");
 		respPayload = generateRandomPayload(300);
 		String path = "test";
 

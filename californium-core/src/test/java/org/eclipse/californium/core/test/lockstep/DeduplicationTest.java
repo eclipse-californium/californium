@@ -66,12 +66,15 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This test checks for correct MID namespaces and deduplication.
  */
 @Category(Medium.class)
 public class DeduplicationTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(DeduplicationTest.class);
 
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
@@ -111,7 +114,7 @@ public class DeduplicationTest {
 		client.start();
 		server = createLockstepEndpoint(client.getAddress(), config);
 		cleanup.add(server);
-		System.out.println("Client binds to port " + client.getAddress().getPort());
+		LOGGER.info("Client binds to port {}", client.getAddress().getPort());
 	}
 
 	@After
@@ -121,7 +124,6 @@ public class DeduplicationTest {
 
 	@Test
 	public void testGET() throws Exception {
-		System.out.println("Simple GET:");
 		String path = "test";
 		String payload = "possible conflict";
 
@@ -177,7 +179,6 @@ public class DeduplicationTest {
 
 	@Test
 	public void testGETWithReliabilityLayerParameters() throws Exception {
-		System.out.println("Simple GET (with ReliabilityLayerParameters):");
 		String path = "test";
 
 		Builder builder = ReliabilityLayerParameters.builder().applyConfig(network.getStandardTestConfig());
@@ -223,7 +224,6 @@ public class DeduplicationTest {
 	@Test
 	public void testGETSendError() throws Exception {
 		clientConnector.setDrops(0);
-		System.out.println("Simple GET (send error):");
 		String path = "test";
 
 		CountingMessageObserver observer = new CountingMessageObserver();
@@ -244,7 +244,6 @@ public class DeduplicationTest {
 
 	@Test
 	public void testGETWithRetransmissionAndDtlsHandshakeMode() throws Exception {
-		System.out.println("Simple GET with retransmission and dtls handshake mode:");
 		String path = "test";
 
 		Builder builder = ReliabilityLayerParameters.builder().applyConfig(network.getStandardTestConfig());

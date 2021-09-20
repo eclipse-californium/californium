@@ -25,6 +25,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
@@ -54,6 +55,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Verifies fail-over behavior between different servers.
@@ -61,6 +64,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class ClusteringTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ClusteringTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -104,7 +108,7 @@ public class ClusteringTest {
 		client1.addInterceptor(new MessageTracer());
 		client1.start();
 		cleanup.add(client1);
-		System.out.println("Client 1 binds to port " + client1.getAddress().getPort());
+		LOGGER.info("Client 1 binds to port {}", client1.getAddress().getPort());
 
 		notificationListener2 = new SynchronousNotificationListener();
 		builder = new CoapEndpoint.Builder();
@@ -117,7 +121,7 @@ public class ClusteringTest {
 		client2.addInterceptor(new MessageTracer());
 		client2.start();
 		cleanup.add(client2);
-		System.out.println("Client 2 binds to port " + client2.getAddress().getPort());
+		LOGGER.info("Client 2 binds to port {}", client2.getAddress().getPort());
 
 		server = new LockstepEndpoint(client1.getAddress(), config);
 		cleanup.add(server);
@@ -126,7 +130,6 @@ public class ClusteringTest {
 	@Test
 	public void testNotification() throws Exception {
 
-		System.out.println(System.lineSeparator() + "Observe:");
 		respPayload = TestTools.generateRandomPayload(10);
 		String path = "test";
 		int obs = 100;
@@ -134,55 +137,53 @@ public class ClusteringTest {
 		assertTrue(store.isEmpty());
 
 		// send observe request from client 1
-		System.out.println(System.lineSeparator() + "Sending Observe Request to client 1 ...");
+		clientInterceptor.logNewLine("Sending Observe Request to client 1 ...");
 		Request request = createRequest(GET, path);
 		request.setObserve();
 		client1.sendRequest(request);
 
 		// server wait for request and send response
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 1.");
+		clientInterceptor.logNewLine("Server send Observe response to client 1.");
 		server.expectRequest(CON, GET, path).storeMID("A").storeToken("B").observe(0).go();
 		server.sendEmpty(ACK).loadMID("A").go();
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
 		server.expectEmpty(ACK, mid).go();
-		Thread.sleep(50);
 		Response response = request.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(1, CONTENT, respPayload, response);
 		assertFalse("Store does not contain the new Observe Request:", store.isEmpty());
-		System.out.println("Relation established with client 1");
+		clientInterceptor.logNewLine("Relation established with client 1");
 
 		// server send new response to client 2
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 2.");
+		clientInterceptor.logNewLine("Server send Observe response to client 2.");
 		respPayload = TestTools.generateRandomPayload(10); // changed
 		server.setDestination(client2.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
 		server.expectEmpty(ACK, mid).go();
 		response = notificationListener2.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(2, CONTENT, respPayload, response);
-		System.out.println("Response received");
+		clientInterceptor.logNewLine("Response received");
 
 		// server send new response to client 1
-		System.out.println();
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 1.");
+		clientInterceptor.logNewLine();
+		clientInterceptor.logNewLine("Server send Observe response to client 1.");
 		respPayload = TestTools.generateRandomPayload(10); // changed
 		server.setDestination(client1.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
 		server.expectEmpty(ACK, mid).go();
 		response = notificationListener1.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(1, CONTENT, respPayload, response);
-		System.out.println("Response received");
+		clientInterceptor.logNewLine("Response received");
 	}
 
 	@Test
 	public void testNotificationWithBlockWise() throws Exception {
 
-		System.out.println(System.lineSeparator() + "Observe with blockwise:");
 		respPayload = TestTools.generateRandomPayload(40);
 		String path = "test";
 		int obs = 100;
@@ -190,29 +191,28 @@ public class ClusteringTest {
 		assertTrue(store.isEmpty());
 
 		// send observe request from client 1
-		System.out.println(System.lineSeparator() + "Sending Observe Request to client 1 ...");
+		clientInterceptor.logNewLine("Sending Observe Request to client 1 ...");
 		Request request = createRequest(GET, path);
 		request.setObserve();
 		client1.sendRequest(request);
 
 		// server wait for request and send response
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 1.");
+		clientInterceptor.logNewLine("Server send Observe response to client 1.");
 		server.expectRequest(CON, GET, path).storeBoth("A").storeToken("T").observe(0).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").observe(obs++).block2(0, true, 16).payload(respPayload.substring(0, 16)).go();
 		server.expectRequest(CON, GET, path).storeBoth("B").block2(1, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
-		Thread.sleep(50);
 		Response response = request.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(1, CONTENT, respPayload, response);
 		assertFalse("Store does not contain the new Observe Request:", store.isEmpty());
-		System.out.println("Relation established with client 1");
+		clientInterceptor.logNewLine("Relation established with client 1");
 
 		// server send new response to client 2
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 2.");
+		clientInterceptor.logNewLine("Server send Observe response to client 2.");
 		respPayload = TestTools.generateRandomPayload(40); // changed
 		server.setDestination(client2.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(obs++).block2(0, true, 16)
@@ -226,13 +226,13 @@ public class ClusteringTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 		response = notificationListener2.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(2, CONTENT, respPayload, response);
-		System.out.println("Response received");
+		clientInterceptor.logNewLine("Response received");
 
 		// server send new response to client 1
-		System.out.println();
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 1.");
+		clientInterceptor.logNewLine();
+		clientInterceptor.logNewLine("Server send Observe response to client 1.");
 		respPayload = TestTools.generateRandomPayload(40); // changed
 		server.setDestination(client1.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("T").mid(++mid).observe(obs++).block2(0, true, 16)
@@ -246,15 +246,14 @@ public class ClusteringTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 40)).go();
 		response = notificationListener1.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(1, CONTENT, respPayload, response);
-		System.out.println("Response received");
+		clientInterceptor.logNewLine("Response received");
 	}
 
 	@Test
 	public void testCancellingNotification() throws Exception {
 
-		System.out.println(System.lineSeparator() + "Observe:");
 		respPayload = TestTools.generateRandomPayload(10);
 		String path = "test";
 		int obs = 100;
@@ -262,13 +261,13 @@ public class ClusteringTest {
 		assertTrue(store.isEmpty());
 
 		// send observe request from client 1
-		System.out.println(System.lineSeparator() + "Sending Observe Request to client 1 ...");
+		clientInterceptor.logNewLine("Sending Observe Request to client 1 ...");
 		Request request = createRequest(GET, path);
 		request.setObserve();
 		client1.sendRequest(request);
 
 		// server wait for request and send response
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 1.");
+		clientInterceptor.logNewLine("Server send Observe response to client 1.");
 		server.expectRequest(CON, GET, path).storeMID("A").storeToken("B").observe(0).go();
 		server.sendEmpty(ACK).loadMID("A").go();
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
@@ -276,59 +275,59 @@ public class ClusteringTest {
 		Thread.sleep(50);
 		Response response = request.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(1, CONTENT, respPayload, response);
 		assertFalse("Store does not contain the new Observe Request:", store.isEmpty());
-		System.out.println("Relation established with client 1");
+		clientInterceptor.logNewLine("Relation established with client 1");
 		Thread.sleep(1000);
 
 		// server send new response to client 2
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 2.");
+		clientInterceptor.logNewLine("Server send Observe response to client 2.");
 		respPayload = TestTools.generateRandomPayload(10); // changed
 		server.setDestination(client2.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
 		server.expectEmpty(ACK, mid).go();
 		response = notificationListener2.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(2, CONTENT, respPayload, response);
-		System.out.println("Response received");
+		clientInterceptor.logNewLine("Response received");
 
 		// server send new response to client 1
-		System.out.println();
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 1.");
+		clientInterceptor.logNewLine();
+		clientInterceptor.logNewLine("Server send Observe response to client 1.");
 		respPayload = TestTools.generateRandomPayload(10); // changed
 		server.setDestination(client1.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
 		server.expectEmpty(ACK, mid).go();
 		response = notificationListener1.waitForResponse(1000);
 
-		printServerLog();
+		printServerLog(clientInterceptor);
 		assertClientReceivedExpectedResponse(1, CONTENT, respPayload, response);
-		System.out.println("Response received");
+		clientInterceptor.logNewLine("Response received");
 
 		// cancel observation
-		System.out.println();
-		System.out.println(System.lineSeparator() + "Cancel Observation.");
+		clientInterceptor.logNewLine();
+		clientInterceptor.logNewLine("Cancel Observation.");
 		store.remove(request.getToken());
 
 		// server send new response to client 1
-		System.out.println();
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 1.");
+		clientInterceptor.logNewLine();
+		clientInterceptor.logNewLine("Server send Observe response to client 1.");
 		respPayload = TestTools.generateRandomPayload(10); // changed
 		server.setDestination(client1.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
 		server.expectEmpty(RST, mid).go();
-		printServerLog();
+		printServerLog(clientInterceptor);
 
 		// server send new response to client 2
-		System.out.println();
-		System.out.println(System.lineSeparator() + "Server send Observe response to client 2.");
+		clientInterceptor.logNewLine();
+		clientInterceptor.logNewLine("Server send Observe response to client 2.");
 		respPayload = TestTools.generateRandomPayload(10); // changed
 		server.setDestination(client2.getAddress());
 		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(obs).go();
 		server.expectEmpty(RST, mid).go();
-		printServerLog();
+		printServerLog(clientInterceptor);
 	}
 
 	private static void assertClientReceivedExpectedResponse(
@@ -344,10 +343,5 @@ public class ClusteringTest {
 		String uri = TestTools.getUri(server.getSocketAddress(), path);
 		request.setURI(uri);
 		return request;
-	}
-
-	private void printServerLog() {
-		System.out.print(clientInterceptor.toString());
-		clientInterceptor.clear();
 	}
 }
