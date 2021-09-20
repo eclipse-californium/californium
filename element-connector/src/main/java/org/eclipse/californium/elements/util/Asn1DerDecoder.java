@@ -60,23 +60,13 @@ import org.slf4j.LoggerFactory;
  * With version 3.0 an experimental support for using Bouncy Castle (version
  * 1.69) as JCE is available. On class startup, the default JCE is checked for
  * providing EdDSA. If that fails, first Bouncy Castle is tested, and, if that
- * fails as well, ed25519-java. Using Bouncy Castle will insert that provider as
+ * fails as well, ed25519-java. Using Bouncy Castel will insert that provider as
  * 1., while using ed25519-java will only apply for EdDSA.
  * <p>
  * If this JCE provider search should not be applied, please configure the
  * environment variable "CALIFORNIUM_JCE_PROVIDER" with one of the values
  * "SYSTEM" (keep to provides configured externally), "BC" (load and insert the
  * Bouncy Castle provider), "ED" (load ed25519-java and use that for EdDSA).
- * <p>
- * Bouncy Castle seems to depend on the combination of the OS (Unix, Windows,
- * Android), the java version (7, 8, 11, 15, or 16), and the Bouncy Castle build
- * (jdk15on or jdk15to18). It makes also a difference, if it's used by Scandium
- * (DTLS) or by netty.io (TLS). For Scandium internal adaption is possible, for
- * netty.io it must be requested there.
- * <p>
- * With that, it gets very time consuming to test all combinations. Therefore,
- * if you need a specific one, please test it on your own. If you consider, that
- * some adaption is required, let us know by creating an issue.
  */
 public class Asn1DerDecoder {
 	/**
@@ -134,7 +124,56 @@ public class Asn1DerDecoder {
 	 */
 	public static final String ED448v2 = "ED448.v2";
 	/**
-	 * OID key algorithm ED25519 (RFC 8422).
+	 * Key algorithm X25519 (RFC 8422).
+	 * 
+	 * @since 3.0
+	 */
+	public static final String X25519 = "X25519";
+	/**
+	 * Key algorithm X25519 v2 (RFC 8410), not to be used by KeyFactory.
+	 * 
+	 * @since 3.0
+	 */
+	public static final String X25519v2 = "X25519.v2";
+	/**
+	 * Key algorithm X448 (RFC 8422).
+	 * 
+	 * @since 3.0
+	 */
+	public static final String X448 = "X448";
+	/**
+	 * Key algorithm X448 v2 (RFC 8410), not to be used by KeyFactory.
+	 * 
+	 * @since 3.0
+	 */
+	public static final String X448v2 = "X448.v2";
+	/**
+	 * OID key algorithm X25519
+	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
+	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
+	 * Identifiers</a>).
+	 * 
+	 * Used with {@link #getEdDsaProvider()}.
+	 * 
+	 * @since 3.0
+	 */
+	public static final String OID_X25519 = "OID.1.3.101.110";
+	/**
+	 * OID key algorithm X448
+	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
+	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
+	 * Identifiers</a>).
+	 * 
+	 * Used with {@link #getEdDsaProvider()}.
+	 * 
+	 * @since 3.0
+	 */
+	public static final String OID_XD448 = "OID.1.3.101.111";
+	/**
+	 * OID key algorithm ED25519
+	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
+	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
+	 * Identifiers</a>).
 	 * 
 	 * Used with {@link #getEdDsaProvider()}.
 	 * 
@@ -142,7 +181,10 @@ public class Asn1DerDecoder {
 	 */
 	public static final String OID_ED25519 = "OID.1.3.101.112";
 	/**
-	 * OID key algorithm ED448 (RFC 8422).
+	 * OID key algorithm ED448
+	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
+	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
+	 * Identifiers</a>).
 	 * 
 	 * Used with {@link #getEdDsaProvider()}.
 	 * 
@@ -279,6 +321,18 @@ public class Asn1DerDecoder {
 	 * ASN.1 OID for EC public key.
 	 */
 	private static final byte[] OID_EC_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0xCE, 0x3D, 0x02, 0x01 };
+	/**
+	 * ASN.1 OID for X25519 public key.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] OID_X25519_PUBLIC_KEY = { 0x2b, 0x65, 0x6e };
+	/**
+	 * ASN.1 OID for X448 public key.
+	 * 
+	 * @since 3.0
+	 */
+	private static final byte[] OID_X448_PUBLIC_KEY = { 0x2b, 0x65, 0x6f };
 	/**
 	 * ASN.1 OID for ED25519 public key.
 	 * 
@@ -508,8 +562,8 @@ public class Asn1DerDecoder {
 			// Bouncy Castle support
 			// add OIDs to KeyFactory
 			Properties properties = (Properties) provider;
-			properties.setProperty("Alg.Alias.KeyFactory.OID.1.3.101.112", "Ed25519");
-			properties.setProperty("Alg.Alias.KeyFactory.OID.1.3.101.113", "Ed448");
+			properties.setProperty("Alg.Alias.KeyFactory." + OID_ED25519, ED25519);
+			properties.setProperty("Alg.Alias.KeyFactory." + OID_ED448, ED448);
 		}
 	}
 
@@ -571,6 +625,10 @@ public class Asn1DerDecoder {
 			algorithm = version == 0 ? ED25519 : ED25519v2;
 		} else if (Arrays.equals(oid, OID_ED448_PUBLIC_KEY)) {
 			algorithm = version == 0 ? ED448 : ED448v2;
+		} else if (Arrays.equals(oid, OID_X25519_PUBLIC_KEY)) {
+			algorithm = version == 0 ? X25519 : X25519v2;
+		} else if (Arrays.equals(oid, OID_X448_PUBLIC_KEY)) {
+			algorithm = version == 0 ? X448 : X448v2;
 		}
 		return algorithm;
 	}
