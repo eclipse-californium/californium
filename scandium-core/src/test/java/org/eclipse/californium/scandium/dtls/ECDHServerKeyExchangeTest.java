@@ -15,6 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.PrivateKey;
+import java.util.Arrays;
+
 import static org.junit.Assert.assertNotNull;
 
 import org.eclipse.californium.elements.category.Small;
@@ -24,20 +27,31 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 @Category(Small.class)
 public class ECDHServerKeyExchangeTest {
 
-	EcdhEcdsaServerKeyExchange msg;
+	@Parameterized.Parameter
+	public PrivateKey privateKey;
+
+	EcdheServerKeyExchange msg;
+
+	@Parameterized.Parameters(name = "privateKey = {index}")
+	public static Iterable<PrivateKey> privateKeys() {
+		return Arrays.asList(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerRsPrivateKey());
+	}
 
 	@Before
 	public void setUp() throws Exception {
 
 		SupportedGroup usableGroup = SupportedGroup.getUsableGroups().get(0);
-		msg = new EcdhEcdsaServerKeyExchange(
+		msg = new EcdheServerKeyExchange(
 				new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA),
 				new XECDHECryptography(usableGroup),
-				DtlsTestTools.getPrivateKey(),
+				privateKey,
 				new Random(),
 				new Random());
 	}

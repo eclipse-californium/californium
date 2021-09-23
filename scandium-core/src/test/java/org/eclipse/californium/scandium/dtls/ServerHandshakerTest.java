@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Stream;
 
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.ThreadsRule;
@@ -66,11 +67,16 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.mockito.internal.util.collections.ArrayUtils;
 
+@RunWith(Parameterized.class)
 @Category(Medium.class)
 public class ServerHandshakerTest {
 
-	final static CipherSuite SERVER_CIPHER_SUITE = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
+	@Parameterized.Parameter
+	public CipherSuite serverCipherSuite;
 	final static int ETHERNET_MTU = 1500;
 
 	static PrivateKey privateKey;
@@ -91,6 +97,11 @@ public class ServerHandshakerTest {
 	SimpleRecordLayer recordLayer;
 	ScheduledExecutorService timer;
 
+	@Parameterized.Parameters(name = "privateKey = {0}")
+	public static Iterable<CipherSuite> cipherSuites() {
+		return Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384);
+	}
+
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		privateKey = DtlsTestTools.getPrivateKey();
@@ -107,7 +118,8 @@ public class ServerHandshakerTest {
 				.setSniEnabled(true)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, certificateChain, CertificateType.X_509))
 				.setAdvancedCertificateVerifier(verifier)
-				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
+				.setRecommendedCipherSuitesOnly(serverCipherSuite.isRecommended())
+				.setSupportedCipherSuites(serverCipherSuite)
 				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
 				.build();
 		handshaker = newHandshaker(config);
@@ -122,12 +134,19 @@ public class ServerHandshakerTest {
 		}
 		random = writer.toByteArray();
 
-		// ciphers supported by client
-		supportedClientCiphers = new byte[]{
+		if (serverCipherSuite.getCertificateKeyAlgorithm() == CipherSuite.CertificateKeyAlgorithm.RSA) {
+			// ciphers supported by client
+			supportedClientCiphers = new byte[]{
+				(byte) 0xFF, (byte) 0xA8, // fantasy cipher (non-existent)
+				(byte) 0xC0, (byte) 0x28};// TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+		} else {
+			// ciphers supported by client
+			supportedClientCiphers = new byte[]{
 				(byte) 0xFF, (byte) 0xA8, // fantasy cipher (non-existent)
 				(byte) 0xC0, (byte) 0xA8, // TLS_PSK_WITH_AES_128_CCM_8
 				(byte) 0xC0, (byte) 0xAE, // TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
 				(byte) 0xC0, (byte) 0x23};// TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+		}
 	}
 
 	@After
@@ -200,6 +219,26 @@ public class ServerHandshakerTest {
 	public void testReceiveClientHelloDoesNotNegotiateNullCipher() throws Exception {
 
 		supportedClientCiphers = new byte[]{(byte) 0x00, (byte) 0x00}; // TLS_NULL_WITH_NULL_NULL
+
+		try {
+			// process Client Hello including Cookie
+			processClientHello(0, cookie, null);
+			fail("Server should have aborted cipher negotiation");
+		} catch (HandshakeException e) {
+			// server has aborted handshake as required
+			assertEquals(AlertMessage.AlertLevel.FATAL, e.getAlert().getLevel());
+			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
+		}
+	}
+
+	@Test
+	public void testReceiveClientHelloNoCommonCipher() throws Exception {
+
+		if (serverCipherSuite.getCertificateKeyAlgorithm() == CipherSuite.CertificateKeyAlgorithm.RSA) {
+			supportedClientCiphers = new byte[]{(byte) 0xC0, (byte) 0xAE}; // TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+		} else {
+			supportedClientCiphers = new byte[]{(byte) 0xC0, (byte) 0x28}; // TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+		}
 
 		try {
 			// process Client Hello including Cookie
@@ -297,7 +336,7 @@ public class ServerHandshakerTest {
 				CertificateType.OPEN_PGP.getCode(), CertificateType.X_509.getCode()));
 
 		processClientHello(0, cookie, extensions);
-		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+		assertThat(session.getCipherSuite(), is(serverCipherSuite));
 		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedClientCertificateType(), is(CertificateType.X_509));
 		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedServerCertificateType(), is(CertificateType.X_509));
 	}
@@ -341,7 +380,7 @@ public class ServerHandshakerTest {
 		// curveId 0x0000 is not assigned by IANA
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000, supportedGroup.getId()));
 		processClientHello(0, cookie, extensions);
-		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+		assertThat(session.getCipherSuite(), is(serverCipherSuite));
 		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedSupportedGroup(), is(supportedGroup));
 	}
 
@@ -356,7 +395,7 @@ public class ServerHandshakerTest {
 
 		// omit supported elliptic curves extension
 		processClientHello(0, cookie, null);
-		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
+		assertThat(session.getCipherSuite(), is(serverCipherSuite));
 		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedSupportedGroup(), is(notNullValue()));
 	}
 

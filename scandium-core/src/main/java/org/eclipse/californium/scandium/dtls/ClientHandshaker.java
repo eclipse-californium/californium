@@ -295,7 +295,7 @@ public class ClientHandshaker extends Handshaker {
 			
 			switch (getSession().getKeyExchange()) {
 			case EC_DIFFIE_HELLMAN:
-				receivedEcdhEcdsaServerKeyExchange((EcdhEcdsaServerKeyExchange) message);
+				receivedEcdheServerKeyExchange((EcdheServerKeyExchange) message);
 				break;
 
 			case PSK:
@@ -528,7 +528,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException if the message can't be verified
 	 * @since 3.0 (renamed, was receivedServerKeyExchange)
 	 */
-	private void receivedEcdhEcdsaServerKeyExchange(EcdhEcdsaServerKeyExchange message) throws HandshakeException {
+	private void receivedEcdheServerKeyExchange(EcdheServerKeyExchange message) throws HandshakeException {
 		message.verifySignature(otherPeersPublicKey, clientRandom, serverRandom);
 		// server identity has been proven
 		serverKeyExchange = message;

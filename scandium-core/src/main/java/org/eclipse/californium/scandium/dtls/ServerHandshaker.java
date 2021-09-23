@@ -627,7 +627,7 @@ public class ServerHandshaker extends Handshaker {
 		ServerKeyExchange serverKeyExchange = null;
 		switch (keyExchangeAlgorithm) {
 		case EC_DIFFIE_HELLMAN:
-			serverKeyExchange = new EcdhEcdsaServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe,
+			serverKeyExchange = new EcdheServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe,
 					privateKey, clientRandom, serverRandom);
 			break;
 
@@ -663,6 +663,7 @@ public class ServerHandshaker extends Handshaker {
 				&& certificateType != null) {
 			CertificateRequest certificateRequest = new CertificateRequest();
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
+			certificateRequest.addCertificateType(ClientCertificateType.RSA_SIGN);
 			if (CertificateType.X_509 == certificateType) {
 				certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
 				if (certificateVerifier != null) {

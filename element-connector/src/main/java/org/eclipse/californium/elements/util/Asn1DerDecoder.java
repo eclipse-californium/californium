@@ -412,7 +412,7 @@ public class Asn1DerDecoder {
 	 * @since 2.4
 	 */
 	public static boolean isSupported(String algorithm) {
-		if (EC.equalsIgnoreCase(algorithm)) {
+		if (RSA.equalsIgnoreCase(algorithm) || EC.equalsIgnoreCase(algorithm)) {
 			return true;
 		} else {
 			String oid = getEdDsaStandardAlgorithmName(algorithm, null);

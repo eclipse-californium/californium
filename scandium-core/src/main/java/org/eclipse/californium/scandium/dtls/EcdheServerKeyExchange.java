@@ -52,9 +52,9 @@ import org.slf4j.LoggerFactory;
  * @since 2.3
  */
 @NoPublicAPI
-public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
+public final class EcdheServerKeyExchange extends ECDHServerKeyExchange {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(EcdhEcdsaServerKeyExchange.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(EcdheServerKeyExchange.class);
 
 	private static final int HASH_ALGORITHM_BITS = 8;
 	private static final int SIGNATURE_ALGORITHM_BITS = 8;
@@ -80,8 +80,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 *             possession of the private key fails, e.g. due to an
 	 *             unsupported signature or hash algorithm or an invalid key
 	 */
-	public EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
-			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom) throws HandshakeException {
+	public EcdheServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
+								  PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom) throws HandshakeException {
 		super(ecdhe.getSupportedGroup(), ecdhe.getEncodedPoint());
 		if (signatureAndHashAlgorithm == null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
@@ -115,8 +115,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 *             signatureAndHashAlgorithm and signatureEncoded is
 	 *             {@code null}, or any of the other parameters
 	 */
-	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm,
-			SupportedGroup supportedGroup, byte[] encodedPoint, byte[] signatureEncoded) {
+	private EcdheServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm,
+								   SupportedGroup supportedGroup, byte[] encodedPoint, byte[] signatureEncoded) {
 		super(supportedGroup, encodedPoint);
 		if (signatureAndHashAlgorithm == null && signatureEncoded != null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
@@ -164,7 +164,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 			signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 			signatureEncoded = reader.readVarBytes(SIGNATURE_LENGTH_BITS);
 		}
-		return new EcdhEcdsaServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint,
+		return new EcdheServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint,
 				signatureEncoded);
 	}
 

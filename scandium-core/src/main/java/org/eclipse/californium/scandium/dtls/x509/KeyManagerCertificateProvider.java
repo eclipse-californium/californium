@@ -363,6 +363,12 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 		for (X509Certificate certificate : chain) {
 			PublicKey certPublicKey = certificate.getPublicKey();
 			if (Asn1DerDecoder.isSupported(certPublicKey.getAlgorithm())) {
+			    // for rsa key we only check whether server support certain curves for key exchange.
+				// As curves is already negotiated based on server config so we always return true
+				if ("RSA".equals(certPublicKey.getAlgorithm())) {
+					return true;
+				}
+
 				SupportedGroup group = SupportedGroup.fromPublicKey(certPublicKey);
 				if (group == null) {
 					return false;

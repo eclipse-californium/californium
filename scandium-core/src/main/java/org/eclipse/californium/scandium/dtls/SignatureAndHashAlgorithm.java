@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
@@ -321,16 +322,18 @@ public final class SignatureAndHashAlgorithm {
 		if (index < 0) {
 			index = jcaName.indexOf("WITH");
 		}
+		HashAlgorithm hashAlgorithm;
+		SignatureAlgorithm signatureAlgorithm;
 		if (0 < index) {
 			String hash = jcaName.substring(0, index);
 			String signature = jcaName.substring(index + 4, jcaName.length());
-			HashAlgorithm hashAlgorithm = HashAlgorithm.valueOf(hash);
-			SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.valueOf(signature);
-			if (hashAlgorithm != null && signatureAlgorithm != null) {
-				return new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
-			}
+			hashAlgorithm = HashAlgorithm.valueOf(hash);
+			signatureAlgorithm = SignatureAlgorithm.valueOf(signature);
+		} else {
+			hashAlgorithm = HashAlgorithm.INTRINSIC;
+			signatureAlgorithm = SignatureAlgorithm.valueOf(jcaName);
 		}
-		return null;
+		return new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 	}
 
 	/**
@@ -346,10 +349,7 @@ public final class SignatureAndHashAlgorithm {
 		if (certificateChain != null && !certificateChain.isEmpty()) {
 			for (X509Certificate certificate : certificateChain) {
 				String sigAlgName = certificate.getSigAlgName();
-				SignatureAndHashAlgorithm signature = valueOf(sigAlgName);
-				if (signature == null) {
-					throw new IllegalArgumentException(sigAlgName + " not supported!");
-				}
+				SignatureAndHashAlgorithm signature = valueOf(sigAlgName.toUpperCase(Locale.ENGLISH));
 				ListUtils.addIfAbsent(result, signature);
 			}
 		}
