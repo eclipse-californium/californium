@@ -1808,7 +1808,7 @@ public final class DtlsConnectorConfig {
 						list.add(signatureAndHashAlgorithm);
 					} else {
 						throw new IllegalArgumentException(
-								String.format("Signature and hash algorithm [%s] is not (yet) supported",
+								String.format("Signature and hash algorithm [%s] is not (yet?) supported",
 										supportedSignatureAlgorithms[i]));
 					}
 				}
