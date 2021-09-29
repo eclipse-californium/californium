@@ -480,7 +480,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 			if (isRunning()) {
 				return;
 			}
-			init(bindAddress, clusterInternalSocket, config.getMaxTransmissionUnit());
+			super.init(bindAddress, clusterInternalSocket, config.getMaxTransmissionUnit());
 		}
 
 		@Override

@@ -129,7 +129,7 @@ public class HttpClientFactory {
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	private static RequestConfig createCustomRequestConfig(Configuration config) {
-		int connecTimeoutMillis = config.getTimeAsInt(Proxy2Config.HTTP_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
+		long connecTimeoutMillis = config.get(Proxy2Config.HTTP_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
 		return RequestConfig.custom().setConnectionRequestTimeout(Timeout.ofMilliseconds(connecTimeoutMillis * 4))
 				.setConnectTimeout(Timeout.ofMilliseconds(connecTimeoutMillis)).build();
 	}
@@ -142,7 +142,7 @@ public class HttpClientFactory {
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	private static PoolingAsyncClientConnectionManager createPoolingConnManager(Configuration config) {
-		int connectionIdleSecs = config.getTimeAsInt(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, TimeUnit.MILLISECONDS);
+		long connectionIdleSecs = config.get(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, TimeUnit.MILLISECONDS);
 		return PoolingAsyncClientConnectionManagerBuilder.create()
 				.setPoolConcurrencyPolicy(PoolConcurrencyPolicy.STRICT).setConnPoolPolicy(PoolReusePolicy.LIFO)
 				.setConnectionTimeToLive(TimeValue.ofSeconds(connectionIdleSecs)).setMaxConnTotal(250)

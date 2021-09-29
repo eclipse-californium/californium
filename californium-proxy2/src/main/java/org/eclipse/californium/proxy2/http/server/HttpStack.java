@@ -230,7 +230,7 @@ public class HttpStack {
 				LOGGER.info("Received HTTP request and translate to {}", coapRequest);
 				coapRequest.setSourceContext(new AddressEndpointContext(source));
 				// keep the receiving interface.
-				coapRequest.setLocalAddress(endpoint);
+				coapRequest.setLocalAddress(endpoint, false);
 				// handle the request
 				final Exchange exchange = new Exchange(coapRequest, source, Origin.REMOTE, executor) {
 

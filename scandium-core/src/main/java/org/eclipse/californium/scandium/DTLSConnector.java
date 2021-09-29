@@ -2720,9 +2720,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					// the session will be reseted with the first received data
 					connection.setResumptionRequired(false);
 				} else {
-					if (context != null) {
-						connectionStore.removeFromEstablishedSessions(connection);
-					}
+					connectionStore.removeFromEstablishedSessions(connection);
 					connection.resetContext();
 				}
 				initializeHandshaker(newHandshaker);
