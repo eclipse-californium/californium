@@ -28,7 +28,6 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.Provider;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
@@ -51,28 +50,24 @@ public class RawPublicKeyIdentityTest {
 	 */
 	@BeforeClass
 	public static void init() throws IOException {
-		Provider edDsaProvider = Asn1DerDecoder.getEdDsaProvider();
+		Asn1DerDecoder.setupJce();
 		try {
 			KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
 			ecKeyPair = generator.generateKeyPair();
 		} catch (NoSuchAlgorithmException e) {
 			assumeNoException("vm's without EC are not usable for CoAP!", e);
 		}
-		if (edDsaProvider != null) {
-			try {
-				KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED25519,
-						Asn1DerDecoder.getEdDsaProvider());
-				ed25519KeyPair = generator.generateKeyPair();
-			} catch (NoSuchAlgorithmException e) {
-				// ignores missing Ed25519
-			}
-			try {
-				KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED448,
-						Asn1DerDecoder.getEdDsaProvider());
-				ed448KeyPair = generator.generateKeyPair();
-			} catch (NoSuchAlgorithmException e) {
-				// ignores missing Ed448
-			}
+		try {
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED25519);
+			ed25519KeyPair = generator.generateKeyPair();
+		} catch (NoSuchAlgorithmException e) {
+			// ignores missing Ed25519
+		}
+		try {
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED448);
+			ed448KeyPair = generator.generateKeyPair();
+		} catch (NoSuchAlgorithmException e) {
+			// ignores missing Ed448
 		}
 	}
 

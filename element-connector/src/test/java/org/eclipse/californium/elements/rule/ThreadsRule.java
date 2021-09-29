@@ -15,7 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.rule;
 
-import java.security.Provider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -201,8 +200,7 @@ public class ThreadsRule implements TestRule {
 				}
 				if (alive == 1) {
 					// bouncy castle hack - 1.69 uses a daemon thread for secure random ;-(.
-					Provider provider = Asn1DerDecoder.getEdDsaProvider();
-					if (provider != null && provider.getName().equals("BC")) {
+					if (Asn1DerDecoder.usesBouncyCastle()) {
 						alive = 0;
 					}
 				}
