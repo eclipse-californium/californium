@@ -63,8 +63,13 @@ public final class SignatureAndHashAlgorithm {
 	 */
 	public static enum HashAlgorithm {
 
-		NONE(0, false), MD5(1, false), SHA1(2, false), SHA224(3, false), SHA256(4, true), SHA384(5, true), SHA512(6,
-				true),
+		NONE(0, false),
+		MD5(1, false),
+		SHA1(2, false),
+		SHA224(3, false),
+		SHA256(4, true),
+		SHA384(5, true),
+		SHA512(6, true),
 		/**
 		 * Do not hash before sign.
 		 * 
@@ -146,7 +151,10 @@ public final class SignatureAndHashAlgorithm {
 	 */
 	public static enum SignatureAlgorithm {
 
-		ANONYMOUS(0), RSA(1), DSA(2), ECDSA(3, Asn1DerDecoder.EC, true, false),
+		ANONYMOUS(0),
+		RSA(1),
+		DSA(2),
+		ECDSA(3, Asn1DerDecoder.EC, true, false),
 		/**
 		 * ED25519 signature.
 		 * 
@@ -319,36 +327,50 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Get signature and hash algorithm from JCA name.
+	 * Get signature- and hash-algorithm from JCA name.
 	 * 
 	 * @param jcaName name of signature and hash algorithm. e.g.
 	 *            "SHA256withECDSA". If "with" is not contained in the provided
 	 *            name, {@link HashAlgorithm#INTRINSIC} is assumed.
-	 * @return signature and hash algorithm, or {@code null}, if signature or
-	 *         hash is unknown.
-	 * 
-	 * @since 3.0 (added {@link HashAlgorithm#INTRINSIC} as default)
+	 * @return signature- and hash-algorithm.
+	 * @throws IllegalArgumentException if unknown
+	 * @since 3.0 (added {@link HashAlgorithm#INTRINSIC} as default, correct to
+	 *        throws IllegalArgumentException instead of returning {@code null})
 	 */
 	public static SignatureAndHashAlgorithm valueOf(String jcaName) {
 		int index = jcaName.indexOf("with");
 		if (index < 0) {
 			index = jcaName.indexOf("WITH");
 		}
-		HashAlgorithm hashAlgorithm;
-		SignatureAlgorithm signatureAlgorithm;
+		HashAlgorithm hashAlgorithm = null;
+		SignatureAlgorithm signatureAlgorithm = null;
 		if (0 < index) {
 			String hash = jcaName.substring(0, index);
 			String signature = jcaName.substring(index + 4, jcaName.length());
-			hashAlgorithm = HashAlgorithm.valueOf(hash);
-			signatureAlgorithm = SignatureAlgorithm.valueOf(signature);
+			try {
+				hashAlgorithm = HashAlgorithm.valueOf(hash);
+			} catch (IllegalArgumentException ex) {
+			}
+			try {
+				signatureAlgorithm = SignatureAlgorithm.valueOf(signature);
+			} catch (IllegalArgumentException ex) {
+			}
+			if (hashAlgorithm == null && signatureAlgorithm == null) {
+				throw new IllegalArgumentException(jcaName + " is unknown!");
+			} else if (hashAlgorithm == null) {
+				throw new IllegalArgumentException(jcaName + " uses a unknown hash-algorithm!");
+			} else if (signatureAlgorithm == null) {
+				throw new IllegalArgumentException(jcaName + " uses a unknown signature-algorithm!");
+			}
 		} else {
 			hashAlgorithm = HashAlgorithm.INTRINSIC;
-			signatureAlgorithm = SignatureAlgorithm.valueOf(jcaName);
+			try {
+				signatureAlgorithm = SignatureAlgorithm.valueOf(jcaName);
+			} catch (IllegalArgumentException ex) {
+				throw new IllegalArgumentException(jcaName + " is unknown!");
+			}
 		}
-		if (hashAlgorithm != null && signatureAlgorithm != null) {
-			return new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
-		}
-		return null;
+		return new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 	}
 
 	/**
@@ -356,7 +378,9 @@ public final class SignatureAndHashAlgorithm {
 	 * 
 	 * @param certificateChain certificate chain. May be {@code null}.
 	 * @return list list of signature and hash algorithms
-	 * 
+	 * @throws IllegalArgumentException if certificate chain contains a unknown
+	 *             signature- and hash-algorithm or that is not supported by the
+	 *             JCE.
 	 * @since 3.0
 	 */
 	public static List<SignatureAndHashAlgorithm> getSignatureAlgorithms(List<X509Certificate> certificateChain) {
@@ -365,8 +389,8 @@ public final class SignatureAndHashAlgorithm {
 			for (X509Certificate certificate : certificateChain) {
 				String sigAlgName = certificate.getSigAlgName();
 				SignatureAndHashAlgorithm signature = valueOf(sigAlgName);
-				if (signature == null) {
-					throw new IllegalArgumentException(sigAlgName + " not supported!");
+				if (!signature.isSupported()) {
+					throw new IllegalArgumentException(sigAlgName + " is not supported by JCE!");
 				}
 				ListUtils.addIfAbsent(result, signature);
 			}
