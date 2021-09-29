@@ -131,7 +131,7 @@ public class CCMBlockCipherTest {
 	 */
 	@Test(expected = InvalidMacException.class)
 	public void testAES256and128CryptionFails() throws Exception {
-		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.isStrongEncryption());
+		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.hasStrongEncryption());
 		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 8);
 		CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
 	}
@@ -143,7 +143,7 @@ public class CCMBlockCipherTest {
 	 */
 	@Test
 	public void testAES256CCM8Cryption() throws Exception {
-		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.isStrongEncryption());
+		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.hasStrongEncryption());
 		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 8);
 		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey256, nonce, additionalData, encryptedData, 8);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
@@ -157,7 +157,7 @@ public class CCMBlockCipherTest {
 	@Test
 	public void testAES256CCMCryption() throws Exception {
 		// http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
-		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.isStrongEncryption());
+		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.hasStrongEncryption());
 		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey256, nonce, additionalData, payloadData, 16);
 		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey256, nonce, additionalData, encryptedData, 16);
 		assertTrue(Arrays.equals(decryptedData, payloadData));

@@ -22,7 +22,6 @@ import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
-import java.security.Provider;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
@@ -838,8 +837,7 @@ public final class XECDHECryptography implements Destroyable {
 
 		private static XDHPublicKeyApi init() {
 			try {
-				Provider provider = Asn1DerDecoder.getEdDsaProvider();
-				if (provider != null && provider.getName().equals("BC")) {
+				if (Asn1DerDecoder.usesBouncyCastle()) {
 					Class<?> cls = Class.forName("org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey");
 					return new XDHPublicKeyReflection(cls);
 				} else {

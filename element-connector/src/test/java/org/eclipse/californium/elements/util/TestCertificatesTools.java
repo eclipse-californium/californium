@@ -23,7 +23,6 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
@@ -376,15 +375,8 @@ public class TestCertificatesTools {
 	 * @since 3.0
 	 */
 	private static Signature getSignatureInstance(String algorithm) throws NoSuchAlgorithmException {
-		String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
-		if (oid != null) {
-			Provider provider = Asn1DerDecoder.getEdDsaProvider();
-			if (provider != null) {
-				// signature still requires specific EdDSA provider
-				return Signature.getInstance(oid, provider);
-			}
-		}
-		return Signature.getInstance(algorithm);
+		String standardAlgorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, algorithm);
+		return Signature.getInstance(standardAlgorithm);
 	}
 
 	public static void assertEquals(List<? extends Certificate> list1, List<? extends Certificate> list2) {
