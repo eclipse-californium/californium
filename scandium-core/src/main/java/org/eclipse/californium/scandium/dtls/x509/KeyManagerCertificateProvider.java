@@ -187,14 +187,14 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	public CertificateIdentityResult requestCertificateIdentity(ConnectionId cid, boolean client,
 			List<X500Principal> issuers, ServerNames serverNames,
 			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves) {
-		List<String> alias;
 		Principal[] principals = issuers == null ? null : issuers.toArray(new Principal[issuers.size()]);
-		if (signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519)
-				|| signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448)) {
-			alias = getAliases(client, KEY_TYPE_EC_EDDSA, principals);
-		} else {
-			alias = getAliases(client, KEY_TYPE_EC, principals);
+		String[] keyTypes = KEY_TYPE_EC;
+		if (signatureAndHashAlgorithms != null
+				&& (signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519)
+						|| signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448))) {
+			keyTypes = KEY_TYPE_EC_EDDSA;
 		}
+		List<String> alias = getAliases(client, keyTypes, principals);
 		if (!alias.isEmpty()) {
 			List<String> matchingServerNames = new ArrayList<>();
 			List<String> matchingSignatures = new ArrayList<>();

@@ -36,7 +36,6 @@ import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
-import java.util.Properties;
 
 import javax.crypto.Cipher;
 
@@ -60,7 +59,7 @@ import org.slf4j.LoggerFactory;
  * With version 3.0 an experimental support for using Bouncy Castle (version
  * 1.69) as JCE is available. On class startup, the default JCE is checked for
  * providing EdDSA. If that fails, first Bouncy Castle is tested, and, if that
- * fails as well, ed25519-java. Using Bouncy Castel will insert that provider as
+ * fails as well, ed25519-java. Using Bouncy Castle will insert that provider as
  * 1., while using ed25519-java will only apply for EdDSA.
  * <p>
  * If this JCE provider search should not be applied, please configure the
@@ -452,7 +451,7 @@ public class Asn1DerDecoder {
 
 	private static final Charset UCS_2;
 	private static final Charset UCS_4;
-	
+
 	static {
 		boolean tryJce = true;
 		boolean tryBc = true;
@@ -517,10 +516,7 @@ public class Asn1DerDecoder {
 		}
 		boolean ed25519 = false;
 		boolean ed448 = false;
-		if (!found) {
-			provider = null;
-			LOGGER.debug("EdDSA not supported!");
-		} else {
+		if (found && provider != null) {
 			try {
 				KeyFactory.getInstance("ED25519", provider);
 				ed25519 = true;
@@ -532,6 +528,9 @@ public class Asn1DerDecoder {
 			} catch (NoSuchAlgorithmException e) {
 			}
 			LOGGER.warn("EdDSA supported by {}, Ed25519: {}, Ed448: {}", provider.getName(), ed25519, ed448);
+		} else {
+			provider = null;
+			LOGGER.debug("EdDSA not supported!");
 		}
 		EDDSA_PROVIDER = provider;
 		ED25519_SUPPORT = ed25519;
@@ -557,13 +556,11 @@ public class Asn1DerDecoder {
 		STRONG_ENCRYPTION = strongEncryption;
 	}
 
-	private static void configureBC(Provider provider ) {
-		if (provider instanceof Properties) {
-			// Bouncy Castle support
-			// add OIDs to KeyFactory
-			Properties properties = (Properties) provider;
-			properties.setProperty("Alg.Alias.KeyFactory." + OID_ED25519, ED25519);
-			properties.setProperty("Alg.Alias.KeyFactory." + OID_ED448, ED448);
+	private static void configureBC(Provider provider) {
+		if (provider != null) {
+			// Bouncy Castle support: add OIDs to KeyFactory
+			provider.setProperty("Alg.Alias.KeyFactory." + OID_ED25519, ED25519);
+			provider.setProperty("Alg.Alias.KeyFactory." + OID_ED448, ED448);
 		}
 	}
 

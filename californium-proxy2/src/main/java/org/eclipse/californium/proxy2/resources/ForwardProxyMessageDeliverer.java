@@ -330,8 +330,8 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 					if (options.getUriHost() == null) {
 						// no URI-host
 						InetSocketAddress localSocketAddress = request.getLocalAddress();
-						if (localSocketAddress == null || localSocketAddress.getAddress().isAnyLocalAddress()) {
-							// no or any local address
+						if (localSocketAddress != null && localSocketAddress.getAddress().isAnyLocalAddress()) {
+							// any local address
 							InetAddress localAddress = resolveLocalAddress(request.getSourceContext().getPeerAddress());
 							if (localAddress != null) {
 								request.setLocalAddress(

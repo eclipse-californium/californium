@@ -261,9 +261,9 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 
 		private final CoapExchange incomingExchange;
 		private final int accept;
+		private final int timeout;
 		private final String resource;
 		private final Integer observe;
-		private final Integer timeout;
 		private final List<String> observeUriQuery = new ArrayList<>();
 		private final AtomicBoolean processed = new AtomicBoolean();
 
@@ -272,7 +272,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			Request request = incomingExchange.advanced().getRequest();
 			this.accept = request.getOptions().getAccept();
 			List<String> uriQuery = request.getOptions().getUriQuery();
-			Integer timeout = 30;
+			int timeout = 30;
 			Integer observe = null;
 			String resource = null;
 			for (String query : uriQuery) {
@@ -367,7 +367,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			return observe;
 		}
 
-		private Integer getTimeout() {
+		private int getTimeout() {
 			return timeout;
 		}
 

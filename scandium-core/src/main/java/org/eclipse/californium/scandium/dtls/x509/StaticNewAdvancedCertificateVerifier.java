@@ -228,7 +228,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 				hostname = serverName.getNameAsString();
 			}
 		}
-		if (hostname.equals(literalIp)) {
+		if (hostname != null && hostname.equals(literalIp)) {
 			hostname = null;
 		}
 		if (hostname != null) {

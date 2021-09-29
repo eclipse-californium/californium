@@ -393,7 +393,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					addEndpoint(endpoint);
 					print(endpoint, interfaceType);
 				}
-				if (protocols.contains(Protocol.TLS)) {
+				if (protocols.contains(Protocol.TLS) && serverSslContext != null) {
 					Configuration tlsConfig = getConfig(Protocol.TLS, interfaceType);
 					tlsConfig.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
 					int maxPeers = tlsConfig.get(CoapConfig.MAX_ACTIVE_PEERS);

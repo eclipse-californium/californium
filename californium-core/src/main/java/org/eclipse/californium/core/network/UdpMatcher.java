@@ -262,7 +262,7 @@ public final class UdpMatcher extends BaseMatcher {
 			}
 		}
 
-		if (duplicate) {
+		if (duplicate && previous != null) {
 			LOGGER.trace("duplicate request: {}", request);
 			request.setDuplicate(true);
 			previous.execute(new Runnable() {
