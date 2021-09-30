@@ -20,6 +20,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNoException;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -292,14 +293,13 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testReadPrivateKeyEdDsaV2() throws IOException, GeneralSecurityException {
-		if (Asn1DerDecoder.isSupported("ED25519")) {
-			byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_V2_BASE64);
-			Keys keys = Asn1DerDecoder.readPrivateKey(data);
-			assertThat(keys, is(notNullValue()));
-			assertThat(keys.getPrivateKey(), is(notNullValue()));
-			assertThat(keys.getPublicKey(), is(notNullValue()));
-			TestCertificatesTools.assertSigning("asn.1", keys.getPrivateKey(), keys.getPublicKey(), "ED25519");
-		}
+		assumeTrue("ED25519 requires JCE support!", Asn1DerDecoder.isSupported("Ed25519"));
+		byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_V2_BASE64);
+		Keys keys = Asn1DerDecoder.readPrivateKey(data);
+		assertThat(keys, is(notNullValue()));
+		assertThat(keys.getPrivateKey(), is(notNullValue()));
+		assertThat(keys.getPublicKey(), is(notNullValue()));
+		TestCertificatesTools.assertSigning("asn.1", keys.getPrivateKey(), keys.getPublicKey(), "ED25519");
 	}
 
 	/**
@@ -339,9 +339,8 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testEdDsaKeyAlgorithmGenerated() throws IOException {
-		if (Asn1DerDecoder.isSupported("ED25519")) {
-			assertKeyAlgorithmGenerated("ED25519");
-		}
+		assumeTrue("ED25519 requires JCE support!", Asn1DerDecoder.isSupported("Ed25519"));
+		assertKeyAlgorithmGenerated("ED25519");
 	}
 
 	private void assertKeyAlgorithmGenerated(String algorithm) throws IOException {
