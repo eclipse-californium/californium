@@ -752,6 +752,21 @@ public class Asn1DerDecoder {
 	}
 
 	/**
+	 * Check, if key algorithm is EC based.
+	 * 
+	 * @param algorithm key algorithm
+	 * @return {@code true}, if EC based, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public static boolean isEcBased(String algorithm) {
+		if (EC.equalsIgnoreCase(algorithm)) {
+			return true;
+		} else {
+			return getEdDsaStandardAlgorithmName(algorithm, null) != null;
+		}
+	}
+
+	/**
 	 * Read entity of ASN.1 SEQUENCE into byte array.
 	 * 
 	 * Returns entity, including tag and length. Intended to be passed to other

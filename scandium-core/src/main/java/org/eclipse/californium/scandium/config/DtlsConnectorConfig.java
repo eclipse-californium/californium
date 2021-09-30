@@ -1879,7 +1879,7 @@ public final class DtlsConnectorConfig {
 			}
 			for (SupportedGroup group : supportedGroups) {
 				if (!group.isUsable()) {
-					throw new IllegalArgumentException("curve " + group.name() + " is not supported by JVM!");
+					throw new IllegalArgumentException("curve " + group.name() + " is not supported by JCE!");
 				}
 			}
 
