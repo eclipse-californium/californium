@@ -116,12 +116,14 @@ public class CertificateConfigurationHelper {
 		if (!Asn1DerDecoder.isSupported(algorithm)) {
 			throw new IllegalArgumentException("Public key algorithm " + algorithm + " is not supported!");
 		}
-		SupportedGroup group = SupportedGroup.fromPublicKey(key);
-		if (group == null) {
-			throw new IllegalArgumentException("Public key's ec-group must be supported!");
+		if (Asn1DerDecoder.isEcBased(algorithm)) {
+			SupportedGroup group = SupportedGroup.fromPublicKey(key);
+			if (group == null) {
+				throw new IllegalArgumentException("Public key's ec-group must be supported!");
+			}
+			ListUtils.addIfAbsent(defaultSupportedGroups, group);
 		}
-		ListUtils.addIfAbsent(supportedKeyAlgorithms, Asn1DerDecoder.EC);
-		ListUtils.addIfAbsent(defaultSupportedGroups, group);
+		ListUtils.addIfAbsent(supportedKeyAlgorithms, algorithm);
 		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(defaultSignatureAndHashAlgorithms, key);
 		ListUtils.addIfAbsent(keys, key);
 	}
@@ -154,7 +156,7 @@ public class CertificateConfigurationHelper {
 			for (int index = 1; index < certificateChain.size(); ++index) {
 				certificate = certificateChain.get(index);
 				PublicKey certPublicKey = certificate.getPublicKey();
-				if (Asn1DerDecoder.isSupported(certPublicKey.getAlgorithm())) {
+				if (Asn1DerDecoder.isEcBased(certPublicKey.getAlgorithm())) {
 					SupportedGroup group = SupportedGroup.fromPublicKey(certPublicKey);
 					if (group == null) {
 						throw new IllegalArgumentException("CA's public key ec-group must be supported!");
@@ -179,7 +181,7 @@ public class CertificateConfigurationHelper {
 			for (X509Certificate certificate : trusts) {
 				PublicKey publicKey = certificate.getPublicKey();
 				SignatureAndHashAlgorithm.ensureSignatureAlgorithm(defaultSignatureAndHashAlgorithms, publicKey);
-				if (Asn1DerDecoder.isSupported(publicKey.getAlgorithm())) {
+				if (Asn1DerDecoder.isEcBased(publicKey.getAlgorithm())) {
 					SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
 					if (group == null) {
 						throw new IllegalArgumentException("CA's public key ec-group must be supported!");

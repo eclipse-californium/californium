@@ -329,7 +329,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	private boolean matchCurves(List<SupportedGroup> curves, List<X509Certificate> chain) {
 		for (X509Certificate certificate : chain) {
 			PublicKey certPublicKey = certificate.getPublicKey();
-			if (Asn1DerDecoder.isSupported(certPublicKey.getAlgorithm())) {
+			if (Asn1DerDecoder.isEcBased(certPublicKey.getAlgorithm())) {
 				SupportedGroup group = SupportedGroup.fromPublicKey(certPublicKey);
 				if (group == null) {
 					return false;
