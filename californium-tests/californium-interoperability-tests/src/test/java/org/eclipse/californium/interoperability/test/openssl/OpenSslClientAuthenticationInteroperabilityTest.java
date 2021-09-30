@@ -182,7 +182,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslClientX25519() throws Exception {
-		assumeTrue("X25519 not support by JRE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, "X25519:prime256v1", null, cipherSuite);
@@ -191,7 +191,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslClientX448() throws Exception {
-		assumeTrue("X448 not support by JRE", XECDHECryptography.SupportedGroup.X448.isUsable());
+		assumeTrue("X448 not support by JCE", XECDHECryptography.SupportedGroup.X448.isUsable());
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, "X448:prime256v1", null, cipherSuite);
@@ -225,8 +225,8 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslClientEdDsaCertificatChain() throws Exception {
-		assumeTrue("X25519 not support by JRE", XECDHECryptography.SupportedGroup.X25519.isUsable());
-		assumeTrue("Ed25519 not support by JRE", Asn1DerDecoder.isSupported("Ed25519"));
+		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("Ed25519 not support by JCE", Asn1DerDecoder.isSupported("Ed25519"));
 		assumeTrue("Ed25519 certificate missing", new File("clientEdDsa.pem").exists());
 
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);

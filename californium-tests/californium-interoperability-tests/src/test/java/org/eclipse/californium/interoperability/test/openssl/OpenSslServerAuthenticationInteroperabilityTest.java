@@ -185,7 +185,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerX25519() throws Exception {
-		assumeTrue("X25519 not support by JRE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
@@ -197,7 +197,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerX448() throws Exception {
-		assumeTrue("X448 not support by JRE", XECDHECryptography.SupportedGroup.X448.isUsable());
+		assumeTrue("X448 not support by JCE", XECDHECryptography.SupportedGroup.X448.isUsable());
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
@@ -231,7 +231,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerBrainpoolP384r1() throws Exception {
-		assumeTrue("BrainpoolP384r1 not support by JRE", XECDHECryptography.SupportedGroup.brainpoolP384r1.isUsable());
+		assumeTrue("BrainpoolP384r1 not support by JCE", XECDHECryptography.SupportedGroup.brainpoolP384r1.isUsable());
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_CERTIFICATE, "brainpoolP384r1:prime256v1", null,
 				cipherSuite);
 

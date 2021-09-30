@@ -1514,8 +1514,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkEd25519Handshake() throws Exception {
-		assumeTrue("X25519 requires JVM support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
-		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+		assumeTrue("X25519 requires JCE support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("ED25519 requires JCE support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
 		serverBuilder.setSupportedSignatureAlgorithms(defaults);
@@ -1532,8 +1532,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkEd448Handshake() throws Exception {
-		assumeTrue("X448 requires JVM support!", XECDHECryptography.SupportedGroup.X448.isUsable());
-		assumeTrue("ED448 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448.isSupported());
+		assumeTrue("X448 requires JCE support!", XECDHECryptography.SupportedGroup.X448.isUsable());
+		assumeTrue("ED448 requires JCE support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448.isSupported());
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448);
 		serverBuilder.setSupportedSignatureAlgorithms(defaults);
@@ -1550,8 +1550,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkOpensslEd25519Handshake() throws Exception {
-		assumeTrue("X25519 requires JVM support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
-		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+		assumeTrue("X25519 requires JCE support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("ED25519 requires JCE support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
 		clientPrivateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed25519_private.pem",
 				null, null, null);
 		assertThat(clientPrivateKey, is(notNullValue()));
@@ -1572,8 +1572,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkOpensslEd448Handshake() throws Exception {
-		assumeTrue("X448 requires JVM support!", XECDHECryptography.SupportedGroup.X448.isUsable());
-		assumeTrue("ED448 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448.isSupported());
+		assumeTrue("X448 requires JCE support!", XECDHECryptography.SupportedGroup.X448.isUsable());
+		assumeTrue("ED448 requires JCE support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448.isSupported());
 		clientPrivateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed448_private.pem",
 				null, null, null);
 		assertThat(clientPrivateKey, is(notNullValue()));
@@ -1594,8 +1594,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509Ed25519Handshake() throws Exception {
-		assumeTrue("X25519 requires JVM support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
-		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+		assumeTrue("X25519 requires JCE support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("ED25519 requires JCE support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
 		Credentials credentials = TestCertificatesTools.getCredentials("clienteddsa");
 		assumeNotNull("clienteddsa credentials missing!", credentials);
 
