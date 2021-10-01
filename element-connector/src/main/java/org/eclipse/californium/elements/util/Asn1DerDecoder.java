@@ -22,9 +22,7 @@ import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.Provider;
 import java.security.PublicKey;
-import java.security.Security;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
@@ -37,36 +35,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
-import javax.crypto.Cipher;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * ASN.1 DER decoder for SEQUENCEs and OIDs.
- * <p>
- * To support EdDSA, either java 15, or java 11 with
- * <a href="https://github.com/str4d/ed25519-java" target=
- * "_blank">ed25519-java</a> is required at runtime. Using java 15 to build
- * Californium, leaves out {@code ed25519-java}, using java 11 for building,
- * includes {@code ed25519-java} by default. If {@code ed25519-java} should
- * <b>NOT</b> be included into the Californium's jars, add
- * {@code -Dno.net.i2p.crypto.eddsa=true} to maven's arguments. In that case,
- * it's still possible to use {@code ed25519-java}, if the <a href=
- * "https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar"
- * target="_blank">eddsa-0.3.0.jar</a> is provided to the classpath separately.
- * <p>
- * With version 3.0 an experimental support for using Bouncy Castle (version
- * 1.69) as JCE is available. On class startup, the default JCE is checked for
- * providing EdDSA. If that fails, first Bouncy Castle is tested, and, if that
- * fails as well, ed25519-java. Using Bouncy Castle will insert that provider as
- * 1., while using ed25519-java will only apply for EdDSA.
- * <p>
- * If this JCE provider search should not be applied, please configure the
- * environment variable "CALIFORNIUM_JCE_PROVIDER" with one of the values
- * "SYSTEM" (keep the providers configured externally), "BC" (load and insert
- * the Bouncy Castle provider), "I2P" (load net.i2p.crypto.eddsa ed25519-java
- * and use that for EdDSA).
  */
 public class Asn1DerDecoder {
 	/**
@@ -416,57 +386,6 @@ public class Asn1DerDecoder {
 	 */
 	private static final String[][] ALGORITHM_ALIASES = { { "DH", "DiffieHellman" }, ED25519_ALIASES, ED448_ALIASES };
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Asn1DerDecoder.class);
-
-	/**
-	 * Information about JCE features.
-	 * 
-	 * @see #setupJce()
-	 * @since 3.0
-	 */
-	private static volatile JceFeatures jceFeatures;
-
-	/**
-	 * Package name for external java 7 EdDSA provider.
-	 */
-	private static final String NET_I2P_CRYPTO_EDDSA = "net.i2p.crypto.eddsa";
-	/**
-	 * Name of i2p EdDSA JCE provider.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String NET_I2P_CRYPTO_EDDSA_PROVIDER = NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider";
-	/**
-	 * Name of Bouncy Castle JCE provider.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String BOUNCY_CASTLE_PROVIDER = "org.bouncycastle.jce.provider.BouncyCastleProvider";
-	/**
-	 * Name of environment variable.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String CALIFORNIUM_JCE_PROVIDER = "CALIFORNIUM_JCE_PROVIDER";
-	/**
-	 * Value for {@link #CALIFORNIUM_JCE_PROVIDER} to use only the provided JCE.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String SYSTEM_JCE_PROVIDER = "SYSTEM";
-	/**
-	 * Value for {@link #CALIFORNIUM_JCE_PROVIDER} to use Bouncy Castle as JCE.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String BOUNCY_CASTLE_JCE_PROVIDER = "BC";
-	/**
-	 * Value for {@link #CALIFORNIUM_JCE_PROVIDER} to use ed25519-java as JCE for EdDSA.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String NET_I2P_CRYPTO_JCE_PROVIDER = "I2P";
-
 	/**
 	 * ISO-10646-UCS-2 charset, if supported.
 	 * 
@@ -493,53 +412,7 @@ public class Asn1DerDecoder {
 		} catch (Throwable t) {
 		}
 		UCS_4 = charset;
-		setupJce();
-	}
-
-	/**
-	 * Checks, if provider is Bouncy Castle.
-	 * 
-	 * @param provider provider to check. May be {@code null}.
-	 * @return {@code true}, if provided provider is Bouncy Castle,
-	 *         {@code false}, if either no providers is provided or provider is
-	 *         not Bouncy Castle.
-	 * @since 3.0
-	 */
-	private static boolean isBouncyCastle(Provider provider) {
-		return provider != null && provider.getName().equals(BOUNCY_CASTLE_JCE_PROVIDER);
-	}
-
-	/**
-	 * Configure provider, if Bouncy Castle is used.
-	 * 
-	 * @param provider provider to configure. If not Bouncy Castle, leave it
-	 *            unchanged.
-	 * @since 3.0
-	 */
-	private static void configureBouncyCastle(Provider provider) {
-		if (isBouncyCastle(provider)) {
-			// Bouncy Castle support: add OIDs to KeyFactory
-			provider.setProperty("Alg.Alias.KeyFactory." + OID_ED25519, ED25519);
-			provider.setProperty("Alg.Alias.KeyFactory." + OID_ED448, ED448);
-		}
-	}
-
-	/**
-	 * Load provider by class-name.
-	 * 
-	 * @param clzName class-name
-	 * @return loaded provider, or {@code null}, if class could not be loaded or
-	 *         instance could not be created.
-	 * @since 3.0
-	 */
-	private static Provider loadProvider(String clzName) {
-		try {
-			Class<?> clz = Class.forName(clzName);
-			return (Provider) clz.getConstructor().newInstance();
-		} catch (Throwable e) {
-			LOGGER.debug("Loading {} failed!", clzName, e);
-			return null;
-		}
+		JceProviderUtil.init();
 	}
 
 	/**
@@ -596,159 +469,6 @@ public class Asn1DerDecoder {
 			algorithm = version == 0 ? X448 : X448v2;
 		}
 		return algorithm;
-	}
-
-	/**
-	 * Setup JCE.
-	 * 
-	 * Prepare and check, if EdDSA is supported.
-	 * 
-	 * @since 3.0
-	 */
-	public static void setupJce() {
-		boolean tryJce = true;
-		boolean tryBc = true;
-		boolean tryEd25519Java = true;
-		String jce = StringUtil.getConfiguration(CALIFORNIUM_JCE_PROVIDER);
-		if (jce != null && !jce.isEmpty()) {
-			if (SYSTEM_JCE_PROVIDER.equalsIgnoreCase(jce)) {
-				tryBc = false;
-				tryEd25519Java = false;
-			} else if (BOUNCY_CASTLE_JCE_PROVIDER.equalsIgnoreCase(jce)) {
-				tryJce = false;
-				tryEd25519Java = false;
-			} else if (NET_I2P_CRYPTO_JCE_PROVIDER.equalsIgnoreCase(jce)) {
-				tryJce = false;
-				tryBc = false;
-			}
-		}
-		configureBouncyCastle(Security.getProvider(BOUNCY_CASTLE_JCE_PROVIDER));
-		boolean found = false;
-		Provider provider = null;
-		try {
-			KeyFactory factory = KeyFactory.getInstance("EdDSA");
-			provider = factory.getProvider();
-			if (tryJce) {
-				found = true;
-				LOGGER.trace("EdDSA from default jce {}", provider.getName());
-			}
-		} catch (NoSuchAlgorithmException e) {
-		}
-		if (!found && tryBc) {
-			if (isBouncyCastle(provider)) {
-				found = true;
-				LOGGER.trace("EdDSA from BC");
-			} else {
-				Provider newProvider = loadProvider(BOUNCY_CASTLE_PROVIDER);
-				if (newProvider != null) {
-					configureBouncyCastle(newProvider);
-					try {
-						KeyFactory.getInstance("EdDSA", newProvider);
-						Security.removeProvider(newProvider.getName());
-						Security.insertProviderAt(newProvider, 1);
-						provider = newProvider;
-						found = true;
-						LOGGER.trace("EdDSA from BC");
-					} catch (SecurityException e) {
-					} catch (NoSuchAlgorithmException e) {
-					}
-				}
-			}
-		}
-		if (!found && tryEd25519Java) {
-			if (provider != null && provider.getClass().getName().equals(NET_I2P_CRYPTO_EDDSA_PROVIDER)) {
-				found = true;
-				LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
-			} else {
-				Provider newProvider = loadProvider(NET_I2P_CRYPTO_EDDSA_PROVIDER);
-				if (newProvider != null) {
-					try {
-						KeyFactory.getInstance("ED25519", newProvider);
-						Security.removeProvider(newProvider.getName());
-						Security.addProvider(newProvider);
-						provider = newProvider;
-						found = true;
-						LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
-					} catch (SecurityException e) {
-					} catch (NoSuchAlgorithmException e) {
-					}
-				}
-			}
-		}
-		boolean strongEncryption = false;
-		try {
-			strongEncryption = Cipher.getMaxAllowedKeyLength("AES") >= 256;
-		} catch (NoSuchAlgorithmException ex) {
-		}
-		boolean ed25519 = false;
-		boolean ed448 = false;
-		if (found && provider != null) {
-			try {
-				KeyFactory.getInstance("ED25519");
-				ed25519 = true;
-			} catch (NoSuchAlgorithmException e) {
-			}
-			try {
-				KeyFactory.getInstance("ED448");
-				ed448 = true;
-			} catch (NoSuchAlgorithmException e) {
-			}
-			LOGGER.warn("EdDSA supported by {}, Ed25519: {}, Ed448: {}, strong encryption: {}", provider.getName(),
-					ed25519, ed448, strongEncryption);
-		} else {
-			provider = null;
-			LOGGER.debug("EdDSA not supported! strong encryption: {}", strongEncryption);
-		}
-		JceFeatures newSupport = new JceFeatures(isBouncyCastle(provider), ed25519, ed448, strongEncryption);
-		if (!newSupport.equals(jceFeatures)) {
-			jceFeatures = newSupport;
-		}
-	}
-
-	/**
-	 * Check, if Bouncy Castle is used in order to support EdDSA.
-	 * 
-	 * @return {@code true}, if Bouncy Castle is used, or {@code false}, if not.
-	 * @since 3.0
-	 */
-	public static boolean usesBouncyCastle() {
-		return jceFeatures.useBc;
-	}
-
-	/**
-	 * Checks, whether the JCE support strong encryption or not.
-	 * 
-	 * Checks for AES-256.
-	 * 
-	 * @return {@code true}, if strong encryption is available, {@code false},
-	 *         if not
-	 * @since 3.0
-	 */
-	public static boolean hasStrongEncryption() {
-		return jceFeatures.strongEncryption;
-	}
-
-	/**
-	 * Check, if key algorithm is supported.
-	 * 
-	 * @param algorithm key algorithm
-	 * @return {@code true}, if supported, {@code false}, otherwise.
-	 * @since 2.4
-	 */
-	public static boolean isSupported(String algorithm) {
-		if (EC.equalsIgnoreCase(algorithm)) {
-			return true;
-		} else {
-			String oid = getEdDsaStandardAlgorithmName(algorithm, null);
-			if (OID_ED25519.equals(oid)) {
-				return jceFeatures.ed25519;
-			} else if (OID_ED448.equals(oid)) {
-				return jceFeatures.ed448;
-			} else if (EDDSA.equalsIgnoreCase(algorithm)) {
-				return jceFeatures.ed25519 || jceFeatures.ed448;
-			}
-		}
-		return false;
 	}
 
 	/**
@@ -1241,7 +961,7 @@ public class Asn1DerDecoder {
 	 * @since 2.4
 	 */
 	public static String getEdDsaStandardAlgorithmName(String algorithm, String def) {
-		if (algorithm.equalsIgnoreCase(EDDSA)) {
+		if (EDDSA.equalsIgnoreCase(algorithm)) {
 			return EDDSA;
 		} else if (contains(ED25519_ALIASES, algorithm)) {
 			return OID_ED25519;
@@ -1697,52 +1417,5 @@ public class Asn1DerDecoder {
 			}
 			return null;
 		}
-	}
-
-	private static class JceFeatures {
-
-		private final boolean useBc;
-		private final boolean ed25519;
-		private final boolean ed448;
-		private final boolean strongEncryption;
-
-		private JceFeatures(boolean useBc, boolean ed25519, boolean ed448, boolean strongEncryption) {
-			this.useBc = useBc;
-			this.ed25519 = ed25519;
-			this.ed448 = ed448;
-			this.strongEncryption = strongEncryption;
-		}
-
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + (ed25519 ? 41 : 37);
-			result = prime * result + (ed448 ? 41 : 37);
-			result = prime * result + (strongEncryption ? 41 : 37);
-			result = prime * result + (useBc ? 41 : 37);
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			JceFeatures other = (JceFeatures) obj;
-			if (ed25519 != other.ed25519)
-				return false;
-			if (ed448 != other.ed448)
-				return false;
-			if (strongEncryption != other.strongEncryption)
-				return false;
-			if (useBc != other.useBc)
-				return false;
-			return true;
-		}
-
 	}
 }

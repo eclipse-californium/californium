@@ -91,7 +91,7 @@ public class TestCertificatesTools {
 			keyManager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "client", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			clientKeyManager = getX509KeyManager(keyManager);
 
-			if (Asn1DerDecoder.isSupported(Asn1DerDecoder.ED25519)
+			if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)
 					&& SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI)) {
 				keyManager = SslContextUtil.loadKeyManager(EDDSA_KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD,
 						KEY_STORE_PASSWORD);

@@ -212,7 +212,7 @@ public class SslContextUtil {
 	private static final TrustManager TRUST_ALL;
 
 	static {
-		Asn1DerDecoder.setupJce();
+		JceProviderUtil.init();
 		configureDefaults();
 		TrustManager trustAll;
 		try {

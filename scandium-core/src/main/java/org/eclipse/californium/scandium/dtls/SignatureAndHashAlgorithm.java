@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.eclipse.californium.scandium.util.ListUtils;
 
@@ -42,6 +43,10 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * target="_blank">draft-ietf-tls-md5-sha1-deprecate</a>.
  */
 public final class SignatureAndHashAlgorithm {
+
+	static {
+		JceProviderUtil.init();
+	}
 
 	/**
 	 * Hash algorithms as defined by

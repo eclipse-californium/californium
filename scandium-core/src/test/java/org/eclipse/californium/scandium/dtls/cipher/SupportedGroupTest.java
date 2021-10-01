@@ -28,8 +28,10 @@ import java.util.List;
 import javax.crypto.SecretKey;
 
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -37,6 +39,11 @@ import org.junit.experimental.categories.Category;
 public class SupportedGroupTest {
 
 	private static final int LOOPS = 10;
+
+	@BeforeClass
+	public static void init() {
+		JceProviderUtil.init();
+	}
 
 	@Test
 	public void testGetSupportedGroupFromPublicKey() {
@@ -102,7 +109,11 @@ public class SupportedGroupTest {
 					assertThat(secret2, is(notNullValue()));
 					assertThat("edhe failed!", secret1, is(secret2));
 				} catch (GeneralSecurityException e) {
-					fail(e.getMessage());
+					e.printStackTrace();
+					fail(group.name() + ": " + e.getMessage());
+				} catch (RuntimeException e) {
+					e.printStackTrace();
+					fail(group.name() + ": " + e.getMessage());
 				}
 			}
 		}

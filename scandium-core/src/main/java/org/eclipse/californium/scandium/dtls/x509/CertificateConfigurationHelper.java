@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.CertPathUtil;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
@@ -113,7 +114,7 @@ public class CertificateConfigurationHelper {
 	 */
 	public void addConfigurationDefaultsFor(PublicKey key) {
 		String algorithm = key.getAlgorithm();
-		if (!Asn1DerDecoder.isSupported(algorithm)) {
+		if (!JceProviderUtil.isSupported(algorithm)) {
 			throw new IllegalArgumentException("Public key algorithm " + algorithm + " is not supported!");
 		}
 		if (Asn1DerDecoder.isEcBased(algorithm)) {

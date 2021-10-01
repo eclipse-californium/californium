@@ -34,6 +34,7 @@ import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
@@ -226,7 +227,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	@Test
 	public void testOpenSslClientEdDsaCertificatChain() throws Exception {
 		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
-		assumeTrue("Ed25519 not support by JCE", Asn1DerDecoder.isSupported("Ed25519"));
+		assumeTrue("Ed25519 not support by JCE", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
 		assumeTrue("Ed25519 certificate missing", new File("clientEdDsa.pem").exists());
 
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);

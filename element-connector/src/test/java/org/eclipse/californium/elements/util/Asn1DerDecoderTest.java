@@ -182,7 +182,7 @@ public class Asn1DerDecoderTest {
 	public void testKeyAlgorithmEddsa() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(EDDSA_BASE64);
 		assertThat(Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is("ED25519"));
-		if (Asn1DerDecoder.isSupported("ED25519")) {
+		if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)) {
 			assertThat(Asn1DerDecoder.readSubjectPublicKey(data), is(notNullValue()));
 		}
 	}
@@ -252,7 +252,7 @@ public class Asn1DerDecoderTest {
 	public void testPrivateKeyAlgorithmEddsa() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_BASE64);
 		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is("ED25519"));
-		if (Asn1DerDecoder.isSupported("ED25519")) {
+		if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)) {
 			assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 		}
 	}
@@ -293,7 +293,7 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testReadPrivateKeyEdDsaV2() throws IOException, GeneralSecurityException {
-		assumeTrue("ED25519 requires JCE support!", Asn1DerDecoder.isSupported("Ed25519"));
+		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
 		byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_V2_BASE64);
 		Keys keys = Asn1DerDecoder.readPrivateKey(data);
 		assertThat(keys, is(notNullValue()));
@@ -339,7 +339,7 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testEdDsaKeyAlgorithmGenerated() throws IOException {
-		assumeTrue("ED25519 requires JCE support!", Asn1DerDecoder.isSupported("Ed25519"));
+		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
 		assertKeyAlgorithmGenerated("ED25519");
 	}
 

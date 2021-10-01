@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.lang.reflect.Method;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -38,6 +39,7 @@ import java.util.Map;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -115,6 +117,10 @@ public final class XECDHECryptography implements Destroyable {
 	protected static final Logger LOGGER = LoggerFactory.getLogger(XECDHECryptography.class);
 
 	// Static members /////////////////////////////////////////////////
+
+	static {
+		JceProviderUtil.init();
+	}
 
 	/**
 	 * The algorithm for the elliptic curve key pair generation.
@@ -273,7 +279,7 @@ public final class XECDHECryptography implements Destroyable {
 	 * @param encodedPoint the other peer's public key as encoded point
 	 * @return the premaster secret
 	 * @throws NullPointerException if encodedPoint is {@code null}.
-	 * @throws GeneralSecurityException if a crypt error occurred.
+	 * @throws GeneralSecurityException if a crypto error occurred.
 	 */
 	public SecretKey generateSecret(byte[] encodedPoint) throws GeneralSecurityException {
 		if (privateKey == null) {
@@ -287,16 +293,21 @@ public final class XECDHECryptography implements Destroyable {
 				&& supportedGroup.getAlgorithmName().equals(XDH_KEYPAIR_GENERATOR_ALGORITHM)) {
 			keyAgreement = XDH_KEY_AGREEMENT.currentWithCause();
 		} else {
-			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JRE!");
+			throw new GeneralSecurityException(supportedGroup.name() + " not supported by JCE!");
 		}
 		check("IN: ", peersPublicKey, encodedPoint);
 
-		keyAgreement.init(privateKey);
-		keyAgreement.doPhase(peersPublicKey, true);
-		byte[] secret = keyAgreement.generateSecret();
-		SecretKey secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
-		Bytes.clear(secret);
-		return secretKey;
+		try {
+			keyAgreement.init(privateKey);
+			keyAgreement.doPhase(peersPublicKey, true);
+			byte[] secret = keyAgreement.generateSecret();
+			SecretKey secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
+			Bytes.clear(secret);
+			return secretKey;
+		} catch(InvalidKeyException ex) {
+			LOGGER.warn("Fail: {} {}", supportedGroup.name(), ex.getMessage());
+			throw ex;
+		}
 	}
 
 	@Override
@@ -404,7 +415,7 @@ public final class XECDHECryptography implements Destroyable {
 			try {
 				KeyPairGenerator keyPairGenerator = EC_KEYPAIR_GENERATOR.currentWithCause();
 				ECGenParameterSpec genParams = new ECGenParameterSpec(name());
-				keyPairGenerator.initialize(genParams);
+				keyPairGenerator.initialize(genParams, RandomManager.currentSecureRandom());
 				ECPublicKey publicKey = (ECPublicKey) keyPairGenerator.generateKeyPair().getPublic();
 				curve = publicKey.getParams().getCurve();
 				keySize = (curve.getField().getFieldSize() + Byte.SIZE - 1) / Byte.SIZE;
@@ -413,7 +424,7 @@ public final class XECDHECryptography implements Destroyable {
 				header = publicKey.getEncoded();
 				header = Arrays.copyOf(header, header.length - publicKeySize);
 			} catch (Throwable e) {
-				LOGGER.trace("Group [{}] is not supported by JRE! {}", name(), e.getMessage());
+				LOGGER.trace("Group [{}] is not supported by JCE! {}", name(), e.getMessage());
 				curve = null;
 			}
 			this.keySizeInBytes = keySize;
@@ -445,13 +456,13 @@ public final class XECDHECryptography implements Destroyable {
 			try {
 				KeyPairGenerator keyPairGenerator = XDH_KEYPAIR_GENERATOR.currentWithCause();
 				ECGenParameterSpec params = new ECGenParameterSpec(name());
-				keyPairGenerator.initialize(params);
+				keyPairGenerator.initialize(params, RandomManager.currentSecureRandom());
 				PublicKey publicKey = keyPairGenerator.generateKeyPair().getPublic();
 				header = publicKey.getEncoded();
 				header = Arrays.copyOf(header, header.length - keySizeInBytes);
 				usable = true;
 			} catch (Throwable e) {
-				LOGGER.trace("Group [{}] is not supported by JRE! {}", name(), e.getMessage());
+				LOGGER.trace("Group [{}] is not supported by JCE! {}", name(), e.getMessage());
 			}
 			this.usable = usable;
 			this.asn1header = header;
@@ -837,7 +848,7 @@ public final class XECDHECryptography implements Destroyable {
 
 		private static XDHPublicKeyApi init() {
 			try {
-				if (Asn1DerDecoder.usesBouncyCastle()) {
+				if (JceProviderUtil.usesBouncyCastle()) {
 					Class<?> cls = Class.forName("org.bouncycastle.jcajce.provider.asymmetric.edec.BCXDHPublicKey");
 					return new XDHPublicKeyReflection(cls);
 				} else {
