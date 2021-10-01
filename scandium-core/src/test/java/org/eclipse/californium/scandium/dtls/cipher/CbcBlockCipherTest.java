@@ -28,11 +28,12 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.category.Small;
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -55,6 +56,11 @@ public class CbcBlockCipherTest {
 
 	static final SecretKey aesMacKey = new SecretKeySpec(Bytes.createBytes(random, 16), "AES");
 	static final SecretKey aesMacKey256 = new SecretKeySpec(Bytes.createBytes(random, 32), "AES");
+
+	@BeforeClass
+	public static void init() {
+		JceProviderUtil.init();
+	}
 
 	@Parameterized.Parameters
 	public static List<Object[]> parameters() {
@@ -129,7 +135,7 @@ public class CbcBlockCipherTest {
 	 */
 	@Test(expected = InvalidMacException.class)
 	public void testAes256and128CryptionFails() throws Exception {
-		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.hasStrongEncryption());
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CbcBlockCipher.encrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, aesKey256, aesMacKey256, additionalData, payloadData);
 		CbcBlockCipher.decrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, aesKey, aesMacKey, additionalData, encryptedData);
 	}
@@ -141,7 +147,7 @@ public class CbcBlockCipherTest {
 	 */
 	@Test
 	public void testAes256Sha384ryption() throws Exception {
-		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.hasStrongEncryption());
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CbcBlockCipher.encrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, aesKey256, aesMacKey256, additionalData, payloadData);
 		byte[] decryptedData = CbcBlockCipher.decrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, aesKey256, aesMacKey256, additionalData, encryptedData);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
@@ -154,7 +160,7 @@ public class CbcBlockCipherTest {
 	 */
 	@Test
 	public void testAes256ShaCryption() throws Exception {
-		assumeTrue("requires strong encryption enabled", Asn1DerDecoder.hasStrongEncryption());
+		assumeTrue("requires strong encryption enabled", JceProviderUtil.hasStrongEncryption());
 		byte[] encryptedData = CbcBlockCipher.encrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, aesKey256, aesMacKey256, additionalData, payloadData);
 		byte[] decryptedData = CbcBlockCipher.decrypt(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, aesKey256, aesMacKey256, additionalData, encryptedData);
 		assertTrue(Arrays.equals(decryptedData, payloadData));

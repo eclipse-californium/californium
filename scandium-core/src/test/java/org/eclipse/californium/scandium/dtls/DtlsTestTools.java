@@ -29,6 +29,7 @@ import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
@@ -48,7 +49,7 @@ public final class DtlsTestTools extends TestCertificatesTools {
 
 	public static X509ExtendedKeyManager getDtlsServerKeyManager() {
 		X509ExtendedKeyManager keyManager = null;
-		if (XECDHECryptography.SupportedGroup.X25519.isUsable() && Asn1DerDecoder.isSupported(Asn1DerDecoder.ED25519)) {
+		if (XECDHECryptography.SupportedGroup.X25519.isUsable() && JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)) {
 			keyManager = TestCertificatesTools.getServerEdDsaKeyManager();
 		}
 		if (keyManager == null) {

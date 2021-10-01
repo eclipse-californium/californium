@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -200,7 +200,7 @@ public class ThreadsRule implements TestRule {
 				}
 				if (alive == 1) {
 					// bouncy castle hack - 1.69 uses a daemon thread for secure random ;-(.
-					if (Asn1DerDecoder.usesBouncyCastle()) {
+					if (JceProviderUtil.usesBouncyCastle()) {
 						alive = 0;
 					}
 				}

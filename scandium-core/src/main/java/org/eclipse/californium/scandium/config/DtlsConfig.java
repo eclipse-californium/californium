@@ -739,7 +739,7 @@ public final class DtlsConfig {
 	 * Select curves ({@link SupportedGroup}s).
 	 */
 	public static final EnumListDefinition<SupportedGroup> DTLS_CURVES = new EnumListDefinition<>(MODULE + "CURVES",
-			"DTLS curves (supported groups). Defaults to all supported curves of the JVM.", SupportedGroup.values());
+			"DTLS curves (supported groups). Defaults to all supported curves of the JCE.", SupportedGroup.values());
 	/**
 	 * Select ({@link SignatureAndHashAlgorithm}s).
 	 */

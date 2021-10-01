@@ -30,6 +30,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -50,7 +51,7 @@ public class RawPublicKeyIdentityTest {
 	 */
 	@BeforeClass
 	public static void init() throws IOException {
-		Asn1DerDecoder.setupJce();
+		JceProviderUtil.init();
 		try {
 			KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
 			ecKeyPair = generator.generateKeyPair();
