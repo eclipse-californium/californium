@@ -117,12 +117,18 @@ public class ObserveRelation {
 	 * @throws IllegalStateException if the relation was already canceled.
 	 */
 	public void setEstablished() {
-		if (canceled) {
+		boolean fail;
+		synchronized (this) {
+			fail = canceled;
+			if (!fail) {
+				established = true;
+			}
+		}
+		if (fail) {
 			throw new IllegalStateException(
 					String.format("Could not establish observe relation %s with %s, already canceled (%s)!", getKey(),
 							resource.getURI(), exchange));
 		}
-		this.established = true;
 	}
 
 	/**
@@ -138,18 +144,34 @@ public class ObserveRelation {
 	 * Cancel this observe relation. This methods invokes the cancel methods of
 	 * the resource and the endpoint.
 	 * 
+	 * Note: calling this method outside the execution of the related
+	 * {@link #exchange} may naturally cause indeterministic behavior.
+	 * 
+	 * @return {@code true}, if relation is canceled, {@code false}, if not.
 	 * @throws IllegalStateException if relation wasn't established.
+	 * @since 3.0 (add return value)
 	 */
-	public void cancel() {
-		if (!canceled) {
-			if (!established) {
-				throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!",
-						getKey(), resource.getURI(), exchange));
+	public boolean cancel() {
+		boolean fail = false;
+		boolean cancel = false;
+
+		synchronized (this) {
+			if (!canceled) {
+				fail = !established;
+				if (!fail) {
+					canceled = true;
+					established = false;
+					cancel = true;
+				}
 			}
+		}
+		if (fail) {
+			throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
+					resource.getURI(), exchange));
+		}
+		if (cancel) {
 			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
 			// stop ongoing retransmissions
-			canceled = true;
-			established = false;
 			Response reponse = exchange.getResponse();
 			if (reponse != null) {
 				reponse.cancel();
@@ -158,11 +180,12 @@ public class ObserveRelation {
 			endpoint.removeObserveRelation(this);
 			exchange.executeComplete();
 		}
+		return cancel;
 	}
 
 	/**
-	 * Cancel all observer relations that this server has established with this'
-	 * realtion's endpoint.
+	 * Cancel all observer relations that this server has established with this
+	 * relation's endpoint.
 	 */
 	public void cancelAll() {
 		endpoint.cancelAll();
@@ -214,19 +237,28 @@ public class ObserveRelation {
 	 */
 	public boolean check() {
 		long now = ClockUtil.nanoRealtime();
-		boolean check = (++interestCheckCounter >= checkIntervalCount);
-		if (check) {
-			LOGGER.trace("Observe-relation check, {} notifications reached.", checkIntervalCount);
-		} else {
-			check = (now - interestCheckTimer - checkIntervalTime) > 0;
+		boolean check;
+		synchronized (this) {
+			check = (++interestCheckCounter >= checkIntervalCount);
 			if (check) {
-				LOGGER.trace("Observe-relation check, {}s interval reached.",
-						TimeUnit.NANOSECONDS.toSeconds(checkIntervalTime));
+				this.interestCheckTimer = now;
+				this.interestCheckCounter = 0;
 			}
 		}
 		if (check) {
-			this.interestCheckTimer = now;
-			this.interestCheckCounter = 0;
+			LOGGER.trace("Observe-relation check, {} notifications reached.", checkIntervalCount);
+			return check;
+		}
+		synchronized (this) {
+			check = (now - interestCheckTimer - checkIntervalTime) > 0;
+			if (check) {
+				this.interestCheckTimer = now;
+				this.interestCheckCounter = 0;
+			}
+		}
+		if (check) {
+			LOGGER.trace("Observe-relation check, {}s interval reached.",
+					TimeUnit.NANOSECONDS.toSeconds(checkIntervalTime));
 		}
 		return check;
 	}
