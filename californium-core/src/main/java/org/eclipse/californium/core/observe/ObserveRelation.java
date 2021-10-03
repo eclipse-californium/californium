@@ -27,6 +27,8 @@
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,19 +112,27 @@ public class ObserveRelation {
 
 	/**
 	 * Sets the established field.
+	 * 
 	 * @throws IllegalStateException if the relation was already canceled.
 	 */
 	public void setEstablished() {
-		if (canceled) {
+		boolean fail;
+		synchronized (this) {
+			fail = canceled;
+			if (!fail) {
+				established = true;
+			}
+		}
+		if (fail) {
 			throw new IllegalStateException(
 					String.format("Could not establish observe relation %s with %s, already canceled (%s)!", getKey(),
 							resource.getURI(), exchange));
 		}
-		this.established = true;
 	}
 
 	/**
 	 * Check, if this relation is canceled.
+	 * 
 	 * @return {@code true}, if relation was canceled, {@code false}, otherwise.
 	 */
 	public boolean isCanceled() {
@@ -130,20 +140,36 @@ public class ObserveRelation {
 	}
 
 	/**
-	 * Cancel this observe relation. This methods invokes the cancel methods of
-	 * the resource and the endpoint.
+	 * Cancel this observe relation.
+	 * 
+	 * This methods invokes the cancel methods of the resource and the endpoint.
+	 * 
+	 * Note: calling this method outside the execution of the related
+	 * {@link #exchange} may naturally cause indeterministic behavior.
+	 * 
 	 * @throws IllegalStateException if relation wasn't established.
 	 */
 	public void cancel() {
-		if (!canceled) {
-			if (!established) {
-				throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
-						resource.getURI(), exchange));
+		boolean fail = false;
+		boolean cancel = false;
+
+		synchronized (this) {
+			if (!canceled) {
+				fail = !established;
+				if (!fail) {
+					canceled = true;
+					established = false;
+					cancel = true;
+				}
 			}
+		}
+		if (fail) {
+			throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
+					resource.getURI(), exchange));
+		}
+		if (cancel) {
 			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
 			// stop ongoing retransmissions
-			canceled = true;
-			established = false;
 			Response reponse = exchange.getResponse();
 			if (reponse != null) {
 				reponse.cancel();
@@ -155,8 +181,8 @@ public class ObserveRelation {
 	}
 
 	/**
-	 * Cancel all observer relations that this server has established with this'
-	 * realtion's endpoint.
+	 * Cancel all observer relations that this server has established with this
+	 * relation's endpoint.
 	 */
 	public void cancelAll() {
 		endpoint.cancelAll();
@@ -197,13 +223,39 @@ public class ObserveRelation {
 		return endpoint.getAddress();
 	}
 
+	/**
+	 * Check, if notification is still requested.
+	 * 
+	 * Send notification as CON response in order to challenge the client to
+	 * acknowledge the message.
+	 * 
+	 * @return {@code true}, to check the observer relation with a
+	 *         CON-notification, {@code false}, otherwise.
+	 */
 	public boolean check() {
-		boolean check = false;
-		check |= this.interestCheckTimer + checkIntervalTime < System.currentTimeMillis();
-		check |= (++interestCheckCounter >= checkIntervalCount);
+		long now = System.currentTimeMillis();
+		boolean check;
+		synchronized (this) {
+			check = (++interestCheckCounter >= checkIntervalCount);
+			if (check) {
+				this.interestCheckTimer = now;
+				this.interestCheckCounter = 0;
+			}
+		}
 		if (check) {
-			this.interestCheckTimer = System.currentTimeMillis();
-			this.interestCheckCounter = 0;
+			LOGGER.trace("Observe-relation check, {} notifications reached.", checkIntervalCount);
+			return check;
+		}
+		synchronized (this) {
+			check = (now - interestCheckTimer - checkIntervalTime) > 0;
+			if (check) {
+				this.interestCheckTimer = now;
+				this.interestCheckCounter = 0;
+			}
+		}
+		if (check) {
+			LOGGER.trace("Observe-relation check, {}s interval reached.",
+					TimeUnit.MILLISECONDS.toSeconds(checkIntervalTime));
 		}
 		return check;
 	}
