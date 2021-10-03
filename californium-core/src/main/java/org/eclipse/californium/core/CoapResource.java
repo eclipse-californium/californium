@@ -340,7 +340,7 @@ public  class CoapResource implements Resource {
 		 * and added to the exchange. Otherwise, there is no such relation.
 		 * Remember that different paths might lead to this resource.
 		 */
-		
+
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation == null || relation.isCanceled()) {
 			return; // because request did not try to establish a relation
@@ -350,7 +350,7 @@ public  class CoapResource implements Resource {
 			if (!relation.isEstablished()) {
 				relation.setEstablished();
 				addObserveRelation(relation);
-			} else if (observeType != null) {
+			} else if (observeType != null && response.getType() == null) {
 				// The resource can control the message type of the notification
 				response.setType(observeType);
 			}
@@ -491,14 +491,15 @@ public  class CoapResource implements Resource {
 	 */
 	@Override
 	public synchronized boolean delete(Resource child) {
-		final Resource deleted = delete(child.getName());
-		if (deleted == child) {
-			child.setParent(null);
-			child.setPath(null);
-			for (ResourceObserver obs : observers) {
-				obs.removedChild(child);
+		if (child.getParent() == this) {
+			if (children.remove(child.getName(), child)) {
+				child.setParent(null);
+				child.setPath(null);
+				for (ResourceObserver obs : observers) {
+					obs.removedChild(child);
+				}
+				return true;
 			}
-			return true;
 		}
 		return false;
 	}
@@ -523,7 +524,7 @@ public  class CoapResource implements Resource {
 		if (parent != null) {
 			parent.delete(this);
 		}
-		
+
 		if (isObservable()) {
 			clearAndNotifyObserveRelations(ResponseCode.NOT_FOUND);
 		}
@@ -533,32 +534,47 @@ public  class CoapResource implements Resource {
 	 * Remove all observe relations to CoAP clients and notify them that the
 	 * observe relation has been canceled.
 	 * 
-	 * @param code
-	 *            the error code why the relation was terminated
-	 *            (e.g., 4.04 after deletion)
+	 * @param code the error code why the relation was terminated (e.g., 4.04
+	 *            after deletion).
+	 * @see #clearAndNotifyObserveRelations(ObserveRelationFilter, ResponseCode)
 	 */
-	public void clearAndNotifyObserveRelations(ResponseCode code) {
-		/*
-		 * draft-ietf-core-observe-08, chapter 3.2 Notification states:
-		 * In the event that the resource changes in a way that would cause
-		 * a normal GET request at that time to return a non-2.xx response
-		 * (for example, when the resource is deleted), the server sends a
-		 * notification with a matching response code and removes the client
-		 * from the list of observers.
-		 * This method is called, when the resource is deleted.
-		 */
+	public void clearAndNotifyObserveRelations(final ResponseCode code) {
 		for (ObserveRelation relation : observeRelations) {
-			relation.cancel();
-			relation.getExchange().sendResponse(new Response(code));
+			final Exchange exchange = relation.getExchange();
+			exchange.execute(new Runnable() {
+
+				@Override
+				public void run() {
+					ObserveRelation relation = exchange.getRelation();
+					if (relation != null && relation.isEstablished()) {
+						relation.cancel();
+						Response response = new Response(code);
+						response.setType(Type.CON);
+						exchange.sendResponse(response);
+					}
+				}
+			});
 		}
 	}
 
 	/**
 	 * Cancel all observe relations to CoAP clients.
+	 * 
+	 * @see #clearAndNotifyObserveRelations(ObserveRelationFilter, ResponseCode)
 	 */
 	public void clearObserveRelations() {
 		for (ObserveRelation relation : observeRelations) {
-			relation.cancel();
+			final Exchange exchange = relation.getExchange();
+			exchange.execute(new Runnable() {
+
+				@Override
+				public void run() {
+					ObserveRelation relation = exchange.getRelation();
+					if (relation != null && relation.isEstablished()) {
+						relation.cancel();
+					}
+				}
+			});
 		}
 	}
 
@@ -593,7 +609,7 @@ public  class CoapResource implements Resource {
 	 * @see org.eclipse.californium.core.server.resources.Resource#addObserver(org.eclipse.californium.core.server.resources.ResourceObserver)
 	 */
 	@Override
-	public synchronized void addObserver(ResourceObserver observer) {
+	public void addObserver(ResourceObserver observer) {
 		observers.add(observer);
 	}
 
@@ -601,7 +617,7 @@ public  class CoapResource implements Resource {
 	 * @see org.eclipse.californium.core.server.resources.Resource#removeObserver(org.eclipse.californium.core.server.resources.ResourceObserver)
 	 */
 	@Override
-	public synchronized void removeObserver(ResourceObserver observer) {
+	public void removeObserver(ResourceObserver observer) {
 		observers.remove(observer);
 	}
 
@@ -816,7 +832,7 @@ public  class CoapResource implements Resource {
 	 * executor, the thread that has called this method performs the
 	 * notification.
 	 * 
-	 * @param filter filter to select set of relations. <code>null</code>, if
+	 * @param filter filter to select set of relations. {@code null}, if
 	 *            all clients should be notified.
 	 * @throws IllegalStateException if method is called recursively from
 	 *             current thread (without executor).
@@ -854,7 +870,7 @@ public  class CoapResource implements Resource {
 	 * request that has established the relation.
 	 * 
 	 * @param filter filter to select set of relations. 
-	 *               <code>null</code>, if all clients should be notified.
+	 *               {@code null}, if all clients should be notified.
 	 */
 	protected void notifyObserverRelations(final ObserveRelationFilter filter) {
 		notificationOrderer.getNextObserveNumber();
