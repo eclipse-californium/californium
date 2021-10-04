@@ -496,7 +496,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_TOO_LARGE);
 			error.setPayload(String.format("body too large, max. %d bytes", maxResourceBodySize));
 			error.getOptions().setSize1(maxResourceBodySize);
-			exchange.setCurrentResponse(error);
+//			exchange.setCurrentResponse(error);
 			lower().sendResponse(exchange, error);
 
 		} else {
@@ -528,7 +528,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					block1 = getLimitedBlockOption(block1);
 					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
 
-					exchange.setCurrentResponse(piggybacked);
+//					exchange.setCurrentResponse(piggybacked);
 					lower().sendResponse(exchange, piggybacked);
 
 				} else {
@@ -580,7 +580,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
 		error.setPayload(message);
 		clearBlock1Status(status);
-		exchange.setCurrentResponse(error);
+//		exchange.setCurrentResponse(error);
 		lower().sendResponse(exchange, error);
 	}
 
@@ -598,7 +598,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			clearBlock2Status(status);
 		}
 
-		exchange.setCurrentResponse(nextBlockResponse);
+//		exchange.setCurrentResponse(nextBlockResponse);
 		lower().sendResponse(exchange, nextBlockResponse);
 	}
 
@@ -690,7 +690,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 		}
 
-		exchange.setCurrentResponse(responseToSend);
+//		exchange.setCurrentResponse(responseToSend);
 		lower().sendResponse(exchange, responseToSend);
 	}
 
