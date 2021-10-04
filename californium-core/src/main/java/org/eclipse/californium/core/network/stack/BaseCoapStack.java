@@ -39,6 +39,7 @@ import org.eclipse.californium.core.network.ExchangeCompleteException;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.Layer.TopDownBuilder;
 import org.eclipse.californium.core.observe.ObservationStoreException;
+import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +98,9 @@ public abstract class BaseCoapStack implements CoapStack {
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
 		// delegate to top
-		boolean retransmit = exchange.getRequest().getOptions().hasObserve();
+		ObserveRelation relation = exchange.getRelation();
+		boolean retransmit = relation != null && relation.isEstablished();
+
 		try {
 			if (retransmit) {
 				// observe- or cancel-observe-requests may have

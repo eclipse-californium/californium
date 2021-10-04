@@ -577,11 +577,15 @@ public class Exchange {
 	}
 
 	/**
-	 * Returns the response to the request or null if no response has arrived
-	 * yet. If there is an observe relation, the last received notification is
-	 * the response.
+	 * Returns the response to the request or {@code null}, if no response has
+	 * arrived yet. 
 	 * 
-	 * @return the response
+	 * If there is an observe relation, the last received
+	 * notification is the response on the client side. On the server side, that
+	 * is the last notification to be sent, but may differ from the current
+	 * response, if that is in transit.
+	 * 
+	 * @return the response. or {@code null},
 	 */
 	public Response getResponse() {
 		return response;
@@ -600,20 +604,25 @@ public class Exchange {
 	}
 
 	/**
-	 * Returns the current response block. If a response is not being sent
-	 * blockwise, the whole response counts as a single block and this method
-	 * returns the same request as {@link #getResponse()}. Call getResponse() to
-	 * access the assembled response.
+	 * Returns the current response block.
 	 * 
-	 * @return the current response block
+	 * If a response is not being sent blockwise, the whole response counts as a
+	 * single block and this method returns the same response as
+	 * {@link #getResponse()}. Call {@link #getResponse()} to access the
+	 * assembled response. On the server-side, this is the current notification
+	 * in flight.
+	 * 
+	 * @return the current response block, or current notification in flight.
 	 */
 	public Response getCurrentResponse() {
 		return currentResponse;
 	}
 
 	/**
-	 * Sets the current response block. If a response is not being sent
-	 * blockwise, the origin request (equal to getResponse()) should be set.
+	 * Sets the current response block.
+	 * 
+	 * If a response is not being sent blockwise, the origin response (equal to
+	 * getResponse()) should be set.
 	 * 
 	 * @param newCurrentResponse the current response block
 	 * @throws ConcurrentModificationException if not executed within
@@ -1151,9 +1160,16 @@ public class Exchange {
 	}
 
 	/**
-	 * Returns the CoAP observe relation that this exchange has established.
+	 * Returns the CoAP observe relation that this exchange has initially
+	 * established.
+	 * <p>
+	 * <b>Note:</b> in the meantime the relation may have been
+	 * {@link ObserveRelation#cancel()}. Therefore it's important to check the
+	 * current state of the relation using {@link ObserveRelation#isCanceled()}
+	 * or {@link ObserveRelation#isEstablished()}.
 	 * 
-	 * @return the observe relation or null
+	 * @return the observe relation, or {@code null}, if this exchange is not
+	 *         related to an observation.
 	 */
 	public ObserveRelation getRelation() {
 		return relation;

@@ -342,7 +342,7 @@ public  class CoapResource implements Resource {
 			if (!relation.isEstablished()) {
 				relation.setEstablished();
 				addObserveRelation(relation);
-			} else if (observeType != null) {
+			} else if (observeType != null && response.getType() == null) {
 				// The resource can control the message type of the notification
 				response.setType(observeType);
 			}
@@ -467,7 +467,9 @@ public  class CoapResource implements Resource {
 	 * 
 	 * @param code the error code why the relation was terminated (e.g., 4.04
 	 *            after deletion).
+	 * @throws IllegalArgumentException if code is not an error code.
 	 * @see #clearAndNotifyObserveRelations(ObserveRelationFilter, ResponseCode)
+	 * @since 3.0 (throws IllegalArgumentException)
 	 */
 	public void clearAndNotifyObserveRelations(ResponseCode code) {
 		clearAndNotifyObserveRelations(null, code);
@@ -491,9 +493,13 @@ public  class CoapResource implements Resource {
 	 * @param code the error code why the relation was terminated (e.g., 4.04
 	 *            after deletion). May be {@code null}, if no response should be
 	 *            send.
+	 * @throws IllegalArgumentException if code is not an error code.
 	 * @since 3.0
 	 */
 	public void clearAndNotifyObserveRelations(final ObserveRelationFilter filter, final ResponseCode code) {
+		if (code != null && code.isSuccess()) {
+			throw new IllegalArgumentException("Only error-responses are supported, not a " + code + "/" + code.name() + "!");
+		}
 		/*
 		 * draft-ietf-core-observe-08, chapter 3.2 Notification states:
 		 * In the event that the resource changes in a way that would cause
@@ -510,11 +516,13 @@ public  class CoapResource implements Resource {
 				@Override
 				public void run() {
 					ObserveRelation relation = exchange.getRelation();
-					if (relation != null && relation.isEstablished() && relation.cancel()) {
+					if (relation != null && relation.isEstablished()) {
 						if (code != null && (null == filter || filter.accept(relation))) {
 							Response response = new Response(code);
 							response.setType(Type.CON);
 							exchange.sendResponse(response);
+						} else {
+							relation.cancel();
 						}
 					}
 				}

@@ -332,6 +332,8 @@ public class ClientObserveRelation {
 			}
 			if (prepareNext) {
 				prepareReregistration(response);
+			} else if (observe == null && !isCanceled()) {
+				cancel();
 			}
 		}
 		return isNew;

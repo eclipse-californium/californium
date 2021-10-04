@@ -155,10 +155,11 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		// If a response type is set, we do not mess around with it.
 		// Only if none is set, we have to decide for one here.
+		Request currentRequest = exchange.getCurrentRequest();
 		Type respType = response.getType();
 		if (respType == null) {
-			Type reqType = exchange.getCurrentRequest().getType();
-			if (exchange.getCurrentRequest().acknowledge()) {
+			Type reqType = currentRequest.getType();
+			if (currentRequest.acknowledge()) {
 				// send piggy-backed response
 				response.setType(Type.ACK);
 			} else {
@@ -166,14 +167,13 @@ public class ReliabilityLayer extends AbstractLayer {
 				response.setType(reqType);
 			}
 			respType = response.getType();
-			LOGGER.trace("{} switched response message type from {} to {} (request was {})", exchange, respType,
-					respType, reqType);
+			LOGGER.trace("{} set response type to {} (request was {})", exchange, respType, reqType);
 		}
 		if (respType == Type.ACK || respType == Type.RST) {
-			response.setMID(exchange.getCurrentRequest().getMID());
+			response.setMID(currentRequest.getMID());
 		}
 
-		if (response.getType() == Type.CON) {
+		if (respType == Type.CON) {
 			LOGGER.debug("{} prepare retransmission for {}", exchange, response);
 			prepareRetransmission(exchange, new RetransmissionTask(exchange, response) {
 
