@@ -64,35 +64,6 @@ public final class Utils {
 	}
 
 	/**
-	 * Converts the specified byte array up to the specified length into a hexadecimal text.
-	 * Separate bytes by spaces and group them in lines. Append length of array, if specified 
-	 * length is smaller then the length of the array.
-	 * 
-	 * @param bytes the array of bytes. If null, the text "null" is returned.
-	 * @param length length up to the bytes should be converted into hexadecimal text. 
-	 *               If larger then the array length, reduce it to the array length.
-	 * @return byte array as hexadecimal text
-	 */
-	public static String toHexText(byte[] bytes, int length) {
-		if (bytes == null) return "null";
-		if (length > bytes.length) length = bytes.length;
-		StringBuilder sb = new StringBuilder();
-		if (16 < length) sb.append(StringUtil.lineSeparator());
-		for(int index = 0; index < length; ++index) {
-			sb.append(String.format("%02x", bytes[index] & 0xFF));
-			if (31 == (31 & index)) {
-				sb.append(StringUtil.lineSeparator());
-			} else {
-				sb.append(' ');
-			}
-		}
-		if (length < bytes.length) {
-			sb.append(" .. ").append(bytes.length).append(" bytes");
-		}
-		return sb.toString();
-	}
-
-	/**
 	 * Formats a {@link Request} into a readable String representation. 
 	 * 
 	 * @param request the Request

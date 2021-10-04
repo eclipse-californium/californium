@@ -242,7 +242,7 @@ public class SerializationUtil {
 	/**
 	 * Read {@link String} using {@link StandardCharsets#UTF_8}.
 	 * 
-	 * @param reader reader to read
+	 * @param reader reader to read.
 	 * @param numBits number of bits for encoding the length.
 	 * @return String, or {@code null}, if size was {@code 0}.
 	 * @see #write(DatagramWriter, String, int)
@@ -253,6 +253,40 @@ public class SerializationUtil {
 			return new String(data, StandardCharsets.UTF_8);
 		} else {
 			return null;
+		}
+	}
+
+	/**
+	 * Verify {@link String} using {@link StandardCharsets#UTF_8}.
+	 * 
+	 * @param reader reader to read.
+	 * @param expectedValue expected value to verify.
+	 * @param numBits number of bits for encoding the length.
+	 * @return {@code true}, if verify mark is read, {@code false}, if
+	 *         {@code null} is read.
+	 * @throws NullPointerException if the provided expected value is
+	 *             {@code null}
+	 * @throws IllegalArgumentException if read value doesn't match expected
+	 *             value
+	 * @see #write(DatagramWriter, String, int)
+	 */
+	public static boolean verifyString(DataStreamReader reader, String expectedValue, int numBits) {
+		if (expectedValue == null) {
+			throw new NullPointerException("Expected value must not be null!");
+		}
+		byte[] data = reader.readVarBytes(numBits);
+		if (data == null) {
+			return false;
+		} else {
+			byte[] mark = expectedValue.getBytes(StandardCharsets.UTF_8);
+			if (Arrays.equals(mark, data)) {
+				return true;
+			}
+			String read = StringUtil.toDisplayString(data, 16);
+			if (!read.startsWith("\"") && !read.startsWith("<")) {
+				expectedValue = StringUtil.byteArray2HexString(mark, ' ', 16);
+			}
+			throw new IllegalArgumentException("Mismatch, read " + read + ", expected " + expectedValue + ".");
 		}
 	}
 

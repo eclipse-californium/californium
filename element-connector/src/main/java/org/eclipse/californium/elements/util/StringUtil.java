@@ -30,6 +30,12 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CoderResult;
+import java.nio.charset.CodingErrorAction;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.util.regex.Pattern;
@@ -381,6 +387,65 @@ public class StringUtil {
 			return text.substring(0, maxLength);
 		}
 		return text;
+	}
+
+	/**
+	 * Convert UTF-8 data into display string.
+	 * 
+	 * If none-printable data is contained, the data is converted to a
+	 * hexa-decimal string. If the UTF-8 string exceeds the limit, it's
+	 * truncated and the length is appended. If a hexa-decimal string is
+	 * returned and the data length exceeds the limit, the data is truncated and
+	 * the length is appended.
+	 * 
+	 * @param data data to convert
+	 * @param limit limit of result. Either limits the UTF-8 string, or the data
+	 *            for the hexa-decimal string.
+	 * @return display string
+	 * @since 3.0
+	 */
+	public static String toDisplayString(byte[] data, int limit) {
+		if (data == null) {
+			return "<no data>";
+		} else if (data.length == 0) {
+			return "<empty data>";
+		}
+		if (data.length < limit) {
+			limit = data.length;
+		}
+		boolean text = true;
+		for (byte b : data) {
+			if (' ' > b) {
+				switch (b) {
+				case '\t':
+				case '\n':
+				case '\r':
+					continue;
+				}
+				text = false;
+				break;
+			}
+		}
+		if (text) {
+			CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+			decoder.onMalformedInput(CodingErrorAction.REPORT);
+			decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+			ByteBuffer in = ByteBuffer.wrap(data);
+			CharBuffer out = CharBuffer.allocate(limit);
+			CoderResult result = decoder.decode(in, out, true);
+			decoder.flush(out);
+			((Buffer) out).flip();
+			if (CoderResult.OVERFLOW == result) {
+				return "\"" + out + "\".. " + data.length + " bytes";
+			} else if (!result.isError()) {
+				return "\"" + out + "\"";
+			}
+		}
+		String hex = byteArray2HexString(data, ' ', limit);
+		if (data.length > limit) {
+			hex += ".." + data.length + " bytes";
+		}
+		return hex;
 	}
 
 	/**
