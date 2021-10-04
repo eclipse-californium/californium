@@ -243,7 +243,7 @@ public class ObserveTest {
 		// therefore wait for one onLoad
 		assertTrue(handler.waitOnLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
 
-		assertFalse("Response not received", rel.isCanceled());
+		assertFalse("Relation canceled", rel.isCanceled());
 		assertNotNull("Response not received", rel.getCurrent());
 		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
 
@@ -265,9 +265,7 @@ public class ObserveTest {
 	@Test
 	public void testObserveClientDeleteResource() throws Exception {
 
-		final AtomicInteger resetCounter = new AtomicInteger(0);
-
-		serverEndpoint.addInterceptor(new ServerMessageInterceptor(resetCounter));
+		serverEndpoint.addInterceptor(new ServerMessageInterceptor());
 		resourceX.setObserveType(Type.NON);
 
 		CoapClient client = new CoapClient(uriX);
@@ -279,7 +277,7 @@ public class ObserveTest {
 		// therefore wait for one onLoad
 		assertTrue(handler.waitOnLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
 
-		assertFalse("Response not received", rel.isCanceled());
+		assertFalse("Relation canceled", rel.isCanceled());
 		assertNotNull("Response not received", rel.getCurrent());
 		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
 
@@ -292,6 +290,151 @@ public class ObserveTest {
 		CoapResponse coapResponse = handler.responses.get(1);
 		assertEquals(ResponseCode.NOT_FOUND, coapResponse.getCode());
 		assertEquals(Type.CON, coapResponse.advanced().getType());
+
+		coapResponse = rel.getCurrent();
+		assertEquals(ResponseCode.NOT_FOUND, coapResponse.getCode());
+		assertEquals(Type.CON, coapResponse.advanced().getType());
+
+	}
+
+	@Test
+	public void testObserveDefaultMessageType() throws Exception {
+
+		serverEndpoint.addInterceptor(new ServerMessageInterceptor());
+		resourceX.setObserveType(null);
+
+		CoapClient client = new CoapClient(uriX);
+		cleanup.add(client);
+		CountingCoapHandler handler = new CountingCoapHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		// onLoad is called asynchronous to returning the response
+		// therefore wait for one onLoad
+		assertTrue(handler.waitOnLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+
+		assertFalse("Relation canceled", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.ACK, rel.getCurrent().advanced().getType());
+
+		resourceX.changed("new");
+
+		assertTrue(handler.waitOnLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says new for the 2 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.NON, rel.getCurrent().advanced().getType());
+	}
+
+	@Test
+	public void testObserveNonErrorResponse() throws Exception {
+
+		serverEndpoint.addInterceptor(new ServerMessageInterceptor());
+		resourceX.setObserveType(Type.NON);
+
+		CoapClient client = new CoapClient(uriX);
+		cleanup.add(client);
+		CountingCoapHandler handler = new CountingCoapHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		// onLoad is called asynchronous to returning the response
+		// therefore wait for one onLoad
+		assertTrue(handler.waitOnLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+
+		assertFalse("Relation canceled", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.ACK, rel.getCurrent().advanced().getType());
+
+		resourceX.changed("new");
+
+		assertTrue(handler.waitOnLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says new for the 2 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.NON, rel.getCurrent().advanced().getType());
+
+		resourceX.responseCode.set(ResponseCode.PRECONDITION_FAILED);
+		resourceX.changed();
+
+		assertTrue(handler.waitOnLoadCalls(3, 1000, TimeUnit.MILLISECONDS));
+
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals(ResponseCode.PRECONDITION_FAILED, rel.getCurrent().getCode());
+		assertEquals(Type.CON, rel.getCurrent().advanced().getType());
+		assertTrue("Observation not canceled by error", rel.isCanceled());
+
+	}
+
+	@Test
+	public void testObserveConErrorResponse() throws Exception {
+
+		serverEndpoint.addInterceptor(new ServerMessageInterceptor());
+		resourceX.setObserveType(Type.CON);
+
+		CoapClient client = new CoapClient(uriX);
+		cleanup.add(client);
+		CountingCoapHandler handler = new CountingCoapHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		// onLoad is called asynchronous to returning the response
+		// therefore wait for one onLoad
+		assertTrue(handler.waitOnLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+
+		assertFalse("Relation canceled", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.ACK, rel.getCurrent().advanced().getType());
+
+		resourceX.changed("new");
+
+		assertTrue(handler.waitOnLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says new for the 2 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.CON, rel.getCurrent().advanced().getType());
+
+		resourceX.responseCode.set(ResponseCode.PRECONDITION_FAILED);
+		resourceX.changed();
+
+		assertTrue(handler.waitOnLoadCalls(3, 1000, TimeUnit.MILLISECONDS));
+
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals(ResponseCode.PRECONDITION_FAILED, rel.getCurrent().getCode());
+		assertEquals(Type.CON, rel.getCurrent().advanced().getType());
+		assertTrue("Observation not canceled by error", rel.isCanceled());
+
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testObserveClearWithSuccessResponse() throws Exception {
+
+		serverEndpoint.addInterceptor(new ServerMessageInterceptor());
+		resourceX.setObserveType(Type.NON);
+
+		CoapClient client = new CoapClient(uriX);
+		cleanup.add(client);
+		CountingCoapHandler handler = new CountingCoapHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		// onLoad is called asynchronous to returning the response
+		// therefore wait for one onLoad
+		assertTrue(handler.waitOnLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+
+		assertFalse("Relation canceled", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.ACK, rel.getCurrent().advanced().getType());
+
+		resourceX.changed("new");
+
+		assertTrue(handler.waitOnLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says new for the 2 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.NON, rel.getCurrent().advanced().getType());
+
+		resourceX.clearAndNotifyObserveRelations(ResponseCode.VALID);
 	}
 
 	@Test
@@ -540,15 +683,19 @@ public class ObserveTest {
 
 		private final AtomicInteger resetCounter;
 
+		public ServerMessageInterceptor() {
+			this(null);
+		}
+
 		public ServerMessageInterceptor(AtomicInteger resetCounter) {
 			this.resetCounter = resetCounter;
 		}
 
 		@Override
 		public void receiveEmptyMessage(EmptyMessage message) {
-			if (message.getType() == Type.RST) {
+			if (message.getType() == Type.RST && resetCounter != null) {
 				int counter = resetCounter.incrementAndGet();
-				System.out.println("Received " + counter + ". RST: " + message.getMID());
+				LOGGER.info("Received {}. RST. MID: {}", counter, message.getMID());
 				// this cancel stops the message processing
 				// => notifies will continue
 				message.cancel();
@@ -573,16 +720,17 @@ public class ObserveTest {
 
 	private static class MyResource extends CoapResource {
 
-		private volatile Type type = Type.CON;
 		private volatile String currentLabel;
 		private volatile String currentResponse;
 		private AtomicBoolean reject = new AtomicBoolean();
+		private AtomicReference<ResponseCode> responseCode = new AtomicReference<>();
 		private AtomicInteger counter = new AtomicInteger();
 		private AtomicInteger delay = new AtomicInteger();
 
 		public MyResource(String name) {
 			super(name);
 			setObservable(true);
+			setObserveType(Type.CON);
 			prepareResponse(true);
 		}
 
@@ -600,9 +748,14 @@ public class ObserveTest {
 			if (reject.compareAndSet(true, false)) {
 				exchange.reject();
 			} else {
-				Response response = new Response(ResponseCode.CONTENT);
-				response.setPayload(currentResponse);
-				response.setType(type);
+				Response response;
+				ResponseCode code = responseCode.getAndSet(null);
+				if (code != null) {
+					response = new Response(code);
+				} else {
+					response = new Response(ResponseCode.CONTENT);
+					response.setPayload(currentResponse);
+				}
 				exchange.respond(response);
 			}
 		}

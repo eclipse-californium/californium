@@ -59,7 +59,7 @@ public class TcpObserveLayer extends AbstractLayer {
 	public void sendResponse(final Exchange exchange, final Response response) {
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation != null && relation.isEstablished()) {
-			if (!response.getOptions().hasObserve()) {
+			if (!response.isNotification()) {
 				/* response for cancel request */
 				relation.cancel();
 			}

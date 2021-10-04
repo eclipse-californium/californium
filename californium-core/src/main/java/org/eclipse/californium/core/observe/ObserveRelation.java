@@ -141,46 +141,30 @@ public class ObserveRelation {
 	}
 
 	/**
-	 * Cancel this observe relation. This methods invokes the cancel methods of
-	 * the resource and the endpoint.
+	 * Cleanup relation.
+	 * 
+	 * {@link #cancel()}, if {@link #isEstablished()}.
+	 * 
+	 * @since 3.0
+	 */
+	public void cleanup() {
+		if (isEstablished()) {
+			cancel();
+		}
+	}
+
+	/**
+	 * Cancel this observe relation.
+	 * 
+	 * This methods invokes the cancel methods of the resource and the endpoint.
 	 * 
 	 * Note: calling this method outside the execution of the related
 	 * {@link #exchange} may naturally cause indeterministic behavior.
 	 * 
-	 * @return {@code true}, if relation is canceled, {@code false}, if not.
 	 * @throws IllegalStateException if relation wasn't established.
-	 * @since 3.0 (add return value)
 	 */
-	public boolean cancel() {
-		boolean fail = false;
-		boolean cancel = false;
-
-		synchronized (this) {
-			if (!canceled) {
-				fail = !established;
-				if (!fail) {
-					canceled = true;
-					established = false;
-					cancel = true;
-				}
-			}
-		}
-		if (fail) {
-			throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
-					resource.getURI(), exchange));
-		}
-		if (cancel) {
-			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
-			// stop ongoing retransmissions
-			Response reponse = exchange.getResponse();
-			if (reponse != null) {
-				reponse.cancel();
-			}
-			resource.removeObserveRelation(this);
-			endpoint.removeObserveRelation(this);
-			exchange.executeComplete();
-		}
-		return cancel;
+	public void cancel() {
+		cancel(true);
 	}
 
 	/**
@@ -275,7 +259,11 @@ public class ObserveRelation {
 	 */
 	public boolean isPostponedNotification(Response response) {
 		if (isInTransit(recentControlNotification)) {
+			LOGGER.trace("in transit {}", recentControlNotification);
 			if (nextControlNotification != null) {
+				if (!nextControlNotification.isNotification()) {
+					return true;
+				}
 				// complete deprecated response
 				nextControlNotification.onTransferComplete();
 			}
@@ -284,6 +272,9 @@ public class ObserveRelation {
 		} else {
 			recentControlNotification = response;
 			nextControlNotification = null;
+			if (!response.isNotification()) {
+				cancel(false);
+			}
 			return false;
 		}
 	}
@@ -303,9 +294,16 @@ public class ObserveRelation {
 		Response next = null;
 		if (recentControlNotification == response) {
 			next = nextControlNotification;
-			if (next != null || acknowledged) {
+			if (next != null) {
 				// next may be null
 				recentControlNotification = next;
+				nextControlNotification = null;
+				if (!next.isNotification()) {
+					cancel(false);
+				}
+			} else if (acknowledged) {
+				// next may be null
+				recentControlNotification = null;
 				nextControlNotification = null;
 			}
 		}
@@ -321,6 +319,48 @@ public class ObserveRelation {
 	 */
 	public String getKey() {
 		return this.key;
+	}
+
+	/**
+	 * Cancel this observe relation.
+	 * 
+	 * This methods invokes the cancel methods of the resource and the endpoint.
+	 * 
+	 * Note: calling this method outside the execution of the related
+	 * {@link #exchange} may naturally cause indeterministic behavior.
+	 * 
+	 * @param complete {@code true}, to complete the exchange, {@code false}, to
+	 *            not complete it.
+	 * 
+	 * @throws IllegalStateException if relation wasn't established.
+	 * @since 3.0
+	 */
+	private void cancel(boolean complete) {
+		boolean fail = false;
+		boolean cancel = false;
+
+		synchronized (this) {
+			if (!canceled) {
+				fail = !established;
+				if (!fail) {
+					canceled = true;
+					established = false;
+					cancel = true;
+				}
+			}
+		}
+		if (fail) {
+			throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
+					resource.getURI(), exchange));
+		}
+		if (cancel) {
+			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
+			resource.removeObserveRelation(this);
+			endpoint.removeObserveRelation(this);
+			if (complete) {
+				exchange.executeComplete();
+			}
+		}
 	}
 
 	/**
