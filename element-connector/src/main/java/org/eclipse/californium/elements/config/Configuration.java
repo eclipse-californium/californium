@@ -513,6 +513,7 @@ public final class Configuration {
 				Set<String> set = modules.keySet();
 				set.removeAll(before);
 				for (String newModule : set) {
+					LOGGER.warn("Add missing module {}", newModule);
 					modules.get(newModule).applyDefinitions(this);
 				}
 				customProvider.applyDefinitions(this);

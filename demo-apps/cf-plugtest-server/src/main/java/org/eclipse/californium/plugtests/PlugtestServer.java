@@ -65,6 +65,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -246,6 +247,7 @@ public class PlugtestServer extends AbstractTestServer {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 		DtlsConfig.register();
 		TcpConfig.register();
 	}
