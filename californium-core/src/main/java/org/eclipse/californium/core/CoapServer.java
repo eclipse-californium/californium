@@ -523,15 +523,15 @@ public class CoapServer implements ServerInterface {
 	 */
 	public static ConnectorIdentifier readConnectorIdentifier(InputStream in) throws IOException {
 		DataStreamReader reader = new DataStreamReader(in);
-		String mark = SerializationUtil.readString(reader, Byte.SIZE);
-		if (mark == null) {
-			return null;
-		}
-		if (!CoapServer.MARK.equals(mark)) {
+		try {
+			if (!SerializationUtil.verifyString(reader, MARK, Byte.SIZE)) {
+				return null;
+			}
+		} catch (IllegalArgumentException ex) {
 			LOGGER.warn("loading failed, out of sync!");
-			throw new IOException("Missing '" + CoapServer.MARK + "'! Found '" + mark + "' instead. " + in.available()
-					+ " bytes left.");
+			throw new IOException(ex.getMessage() +" " + in.available() + " bytes left.");
 		}
+
 		String tag = SerializationUtil.readString(reader, Byte.SIZE);
 		if (tag == null) {
 			throw new IOException("Missing server's tag!");

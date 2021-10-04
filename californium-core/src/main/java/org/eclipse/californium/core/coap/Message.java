@@ -45,12 +45,6 @@ package org.eclipse.californium.core.coap;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CoderResult;
-import java.nio.charset.CodingErrorAction;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -58,7 +52,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.TokenGenerator;
@@ -643,39 +636,7 @@ public abstract class Message {
 	}
 
 	protected String getPayloadTracingString() {
-		byte[] payload = this.payload;
-		if (payload.length == 0) {
-			return "no payload";
-		}
-		boolean text = true;
-		for (byte b : payload) {
-			if (' ' > b) {
-				switch (b) {
-				case '\t':
-				case '\n':
-				case '\r':
-					continue;
-				}
-				text = false;
-				break;
-			}
-		}
-		if (text) {
-			CharsetDecoder decoder = CoAP.UTF8_CHARSET.newDecoder();
-			decoder.onMalformedInput(CodingErrorAction.REPORT);
-			decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
-			ByteBuffer in = ByteBuffer.wrap(payload);
-			CharBuffer out = CharBuffer.allocate(24);
-			CoderResult result = decoder.decode(in, out, true);
-			decoder.flush(out);
-			((Buffer)out).flip();
-			if (CoderResult.OVERFLOW == result) {
-				return "\"" + out + "\".. " + payload.length + " bytes";
-			} else if (!result.isError()) {
-				return "\"" + out + "\"";
-			}
-		}
-		return Utils.toHexText(payload, 256);
+		return StringUtil.toDisplayString(payload, 32);
 	}
 
 	/**
