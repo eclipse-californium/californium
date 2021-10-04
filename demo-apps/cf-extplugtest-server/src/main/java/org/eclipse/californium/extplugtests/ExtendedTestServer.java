@@ -120,8 +120,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 		public void applyDefinitions(Configuration config) {
 			// start on alternative port, 5783 and 5784
 			config.set(DTLS_HANDSHAKE_RESULT_DELAY, 0, TimeUnit.MILLISECONDS);
-			config.set(CoapConfig.COAP_PORT, config.get(CoapConfig.COAP_PORT) + 100);
-			config.set(CoapConfig.COAP_SECURE_PORT, config.get(CoapConfig.COAP_SECURE_PORT) + 100);
+			config.set(CoapConfig.COAP_PORT, CoapConfig.COAP_PORT.defaultValue() + 100);
+			config.set(CoapConfig.COAP_SECURE_PORT, CoapConfig.COAP_SECURE_PORT.defaultValue() + 100);
 			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
 			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
@@ -230,6 +230,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 		DtlsConfig.register();
 		TcpConfig.register();
 		DtlsClusterManagerConfig.register();

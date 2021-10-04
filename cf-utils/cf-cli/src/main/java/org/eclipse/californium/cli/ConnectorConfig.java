@@ -29,6 +29,7 @@ import javax.crypto.SecretKey;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.SslContextUtil.IncompleteCredentialsException;
@@ -417,6 +418,7 @@ public class ConnectorConfig implements Cloneable {
 			helpRequested = true;
 		}
 		CoapConfig.register();
+		UdpConfig.register();
 		DtlsConfig.register();
 		configuration = Configuration.createWithFile(configurationFile, configurationHeader,
 				customConfigurationDefaultsProvider);
