@@ -64,8 +64,6 @@ public class Asn1DerDecoder {
 	/**
 	 * Key algorithm ED25519 (RFC 8422).
 	 * 
-	 * Used with {@link #getEdDsaProvider()}.
-	 * 
 	 * @since 2.4
 	 */
 	public static final String ED25519 = "ED25519";
@@ -79,8 +77,6 @@ public class Asn1DerDecoder {
 	public static final String ED25519v2 = "ED25519.v2";
 	/**
 	 * Key algorithm ED448 (RFC 8422).
-	 * 
-	 * Used with {@link #getEdDsaProvider()}.
 	 * 
 	 * @since 2.4
 	 */
@@ -123,8 +119,6 @@ public class Asn1DerDecoder {
 	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
 	 * Identifiers</a>).
 	 * 
-	 * Used with {@link #getEdDsaProvider()}.
-	 * 
 	 * @since 3.0
 	 */
 	public static final String OID_X25519 = "OID.1.3.101.110";
@@ -133,8 +127,6 @@ public class Asn1DerDecoder {
 	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
 	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
 	 * Identifiers</a>).
-	 * 
-	 * Used with {@link #getEdDsaProvider()}.
 	 * 
 	 * @since 3.0
 	 */
@@ -145,8 +137,6 @@ public class Asn1DerDecoder {
 	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
 	 * Identifiers</a>).
 	 * 
-	 * Used with {@link #getEdDsaProvider()}.
-	 * 
 	 * @since 2.4
 	 */
 	public static final String OID_ED25519 = "OID.1.3.101.112";
@@ -156,15 +146,11 @@ public class Asn1DerDecoder {
 	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
 	 * Identifiers</a>).
 	 * 
-	 * Used with {@link #getEdDsaProvider()}.
-	 * 
 	 * @since 2.4
 	 */
 	public static final String OID_ED448 = "OID.1.3.101.113";
 	/**
 	 * Key algorithm EdDSA (RFC 8422).
-	 * 
-	 * Used with {@link #getEdDsaProvider()}.
 	 * 
 	 * @since 2.4
 	 */
@@ -974,8 +960,6 @@ public class Asn1DerDecoder {
 
 	/**
 	 * Get KeyFactory for algorithm.
-	 * 
-	 * Uses {@link #EDDSA_PROVIDER} for EdDSA keys.
 	 * 
 	 * @param algorithm key algorithm
 	 * @return key factory
