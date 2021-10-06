@@ -168,6 +168,12 @@ public class ReliabilityLayer extends AbstractLayer {
 			}
 			respType = response.getType();
 			LOGGER.trace("{} set response type to {} (request was {})", exchange, respType, reqType);
+		} else if (respType == Type.RST) {
+			currentRequest.setRejected(true);
+		} else if (respType == Type.ACK) {
+			currentRequest.acknowledge();
+		} else {
+			currentRequest.setAcknowledged(true);
 		}
 		if (respType == Type.ACK || respType == Type.RST) {
 			response.setMID(currentRequest.getMID());
@@ -232,32 +238,30 @@ public class ReliabilityLayer extends AbstractLayer {
 
 			// Request is a duplicate, so resend ACK, RST or response
 			exchange.retransmitResponse();
-			Response currentResponse = exchange.getCurrentResponse();
-			if (currentResponse != null) {
-				Type type = currentResponse.getType();
+			Request previousRequest = exchange.getCurrentRequest();
+			Response previousResponse = exchange.getCurrentResponse();
+			if (previousResponse != null) {
+				Type type = previousResponse.getType();
 				if (type == Type.NON || type == Type.CON) {
-					// separate response
-					if (request.isConfirmable()) {
+					if (request.acknowledge()) {
 						// resend ACK,
 						// comply to RFC 7252, 4.2, cross-layer behavior
-						if (request.acknowledge()) {
-							EmptyMessage ack = EmptyMessage.newACK(request);
-							sendEmptyMessage(exchange, ack);
-						}
+						EmptyMessage ack = EmptyMessage.newACK(request);
+						sendEmptyMessage(exchange, ack);
 					}
 					if (type == Type.CON) {
 						// retransmission cycle
-						if (currentResponse.isAcknowledged()) {
+						if (previousResponse.isAcknowledged()) {
 							LOGGER.debug("{} request duplicate: ignore, response already acknowledged!", exchange);
 						} else {
 							int failedCount = exchange.incrementFailedTransmissionCount();
 							LOGGER.debug("{} request duplicate: retransmit response, failed: {}, response: {}",
-									exchange, failedCount, currentResponse);
-							currentResponse.retransmitting();
-							sendResponse(exchange, currentResponse);
+									exchange, failedCount, previousResponse);
+							previousResponse.retransmitting();
+							sendResponse(exchange, previousResponse);
 						}
 						return;
-					} else if (currentResponse.isNotification()) {
+					} else if (previousResponse.isNotification()) {
 						// notifications are kept in the exchange store, so
 						// prepare retransmission counter for retransmission
 						exchange.incrementFailedTransmissionCount();
@@ -265,15 +269,15 @@ public class ReliabilityLayer extends AbstractLayer {
 				}
 				LOGGER.debug("{} respond with the current response to the duplicate request", exchange);
 				// Do not restart retransmission cycle
-				lower().sendResponse(exchange, currentResponse);
+				lower().sendResponse(exchange, previousResponse);
 
-			} else if (exchange.getCurrentRequest().isAcknowledged()) {
+			} else if (previousRequest.isAcknowledged()) {
 				LOGGER.debug("{} duplicate request was acknowledged but no response computed yet. Retransmit ACK",
 						exchange);
 				EmptyMessage ack = EmptyMessage.newACK(request);
 				sendEmptyMessage(exchange, ack);
 
-			} else if (exchange.getCurrentRequest().isRejected()) {
+			} else if (previousRequest.isRejected()) {
 				LOGGER.debug("{} duplicate request was rejected. Reject again", exchange);
 				EmptyMessage rst = EmptyMessage.newRST(request);
 				sendEmptyMessage(exchange, rst);
