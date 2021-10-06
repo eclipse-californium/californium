@@ -849,7 +849,6 @@ public abstract class Message {
 	 * Acknowledge a unacknowledged confirmable message.
 	 *
 	 * Checks and set {@link #acknowledged} atomically. Calls
-	 * {@link #setAcknowledged(boolean)} and
 	 * {@link MessageObserver#onAcknowledgement()}, if message was
 	 * unacknowledged.
 	 * 
@@ -858,11 +857,10 @@ public abstract class Message {
 	 * @return {@code true}, if message was unacknowledged and confirmable,
 	 *         {@code false}, if message was already acknowledged or is not
 	 *         confirmable
-	 * @since 2.2
+	 * @since 3.0 (doesn't longer call {@link #setAcknowledged(boolean)})
 	 */
 	public boolean acknowledge() {
 		if (isConfirmable() && acknowledged.compareAndSet(false, true)) {
-			setAcknowledged(true);
 			for (MessageObserver handler : getMessageObservers()) {
 				handler.onAcknowledgement();
 			}
