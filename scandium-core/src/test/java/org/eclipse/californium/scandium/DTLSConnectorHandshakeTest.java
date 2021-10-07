@@ -833,7 +833,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME2));
 		assertClientPrincipalHasAdditionalInfo(principal);
 		assertThat(session.getPeerIdentity().getName(),
-				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa"));
+				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-ca-rsa"));
 	}
 
 	@Test
@@ -1021,8 +1021,8 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509MixedCertificateChainHandshakeAuthWantedAnonymClient() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED)
-				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerRsPrivateKey(),
-						DtlsTestTools.getServerRsaCertificateChain()));
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerCaRsaPrivateKey(),
+						DtlsTestTools.getServerCaRsaCertificateChain()));
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
 		DTLSSession session = startClientX509(null);
@@ -1032,7 +1032,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 		assertThat(session.getPeerIdentity().getName(),
-				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa"));
+				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-ca-rsa"));
 	}
 
 	@Test

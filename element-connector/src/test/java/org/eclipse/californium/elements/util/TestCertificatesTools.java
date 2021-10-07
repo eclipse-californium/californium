@@ -52,8 +52,20 @@ public class TestCertificatesTools {
 	 * 
 	 * @since 2.3
 	 */
+	public static final String SERVER_CA_RSA_NAME = "servercarsa";
+	/**
+	 * Alias for server RSA certificate chain.
+	 * 
+	 * @since 3.0
+	 */
 	public static final String SERVER_RSA_NAME = "serverrsa";
 	public static final String CLIENT_NAME = "client";
+	/**
+	 * Alias for client RSA certificate chain.
+	 * 
+	 * @since 3.0
+	 */
+	public static final String CLIENT_RSA_NAME = "clientrsa";
 	public static final String ROOT_CA_ALIAS = "root";
 	public static final String CA_ALIAS = "ca";
 	public static final String CA_ALT_ALIAS = "caalt";
@@ -65,7 +77,9 @@ public class TestCertificatesTools {
 	private static X509ExtendedKeyManager serverKeyManager;
 	private static X509ExtendedKeyManager serverEdDsaKeyManager;
 	private static SslContextUtil.Credentials clientCredentials;
+	private static SslContextUtil.Credentials clientRsaCredentials;
 	private static SslContextUtil.Credentials serverCredentials;
+	private static SslContextUtil.Credentials serverCaRsaCredentials;
 	private static SslContextUtil.Credentials serverRsaCredentials;
 	private static X509Certificate[] trustedCertificates;
 	private static X509Certificate rootCaCertificate;
@@ -79,8 +93,12 @@ public class TestCertificatesTools {
 			// load key stores once only
 			clientCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			clientRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
+					CLIENT_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			serverCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			serverCaRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
+					SERVER_CA_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			serverRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					SERVER_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
@@ -131,11 +149,21 @@ public class TestCertificatesTools {
 		return serverEdDsaKeyManager;
 	}
 
+	/**
+	 * Get server certificate chain.
+	 * 
+	 * @return server certificate chain as array
+	 */
 	public static X509Certificate[] getServerCertificateChain() {
 		X509Certificate[] certificateChain = serverCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
 
+	/**
+	 * Get server certificate chain.
+	 * 
+	 * @return server certificate chain as list
+	 */
 	public static List<X509Certificate> getServerCertificateChainAsList() {
 		X509Certificate[] certificateChain = serverCredentials.getCertificateChain();
 		return Arrays.asList(certificateChain);
@@ -144,8 +172,30 @@ public class TestCertificatesTools {
 	/**
 	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
 	 * 
-	 * @return mixed server certificate chain
+	 * @return mixed server certificate chain as array
 	 * @since 2.3
+	 */
+	public static X509Certificate[] getServerCaRsaCertificateChain() {
+		X509Certificate[] certificateChain = serverCaRsaCredentials.getCertificateChain();
+		return Arrays.copyOf(certificateChain, certificateChain.length);
+	}
+
+	/**
+	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
+	 * 
+	 * @return mixed server certificate chain as list
+	 * @since 2.5
+	 */
+	public static List<X509Certificate> getServerCaRsaCertificateChainAsList() {
+		X509Certificate[] certificateChain = serverCaRsaCredentials.getCertificateChain();
+		return Arrays.asList(certificateChain);
+	}
+
+	/**
+	 * Get server rsa certificate chain. 
+	 * 
+	 * @return server rsa certificate chain as array
+	 * @since 3.0
 	 */
 	public static X509Certificate[] getServerRsaCertificateChain() {
 		X509Certificate[] certificateChain = serverRsaCredentials.getCertificateChain();
@@ -153,23 +203,55 @@ public class TestCertificatesTools {
 	}
 
 	/**
-	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
+	 * Get server rsa certificate chain.
 	 * 
-	 * @return mixed server certificate chain
-	 * @since 2.5
+	 * @return server rsa certificate chain as list
+	 * @since 3.0
 	 */
 	public static List<X509Certificate> getServerRsaCertificateChainAsList() {
 		X509Certificate[] certificateChain = serverRsaCredentials.getCertificateChain();
 		return Arrays.asList(certificateChain);
 	}
 
+	/**
+	 * Get client certificate chain. 
+	 * 
+	 * @return client certificate chain as array
+	 */
 	public static X509Certificate[] getClientCertificateChain() {
 		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
 
+	/**
+	 * Get client certificate chain. 
+	 * 
+	 * @return client certificate chain as list
+	 */
 	public static List<X509Certificate> getClientCertificateChainAsList() {
 		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
+		return Arrays.asList(certificateChain);
+	}
+
+	/**
+	 * Get client rsa certificate chain. 
+	 * 
+	 * @return client rsa certificate chain as array
+	 * @since 3.0
+	 */
+	public static X509Certificate[] getClientRsaCertificateChain() {
+		X509Certificate[] certificateChain = clientRsaCredentials.getCertificateChain();
+		return Arrays.copyOf(certificateChain, certificateChain.length);
+	}
+
+	/**
+	 * Get client rsa certificate chain.
+	 * 
+	 * @return client rsa certificate chain as list
+	 * @since 3.0
+	 */
+	public static List<X509Certificate> getClientRsaCertificateChainAsList() {
+		X509Certificate[] certificateChain = clientRsaCredentials.getCertificateChain();
 		return Arrays.asList(certificateChain);
 	}
 
@@ -215,12 +297,23 @@ public class TestCertificatesTools {
 
 	/**
 	 * Gets the server's private key from the example key store. Use the server
-	 * with mixed certificate chain wiht ECDSA and RSA certificates.
+	 * with mixed certificate chain with ECDSA and RSA certificates.
 	 * 
 	 * @return the key
 	 * @since 2.3
 	 */
-	public static PrivateKey getServerRsPrivateKey() {
+	public static PrivateKey getServerCaRsaPrivateKey() {
+		return serverCaRsaCredentials.getPrivateKey();
+	}
+
+	/**
+	 * Gets the server's private key from the example key store. Use the server
+	 * with rsa certificate chain.
+	 * 
+	 * @return the key
+	 * @since 3.0
+	 */
+	public static PrivateKey getServerRsaPrivateKey() {
 		return serverRsaCredentials.getPrivateKey();
 	}
 
@@ -231,6 +324,15 @@ public class TestCertificatesTools {
 	 */
 	public static PrivateKey getClientPrivateKey() {
 		return clientCredentials.getPrivateKey();
+	}
+
+	/**
+	 * Gets the client's private rsa key from the example key store.
+	 * 
+	 * @return the key
+	 */
+	public static PrivateKey getClientRsaPrivateKey() {
+		return clientRsaCredentials.getPrivateKey();
 	}
 
 	/**

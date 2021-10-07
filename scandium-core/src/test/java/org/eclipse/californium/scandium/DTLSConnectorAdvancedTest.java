@@ -2970,7 +2970,7 @@ public class DTLSConnectorAdvancedTest {
 		logging.setLoggingLevel("OFF", LOGGER.getName());
 
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
-				.setTrustedCertificates(DtlsTestTools.getServerRsaCertificateChain()).build();
+				.setTrustedCertificates(DtlsTestTools.getServerCaRsaCertificateChain()).build();
 
 		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder(serverHelper.serverConfig)
 				.set(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES, false)

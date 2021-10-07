@@ -15,7 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
@@ -151,7 +151,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaRsa() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -162,7 +162,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaRsaSigAlg() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
@@ -198,7 +198,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaCaFails() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCa(SERVER_RSA_CERTIFICATE);
+		processUtil.setCa(SERVER_CA_RSA_CERTIFICATE);
 		// mbedtls uses -R also for accepted issuers list. Therefore only use -C
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
@@ -211,7 +211,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaTrustFails() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setTrusts(SERVER_RSA_CERTIFICATE);
+		processUtil.setTrusts(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -223,7 +223,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	public void testLibCoapServerEcdsaRsaTrust() throws Exception {
 		processUtil.setVerboseLevel("9");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -235,7 +235,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	public void testLibCoapServerEcdsaRsaCa() throws Exception {
 		processUtil.setVerboseLevel("9");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -246,7 +246,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaRsaSigAlgTrust() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())

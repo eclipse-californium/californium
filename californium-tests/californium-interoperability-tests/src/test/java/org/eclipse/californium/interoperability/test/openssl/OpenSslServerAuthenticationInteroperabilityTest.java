@@ -16,7 +16,7 @@
 package org.eclipse.californium.interoperability.test.openssl;
 
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
@@ -247,7 +247,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerRsaTrustTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_RSA_CERTIFICATE,
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_CA_RSA_CERTIFICATE,
 				OpenSslProcessUtil.DEFAULT_CURVES, OpenSslProcessUtil.DEFAULT_SIGALGS, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
@@ -261,7 +261,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	public void testOpenSslServerRsaChainTrustRoot() throws Exception {
 		CipherSuite[] ciphers = { CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8 };
-		String cipher = processUtil.startupServer(ACCEPT, CHAIN, SERVER_RSA_CERTIFICATE, null, null, ciphers);
+		String cipher = processUtil.startupServer(ACCEPT, CHAIN, SERVER_CA_RSA_CERTIFICATE, null, null, ciphers);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA,
