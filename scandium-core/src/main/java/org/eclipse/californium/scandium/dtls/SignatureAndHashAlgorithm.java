@@ -257,12 +257,24 @@ public final class SignatureAndHashAlgorithm {
 		 * @return {@code true}, if supported, {@code false}, otherwise.
 		 */
 		public boolean isSupported(String keyAlgorithm) {
-			String key = Asn1DerDecoder.getEdDsaStandardAlgorithmName(keyAlgorithm, keyAlgorithm);
-			if (Asn1DerDecoder.EDDSA.equalsIgnoreCase(key)) {
-				return ED25519 == this || ED448 == this;
-			} else {
-				return this.keyAlgorithm.equalsIgnoreCase(key);
+			if (this.keyAlgorithm.equalsIgnoreCase(keyAlgorithm)) {
+				return JceProviderUtil.isSupported(keyAlgorithm);
 			}
+			if (ED25519 == this || ED448 == this) {
+				String key = Asn1DerDecoder.getEdDsaStandardAlgorithmName(keyAlgorithm, null);
+				if (key != null) {
+					if (ED25519 == this) {
+						if (Asn1DerDecoder.OID_ED25519 == key || Asn1DerDecoder.EDDSA == key) {
+							return JceProviderUtil.isSupported(Asn1DerDecoder.ED25519);
+						}
+					} else {
+						if (Asn1DerDecoder.OID_ED448 == key || Asn1DerDecoder.EDDSA == key) {
+							return JceProviderUtil.isSupported(Asn1DerDecoder.ED448);
+						}
+					}
+				}
+			}
+			return false;
 		}
 	}
 
@@ -310,7 +322,7 @@ public final class SignatureAndHashAlgorithm {
 			HashAlgorithm.INTRINSIC, SignatureAlgorithm.ED448);
 	/**
 	 * Default list of supported signature and hash algorithms. Contains only
-	 * SHA256_with_Ecdsa.
+	 * SHA256_with_Ecdsa and SHA256_with_RSA.
 	 * 
 	 * @since 2.3
 	 */
@@ -533,6 +545,28 @@ public final class SignatureAndHashAlgorithm {
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * Checks if all of a given certificates in the chain have been signed using
+	 * a algorithm supported by the server.
+	 * 
+	 * @param supportedSignatureAlgorithms list of supported signature and hash
+	 *            algorithms.
+	 * @param certificateChain The certificate chain to test.
+	 * @return {@code true} if all certificates have been signed using a
+	 *         supported algorithm.
+	 * 
+	 * @since 3.0
+	 */
+	public static boolean isSupportedAlgorithm(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
+			String keyAlgorithm) {
+		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
+			if (supportedAlgorithm.isSupported(keyAlgorithm)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

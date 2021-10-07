@@ -100,6 +100,8 @@ public class JceProviderUtil {
 	private static final String AES = "AES";
 
 	private final boolean useBc;
+	private final boolean rsa;
+	private final boolean ec;
 	private final boolean ed25519;
 	private final boolean ed448;
 	private final boolean strongEncryption;
@@ -159,11 +161,12 @@ public class JceProviderUtil {
 	 */
 	private static Provider loadProvider(String clzName) {
 		try {
-			LOGGER.warn("Load {}", clzName);
 			Class<?> clz = Class.forName(clzName);
-			return (Provider) clz.getConstructor().newInstance();
+			Provider provider = (Provider) clz.getConstructor().newInstance();
+			LOGGER.info("Loaded {}", clzName);
+			return provider;
 		} catch (Throwable e) {
-			LOGGER.debug("Loading {} failed!", clzName, e);
+			LOGGER.trace("Loading {} failed!", clzName, e);
 			return null;
 		}
 	}
@@ -250,6 +253,19 @@ public class JceProviderUtil {
 			strongEncryption = Cipher.getMaxAllowedKeyLength(AES) >= 256;
 		} catch (NoSuchAlgorithmException ex) {
 		}
+		boolean ec = false;
+		boolean rsa = false;
+		try {
+			KeyFactory.getInstance(Asn1DerDecoder.RSA);
+			rsa = true;
+		} catch (NoSuchAlgorithmException e) {
+		}
+		try {
+			KeyFactory.getInstance(Asn1DerDecoder.EC);
+			ec = true;
+		} catch (NoSuchAlgorithmException e) {
+		}
+		LOGGER.debug("RSA: {}, EC: {}, strong encryption: {}", rsa, ec, strongEncryption);
 		boolean ed25519 = false;
 		boolean ed448 = false;
 		if (found && provider != null) {
@@ -264,13 +280,13 @@ public class JceProviderUtil {
 				ed448 = true;
 			} catch (NoSuchAlgorithmException e) {
 			}
-			LOGGER.warn("EdDSA supported by {}, Ed25519: {}, Ed448: {}, strong encryption: {}", provider.getName(),
-					ed25519, ed448, strongEncryption);
+			LOGGER.debug("EdDSA supported by {}, Ed25519: {}, Ed448: {}", provider.getName(),
+					ed25519, ed448);
 		} else {
 			provider = null;
-			LOGGER.debug("EdDSA not supported! strong encryption: {}", strongEncryption);
+			LOGGER.debug("EdDSA not supported!");
 		}
-		JceProviderUtil newSupport = new JceProviderUtil(isBouncyCastle(provider), ed25519, ed448, strongEncryption);
+		JceProviderUtil newSupport = new JceProviderUtil(isBouncyCastle(provider), rsa, ec, ed25519, ed448, strongEncryption);
 		if (!newSupport.equals(features)) {
 			features = newSupport;
 		}
@@ -312,7 +328,9 @@ public class JceProviderUtil {
 	 */
 	public static boolean isSupported(String algorithm) {
 		if (Asn1DerDecoder.EC.equalsIgnoreCase(algorithm)) {
-			return true;
+			return features.ec;
+		} else if (Asn1DerDecoder.RSA.equalsIgnoreCase(algorithm)) {
+			return features.rsa;
 		} else {
 			String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
 			if (Asn1DerDecoder.OID_ED25519.equals(oid)) {
@@ -326,8 +344,10 @@ public class JceProviderUtil {
 		return false;
 	}
 
-	private JceProviderUtil(boolean useBc, boolean ed25519, boolean ed448, boolean strongEncryption) {
+	private JceProviderUtil(boolean useBc, boolean rsa, boolean ec, boolean ed25519, boolean ed448, boolean strongEncryption) {
 		this.useBc = useBc;
+		this.rsa = rsa;
+		this.ec = ec;
 		this.ed25519 = ed25519;
 		this.ed448 = ed448;
 		this.strongEncryption = strongEncryption;
@@ -340,6 +360,8 @@ public class JceProviderUtil {
 		result = prime * result + (ed25519 ? 41 : 37);
 		result = prime * result + (ed448 ? 41 : 37);
 		result = prime * result + (strongEncryption ? 41 : 37);
+		result = prime * result + (ec ? 41 : 37);
+		result = prime * result + (rsa ? 41 : 37);
 		result = prime * result + (useBc ? 41 : 37);
 		return result;
 	}
@@ -358,6 +380,10 @@ public class JceProviderUtil {
 		if (ed448 != other.ed448)
 			return false;
 		if (strongEncryption != other.strongEncryption)
+			return false;
+		if (ec != other.ec)
+			return false;
+		if (rsa != other.rsa)
 			return false;
 		if (useBc != other.useBc)
 			return false;

@@ -68,6 +68,7 @@ import javax.security.auth.DestroyFailedException;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -478,6 +479,12 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		List<CipherSuite> commonCipherSuites = getCommonCipherSuites(clientHello);
+		if (commonCipherSuites.isEmpty()) {
+			LOGGER.trace("Server cipher suites: {}", supportedCipherSuites);
+			// abort handshake
+			throw new HandshakeException("Client does not propose a common cipher suite",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		}
 		if (useHelloVerifyRequest && !useHelloVerifyRequestForPsk && !clientHello.hasCookie()) {
 			SessionId sessionId = getSession().getSessionIdentifier();
 			if (sessionId.isEmpty() || !sessionId.equals(clientHello.getSessionId())) {
@@ -678,16 +685,22 @@ public class ServerHandshaker extends Handshaker {
 				&& session.getCipherSuite().requiresServerCertificateMessage()
 				&& certificateType != null) {
 			CertificateRequest certificateRequest = new CertificateRequest();
-			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
+			List<SignatureAndHashAlgorithm> signatures = supportedSignatureAndHashAlgorithms;
 			if (CertificateType.X_509 == certificateType) {
-				certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
+				certificateRequest.addSignatureAlgorithms(signatures);
 				if (certificateVerifier != null) {
 					certificateRequest.addCerticiateAuthorities(certificateVerifier.getAcceptedIssuers());
 				}
 			} else if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
-				List<SignatureAndHashAlgorithm> ecdsaSignatures = SignatureAndHashAlgorithm
-						.getEcdsaCompatibleSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
-				certificateRequest.addSignatureAlgorithms(ecdsaSignatures);
+				signatures = SignatureAndHashAlgorithm
+						.getEcdsaCompatibleSignatureAlgorithms(signatures);
+				certificateRequest.addSignatureAlgorithms(signatures);
+			}
+			if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatures, Asn1DerDecoder.EC)) {
+				certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
+			}
+			if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatures, Asn1DerDecoder.RSA)) {
+				certificateRequest.addCertificateType(ClientCertificateType.RSA_SIGN);
 			}
 			wrapMessage(flight, certificateRequest);
 			return true;
