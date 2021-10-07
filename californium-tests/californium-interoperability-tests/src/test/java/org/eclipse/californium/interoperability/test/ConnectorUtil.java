@@ -61,7 +61,9 @@ public class ConnectorUtil {
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
 	private static final String SERVER_NAME = "server";
-	private static final String SERVER_CA_RSA_NAME = "servercarsa";
+	public static final String CLIENT_RSA_NAME = "clientrsa";
+	public static final String SERVER_RSA_NAME = "serverrsa";
+	public static final String SERVER_CA_RSA_NAME = "servercarsa";
 	public static final String TRUST_CA = "ca";
 	public static final String TRUST_ROOT = "root";
 
@@ -80,11 +82,11 @@ public class ConnectorUtil {
 	/**
 	 * Credentials for ECDSA base cipher suites.
 	 */
-	private SslContextUtil.Credentials credentials;
+	private Credentials credentials;
 	/**
-	 * Credentials for ECDSA base cipher suites with RSA chain.
+	 * Specific credentials for ECDSA base cipher suites to be used by the next test.
 	 */
-	private SslContextUtil.Credentials credentialsCaRsa;
+	private Credentials nextCredentials;
 	private Certificate[] trustCa;
 	private Certificate[] trustRoot;
 
@@ -98,9 +100,6 @@ public class ConnectorUtil {
 		try {
 			credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 					client ? CLIENT_NAME : SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			credentialsCaRsa = client ? null
-					: SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-							SERVER_CA_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			trustCa = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
 					TRUST_CA, TRUST_STORE_PASSWORD);
 			trustRoot = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
@@ -109,6 +108,19 @@ public class ConnectorUtil {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+
+	public void loadCredentials(String alias) {
+		try {
+			nextCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, alias,
+					KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+			fail(alias + ": " + e.getMessage());
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail(alias + ": " + e.getMessage());
 		}
 	}
 
@@ -131,21 +143,19 @@ public class ConnectorUtil {
 	 * @param cipherSuites cipher suites to support.
 	 */
 	public void build(InetSocketAddress bind, String trust, CipherSuite... cipherSuites) {
-		build(bind, false, null, trust, cipherSuites);
+		build(bind, null, trust, cipherSuites);
 	}
 
 	/**
 	 * Build connector.
 	 * 
 	 * @param bind address to bind connector to
-	 * @param rsa use mixed certificate path (includes RSA certificate). Server
-	 *            only!
 	 * @param dtlsBuilder preconfigured dtls builder. Maybe {@link null}.
 	 * @param trust alias of trusted certificate, or {@code null} to trust all
 	 *            received certificates.
 	 * @param cipherSuites cipher suites to support.
 	 */
-	public void build(InetSocketAddress bind, boolean rsa, DtlsConnectorConfig.Builder dtlsBuilder, String trust,
+	public void build(InetSocketAddress bind, DtlsConnectorConfig.Builder dtlsBuilder, String trust,
 			CipherSuite... cipherSuites) {
 		List<CipherSuite> suites = Arrays.asList(cipherSuites);
 		if (dtlsBuilder == null) {
@@ -163,9 +173,11 @@ public class ConnectorUtil {
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(suites)) {
 			if (credentials != null && dtlsBuilder.getIncompleteConfig().getCertificateIdentityProvider() == null) {
-				Credentials credentials = rsa ? this.credentialsCaRsa : this.credentials;
-				dtlsBuilder.setCertificateIdentityProvider(new SingleCertificateProvider(credentials.getPrivateKey(), credentials.getCertificateChain(),
-						CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
+				Credentials credentials = nextCredentials != null ? nextCredentials : this.credentials;
+				dtlsBuilder.setCertificateIdentityProvider(new SingleCertificateProvider(credentials.getPrivateKey(),
+						credentials.getCertificateChain(), CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
+			}
+			if (dtlsBuilder.getIncompleteConfig().getAdvancedCertificateVerifier() == null) {
 				Builder builder = StaticNewAdvancedCertificateVerifier.builder();
 				if (TRUST_CA.equals(trust)) {
 					builder.setTrustedCertificates(trustCa);
@@ -182,6 +194,7 @@ public class ConnectorUtil {
 		connector = new DTLSConnector(dtlsBuilder.build());
 		alertCatcher.resetAlert();
 		connector.setAlertHandler(alertCatcher);
+		nextCredentials = null;
 	}
 
 	/**

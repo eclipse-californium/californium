@@ -23,11 +23,10 @@ import static org.junit.Assume.assumeTrue;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
-import org.eclipse.californium.elements.util.TestScope;
+import org.eclipse.californium.interoperability.test.ConnectorUtil;
 import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
@@ -35,6 +34,7 @@ import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -87,19 +87,7 @@ public class OpenSslClientInteroperabilityTest {
 	 */
 	@Parameters(name = "{0}")
 	public static Iterable<CipherSuite> cipherSuiteParams() {
-		if (TestScope.enableIntensiveTests()) {
-			return OpenSslUtil.getSupportedCipherSuites();
-		} else {
-			if (CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256.isSupported()) {
-				return Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
-						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
-			} else {
-				return Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
-						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM);
-			}
-		}
+		return OpenSslUtil.getSupportedTestCipherSuites();
 	}
 
 	@After
@@ -114,6 +102,9 @@ public class OpenSslClientInteroperabilityTest {
 	@Test
 	public void testOpenSslClient() throws Exception {
 		processUtil.setTag("openssl-client, " + cipherSuite.name());
+		if (cipherSuite.getCertificateKeyAlgorithm() == CertificateKeyAlgorithm.RSA) {
+			scandiumUtil.loadCredentials(ConnectorUtil.SERVER_RSA_NAME);
+		}
 		scandiumUtil.start(BIND, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, OpenSslProcessUtil.AuthenticationMode.CERTIFICATE,
@@ -140,7 +131,10 @@ public class OpenSslClientInteroperabilityTest {
 		processUtil.setTag("openssl-client, multifragments per record, " + cipherSuite.name());
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-		scandiumUtil.start(BIND, false, builder, null, cipherSuite);
+		if (cipherSuite.getCertificateKeyAlgorithm() == CertificateKeyAlgorithm.RSA) {
+			scandiumUtil.loadCredentials(ConnectorUtil.SERVER_RSA_NAME);
+		}
+		scandiumUtil.start(BIND, builder, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, OpenSslProcessUtil.AuthenticationMode.CERTIFICATE,
 				cipherSuite);

@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.openssl;
 
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.CLIENT_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
@@ -35,6 +36,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.interoperability.test.ConnectorUtil;
 import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
@@ -175,7 +177,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 
-		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, cipherSuite);
 		connect(cipher);
@@ -217,10 +219,25 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslClientMixedCertificatChain() throws Exception {
-		scandiumUtil.start(BIND, true, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.loadCredentials(ConnectorUtil.SERVER_CA_RSA_NAME);
+		scandiumUtil.start(BIND, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, OpenSslProcessUtil.DEFAULT_CURVES,
 				OpenSslProcessUtil.DEFAULT_SIGALGS, cipherSuite);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientRsaCertificatChain() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+		scandiumUtil.loadCredentials(ConnectorUtil.SERVER_RSA_NAME);
+		scandiumUtil.start(BIND, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, TRUST, OpenSslProcessUtil.DEFAULT_CURVES,
+				OpenSslProcessUtil.DEFAULT_SIGALGS, CLIENT_RSA_CERTIFICATE, cipherSuite);
 		connect(cipher);
 	}
 
@@ -235,7 +252,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
 				.setSupportedSignatureAlgorithms(defaults);
-		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, "X25519:prime256v1",
 				"ed25519:ECDSA+SHA256", "clientEdDsa.pem", cipherSuite);

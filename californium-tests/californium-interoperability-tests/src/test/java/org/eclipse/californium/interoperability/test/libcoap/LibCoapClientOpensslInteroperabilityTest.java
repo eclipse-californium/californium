@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.CLIENT_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
@@ -29,6 +30,7 @@ import static org.hamcrest.number.OrderingComparison.greaterThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -43,6 +45,7 @@ import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
+import org.eclipse.californium.interoperability.test.ConnectorUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
@@ -117,7 +120,7 @@ public class LibCoapClientOpensslInteroperabilityTest {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -129,7 +132,7 @@ public class LibCoapClientOpensslInteroperabilityTest {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -210,8 +213,25 @@ public class LibCoapClientOpensslInteroperabilityTest {
 	@Test
 	public void testLibCoapClientEcdsaRsa() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, true, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.loadCredentials(ConnectorUtil.SERVER_CA_RSA_NAME);
+		californiumUtil.start(BIND, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
+		processUtil.startupClient(DESTINATION_URL + "test", CHAIN, "Hello, CoAP!", cipherSuite);
+		connect("Hello, CoAP!", "Greetings!");
+		californiumUtil.assertPrincipalType(X509CertPath.class);
+	}
+
+	@Test
+	public void testLibCoapClientRsa() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+
+		californiumUtil.loadCredentials(ConnectorUtil.SERVER_RSA_NAME);
+		californiumUtil.start(BIND, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		processUtil.setCertificate(CLIENT_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", CHAIN, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
 		californiumUtil.assertPrincipalType(X509CertPath.class);
@@ -250,7 +270,8 @@ public class LibCoapClientOpensslInteroperabilityTest {
 	@Test
 	public void testLibCoapClientEcdsaRsaTrust() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, true, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.loadCredentials(ConnectorUtil.SERVER_CA_RSA_NAME);
+		californiumUtil.start(BIND, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", TRUST, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");

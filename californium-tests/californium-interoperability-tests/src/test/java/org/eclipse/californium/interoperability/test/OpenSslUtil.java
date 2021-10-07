@@ -15,11 +15,13 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
@@ -28,9 +30,11 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 public class OpenSslUtil {
 
 	public static final String SERVER_CERTIFICATE = "server.pem";
+	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
 	public static final String SERVER_CA_RSA_CERTIFICATE = "serverCaRsa.pem";
 
 	public static final String CLIENT_CERTIFICATE = "client.pem";
+	public static final String CLIENT_RSA_CERTIFICATE = "clientRsa.pem";
 	public static final String ROOT_CERTIFICATE = "rootTrustStore.pem";
 	public static final String CA_CERTIFICATES = "caTrustStore.pem";
 	public static final String CA_RSA_CERTIFICATES = "caRsaTrustStore.pem";
@@ -62,15 +66,22 @@ public class OpenSslUtil {
 		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, "ECDHE-ECDSA-AES256-SHA");
 		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, "ECDHE-ECDSA-AES128-SHA256");
 		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, "ECDHE-ECDSA-AES256-SHA384");
+
+		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, "ECDHE-RSA-AES128-GCM-SHA256");
+		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, "ECDHE-RSA-AES256-GCM-SHA384");
+		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, "ECDHE-RSA-AES128-SHA256");
+		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, "ECDHE-RSA-AES256-SHA");
+		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, "ECDHE-RSA-AES256-SHA384");
+
 	}
 
 	/**
-	 * Get cipher suites supported by the jvm.
+	 * Get cipher suites supported by the jce.
 	 * 
-	 * The supported cipher suites depends on the jvm version. GCM is supported
+	 * The supported cipher suites depends on the jce version. GCM is supported
 	 * with Java 8.
 	 * 
-	 * @return jvm supported cipher suites
+	 * @return jce supported cipher suites
 	 * @since 2.4
 	 */
 	public static Iterable<CipherSuite> getSupportedCipherSuites() {
@@ -81,6 +92,33 @@ public class OpenSslUtil {
 			}
 		}
 		return supported;
+	}
+
+	/**
+	 * Get test cipher suites supported by the jce.
+	 * 
+	 * The supported cipher suites depends on the jce version. GCM is supported
+	 * with Java 8.
+	 * 
+	 * @return jce supported test cipher suites
+	 * @since 3.0
+	 */
+	public static Iterable<CipherSuite> getSupportedTestCipherSuites() {
+		if (TestScope.enableIntensiveTests()) {
+			return OpenSslUtil.getSupportedCipherSuites();
+		} else {
+			if (CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256.isSupported()) {
+				return Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+						CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
+			} else {
+				return Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
+						CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256);
+			}
+		}
 	}
 
 	/**

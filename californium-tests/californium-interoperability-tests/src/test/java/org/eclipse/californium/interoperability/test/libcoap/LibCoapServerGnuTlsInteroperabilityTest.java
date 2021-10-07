@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
+import static org.eclipse.californium.interoperability.test.ConnectorUtil.CLIENT_RSA_NAME;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
@@ -27,6 +29,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,6 +80,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 	 * be the output of openssl 1.0
 	 */
 	private static final String SERVER_PRIVATE_KEY = "serverPrivateKey.pem";
+	private static final String SERVER_RSA_PRIVATE_KEY = "serverRsaPrivateKey.pem";
 	private static final String SERVER_CA_RSA_PRIVATE_KEY = "serverCaRsaPrivateKey.pem";
 
 	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
@@ -87,6 +91,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
 	private static String serverPrivateKey;
+	private static String serverRsaPrivateKey;
 	private static String serverCaRsaPrivateKey;
 
 	@BeforeClass
@@ -101,6 +106,10 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 			File privatekey = new File(SERVER_PRIVATE_KEY);
 			if (privatekey.isFile() && privatekey.canRead()) {
 				serverPrivateKey = SERVER_PRIVATE_KEY;
+			}
+			privatekey = new File(SERVER_RSA_PRIVATE_KEY);
+			if (privatekey.isFile() && privatekey.canRead()) {
+				serverRsaPrivateKey = SERVER_RSA_PRIVATE_KEY;
 			}
 			privatekey = new File(SERVER_CA_RSA_PRIVATE_KEY);
 			if (privatekey.isFile() && privatekey.canRead()) {
@@ -197,7 +206,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
-		californiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
@@ -290,6 +299,23 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 	}
 
 	@Test
+	public void testLibCoapServerRsa() throws Exception {
+		assumeNotNull(serverRsaPrivateKey);
+		processUtil.setPrivateKey(serverRsaPrivateKey);
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.startupServer(ACCEPT, CA, cipherSuite);
+
+		californiumUtil.loadCredentials(CLIENT_RSA_NAME);
+		californiumUtil.start(BIND, null, cipherSuite);
+		connect(true, "'cf-client-rsa'");
+		californiumUtil.assertPrincipalType(X509CertPath.class);
+	}
+
+	@Test
 	public void testLibCoapServerEcdsaRsaSigAlgTrust() throws Exception {
 		assumeNotNull(serverCaRsaPrivateKey);
 		processUtil.setPrivateKey(serverCaRsaPrivateKey);
@@ -300,7 +326,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 		Configuration configuration = new Configuration();
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(configuration);
 		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
-		californiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
