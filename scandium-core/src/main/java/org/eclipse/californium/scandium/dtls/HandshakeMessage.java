@@ -437,7 +437,7 @@ public abstract class HandshakeMessage implements DTLSMessage {
 			throws HandshakeException {
 		switch (keyExchange) {
 		case EC_DIFFIE_HELLMAN:
-			return EcdhEcdsaServerKeyExchange.fromReader(reader);
+			return EcdhSignedServerKeyExchange.fromReader(reader);
 		case PSK:
 			return PSKServerKeyExchange.fromReader(reader);
 		case ECDHE_PSK:
