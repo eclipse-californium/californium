@@ -36,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The server's ephemeral ECDH with ECDSA signatures.
+ * The server's ephemeral ECDH with signatures.
  * 
  * See
  * <a href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
@@ -49,12 +49,12 @@ import org.slf4j.LoggerFactory;
  * Also only "UNCOMPRESSED" as point format is valid, the other formats have
  * been deprecated.
  * 
- * @since 2.3
+ * @since 3.0 (renamed, was EcdhEcdsaServerKeyExchange)
  */
 @NoPublicAPI
-public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
+public final class EcdhSignedServerKeyExchange extends ECDHServerKeyExchange {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(EcdhEcdsaServerKeyExchange.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(EcdhSignedServerKeyExchange.class);
 
 	private static final int HASH_ALGORITHM_BITS = 8;
 	private static final int SIGNATURE_ALGORITHM_BITS = 8;
@@ -80,7 +80,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 *             possession of the private key fails, e.g. due to an
 	 *             unsupported signature or hash algorithm or an invalid key
 	 */
-	public EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
+	public EcdhSignedServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
 			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom) throws HandshakeException {
 		super(ecdhe.getSupportedGroup(), ecdhe.getEncodedPoint());
 		if (signatureAndHashAlgorithm == null) {
@@ -90,7 +90,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 		// make signature
 		// See http://tools.ietf.org/html/rfc4492#section-2.2
-		// These parameters MUST be signed with ECDSA using the private key
+		// These parameters MUST be signed using the private key
 		// corresponding to the public key in the server's Certificate.
 		ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
 		try {
@@ -115,7 +115,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 *             signatureAndHashAlgorithm and signatureEncoded is
 	 *             {@code null}, or any of the other parameters
 	 */
-	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm,
+	private EcdhSignedServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm,
 			SupportedGroup supportedGroup, byte[] encodedPoint, byte[] signatureEncoded) {
 		super(supportedGroup, encodedPoint);
 		if (signatureAndHashAlgorithm == null && signatureEncoded != null) {
@@ -164,7 +164,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 			signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 			signatureEncoded = reader.readVarBytes(SIGNATURE_LENGTH_BITS);
 		}
-		return new EcdhEcdsaServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint,
+		return new EcdhSignedServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint,
 				signatureEncoded);
 	}
 

@@ -650,7 +650,7 @@ public class ServerHandshaker extends Handshaker {
 		ServerKeyExchange serverKeyExchange = null;
 		switch (keyExchangeAlgorithm) {
 		case EC_DIFFIE_HELLMAN:
-			serverKeyExchange = new EcdhEcdsaServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe,
+			serverKeyExchange = new EcdhSignedServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe,
 					privateKey, clientRandom, serverRandom);
 			break;
 

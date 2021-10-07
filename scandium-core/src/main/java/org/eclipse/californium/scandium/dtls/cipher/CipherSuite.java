@@ -73,6 +73,7 @@ public enum CipherSuite {
 	// - SHA sounds secure enough and so smaller SHA is preferred.
 	//      source:https://security.stackexchange.com/questions/84304/why-were-cbc-sha256-ciphersuites-like-tls-rsa-with-aes-128-cbc-sha256-defined
 	//      source:https://crypto.stackexchange.com/questions/20572/sha1-ssl-tls-cipher-suite
+	//       (In combination with CBC SHA1 is not preferred over CBC-SHA256, see lucky 13))
 	// See more:
 	//      https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices
 	//
@@ -115,6 +116,13 @@ public enum CipherSuite {
 	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, false, PRFAlgorithm.TLS_PRF_SHA384),
 	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
+
+	// RSA Certificates
+	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256(0xc02f, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384(0xc030, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256(0xC027, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
+	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384(0xC028, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, false, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA(0xC014, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
 
 	// Null cipher suite
 	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL, false),
@@ -287,6 +295,11 @@ public enum CipherSuite {
 
 	/**
 	 * Check whether this cipher suite is recommended.
+	 * 
+	 * The recommendation is base on security considerations. Currently AES-CBC
+	 * is not recommended. Using RSA is also no recommended for performance
+	 * reasons not for security reasons. Therefore RSA cipher suites may also
+	 * return {@code true}.
 	 * 
 	 * @return {@code true} if cipher suite is recommended
 	 */

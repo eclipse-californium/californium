@@ -28,13 +28,13 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class ECDHServerKeyExchangeTest {
 
-	EcdhEcdsaServerKeyExchange msg;
+	EcdhSignedServerKeyExchange msg;
 
 	@Before
 	public void setUp() throws Exception {
 
 		SupportedGroup usableGroup = SupportedGroup.getUsableGroups().get(0);
-		msg = new EcdhEcdsaServerKeyExchange(
+		msg = new EcdhSignedServerKeyExchange(
 				new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA),
 				new XECDHECryptography(usableGroup),
 				DtlsTestTools.getPrivateKey(),
