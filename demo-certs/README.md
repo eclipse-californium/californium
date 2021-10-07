@@ -21,12 +21,14 @@ For extended tests,
 5. A pair of private/public EC keys along with a certificate signed with the intermediary CA's key which together represent an second intermediary CA identity (alias "ca2").
 6. A pair of private/public EC keys along with a certificate signed with the second intermediary CA's key which together assert the identity of a *server* (large certificate, alias "serverlarge").
 7. A pair of private/public RSA keys along with a certificate signed with the root CA's key which together represent an intermediary RSA-CA identity (alias "carsa").
-8. A pair of private/public EC keys along with a certificate signed with the intermediary RSA-CA's key which together assert the identity of a *server* (alias "serverrsa").
+8. A pair of private/public EC keys along with a certificate signed with the intermediary RSA-CA's key which together assert the identity of a *server* (alias "servercarsa").
 9. A pair of private/public EC keys along with a self signed certificate (alias "self").
 10. A pair of private/public EC keys along with a certificate using extended key usage for clientAuth, signed with the intermediary CA's key which together assert the identity of a *client* (alias "clientext").
 11. A pair of private/public EC keys along with a self signed certificate without signing usage (alias "nosigning").
 12. A pair of private/public EdDSA keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *client* (requires java 15, alias "clienteddsa").
 13. A pair of private/public EC keys along with a certificate signed with the root CA's key which together represent an intermediary CA identity, same DN as 2., but with a different key-pair (alias "caalt").
+14. A pair of private/public RSA keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *server* (alias "serverrsa").
+15. A pair of private/public RSA keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *client* (alias "clientrsa").
 
 **Trust Store**
 
@@ -40,14 +42,14 @@ For platforms without jks support, a p12 trust stores is also generated.
 
 **Key Store**
 
-The `keyStore.jks` contains the keys and certificate chains for the *client* (alias `client`, and `clientext`) and *server* (alias `server`, `serverlarge`, and `serverrsa`) identities.
+The `keyStore.jks` contains the keys and certificate chains for the *client* (alias `client`, `clientrsa`, and `clientext`) and *server* (alias `server`, `serverlarge`, `serverrsa`, and `servercarsa`) identities.
 
 The `eddsaKeyStore.jks` contains the keys and certificate chains for the *client* (alias `clienteddsa`) and *server* (alias `servereddsa`) identity.
 
 The password for accessing the key store is `endPass` by default.
 
 For platforms without jks support, a p12 trust stores is also generated.
-`client.p12`, `clientEdDsa.p12`, `server.p12`, `serverEdDsa.p12`, `serverLarge.p12`, and `serverRsa.p12`.
+`client.p12`, `clientEdDsa.p12`, `clientRsa.p12`, `server.p12`, `serverEdDsa.p12`, `serverLarge.p12`, `serverRsa.p12`, and `serverCaRsa.p12`.
 
 ### Tree of Certificates
 
@@ -57,7 +59,7 @@ For platforms without jks support, a p12 trust stores is also generated.
                  +-- caalt (cf-ca)
                  |
                  |
-root (cf-root) --+-- carsa (cf-ca-rsa) --+-- serverrsa (cf-server-rsa)
+root (cf-root) --+-- carsa (cf-ca-rsa) --+-- servercarsa (cf-server-ca-rsa)
                  |
                  |
                  |                       +-- ca2 (cf-ca2) --+-- serverlarge (cf-serverlarge)
@@ -66,9 +68,13 @@ root (cf-root) --+-- carsa (cf-ca-rsa) --+-- serverrsa (cf-server-rsa)
                                          |
                                          +-- servereddsa (cf-server-eddsa)
                                          |
+                                         +-- serverrsa (cf-server-rsa)
+                                         |
                                          +-- client (cf-client)
                                          |
                                          +-- clienteddsa (cf-client-eddsa)
+                                         |
+                                         +-- clientrsa (cf-client-rsa)
                                          |
                                          +-- clientext (cf-clientext)
 
@@ -94,7 +100,7 @@ The script supports a list of tasks as arguments. The supported tasks are:
 
 If no argument is provided "remove create export copy" is used.
 
-Note: to create EdDSA certificates, it's required to use java 15. If previous java version are used, this client certificate is missing and the corresponding interoperability test is skipped.
+Note: to create EdDSA certificates, it's required to use java 15 (or newer). If previous java version are used, this client certificate is missing and the corresponding interoperability test is skipped.
 
 #### Java 16 - Keytool
 
