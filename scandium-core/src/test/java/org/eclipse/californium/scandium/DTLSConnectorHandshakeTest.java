@@ -1036,6 +1036,54 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	@Test
+	public void testX509ServerRsaCertificateChainHandshakeAuthWantedAnonymClient() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+
+		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setSupportedCipherSuites(cipherSuite, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerRsaPrivateKey(),
+						DtlsTestTools.getServerRsaCertificateChain()));
+		startServer();
+		clientBuilder.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setSupportedCipherSuites(cipherSuite);
+		DTLSSession session = startClientX509(null);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(nullValue()));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
+		assertThat(session.getPeerIdentity().getName(),
+				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa"));
+	}
+
+	@Test
+	public void testX509ClientRsaCertificateChainHandshakeAuthWantedAnonymClient() throws Exception {
+		SignatureAndHashAlgorithm shaRsa = SignatureAndHashAlgorithm.SHA256_WITH_RSA;
+		assumeTrue(shaRsa.getJcaName() + " not support by JCE", shaRsa.isSupported());
+
+		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		startServer();
+
+		clientBuilder.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientRsaPrivateKey(),
+						DtlsTestTools.getClientRsaCertificateChain()));
+		DTLSSession session = startClientX509(null);
+		assertThat(session.getPeerIdentity().getName(),
+				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server"));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		Principal principal = endpointContext.getPeerIdentity();
+		assertClientPrincipalHasAdditionalInfo(principal);
+		assertThat(principal.getName(),
+				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client-rsa"));
+	}
+
+	@Test
 	public void testX509TrustServerCertificate() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(),
