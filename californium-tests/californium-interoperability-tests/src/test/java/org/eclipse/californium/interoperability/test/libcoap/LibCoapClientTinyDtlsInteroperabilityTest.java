@@ -106,7 +106,7 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -118,7 +118,7 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -143,7 +143,7 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		Configuration configuration = new Configuration();
 		configuration.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)");

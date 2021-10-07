@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.CLIENT_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
@@ -24,6 +25,7 @@ import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProce
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.TRUST;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
+import org.eclipse.californium.interoperability.test.ConnectorUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
@@ -71,12 +74,14 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 	 * be the output of openssl 1.0
 	 */
 	private static final String CLIENT_PRIVATE_KEY = "clientPrivateKey.pem";
+	private static final String CLIENT_RSA_PRIVATE_KEY = "clientRsaPrivateKey.pem";
 	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
 	private static final String DESTINATION_URL = "coaps://" + DESTINATION + "/";
 
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
 	private static String clientPrivateKey;
+	private static String clientRsaPrivateKey;
 
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
@@ -90,6 +95,10 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 			File privatekey = new File(CLIENT_PRIVATE_KEY);
 			if (privatekey.isFile() && privatekey.canRead()) {
 				clientPrivateKey = CLIENT_PRIVATE_KEY;
+			}
+			privatekey = new File(CLIENT_RSA_PRIVATE_KEY);
+			if (privatekey.isFile() && privatekey.canRead()) {
+				clientRsaPrivateKey = CLIENT_RSA_PRIVATE_KEY;
 			}
 		}
 	}
@@ -125,7 +134,7 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -137,7 +146,7 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
-		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
@@ -159,8 +168,27 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 	public void testLibCoapClientEcdsaRsa() throws Exception {
 		assumeNotNull(clientPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, true, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.loadCredentials(ConnectorUtil.SERVER_CA_RSA_NAME);
+		californiumUtil.start(BIND, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
+		processUtil.startupClient(DESTINATION_URL + "test", CHAIN, "Hello, CoAP!", cipherSuite);
+		connect("Hello, CoAP!", "Greetings!");
+		californiumUtil.assertPrincipalType(X509CertPath.class);
+	}
+
+	@Test
+	public void testLibCoapClientRsa() throws Exception {
+		assumeNotNull(clientRsaPrivateKey);
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+
+		californiumUtil.loadCredentials(ConnectorUtil.SERVER_RSA_NAME);
+		californiumUtil.start(BIND, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		processUtil.setPrivateKey(clientRsaPrivateKey);
+		processUtil.setCertificate(CLIENT_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", CHAIN, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
 		californiumUtil.assertPrincipalType(X509CertPath.class);
@@ -203,7 +231,8 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 	public void testLibCoapClientEcdsaRsaTrust() throws Exception {
 		assumeNotNull(clientPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, true, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.loadCredentials(ConnectorUtil.SERVER_CA_RSA_NAME);
+		californiumUtil.start(BIND, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", TRUST, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");

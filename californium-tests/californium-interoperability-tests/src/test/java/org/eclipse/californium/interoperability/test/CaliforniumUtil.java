@@ -130,18 +130,16 @@ public class CaliforniumUtil extends ConnectorUtil {
 	 * Start coap-server or -client.
 	 * 
 	 * @param bind address to bind connector to
-	 * @param rsa use mixed certificate path (includes RSA certificate). Server
-	 *            only!
-	 * @param dtlsBuilder preconfigured dtls builder. Maybe {@link null}.
+	 * @param dtlsBuilder preconfigured dtls builder. May be {@link null}.
 	 * @param trust alias of trusted certificate, or {@code null} to trust all
 	 *            received certificates.
 	 * @param cipherSuites cipher suites to support.
 	 * @throws IOException if an error occurred starting the connector on the
 	 *             provided bind address
 	 */
-	public void start(InetSocketAddress bind, boolean rsa, DtlsConnectorConfig.Builder dtlsBuilder, String trust,
+	public void start(InetSocketAddress bind, DtlsConnectorConfig.Builder dtlsBuilder, String trust,
 			CipherSuite... cipherSuites) throws IOException {
-		build(bind, rsa, dtlsBuilder, trust, cipherSuites);
+		build(bind, dtlsBuilder, trust, cipherSuites);
 		start();
 	}
 

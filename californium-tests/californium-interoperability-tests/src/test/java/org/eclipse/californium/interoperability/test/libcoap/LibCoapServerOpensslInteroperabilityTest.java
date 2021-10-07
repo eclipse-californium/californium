@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.ConnectorUtil.CLIENT_RSA_NAME;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
@@ -28,6 +30,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -205,7 +208,7 @@ public class LibCoapServerOpensslInteroperabilityTest {
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
-		californiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
@@ -285,6 +288,21 @@ public class LibCoapServerOpensslInteroperabilityTest {
 	}
 
 	@Test
+	public void testLibCoapServerRsa() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.startupServer(ACCEPT, CA, cipherSuite);
+
+		californiumUtil.loadCredentials(CLIENT_RSA_NAME);
+		californiumUtil.start(BIND, null, cipherSuite);
+		connect(true, "write certificate request", "'cf-client-rsa'");
+		californiumUtil.assertPrincipalType(X509CertPath.class);
+	}
+
+	@Test
 	public void testLibCoapServerEcdsaRsaSigAlgTrust() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
@@ -292,7 +310,7 @@ public class LibCoapServerOpensslInteroperabilityTest {
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
-		californiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		californiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
