@@ -278,8 +278,10 @@ public class CredentialsUtil {
 			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		}
 
+		String keyAlgorithm = null;
 		Builder trustBuilder = StaticNewAdvancedCertificateVerifier.builder();
 		if (x509 >= 0 || rpk >= 0) {
+			keyAlgorithm = "EC";
 			try {
 				// try to read certificates
 				SslContextUtil.Credentials serverCredentials = SslContextUtil.loadCredentials(
@@ -312,6 +314,7 @@ public class CredentialsUtil {
 						types.add(CertificateType.RAW_PUBLIC_KEY);
 					}
 					config.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(), types));
+					keyAlgorithm = serverCredentials.getPubicKey().getAlgorithm();
 				}
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
@@ -345,7 +348,7 @@ public class CredentialsUtil {
 		if (psk && config.getIncompleteConfig().getSupportedCipherSuites() == null) {
 			List<CipherSuite> suites = new ArrayList<>();
 			if (x509 >= 0 || rpk >= 0 || x509Trust || rpkTrust) {
-				suites.addAll(CipherSuite.getEcdsaCipherSuites(false));
+				suites.addAll(CipherSuite.getCertificateCipherSuites(false, keyAlgorithm));
 			}
 			if (ecdhePsk) {
 				suites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK));

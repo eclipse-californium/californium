@@ -33,6 +33,7 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.MessageDigest;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,7 +43,7 @@ import javax.crypto.Mac;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
@@ -84,7 +85,7 @@ public enum CipherSuite {
 	// Therefore the CBC cipher suites are not recommended. If you want to use them, you MUST first disable
 	// the "recommendedCipherSuitesOnly" in DtlsConnectorConfig.Builder.
 
-	// PSK cipher suites, ordered by default preference, see getPskCiperSuites ///
+	// PSK cipher suites, ordered by default preference, see getPskCiperSuites
 
 	/**See <a href="https://tools.ietf.org/html/rfc8442#section-3" target="_blank">RFC 8442</a> for details*/
 	/**Note: compatibility not tested! openssl 1.1.1 seems not supporting them */
@@ -104,18 +105,18 @@ public enum CipherSuite {
 	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 
-	// Certificate cipher suites, ordered by default preference, see getCertificateCipherSuites or getEcdsaCipherSuites ///
+	// Certificate cipher suites, ordered by default preference, see getCertificateCipherSuites or getEcdsaCipherSuites
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
 	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384(0xc02c, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
 	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL, true),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
 	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, MACAlgorithm.NULL, true),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, false, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
 
-	// Null cipher suite ///
+	// Null cipher suite
 	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL, false),
 	;
 
@@ -594,33 +595,57 @@ public enum CipherSuite {
 	}
 
 	/**
-	 * Get a list of all supported ECDSA cipher suites.
+	 * Get a list of all supported cipher suites with the provided key
+	 * algorithm.
 	 * 
-	 * @param recommendedCipherSuitesOnly {@code true} use only recommended cipher suites
-	 * @return list of all supported ECDSA cipher suites. Ordered by their definition above.
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
+	 *            cipher suites
+	 * @param key public key algorithm
+	 * 
+	 * @return list of all supported cipher suites with the provided key
+	 *         algorithm. Ordered by their definition above.
+	 * @since 3.0
 	 */
-	public static List<CipherSuite> getEcdsaCipherSuites(boolean recommendedCipherSuitesOnly) {
-		return getCertificateCipherSuites(recommendedCipherSuitesOnly, CertificateKeyAlgorithm.EC.name());
+	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly, PublicKey key) {
+		return getCertificateCipherSuites(recommendedCipherSuitesOnly, key.getAlgorithm());
 	}
 
 	/**
 	 * Get a list of all supported cipher suites with the provided key
-	 * algorithm.
+	 * algorithms.
 	 * 
-	 * Note: currently only ECDSA is supported. There are no plans to support
-	 * other key algorithm
-	 * @param recommendedCipherSuitesOnly {@code true} use only recommended cipher suites
-	 * @param keyAlgorithm name of key algorithm. e.g. "EC"
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
+	 *            cipher suites
+	 * @param keyAlgorithms array of key algorithm names. e.g. "EC"
 	 * 
 	 * @return list of all supported cipher suites with the provided key
 	 *         algorithm. Ordered by their definition above.
+	 * @since 3.0
 	 */
-	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly, String keyAlgorithm) {
+	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly,
+			String... keyAlgorithms) {
+		return getCertificateCipherSuites(recommendedCipherSuitesOnly, Arrays.asList(keyAlgorithms));
+	}
+
+	/**
+	 * Get a list of all supported cipher suites with the provided key
+	 * algorithms.
+	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
+	 *            cipher suites
+	 * @param keyAlgorithms list of key algorithm names. e.g. "EC"
+	 * 
+	 * @return list of all supported cipher suites with the provided key
+	 *         algorithm. Ordered by their definition above.
+	 * @since 3.0 (adapted the key algorithm into a list of algorithms)
+	 */
+	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly,
+			List<String> keyAlgorithms) {
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
 			if (suite.isSupported()) {
-				if (suite.certificateKeyAlgorithm.name().equals(keyAlgorithm)) {
-					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+				if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+					if (suite.certificateKeyAlgorithm.isCompatible(keyAlgorithms)) {
 						list.add(suite);
 					}
 				}
@@ -1084,6 +1109,78 @@ public enum CipherSuite {
 	 * Known certificate key algorithm.
 	 */
 	public enum CertificateKeyAlgorithm {
+
 		NONE, DSA, RSA, EC;
+
+		/**
+		 * Checks, if the provided public key is compatible to this algorithm.
+		 * 
+		 * @param key public key to check. May be {@code null}, which is
+		 *            considered to be compatible to {@link #NONE}.
+		 * @return {@code true}, if compatible, {@code false}, if not
+		 * @since 3.0
+		 */
+		public boolean isCompatible(PublicKey key) {
+			if (this == NONE) {
+				return key == null;
+			}
+			if (key == null) {
+				return false;
+			}
+			return isCompatible(key.getAlgorithm());
+		}
+
+		/**
+		 * Checks, if the provided public key algorithm is compatible to this
+		 * algorithm.
+		 * 
+		 * @param keyAlgorithm public key algorithm to check.
+		 * @return {@code true}, if compatible, {@code false}, if not
+		 * @since 3.0
+		 */
+		public boolean isCompatible(String keyAlgorithm) {
+			if (keyAlgorithm.equalsIgnoreCase(name())) {
+				return true;
+			}
+			if (this == EC) {
+				return Asn1DerDecoder.isEcBased(keyAlgorithm);
+			}
+			return false;
+		}
+
+		/**
+		 * Checks, if one of the provided public key algorithms is compatible to
+		 * this algorithm.
+		 * 
+		 * @param keyAlgorithms list public key algorithms to check.
+		 * @return {@code true}, if at least one is compatible, {@code false},
+		 *         if none is compatible
+		 * @since 3.0
+		 */
+		public boolean isCompatible(List<String> keyAlgorithms) {
+			for (String algorithm : keyAlgorithms) {
+				if (isCompatible(algorithm)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Get algorithm for provided public key.
+		 * 
+		 * @param key public key to check. May be {@code null}, which returns
+		 *            {@link #NONE}.
+		 * @return matching algorithm, or {@code null}, if none is available
+		 * @since 3.0
+		 */
+		public static CertificateKeyAlgorithm getAlgorithm(PublicKey key) {
+			for (CertificateKeyAlgorithm keyAlgorithm : values()) {
+				if (keyAlgorithm.isCompatible(key)) {
+					return keyAlgorithm;
+				}
+			}
+			return null;
+		}
 	}
 }

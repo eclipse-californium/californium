@@ -138,7 +138,7 @@ public class ConnectorHelper {
 	DtlsConnectorConfig.Builder serverBuilder;
 
 	public ConnectorHelper(DtlsNetworkRule network) {
-		List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(false));
+		List<CipherSuite> list = new ArrayList<>(CipherSuite.getCertificateCipherSuites(false, Arrays.asList("EC")));
 		list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
 				KeyExchangeAlgorithm.PSK));
 		serverPskStore = new AdvancedMultiPskStore();

@@ -50,6 +50,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.EnumListDefinition;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -2272,7 +2273,7 @@ public final class DtlsConnectorConfig {
 			CertificateProvider provider = config.certificateIdentityProvider;
 			NewAdvancedCertificateVerifier verifier = config.advancedCertificateVerifier;
 
-			if (config.certificateConfigurationHelper == null) {
+			if (certifacte && config.certificateConfigurationHelper == null) {
 				CertificateConfigurationHelper helper = new CertificateConfigurationHelper();
 				if (provider instanceof ConfigurationHelperSetup) {
 					((ConfigurationHelperSetup) provider).setupConfigurationHelper(helper);
@@ -2283,7 +2284,7 @@ public final class DtlsConnectorConfig {
 					config.certificateConfigurationHelper = helper;
 				}
 			}
-			if (ecc) {
+			if (certifacte) {
 				if (config.supportedSignatureAlgorithms.isEmpty()) {
 					List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 					if (config.certificateConfigurationHelper != null) {
@@ -2292,6 +2293,19 @@ public final class DtlsConnectorConfig {
 					}
 					config.supportedSignatureAlgorithms = algorithms;
 				}
+			} else {
+				if (!config.supportedSignatureAlgorithms.isEmpty()) {
+					throw new IllegalStateException(
+							"supported signature and hash algorithms set, but no ecdhe based cipher suite!");
+				}
+				if (provider != null) {
+					throw new IllegalStateException("certificate identity set, but no certificate based cipher suite!");
+				}
+				if (config.advancedCertificateVerifier != null) {
+					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
+				}
+			}
+			if (ecc) {
 				if (config.supportedGroups.isEmpty()) {
 					List<SupportedGroup> defaultGroups = new ArrayList<>(SupportedGroup.getPreferredGroups());
 					if (config.certificateConfigurationHelper != null) {
@@ -2301,21 +2315,8 @@ public final class DtlsConnectorConfig {
 					config.supportedGroups = defaultGroups;
 				}
 			} else {
-				if (!config.supportedSignatureAlgorithms.isEmpty()) {
-					throw new IllegalStateException(
-							"supported signature and hash algorithms set, but no ecdhe based cipher suite!");
-				}
 				if (!config.supportedGroups.isEmpty()) {
 					throw new IllegalStateException("supported groups set, but no ecdhe based cipher suite!");
-				}
-			}
-
-			if (!certifacte) {
-				if (provider != null) {
-					throw new IllegalStateException("certificate identity set, but no certificate based cipher suite!");
-				}
-				if (config.advancedCertificateVerifier != null) {
-					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
 				}
 			}
 
@@ -2382,22 +2383,28 @@ public final class DtlsConnectorConfig {
 		}
 
 		private void verifyCertificateBasedCipherConfig(CipherSuite suite) {
-			if (config.certificateIdentityProvider == null) {
-				if (config.getDtlsRole() != DtlsRole.CLIENT_ONLY) {
+			if (config.getDtlsRole() == DtlsRole.CLIENT_ONLY) {
+				if (config.advancedCertificateVerifier == null) {
+					throw new IllegalStateException(
+							"certificate verifier must be set on client for configured " + suite.name());
+				}
+			} else {
+				if (config.certificateIdentityProvider == null) {
 					throw new IllegalStateException("Identity must be set for configured " + suite.name());
 				}
-			} else if (config.certificateConfigurationHelper != null) {
-				List<String> keyAlgorithms = config.certificateConfigurationHelper.getSupportedKeyAlgorithms();
-				String algorithm = suite.getCertificateKeyAlgorithm().name();
-				if (!keyAlgorithms.contains(algorithm)) {
-					throw new IllegalStateException(
-							"Keys must be " + algorithm + " capable for configured " + suite.name());
+				if (config.certificateConfigurationHelper != null) {
+					List<String> keyAlgorithms = config.certificateConfigurationHelper.getSupportedKeyAlgorithms();
+					if (!suite.getCertificateKeyAlgorithm().isCompatible(keyAlgorithms)) {
+						throw new IllegalStateException(
+								"One of the keys (" + keyAlgorithms + ") must be capable for configured " + suite.name());
+					}
 				}
-			}
-			if (config.getDtlsRole() == DtlsRole.CLIENT_ONLY
-					|| config.getCertificateAuthenticationMode() != CertificateAuthenticationMode.NONE) {
-				if (config.advancedCertificateVerifier == null) {
-					throw new IllegalStateException("certificate verifier must be set for configured " + suite.name());
+				if (config.getCertificateAuthenticationMode() != CertificateAuthenticationMode.NONE) {
+					if (config.advancedCertificateVerifier == null) {
+						throw new IllegalStateException(
+								"certificate verifier must be set for authentication using the configured "
+										+ suite.name());
+					}
 				}
 			}
 		}
@@ -2458,8 +2465,13 @@ public final class DtlsConnectorConfig {
 			boolean certificates = config.certificateIdentityProvider != null
 					|| config.advancedCertificateVerifier != null;
 			if (certificates) {
-				// currently only ECDSA is supported!
-				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(config.useRecommendedCipherSuitesOnly()));
+				if (config.certificateConfigurationHelper != null) {
+					List<String> keyAlgorithms = config.certificateConfigurationHelper.getSupportedKeyAlgorithms();
+					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.useRecommendedCipherSuitesOnly(), keyAlgorithms));
+				} else {
+					// default ECDSA
+					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.useRecommendedCipherSuitesOnly(), Arrays.asList(Asn1DerDecoder.EC)));
+				}
 			}
 
 			if (config.advancedPskStore != null) {
