@@ -170,7 +170,7 @@ public class SignatureAndHashAlgorithmTest {
 
 	@Test
 	public void testGetSignatureAlgorithms() throws GeneralSecurityException {
-		List<SignatureAndHashAlgorithm> algorithms = SignatureAndHashAlgorithm.getSignatureAlgorithms(DtlsTestTools.getServerRsaCertificateChainAsList());
+		List<SignatureAndHashAlgorithm> algorithms = SignatureAndHashAlgorithm.getSignatureAlgorithms(DtlsTestTools.getServerCaRsaCertificateChainAsList());
 		assertThat(algorithms.size(), is(2));
 		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
 		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
@@ -182,7 +182,7 @@ public class SignatureAndHashAlgorithmTest {
 		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, DtlsTestTools.getPublicKey());
 		assertThat(algorithms.size(), is(1));
 		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
-		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, DtlsTestTools.getServerRsaCertificateChain()[1].getPublicKey());
+		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, DtlsTestTools.getServerCaRsaCertificateChain()[1].getPublicKey());
 		assertThat(algorithms.size(), is(2));
 		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
 		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));

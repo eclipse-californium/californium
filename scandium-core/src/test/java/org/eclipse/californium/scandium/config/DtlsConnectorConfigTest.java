@@ -428,7 +428,7 @@ public class DtlsConnectorConfigTest {
 	public void testSupportedGroupForMixedCertificateChain() throws IOException, GeneralSecurityException {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
 		DtlsConnectorConfig config = builder
-				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain()))
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerCaRsaPrivateKey(), DtlsTestTools.getServerCaRsaCertificateChain()))
 				.setAdvancedCertificateVerifier(verifier)
 				.build();
 		assertNotNull(config.getSupportedGroups());

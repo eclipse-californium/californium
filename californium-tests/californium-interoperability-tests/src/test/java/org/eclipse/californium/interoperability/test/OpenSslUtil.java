@@ -28,7 +28,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 public class OpenSslUtil {
 
 	public static final String SERVER_CERTIFICATE = "server.pem";
-	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
+	public static final String SERVER_CA_RSA_CERTIFICATE = "serverCaRsa.pem";
 
 	public static final String CLIENT_CERTIFICATE = "client.pem";
 	public static final String ROOT_CERTIFICATE = "rootTrustStore.pem";

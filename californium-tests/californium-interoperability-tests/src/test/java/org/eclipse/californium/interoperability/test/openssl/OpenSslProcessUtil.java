@@ -19,7 +19,7 @@ import static org.eclipse.californium.interoperability.test.OpenSslUtil.CA_CERTI
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.CA_RSA_CERTIFICATES;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.CLIENT_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.TRUSTSTORE;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
@@ -161,7 +161,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			args.add("-cert");
 			args.add(serverCertificate);
 			String chain = CA_CERTIFICATES;
-			if (SERVER_RSA_CERTIFICATE.equals(serverCertificate)) {
+			if (SERVER_CA_RSA_CERTIFICATE.equals(serverCertificate)) {
 				chain = CA_RSA_CERTIFICATES;
 			}
 			add(args, authMode, chain);

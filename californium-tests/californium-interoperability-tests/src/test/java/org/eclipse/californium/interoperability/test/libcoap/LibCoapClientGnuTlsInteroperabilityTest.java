@@ -15,7 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
@@ -182,7 +182,7 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 		assumeNotNull(clientPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		californiumUtil.start(BIND, null, cipherSuite);
-		processUtil.setTrusts(SERVER_RSA_CERTIFICATE);
+		processUtil.setTrusts(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", TRUST, "Hello, CoAP!", cipherSuite);
 		connect(null, "The peer certificate's CA is unknown");
 		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
@@ -193,7 +193,7 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 		assumeNotNull(clientPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		californiumUtil.start(BIND, null, cipherSuite);
-		processUtil.setCa(SERVER_RSA_CERTIFICATE);
+		processUtil.setCa(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", CA, "Hello, CoAP!", cipherSuite);
 		connect(null, "The peer certificate's CA is unknown");
 		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));

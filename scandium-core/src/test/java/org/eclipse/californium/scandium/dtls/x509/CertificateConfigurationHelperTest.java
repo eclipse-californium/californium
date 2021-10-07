@@ -71,7 +71,7 @@ public class CertificateConfigurationHelperTest {
 
 	@Test
 	public void testRsaCertificateChainWithoutKeyUsageSupportsClientAndServer() {
-		helper.addConfigurationDefaultsFor(DtlsTestTools.getServerRsaCertificateChainAsList());
+		helper.addConfigurationDefaultsFor(DtlsTestTools.getServerCaRsaCertificateChainAsList());
 		assertThat(helper.canBeUsedForAuthentication(true), is(true));
 		assertThat(helper.canBeUsedForAuthentication(false), is(true));
 		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();
@@ -101,7 +101,7 @@ public class CertificateConfigurationHelperTest {
 
 	@Test
 	public void testTrustedRsaCertificatesSupportsClientAndServer() {
-		helper.addConfigurationDefaultsForTrusts(DtlsTestTools.getServerRsaCertificateChain());
+		helper.addConfigurationDefaultsForTrusts(DtlsTestTools.getServerCaRsaCertificateChain());
 		assertThat(helper.canBeUsedForAuthentication(true), is(true));
 		assertThat(helper.canBeUsedForAuthentication(false), is(true));
 		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();

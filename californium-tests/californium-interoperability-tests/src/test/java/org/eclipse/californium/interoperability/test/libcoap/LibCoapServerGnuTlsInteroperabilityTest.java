@@ -15,7 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
@@ -77,7 +77,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 	 * be the output of openssl 1.0
 	 */
 	private static final String SERVER_PRIVATE_KEY = "serverPrivateKey.pem";
-	private static final String SERVER_RSA_PRIVATE_KEY = "serverRsaPrivateKey.pem";
+	private static final String SERVER_CA_RSA_PRIVATE_KEY = "serverCaRsaPrivateKey.pem";
 
 	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 	private static final InetSocketAddress DESTINATION = new InetSocketAddress(InetAddress.getLoopbackAddress(),
@@ -87,7 +87,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
 	private static String serverPrivateKey;
-	private static String serverRsaPrivateKey;
+	private static String serverCaRsaPrivateKey;
 
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
@@ -102,9 +102,9 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 			if (privatekey.isFile() && privatekey.canRead()) {
 				serverPrivateKey = SERVER_PRIVATE_KEY;
 			}
-			privatekey = new File(SERVER_RSA_PRIVATE_KEY);
+			privatekey = new File(SERVER_CA_RSA_PRIVATE_KEY);
 			if (privatekey.isFile() && privatekey.canRead()) {
-				serverRsaPrivateKey = SERVER_RSA_PRIVATE_KEY;
+				serverCaRsaPrivateKey = SERVER_CA_RSA_PRIVATE_KEY;
 			}
 		}
 	}
@@ -176,10 +176,10 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 
 	@Test
 	public void testLibCoapServerEcdsaRsa() throws Exception {
-		assumeNotNull(serverRsaPrivateKey);
-		processUtil.setPrivateKey(serverRsaPrivateKey);
+		assumeNotNull(serverCaRsaPrivateKey);
+		processUtil.setPrivateKey(serverCaRsaPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -189,10 +189,10 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 
 	@Test
 	public void testLibCoapServerEcdsaRsaSigAlg() throws Exception {
-		assumeNotNull(serverRsaPrivateKey);
-		processUtil.setPrivateKey(serverRsaPrivateKey);
+		assumeNotNull(serverCaRsaPrivateKey);
+		processUtil.setPrivateKey(serverCaRsaPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
@@ -237,7 +237,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 		assumeNotNull(serverPrivateKey);
 		processUtil.setPrivateKey(serverPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCa(SERVER_RSA_CERTIFICATE);
+		processUtil.setCa(SERVER_CA_RSA_CERTIFICATE);
 		// mbedtls uses -R also for accepted issuers list. Therefore only use -C
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
@@ -251,7 +251,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 		assumeNotNull(serverPrivateKey);
 		processUtil.setPrivateKey(serverPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setTrusts(SERVER_RSA_CERTIFICATE);
+		processUtil.setTrusts(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -261,10 +261,10 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 
 	@Test
 	public void testLibCoapServerEcdsaRsaTrust() throws Exception {
-		assumeNotNull(serverRsaPrivateKey);
-		processUtil.setPrivateKey(serverRsaPrivateKey);
+		assumeNotNull(serverCaRsaPrivateKey);
+		processUtil.setPrivateKey(serverCaRsaPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -278,10 +278,10 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 
 	@Test
 	public void testLibCoapServerEcdsaRsaCa() throws Exception {
-		assumeNotNull(serverRsaPrivateKey);
-		processUtil.setPrivateKey(serverRsaPrivateKey);
+		assumeNotNull(serverCaRsaPrivateKey);
+		processUtil.setPrivateKey(serverCaRsaPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -291,10 +291,10 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 
 	@Test
 	public void testLibCoapServerEcdsaRsaSigAlgTrust() throws Exception {
-		assumeNotNull(serverRsaPrivateKey);
-		processUtil.setPrivateKey(serverRsaPrivateKey);
+		assumeNotNull(serverCaRsaPrivateKey);
+		processUtil.setPrivateKey(serverCaRsaPrivateKey);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
+		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		Configuration configuration = new Configuration();

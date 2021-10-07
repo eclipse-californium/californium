@@ -61,7 +61,7 @@ public class ConnectorUtil {
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
 	private static final String SERVER_NAME = "server";
-	private static final String SERVER_RSA_NAME = "serverrsa";
+	private static final String SERVER_CA_RSA_NAME = "servercarsa";
 	public static final String TRUST_CA = "ca";
 	public static final String TRUST_ROOT = "root";
 
@@ -84,7 +84,7 @@ public class ConnectorUtil {
 	/**
 	 * Credentials for ECDSA base cipher suites with RSA chain.
 	 */
-	private SslContextUtil.Credentials credentialsRsa;
+	private SslContextUtil.Credentials credentialsCaRsa;
 	private Certificate[] trustCa;
 	private Certificate[] trustRoot;
 
@@ -98,9 +98,9 @@ public class ConnectorUtil {
 		try {
 			credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 					client ? CLIENT_NAME : SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			credentialsRsa = client ? null
+			credentialsCaRsa = client ? null
 					: SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-							SERVER_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+							SERVER_CA_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			trustCa = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
 					TRUST_CA, TRUST_STORE_PASSWORD);
 			trustRoot = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
@@ -163,7 +163,7 @@ public class ConnectorUtil {
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(suites)) {
 			if (credentials != null && dtlsBuilder.getIncompleteConfig().getCertificateIdentityProvider() == null) {
-				Credentials credentials = rsa ? this.credentialsRsa : this.credentials;
+				Credentials credentials = rsa ? this.credentialsCaRsa : this.credentials;
 				dtlsBuilder.setCertificateIdentityProvider(new SingleCertificateProvider(credentials.getPrivateKey(), credentials.getCertificateChain(),
 						CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
 				Builder builder = StaticNewAdvancedCertificateVerifier.builder();
