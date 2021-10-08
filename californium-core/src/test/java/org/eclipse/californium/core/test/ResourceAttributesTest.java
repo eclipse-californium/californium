@@ -51,9 +51,13 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Category(Small.class)
 public class ResourceAttributesTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ResourceAttributesTest.class);
+
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
@@ -93,7 +97,7 @@ public class ResourceAttributesTest {
 				.toString();
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, new LinkedList<String>());
-		System.out.println(serialized);
+		LOGGER.info(serialized);
 		Assert.assertEquals(expectedTree, serialized);
 	}
 
@@ -106,7 +110,7 @@ public class ResourceAttributesTest {
 
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, request.getOptions().getUriQuery());
-		System.out.println(serialized);
+		LOGGER.info(serialized);
 		Assert.assertEquals(expectedTree, serialized);
 	}
 
@@ -114,11 +118,11 @@ public class ResourceAttributesTest {
 	public void testDiscoveryMultiFiltering() {
 		Request request = Request.newGet();
 		request.setURI("coap://localhost/.well-known/core?rt=light-lux&rt=temprature-cel");
-	
+
 		final Exchange exchange = new Exchange(request, request.getDestinationContext().getPeerAddress(), Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
 		exchange.setEndpoint(new DummyEndpoint());
 		exchange.execute(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				DiscoveryResource discovery = new DiscoveryResource(root);
@@ -127,10 +131,10 @@ public class ResourceAttributesTest {
 			}
 		});
 
-		System.out.println(exchange.getResponse().getPayloadString());
+		LOGGER.info(exchange.getResponse().getPayloadString());
 		Assert.assertEquals(ResponseCode.BAD_OPTION, exchange.getResponse().getCode());
 	}
-	
+
 	private static class DummyEndpoint implements Endpoint {
 
 		@Override

@@ -59,12 +59,12 @@ public class NoResponseCleanupMessageObserver extends CleanupMessageObserver {
 		super(exchange);
 		this.scheduledExecutor = scheduledExecutor;
 		this.lifetime = lifetime;
-		LOGGER.warn("no-response observer");
+		LOGGER.debug("no-response observer");
 	}
 
 	@Override
 	public void onSent(boolean retransmission) {
-		LOGGER.warn("no-response sent");
+		LOGGER.debug("no-response sent");
 		if (!retransmission) {
 			cleanup = scheduledExecutor.schedule(new Runnable() {
 	
@@ -73,7 +73,7 @@ public class NoResponseCleanupMessageObserver extends CleanupMessageObserver {
 					exchange.execute(new Runnable() {
 						@Override
 						public void run() {
-							LOGGER.warn("no-response-timeout");
+							LOGGER.debug("no-response-timeout");
 							exchange.getRequest().setTimedOut(true);
 						}
 					});

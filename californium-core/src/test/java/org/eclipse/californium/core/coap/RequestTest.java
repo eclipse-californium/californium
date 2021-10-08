@@ -41,6 +41,8 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -49,6 +51,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class RequestTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(RequestTest.class);
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
@@ -204,7 +207,7 @@ public class RequestTest {
 		req.getOptions().addUriPath("non-ascii-path-äöü").addUriQuery("non-ascii-query=äöü");
 
 		String derivedUri = req.getURI();
-		System.out.println(derivedUri);
+		LOGGER.info(derivedUri);
 		URI uri = URI.create(derivedUri);
 		assertThat(uri.getRawPath(), is("/non-ascii-path-%C3%A4%C3%B6%C3%BC"));
 		assertThat(uri.getRawQuery(), is("non-ascii-query=%C3%A4%C3%B6%C3%BC"));

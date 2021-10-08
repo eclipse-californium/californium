@@ -60,9 +60,13 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Category(Medium.class)
 public class ClientAsynchronousTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ClientAsynchronousTest.class);
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -142,19 +146,19 @@ public class ClientAsynchronousTest {
 
 		assertTrue("missing notifications", handler.waitOnLoadCalls(1, 2000, TimeUnit.MILLISECONDS));
 
-		System.err.println("changed 1");
+		LOGGER.info("changed 1");
 		resource.setContent(CONTENT_1 + " - 1");
 		resource.changed();
 
 		assertTrue("missing notifications", handler.waitOnLoadCalls(2, 2000, TimeUnit.MILLISECONDS));
 
-		System.err.println("changed 2");
+		LOGGER.info("changed 2");
 		resource.setContent(CONTENT_1 + " - 2");
 		resource.changed();
 
 		assertTrue("missing notifications", handler.waitOnLoadCalls(3, 2000, TimeUnit.MILLISECONDS));
 
-		System.err.println("changed 3");
+		LOGGER.info("changed 3");
 		resource.setContent(CONTENT_1 + " - 3");
 		resource.changed();
 

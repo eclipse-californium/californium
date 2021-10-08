@@ -44,6 +44,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -51,6 +53,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class MessageTypeTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MessageTypeTest.class);
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -80,7 +84,7 @@ public class MessageTypeTest {
 		server.add(new CoapResource(ACC_RESOURCE) {
 			public void handlePOST(CoapExchange exchange) {
 				exchange.accept();
-				System.out.println("gotit");
+				MessageTypeTest.LOGGER.info("gotit");
 				exchange.respond(SERVER_RESPONSE);
 			}
 		});

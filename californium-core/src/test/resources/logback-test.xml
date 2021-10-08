@@ -16,15 +16,15 @@
 		<appender-ref ref="STDOUT" />
 	</logger>
 
-	<logger name="org.eclipse.californium.core.network.stack.ReliabilityLayer" level="TRACE" additivity="false">
+	<logger name="org.eclipse.californium.core.network.stack.ReliabilityLayer" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 
-	<logger name="org.eclipse.californium.core.network.stack.ObserveLayer" level="TRACE" additivity="false">
+	<logger name="org.eclipse.californium.core.network.stack.ObserveLayer" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 
-	<logger name="org.eclipse.californium.core.network.UdpMatcher" level="TRACE" additivity="false">
+	<logger name="org.eclipse.californium.core.network.UdpMatcher" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 
@@ -32,11 +32,11 @@
 		<appender-ref ref="STDOUT" />
 	</logger>
 
-	<logger name="org.eclipse.californium.core.network.interceptors.MessageTracer" level="DEBUG" additivity="false">
+	<logger name="org.eclipse.californium.core.network.interceptors.MessageTracer" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 
-	<logger name="org.eclipse.californium.core.observe.ObserveRelation" level="TRACE" additivity="false">
+	<logger name="org.eclipse.californium.core.observe.ObserveRelation" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 

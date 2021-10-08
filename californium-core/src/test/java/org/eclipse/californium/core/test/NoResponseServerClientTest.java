@@ -46,12 +46,15 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is a small test that tests the exchange of one request and one response.
  */
 @Category(Medium.class)
 public class NoResponseServerClientTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(NoResponseServerClientTest.class);
 
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
@@ -99,12 +102,12 @@ public class NoResponseServerClientTest {
 		request.setDestinationContext(new AddressEndpointContext(serverAddress));
 		request.setPayload("client says hi");
 		request.send();
-		System.out.println("client sent request");
+		LOGGER.info("client sent request");
 
 		// receive response and check
 		Response response = request.waitForResponse(1000);
 		assertNotNull("Client received no response", response);
-		System.out.println("client received response");
+		LOGGER.info("client received response");
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 	}
 
@@ -118,7 +121,7 @@ public class NoResponseServerClientTest {
 		request.setPayload("client says hi");
 		request.getOptions().setNoResponse(NoResponseOption.SUPPRESS_SUCCESS);
 		request.send();
-		System.out.println("client sent request with no-response for success");
+		LOGGER.info("client sent request with no-response for success");
 
 		// receive response and check
 		Response response = request.waitForResponse(1000);
@@ -139,7 +142,7 @@ public class NoResponseServerClientTest {
 		// receive response and check
 		Response response = request.waitForResponse(1000);
 		assertNotNull("Client received no response", response);
-		System.out.println("client received response");
+		LOGGER.info("client received response");
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 	}
 
@@ -153,12 +156,12 @@ public class NoResponseServerClientTest {
 		request.setPayload("client says hi");
 		request.getOptions().setNoResponse(NoResponseOption.SUPPRESS_SUCCESS);
 		request.send();
-		System.out.println("client sent request with no-response for success");
+		LOGGER.info("client sent request with no-response for success");
 
 		// receive response and check
 		Response response = request.waitForResponse(1000);
 		assertNotNull("Client received no response", response);
-		System.out.println("client received response");
+		LOGGER.info("client received response");
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 	}
 
@@ -173,7 +176,7 @@ public class NoResponseServerClientTest {
 		request.setPayload("client says hi");
 		request.getOptions().setNoResponse(NoResponseOption.SUPPRESS_SUCCESS);
 		request.send();
-		System.out.println("client sent request with no-response for success");
+		LOGGER.info("client sent request with no-response for success");
 
 		// receive response and check
 		Response response = request.waitForResponse(1000);
@@ -190,7 +193,7 @@ public class NoResponseServerClientTest {
 			@Override
 			public void deliverRequest(Exchange exchange) {
 				String path = exchange.getRequest().getOptions().getUriPathString();
-				System.out.println("server received request " + path);
+				LOGGER.info("server received request {}", path);
 				if (path.equals("ack")) {
 					exchange.sendAccept();
 				}

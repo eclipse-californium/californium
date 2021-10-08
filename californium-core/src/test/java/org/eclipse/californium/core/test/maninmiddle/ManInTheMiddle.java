@@ -30,12 +30,15 @@ import java.net.InetAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The man in the middle is between the server and client and monitors the
  * communication. It can drop a packet to simulate packet loss.
  */
 public class ManInTheMiddle implements Runnable {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ManInTheMiddle.class);
 
 	private final int clientPort;
 	private final int serverPort;
@@ -69,8 +72,8 @@ public class ManInTheMiddle implements Runnable {
 	}
 
 	public void drop(int... numbers) {
-		System.out.println(interceptor.toString());
-		System.out.println();
+		LOGGER.info(interceptor.toString());
+		LOGGER.info("");
 		interceptor.clear();
 
 		Arrays.sort(numbers);
@@ -84,7 +87,7 @@ public class ManInTheMiddle implements Runnable {
 	@Override
 	public void run() {
 		try {
-			System.out.println("Starting man in the middle...");
+			LOGGER.info("Starting man in the middle...");
 			int current = 0;
 			int last = -3;
 			int burst = 1;
@@ -136,7 +139,7 @@ public class ManInTheMiddle implements Runnable {
 		running = false;
 		socket.close();
 		thread.interrupt();
-		System.out.println(interceptor.toString());
+		LOGGER.info(interceptor.toString());
 		interceptor.clear();
 		try {
 			thread.join(2000);
