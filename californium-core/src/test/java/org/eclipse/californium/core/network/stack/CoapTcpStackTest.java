@@ -35,6 +35,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -49,6 +50,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 public class CoapTcpStackTest {
 
 	private static final Configuration CONFIG = Configuration.createStandardWithoutFile();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -76,6 +80,7 @@ public class CoapTcpStackTest {
 
 
 	@Test public void sendRstExpectNotSend() {
+		logging.setLoggingLevel("ERROR", TcpAdaptionLayer.class);
 		Request request = new Request(CoAP.Code.GET);
 		request.setSourceContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 		Exchange exchange = new Exchange(request, request.getSourceContext().getPeerAddress(), Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);

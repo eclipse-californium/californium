@@ -57,6 +57,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -65,7 +67,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Large.class)
 public class LossyBlockwiseTransferTest {
-	
+	private static final Logger LOGGER = LoggerFactory.getLogger(LossyBlockwiseTransferTest.class);
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -88,8 +91,6 @@ public class LossyBlockwiseTransferTest {
 
 	@Before
 	public void setupEndpoints() throws Exception {
-
-		System.out.println(System.lineSeparator() + "Start" + getClass().getSimpleName());
 
 		Configuration config = network.getStandardTestConfig()
 			.set(CoapConfig.ACK_TIMEOUT, 300, TimeUnit.MILLISECONDS)
@@ -130,18 +131,16 @@ public class LossyBlockwiseTransferTest {
 		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort, config.get(CoapConfig.MAX_RETRANSMIT), clientInterceptor);
 		middlePort = middle.getPort();
 
-		System.out.println(
-				String.format(
-						"client at %s, middle at %s:%d, server at %s",
-						StringUtil.toString(clientEndpoint.getAddress()),
-						middleAddress.getHostAddress(), middlePort,
-						StringUtil.toString(serverEndpoint.getAddress())));
+		LOGGER.info("client at {}, middle at {}:{}, server at {}",
+				StringUtil.toLog(clientEndpoint.getAddress()),
+				middleAddress.getHostAddress(),
+				middlePort,
+				StringUtil.toLog(serverEndpoint.getAddress()));
 	}
 
 	@After
 	public void shutdownServer() {
-		System.out.println();
-		System.out.printf("End %s", getClass().getSimpleName());
+		LOGGER.info("End");
 		middle.stop();
 	}
 
@@ -173,13 +172,13 @@ public class LossyBlockwiseTransferTest {
 
 	private static void getResourceAndAssertPayload(final CoapClient client, final String expectedPayload) throws ConnectorException, IOException {
 
-		System.out.println(String.format("doing a blockwise GET on: %s", client.getURI()));
+		LOGGER.info("doing a blockwise GET on: {}", client.getURI());
 
 		long start = System.currentTimeMillis();
 		CoapResponse response = client.get();
 		long end = System.currentTimeMillis();
 		assertThat("Blockwise GET timed out after " + (end - start) + " ms", response, is(notNullValue()));
-		System.out.println(String.format("Received %d bytes after %d ms", response.getPayload().length, end - start));
+		LOGGER.info("Received {} bytes after {} ms", response.getPayload().length, end - start);
 		assertThat("Did not receive expected resource body", response.getResponseText(), is(expectedPayload));
 	}
 }

@@ -673,8 +673,8 @@ public class ObserveTest {
 		}
 
 		private void lose(Response response) {
-			System.out.println(System.lineSeparator() + "Lose response " + counter + " with MID " + response.getMID()
-					+ ", payload = " + response.getPayloadString());
+			LOGGER.info("Lose response {} with MID {}, payload = {}", counter, response.getMID(),
+					response.getPayloadString());
 			response.cancel();
 		}
 	}

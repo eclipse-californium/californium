@@ -45,6 +45,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -52,6 +54,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class SmallServerClientTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(SmallServerClientTest.class);
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -76,12 +80,12 @@ public class SmallServerClientTest {
 		request.setDestinationContext(new AddressEndpointContext(serverAddress));
 		request.setPayload("client says hi");
 		request.send();
-		System.out.println("client sent request");
+		LOGGER.info("client sent request");
 
 		// receive response and check
 		Response response = request.waitForResponse(1000);
 		assertNotNull("Client received no response", response);
-		System.out.println("client received response");
+		LOGGER.info("client received response");
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 	}
 
@@ -94,7 +98,7 @@ public class SmallServerClientTest {
 		server.setMessageDeliverer(new MessageDeliverer() {
 			@Override
 			public void deliverRequest(Exchange exchange) {
-				System.out.println("server received request");
+				LOGGER.info("server received request");
 				exchange.sendAccept();
 				try { 
 					Thread.sleep(500);
