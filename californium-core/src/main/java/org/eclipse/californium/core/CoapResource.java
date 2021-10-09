@@ -462,23 +462,13 @@ public  class CoapResource implements Resource {
 	}
 
 	/**
-	 * Remove all observe relations to CoAP clients and notify them that the
-	 * observe relation has been canceled.
-	 * 
-	 * @param code the error code why the relation was terminated (e.g., 4.04
-	 *            after deletion).
-	 * @throws IllegalArgumentException if code is not an error code.
-	 * @see #clearAndNotifyObserveRelations(ObserveRelationFilter, ResponseCode)
-	 * @since 3.0 (throws IllegalArgumentException)
-	 */
-	public void clearAndNotifyObserveRelations(ResponseCode code) {
-		clearAndNotifyObserveRelations(null, code);
-	}
-
-	/**
 	 * Cancel all observe relations to CoAP clients.
 	 * 
-	 * @see #clearAndNotifyObserveRelations(ObserveRelationFilter, ResponseCode)
+	 * The relations are canceled asynchronous using
+	 * {@link Exchange#execute(Runnable)}. Therefore the relations may still be
+	 * valid after returning, but the will be canceled afterwards.
+	 * 
+	 * @see #clearAndNotifyObserveRelations
 	 */
 	public void clearObserveRelations() {
 		clearAndNotifyObserveRelations(null, null);
@@ -488,8 +478,30 @@ public  class CoapResource implements Resource {
 	 * Remove all observe relations to CoAP clients and notify them that the
 	 * observe relation has been canceled.
 	 * 
-	 * @param filter filter to select set of relations. {@code null}, if
-	 *            all clients should be notified.
+	 * The relations are canceled asynchronous using
+	 * {@link Exchange#execute(Runnable)}. Therefore the relations may still be
+	 * valid after returning, but the will be canceled afterwards.
+	 * 
+	 * @param code the error code why the relation was terminated (e.g., 4.04
+	 *            after deletion).
+	 * @throws IllegalArgumentException if code is not an error code.
+	 * @see #clearAndNotifyObserveRelations
+	 * @since 3.0 (throws IllegalArgumentException)
+	 */
+	public void clearAndNotifyObserveRelations(ResponseCode code) {
+		clearAndNotifyObserveRelations(null, code);
+	}
+
+	/**
+	 * Remove all observe relations to CoAP clients and notify them that the
+	 * observe relation has been canceled.
+	 * 
+	 * The relations are canceled asynchronous using
+	 * {@link Exchange#execute(Runnable)}. Therefore the relations may still be
+	 * valid after returning, but the will be canceled afterwards.
+	 * 
+	 * @param filter filter to select set of relations. {@code null}, if all
+	 *            clients should be notified.
 	 * @param code the error code why the relation was terminated (e.g., 4.04
 	 *            after deletion). May be {@code null}, if no response should be
 	 *            send.
