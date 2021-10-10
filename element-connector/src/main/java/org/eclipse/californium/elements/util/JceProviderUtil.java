@@ -44,15 +44,12 @@ import org.slf4j.LoggerFactory;
  * <p>
  * With version 3.0 an experimental support for using Bouncy Castle (version
  * 1.69) as JCE is available. On class startup, the default JCE is checked for
- * providing EdDSA. If that fails, first Bouncy Castle is tested, and, if that
- * fails as well, ed25519-java. Using Bouncy Castle will insert that provider as
- * 1., while using ed25519-java will only apply for EdDSA.
- * <p>
- * If this JCE provider search should not be applied, please configure the
- * environment variable "CALIFORNIUM_JCE_PROVIDER" with one of the values
- * "SYSTEM" (keep the providers configured externally), "BC" (load and insert
- * the Bouncy Castle provider), "I2P" (load net.i2p.crypto.eddsa ed25519-java
- * and use that for EdDSA).
+ * providing EdDSA. If that fails, ed25519-java is tested and, on success, added
+ * as provider. To use Bouncy Castle or if the JCE provider should not be used,
+ * the environment variable "CALIFORNIUM_JCE_PROVIDER" is used. Configure that
+ * with one of the values "SYSTEM" (keep the providers configured externally),
+ * "BC" (load and insert the Bouncy Castle provider), "I2P" (load
+ * net.i2p.crypto.eddsa ed25519-java and use that for EdDSA).
  * 
  * @since 3.0
  */
@@ -180,14 +177,16 @@ public class JceProviderUtil {
 	 */
 	private static void setupJce() {
 		boolean tryJce = true;
-		boolean tryBc = true;
+		boolean tryBc = false;
 		boolean tryEd25519Java = true;
 		String jce = StringUtil.getConfiguration(CALIFORNIUM_JCE_PROVIDER);
 		if (jce != null && !jce.isEmpty()) {
+			LOGGER.info("JCE setup: {}", jce);
 			if (SYSTEM_JCE_PROVIDER.equalsIgnoreCase(jce)) {
 				tryBc = false;
 				tryEd25519Java = false;
 			} else if (BOUNCY_CASTLE_JCE_PROVIDER.equalsIgnoreCase(jce)) {
+				tryBc = true;
 				tryJce = false;
 				tryEd25519Java = false;
 			} else if (NET_I2P_CRYPTO_JCE_PROVIDER.equalsIgnoreCase(jce)) {
