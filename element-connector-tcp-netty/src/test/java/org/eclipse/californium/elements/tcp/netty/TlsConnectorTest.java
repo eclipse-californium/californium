@@ -53,6 +53,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -186,9 +187,10 @@ public class TlsConnectorTest {
 			client.send(message);
 		}
 
+		int timeoutScale = JceProviderUtil.usesBouncyCastle() ? 4 : 3;
 		for (RawData message : messages) {
 			Catcher catcher = servers.get(message.getInetSocketAddress());
-			assertTrue(catcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS * 2));
+			assertTrue(catcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS * timeoutScale));
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
 		}
 	}
