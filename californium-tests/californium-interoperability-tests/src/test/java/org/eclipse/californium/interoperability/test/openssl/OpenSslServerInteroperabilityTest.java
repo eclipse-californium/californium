@@ -33,6 +33,7 @@ import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
@@ -113,7 +114,9 @@ public class OpenSslServerInteroperabilityTest {
 				SERVER_RSA_CERTIFICATE : SERVER_CERTIFICATE;
 		String cipher = processUtil.startupServer(ACCEPT, CERTIFICATE, certificate, null, null, cipherSuite);
 
-		scandiumUtil.start(BIND, null, cipherSuite);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		scandiumUtil.start(BIND, builder, null, cipherSuite);
 
 		String message = "Hello OpenSSL!";
 		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
@@ -136,6 +139,7 @@ public class OpenSslServerInteroperabilityTest {
 		String cipher = processUtil.startupServer(ACCEPT, CERTIFICATE, certificate, null, null, cipherSuite);
 
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY)
 				.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true);
 		scandiumUtil.start(BIND, builder, null, cipherSuite);
 

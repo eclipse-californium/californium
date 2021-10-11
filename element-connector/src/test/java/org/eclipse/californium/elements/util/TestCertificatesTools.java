@@ -30,6 +30,7 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.List;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509ExtendedKeyManager;
@@ -76,18 +77,18 @@ public class TestCertificatesTools {
 	private static X509ExtendedKeyManager clientKeyManager;
 	private static X509ExtendedKeyManager serverKeyManager;
 	private static X509ExtendedKeyManager serverEdDsaKeyManager;
-	private static SslContextUtil.Credentials clientCredentials;
-	private static SslContextUtil.Credentials clientRsaCredentials;
-	private static SslContextUtil.Credentials serverCredentials;
-	private static SslContextUtil.Credentials serverCaRsaCredentials;
-	private static SslContextUtil.Credentials serverRsaCredentials;
+	public static Credentials clientCredentials;
+	public static Credentials clientRsaCredentials;
+	public static Credentials serverCredentials;
+	public static Credentials serverCaRsaCredentials;
+	public static Credentials serverRsaCredentials;
 	private static X509Certificate[] trustedCertificates;
 	private static X509Certificate rootCaCertificate;
 	private static X509Certificate caCertificate;
 	private static X509Certificate caAlternativeCertificate;
 	// a certificate without digitalSignature value in keyusage
 	private static X509Certificate nosigningCertificate;
-	
+
 	static {
 		try {
 			// load key stores once only
@@ -135,6 +136,17 @@ public class TestCertificatesTools {
 	}
 
 	protected TestCertificatesTools() {
+	}
+
+	public static X509ExtendedKeyManager getKeyManager(Credentials credentials) {
+		try {
+			KeyManager[] keyManager = SslContextUtil.createKeyManager("test", credentials.getPrivateKey(),
+					credentials.getCertificateChain());
+			return getX509KeyManager(keyManager);
+		} catch (GeneralSecurityException e) {
+			fail(e.getMessage());
+			return null;
+		}
 	}
 
 	public static X509ExtendedKeyManager getServerKeyManager() {
@@ -262,7 +274,7 @@ public class TestCertificatesTools {
 	 * @return loaded credentials, or {@code null}, if not available.
 	 * @since 2.4
 	 */
-	public static SslContextUtil.Credentials getCredentials(String alias) {
+	public static Credentials getCredentials(String alias) {
 		try {
 			try {
 				return SslContextUtil.loadCredentials(KEY_STORE_URI, alias,
@@ -345,12 +357,30 @@ public class TestCertificatesTools {
 	}
 
 	/**
+	 * Gets the server's RSA public key from the example key store.
+	 * 
+	 * @return The key.
+	 */
+	public static PublicKey getServerRsaPublicKey() {
+		return serverRsaCredentials.getCertificateChain()[0].getPublicKey();
+	}
+
+	/**
 	 * Gets the client's public key from the example key store.
 	 * 
 	 * @return The key.
 	 */
 	public static PublicKey getClientPublicKey() {
 		return clientCredentials.getCertificateChain()[0].getPublicKey();
+	}
+
+	/**
+	 * Gets the client's RSA public key from the example key store.
+	 * 
+	 * @return The key.
+	 */
+	public static PublicKey getClientRsaPublicKey() {
+		return clientRsaCredentials.getCertificateChain()[0].getPublicKey();
 	}
 
 	/**

@@ -118,6 +118,7 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
@@ -301,20 +302,21 @@ public class DTLSConnectorAdvancedTest {
 			@Override
 			public CertificateIdentityResult requestCertificateIdentity(final ConnectionId cid, final boolean client,
 					final List<X500Principal> issuers, final ServerNames serverName,
+					final List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
 					final List<SignatureAndHashAlgorithm> signaturesAndHashAlgorithms,
 					final List<SupportedGroup> curves) {
 				LOGGER.info("verify resumption");
 				CertificateIdentityResult result = null;
 				if (0 < certificateHandshakeResponses) {
 					result = super.requestCertificateIdentity(cid, client, issuers, serverName,
-							signaturesAndHashAlgorithms, curves);
+							certificateKeyAlgorithms, signaturesAndHashAlgorithms, curves);
 					if (1 < certificateHandshakeResponses) {
 						final int delay = getDelay();
 						try {
 							setDelay(1);
 							for (int index = 1; index < certificateHandshakeResponses; ++index) {
 								super.requestCertificateIdentity(cid, client, issuers, serverName,
-										signaturesAndHashAlgorithms, curves);
+										certificateKeyAlgorithms, signaturesAndHashAlgorithms, curves);
 							}
 						} finally {
 							setDelay(delay);

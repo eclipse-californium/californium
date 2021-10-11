@@ -34,6 +34,7 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ListUtils;
 import org.eclipse.californium.scandium.util.ServerName;
@@ -59,13 +60,9 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	private static final Logger LOGGER = LoggerFactory.getLogger(KeyManagerCertificateProvider.class);
 
 	/**
-	 * Key type for credentials.
+	 * Key types for credentials.
 	 */
-	private static final String[] KEY_TYPE_EC = { "EC" };
-	/**
-	 * Key type for credentials.
-	 */
-	private static final String[] KEY_TYPE_EC_EDDSA = { "EC", "EdDSA", "Ed25519", "Ed448"};
+	private static final List<String> ALL_KEY_TYPES = Arrays.asList("EC", "RSA", "EdDSA", "Ed25519", "Ed448");
 
 	/**
 	 * Default alias. May be {@code null}.
@@ -166,15 +163,31 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 
 	@Override
 	public void setupConfigurationHelper(CertificateConfigurationHelper helper) {
-		List<String> aliases = getAliases(false, KEY_TYPE_EC_EDDSA, null);
+
+		List<String> aliases = getAliases(false, ALL_KEY_TYPES, null);
 		for (String alias : aliases) {
-			X509Certificate[] certificateChain = keyManager.getCertificateChain(alias);
-			helper.addConfigurationDefaultsFor(Arrays.asList(certificateChain));
+			setupConfigurationHelperForAlias(helper, alias);
 		}
-		aliases = getAliases(true, KEY_TYPE_EC_EDDSA, null);
+		aliases = getAliases(true, ALL_KEY_TYPES, null);
 		for (String alias : aliases) {
-			X509Certificate[] certificateChain = keyManager.getCertificateChain(alias);
-			helper.addConfigurationDefaultsFor(Arrays.asList(certificateChain));
+			setupConfigurationHelperForAlias(helper, alias);
+		}
+	}
+
+	/**
+	 * Setup configuration helper using the credentials of the provided alias.
+	 * 
+	 * @param helper configuration helper
+	 * @param alias alias of the credentials.
+	 */
+	private void setupConfigurationHelperForAlias(CertificateConfigurationHelper helper, String alias) {
+		X509Certificate[] certificateChain = keyManager.getCertificateChain(alias);
+		if (certificateChain != null && certificateChain.length > 0) {
+			if (supportedCertificateTypes.contains(CertificateType.X_509)) {
+				helper.addConfigurationDefaultsFor(Arrays.asList(certificateChain));
+			} else if (supportedCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
+				helper.addConfigurationDefaultsFor(certificateChain[0].getPublicKey());
+			}
 		}
 	}
 
@@ -186,22 +199,55 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	@Override
 	public CertificateIdentityResult requestCertificateIdentity(ConnectionId cid, boolean client,
 			List<X500Principal> issuers, ServerNames serverNames,
+			List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
 			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves) {
-		Principal[] principals = issuers == null ? null : issuers.toArray(new Principal[issuers.size()]);
-		String[] keyTypes = KEY_TYPE_EC;
-		if (signatureAndHashAlgorithms != null
-				&& (signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519)
-						|| signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448))) {
-			keyTypes = KEY_TYPE_EC_EDDSA;
+		String role = client ? "Client" : "Server";
+		LOGGER.debug("{} certificate for {}", role, serverNames == null ? "<n.a.>" : serverNames);
+		if (issuers != null && !issuers.isEmpty()) {
+			LOGGER.debug("{} certificate issued by {}", role, issuers);
 		}
+		Principal[] principals = issuers == null ? null : issuers.toArray(new Principal[issuers.size()]);
+		List<String> keyTypes = new ArrayList<>();
+		if (certificateKeyAlgorithms != null) {
+			for (CertificateKeyAlgorithm algorithm : certificateKeyAlgorithms) {
+				if (algorithm != CertificateKeyAlgorithm.NONE) {
+					ListUtils.addIfAbsent(keyTypes, algorithm.name());
+				}
+			}
+		}
+		if (signatureAndHashAlgorithms != null && !signatureAndHashAlgorithms.isEmpty()) {
+			if (keyTypes.isEmpty()) {
+				if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatureAndHashAlgorithms, Asn1DerDecoder.EC)) {
+					ListUtils.addIfAbsent(keyTypes, Asn1DerDecoder.EC);
+				}
+				if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatureAndHashAlgorithms, Asn1DerDecoder.RSA)) {
+					ListUtils.addIfAbsent(keyTypes, Asn1DerDecoder.RSA);
+				}
+				addEdDsaSupport(keyTypes, signatureAndHashAlgorithms);
+			} else if (keyTypes.contains(Asn1DerDecoder.EC)) {
+				addEdDsaSupport(keyTypes, signatureAndHashAlgorithms);
+			}
+		} else if (keyTypes.isEmpty()) {
+			keyTypes.add(Asn1DerDecoder.EC);
+		}
+
+		LOGGER.debug("{} certificate public key types {}", role, keyTypes);
+		if (signatureAndHashAlgorithms != null && !signatureAndHashAlgorithms.isEmpty()) {
+			LOGGER.debug("{} certificate signed with {}", role, signatureAndHashAlgorithms);
+		}
+		if (curves != null && !curves.isEmpty()) {
+			LOGGER.debug("{} certificate using {}", role, curves);
+		}
+
 		List<String> alias = getAliases(client, keyTypes, principals);
 		if (!alias.isEmpty()) {
 			List<String> matchingServerNames = new ArrayList<>();
 			List<String> matchingSignatures = new ArrayList<>();
 			List<String> matchingCurves = new ArrayList<>();
 			// after issuers, check the servernames
+			int index = 1;
 			for (String id : alias) {
-				LOGGER.debug("try {} of {}", id, alias.size());
+				LOGGER.debug("Apply select {} - {} of {}", id, index, alias.size());
 				X509Certificate[] certificateChain = keyManager.getCertificateChain(id);
 				List<X509Certificate> chain = Arrays.asList(certificateChain);
 				if (serverNames != null && matchServerNames(serverNames, certificateChain[0])) {
@@ -214,6 +260,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				if (curves != null && matchCurves(curves, chain)) {
 					matchingCurves.add(id);
 				}
+				++index;
 			}
 			if (!matchingServerNames.isEmpty()) {
 				LOGGER.debug("{} selected by {}", matchingServerNames.size(), serverNames);
@@ -263,7 +310,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * @return list of aliases to matching credentials. Empty, if no matching
 	 *         credentials are found.
 	 */
-	private List<String> getAliases(boolean client, String[] keyTypes, Principal[] issuers) {
+	private List<String> getAliases(boolean client, List<String> keyTypes, Principal[] issuers) {
 		List<String> all = new ArrayList<>();
 		for (String keyType : keyTypes) {
 			String[] alias = null;
@@ -357,10 +404,17 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 		List<String> result = new ArrayList<>();
 		for (SignatureAndHashAlgorithm signatureAndHashAlgorithm : signatureAndHashAlgorithms) {
 			for (String id : alias) {
-				LOGGER.debug("select sign {} - {}", id, signatureAndHashAlgorithm.getJcaName());
 				X509Certificate[] certificateChain = keyManager.getCertificateChain(id);
-				if (signatureAndHashAlgorithm.isSupported(certificateChain[0].getPublicKey())) {
-					result.add(id);
+				if (certificateChain != null && certificateChain.length > 0) {
+					String algorithm = certificateChain[0].getPublicKey().getAlgorithm();
+					if (signatureAndHashAlgorithm.isSupported(algorithm)) {
+						result.add(id);
+						LOGGER.debug("Select by signature {} - {} == {}", id, signatureAndHashAlgorithm.getJcaName(),
+								algorithm);
+					} else {
+						LOGGER.debug("Signature doesn't match {} - {} != {}", id,
+								signatureAndHashAlgorithm.getJcaName(), algorithm);
+					}
 				}
 			}
 			if (!result.isEmpty()) {
@@ -368,6 +422,18 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 			}
 		}
 		return result;
+	}
+
+	private static void addEdDsaSupport(List<String> publicKeyTypes,
+			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
+		if (signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519)) {
+			ListUtils.addIfAbsent(publicKeyTypes, Asn1DerDecoder.EDDSA);
+			ListUtils.addIfAbsent(publicKeyTypes, Asn1DerDecoder.ED25519);
+		}
+		if (signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448)) {
+			ListUtils.addIfAbsent(publicKeyTypes, Asn1DerDecoder.EDDSA);
+			ListUtils.addIfAbsent(publicKeyTypes, Asn1DerDecoder.ED448);
+		}
 	}
 
 	private static List<CertificateType> asList(CertificateType[] types) {

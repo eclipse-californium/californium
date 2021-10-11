@@ -106,6 +106,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
@@ -2462,19 +2463,23 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Request the certificate based identity.
 	 * 
-	 * @param issuers list of trusted issuers
-	 * @param serverNames indicated server names
+	 * @param issuers list of trusted issuers. May be {@code null} or empty.
+	 * @param serverNames indicated server names. May be {@code null} or empty.
+	 * @param certificateKeyAlgorithms list of certificate key algorithms to
+	 *            select a node's certificate. May be {@code null} or empty.
 	 * @param signatureAndHashAlgorithms list of supported signatures and hash
-	 *            algorithms
-	 * @param curves ec-curves (supported groups). May be {@code null}.
+	 *            algorithms. May be {@code null} or empty.
+	 * @param curves ec-curves (supported groups). May be {@code null} or empty.
 	 * @return {@code true}, if the certificate based identity is available,
 	 *         {@code false}, if the certificate based identity is requested.
 	 * @throws HandshakeException if any of the checks fails
+	 * @see CertificateProvider#requestCertificateIdentity(ConnectionId,
+	 *      boolean, List, ServerNames, List, List, List)
 	 * @since 3.0
 	 */
 	public boolean requestCertificateIdentity(List<X500Principal> issuers, ServerNames serverNames,
-			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves)
-			throws HandshakeException {
+			List<CertificateKeyAlgorithm> certificateKeyAlgorithms, List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms,
+			List<SupportedGroup> curves) throws HandshakeException {
 		certificateIdentityPending = true;
 		CertificateIdentityResult result;
 		if (certificateIdentityProvider == null) {
@@ -2482,7 +2487,7 @@ public abstract class Handshaker implements Destroyable {
 		} else {
 			LOGGER.info("Start certificate identity.");
 			result = certificateIdentityProvider.requestCertificateIdentity(connection.getConnectionId(), isClient(),
-					issuers, serverNames, signatureAndHashAlgorithms, curves);
+					issuers, serverNames, certificateKeyAlgorithms, signatureAndHashAlgorithms, curves);
 		}
 		if (result != null) {
 			processCertificateIdentityResult(result);

@@ -553,9 +553,11 @@ public final class SignatureAndHashAlgorithm {
 	 * 
 	 * @param supportedSignatureAlgorithms list of supported signature and hash
 	 *            algorithms.
-	 * @param certificateChain The certificate chain to test.
-	 * @return {@code true} if all certificates have been signed using a
-	 *         supported algorithm.
+	 * @param keyAlgorithm The key algorithm.
+	 * @return {@code true}, if one of supported signature and hash algorithms
+	 *         supports the key algorithm, {@code false}, if none of the
+	 *         supported signature and hash algorithms supports the key
+	 *         algorithm.
 	 * 
 	 * @since 3.0
 	 */

@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.scandium.util.ListUtils;
 
 
 /**
@@ -613,14 +614,18 @@ public enum CipherSuite {
 	 * 
 	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
 	 *            cipher suites
-	 * @param key public key algorithm
-	 * 
+	 * @param key public key
 	 * @return list of all supported cipher suites with the provided key
 	 *         algorithm. Ordered by their definition above.
+	 * @throws NullPointerException if public key is {@code null}
 	 * @since 3.0
 	 */
 	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly, PublicKey key) {
-		return getCertificateCipherSuites(recommendedCipherSuitesOnly, key.getAlgorithm());
+		if (key == null) {
+			throw new NullPointerException("Public key must not be null!");
+		}
+		return getCertificateCipherSuites(recommendedCipherSuitesOnly,
+				Arrays.asList(CertificateKeyAlgorithm.getAlgorithm(key)));
 	}
 
 	/**
@@ -629,15 +634,24 @@ public enum CipherSuite {
 	 * 
 	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
 	 *            cipher suites
-	 * @param keyAlgorithms array of key algorithm names. e.g. "EC"
-	 * 
+	 * @param certificateKeyAlgorithms array of certificate key algorithms
 	 * @return list of all supported cipher suites with the provided key
 	 *         algorithm. Ordered by their definition above.
+	 * @throws NullPointerException if array of certificate key algorithms is
+	 *             {@code null}
+	 * @throws IllegalArgumentException if array of certificate key algorithms
+	 *             is empty
 	 * @since 3.0
 	 */
 	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly,
-			String... keyAlgorithms) {
-		return getCertificateCipherSuites(recommendedCipherSuitesOnly, Arrays.asList(keyAlgorithms));
+			CertificateKeyAlgorithm... certificateKeyAlgorithms) {
+		if (certificateKeyAlgorithms == null) {
+			throw new NullPointerException("Certificate key algorithms must not be null!");
+		}
+		if (certificateKeyAlgorithms.length == 0) {
+			throw new IllegalArgumentException("Certificate key algorithms must not be empty!");
+		}
+		return getCertificateCipherSuites(recommendedCipherSuitesOnly, Arrays.asList(certificateKeyAlgorithms));
 	}
 
 	/**
@@ -646,25 +660,51 @@ public enum CipherSuite {
 	 * 
 	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
 	 *            cipher suites
-	 * @param keyAlgorithms list of key algorithm names. e.g. "EC"
-	 * 
+	 * @param certificateKeyAlgorithms list of certificate key algorithms
 	 * @return list of all supported cipher suites with the provided key
 	 *         algorithm. Ordered by their definition above.
+	 * @throws NullPointerException if list of certificate key algorithms is
+	 *             {@code null}
+	 * @throws IllegalArgumentException if list of certificate key algorithms is
+	 *             empty
 	 * @since 3.0 (adapted the key algorithm into a list of algorithms)
 	 */
 	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly,
-			List<String> keyAlgorithms) {
+			List<CertificateKeyAlgorithm> certificateKeyAlgorithms) {
+		if (certificateKeyAlgorithms == null) {
+			throw new NullPointerException("Certificate key algorithms must not be null!");
+		}
+		if (certificateKeyAlgorithms.isEmpty()) {
+			throw new IllegalArgumentException("Certificate key algorithms must not be empty!");
+		}
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
 			if (suite.isSupported()) {
 				if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
-					if (suite.certificateKeyAlgorithm.isCompatible(keyAlgorithms)) {
+					if (certificateKeyAlgorithms.contains(suite.certificateKeyAlgorithm)) {
 						list.add(suite);
 					}
 				}
 			}
 		}
 		return list;
+	}
+
+	/**
+	 * Gets the certificate key algorithms of the cipher suite list.
+	 *
+	 * @param cipherSuites list of ciperh suite
+	 * @return The certificate key algorithms (never {@code null}.
+	 * @since 3.0
+	 */
+	public static List<CertificateKeyAlgorithm> getCertificateKeyAlgorithms(List<CipherSuite> cipherSuites) {
+		List<CertificateKeyAlgorithm> types = new ArrayList<>();
+		for (CipherSuite suite : cipherSuites) {
+			if (suite.getCertificateKeyAlgorithm() != CertificateKeyAlgorithm.NONE) {
+				ListUtils.addIfAbsent(types, suite.getCertificateKeyAlgorithm());
+			}
+		}
+		return types;
 	}
 
 	/**
