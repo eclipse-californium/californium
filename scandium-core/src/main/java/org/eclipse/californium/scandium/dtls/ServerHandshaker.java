@@ -81,6 +81,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -526,7 +527,8 @@ public class ServerHandshaker extends Handshaker {
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(commonCipherSuites)) {
 			this.pendingClientHello = clientHello;
 			ServerNames serverNames = getServerNames();
-			if (requestCertificateIdentity(null, serverNames, commonSignatures, commonGroups)) {
+			List<CertificateKeyAlgorithm> keyAlgorithms = CipherSuite.getCertificateKeyAlgorithms(commonCipherSuites);
+			if (requestCertificateIdentity(null, serverNames, keyAlgorithms, commonSignatures, commonGroups)) {
 				startInitialTimeout();
 			}
 		} else {

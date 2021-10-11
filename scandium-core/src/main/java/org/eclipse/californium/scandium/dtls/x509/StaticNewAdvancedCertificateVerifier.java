@@ -121,6 +121,11 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	@Override
 	public void setupConfigurationHelper(CertificateConfigurationHelper helper) {
 		helper.addConfigurationDefaultsForTrusts(trustedCertificates);
+		if (trustedRPKs != null) {
+			for (RawPublicKeyIdentity identity : trustedRPKs) {
+				helper.addConfigurationDefaultsForTrusts(identity.getKey());
+			}
+		}
 	}
 
 	@Override

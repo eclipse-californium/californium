@@ -573,7 +573,8 @@ public class ClientHandshaker extends Handshaker {
 		// save for later, will be handled by server hello done
 		certificateRequest = message;
 		requestCertificateIdentity(certificateRequest.getCertificateAuthorities(), getServerNames(),
-				certificateRequest.getSupportedSignatureAlgorithms(), null);
+				certificateRequest.getCertificateKeyAlgorithms(), certificateRequest.getSupportedSignatureAlgorithms(),
+				null);
 	}
 
 	/**

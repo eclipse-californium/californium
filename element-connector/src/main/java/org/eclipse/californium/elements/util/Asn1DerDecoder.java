@@ -66,7 +66,7 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 2.4
 	 */
-	public static final String ED25519 = "ED25519";
+	public static final String ED25519 = "Ed25519";
 	/**
 	 * Key algorithm Ed25519 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
@@ -74,13 +74,13 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String ED25519v2 = "ED25519.v2";
+	public static final String ED25519v2 = "Ed25519.v2";
 	/**
 	 * Key algorithm ED448 (RFC 8422).
 	 * 
 	 * @since 2.4
 	 */
-	public static final String ED448 = "ED448";
+	public static final String ED448 = "Ed448";
 	/**
 	 * Key algorithm Ed448 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
@@ -88,7 +88,7 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String ED448v2 = "ED448.v2";
+	public static final String ED448v2 = "Ed448.v2";
 	/**
 	 * Key algorithm X25519 (RFC 8422).
 	 * 

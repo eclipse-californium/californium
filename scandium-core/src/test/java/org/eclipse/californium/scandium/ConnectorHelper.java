@@ -94,6 +94,7 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
@@ -138,7 +139,7 @@ public class ConnectorHelper {
 	DtlsConnectorConfig.Builder serverBuilder;
 
 	public ConnectorHelper(DtlsNetworkRule network) {
-		List<CipherSuite> list = new ArrayList<>(CipherSuite.getCertificateCipherSuites(false, Arrays.asList("EC")));
+		List<CipherSuite> list = new ArrayList<>(CipherSuite.getCertificateCipherSuites(false, CertificateKeyAlgorithm.EC));
 		list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
 				KeyExchangeAlgorithm.PSK));
 		serverPskStore = new AdvancedMultiPskStore();

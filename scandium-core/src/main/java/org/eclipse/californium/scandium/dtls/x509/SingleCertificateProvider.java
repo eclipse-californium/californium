@@ -32,6 +32,7 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -166,7 +167,7 @@ public class SingleCertificateProvider implements CertificateProvider, Configura
 
 	@Override
 	public CertificateIdentityResult requestCertificateIdentity(ConnectionId cid, boolean client,
-			List<X500Principal> issuers, ServerNames serverNames,
+			List<X500Principal> issuers, ServerNames serverNames, List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
 			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves) {
 		if (certificateChain != null) {
 			return new CertificateIdentityResult(cid, privateKey, certificateChain, null);

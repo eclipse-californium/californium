@@ -23,6 +23,7 @@ package org.eclipse.californium.scandium.config;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.either;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -45,6 +46,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import javax.net.ssl.X509ExtendedKeyManager;
+
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
@@ -59,8 +62,10 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgor
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
@@ -433,6 +438,55 @@ public class DtlsConnectorConfigTest {
 				.build();
 		assertNotNull(config.getSupportedGroups());
 		assertFalse(config.getSupportedGroups().isEmpty());
+		assertThat(config.getSupportedGroups(), hasItem(SupportedGroup.secp256r1));
+	}
+
+	@Test
+	public void testSupportedCipherSuitesForKeyManager() throws IOException, GeneralSecurityException {
+		X509ExtendedKeyManager keyManager = DtlsTestTools.getServerKeyManager();
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
+		DtlsConnectorConfig config = builder
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setCertificateIdentityProvider(provider)
+				.setAdvancedCertificateVerifier(verifier)
+				.build();
+		assertNotNull(config.getSupportedCipherSuites());
+		assertFalse(config.getSupportedCipherSuites().isEmpty());
+		assertThat(config.getSupportedCipherSuites(), hasItem(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(config.getSupportedCipherSuites(), hasItem(CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256));
+	}
+
+	@Test
+	public void testSupportedSignaturesForKeyManager() throws IOException, GeneralSecurityException {
+		X509ExtendedKeyManager keyManager = DtlsTestTools.getServerKeyManager();
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
+		DtlsConnectorConfig config = builder
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setCertificateIdentityProvider(provider)
+				.setAdvancedCertificateVerifier(verifier)
+				.build();
+		assertNotNull(config.getSupportedSignatureAlgorithms());
+		assertFalse(config.getSupportedSignatureAlgorithms().isEmpty());
+		assertThat(config.getSupportedSignatureAlgorithms(), hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		assertThat(config.getSupportedSignatureAlgorithms(), hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+	}
+
+	@Test
+	public void testSupportedCurvesForKeyManager() throws IOException, GeneralSecurityException {
+		X509ExtendedKeyManager keyManager = DtlsTestTools.getServerKeyManager();
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
+				.setTrustAllCertificates().build();
+		DtlsConnectorConfig config = builder
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setCertificateIdentityProvider(provider)
+				.setAdvancedCertificateVerifier(verifier)
+				.build();
+		assertNotNull(config.getSupportedGroups());
+		assertFalse(config.getSupportedGroups().isEmpty());
+		assertThat(config.getSupportedGroups(), hasItem(SupportedGroup.secp256r1));
 	}
 
 	@Test
@@ -444,7 +498,7 @@ public class DtlsConnectorConfigTest {
 				.build();
 
 		// WHEN retrieving the certificate chain
-		CertificateIdentityResult result = config.getCertificateIdentityProvider().requestCertificateIdentity(ConnectionId.EMPTY, false, null, null, null, null);
+		CertificateIdentityResult result = config.getCertificateIdentityProvider().requestCertificateIdentity(ConnectionId.EMPTY, false, null, null, null, null, null);
 		List<X509Certificate> chain = result.getCertificateChain();
 
 		// THEN

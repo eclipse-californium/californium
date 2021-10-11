@@ -69,6 +69,8 @@ import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
@@ -1043,7 +1045,6 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
 
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED)
-				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
 				.setSupportedCipherSuites(cipherSuite, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerRsaPrivateKey(),
 						DtlsTestTools.getServerRsaCertificateChain()));
@@ -1673,6 +1674,43 @@ public class DTLSConnectorHandshakeTest {
 				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 		assertThat(session.getPeerIdentity().getName(),
 				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-eddsa"));
+	}
+
+	@Test
+	public void testX509RsaHandshake() throws Exception {
+		assumeTrue("RSA requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.RSA));
+		Credentials credentials = TestCertificatesTools.getCredentials("clientrsa");
+		assumeNotNull("clientrsa credentials missing!", credentials);
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+
+		serverBuilder.setSupportedCipherSuites(cipherSuite, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+				CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256).setCertificateIdentityProvider(
+						new KeyManagerCertificateProvider(DtlsTestTools.getDtlsServerKeyManager(),
+								CertificateType.X_509));
+		startServer();
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllCertificates().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_RSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setSupportedCipherSuites(cipherSuite);
+
+		clientPrivateKey = credentials.getPrivateKey();
+		clientCertificateChain = credentials.getCertificateChain();
+		setupClientCertificateIdentity(CertificateType.X_509);
+
+		DTLSSession session = startClient(null);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(cipherSuite));
+		assertThat(session.getPeerIdentity().getName(),
+				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa"));
 	}
 
 	@Test

@@ -50,7 +50,6 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.EnumListDefinition;
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -74,6 +73,7 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
@@ -2232,6 +2232,21 @@ public final class DtlsConnectorConfig {
 				config.resumptionVerifier = new ConnectionStoreResumptionVerifier();
 			}
 
+			CertificateProvider provider = config.certificateIdentityProvider;
+			NewAdvancedCertificateVerifier verifier = config.advancedCertificateVerifier;
+
+			if (config.certificateConfigurationHelper == null) {
+				CertificateConfigurationHelper helper = new CertificateConfigurationHelper();
+				if (provider instanceof ConfigurationHelperSetup) {
+					((ConfigurationHelperSetup) provider).setupConfigurationHelper(helper);
+					config.certificateConfigurationHelper = helper;
+				}
+				if (verifier instanceof ConfigurationHelperSetup) {
+					((ConfigurationHelperSetup) verifier).setupConfigurationHelper(helper);
+					config.certificateConfigurationHelper = helper;
+				}
+			}
+
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				config.supportedCipherSuites = config.configuration.get(DtlsConfig.DTLS_CIPHER_SUITES);
 			}
@@ -2270,20 +2285,6 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("Advanced PSK store set, but no PSK cipher suite!");
 			}
 
-			CertificateProvider provider = config.certificateIdentityProvider;
-			NewAdvancedCertificateVerifier verifier = config.advancedCertificateVerifier;
-
-			if (certifacte && config.certificateConfigurationHelper == null) {
-				CertificateConfigurationHelper helper = new CertificateConfigurationHelper();
-				if (provider instanceof ConfigurationHelperSetup) {
-					((ConfigurationHelperSetup) provider).setupConfigurationHelper(helper);
-					config.certificateConfigurationHelper = helper;
-				}
-				if (verifier instanceof ConfigurationHelperSetup) {
-					((ConfigurationHelperSetup) verifier).setupConfigurationHelper(helper);
-					config.certificateConfigurationHelper = helper;
-				}
-			}
 			if (certifacte) {
 				if (config.supportedSignatureAlgorithms.isEmpty()) {
 					List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
@@ -2393,8 +2394,8 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException("Identity must be set for configured " + suite.name());
 				}
 				if (config.certificateConfigurationHelper != null) {
-					List<String> keyAlgorithms = config.certificateConfigurationHelper.getSupportedKeyAlgorithms();
-					if (!suite.getCertificateKeyAlgorithm().isCompatible(keyAlgorithms)) {
+					List<CertificateKeyAlgorithm> keyAlgorithms = config.certificateConfigurationHelper.getSupportedCertificateKeyAlgorithms();
+					if (!keyAlgorithms.contains(suite.getCertificateKeyAlgorithm())) {
 						throw new IllegalStateException(
 								"One of the keys (" + keyAlgorithms + ") must be capable for configured " + suite.name());
 					}
@@ -2462,15 +2463,19 @@ public final class DtlsConnectorConfig {
 			// user has not explicitly set cipher suites
 			// try to guess his intentions from properties he has set
 			List<CipherSuite> ciphers = new ArrayList<>();
-			boolean certificates = config.certificateIdentityProvider != null
-					|| config.advancedCertificateVerifier != null;
-			if (certificates) {
+
+			if (config.certificateIdentityProvider != null || config.advancedCertificateVerifier != null) {
+				// certificate based cipher suites.
+				List<CertificateKeyAlgorithm> keyAlgorithms = new ArrayList<>();
 				if (config.certificateConfigurationHelper != null) {
-					List<String> keyAlgorithms = config.certificateConfigurationHelper.getSupportedKeyAlgorithms();
-					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.useRecommendedCipherSuitesOnly(), keyAlgorithms));
-				} else {
-					// default ECDSA
-					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.useRecommendedCipherSuitesOnly(), Arrays.asList(Asn1DerDecoder.EC)));
+					keyAlgorithms.addAll(config.certificateConfigurationHelper.getSupportedCertificateKeyAlgorithms());
+				}
+				if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
+					ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
+				}
+				if (!keyAlgorithms.isEmpty()) {
+					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.useRecommendedCipherSuitesOnly(),
+							keyAlgorithms));
 				}
 			}
 

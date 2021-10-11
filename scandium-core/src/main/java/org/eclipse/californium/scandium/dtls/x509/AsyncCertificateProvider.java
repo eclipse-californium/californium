@@ -32,6 +32,7 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -127,7 +128,7 @@ public class AsyncCertificateProvider extends SingleCertificateProvider {
 
 	@Override
 	public CertificateIdentityResult requestCertificateIdentity(final ConnectionId cid, final boolean client,
-			final List<X500Principal> issuers, final ServerNames serverNames,
+			final List<X500Principal> issuers, final ServerNames serverNames, final List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
 			final List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, final List<SupportedGroup> curves) {
 
 		if (delayMillis <= 0) {
@@ -137,7 +138,7 @@ public class AsyncCertificateProvider extends SingleCertificateProvider {
 				} catch (InterruptedException e) {
 				}
 			}
-			return super.requestCertificateIdentity(cid, client, issuers, serverNames, signatureAndHashAlgorithms,
+			return super.requestCertificateIdentity(cid, client, issuers, serverNames, certificateKeyAlgorithms, signatureAndHashAlgorithms,
 					curves);
 		} else {
 			executorService.schedule(new Runnable() {
@@ -145,7 +146,7 @@ public class AsyncCertificateProvider extends SingleCertificateProvider {
 				@Override
 				public void run() {
 					CertificateIdentityResult result = AsyncCertificateProvider.super.requestCertificateIdentity(cid,
-							client, issuers, serverNames, signatureAndHashAlgorithms, curves);
+							client, issuers, serverNames, certificateKeyAlgorithms, signatureAndHashAlgorithms, curves);
 					resultHandler.apply(result);
 				}
 			}, delayMillis, TimeUnit.MILLISECONDS);

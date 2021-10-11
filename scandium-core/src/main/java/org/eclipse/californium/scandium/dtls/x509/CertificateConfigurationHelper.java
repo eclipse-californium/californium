@@ -25,6 +25,7 @@ import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ListUtils;
 
@@ -36,9 +37,13 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * the proper signature and hash algorithms and the supported curves for
  * ECDSA/ECDHE is implemented here.
  * 
+ * With the introduction of support for RSA, the default supported cipher suites
+ * are now based on {@link #getSupportedCertificateKeyAlgorithms()}.
+ * 
  * For all public keys passed to
- * {@link #addConfigurationDefaultsFor(PublicKey)}, the supported curve and a
- * signature and hash algorithm is added to the default parameters.
+ * {@link #addConfigurationDefaultsFor(PublicKey)}, the supported curve, a
+ * signature and hash algorithm, and the certificate key algorithm is added to
+ * the default parameters.
  *
  * For all x509 certificate chains passed to
  * {@link #addConfigurationDefaultsFor(List)}, the public key of the head
@@ -47,6 +52,10 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * hash algorithms in the certificate chain are added to the defaults
  * parameters. And all used curves of public keys in the chain are added to the
  * default parameters as well.
+ * 
+ * For all trusted x509 certificates passed to
+ * {@link #addConfigurationDefaultsForTrusts(PublicKey)}, the supported curve
+ * and a signature and hash algorithms are added to the default parameters.
  * 
  * For all trusted x509 certificates passed to
  * {@link #addConfigurationDefaultsForTrusts(X509Certificate[])}, the supported
@@ -89,11 +98,9 @@ public class CertificateConfigurationHelper {
 	 */
 	private boolean serverUsage;
 	/**
-	 * List of supported key algorithms.
-	 * 
-	 * Currently only EC is supported.
+	 * List of supported certificate key algorithms.
 	 */
-	private final List<String> supportedKeyAlgorithms = new ArrayList<>();
+	private final List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = new ArrayList<>();
 	/**
 	 * List of supported signature and hash algorithms.
 	 */
@@ -124,7 +131,8 @@ public class CertificateConfigurationHelper {
 			}
 			ListUtils.addIfAbsent(defaultSupportedGroups, group);
 		}
-		ListUtils.addIfAbsent(supportedKeyAlgorithms, algorithm);
+		CertificateKeyAlgorithm keyAlgorithm = CertificateKeyAlgorithm.getAlgorithm(key);
+		ListUtils.addIfAbsent(supportedCertificateKeyAlgorithms, keyAlgorithm);
 		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(defaultSignatureAndHashAlgorithms, key);
 		ListUtils.addIfAbsent(keys, key);
 	}
@@ -180,16 +188,29 @@ public class CertificateConfigurationHelper {
 	public void addConfigurationDefaultsForTrusts(X509Certificate[] trusts) {
 		if (trusts != null) {
 			for (X509Certificate certificate : trusts) {
-				PublicKey publicKey = certificate.getPublicKey();
-				SignatureAndHashAlgorithm.ensureSignatureAlgorithm(defaultSignatureAndHashAlgorithms, publicKey);
-				if (Asn1DerDecoder.isEcBased(publicKey.getAlgorithm())) {
-					SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
-					if (group == null) {
-						throw new IllegalArgumentException("CA's public key ec-group must be supported!");
-					}
-					ListUtils.addIfAbsent(defaultSupportedGroups, group);
-				}
+				addConfigurationDefaultsForTrusts(certificate.getPublicKey());
 				this.trusts.add(certificate);
+			}
+		}
+	}
+
+	/**
+	 * Add parameters for the provided trusted public key.
+	 * 
+	 * The supported curve and a signature and hash algorithms are added to the
+	 * default parameters.
+	 * 
+	 * @param publicKey trusted public key
+	 */
+	public void addConfigurationDefaultsForTrusts(PublicKey publicKey) {
+		if (publicKey != null) {
+			SignatureAndHashAlgorithm.ensureSignatureAlgorithm(defaultSignatureAndHashAlgorithms, publicKey);
+			if (Asn1DerDecoder.isEcBased(publicKey.getAlgorithm())) {
+				SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
+				if (group == null) {
+					throw new IllegalArgumentException("CA's public key ec-group must be supported!");
+				}
+				ListUtils.addIfAbsent(defaultSupportedGroups, group);
 			}
 		}
 	}
@@ -197,12 +218,10 @@ public class CertificateConfigurationHelper {
 	/**
 	 * Gets list of supported key algorithms.
 	 * 
-	 * Currently only EC is supported.
-	 * 
 	 * @return list of supported key algorithms
 	 */
-	public List<String> getSupportedKeyAlgorithms() {
-		return supportedKeyAlgorithms;
+	public List<CertificateKeyAlgorithm> getSupportedCertificateKeyAlgorithms() {
+		return supportedCertificateKeyAlgorithms;
 	}
 
 	/**

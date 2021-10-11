@@ -18,13 +18,19 @@ package org.eclipse.californium.scandium.dtls.x509;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assume.assumeNotNull;
 
 import java.util.List;
 
+import javax.net.ssl.X509ExtendedKeyManager;
+
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.eclipse.californium.elements.util.TestCertificatesTools;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Before;
 import org.junit.Test;
@@ -52,6 +58,25 @@ public class CertificateConfigurationHelperTest {
 				.getDefaultSignatureAndHashAlgorithms();
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
+	}
+
+	@Test
+	public void testRawRsaPublicKeySetupSupportsClientAndServer() {
+		helper.addConfigurationDefaultsFor(DtlsTestTools.getClientRsaPublicKey());
+		assertThat(helper.canBeUsedForAuthentication(true), is(true));
+		assertThat(helper.canBeUsedForAuthentication(false), is(true));
+		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();
+		assertThat(defaultSupportedGroups.size(), is(0));
+		List<SignatureAndHashAlgorithm> defaultSignatureAndHashAlgorithms = helper
+				.getDefaultSignatureAndHashAlgorithms();
+		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
 	}
 
 	@Test
@@ -67,6 +92,29 @@ public class CertificateConfigurationHelperTest {
 				.getDefaultSignatureAndHashAlgorithms();
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
+	}
+
+	@Test
+	public void testCertificateRsaChain() {
+		Credentials credentials = DtlsTestTools.getCredentials("serverrsa");
+		helper.addConfigurationDefaultsFor(credentials.getCertificateChainAsList());
+		// no key usage extension
+		assertThat(helper.canBeUsedForAuthentication(true), is(true));
+		assertThat(helper.canBeUsedForAuthentication(false), is(true));
+		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();
+		assertThat(defaultSupportedGroups.size(), is(1));
+		assertThat(defaultSupportedGroups, hasItem(SupportedGroup.secp256r1));
+		List<SignatureAndHashAlgorithm> defaultSignatureAndHashAlgorithms = helper
+				.getDefaultSignatureAndHashAlgorithms();
+		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
 	}
 
 	@Test
@@ -82,6 +130,9 @@ public class CertificateConfigurationHelperTest {
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
 	}
 
 	@Test
@@ -112,6 +163,117 @@ public class CertificateConfigurationHelperTest {
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+	}
+
+	@Test
+	public void testWithKeyManager() {
+		X509ExtendedKeyManager keyManager = DtlsTestTools.getServerKeyManager();
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
+		provider.setupConfigurationHelper(helper);
+		// no key usage extension
+		assertThat(helper.canBeUsedForAuthentication(true), is(true));
+		assertThat(helper.canBeUsedForAuthentication(false), is(true));
+		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();
+		assertThat(defaultSupportedGroups.size(), is(1));
+		assertThat(defaultSupportedGroups, hasItem(SupportedGroup.secp256r1));
+		List<SignatureAndHashAlgorithm> defaultSignatureAndHashAlgorithms = helper
+				.getDefaultSignatureAndHashAlgorithms();
+		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(2));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
+	}
+
+	@Test
+	public void testWithEdDsaKeyManager() {
+		X509ExtendedKeyManager edDsaKeyManager = DtlsTestTools.getServerEdDsaKeyManager();
+		assumeNotNull("EdDSA KeyManager is not available!", edDsaKeyManager);
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(edDsaKeyManager,
+				CertificateType.X_509);
+		provider.setupConfigurationHelper(helper);
+		// no key usage extension
+		assertThat(helper.canBeUsedForAuthentication(true), is(true));
+		assertThat(helper.canBeUsedForAuthentication(false), is(true));
+		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();
+		assertThat(defaultSupportedGroups.size(), is(2));
+		assertThat(defaultSupportedGroups, hasItem(SupportedGroup.X25519));
+		assertThat(defaultSupportedGroups, hasItem(SupportedGroup.secp256r1));
+		List<SignatureAndHashAlgorithm> defaultSignatureAndHashAlgorithms = helper
+				.getDefaultSignatureAndHashAlgorithms();
+		assertThat(defaultSignatureAndHashAlgorithms.size(), is(3));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(2));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
+	}
+
+	@Test
+	public void testWithKeyManagerEcdsaOnly() {
+		X509ExtendedKeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverCredentials);
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager,
+				CertificateType.X_509);
+		provider.setupConfigurationHelper(helper);
+		// no key usage extension
+		assertThat(helper.canBeUsedForAuthentication(true), is(true));
+		assertThat(helper.canBeUsedForAuthentication(false), is(true));
+		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();
+		assertThat(defaultSupportedGroups.size(), is(1));
+		assertThat(defaultSupportedGroups, hasItem(SupportedGroup.secp256r1));
+		List<SignatureAndHashAlgorithm> defaultSignatureAndHashAlgorithms = helper
+				.getDefaultSignatureAndHashAlgorithms();
+		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
+	}
+
+	@Test
+	public void testWithKeyManagerRsaOnly() {
+		X509ExtendedKeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverRsaCredentials);
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager,
+				CertificateType.X_509);
+		provider.setupConfigurationHelper(helper);
+		// no key usage extension
+		assertThat(helper.canBeUsedForAuthentication(true), is(true));
+		assertThat(helper.canBeUsedForAuthentication(false), is(true));
+		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();
+		assertThat(defaultSupportedGroups.size(), is(1));
+		assertThat(defaultSupportedGroups, hasItem(SupportedGroup.secp256r1));
+		List<SignatureAndHashAlgorithm> defaultSignatureAndHashAlgorithms = helper
+				.getDefaultSignatureAndHashAlgorithms();
+		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
+	}
+
+	@Test
+	public void testWithKeyManagerRsaRawPublicKeyOnly() {
+		X509ExtendedKeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverRsaCredentials);
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager,
+				CertificateType.RAW_PUBLIC_KEY);
+		provider.setupConfigurationHelper(helper);
+		// no key usage extension
+		assertThat(helper.canBeUsedForAuthentication(true), is(true));
+		assertThat(helper.canBeUsedForAuthentication(false), is(true));
+		List<SupportedGroup> defaultSupportedGroups = helper.getDefaultSupportedGroups();
+		assertThat(defaultSupportedGroups.size(), is(0));
+		List<SignatureAndHashAlgorithm> defaultSignatureAndHashAlgorithms = helper
+				.getDefaultSignatureAndHashAlgorithms();
+		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
+		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
+		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
+		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
 	}
 
 }

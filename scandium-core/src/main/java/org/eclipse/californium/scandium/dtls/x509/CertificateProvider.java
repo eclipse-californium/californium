@@ -26,6 +26,7 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -97,21 +98,29 @@ public interface CertificateProvider {
 	/**
 	 * Get the certificate identity.
 	 * 
+	 * If multiple certificate identities are matching the criteria, the order
+	 * of the signature and hash algorithms should be used to select the one to
+	 * be used for the handshake. If lists are {@code null} or empty, it's not
+	 * used to chose a certificate identity.
+	 * 
 	 * @param cid connection ID
 	 * @param client {@code true}, for client side certificates, {@code false},
 	 *            for server side certificates.
-	 * @param issuers list of trusted issuers. May be {@code null}.
-	 * @param serverNames indicated server names. May be {@code null}, if not
-	 *            available or SNI is not enabled.
+	 * @param issuers list of trusted issuers. May be {@code null} or empty.
+	 * @param serverNames indicated server names. May be {@code null} or empty,
+	 *            if not available or SNI is not enabled.
+	 * @param certificateKeyAlgorithms list of list of certificate key
+	 *            algorithms to select a node's certificate. May be {@code null}
+	 *            or empty.
 	 * @param signatureAndHashAlgorithms signatures and hash Algorithms. May be
-	 *            {@code null}.
-	 * @param curves ec-curves (supported groups). May be {@code null}.
+	 *            {@code null} or empty.
+	 * @param curves ec-curves (supported groups). May be {@code null} or empty.
 	 * @return certificate identity result, or {@code null}, if result is
 	 *         provided asynchronous.
 	 */
 	CertificateIdentityResult requestCertificateIdentity(ConnectionId cid, boolean client, List<X500Principal> issuers,
-			ServerNames serverNames, List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms,
-			List<SupportedGroup> curves);
+			ServerNames serverNames, List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
+			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves);
 
 	/**
 	 * Set the handler for asynchronous handshake results.
@@ -121,7 +130,7 @@ public interface CertificateProvider {
 	 * 
 	 * @param resultHandler handler for asynchronous master secret results. This
 	 *            handler MUST NOT be called from the thread calling
-	 *            {@link #requestCertificateIdentity(ConnectionId, boolean, List, ServerNames, List, List)},
+	 *            {@link #requestCertificateIdentity(ConnectionId, boolean, List, ServerNames, List, List, List)},
 	 *            instead just return the result there.
 	 */
 	void setResultHandler(HandshakeResultHandler resultHandler);

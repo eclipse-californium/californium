@@ -30,6 +30,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
@@ -278,10 +279,10 @@ public class CredentialsUtil {
 			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		}
 
-		String keyAlgorithm = null;
+		CertificateKeyAlgorithm keyAlgorithm = null;
 		Builder trustBuilder = StaticNewAdvancedCertificateVerifier.builder();
 		if (x509 >= 0 || rpk >= 0) {
-			keyAlgorithm = "EC";
+			keyAlgorithm = CertificateKeyAlgorithm.EC;
 			try {
 				// try to read certificates
 				SslContextUtil.Credentials serverCredentials = SslContextUtil.loadCredentials(
@@ -314,7 +315,7 @@ public class CredentialsUtil {
 						types.add(CertificateType.RAW_PUBLIC_KEY);
 					}
 					config.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(), types));
-					keyAlgorithm = serverCredentials.getPubicKey().getAlgorithm();
+					keyAlgorithm = CertificateKeyAlgorithm.getAlgorithm(serverCredentials.getPubicKey());
 				}
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
