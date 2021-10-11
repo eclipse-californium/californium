@@ -133,14 +133,15 @@ public class PlugtestServer extends AbstractTestServer {
 
 		@Override
 		public void applyDefinitions(Configuration config) {
-			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
+			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
 			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
 			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
 			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
+			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
 		}
 	};
 
