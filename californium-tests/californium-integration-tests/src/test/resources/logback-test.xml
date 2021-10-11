@@ -8,6 +8,10 @@
 		</encoder>
 	</appender>
 
+	<logger name="ch.qos.logback" level="ERROR" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<logger name="org.eclipse.californium.core.network.InMemoryMessageExchangeStore.health" level="DEBUG" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
