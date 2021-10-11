@@ -59,10 +59,17 @@ public class TcpObserveLayer extends AbstractLayer {
 	public void sendResponse(final Exchange exchange, final Response response) {
 		final ObserveRelation relation = exchange.getRelation();
 		if (relation != null && relation.isEstablished()) {
-			if (!response.isNotification()) {
-				/* response for cancel request */
-				relation.cancel();
+			if (response.isSuccess() ^ response.isNotification()) {
+				if (response.isNotification()) {
+					LOGGER.warn("Error notification, remove observe-option {}", response);
+					response.getOptions().removeObserve();
+				} else {
+					LOGGER.warn("No-notification response with observe-relation {}, drop.", response);
+					response.setSendError(new IllegalArgumentException("Notification must have observe-option!"));
+					return;
+				}
 			}
+			relation.send(response);
 		} // else no observe was requested or the resource does not allow it
 		lower().sendResponse(exchange, response);
 	}

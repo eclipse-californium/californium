@@ -117,9 +117,9 @@ public class Observe extends CoapResource {
 	@Override
 	public void handleDELETE(CoapExchange exchange) {
 		wasUpdated = false;
-		
+
 		clearAndNotifyObserveRelations(NOT_FOUND);
-		
+
 		exchange.respond(DELETED);
 	}
 	

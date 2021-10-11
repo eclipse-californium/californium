@@ -157,6 +157,8 @@ public class ObserveRelation {
 	 * Cancel this observe relation.
 	 * 
 	 * This methods invokes the cancel methods of the resource and the endpoint.
+	 * A last response must have been sent before. Otherwise the
+	 * {@link Exchange} will be completed and fail that sending.
 	 * 
 	 * Note: calling this method outside the execution of the related
 	 * {@link #exchange} may naturally cause indeterministic behavior.
@@ -251,6 +253,7 @@ public class ObserveRelation {
 	 * Check, if sending the provided notification is postponed.
 	 * 
 	 * Postponed notification are kept and sent after the current notification.
+	 * Calls {@link #send(Response)}, if not postponed.
 	 * 
 	 * @param response notification to check.
 	 * @return {@code true}, if sending the notification is postponed,
@@ -272,15 +275,15 @@ public class ObserveRelation {
 		} else {
 			recentControlNotification = response;
 			nextControlNotification = null;
-			if (!response.isNotification()) {
-				cancel(false);
-			}
+			send(response);
 			return false;
 		}
 	}
 
 	/**
 	 * Get next notification.
+	 * 
+	 * Calls {@link #send(Response)} for next notification.
 	 * 
 	 * @param response current notification
 	 * @param acknowledged {@code true}, if the current notification was
@@ -298,9 +301,7 @@ public class ObserveRelation {
 				// next may be null
 				recentControlNotification = next;
 				nextControlNotification = null;
-				if (!next.isNotification()) {
-					cancel(false);
-				}
+				send(next);
 			} else if (acknowledged) {
 				// next may be null
 				recentControlNotification = null;
@@ -308,6 +309,21 @@ public class ObserveRelation {
 			}
 		}
 		return next;
+	}
+
+	/**
+	 * Send response for this relation.
+	 * 
+	 * If the response is no notification, {@link #cancel()} the relation
+	 * internally without completing the exchange.
+	 * 
+	 * @param response response to sent.
+	 * @since 3.0
+	 */
+	public void send(Response response) {
+		if (!response.isNotification()) {
+			cancel(false);
+		}
 	}
 
 	/**
