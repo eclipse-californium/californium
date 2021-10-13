@@ -44,6 +44,7 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 
@@ -726,26 +727,38 @@ public final class DtlsConfig {
 	 */
 	public static final EnumListDefinition<CipherSuite> DTLS_PRESELECTED_CIPHER_SUITES = new EnumListDefinition<>(
 			MODULE + "PRESELECTED_CIPHER_SUITES",
-			"DTLS preselected cipher-suites. If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.",
+			"List of preselected DTLS cipher-suites.\n" +
+			"If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.\n" +
+			"The supported cipher suites are evaluated at runtime and may differ from the ones when creating this properties file.",
 			CipherSuite.getCipherSuites(false, false));
 	/**
 	 * Select {@link CipherSuite}s.
 	 */
 	public static final EnumListDefinition<CipherSuite> DTLS_CIPHER_SUITES = new EnumListDefinition<>(
 			MODULE + "CIPHER_SUITES",
-			"DTLS cipher-suites. If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.",
+			"List of DTLS cipher-suites.\n" +
+			"If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.\n" +
+			"The supported cipher suites are evaluated at runtime and may differ from the ones when creating this properties file.",
 			CipherSuite.getCipherSuites(false, true));
 	/**
 	 * Select curves ({@link SupportedGroup}s).
 	 */
 	public static final EnumListDefinition<SupportedGroup> DTLS_CURVES = new EnumListDefinition<>(MODULE + "CURVES",
-			"DTLS curves (supported groups). Defaults to all supported curves of the JCE.", SupportedGroup.values());
+			"List of DTLS curves (supported groups).\nDefaults to all supported curves of the JCE at runtime.", SupportedGroup.values());
 	/**
 	 * Select ({@link SignatureAndHashAlgorithm}s).
 	 */
 	public static final SignatureAndHashAlgorithmsDefinition DTLS_SIGNATURE_AND_HASH_ALGORITHMS = new SignatureAndHashAlgorithmsDefinition(
 			MODULE + "SIGNATURE_AND_HASH_ALGORITHMS",
-			"DTLS list of signature- and hash-algorithms.\nValues e.g SHA256withECDSA or ED25519.");
+			"List of DTLS signature- and hash-algorithms.\nValues e.g SHA256withECDSA or ED25519.");
+	/**
+	 * Select {@link CertificateKeyAlgorithm}s.
+	 */
+	public static final EnumListDefinition<CertificateKeyAlgorithm> DTLS_CERTIFICATE_KEY_ALGORITHMS = new EnumListDefinition<>(
+			MODULE + "CERTIFICATE_KEY_ALGORITHMS",
+			"List of DTLS certificate key algorithms.",
+			new CertificateKeyAlgorithm[] { CertificateKeyAlgorithm.EC, CipherSuite.CertificateKeyAlgorithm.RSA });
+
 	/**
 	 * Specify the usage of DTLS CID before version 09 of <a href=
 	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
@@ -828,6 +841,7 @@ public final class DtlsConfig {
 			config.set(DTLS_CIPHER_SUITES, null);
 			config.set(DTLS_CURVES, null);
 			config.set(DTLS_SIGNATURE_AND_HASH_ALGORITHMS, null);
+			config.set(DTLS_CERTIFICATE_KEY_ALGORITHMS, null);
 			config.set(DTLS_USE_DEPRECATED_CID, null);
 			config.set(DTLS_SUPPORT_DEPRECATED_CID, false);
 		}
