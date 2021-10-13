@@ -36,6 +36,7 @@ import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -129,6 +130,18 @@ public class PlugtestServer extends AbstractTestServer {
 	// exit codes for runtime errors
 	public static final int ERR_INIT_FAILED = 1;
 
+	public static final List<CipherSuite> PRESELECTED_CIPHER_SUITES = Arrays.asList(
+			CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+			CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
+			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+			CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+			CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+			CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256,
+			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256);
+
 	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
@@ -140,8 +153,11 @@ public class PlugtestServer extends AbstractTestServer {
 			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
 			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
 			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
+			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
+			config.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
+			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PRESELECTED_CIPHER_SUITES);
 		}
 	};
 
