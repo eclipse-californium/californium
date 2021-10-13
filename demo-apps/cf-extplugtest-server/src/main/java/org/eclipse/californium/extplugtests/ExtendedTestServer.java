@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.X509ExtendedKeyManager;
 
 import org.eclipse.californium.cluster.CredentialsUtil;
 import org.eclipse.californium.cluster.DtlsClusterManager;
@@ -64,6 +65,7 @@ import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
@@ -81,9 +83,8 @@ import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
-import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.unixhealth.NetStatLogger;
@@ -130,9 +131,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 1000000);
 			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 60, TimeUnit.SECONDS);
 			config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
+			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
 			config.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
+			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PlugtestServer.PRESELECTED_CIPHER_SUITES);
 			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 1, TimeUnit.HOURS);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);
 			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
@@ -614,11 +617,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 		asyncPskStore.setDelay(handshakeResultDelayMillis);
 		dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 		dtlsConfigBuilder.setAddress(dtlsInterface);
-		dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-				CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-		AsyncCertificateProvider certificateProvider = new AsyncCertificateProvider(serverCredentials.getPrivateKey(),
-				serverCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY,
-				CertificateType.X_509);
+		X509ExtendedKeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
+		AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(keyManager,
+				CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 		certificateProvider.setDelay(handshakeResultDelayMillis);
 		dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
 		AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier.builder();

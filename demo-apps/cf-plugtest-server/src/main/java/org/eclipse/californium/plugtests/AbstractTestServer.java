@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,6 +37,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -49,7 +51,6 @@ import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
-import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.MdcConnectionListener;
@@ -60,11 +61,10 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
-import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -155,7 +155,8 @@ public abstract class AbstractTestServer extends CoapServer {
 	private final Configuration config;
 	private final Map<Select, Configuration> selectConfig;
 
-	protected SslContextUtil.Credentials serverCredentials = null;
+	private AtomicBoolean loadCredentials = new AtomicBoolean(true);
+	protected KeyManager[] serverCredentials = null;
 	protected Certificate[] trustedCertificates = null;
 	protected SSLContext serverSslContext = null;
 
@@ -202,10 +203,10 @@ public abstract class AbstractTestServer extends CoapServer {
 	 * @since 2.5
 	 */
 	protected void initCredentials() {
-		if (serverCredentials == null) {
+		if (loadCredentials.compareAndSet(true, false)) {
 			try {
-				serverCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-						SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+				serverCredentials = SslContextUtil.loadKeyManager(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+						"server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 				trustedCertificates = SslContextUtil.loadTrustedCertificates(
 						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
 				return;
@@ -214,17 +215,13 @@ public abstract class AbstractTestServer extends CoapServer {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			serverCredentials = new Credentials(null);
 		}
 	}
 
 	protected SSLContext getServerSslContext(boolean trustAll, String protocol) {
 		initCredentials();
 		try {
-			if (serverCredentials.getPrivateKey() != null) {
-				KeyManager[] keyManager = SslContextUtil.createKeyManager(SERVER_NAME,
-						serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain());
-
+			if (serverCredentials != null) {
 				TrustManager[] trustManager;
 				if (trustAll) {
 					trustManager = SslContextUtil.createTrustAllManager();
@@ -232,7 +229,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					trustManager = SslContextUtil.createTrustManager(SERVER_NAME, trustedCertificates);
 				}
 				SSLContext sslContext = SSLContext.getInstance(protocol);
-				sslContext.init(keyManager, trustManager, null);
+				sslContext.init(serverCredentials, trustManager, null);
 				return sslContext;
 			}
 		} catch (GeneralSecurityException e) {
@@ -347,25 +344,19 @@ public abstract class AbstractTestServer extends CoapServer {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
 				if (protocols.contains(Protocol.DTLS)) {
 					Configuration dtlsConfig = getConfig(Protocol.DTLS, interfaceType);
-					int handshakeResultDelay = dtlsConfig.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
+					int handshakeResultDelayMillis = dtlsConfig.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
 
 					dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
-					dtlsConfig.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(dtlsConfig);
 					AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
-					asyncPskStore.setDelay(handshakeResultDelay);
+					asyncPskStore.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 					dtlsConfigBuilder.setAddress(bindToAddress);
-					dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
-							CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
-					AsyncCertificateProvider certificateProvider = new AsyncCertificateProvider(serverCredentials.getPrivateKey(),
-							serverCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY,
-							CertificateType.X_509);
-					certificateProvider.setDelay(handshakeResultDelay);
+					X509ExtendedKeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
+					AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(keyManager,
+							CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+					certificateProvider.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
 					AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier
 							.builder();
@@ -376,10 +367,10 @@ public abstract class AbstractTestServer extends CoapServer {
 					}
 					verifierBuilder.setTrustAllRPKs();
 					AsyncNewAdvancedCertificateVerifier verifier = verifierBuilder.build();
-					verifier.setDelay(handshakeResultDelay);
+					verifier.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
 					AsyncResumptionVerifier resumptionVerifier = new AsyncResumptionVerifier();
-					resumptionVerifier.setDelay(handshakeResultDelay);
+					resumptionVerifier.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setResumptionVerifier(resumptionVerifier);
 					dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());

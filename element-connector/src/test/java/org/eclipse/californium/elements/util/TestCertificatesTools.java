@@ -106,15 +106,15 @@ public class TestCertificatesTools {
 					TRUST_STORE_URI, null, TRUST_STORE_PASSWORD);
 
 			KeyManager[] keyManager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			serverKeyManager = getX509KeyManager(keyManager);
+			serverKeyManager = SslContextUtil.getX509KeyManager(keyManager);
 			keyManager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "client", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			clientKeyManager = getX509KeyManager(keyManager);
+			clientKeyManager = SslContextUtil.getX509KeyManager(keyManager);
 
 			if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)
 					&& SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI)) {
 				keyManager = SslContextUtil.loadKeyManager(EDDSA_KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD,
 						KEY_STORE_PASSWORD);
-				serverEdDsaKeyManager = getX509KeyManager(keyManager);
+				serverEdDsaKeyManager = SslContextUtil.getX509KeyManager(keyManager);
 			}
 
 			trustedCertificates = SslContextUtil.asX509Certificates(certificates);
@@ -142,7 +142,7 @@ public class TestCertificatesTools {
 		try {
 			KeyManager[] keyManager = SslContextUtil.createKeyManager("test", credentials.getPrivateKey(),
 					credentials.getCertificateChain());
-			return getX509KeyManager(keyManager);
+			return SslContextUtil.getX509KeyManager(keyManager);
 		} catch (GeneralSecurityException e) {
 			fail(e.getMessage());
 			return null;
@@ -587,16 +587,5 @@ public class TestCertificatesTools {
 			diff.setLength(diff.length() - 2);
 		}
 		return diff.toString();
-	}
-
-	private static X509ExtendedKeyManager getX509KeyManager(KeyManager[] managers) {
-		if (managers != null) {
-			for (KeyManager manager : managers) {
-				if (manager instanceof X509ExtendedKeyManager) {
-					return (X509ExtendedKeyManager) manager;
-				}
-			}
-		}
-		return null;
 	}
 }

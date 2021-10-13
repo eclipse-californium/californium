@@ -982,6 +982,31 @@ public class SslContextUtil {
 	}
 
 	/**
+	 * Get first x509 extended key manager.
+	 * 
+	 * @param managers key managers
+	 * @return x509 extended key manager
+	 * @throws NullPointerException if key managers is {@code null}
+	 * @throws IllegalArgumentException if key managers are empty, or no x509
+	 *             extended key manager is available
+	 * @since 3.0
+	 */
+	public static X509ExtendedKeyManager getX509KeyManager(KeyManager[] managers) {
+		if (managers == null) {
+			throw new NullPointerException("Key managers must not be null!");
+		}
+		if (managers.length == 0) {
+			throw new IllegalArgumentException("Key managers must not be empty!");
+		}
+		for (KeyManager manager : managers) {
+			if (manager instanceof X509ExtendedKeyManager) {
+				return (X509ExtendedKeyManager) manager;
+			}
+		}
+		throw new IllegalArgumentException("Missing X509ExtendedKeyManager in key managers!");
+	}
+
+	/**
 	 * Ensure, that all certificates are unique.
 	 * 
 	 * @param certificates array of certificates.
