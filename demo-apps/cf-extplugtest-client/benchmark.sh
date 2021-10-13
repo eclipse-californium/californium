@@ -23,13 +23,15 @@ echo
 echo "Requires a cf-extplugtest-server for exchanging messages."
 echo
 echo "Please check the available RAM (e.g.: on linux use \"free -m\") and"
-echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 30% of the available RAM"
+echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 50% of the available RAM."
+echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may be used instead."
 echo
 echo "The required server may be started using:"
-echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
-echo "Adjust the \"-Xmx6g\" argument also to about 30% of the available RAM."
-echo "The benchmark is mainly used with the loopback interface (localhost), therefore -onlyLoopback is provided."
-echo "To use client and server on different hosts, provide -noLoopback."
+echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0-SNAPSHOT.jar --no-external --no-plugtest"
+echo "Adjust the \"-Xmx6g\" argument also to about 50% of the available RAM."
+echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may also be used instead."
+echo "If the benchmark is mainly used with the loopback interface (localhost), use the --no-external as above."
+echo "To use client and server on different hosts, provide --no-loopback instead."
 echo
 echo "If the cf-extplugtest-server reports:"
 echo
@@ -40,16 +42,23 @@ echo "   in \"CaliforniumReceivetest.properties\" or set"
 echo "   DEDUPLICATOR to NO_DEDUPLICATOR there."
 echo
 echo "you have a too fast CPU for the available amount of RAM :-)."
-echo "Try to adjust the \"-Xmx\" to a larger value than the 30%."
+echo "Try to adjust the \"-Xmx\" to a larger value than the 50%."
 echo
 echo "Depending on your OS and configuration, the maximum number of sockets or threads may be limited."
-echo "For linux, these maximum number may be increased, if the host has enough resources (RAM and CPU)"
-echo "to execute it. On Ubuntu 18.04, please adjust the values \"DefaultLimitNOFILE\" in \"/etc/systemd/user.conf\""
-echo "and \"/etc/systemd/system.conf\" accordingly to the number of wanted sockets, and uncomment it by removing"
-echo "the leading \"#\". For plain coap, currently more threads are required. Adjust \"UserTasksMax\" in"
+echo
+echo "Some cloud-provider use containers instead of real (or virtual) machines, which results in many"
+echo "cases in lower limits. Check, if \"/proc/user_beancounters\" is available and if, check the number"
+echo "for \"numproc\". That is mostly enough for servers, but for the benchmark client this limits"
+echo "currently the number of clients to less than the half."
+echo
+echo "For real (or virtual) machines with linux, the maximum number may be increased, if the host has"
+echo "enough resources (RAM and CPU) to execute it. On Ubuntu 18.04, please adjust the values"
+echo "\"DefaultLimitNOFILE\" in \"/etc/systemd/user.conf\" and \"/etc/systemd/system.conf\" accordingly"
+echo "to the number of wanted sockets, and uncomment it by removing the leading \"#\"."
+echo "For plain coap, currently more threads are required. Adjust \"UserTasksMax\" in"
 echo "\"/etc/systemd/logind.conf\" to twice the number of sockets plus 500 more. With that, up to 10000"
 echo "clients my be used for the benchmark. It's not recommended to use that many clients from one process"
-echo "and it's even less recommended to use more!"
+echo "and it's even less recommended to use more than that!"
 echo
 echo "Variables:"
 echo "   USE_TCP, USE_UDP, USE_PLAIN, USE_SECURE, USE_CON, USE_NON"
@@ -78,7 +87,8 @@ echo
 CF_JAR=cf-extplugtest-client-3.0.0-SNAPSHOT.jar
 CF_JAR_FIND='cf-extplugtest-client-*.jar'
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
-CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
+#CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
+CF_OPT="-XX:MaxRAMPercentage=50"
 
 export CALIFORNIUM_STATISTIC="3.0.0"
 
