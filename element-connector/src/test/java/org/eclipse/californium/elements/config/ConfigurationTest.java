@@ -28,6 +28,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
+import org.eclipse.californium.elements.rule.LoggingRule;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -84,6 +87,12 @@ public class ConfigurationTest {
 		}
 	};
 
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
+
 	@Test
 	public void testConfigurationAddModule() {
 		Configuration.addDefaultModule(DEFAULTS);
@@ -97,6 +106,7 @@ public class ConfigurationTest {
 
 	@Test
 	public void testConfigurationCustomModule() {
+		logging.setLoggingLevel("ERROR", Configuration.class);
 		Configuration.addDefaultModule(DEFAULTS);
 		Configuration configuration = Configuration.createStandardWithoutFile();
 		configuration.set(STRING, "bye!");
