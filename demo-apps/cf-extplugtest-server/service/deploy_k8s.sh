@@ -43,6 +43,9 @@ fi
 # e.g. KUBECTL_CONTEXT="--insecure-skip-tls-verify --context=???"
 : "${KUBECTL_CONTEXT:=}"
 
+# default k8s service yaml
+: "${K8S_SERVICE:=k8s.yaml}"
+
 CONTAINER=cf-extserver-jdk11-slim
 VERSION=3.0.0
 
@@ -155,7 +158,7 @@ if [ "$1" = "install" ] ; then
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/k8sa.yaml
 	# apply the image
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch statefulset cf-extserver-a --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"'${IMAGE_SHA}'"}]'
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/k8s.yaml
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/${K8S_SERVICE}
 	echo "installed"
 
 	start=$(date +%s)

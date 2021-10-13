@@ -259,6 +259,9 @@ The script could be configured be environment variable:
 # default kubectl context (local)
 # e.g. KUBECTL_CONTEXT="--insecure-skip-tls-verify --context=???"
 : "${KUBECTL_CONTEXT:=}"
+
+# default k8s service yaml
+: "${K8S_SERVICE:=k8s.yaml}"
 ```
 
 You may keep such a setup in a separate file, e.g. "deploy_k8s_gcloud.sh"
