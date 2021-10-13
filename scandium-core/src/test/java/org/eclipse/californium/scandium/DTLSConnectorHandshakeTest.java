@@ -96,6 +96,7 @@ import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
@@ -465,7 +466,7 @@ public class DTLSConnectorHandshakeTest {
 	private DTLSSession startClientX509(String hostname) throws Exception {
 		if (clientBuilder.getIncompleteConfig().getAdvancedCertificateVerifier() == null) {
 			AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
-					.builder().setTrustedCertificates(new X509Certificate[0]).build();
+					.builder().setTrustAllCertificates().build();
 			clientsCertificateVerifiers.add(clientCertificateVerifier);
 			clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier);
 		}
@@ -507,13 +508,17 @@ public class DTLSConnectorHandshakeTest {
 		return session;
 	}
 
-	private void startClientFailing(DtlsConnectorConfig.Builder builder, EndpointContext destination) throws Exception {
+	private void startClientFailing() throws Exception {
+		startClientFailing(new AddressEndpointContext(serverHelper.serverEndpoint));
+	}
+
+	private void startClientFailing(EndpointContext destination) throws Exception {
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		builder.setAddress(clientEndpoint).setLoggingTag("client").set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1)
+		clientBuilder.setAddress(clientEndpoint).setLoggingTag("client").set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1)
 				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 1)
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY);
-		clientBuilderSetup.setup(builder);
-		DtlsConnectorConfig clientConfig = builder.build();
+		clientBuilderSetup.setup(clientBuilder);
+		DtlsConnectorConfig clientConfig = clientBuilder.build();
 
 		client = serverHelper.createClient(clientConfig);
 		client.setAlertHandler(clientAlertCatcher);
@@ -768,7 +773,7 @@ public class DTLSConnectorHandshakeTest {
 					.setAdvancedCertificateVerifier(clientCertificateVerifier);
 		setupClientCertificateIdentity(CertificateType.X_509);
 
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_WRONG, null));
+		startClientFailing(new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_WRONG, null));
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
 		assertThat("client side session listener missing", listener, is(notNullValue()));
@@ -800,7 +805,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
 					.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, true);
 
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_WRONG, null));
+		startClientFailing(new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_WRONG, null));
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
 		assertThat("client side session listener missing", listener, is(notNullValue()));
@@ -1063,7 +1068,7 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	@Test
-	public void testX509ClientRsaCertificateChainHandshakeAuthWantedAnonymClient() throws Exception {
+	public void testX509ClientRsaCertificateChainHandshake() throws Exception {
 		SignatureAndHashAlgorithm shaRsa = SignatureAndHashAlgorithm.SHA256_WITH_RSA;
 		assumeTrue(shaRsa.getJcaName() + " not support by JCE", shaRsa.isSupported());
 
@@ -1082,6 +1087,44 @@ public class DTLSConnectorHandshakeTest {
 		assertClientPrincipalHasAdditionalInfo(principal);
 		assertThat(principal.getName(),
 				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client-rsa"));
+
+	}
+	@Test
+	public void testX509ClientRsaCertificateChainHandshakeFailure() throws Exception {
+		SignatureAndHashAlgorithm shaRsa = SignatureAndHashAlgorithm.SHA256_WITH_RSA;
+		assumeTrue(shaRsa.getJcaName() + " not support by JCE", shaRsa.isSupported());
+
+		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+		serverBuilder.setList(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS, CertificateKeyAlgorithm.EC);
+		startServer();
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllCertificates().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		clientBuilder.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientRsaPrivateKey(),
+						DtlsTestTools.getClientRsaCertificateChain()))
+				.setAdvancedCertificateVerifier(clientCertificateVerifier);
+		startClientFailing();
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("client side alert", alert,
+				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE)));
+
+		listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("server side alert", alert,
+				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE)));
 	}
 
 	@Test
@@ -1302,7 +1345,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE)
 				.setAdvancedPskStore(PSK_STORE);
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint));
+		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -1329,7 +1372,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.REQUIRED)
 				.setAdvancedPskStore(PSK_STORE);
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint));
+		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -1773,7 +1816,7 @@ public class DTLSConnectorHandshakeTest {
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint));
+		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -1830,7 +1873,7 @@ public class DTLSConnectorHandshakeTest {
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint));
+		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -1864,7 +1907,7 @@ public class DTLSConnectorHandshakeTest {
 		setupClientCertificateIdentity(CertificateType.X_509);
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier);
 
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint));
+		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -1894,7 +1937,7 @@ public class DTLSConnectorHandshakeTest {
 
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier);
 
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint));
+		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -1927,7 +1970,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
 				.set(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY, false).setSupportedGroups("secp521r1");
 
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint));
+		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -1960,7 +2003,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
 				.set(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY, false).setSupportedGroups("secp384r1");
 
-		startClientFailing(clientBuilder, new AddressEndpointContext(serverHelper.serverEndpoint));
+		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -2033,7 +2076,7 @@ public class DTLSConnectorHandshakeTest {
 						DtlsTestTools.getClientPublicKey()));
 
 		EndpointContext endpointContext = new AddressEndpointContext(serverHelper.serverEndpoint);
-		startClientFailing(clientBuilder, endpointContext);
+		startClientFailing(endpointContext);
 
 		SimpleMessageCallback callback = new SimpleMessageCallback();
 		RawData raw = RawData.outbound("Hello World, 2!".getBytes(),
@@ -2060,8 +2103,7 @@ public class DTLSConnectorHandshakeTest {
 						DtlsTestTools.getClientPublicKey()));
 
 		EndpointContext endpointContext = new AddressEndpointContext(serverHelper.serverEndpoint);
-		startClientFailing(clientBuilder,
-				MapBasedEndpointContext.addEntries(endpointContext, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE));
+		startClientFailing(MapBasedEndpointContext.addEntries(endpointContext, DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE));
 
 		SimpleMessageCallback callback = new SimpleMessageCallback();
 		RawData raw = RawData.outbound("Hello World, 2!".getBytes(), endpointContext, callback, false);

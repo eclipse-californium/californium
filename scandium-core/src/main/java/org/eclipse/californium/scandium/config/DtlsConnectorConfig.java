@@ -127,6 +127,14 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * supported curves for ECDSA/ECDHE is more complicated. Therefore this is
  * implemented in the {@link CertificateConfigurationHelper}, see there for
  * details.
+ * <p>
+ * <b>Note:</b> since the introduction of this auto-configuration idea, adding
+ * support for multiple certificate identities (see
+ * {@link KeyManagerCertificateProvider}) and RSA made the things much more
+ * complex. Additionally a lot of details of a certificate based handshakes are
+ * asymmetric. Including the support algorithms, which are not required to be in
+ * line with the available credentials, or even more, that a client may stay
+ * anonymous. That makes auto-configuration hard, maybe impossible.
  */
 public final class DtlsConnectorConfig {
 
@@ -182,18 +190,28 @@ public final class DtlsConnectorConfig {
 	 */
 	private CipherSuiteSelector cipherSuiteSelector;
 
-	/** the supported cipher suites in order of preference */
+	/**
+	 * The supported certificate key algorithms.
+	 * 
+	 * Used on the client side to select default cipher suites and on the server
+	 * side for the {@link CertificateRequest}.
+	 * 
+	 * @since 3.0
+	 */
+	private List<CertificateKeyAlgorithm> supportedCertificatekeyAlgorithms;
+
+	/** The supported cipher suites in order of preference */
 	private List<CipherSuite> supportedCipherSuites;
 
 	/**
-	 * the supported signature and hash algorithms in order of preference.
+	 * The supported signature and hash algorithms in order of preference.
 	 * 
 	 * @since 2.3
 	 */
 	private List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms;
 
 	/**
-	 * the supported groups (curves) in order of preference.
+	 * The supported groups (curves) in order of preference.
 	 * 
 	 * @since 2.3
 	 */
@@ -834,6 +852,19 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets the supported certificate key algorithms.
+	 * 
+	 * Used on the server side for the {@link CertificateRequest}.
+	 * 
+	 * @return supported certificate key algorithms
+	 * @see DtlsConfig#DTLS_CERTIFICATE_KEY_ALGORITHMS
+	 * @since 3.0
+	 */
+	public List<CertificateKeyAlgorithm> getSupportedCertificateKeyAlgorithm() {
+		return supportedCertificatekeyAlgorithms;
+	}
+
+	/**
 	 * Gets the supported cipher suites.
 	 * 
 	 * On the client side the connector advertise these cipher suites in a DTLS
@@ -1355,6 +1386,7 @@ public final class DtlsConnectorConfig {
 		cloned.certificateIdentityProvider = certificateIdentityProvider;
 		cloned.certificateConfigurationHelper = certificateConfigurationHelper;
 		cloned.cipherSuiteSelector = cipherSuiteSelector;
+		cloned.supportedCertificatekeyAlgorithms = supportedCertificatekeyAlgorithms;
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 		cloned.supportedGroups = supportedGroups;
@@ -1450,7 +1482,7 @@ public final class DtlsConnectorConfig {
 		 * @param <T> value type
 		 * @param definition the value definition
 		 * @param value the value
-		 * @return this builder for command chaining
+		 * @return the builder for chaining
 		 * @throws NullPointerException if the definition is {@code null}
 		 * @throws IllegalArgumentException if a different definition is already
 		 *             available for the key of the provided definition.
@@ -1468,7 +1500,7 @@ public final class DtlsConnectorConfig {
 		 * @param <T> item value type
 		 * @param definition the value definition
 		 * @param values the list of values
-		 * @return the configuration for chaining
+		 * @return the builder for chaining
 		 * @throws NullPointerException if the definition or values is
 		 *             {@code null}
 		 * @throws IllegalArgumentException if a different definition is already
@@ -1483,12 +1515,31 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Associates the specified list of text values with the specified definition.
+		 * 
+		 * @param <T> item value type
+		 * @param definition the value definition
+		 * @param values the list of text values
+		 * @return the builder for chaining
+		 * @throws NullPointerException if the definition or values is {@code null}
+		 * @throws IllegalArgumentException if a different definition is already
+		 *             available for the key of the provided definition or the
+		 *             values are empty.
+		 * @since 3.0
+		 */
+		public <T extends Enum<?>> Builder setListFromText(EnumListDefinition<T> definition,
+				String... values) {
+			config.configuration.setListFromText(definition, values);
+			return this;
+		}
+
+		/**
 		 * Associates the specified time value with the specified definition.
 		 * 
 		 * @param definition the value definition
 		 * @param value the value
 		 * @param unit the time unit of the value
-		 * @return this builder for command chaining
+		 * @return the builder for chaining
 		 * @throws NullPointerException if the definition or unit is
 		 *             {@code null}
 		 * @throws IllegalArgumentException if a different definition is already
@@ -1506,7 +1557,7 @@ public final class DtlsConnectorConfig {
 		 * @param definition the value definition
 		 * @param value the value
 		 * @param unit the time unit of the value
-		 * @return this builder for command chaining
+		 * @return the builder for chaining
 		 * @throws NullPointerException if the definition or unit is
 		 *             {@code null}
 		 * @throws IllegalArgumentException if a different definition is already
@@ -1802,15 +1853,13 @@ public final class DtlsConnectorConfig {
 			List<SignatureAndHashAlgorithm> list = null;
 			if (supportedSignatureAlgorithms != null) {
 				list = new ArrayList<SignatureAndHashAlgorithm>(supportedSignatureAlgorithms.length);
-				for (int i = 0; i < supportedSignatureAlgorithms.length; i++) {
-					SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
-							.valueOf(supportedSignatureAlgorithms[i]);
+				for (String value : supportedSignatureAlgorithms) {
+					SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm.valueOf(value);
 					if (signatureAndHashAlgorithm != null) {
 						list.add(signatureAndHashAlgorithm);
 					} else {
 						throw new IllegalArgumentException(
-								String.format("Signature and hash algorithm [%s] is not (yet?) supported",
-										supportedSignatureAlgorithms[i]));
+								String.format("Signature and hash algorithm [%s] is not (yet?) supported", value));
 					}
 				}
 			}
@@ -1918,13 +1967,13 @@ public final class DtlsConnectorConfig {
 				throw new NullPointerException("Connector must support at least one supported group (curve)");
 			}
 			List<SupportedGroup> groups = new ArrayList<>(supportedGroups.length);
-			for (int i = 0; i < supportedGroups.length; i++) {
-				SupportedGroup knownGroup = SupportedGroup.valueOf(supportedGroups[i]);
+			for (String value : supportedGroups) {
+				SupportedGroup knownGroup = SupportedGroup.valueOf(value);
 				if (knownGroup != null) {
 					groups.add(knownGroup);
 				} else {
 					throw new IllegalArgumentException(
-							String.format("Group (curve) [%s] is not (yet) supported", supportedGroups[i]));
+							String.format("Group (curve) [%s] is not (yet) supported", value));
 				}
 			}
 			return setSupportedGroups(groups);
@@ -2222,7 +2271,18 @@ public final class DtlsConnectorConfig {
 				config.supportedGroups = Collections.emptyList();
 			}
 			if (config.supportedSignatureAlgorithms == null) {
+				config.supportedSignatureAlgorithms = config.configuration
+						.get(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS);
+			}
+			if (config.supportedSignatureAlgorithms == null) {
 				config.supportedSignatureAlgorithms = Collections.emptyList();
+			}
+			if (config.supportedCertificatekeyAlgorithms == null) {
+				config.supportedCertificatekeyAlgorithms = config.configuration
+						.get(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS);
+			}
+			if (config.supportedCertificatekeyAlgorithms == null) {
+				config.supportedCertificatekeyAlgorithms = Collections.emptyList();
 			}
 			if (config.cipherSuiteSelector == null && config.getDtlsRole() != DtlsRole.CLIENT_ONLY) {
 				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
@@ -2294,6 +2354,22 @@ public final class DtlsConnectorConfig {
 					}
 					config.supportedSignatureAlgorithms = algorithms;
 				}
+				if (config.supportedCertificatekeyAlgorithms.isEmpty()) {
+					// certificate based cipher suites.
+					List<CertificateKeyAlgorithm> keyAlgorithms = new ArrayList<>();
+					if (SignatureAndHashAlgorithm.isSupportedAlgorithm(config.supportedSignatureAlgorithms,
+							CertificateKeyAlgorithm.EC)) {
+						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
+					}
+					if (SignatureAndHashAlgorithm.isSupportedAlgorithm(config.supportedSignatureAlgorithms,
+							CertificateKeyAlgorithm.RSA)) {
+						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.RSA);
+					}
+					if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
+						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
+					}
+					config.supportedCertificatekeyAlgorithms = keyAlgorithms;
+				}
 			} else {
 				if (!config.supportedSignatureAlgorithms.isEmpty()) {
 					throw new IllegalStateException(
@@ -2353,6 +2429,7 @@ public final class DtlsConnectorConfig {
 				throw new IllegalArgumentException(
 						"HELLO_VERIFY_REQUEST disabled for PSK, requires at least one PSK cipher suite!");
 			}
+			config.supportedCertificatekeyAlgorithms = ListUtils.init(config.supportedCertificatekeyAlgorithms);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);
 			config.supportedGroups = ListUtils.init(config.supportedGroups);
 			config.supportedSignatureAlgorithms = ListUtils.init(config.supportedSignatureAlgorithms);
@@ -2471,6 +2548,8 @@ public final class DtlsConnectorConfig {
 					keyAlgorithms.addAll(config.certificateConfigurationHelper.getSupportedCertificateKeyAlgorithms());
 				}
 				if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
+					// clients may operate anonymous
+					// therefore ensure, EC is added in order to comply to RFC7252
 					ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
 				}
 				if (!keyAlgorithms.isEmpty()) {

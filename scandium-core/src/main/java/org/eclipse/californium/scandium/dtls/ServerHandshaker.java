@@ -68,12 +68,10 @@ import javax.security.auth.DestroyFailedException;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters;
@@ -186,6 +184,12 @@ public class ServerHandshaker extends Handshaker {
 	 * @since 2.3
 	 */
 	private final List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms;
+	/**
+	 * The supported certificate key types ordered by preference.
+	 * 
+	 * @since 3.0
+	 */
+	private final List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms;
 
 	/**
 	 * Support the deprecated CID extension before version 9 of <a href=
@@ -254,6 +258,7 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAndHashAlgorithms = config.getSupportedSignatureAlgorithms();
+		this.supportedCertificateKeyAlgorithms = config.getSupportedCertificateKeyAlgorithm();
 		this.supportDeprecatedCid = config.supportsDeprecatedCid();
 		setExpectedStates(CLIENT_HELLO);
 	}
@@ -688,21 +693,24 @@ public class ServerHandshaker extends Handshaker {
 				&& certificateType != null) {
 			CertificateRequest certificateRequest = new CertificateRequest();
 			List<SignatureAndHashAlgorithm> signatures = supportedSignatureAndHashAlgorithms;
+			List<CertificateKeyAlgorithm> keys = supportedCertificateKeyAlgorithms;
 			if (CertificateType.X_509 == certificateType) {
 				certificateRequest.addSignatureAlgorithms(signatures);
 				if (certificateVerifier != null) {
 					certificateRequest.addCerticiateAuthorities(certificateVerifier.getAcceptedIssuers());
 				}
 			} else if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
-				signatures = SignatureAndHashAlgorithm
-						.getEcdsaCompatibleSignatureAlgorithms(signatures);
+				keys = Arrays.asList(CertificateKeyAlgorithm.EC);
+				signatures = SignatureAndHashAlgorithm.getCompatibleSignatureAlgorithms(signatures, keys);
 				certificateRequest.addSignatureAlgorithms(signatures);
 			}
-			if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatures, Asn1DerDecoder.EC)) {
-				certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-			}
-			if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatures, Asn1DerDecoder.RSA)) {
-				certificateRequest.addCertificateType(ClientCertificateType.RSA_SIGN);
+			LOGGER.trace("Certificate Type: {}", certificateType);
+			LOGGER.trace("Signature and hash algorithms {}/{}", signatures, supportedSignatureAndHashAlgorithms);
+			LOGGER.trace("Certificate key algorithms {}/{}", keys, supportedCertificateKeyAlgorithms);
+			for (CertificateKeyAlgorithm certificateKeyAlgorithm : keys) {
+				if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatures, certificateKeyAlgorithm)) {
+					certificateRequest.addCertificateType(certificateKeyAlgorithm);
+				}
 			}
 			wrapMessage(flight, certificateRequest);
 			return true;

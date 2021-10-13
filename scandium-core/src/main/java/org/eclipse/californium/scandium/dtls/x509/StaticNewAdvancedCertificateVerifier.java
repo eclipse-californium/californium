@@ -57,6 +57,9 @@ import org.slf4j.LoggerFactory;
  */
 public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertificateVerifier, ConfigurationHelperSetup {
 
+	private static final X509Certificate[] X509_TRUST_ALL = new X509Certificate[0];
+	private static final RawPublicKeyIdentity[] RPK_TRUST_ALL = new RawPublicKeyIdentity[0];
+
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	/**
@@ -292,7 +295,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 			if (trustedCertificates == null) {
 				this.trustedCertificates = null;
 			} else if (trustedCertificates.length == 0) {
-				this.trustedCertificates = new X509Certificate[0];
+				this.trustedCertificates = X509_TRUST_ALL;
 			} else {
 				X509Certificate[] certificates = SslContextUtil.asX509Certificates(trustedCertificates);
 				SslContextUtil.ensureUniqueCertificates(certificates);
@@ -302,7 +305,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		}
 
 		public Builder setTrustAllCertificates() {
-			this.trustedCertificates = new X509Certificate[0];
+			this.trustedCertificates = X509_TRUST_ALL;
 			return this;
 
 		}
@@ -313,7 +316,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		}
 
 		public Builder setTrustAllRPKs() {
-			this.trustedRPKs = new RawPublicKeyIdentity[0];
+			this.trustedRPKs = RPK_TRUST_ALL;
 			return this;
 		}
 

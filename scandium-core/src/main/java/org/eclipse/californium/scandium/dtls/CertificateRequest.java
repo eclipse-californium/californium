@@ -304,6 +304,20 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	/**
+	 * Adds a certificate key type to the list of supported certificate types.
+	 * 
+	 * @param certificateKeyAlgorithm The key algorithm to add.
+	 * @since 3.0
+	 */
+	public void addCertificateType(CertificateKeyAlgorithm certificateKeyAlgorithm) {
+		for (ClientCertificateType clientCertificateType : ClientCertificateType.values()) {
+			if (clientCertificateType.getCertificateKeyAlgorithm() == certificateKeyAlgorithm) {
+				addCertificateType(clientCertificateType);
+			}
+		}
+	}
+
+	/**
 	 * Appends a signature and hash algorithm to the end of the list of supported algorithms.
 	 * <p>
 	 * The algorithm's position in list indicates <em>least preference</em> to the

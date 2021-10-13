@@ -27,6 +27,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.eclipse.californium.scandium.util.ListUtils;
 
@@ -41,6 +42,15 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * Since 3.0: added recommend for upcoming <a href=
  * "https://datatracker.ietf.org/doc/html/draft-ietf-tls-md5-sha1-deprecate-07"
  * target="_blank">draft-ietf-tls-md5-sha1-deprecate</a>.
+ * <p>
+ * <b>Note</b>: the terms {@link CertificateKeyAlgorithm} and
+ * {@code keyAlgorithm} are slightly different and comply to the usage in RFC
+ * 5246. The {@link CertificateKeyAlgorithm} refers to the cipher suite and
+ * indirect to the {@code ClientCertificateType} of
+ * <a href= "https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.4" target
+ * ="_blank">RFC5246, 7.4.4. Certificate Request</a>. And the
+ * {@code keyAlgorithm} to the actual algorithm of the used public key, e.g.
+ * "EC", "RSA", "EdDSA", or "Ed25519".
  */
 public final class SignatureAndHashAlgorithm {
 
@@ -68,13 +78,8 @@ public final class SignatureAndHashAlgorithm {
 	 */
 	public static enum HashAlgorithm {
 
-		NONE(0, false),
-		MD5(1, false),
-		SHA1(2, false),
-		SHA224(3, false),
-		SHA256(4, true),
-		SHA384(5, true),
-		SHA512(6, true),
+		NONE(0, false), MD5(1, false), SHA1(2, false), SHA224(3, false), SHA256(4, true), SHA384(5, true), SHA512(6,
+				true),
 		/**
 		 * Do not hash before sign.
 		 * 
@@ -156,39 +161,38 @@ public final class SignatureAndHashAlgorithm {
 	 */
 	public static enum SignatureAlgorithm {
 
-		ANONYMOUS(0),
-		RSA(1),
-		DSA(2),
-		ECDSA(3, Asn1DerDecoder.EC, true, false),
+		ANONYMOUS(0, null), RSA(1, CertificateKeyAlgorithm.RSA), DSA(2, CertificateKeyAlgorithm.DSA), ECDSA(3,
+				CertificateKeyAlgorithm.EC, Asn1DerDecoder.EC, false),
 		/**
 		 * ED25519 signature.
 		 * 
 		 * @since 2.4
 		 */
-		ED25519(7, Asn1DerDecoder.OID_ED25519, true, true),
+		ED25519(7, CertificateKeyAlgorithm.EC, Asn1DerDecoder.OID_ED25519, true),
 		/**
 		 * ED448 signature
 		 * 
 		 * @since 2.4
 		 */
-		ED448(8, Asn1DerDecoder.OID_ED448, true, true);
+		ED448(8, CertificateKeyAlgorithm.EC, Asn1DerDecoder.OID_ED448, true);
 
 		private final int code;
+		private final CertificateKeyAlgorithm certificateKeyAlgorithm;
 		private final String keyAlgorithm;
-		private final boolean isEcdsaCompatible;
 		private final boolean isIntrinsic;
 
-		private SignatureAlgorithm(int code) {
+		private SignatureAlgorithm(int code, CertificateKeyAlgorithm certificateKeyAlgorithm) {
 			this.code = code;
+			this.certificateKeyAlgorithm = certificateKeyAlgorithm;
 			this.keyAlgorithm = name();
-			this.isEcdsaCompatible = false;
 			this.isIntrinsic = false;
 		}
 
-		private SignatureAlgorithm(int code, String keyAlgorithm, boolean ecdsa, boolean intrinsic) {
+		private SignatureAlgorithm(int code, CertificateKeyAlgorithm certificateKeyAlgorithm, String keyAlgorithm,
+				boolean intrinsic) {
 			this.code = code;
+			this.certificateKeyAlgorithm = certificateKeyAlgorithm;
 			this.keyAlgorithm = keyAlgorithm;
-			this.isEcdsaCompatible = ecdsa;
 			this.isIntrinsic = intrinsic;
 		}
 
@@ -237,23 +241,12 @@ public final class SignatureAndHashAlgorithm {
 		}
 
 		/**
-		 * Gets ECDSA compatibility.
-		 * 
-		 * @return {@code true}, for ECDSA compatible signature, {@code false},
-		 *         otherwise.
-		 * @since 2.4
-		 */
-		public boolean isEcdsaCompatible() {
-			return isEcdsaCompatible;
-		}
-
-		/**
-		 * Checks, if key algorithm is supported by signature algorithm.
+		 * Checks, if the key algorithm is supported by signature algorithm.
 		 * 
 		 * The key size is not considered, and so supported signatures may fail
 		 * to actually use the public key.
 		 * 
-		 * @param keyAlgorithm key algorithm.
+		 * @param keyAlgorithm key algorithm. e.g. "EC", "Ed25519", or "EdDSA".
 		 * @return {@code true}, if supported, {@code false}, otherwise.
 		 */
 		public boolean isSupported(String keyAlgorithm) {
@@ -275,6 +268,21 @@ public final class SignatureAndHashAlgorithm {
 				}
 			}
 			return false;
+		}
+
+		/**
+		 * Checks, if the certificate key algorithm is supported by signature
+		 * algorithm.
+		 * 
+		 * The sub-type (e.g. Ed25519) and key size is not considered, and so
+		 * supported signatures may fail to actually use the public key.
+		 * 
+		 * @param certificateKeyAlgorithm certificate key algorithm.
+		 * @return {@code true}, if supported, {@code false}, otherwise.
+		 * @since 3.0
+		 */
+		public boolean isSupported(CertificateKeyAlgorithm certificateKeyAlgorithm) {
+			return this.certificateKeyAlgorithm == certificateKeyAlgorithm;
 		}
 	}
 
@@ -529,31 +537,59 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Get ECDSA compatible signature and hash algorithms.
+	 * Get certificate key algorithm compatible signature and hash algorithms.
 	 * 
 	 * @param signatureAndHashAlgorithms list of signature and hash algorithms
-	 * @return ECDSA compatible signature and hash algorithms
-	 * @see SignatureAlgorithm#isEcdsaCompatible()
-	 * @since 2.4
+	 * @param certificatekeyAlgorithms list of certificate key algorithms
+	 * @return list of compatible signature and hash algorithms
+	 * @since 3.0
 	 */
-	public static List<SignatureAndHashAlgorithm> getEcdsaCompatibleSignatureAlgorithms(
-			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
+	public static List<SignatureAndHashAlgorithm> getCompatibleSignatureAlgorithms(
+			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms,
+			List<CertificateKeyAlgorithm> certificatekeyAlgorithms) {
 		List<SignatureAndHashAlgorithm> result = new ArrayList<>();
 		for (SignatureAndHashAlgorithm algo : signatureAndHashAlgorithms) {
-			if (algo.getSignature().isEcdsaCompatible()) {
-				result.add(algo);
+			for (CertificateKeyAlgorithm certificateKeyAlgorithm : certificatekeyAlgorithms) {
+				if (algo.isSupported(certificateKeyAlgorithm)) {
+					result.add(algo);
+					break;
+				}
 			}
 		}
 		return result;
 	}
 
 	/**
-	 * Checks if all of a given certificates in the chain have been signed using
-	 * a algorithm supported by the server.
+	 * Checks if the certificate key algorithm is supported by one of the
+	 * provided signature and hash algorithms.
 	 * 
 	 * @param supportedSignatureAlgorithms list of supported signature and hash
 	 *            algorithms.
-	 * @param keyAlgorithm The key algorithm.
+	 * @param certificatekeyAlgorithm The certificate key algorithm.
+	 * @return {@code true}, if one of supported signature and hash algorithms
+	 *         supports the certificate key algorithm, {@code false}, if none of
+	 *         the supported signature and hash algorithms supports the
+	 *         certificate key algorithm.
+	 * 
+	 * @since 3.0
+	 */
+	public static boolean isSupportedAlgorithm(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
+			CertificateKeyAlgorithm certificatekeyAlgorithm) {
+		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
+			if (supportedAlgorithm.isSupported(certificatekeyAlgorithm)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if the key algorithm is supported by one of the provided signature
+	 * and hash algorithms.
+	 * 
+	 * @param supportedSignatureAlgorithms list of supported signature and hash
+	 *            algorithms.
+	 * @param keyAlgorithm The key algorithm. e.g. "EC", "Ed25519", or "EdDSA".
 	 * @return {@code true}, if one of supported signature and hash algorithms
 	 *         supports the key algorithm, {@code false}, if none of the
 	 *         supported signature and hash algorithms supports the key
@@ -573,7 +609,7 @@ public final class SignatureAndHashAlgorithm {
 
 	/**
 	 * Checks if all of a given certificates in the chain have been signed using
-	 * a algorithm supported by the server.
+	 * one of the provided signature and hash algorithms.
 	 * 
 	 * @param supportedSignatureAlgorithms list of supported signature and hash
 	 *            algorithms.
@@ -594,8 +630,8 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Checks if the given certificate have been signed using one of the
-	 * algorithms supported by the server.
+	 * Checks if the given certificate have been signed using one of the the
+	 * provided signature and hash algorithms.
 	 * 
 	 * @param supportedSignatureAlgorithms list of supported signatures and hash
 	 *            algorithms
@@ -742,13 +778,28 @@ public final class SignatureAndHashAlgorithm {
 	 * Check, if signature and hash algorithm is supported to be used with the
 	 * public key algorithm by the JRE.
 	 * 
-	 * @param keyAlgorithm key algorithm.
+	 * @param keyAlgorithm key algorithm. e.g. "EC", "Ed25519", or "EdDSA".
 	 * @return {@code true}, if supported, {@code false}, otherwise.
 	 * @since 3.0
 	 */
 	public boolean isSupported(String keyAlgorithm) {
 		if (supported) {
 			return signature.isSupported(keyAlgorithm);
+		}
+		return false;
+	}
+
+	/**
+	 * Check, if signature and hash algorithm is supported to be used with the
+	 * certificate key algorithm by the JRE.
+	 * 
+	 * @param certificateKeyAlgorithm certificate key algorithm.
+	 * @return {@code true}, if supported, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public boolean isSupported(CertificateKeyAlgorithm certificateKeyAlgorithm) {
+		if (supported) {
+			return signature.isSupported(certificateKeyAlgorithm);
 		}
 		return false;
 	}

@@ -896,6 +896,35 @@ public final class Configuration {
 	}
 
 	/**
+	 * Associates the specified list of text values with the specified definition.
+	 * 
+	 * @param <T> item value type
+	 * @param definition the value definition
+	 * @param values the list of text values
+	 * @return the configuration for chaining
+	 * @throws NullPointerException if the definition or values is {@code null}
+	 * @throws IllegalArgumentException if a different definition is already
+	 *             available for the key of the provided definition or the
+	 *             values are empty.
+	 */
+	public <T extends Enum<?>> Configuration setListFromText(EnumListDefinition<T> definition,
+			String... values) {
+		if (values == null) {
+			throw new NullPointerException("Values must not be null!");
+		}
+		if (values.length == 0) {
+			throw new IllegalArgumentException("Values must not be empty!");
+		}
+		StringBuffer all = new StringBuffer();
+		for (String value : values) {
+			all.append(value).append(",");
+		}
+		all.setLength(all.length() - 1);
+		setInternal(definition, null, all.toString());
+		return this;
+	}
+
+	/**
 	 * Gets the associated value.
 	 * 
 	 * @param <T> value type
