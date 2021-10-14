@@ -33,7 +33,7 @@ import java.util.List;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 
 import javax.net.ssl.KeyManager;
-import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509KeyManager;
 import javax.security.auth.x500.X500Principal;
 
 public class TestCertificatesTools {
@@ -74,9 +74,9 @@ public class TestCertificatesTools {
 
 	private static final SecureRandom random = new SecureRandom();
 
-	private static X509ExtendedKeyManager clientKeyManager;
-	private static X509ExtendedKeyManager serverKeyManager;
-	private static X509ExtendedKeyManager serverEdDsaKeyManager;
+	private static X509KeyManager clientKeyManager;
+	private static X509KeyManager serverKeyManager;
+	private static X509KeyManager serverEdDsaKeyManager;
 	public static Credentials clientCredentials;
 	public static Credentials clientRsaCredentials;
 	public static Credentials serverCredentials;
@@ -138,7 +138,7 @@ public class TestCertificatesTools {
 	protected TestCertificatesTools() {
 	}
 
-	public static X509ExtendedKeyManager getKeyManager(Credentials credentials) {
+	public static X509KeyManager getKeyManager(Credentials credentials) {
 		try {
 			KeyManager[] keyManager = SslContextUtil.createKeyManager("test", credentials.getPrivateKey(),
 					credentials.getCertificateChain());
@@ -149,15 +149,15 @@ public class TestCertificatesTools {
 		}
 	}
 
-	public static X509ExtendedKeyManager getServerKeyManager() {
+	public static X509KeyManager getServerKeyManager() {
 		return serverKeyManager;
 	}
 
-	public static X509ExtendedKeyManager getClientKeyManager() {
+	public static X509KeyManager getClientKeyManager() {
 		return clientKeyManager;
 	}
 
-	public static X509ExtendedKeyManager getServerEdDsaKeyManager() {
+	public static X509KeyManager getServerEdDsaKeyManager() {
 		return serverEdDsaKeyManager;
 	}
 

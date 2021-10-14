@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509KeyManager;
 
 import org.eclipse.californium.cluster.CredentialsUtil;
 import org.eclipse.californium.cluster.DtlsClusterManager;
@@ -617,7 +617,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		asyncPskStore.setDelay(handshakeResultDelayMillis);
 		dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 		dtlsConfigBuilder.setAddress(dtlsInterface);
-		X509ExtendedKeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
+		X509KeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
 		AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(keyManager,
 				CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 		certificateProvider.setDelay(handshakeResultDelayMillis);

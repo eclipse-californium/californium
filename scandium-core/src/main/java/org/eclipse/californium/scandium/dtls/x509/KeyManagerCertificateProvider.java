@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509KeyManager;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
@@ -43,8 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Example certificate identity provider based on a
- * {@link X509ExtendedKeyManager}.
+ * Example certificate identity provider based on a {@link X509KeyManager}.
  * <p>
  * Selects the certificate based on the issuers and server name, if provided.
  * The provided signature and hash algorithms and the supported curves are also
@@ -72,7 +71,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	/**
 	 * Key manager.
 	 */
-	private final X509ExtendedKeyManager keyManager;
+	private final X509KeyManager keyManager;
 
 	/**
 	 * List of supported certificate type in order of preference.
@@ -89,7 +88,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public KeyManagerCertificateProvider(X509ExtendedKeyManager keyManager,
+	public KeyManagerCertificateProvider(X509KeyManager keyManager,
 			CertificateType... supportedCertificateTypes) {
 		this(null, keyManager, asList(supportedCertificateTypes));
 	}
@@ -104,7 +103,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public KeyManagerCertificateProvider(X509ExtendedKeyManager keyManager,
+	public KeyManagerCertificateProvider(X509KeyManager keyManager,
 			List<CertificateType> supportedCertificateTypes) {
 		this(null, keyManager, supportedCertificateTypes);
 	}
@@ -120,7 +119,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public KeyManagerCertificateProvider(String defaultAlias, X509ExtendedKeyManager keyManager,
+	public KeyManagerCertificateProvider(String defaultAlias, X509KeyManager keyManager,
 			CertificateType... supportedCertificateTypes) {
 		this(defaultAlias, keyManager, asList(supportedCertificateTypes));
 	}
@@ -136,7 +135,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public KeyManagerCertificateProvider(String defaultAlias, X509ExtendedKeyManager keyManager,
+	public KeyManagerCertificateProvider(String defaultAlias, X509KeyManager keyManager,
 			List<CertificateType> supportedCertificateTypes) {
 		if (keyManager == null) {
 			throw new NullPointerException("KeyManager must not be null!");

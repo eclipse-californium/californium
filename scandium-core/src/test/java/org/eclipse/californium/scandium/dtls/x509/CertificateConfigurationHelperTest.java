@@ -22,7 +22,7 @@ import static org.junit.Assume.assumeNotNull;
 
 import java.util.List;
 
-import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509KeyManager;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
@@ -167,7 +167,7 @@ public class CertificateConfigurationHelperTest {
 
 	@Test
 	public void testWithKeyManager() {
-		X509ExtendedKeyManager keyManager = DtlsTestTools.getServerKeyManager();
+		X509KeyManager keyManager = DtlsTestTools.getServerKeyManager();
 		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
 		provider.setupConfigurationHelper(helper);
 		// no key usage extension
@@ -189,7 +189,7 @@ public class CertificateConfigurationHelperTest {
 
 	@Test
 	public void testWithEdDsaKeyManager() {
-		X509ExtendedKeyManager edDsaKeyManager = DtlsTestTools.getServerEdDsaKeyManager();
+		X509KeyManager edDsaKeyManager = DtlsTestTools.getServerEdDsaKeyManager();
 		assumeNotNull("EdDSA KeyManager is not available!", edDsaKeyManager);
 		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(edDsaKeyManager,
 				CertificateType.X_509);
@@ -215,7 +215,7 @@ public class CertificateConfigurationHelperTest {
 
 	@Test
 	public void testWithKeyManagerEcdsaOnly() {
-		X509ExtendedKeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverCredentials);
+		X509KeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverCredentials);
 		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager,
 				CertificateType.X_509);
 		provider.setupConfigurationHelper(helper);
@@ -236,7 +236,7 @@ public class CertificateConfigurationHelperTest {
 
 	@Test
 	public void testWithKeyManagerRsaOnly() {
-		X509ExtendedKeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverRsaCredentials);
+		X509KeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverRsaCredentials);
 		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager,
 				CertificateType.X_509);
 		provider.setupConfigurationHelper(helper);
@@ -258,7 +258,7 @@ public class CertificateConfigurationHelperTest {
 
 	@Test
 	public void testWithKeyManagerRsaRawPublicKeyOnly() {
-		X509ExtendedKeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverRsaCredentials);
+		X509KeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverRsaCredentials);
 		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager,
 				CertificateType.RAW_PUBLIC_KEY);
 		provider.setupConfigurationHelper(helper);
