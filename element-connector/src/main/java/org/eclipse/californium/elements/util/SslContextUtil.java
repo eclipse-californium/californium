@@ -62,6 +62,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
+import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
 
 import org.slf4j.Logger;
@@ -982,28 +983,28 @@ public class SslContextUtil {
 	}
 
 	/**
-	 * Get first x509 extended key manager.
+	 * Gets first x509 key manager.
 	 * 
-	 * @param managers key managers
-	 * @return x509 extended key manager
+	 * @param keyManagers key managers
+	 * @return x509 key manager
 	 * @throws NullPointerException if key managers is {@code null}
 	 * @throws IllegalArgumentException if key managers are empty, or no x509
-	 *             extended key manager is available
+	 *             key manager is available
 	 * @since 3.0
 	 */
-	public static X509ExtendedKeyManager getX509KeyManager(KeyManager[] managers) {
-		if (managers == null) {
+	public static X509KeyManager getX509KeyManager(KeyManager[] keyManagers) {
+		if (keyManagers == null) {
 			throw new NullPointerException("Key managers must not be null!");
 		}
-		if (managers.length == 0) {
+		if (keyManagers.length == 0) {
 			throw new IllegalArgumentException("Key managers must not be empty!");
 		}
-		for (KeyManager manager : managers) {
-			if (manager instanceof X509ExtendedKeyManager) {
-				return (X509ExtendedKeyManager) manager;
+		for (KeyManager manager : keyManagers) {
+			if (manager instanceof X509KeyManager) {
+				return (X509KeyManager) manager;
 			}
 		}
-		throw new IllegalArgumentException("Missing X509ExtendedKeyManager in key managers!");
+		throw new IllegalArgumentException("Missing a X509KeyManager in key managers!");
 	}
 
 	/**

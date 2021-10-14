@@ -37,7 +37,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509KeyManager;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -353,7 +353,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					asyncPskStore.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 					dtlsConfigBuilder.setAddress(bindToAddress);
-					X509ExtendedKeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
+					X509KeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
 					AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(keyManager,
 							CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 					certificateProvider.setDelay(handshakeResultDelayMillis);

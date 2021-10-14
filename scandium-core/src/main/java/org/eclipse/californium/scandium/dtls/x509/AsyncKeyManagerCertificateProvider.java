@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509KeyManager;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -79,7 +79,7 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public AsyncKeyManagerCertificateProvider(X509ExtendedKeyManager keyManager,
+	public AsyncKeyManagerCertificateProvider(X509KeyManager keyManager,
 			CertificateType... supportedCertificateTypes) {
 		super(keyManager, supportedCertificateTypes);
 		this.executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
@@ -95,7 +95,7 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public AsyncKeyManagerCertificateProvider(X509ExtendedKeyManager keyManager,
+	public AsyncKeyManagerCertificateProvider(X509KeyManager keyManager,
 			List<CertificateType> supportedCertificateTypes) {
 		super(keyManager, supportedCertificateTypes);
 		this.executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
@@ -112,7 +112,7 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public AsyncKeyManagerCertificateProvider(String defaultAlias, X509ExtendedKeyManager keyManager,
+	public AsyncKeyManagerCertificateProvider(String defaultAlias, X509KeyManager keyManager,
 			CertificateType... supportedCertificateTypes) {
 		super(defaultAlias, keyManager, supportedCertificateTypes);
 		this.executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
@@ -129,7 +129,7 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public AsyncKeyManagerCertificateProvider(String defaultAlias, X509ExtendedKeyManager keyManager,
+	public AsyncKeyManagerCertificateProvider(String defaultAlias, X509KeyManager keyManager,
 			List<CertificateType> supportedCertificateTypes) {
 		super(defaultAlias, keyManager, supportedCertificateTypes);
 		this.executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$

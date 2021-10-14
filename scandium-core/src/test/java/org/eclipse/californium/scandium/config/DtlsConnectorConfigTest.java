@@ -46,7 +46,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509KeyManager;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
@@ -443,7 +443,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testSupportedCipherSuitesForKeyManager() throws IOException, GeneralSecurityException {
-		X509ExtendedKeyManager keyManager = DtlsTestTools.getServerKeyManager();
+		X509KeyManager keyManager = DtlsTestTools.getServerKeyManager();
 		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
 		DtlsConnectorConfig config = builder
@@ -459,7 +459,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testSupportedSignaturesForKeyManager() throws IOException, GeneralSecurityException {
-		X509ExtendedKeyManager keyManager = DtlsTestTools.getServerKeyManager();
+		X509KeyManager keyManager = DtlsTestTools.getServerKeyManager();
 		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
 		DtlsConnectorConfig config = builder
@@ -475,7 +475,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testSupportedCurvesForKeyManager() throws IOException, GeneralSecurityException {
-		X509ExtendedKeyManager keyManager = DtlsTestTools.getServerKeyManager();
+		X509KeyManager keyManager = DtlsTestTools.getServerKeyManager();
 		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
 				.setTrustAllCertificates().build();
