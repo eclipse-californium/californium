@@ -2,7 +2,7 @@
 
 # Californium (Cf) - Migration Hints
 
-August, 2021
+October, 2021
 
 The version 2.x is now out for about more than a year and reached version 2.6.5.
 We have already started to work on a 3.0 on December 2020 starting with removing deprecates APIs.
@@ -96,6 +96,8 @@ The maximum message size calculations from [Record Size Limit](https://tools.iet
 
 Using X509 to authenticate the server now includes to match the destination with the server certificate's subject. This is enabled per default, as requested by [RFC7252 - 9.1.3.3. X.509 Certificates](https://datatracker.ietf.org/doc/html/rfc7252#section-9.1.3.3). It could be disabled using `DTLS.VERIFY_SERVER_CERTIFICATES_SUBJECT`.
 
+Introducing support for multiple x509 certificates (see `KeyManagerCertificateProvider`) and RSA, also in combination with `CLIENT_ONLY` and support the asymmetric certificate based handshakes (means: a peer may send credentials with algorithms, the peer itself doesn't support), makes the "auto-configuration" feature very hard. Please report, if you consider that the auto-configuration has issues. That may help to either improve it, or at least to improve the documentation.
+
 ### Element-Connector-TCP-Netty:
 
 Using X509 to authenticate the server now includes to match the destination with the server certificate's subject. This is enabled per default, as requested by [RFC7925 - 4.4.1. Certificates Used by Servers](https://datatracker.ietf.org/doc/html/rfc7925#section-4.1.1). It could be disabled using `TCP.VERIFY_SERVER_CERTIFICATES_SUBJECT`.
@@ -158,6 +160,8 @@ The updated proxy2 now processes more coap-options and http-headers.
 5) The `SslContextUtil.configure(String, String)` is removed, use `SslContextUtil.configure(String, KeyStoreType)` instead. `KeyStoreType` requires now either a type for the java `KeyStore` implementation, or a `SimpleKeyStore` custom reader.
 
 6) The `NetworkConfig` is replaced by `Configuration` with the `SystemConfig`, `UdpConfig`, `TcpConfig`, `DtlsConfig`, `CoapConfig`, and `Proxy2Config`.
+
+7) Some function from `Asn1DerDecoder` have been moved to `JceProviderUtil`, though they are related  to the JCE and not to ASN.1.
 
 ### Scandium:
 

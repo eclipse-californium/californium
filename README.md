@@ -81,12 +81,6 @@ To demonstrate the basic functions, run the unit-tests using the profile `bc-tes
 $ mvn clean install -Pbc-tests
 ```
 
-If the system's JCE doesn't support EdDSA, then Bouncy Castle is tried. In order to force to use Bouncy Castle even if the system's JCE support EdDSA, use
-
-```sh
-$ mvn clean install -Pbc-tests -DCALIFORNIUM_JCE_PROVIDER=BC
-```
-
 Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but they may be not processed.
 
 On issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
@@ -97,7 +91,7 @@ With that, it gets very time consuming to test all combinations. Therefore, if y
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.6.4).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.6.5).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots):
 
@@ -107,16 +101,16 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>2.6.4</version>
+            <version>2.6.5</version>
     </dependency>
     ...
   </dependencies>
   ...
 ```
 
-##### Current Milestones
+##### Current Release Candidate
 
-[Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.0.0-M3). if you want to use the current milestone for the upcoming 3.0.0, use version `3.0.0-M3` from the releases.
+[Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.0.0-RC1). if you want to use the current release candidate for the upcoming 3.0.0, use version `3.0.0-RC1` from the releases.
 
 ##### Current Builds
 
@@ -163,7 +157,7 @@ A test server is running at <a href="coap://californium.eclipseprojects.io:5683/
 
 **Note**: begin of June 2021, the ip-address assigned to "californium.eclipseprojects.io" has changed. Users of the sandbox, which are using the literal ip-address must update their clients!
 
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0-M3/cf-plugtest-server-3.0.0-M3.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0-RC1/cf-plugtest-server-3.0.0-RC1.jar) from the demo-apps.
 The root resource responds with its current version.
 
 More information can be found at [http://www.eclipse.org/californium](http://www.eclipse.org/californium) and technical details at [https://projects.eclipse.org/projects/iot.californium](https://projects.eclipse.org/projects/iot.californium).
@@ -177,7 +171,7 @@ More information can be found at [http://coap.me/](http://coap.me/).
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.0.0-M3.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.0.0-RC1.jar MulticastTestServer`
 
 # Contact
 
