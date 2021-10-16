@@ -91,36 +91,36 @@ public enum CipherSuite {
 
 	/**See <a href="https://tools.ietf.org/html/rfc8442#section-3" target="_blank">RFC 8442</a> for details*/
 	/**Note: compatibility not tested! openssl 1.1.1 seems not supporting them */
-	TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256(0xD001, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
-	TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378(0xD002, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
-	TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256(0xD003, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
-	TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256(0xD005, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256(0xD001, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_GCM, true),
+	TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378(0xD002, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_256_GCM, true, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256(0xD003, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CCM_8, true),
+	TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256(0xD005, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CCM, true),
 
-	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
-	TLS_PSK_WITH_AES_256_GCM_SHA378(0x00A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
-	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
-	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL, true),
-	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
-	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_GCM, true),
+	TLS_PSK_WITH_AES_256_GCM_SHA378(0x00A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_GCM, true, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM_8, true),
+	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM_8, true),
+	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, true),
+	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, true),
 
 	/**See <a href="https://tools.ietf.org/html/rfc5489#section-3.2" target="_blank">RFC 5489</a> for details*/
 	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 
 	// Certificate cipher suites, ordered by default preference, see getCertificateCipherSuites or getEcdsaCipherSuites
-	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
-	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384(0xc02c, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL, true),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384(0xc02c, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_GCM, true, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM_8, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, true),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, true),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, false, PRFAlgorithm.TLS_PRF_SHA384),
 	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
 
 	// RSA Certificates
-	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256(0xc02f, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
-	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384(0xc030, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256(0xc02f, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, true),
+	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384(0xc030, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_GCM, true, PRFAlgorithm.TLS_PRF_SHA384),
 	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256(0xC027, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384(0xC028, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, false, PRFAlgorithm.TLS_PRF_SHA384),
 	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA(0xC014, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
@@ -153,8 +153,16 @@ public enum CipherSuite {
 
 	// Constructor ////////////////////////////////////////////////////
 
+	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, boolean recommendedCipherSuite) {
+		this(code, certificate, keyExchange, cipher, MACAlgorithm.INTRINSIC, recommendedCipherSuite, PRFAlgorithm.TLS_PRF_SHA256);
+	}
+
 	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, boolean recommendedCipherSuite) {
 		this(code, certificate, keyExchange, cipher, macAlgorithm, recommendedCipherSuite, PRFAlgorithm.TLS_PRF_SHA256);
+	}
+
+	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, boolean recommendedCipherSuite, PRFAlgorithm prf) {
+		this(code, certificate, keyExchange, cipher, MACAlgorithm.INTRINSIC, recommendedCipherSuite, prf);
 	}
 
 	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, boolean recommendedCipherSuite, PRFAlgorithm prf) {
@@ -364,7 +372,7 @@ public enum CipherSuite {
 	 * @return the length in bytes
 	 */
 	public int getMacLength() {
-		if (macAlgorithm == MACAlgorithm.NULL) {
+		if (macAlgorithm == MACAlgorithm.INTRINSIC) {
 			return cipher.getMacLength();
 		} else {
 			return macAlgorithm.getOutputLength();
@@ -872,6 +880,7 @@ public enum CipherSuite {
 	 */
 	private enum MACAlgorithm {
 		NULL(null, null, 0, 0, 0),
+		INTRINSIC(null, null, 0, 0, 0),
 		HMAC_SHA1("HmacSHA1", "SHA-1", 20, 8, 64),
 		HMAC_SHA256("HmacSHA256", "SHA-256", 32, 8, 64),
 		HMAC_SHA384("HmacSHA384", "SHA-384", 48, 16, 128),
@@ -913,7 +922,7 @@ public enum CipherSuite {
 		 * See <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac" target="_blank">
 		 * Java Security Documentation</a>.
 		 * 
-		 * @return the name or {@code null} for the {@link #NULL} MAC
+		 * @return the name or {@code null} for the {@link #NULL} and {@link #INTRINSIC} MAC
 		 */
 		public String getName() {
 			return name;
@@ -928,7 +937,7 @@ public enum CipherSuite {
 		 * See <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest" target="_blank">
 		 * Java Security Documentation</a>.
 		 * 
-		 * @return the name or {@code null} for the {@link #NULL} MAC
+		 * @return the name or {@code null} for the {@link #NULL} and {@link #INTRINSIC} MAC
 		 */
 		public String getMessageDigestName() {
 			return mdName;
