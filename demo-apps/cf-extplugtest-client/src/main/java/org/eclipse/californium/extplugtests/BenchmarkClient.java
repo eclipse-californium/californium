@@ -1331,7 +1331,12 @@ public class BenchmarkClient {
 		registerShutdown();
 		System.out.println("Benchmark started.");
 
-		long dtlsTime = System.nanoTime();
+		long staleTime = System.nanoTime();
+		long interval = config.interval == null ? 0 : TimeUnit.MILLISECONDS.toNanos(config.interval);
+		if (dtls) {
+			interval = Math.max(interval, DTLS_TIMEOUT_NANOS);
+		}
+		long staleTimeout = DEFAULT_TIMEOUT_NANOS + interval;
 		// Wait with timeout or all requests send.
 		while (!overallRequestsDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
 			long currentRequestsCountDown = overallResponsesDownCounter.get();
@@ -1343,13 +1348,9 @@ public class BenchmarkClient {
 					|| (numberOfClients == 0)) {
 				// no new requests, clients are stale, or no clients left
 				// adjust start time with timeout
-				long dtlsTimeout = System.nanoTime() - dtlsTime;
-				if (!dtls || (dtlsTimeout - DTLS_TIMEOUT_NANOS) > 0) {
-					if (dtls) {
-						startRequestNanos += dtlsTimeout;
-					} else {
-						startRequestNanos += DEFAULT_TIMEOUT_NANOS;
-					}
+				long timeout = System.nanoTime() - staleTime;
+				if ((timeout - staleTimeout) > 0) {
+					startRequestNanos += timeout;
 					startReverseResponseNanos = startRequestNanos;
 					stale = true;
 					System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests,
@@ -1357,7 +1358,7 @@ public class BenchmarkClient {
 					break;
 				}
 			} else {
-				dtlsTime = System.nanoTime();
+				staleTime = System.nanoTime();
 			}
 			long transmissions = transmissionCounter.get();
 			long transmissionsDifference = transmissions - lastTransmissions;
@@ -1396,7 +1397,6 @@ public class BenchmarkClient {
 			line.append(")");
 			System.out.println(line);
 		}
-//		long overallSentRequests = overallRequests - overallResponsesDownCounter.get();
 		timeRequestNanos = System.nanoTime() - startRequestNanos;
 
 		boolean observe = false;
