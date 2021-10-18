@@ -43,7 +43,7 @@ public class StringSetDefinition extends BasicDefinition<String> {
 	 *             {@code null}
 	 */
 	public StringSetDefinition(String key, String documentation, String... values) {
-		super(key, documentation, String.class);
+		super(key, documentation, String.class, null);
 		if (values == null) {
 			throw new NullPointerException("Value set must not be null!");
 		}
@@ -85,7 +85,7 @@ public class StringSetDefinition extends BasicDefinition<String> {
 	 *             {@code null}
 	 */
 	public StringSetDefinition(String key, String documentation, String defaultValue, String[] values) {
-		super(key, documentation, String.class);
+		super(key, documentation, String.class, null);
 		if (values == null) {
 			throw new NullPointerException("Value set must not be null!");
 		}
@@ -97,11 +97,12 @@ public class StringSetDefinition extends BasicDefinition<String> {
 				throw new IllegalArgumentException("Value set must not contain null!");
 			}
 		}
-		this.defaultValue = defaultValue;
 		this.values = Arrays.asList(Arrays.copyOf(values, values.length));
 		this.valuesDocumentation = DefinitionUtils.toString(this.values, true);
-		if (defaultValue != null) {
-			isAssignableFrom(defaultValue);
+		try {
+			this.defaultValue = checkValue(defaultValue);
+		} catch (ValueException ex) {
+			throw new IllegalArgumentException(ex.getMessage());
 		}
 	}
 
@@ -121,8 +122,16 @@ public class StringSetDefinition extends BasicDefinition<String> {
 	}
 
 	@Override
-	public String defaultValue() {
+	public String getDefaultValue() {
 		return defaultValue;
+	}
+
+	@Override
+	public String checkValue(String value) throws ValueException {
+		if (value == null || values.contains(value)) {
+			return value;
+		}
+		throw new IllegalArgumentException(value + " is not in " + valuesDocumentation);
 	}
 
 	@Override

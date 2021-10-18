@@ -37,7 +37,7 @@ public class DoubleDefinition extends BasicDefinition<Double> {
 	 * @throws NullPointerException if key is {@code null}
 	 */
 	public DoubleDefinition(String key, String documentation) {
-		super(key, documentation, Double.class);
+		super(key, documentation, Double.class, null);
 		this.minimumValue = null;
 	}
 

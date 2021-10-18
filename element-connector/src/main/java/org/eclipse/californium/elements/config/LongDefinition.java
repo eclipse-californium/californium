@@ -37,7 +37,7 @@ public class LongDefinition extends BasicDefinition<Long> {
 	 * @throws NullPointerException if key is {@code null}
 	 */
 	public LongDefinition(String key, String documentation) {
-		super(key, documentation, Long.class);
+		super(key, documentation, Long.class, null);
 		this.minimumValue = null;
 	}
 

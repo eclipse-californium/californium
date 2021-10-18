@@ -20,10 +20,12 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -237,18 +239,26 @@ public class ConfigurationTest {
 		EnumListDefinition<TestValues> enumDefinition = new EnumListDefinition<>(MODULE2 + "ENUM3", "Test Enum List",
 				TestValues.values());
 		Configuration configuration = Configuration.createStandardWithoutFile();
-		configuration.setList(enumDefinition, TestValues.TEST2, TestValues.TEST4);
+		configuration.setAsList(enumDefinition, TestValues.TEST2, TestValues.TEST4);
 		configuration = reload(configuration, null);
 		assertThat(configuration.get(enumDefinition), hasItem(TestValues.TEST2));
 		assertThat(configuration.get(enumDefinition), hasItem(TestValues.TEST4));
 		assertThat(configuration.get(enumDefinition), not(hasItem(TestValues.TEST3)));
 
-		configuration.setList(enumDefinition, TestValues.TEST5);
+		configuration.setAsList(enumDefinition, TestValues.TEST5);
 		configuration = reload(configuration, null);
 		assertThat(configuration.get(enumDefinition), hasItem(TestValues.TEST5));
 		assertThat(configuration.get(enumDefinition), not(hasItem(TestValues.TEST3)));
 
-		configuration.set(enumDefinition, Arrays.asList(TestValues.TEST1, TestValues.TEST3, TestValues.TEST4));
+		List<TestValues> values = Arrays.asList(TestValues.TEST1, TestValues.TEST3, TestValues.TEST4);
+		configuration.set(enumDefinition, values);
+		List<TestValues> storedValues = configuration.get(enumDefinition);
+		try {
+			storedValues.add(TestValues.TEST2);
+			fail("List is not unmodifiable!");
+		} catch (UnsupportedOperationException ex) {
+		}
+
 		configuration = reload(configuration, null);
 		assertThat(configuration.get(enumDefinition), hasItem(TestValues.TEST1));
 		assertThat(configuration.get(enumDefinition), hasItem(TestValues.TEST3));
@@ -261,11 +271,34 @@ public class ConfigurationTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testConfigurationEnumListFailure() {
+	public void testConfigurationEnumListWithEmptyListFailure() {
 		EnumListDefinition<TestValues> enumDefinition = new EnumListDefinition<>(MODULE2 + "ENUM4", "Test Enum List",
-				TestValues.values());
+				null, 1, TestValues.values());
 		Configuration configuration = Configuration.createStandardWithoutFile();
-		configuration.setList(enumDefinition);
+		configuration.setAsList(enumDefinition);
+	}
+
+	@Test
+	public void testConfigurationEnumListAsText() {
+		EnumListDefinition<TestValues> enumDefinition = new EnumListDefinition<>(MODULE2 + "ENUM5", "Test Enum List",
+				null, 0, TestValues.values());
+		Configuration configuration = Configuration.createStandardWithoutFile();
+		configuration.setAsListFromText(enumDefinition);
+		List<TestValues> list = configuration.get(enumDefinition);
+		assertThat(list.isEmpty(), is(true));
+		configuration.setAsListFromText(enumDefinition, "TEST1", "TEST4");
+		list = configuration.get(enumDefinition);
+		assertThat(list.size(), is(2));
+		assertThat(configuration.get(enumDefinition), hasItem(TestValues.TEST1));
+		assertThat(configuration.get(enumDefinition), hasItem(TestValues.TEST4));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testConfigurationEnumListAsTextWithFailure() {
+		EnumListDefinition<TestValues> enumDefinition = new EnumListDefinition<>(MODULE2 + "ENUM6", "Test Enum List",
+				null, 0, TestValues.values());
+		Configuration configuration = Configuration.createStandardWithoutFile();
+		configuration.setAsListFromText(enumDefinition, "TEST1", "TESTx");
 	}
 
 	@Test

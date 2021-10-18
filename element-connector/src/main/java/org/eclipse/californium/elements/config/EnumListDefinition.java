@@ -25,11 +25,14 @@ import java.util.List;
  * @param <E> enumeration type
  * @since 3.0
  */
-public class EnumListDefinition<E extends Enum<?>> extends BasicDefinition<List<E>> {
+public class EnumListDefinition<E extends Enum<?>> extends BasicListDefinition<E> {
 
+	private final List<E> defaultValue;
+	private final Class<E> itemType;
 	private final String typeName;
 	private final List<E> values;
 	private final String valuesDocumentation;
+	private final int minimumItems;
 
 	/**
 	 * Creates list of values out of enumeration set definition.
@@ -42,7 +45,7 @@ public class EnumListDefinition<E extends Enum<?>> extends BasicDefinition<List<
 	 *             {@code null}
 	 */
 	public EnumListDefinition(String key, String documentation, E[] values) {
-		this(key, documentation, null, values);
+		this(key, documentation, null, 0, values);
 	}
 
 	/**
@@ -57,7 +60,24 @@ public class EnumListDefinition<E extends Enum<?>> extends BasicDefinition<List<
 	 *             {@code null}
 	 */
 	public EnumListDefinition(String key, String documentation, List<E> defaultValue, E[] values) {
-		super(key, documentation, new ArrayList<E>(), defaultValue);
+		this(key, documentation, defaultValue, 0, values);
+	}
+
+	/**
+	 * Creates list of values out of enumeration set definition.
+	 * 
+	 * @param key key for properties. Must be global unique.
+	 * @param documentation documentation for properties.
+	 * @param defaultValue default value.
+	 * @param minimumItems minimum number of items for a valid list. Used in {@link #checkValue(List)}.
+	 * @param values set of supported values.
+	 * @throws NullPointerException if key or values is {@code null}
+	 * @throws IllegalArgumentException if values are empty or a value is
+	 *             {@code null}
+	 */
+	@SuppressWarnings("unchecked")
+	public EnumListDefinition(String key, String documentation, List<E> defaultValue, int minimumItems, E[] values) {
+		super(key, documentation, null);
 		if (values == null) {
 			throw new NullPointerException("Enum set must not be null!");
 		}
@@ -69,11 +89,15 @@ public class EnumListDefinition<E extends Enum<?>> extends BasicDefinition<List<
 				throw new IllegalArgumentException("Enum set must not contain null!");
 			}
 		}
-		this.typeName = "List<" + values[0].getClass().getSimpleName() + ">";
+		this.itemType = (Class<E>) values[0].getClass();
+		this.typeName = "List<" + itemType.getSimpleName() + ">";
 		this.values = Arrays.asList(Arrays.copyOf(values, values.length));
 		this.valuesDocumentation = DefinitionUtils.toNames(this.values, true);
-		if (defaultValue != null) {
-			isAssignableFrom(defaultValue);
+		this.minimumItems = minimumItems;
+		try {
+			this.defaultValue = checkValue(defaultValue);
+		} catch (ValueException e) {
+			throw new IllegalArgumentException(e.getMessage());
 		}
 	}
 
@@ -88,6 +112,35 @@ public class EnumListDefinition<E extends Enum<?>> extends BasicDefinition<List<
 	}
 
 	@Override
+	public List<E> checkValue(List<E> value) throws ValueException {
+		if (value != null) {
+			if (value.size() < minimumItems) {
+				if (value.isEmpty()) {
+					throw new ValueException("Values must not be empty!");
+				} else {
+					throw new ValueException("Values with " + value.size() + " items must not contain less items than "
+							+ minimumItems + "!");
+				}
+			}
+			for (E item : value) {
+				if (!values.contains(item)) {
+					if (itemType.isInstance(item)) {
+						throw new IllegalArgumentException(item + " is not in " + valuesDocumentation);
+					} else {
+						throw new IllegalArgumentException(item + " is no " + itemType.getSimpleName());
+					}
+				}
+			}
+		}
+		return super.checkValue(value);
+	}
+
+	@Override
+	public List<E> getDefaultValue() {
+		return defaultValue;
+	}
+
+	@Override
 	public String getDocumentation() {
 		return super.getDocumentation() + "\nList of " + valuesDocumentation + ".";
 	}
@@ -96,13 +149,9 @@ public class EnumListDefinition<E extends Enum<?>> extends BasicDefinition<List<
 	protected boolean isAssignableFrom(Object value) {
 		if (value instanceof List<?>) {
 			for (Object item : (List<?>) value) {
-				if (values.contains(item)) {
-					continue;
+				if (!itemType.isInstance(item)) {
+					throw new IllegalArgumentException(item + " is no " + itemType.getSimpleName());
 				}
-				if (super.isAssignableFrom(item)) {
-					throw new IllegalArgumentException(item + " is not in " + valuesDocumentation);
-				}
-				return false;
 			}
 			return true;
 		}

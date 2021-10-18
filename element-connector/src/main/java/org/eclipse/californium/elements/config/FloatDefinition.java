@@ -37,7 +37,7 @@ public class FloatDefinition extends BasicDefinition<Float> {
 	 * @throws NullPointerException if key is {@code null}
 	 */
 	public FloatDefinition(String key, String documentation) {
-		super(key, documentation, Float.class);
+		super(key, documentation, Float.class, null);
 		this.minimumValue = null;
 	}
 

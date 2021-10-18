@@ -1508,9 +1508,9 @@ public final class DtlsConnectorConfig {
 		 *             values are empty.
 		 * @since 3.0
 		 */
-		public <T extends Enum<?>> Builder setList(EnumListDefinition<T> definition,
+		public <T extends Enum<?>> Builder setAsList(EnumListDefinition<T> definition,
 				@SuppressWarnings("unchecked") T... values) {
-			config.configuration.setList(definition, values);
+			config.configuration.setAsList(definition, values);
 			return this;
 		}
 
@@ -1527,9 +1527,9 @@ public final class DtlsConnectorConfig {
 		 *             values are empty.
 		 * @since 3.0
 		 */
-		public <T extends Enum<?>> Builder setListFromText(EnumListDefinition<T> definition,
+		public <T extends Enum<?>> Builder setAsListFromText(EnumListDefinition<T> definition,
 				String... values) {
-			config.configuration.setListFromText(definition, values);
+			config.configuration.setAsListFromText(definition, values);
 			return this;
 		}
 

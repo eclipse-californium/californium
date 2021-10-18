@@ -45,7 +45,7 @@ public class EnumDefinition<E extends Enum<?>> extends BasicDefinition<E> {
 	 */
 	@SuppressWarnings("unchecked")
 	public EnumDefinition(String key, String documentation, E... values) {
-		super(key, documentation, DefinitionUtils.getClass(values));
+		super(key, documentation, DefinitionUtils.getClass(values), null);
 		if (values == null) {
 			throw new NullPointerException("Enum set must not be null!");
 		}
@@ -87,7 +87,7 @@ public class EnumDefinition<E extends Enum<?>> extends BasicDefinition<E> {
 	 *             {@code null}
 	 */
 	public EnumDefinition(String key, String documentation, E defaultValue, E[] values) {
-		super(key, documentation, DefinitionUtils.getClass(values));
+		super(key, documentation, DefinitionUtils.getClass(values), null);
 		if (values == null) {
 			throw new NullPointerException("Enum set must not be null!");
 		}
@@ -118,7 +118,7 @@ public class EnumDefinition<E extends Enum<?>> extends BasicDefinition<E> {
 	}
 
 	@Override
-	public E defaultValue() {
+	public E getDefaultValue() {
 		return defaultValue;
 	}
 

@@ -1095,7 +1095,7 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue(shaRsa.getJcaName() + " not support by JCE", shaRsa.isSupported());
 
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
-		serverBuilder.setList(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS, CertificateKeyAlgorithm.EC);
+		serverBuilder.setAsList(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS, CertificateKeyAlgorithm.EC);
 		startServer();
 
 		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier

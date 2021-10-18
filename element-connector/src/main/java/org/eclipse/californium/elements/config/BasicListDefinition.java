@@ -15,33 +15,51 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.config;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
- * Basic definitions.
- * 
- * Used without additional units.
+ * Basic definitions for list values.
  *
- * @param <T> value type
+ * @param <T> item value type
  * @see Configuration#get(BasicDefinition)
- * @see Configuration#set(BasicDefinition, Object)
+ * @see Configuration#setAsList(BasicListDefinition, Object...)
+ * @see Configuration#setAsListFromText(BasicListDefinition, String...)
  * @since 3.0
  */
-public abstract class BasicDefinition<T> extends DocumentedDefinition<T> {
+public abstract class BasicListDefinition<T> extends BasicDefinition<List<T>> {
 
 	/**
-	 * Creates basic definition with default value.
-	 * 
-	 * If the configuration value is mainly used with primitive types (e.g.
-	 * `int`), {@code null} causes a {@link NullPointerException} on access.
-	 * To prevent that, the default value is returned instead of a
-	 * {@code null}.
+	 * Creates basic list definition with default value.
 	 * 
 	 * @param key key for properties. Must be global unique.
 	 * @param documentation documentation for properties.
-	 * @param valueType value type.
 	 * @param defaultValue default value returned instead of {@code null}.
 	 * @throws NullPointerException if key is {@code null}
 	 */
-	protected BasicDefinition(String key, String documentation, Class<T> valueType, T defaultValue) {
-		super(key, documentation, valueType, defaultValue);
+	@SuppressWarnings("unchecked")
+	protected BasicListDefinition(String key, String documentation, List<T> defaultValue) {
+		super(key, documentation, (Class<List<T>>) (Class<?>) List.class, defaultValue);
 	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Returns an unmodifiable {@code List<T>}, or {@code null}, if value is
+	 * {@code null}.
+	 */
+	@Override
+	public List<T> checkValue(List<T> value) throws ValueException {
+		if (value != null) {
+			try {
+				// forces an exception
+				value.remove(-1);
+			} catch (IndexOutOfBoundsException ex) {
+				value = Collections.unmodifiableList(value);
+			} catch (UnsupportedOperationException ex) {
+			}
+		}
+		return value;
+	}
+
 }
