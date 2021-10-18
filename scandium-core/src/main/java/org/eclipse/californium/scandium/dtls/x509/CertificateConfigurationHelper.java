@@ -25,7 +25,6 @@ import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ListUtils;
 
@@ -37,13 +36,9 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * the proper signature and hash algorithms and the supported curves for
  * ECDSA/ECDHE is implemented here.
  * 
- * With the introduction of support for RSA, the default supported cipher suites
- * are now based on {@link #getSupportedCertificateKeyAlgorithms()}.
- * 
  * For all public keys passed to
- * {@link #addConfigurationDefaultsFor(PublicKey)}, the supported curve, a
- * signature and hash algorithm, and the certificate key algorithm is added to
- * the default parameters.
+ * {@link #addConfigurationDefaultsFor(PublicKey)}, the supported curve, and a
+ * signature and hash algorithm is added to the default parameters.
  *
  * For all x509 certificate chains passed to
  * {@link #addConfigurationDefaultsFor(List)}, the public key of the head
@@ -98,10 +93,6 @@ public class CertificateConfigurationHelper {
 	 */
 	private boolean serverUsage;
 	/**
-	 * List of supported certificate key algorithms.
-	 */
-	private final List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = new ArrayList<>();
-	/**
 	 * List of supported signature and hash algorithms.
 	 */
 	private final List<SignatureAndHashAlgorithm> defaultSignatureAndHashAlgorithms = new ArrayList<>();
@@ -131,8 +122,6 @@ public class CertificateConfigurationHelper {
 			}
 			ListUtils.addIfAbsent(defaultSupportedGroups, group);
 		}
-		CertificateKeyAlgorithm keyAlgorithm = CertificateKeyAlgorithm.getAlgorithm(key);
-		ListUtils.addIfAbsent(supportedCertificateKeyAlgorithms, keyAlgorithm);
 		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(defaultSignatureAndHashAlgorithms, key);
 		ListUtils.addIfAbsent(keys, key);
 	}
@@ -213,15 +202,6 @@ public class CertificateConfigurationHelper {
 				ListUtils.addIfAbsent(defaultSupportedGroups, group);
 			}
 		}
-	}
-
-	/**
-	 * Gets list of supported key algorithms.
-	 * 
-	 * @return list of supported key algorithms
-	 */
-	public List<CertificateKeyAlgorithm> getSupportedCertificateKeyAlgorithms() {
-		return supportedCertificateKeyAlgorithms;
 	}
 
 	/**

@@ -532,11 +532,11 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testCipherSuiteOrderedByClientPriority() throws Exception {
-		serverHelper.serverBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
+		serverHelper.serverBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		startServer();
 		// different order then the server
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256);
 		startClientPsk(null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
@@ -1050,13 +1050,13 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
 
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED)
-				.setSupportedCipherSuites(cipherSuite, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getServerRsaPrivateKey(),
 						DtlsTestTools.getServerRsaCertificateChain()));
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
-				.setSupportedCipherSuites(cipherSuite);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite);
 		DTLSSession session = startClientX509(null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -1442,7 +1442,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 		startClientPsk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
 				is(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256));
@@ -1453,7 +1453,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
-				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
 		startClientPsk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
 				is(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256));
@@ -1463,7 +1463,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testPskCcm8Handshake() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		startClientPsk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 	}
@@ -1473,7 +1473,7 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("AES256 requires JVM support!", CipherSuite.TLS_PSK_WITH_AES_256_CCM_8.isSupported());
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_256_CCM_8);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_256_CCM_8);
 		startClientPsk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_256_CCM_8));
 	}
@@ -1482,7 +1482,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testPskCcmHandshake() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM);
 		startClientPsk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM));
 	}
@@ -1492,7 +1492,7 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("AES256 requires JVM support!", CipherSuite.TLS_PSK_WITH_AES_256_CCM.isSupported());
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_256_CCM);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_256_CCM);
 		startClientPsk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_256_CCM));
 	}
@@ -1502,7 +1502,7 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("GCM requires JVM support!", CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256.isSupported());
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256);
 		startClientPsk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
 				is(CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256));
@@ -1513,7 +1513,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1524,7 +1524,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testRpkCcm8Handshake() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1536,7 +1536,7 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("AES256 requires JVM support!", CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8.isSupported());
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1547,7 +1547,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testRpkCcmHandshake() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1559,7 +1559,7 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("AES256 requires JVM support!", CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM.isSupported());
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1572,7 +1572,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1585,7 +1585,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1597,7 +1597,7 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("GCM requires JVM support!", CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256.isSupported());
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1610,13 +1610,13 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("ED25519 requires JCE support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
-		serverBuilder.setSupportedSignatureAlgorithms(defaults);
+		serverBuilder.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, defaults);
 		startServer();
 		KeyPair keyPair = new ThreadLocalKeyPairGenerator("Ed25519").current().generateKeyPair();
 		clientPrivateKey = keyPair.getPrivate();
 		clientPublicKey = keyPair.getPublic();
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
 				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
@@ -1628,13 +1628,13 @@ public class DTLSConnectorHandshakeTest {
 		assumeTrue("ED448 requires JCE support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448.isSupported());
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448);
-		serverBuilder.setSupportedSignatureAlgorithms(defaults);
+		serverBuilder.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, defaults);
 		startServer();
 		KeyPair keyPair = new ThreadLocalKeyPairGenerator("Ed448").current().generateKeyPair();
 		clientPrivateKey = keyPair.getPrivate();
 		clientPublicKey = keyPair.getPublic();
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
 				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
@@ -1653,9 +1653,9 @@ public class DTLSConnectorHandshakeTest {
 
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
-		serverBuilder.setSupportedSignatureAlgorithms(defaults);
+		serverBuilder.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, defaults);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1675,9 +1675,9 @@ public class DTLSConnectorHandshakeTest {
 
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448);
-		serverBuilder.setSupportedSignatureAlgorithms(defaults);
+		serverBuilder.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, defaults);
 		startServer();
-		clientBuilder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1693,7 +1693,7 @@ public class DTLSConnectorHandshakeTest {
 
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
 		defaults.add(0, SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
-		serverBuilder.setSupportedSignatureAlgorithms(defaults).setCertificateIdentityProvider(
+		serverBuilder.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, defaults).setCertificateIdentityProvider(
 				new KeyManagerCertificateProvider(DtlsTestTools.getDtlsServerKeyManager(), CertificateType.X_509));
 		startServer();
 
@@ -1703,10 +1703,11 @@ public class DTLSConnectorHandshakeTest {
 
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
 				.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519,
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519,
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
-				.setSupportedGroups(SupportedGroup.X25519, SupportedGroup.secp256r1)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.X25519, SupportedGroup.secp256r1)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		clientPrivateKey = credentials.getPrivateKey();
 		clientCertificateChain = credentials.getCertificateChain();
@@ -1729,7 +1730,7 @@ public class DTLSConnectorHandshakeTest {
 				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
 		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
 
-		serverBuilder.setSupportedCipherSuites(cipherSuite, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+		serverBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256).setCertificateIdentityProvider(
 						new KeyManagerCertificateProvider(DtlsTestTools.getDtlsServerKeyManager(),
 								CertificateType.X_509));
@@ -1742,9 +1743,10 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
 				.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_RSA,
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.SHA256_WITH_RSA,
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
-				.setSupportedCipherSuites(cipherSuite);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite);
 
 		clientPrivateKey = credentials.getPrivateKey();
 		clientCertificateChain = credentials.getCertificateChain();
@@ -1766,8 +1768,8 @@ public class DTLSConnectorHandshakeTest {
 
 		setupClientCertificateIdentity(CertificateType.X_509);
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		startClient(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1779,7 +1781,8 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509HandshakeSignatureAlgorithmsExtensionSha384Ecdsa() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		startServer();
 
@@ -1789,9 +1792,10 @@ public class DTLSConnectorHandshakeTest {
 
 		setupClientCertificateIdentity(CertificateType.X_509);
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		startClient(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1803,8 +1807,9 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509HandshakeFailingNoCommonSignatureAlgorithms() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
-						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+			.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+					SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+					SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		startServer();
 
 		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
@@ -1813,8 +1818,8 @@ public class DTLSConnectorHandshakeTest {
 
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
 				.set(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY, false)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		startClientFailing();
 
@@ -1847,9 +1852,10 @@ public class DTLSConnectorHandshakeTest {
 
 		clientBuilder = DtlsConnectorConfig.builder(clientBuilder.build())
 				.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		startClient(null);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
@@ -1861,8 +1867,9 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509HandshakeFailingCertificateSignatureAlgorithm() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
-						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+		.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+				SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+				SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		startServer();
 
 		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
@@ -1870,8 +1877,9 @@ public class DTLSConnectorHandshakeTest {
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA)
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.SHA384_WITH_ECDSA)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		startClientFailing();
 
@@ -1968,7 +1976,8 @@ public class DTLSConnectorHandshakeTest {
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.set(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY, false).setSupportedGroups("secp521r1");
+				.set(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY, false)
+				.setAsListFromText(DtlsConfig.DTLS_CURVES, "secp521r1");
 
 		startClientFailing();
 
@@ -2001,7 +2010,8 @@ public class DTLSConnectorHandshakeTest {
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
 		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
-				.set(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY, false).setSupportedGroups("secp384r1");
+				.set(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY, false)
+				.setAsListFromText(DtlsConfig.DTLS_CURVES, "secp384r1");
 
 		startClientFailing();
 

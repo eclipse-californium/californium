@@ -190,7 +190,7 @@ public class ConnectorUtil {
 				dtlsBuilder.setAdvancedCertificateVerifier(builder.build());
 			}
 		}
-		dtlsBuilder.setSupportedCipherSuites(suites);
+		dtlsBuilder.set(DtlsConfig.DTLS_CIPHER_SUITES, suites);
 		connector = new DTLSConnector(dtlsBuilder.build());
 		alertCatcher.resetAlert();
 		connector.setAlertHandler(alertCatcher);

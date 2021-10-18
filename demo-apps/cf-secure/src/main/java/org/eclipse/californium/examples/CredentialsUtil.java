@@ -357,7 +357,7 @@ public class CredentialsUtil {
 			if (plainPsk) {
 				suites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.PSK));
 			}
-			config.setSupportedCipherSuites(suites);
+			config.set(DtlsConfig.DTLS_CIPHER_SUITES, suites);
 		}
 	}
 }

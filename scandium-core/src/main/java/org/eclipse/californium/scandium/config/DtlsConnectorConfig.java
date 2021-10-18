@@ -38,18 +38,17 @@ package org.eclipse.californium.scandium.config;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.config.BasicDefinition;
+import org.eclipse.californium.elements.config.BasicListDefinition;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
-import org.eclipse.californium.elements.config.EnumListDefinition;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -121,12 +120,12 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * proper values for the already provided ones. E.g. if the
  * {@link Builder#setAdvancedPskStore(AdvancedPskStore)} is used, but no
  * explicit cipher suite is set with
- * {@link Builder#setSupportedCipherSuites(CipherSuite...)}, the configuration
- * chose some PSK cipher suites on its own. For the asymmetric cryptography
- * functions, the estimation of the proper signature and hash algorithms and the
- * supported curves for ECDSA/ECDHE is more complicated. Therefore this is
- * implemented in the {@link CertificateConfigurationHelper}, see there for
- * details.
+ * {@code builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, ...)}, the
+ * configuration chose some PSK cipher suites on its own. For the asymmetric
+ * cryptography functions, the estimation of the proper signature and hash
+ * algorithms and the supported curves for ECDSA/ECDHE is more complicated.
+ * Therefore this is implemented in the {@link CertificateConfigurationHelper},
+ * see there for details.
  * <p>
  * <b>Note:</b> since the introduction of this auto-configuration idea, adding
  * support for multiple certificate identities (see
@@ -833,8 +832,7 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Gets the preselected cipher suites.
 	 * 
-	 * If no supported cipher suites are provided via
-	 * {@link Builder#setSupportedCipherSuites} or
+	 * If no supported cipher suites are provided in the configuration for
 	 * {@link DtlsConfig#DTLS_CIPHER_SUITES}, consider only this subset of
 	 * {@link CipherSuite} to be automatically selected as supported cipher
 	 * suites depending on other setting (e.g. if settings allow only PSK, only
@@ -844,6 +842,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the preselected cipher suites
 	 * @see #getSupportedCipherSuites()
+	 * @see Builder#setAsList(BasicListDefinition, Object...)
 	 * @see DtlsConfig#DTLS_PRESELECTED_CIPHER_SUITES
 	 * @since 2.5
 	 */
@@ -870,14 +869,24 @@ public final class DtlsConnectorConfig {
 	 * On the client side the connector advertise these cipher suites in a DTLS
 	 * handshake. On the server side the connector limits the acceptable cipher
 	 * suites to this list.
-	 * 
-	 * If not provided via {@link Builder#setSupportedCipherSuites},
-	 * {@link DtlsConfig#DTLS_CIPHER_SUITES} is used instead. if that is also
-	 * missing, the supported cipher suites are are setup according the type of
-	 * the provided credentials and {@link #getPreselectedCipherSuites()}.
+	 * <p>
+	 * If not provided in the configuration for
+	 * {@link DtlsConfig#DTLS_CIPHER_SUITES}, the supported cipher suites are
+	 * are setup according the type of the provided credentials and
+	 * {@link #getPreselectedCipherSuites()}.
+	 * <p>
+	 * The connector will use these cipher suites (in exactly the same order)
+	 * during the DTLS handshake when negotiating a cipher suite with a peer. if
+	 * the given list is empty, contains
+	 * {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, contains a cipher suite, not
+	 * supported by the JVM, violates the
+	 * {@link DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY} setting, or the
+	 * use of HELLO_VERIFY_REQUEST is disabled and no PSK cipher suite is
+	 * contained.
 	 * 
 	 * @return the supported cipher suites (ordered by preference)
-	 * @see Builder#setSupportedCipherSuites
+	 * @see #getPreselectedCipherSuites()
+	 * @see Builder#setAsList(BasicListDefinition, Object...)
 	 * @see DtlsConfig#DTLS_CIPHER_SUITES
 	 */
 	public List<CipherSuite> getSupportedCipherSuites() {
@@ -893,7 +902,7 @@ public final class DtlsConnectorConfig {
 	 *         supported signature and hash algorithms, and the server assumes
 	 *         the {@link SignatureAndHashAlgorithm#DEFAULT} as list of
 	 *         supported signature and hash algorithms
-	 * @see Builder#setSupportedSignatureAlgorithms
+	 * @see Builder#setAsList(BasicListDefinition, Object...)
 	 * @see DtlsConfig#DTLS_SIGNATURE_AND_HASH_ALGORITHMS
 	 * @since 2.3
 	 */
@@ -913,7 +922,7 @@ public final class DtlsConnectorConfig {
 	 * ECDSA.
 	 * 
 	 * @return the supported groups (curves, ordered by preference)
-	 * @see Builder#setSupportedGroups
+	 * @see Builder#setAsList(BasicListDefinition, Object...)
 	 * @see DtlsConfig#DTLS_CURVES
 	 * @since 2.3
 	 */
@@ -1426,8 +1435,8 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * A helper for creating instances of {@code DtlsConnectorConfig} based
-	 * on the builder pattern.
+	 * A helper for creating instances of {@code DtlsConnectorConfig} based on
+	 * the builder pattern.
 	 */
 	public static final class Builder {
 
@@ -1508,27 +1517,27 @@ public final class DtlsConnectorConfig {
 		 *             values are empty.
 		 * @since 3.0
 		 */
-		public <T extends Enum<?>> Builder setAsList(EnumListDefinition<T> definition,
-				@SuppressWarnings("unchecked") T... values) {
+		public <T> Builder setAsList(BasicListDefinition<T> definition, @SuppressWarnings("unchecked") T... values) {
 			config.configuration.setAsList(definition, values);
 			return this;
 		}
 
 		/**
-		 * Associates the specified list of text values with the specified definition.
+		 * Associates the specified list of text values with the specified
+		 * definition.
 		 * 
 		 * @param <T> item value type
 		 * @param definition the value definition
 		 * @param values the list of text values
 		 * @return the builder for chaining
-		 * @throws NullPointerException if the definition or values is {@code null}
+		 * @throws NullPointerException if the definition or values is
+		 *             {@code null}
 		 * @throws IllegalArgumentException if a different definition is already
 		 *             available for the key of the provided definition or the
 		 *             values are empty.
 		 * @since 3.0
 		 */
-		public <T extends Enum<?>> Builder setAsListFromText(EnumListDefinition<T> definition,
-				String... values) {
+		public <T> Builder setAsListFromText(BasicListDefinition<T> definition, String... values) {
 			config.configuration.setAsListFromText(definition, values);
 			return this;
 		}
@@ -1671,323 +1680,14 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the cipher suites supported by the connector.
-		 * <p>
-		 * The connector will use these cipher suites (in exactly the same
-		 * order) during the DTLS handshake when negotiating a cipher suite with
-		 * a peer.
-		 * 
-		 * @param cipherSuites the supported cipher suites in the order of
-		 *            preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is {@code null}
-		 * @throws IllegalArgumentException if the given array is empty,
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
-		 *             contains a cipher suite, not supported by the JVM,
-		 *             violates the
-		 *             {@link DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY}
-		 *             setting, or the use of HELLO_VERIFY_REQUEST is disabled
-		 *             and no PSK cipher suite is contained.
-		 * @see DtlsConnectorConfig#getSupportedCipherSuites()
-		 */
-		public Builder setSupportedCipherSuites(CipherSuite... cipherSuites) {
-			if (cipherSuites == null) {
-				throw new NullPointerException("Connector must support at least one cipher suite");
-			}
-			return setSupportedCipherSuites(Arrays.asList(cipherSuites));
-		}
-
-		/**
-		 * Sets the cipher suites supported by the connector.
-		 * <p>
-		 * The connector will use these cipher suites (in exactly the same
-		 * order) during the DTLS handshake when negotiating a cipher suite with
-		 * a peer.
-		 * 
-		 * @param cipherSuites the supported cipher suites in the order of
-		 *            preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given list is {@code null}
-		 * @throws IllegalArgumentException if the given list is empty, contains
-		 *             {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, contains a
-		 *             cipher suite, not supported by the JVM, violates the
-		 *             {@link DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY}
-		 *             setting, or the use of HELLO_VERIFY_REQUEST is disabled
-		 *             and no PSK cipher suite is contained.
-		 * @see DtlsConnectorConfig#getSupportedCipherSuites()
-		 */
-		public Builder setSupportedCipherSuites(List<CipherSuite> cipherSuites) {
-			if (cipherSuites == null) {
-				throw new NullPointerException("Connector must support at least one cipher suite");
-			}
-			if (cipherSuites.isEmpty()) {
-				throw new IllegalArgumentException("Connector must support at least one cipher suite");
-			}
-			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
-				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
-			}
-			if (!config.useHelloVerifyRequestForPsk()) {
-				if (!CipherSuite.containsPskBasedCipherSuite(cipherSuites)) {
-					throw new IllegalArgumentException(
-							"HELLO_VERIFY_REQUEST disabled, requires at least on PSK cipher suite!");
-				}
-			}
-			if (config.useRecommendedCipherSuitesOnly()) {
-				verifyRecommendedCipherSuitesOnly(cipherSuites);
-			}
-			for (CipherSuite cipherSuite : cipherSuites) {
-				if (!cipherSuite.isSupported()) {
-					throw new IllegalArgumentException("cipher-suites " + cipherSuite + " is not supported by JVM!");
-				}
-			}
-
-			config.supportedCipherSuites = cipherSuites;
-			return this;
-		}
-
-		/**
-		 * Sets the cipher suites supported by the connector.
-		 * <p>
-		 * The connector will use these cipher suites (in exactly the same
-		 * order) during the DTLS handshake when negotiating a cipher suite with
-		 * a peer.
-		 * 
-		 * @param cipherSuites the names of supported cipher suites in the order
-		 *            of preference (see <a href=
-		 *            "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4"
-		 *            target="_blank"> IANA registry</a> for a list of cipher
-		 *            suite names)
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is {@code null}
-		 * @throws IllegalArgumentException if the given array is empty,
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
-		 *             contains a cipher suite, not supported by the JVM,
-		 *             contains a name, which is not supported, violates the
-		 *             {@link DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY}
-		 *             setting, or the use of HELLO_VERIFY_REQUEST is disabled
-		 *             and no PSK cipher suite is contained.
-		 * @see DtlsConnectorConfig#getSupportedCipherSuites()
-		 */
-		public Builder setSupportedCipherSuites(String... cipherSuites) {
-			if (cipherSuites == null) {
-				throw new NullPointerException("Connector must support at least one cipher suite");
-			}
-			List<CipherSuite> suites = CipherSuite.getTypesByNames(cipherSuites);
-			return setSupportedCipherSuites(suites);
-		}
-
-		/**
-		 * Sets the signature algorithms supported by the connector.
-		 * <p>
-		 * The connector will use these signature algorithms (in exactly the
-		 * same order) during the DTLS handshake.
-		 * 
-		 * @param supportedSignatureAlgorithms the supported signature
-		 *            algorithms in the order of preference. No arguments, if no
-		 *            specific extension is to be used for a client, and the
-		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the list violates the
-		 *             {@link DtlsConfig#DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY}
-		 *             setting.
-		 * @see DtlsConnectorConfig#getSupportedSignatureAlgorithms()
-		 * @since 3.0 (reports recommendedSignatureAndHashAlgorithmsOnly
-		 *        violations)
-		 */
-		public Builder setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm... supportedSignatureAlgorithms) {
-			if (supportedSignatureAlgorithms == null) {
-				config.supportedSignatureAlgorithms = null;
-				return this;
-			} else {
-				return setSupportedSignatureAlgorithms(Arrays.asList(supportedSignatureAlgorithms));
-			}
-		}
-
-		/**
-		 * Sets the signature algorithms supported by the connector.
-		 * <p>
-		 * The connector will use these signature algorithms (in exactly the
-		 * same order) during the DTLS handshake.
-		 * 
-		 * @param supportedSignatureAlgorithms the list of supported signature
-		 *            algorithms in the order of preference. Empty, if no
-		 *            specific extension is to be used for a client, and the
-		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the list violates the
-		 *             {@link DtlsConfig#DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY}
-		 *             setting.
-		 * @see DtlsConnectorConfig#getSupportedSignatureAlgorithms()
-		 * @since 3.0 (reports recommendedSignatureAndHashAlgorithmsOnly
-		 *        violations)
-		 */
-		public Builder setSupportedSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms) {
-			if (supportedSignatureAlgorithms != null && config.useRecommendedSignatureAndHashAlgorithmsOnly()) {
-				verifyRecommendedSignatureAndHashAlgorithmsOnly(supportedSignatureAlgorithms);
-			}
-			config.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
-			return this;
-		}
-
-		/**
-		 * Sets the signature algorithms supported by the connector.
-		 * <p>
-		 * The connector will use these signature algorithms (in exactly the
-		 * same order) during the DTLS handshake.
-		 * 
-		 * @param supportedSignatureAlgorithms the list of supported signature
-		 *            algorithm names in the order of preference. Empty, if no
-		 *            specific extension is to be used for a client, and the
-		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the list violates the
-		 *             {@link DtlsConfig#DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY}
-		 *             setting or not supported signature and algorithms are
-		 *             contained in the list.
-		 * @see SignatureAndHashAlgorithm#valueOf(String)
-		 * @see DtlsConnectorConfig#getSupportedSignatureAlgorithms()
-		 * @since 3.0 (reports recommendedSignatureAndHashAlgorithmsOnly
-		 *        violations)
-		 */
-		public Builder setSupportedSignatureAlgorithms(String... supportedSignatureAlgorithms) {
-			List<SignatureAndHashAlgorithm> list = null;
-			if (supportedSignatureAlgorithms != null) {
-				list = new ArrayList<SignatureAndHashAlgorithm>(supportedSignatureAlgorithms.length);
-				for (String value : supportedSignatureAlgorithms) {
-					SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm.valueOf(value);
-					if (signatureAndHashAlgorithm != null) {
-						list.add(signatureAndHashAlgorithm);
-					} else {
-						throw new IllegalArgumentException(
-								String.format("Signature and hash algorithm [%s] is not (yet?) supported", value));
-					}
-				}
-			}
-			return setSupportedSignatureAlgorithms(list);
-		}
-
-		/**
-		 * Sets the groups (curves) supported by the connector.
-		 * <p>
-		 * The connector will use these supported groups (in exactly the same
-		 * order) during the DTLS handshake when negotiating a curve with a
-		 * peer. According
-		 * <a href="https://tools.ietf.org/html/rfc8422#page-11" target=
-		 * "_blank">RFC 8422, 5.1. Client Hello Extensions, Actions of the
-		 * receiver</a> This affects both, curves for ECDH and the certificates
-		 * for ECDSA.
-		 * 
-		 * @param supportedGroups the supported groups (curves) in the order of
-		 *            preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is {@code null}
-		 * @throws IllegalArgumentException if the given array is empty,
-		 *             contains a group (curve), not supported by the JVM, or
-		 *             violates the
-		 *             {@link DtlsConfig#DTLS_RECOMMENDED_CURVES_ONLY} setting.
-		 * @see DtlsConnectorConfig#getSupportedGroups()
-		 * @since 2.3
-		 */
-		public Builder setSupportedGroups(SupportedGroup... supportedGroups) {
-			if (supportedGroups == null) {
-				throw new NullPointerException("Connector must support at least one group (curve)");
-			}
-			return setSupportedGroups(Arrays.asList(supportedGroups));
-		}
-
-		/**
-		 * Sets the groups (curves) supported by the connector.
-		 * <p>
-		 * The connector will use these supported groups (in exactly the same
-		 * order) during the DTLS handshake when negotiating a curve with a
-		 * peer. According
-		 * <a href="https://tools.ietf.org/html/rfc8422#page-11" target=
-		 * "_blank">RFC 8422, 5.1. Client Hello Extensions, Actions of the
-		 * receiver</a> This affects both, curves for ECDH and the certificates
-		 * for ECDSA.
-		 * 
-		 * @param supportedGroups the supported groups (curves) in the order of
-		 *            preference
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given list is {@code null}
-		 * @throws IllegalArgumentException if the given list is empty, contains
-		 *             a group (curve), not supported by the JVM, or violates
-		 *             the {@link DtlsConfig#DTLS_RECOMMENDED_CURVES_ONLY}
-		 *             setting.
-		 * @see DtlsConnectorConfig#getSupportedGroups()
-		 * @since 2.3
-		 */
-		public Builder setSupportedGroups(List<SupportedGroup> supportedGroups) {
-			if (supportedGroups == null) {
-				throw new NullPointerException("Connector must support at least one group (curve)");
-			}
-			if (supportedGroups.isEmpty()) {
-				throw new IllegalArgumentException("Connector must support at least one group (curve)");
-			}
-			if (config.useRecommendedSupportedGroupsOnly()) {
-				verifyRecommendedSupportedGroupsOnly(supportedGroups);
-			}
-			for (SupportedGroup group : supportedGroups) {
-				if (!group.isUsable()) {
-					throw new IllegalArgumentException("curve " + group.name() + " is not supported by JCE!");
-				}
-			}
-
-			config.supportedGroups = supportedGroups;
-			return this;
-		}
-
-		/**
-		 * Sets the groups (curves) supported by the connector.
-		 * <p>
-		 * The connector will use these supported groups (in exactly the same
-		 * order) during the DTLS handshake when negotiating a curve with a
-		 * peer. According
-		 * <a href="https://tools.ietf.org/html/rfc8422#page-11" target=
-		 * "_blank"> RFC 8422, 5.1. Client Hello Extensions, Actions of the
-		 * receiver</a> this affects both, curves for ECDH and the certificates
-		 * for ECDSA.
-		 * 
-		 * @param supportedGroups the names of supported groups (curves) in the
-		 *            order of preference (see <a href=
-		 *            "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8"
-		 *            target="_blank"> IANA registry</a> for a list of supported
-		 *            group names)
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is {@code null}
-		 * @throws IllegalArgumentException if the given array is empty,
-		 *             contains a group (curve), not supported by the JVM, or
-		 *             violates the
-		 *             {@link DtlsConfig#DTLS_RECOMMENDED_CURVES_ONLY} setting.
-		 * @see DtlsConnectorConfig#getSupportedGroups()
-		 * @since 2.3
-		 */
-		public Builder setSupportedGroups(String... supportedGroups) {
-			if (supportedGroups == null) {
-				throw new NullPointerException("Connector must support at least one supported group (curve)");
-			}
-			List<SupportedGroup> groups = new ArrayList<>(supportedGroups.length);
-			for (String value : supportedGroups) {
-				SupportedGroup knownGroup = SupportedGroup.valueOf(value);
-				if (knownGroup != null) {
-					groups.add(knownGroup);
-				} else {
-					throw new IllegalArgumentException(
-							String.format("Group (curve) [%s] is not (yet) supported", value));
-				}
-			}
-			return setSupportedGroups(groups);
-		}
-
-		/**
 		 * Sets the advanced key store to use for authenticating clients based
 		 * on a pre-shared key.
 		 * 
 		 * If used together with
 		 * {@link #setCertificateIdentityProvider(CertificateProvider)} the
 		 * default preference uses the certificate based cipher suites. To
-		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
-		 * {@link #setSupportedCipherSuites(String...)}.
+		 * change that, use the configuration of
+		 * {@link DtlsConfig#DTLS_CIPHER_SUITES}.
 		 * 
 		 * @param advancedPskStore the advanced key store
 		 * @return this builder for command chaining
@@ -2008,8 +1708,8 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)},
 		 * the default preference uses this certificate based cipher suites. To
-		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
-		 * {@link #setSupportedCipherSuites(String...)}.
+		 * change that, use the configuration of
+		 * {@link DtlsConfig#DTLS_CIPHER_SUITES}.
 		 * 
 		 * For cases, where only a single certificate based identity is used, a
 		 * instance of {@link SingleCertificateProvider} may be provided.
@@ -2211,8 +1911,8 @@ public final class DtlsConnectorConfig {
 			}
 
 			if (config.getRetransmissionTimeout() <= 0) {
-				throw new IllegalStateException("Retransmission timeout " + config.getRetransmissionTimeout()
-						+ " must not be 0 or less!");
+				throw new IllegalStateException(
+						"Retransmission timeout " + config.getRetransmissionTimeout() + " must not be 0 or less!");
 			}
 
 			if (config.getMaxRetransmissionTimeout() <= 0) {
@@ -2221,18 +1921,18 @@ public final class DtlsConnectorConfig {
 			}
 
 			if (config.getMaxRetransmissions() < 1) {
-				throw new IllegalStateException("Maximum retransmissions " + config.getMaxRetransmissions()
-						+ " must not be less than 1!");
+				throw new IllegalStateException(
+						"Maximum retransmissions " + config.getMaxRetransmissions() + " must not be less than 1!");
 			}
 
 			if (config.getRetransmissionRandomFactor() < 1.0F) {
-				throw new IllegalStateException("Retransmission timeout random factor " + config.getRetransmissionRandomFactor()
-						+ " must not be less than 1.0!");
+				throw new IllegalStateException("Retransmission timeout random factor "
+						+ config.getRetransmissionRandomFactor() + " must not be less than 1.0!");
 			}
 
 			if (config.getRetransmissionTimeoutScale() < 1.0F) {
-				throw new IllegalStateException("Retransmission timeout scale factor " + config.getRetransmissionTimeoutScale()
-						+ " must not be less than 1.0!");
+				throw new IllegalStateException("Retransmission timeout scale factor "
+						+ config.getRetransmissionTimeoutScale() + " must not be less than 1.0!");
 			}
 
 			if (config.getMaxTransmissionUnit() != null && config.getMaxTransmissionUnitLimit() != null) {
@@ -2264,26 +1964,21 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			if (config.supportedGroups == null) {
-				config.supportedGroups = config.configuration.get(DtlsConfig.DTLS_CURVES);
-			}
+			config.supportedGroups = config.configuration.get(DtlsConfig.DTLS_CURVES);
 			if (config.supportedGroups == null) {
 				config.supportedGroups = Collections.emptyList();
 			}
-			if (config.supportedSignatureAlgorithms == null) {
-				config.supportedSignatureAlgorithms = config.configuration
-						.get(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS);
-			}
+			config.supportedSignatureAlgorithms = config.configuration
+					.get(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS);
 			if (config.supportedSignatureAlgorithms == null) {
 				config.supportedSignatureAlgorithms = Collections.emptyList();
 			}
-			if (config.supportedCertificatekeyAlgorithms == null) {
-				config.supportedCertificatekeyAlgorithms = config.configuration
-						.get(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS);
-			}
+			config.supportedCertificatekeyAlgorithms = config.configuration
+					.get(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS);
 			if (config.supportedCertificatekeyAlgorithms == null) {
 				config.supportedCertificatekeyAlgorithms = Collections.emptyList();
 			}
+
 			if (config.cipherSuiteSelector == null && config.getDtlsRole() != DtlsRole.CLIENT_ONLY) {
 				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
 			}
@@ -2307,9 +2002,7 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
-				config.supportedCipherSuites = config.configuration.get(DtlsConfig.DTLS_CIPHER_SUITES);
-			}
+			config.supportedCipherSuites = config.configuration.get(DtlsConfig.DTLS_CIPHER_SUITES);
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				determineCipherSuitesFromConfig();
 			}
@@ -2319,10 +2012,9 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("Supported cipher suites must be set either "
 						+ "explicitly or implicitly by means of setting the identity or PSK store");
 			}
-			for (CipherSuite cipherSuite : config.supportedCipherSuites) {
-				if (!cipherSuite.isSupported()) {
-					throw new IllegalStateException("cipher-suites " + cipherSuite + " is not supported by JVM!");
-				}
+
+			if (config.useRecommendedCipherSuitesOnly()) {
+				verifyRecommendedCipherSuitesOnly(config.supportedCipherSuites);
 			}
 
 			boolean certifacte = false;
@@ -2401,6 +2093,10 @@ public final class DtlsConnectorConfig {
 				verifyRecommendedSupportedGroupsOnly(config.supportedGroups);
 			}
 
+			if (config.useRecommendedSignatureAndHashAlgorithmsOnly()) {
+				verifyRecommendedSignatureAndHashAlgorithmsOnly(config.supportedSignatureAlgorithms);
+			}
+
 			if (config.certificateConfigurationHelper != null) {
 				config.certificateConfigurationHelper
 						.verifySignatureAndHashAlgorithmsConfiguration(config.supportedSignatureAlgorithms);
@@ -2426,7 +2122,7 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.useHelloVerifyRequest() && !config.useHelloVerifyRequestForPsk()
 					&& !CipherSuite.containsPskBasedCipherSuite(config.supportedCipherSuites)) {
-				throw new IllegalArgumentException(
+				throw new IllegalStateException(
 						"HELLO_VERIFY_REQUEST disabled for PSK, requires at least one PSK cipher suite!");
 			}
 			config.supportedCertificatekeyAlgorithms = ListUtils.init(config.supportedCertificatekeyAlgorithms);
@@ -2470,12 +2166,11 @@ public final class DtlsConnectorConfig {
 				if (config.certificateIdentityProvider == null) {
 					throw new IllegalStateException("Identity must be set for configured " + suite.name());
 				}
-				if (config.certificateConfigurationHelper != null) {
-					List<CertificateKeyAlgorithm> keyAlgorithms = config.certificateConfigurationHelper.getSupportedCertificateKeyAlgorithms();
-					if (!keyAlgorithms.contains(suite.getCertificateKeyAlgorithm())) {
-						throw new IllegalStateException(
-								"One of the keys (" + keyAlgorithms + ") must be capable for configured " + suite.name());
-					}
+				List<CertificateKeyAlgorithm> keyAlgorithms = config.certificateIdentityProvider
+						.getSupportedCertificateKeyAlgorithms();
+				if (!keyAlgorithms.contains(suite.getCertificateKeyAlgorithm())) {
+					throw new IllegalStateException(
+							"One of the keys (" + keyAlgorithms + ") must be capable for configured " + suite.name());
 				}
 				if (config.getCertificateAuthenticationMode() != CertificateAuthenticationMode.NONE) {
 					if (config.advancedCertificateVerifier == null) {
@@ -2498,8 +2193,8 @@ public final class DtlsConnectorConfig {
 				}
 			}
 			if (message.length() > 0) {
-				throw new IllegalArgumentException("Not recommended cipher suites " + message
-						+ " used! (Requires to set recommendedCipherSuitesOnly to false.)");
+				throw new IllegalStateException("Not recommended cipher suites " + message
+						+ " used! (Requires to set DTLS_RECOMMENDED_CIPHER_SUITES_ONLY to false.)");
 			}
 		}
 
@@ -2514,8 +2209,8 @@ public final class DtlsConnectorConfig {
 				}
 			}
 			if (message.length() > 0) {
-				throw new IllegalArgumentException("Not recommended supported groups (curves) " + message
-						+ " used! (Requires to set recommendedSupportedGroupsOnly to false.)");
+				throw new IllegalStateException("Not recommended supported groups (curves) " + message
+						+ " used! (Requires to set DTLS_RECOMMENDED_CURVES_ONLY to false.)");
 			}
 		}
 
@@ -2531,8 +2226,8 @@ public final class DtlsConnectorConfig {
 				}
 			}
 			if (message.length() > 0) {
-				throw new IllegalArgumentException("Not recommended signature and hash algorithms " + message
-						+ " used! (Requires to set recommendedSignatureAndHashAlgorithmsOnly to false.)");
+				throw new IllegalStateException("Not recommended signature and hash algorithms " + message
+						+ " used! (Requires to set DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY to false.)");
 			}
 		}
 
@@ -2544,13 +2239,22 @@ public final class DtlsConnectorConfig {
 			if (config.certificateIdentityProvider != null || config.advancedCertificateVerifier != null) {
 				// certificate based cipher suites.
 				List<CertificateKeyAlgorithm> keyAlgorithms = new ArrayList<>();
-				if (config.certificateConfigurationHelper != null) {
-					keyAlgorithms.addAll(config.certificateConfigurationHelper.getSupportedCertificateKeyAlgorithms());
-				}
 				if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
-					// clients may operate anonymous
-					// therefore ensure, EC is added in order to comply to RFC7252
-					ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
+					if (config.supportedCertificatekeyAlgorithms.isEmpty()) {
+						// clients may operate anonymous. therefore ensure,
+						// EC is added in order to comply to RFC7252
+						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
+						if (config.certificateIdentityProvider != null) {
+							ListUtils.addIfAbsent(keyAlgorithms,
+									config.certificateIdentityProvider.getSupportedCertificateKeyAlgorithms());
+						}
+					} else {
+						ListUtils.addIfAbsent(keyAlgorithms, config.supportedCertificatekeyAlgorithms);
+					}
+				} else if (config.certificateIdentityProvider != null) {
+					// server's must have certificate to support a cipher suite.
+					ListUtils.addIfAbsent(keyAlgorithms,
+							config.certificateIdentityProvider.getSupportedCertificateKeyAlgorithms());
 				}
 				if (!keyAlgorithms.isEmpty()) {
 					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.useRecommendedCipherSuitesOnly(),
@@ -2566,14 +2270,9 @@ public final class DtlsConnectorConfig {
 				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(
 						config.useRecommendedCipherSuitesOnly(), KeyExchangeAlgorithm.PSK));
 			}
-			if (config.getPreselectedCipherSuites() != null) {
-				List<CipherSuite> preselect = new ArrayList<>();
-				for (CipherSuite cipherSuite : config.getPreselectedCipherSuites()) {
-					if (ciphers.contains(cipherSuite)) {
-						preselect.add(cipherSuite);
-					}
-				}
-				ciphers = preselect;
+			List<CipherSuite> preselectedCipherSuites = config.getPreselectedCipherSuites();
+			if (preselectedCipherSuites != null && !preselectedCipherSuites.isEmpty()) {
+				ciphers = CipherSuite.preselectCipherSuites(ciphers, preselectedCipherSuites);
 			}
 			config.supportedCipherSuites = ciphers;
 		}

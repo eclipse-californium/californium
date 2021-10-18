@@ -334,7 +334,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_RETRANSMISSION_BACKOFF = new IntegerDefinition(
 			MODULE + "RETRANSMISSION_BACKOFF",
-			"DTLS number of flight retransmissions before switching to backoff mode using single handshake messages in single record datagrams.",
+			"Number of flight-retransmissions before switching to backoff mode using single handshake messages in single record datagrams.",
 			null, 0);
 
 	/**
@@ -377,7 +377,8 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = new IntegerDefinition(
 			MODULE + "MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH",
-			"DTLS maximum length of reassembled fragmented handshake message.\nMust be large enough for used certificates.",
+			"DTLS maximum length of reassembled fragmented handshake message.\n" +
+			"Must be large enough for used certificates.",
 			DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH, 64);
 
 	/**
@@ -480,7 +481,8 @@ public final class DtlsConfig {
 	 */
 	public static final TimeDefinition DTLS_STALE_CONNECTION_THRESHOLD = new TimeDefinition(
 			MODULE + "STALE_CONNECTION_THRESHOLD",
-			"DTLS threshold for state connections. Connections will only get removed for new ones, if at least for that threshold no messages are exchanged using that connection.",
+			"DTLS threshold for state connections. Connections will only get removed for new ones, "+
+			"if at least for that threshold no messages are exchanged using that connection.",
 			DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS, TimeUnit.SECONDS);
 
 	/**
@@ -766,7 +768,8 @@ public final class DtlsConfig {
 	 */
 	public static final EnumListDefinition<CertificateKeyAlgorithm> DTLS_CERTIFICATE_KEY_ALGORITHMS = new EnumListDefinition<>(
 			MODULE + "CERTIFICATE_KEY_ALGORITHMS",
-			"List of DTLS certificate key algorithms.",
+			"List of DTLS certificate key algorithms.\n" +
+			"On the client side used to select the default cipher-suites, on the server side to negotiate the client's certificate.",
 			new CertificateKeyAlgorithm[] { CertificateKeyAlgorithm.EC, CipherSuite.CertificateKeyAlgorithm.RSA });
 
 	/**

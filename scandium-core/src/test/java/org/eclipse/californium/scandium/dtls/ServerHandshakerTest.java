@@ -111,7 +111,7 @@ public class ServerHandshakerTest {
 				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, certificateChain, CertificateType.X_509))
 				.setAdvancedCertificateVerifier(verifier)
-				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, SERVER_CIPHER_SUITE)
 				.build();
 		handshaker = newHandshaker(config);
 		session = handshaker.getSession();
@@ -230,7 +230,7 @@ public class ServerHandshakerTest {
 		Configuration configuration = new Configuration();
 		config = DtlsConnectorConfig.builder(configuration)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, DtlsTestTools.getPublicKey()))
-				.setSupportedCipherSuites(
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, 
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setAdvancedPskStore(new AdvancedSinglePskStore("client", "secret".getBytes()))

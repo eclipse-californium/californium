@@ -385,7 +385,7 @@ public class ClientInitializer {
 			}
 			if (clientConfig.cipherSuites != null && !clientConfig.cipherSuites.isEmpty()) {
 				dtlsConfig.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
-				dtlsConfig.setSupportedCipherSuites(clientConfig.cipherSuites);
+				dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, clientConfig.cipherSuites);
 				if (clientConfig.verbose) {
 					System.out.println("cipher suites:");
 					print("   ", 50, clientConfig.cipherSuites, System.out);
