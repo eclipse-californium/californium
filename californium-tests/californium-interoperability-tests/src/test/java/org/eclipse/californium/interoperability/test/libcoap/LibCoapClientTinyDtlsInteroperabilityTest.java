@@ -100,6 +100,16 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
 	}
 
+	@Test
+	public void testLibCoapClientTinyDtlsPskCCM() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM;
+		californiumUtil.start(BIND, null, cipherSuite);
+
+		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
+		connect("Hello, CoAP!", "Greetings!");
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
 	@Ignore
 	@Test
 	public void testLibCoapClientTinyDtlsPskMultiFragment() throws Exception {
@@ -129,6 +139,17 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 	public void testLibCoapClientTinyDtlsRpk() throws Exception {
 		processUtil.assumeMinVersion("4.3.0");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
+		californiumUtil.start(BIND, null, cipherSuite);
+
+		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
+		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)", "certificate_verify \\(15\\)");
+		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapClientTinyDtlsRpkCCM() throws Exception {
+		processUtil.assumeMinVersion("4.3.0");
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM;
 		californiumUtil.start(BIND, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
