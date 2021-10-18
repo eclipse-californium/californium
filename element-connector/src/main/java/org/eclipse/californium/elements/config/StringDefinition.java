@@ -30,7 +30,7 @@ public class StringDefinition extends BasicDefinition<String> {
 	 * @throws NullPointerException if key is {@code null}
 	 */
 	public StringDefinition(String key, String documentation) {
-		super(key, documentation, String.class);
+		super(key, documentation, String.class, null);
 	}
 
 	/**

@@ -30,7 +30,7 @@ public class BooleanDefinition extends BasicDefinition<Boolean> {
 	 * @throws NullPointerException if key is {@code null}
 	 */
 	public BooleanDefinition(String key, String documentation) {
-		super(key, documentation, Boolean.class);
+		super(key, documentation, Boolean.class, null);
 	}
 
 	/**

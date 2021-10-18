@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
-import org.eclipse.californium.elements.config.BasicDefinition;
+import org.eclipse.californium.elements.config.BasicListDefinition;
 import org.eclipse.californium.elements.config.BooleanDefinition;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
@@ -33,6 +33,7 @@ import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.StringSetDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
+import org.eclipse.californium.elements.config.ValueException;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
@@ -78,15 +79,15 @@ public final class DtlsConfig {
 	/**
 	 * Definition for list of signature and hash algorithms.
 	 */
-	public static class SignatureAndHashAlgorithmsDefinition extends BasicDefinition<List<SignatureAndHashAlgorithm>> {
+	public static class SignatureAndHashAlgorithmsDefinition extends BasicListDefinition<SignatureAndHashAlgorithm> {
 
 		public SignatureAndHashAlgorithmsDefinition(String key, String documentation) {
-			super(key, documentation, new ArrayList<SignatureAndHashAlgorithm>(), null);
+			super(key, documentation, null);
 		}
 
 		@Override
 		public String getTypeName() {
-			return "SignatureAndHashAlgorithm";
+			return "List<SignatureAndHashAlgorithm>";
 		}
 
 		@Override
@@ -100,8 +101,15 @@ public final class DtlsConfig {
 		}
 
 		@Override
-		public List<SignatureAndHashAlgorithm> defaultValue() {
-			return null;
+		public List<SignatureAndHashAlgorithm> checkValue(List<SignatureAndHashAlgorithm> value) throws ValueException {
+			if (value != null) {
+				for (SignatureAndHashAlgorithm algorithm : value) {
+					if (!algorithm.isSupported()) {
+						throw new IllegalArgumentException(algorithm + " is not supported by the JCE!");
+					}
+				}
+			}
+			return super.checkValue(value);
 		}
 
 		@Override
@@ -109,7 +117,7 @@ public final class DtlsConfig {
 			if (value instanceof List<?>) {
 				for (Object item : (List<?>) value) {
 					if (!(item instanceof SignatureAndHashAlgorithm)) {
-						return false;
+						throw new IllegalArgumentException(item + " is no SignatureAndHashAlgorithm");
 					}
 				}
 				return true;
@@ -122,6 +130,7 @@ public final class DtlsConfig {
 			String[] list = value.split(",");
 			List<SignatureAndHashAlgorithm> result = new ArrayList<>(list.length);
 			for (String in : list) {
+				in = in.trim();
 				SignatureAndHashAlgorithm item = SignatureAndHashAlgorithm.valueOf(in);
 				result.add(item);
 			}
@@ -739,12 +748,13 @@ public final class DtlsConfig {
 			"List of DTLS cipher-suites.\n" +
 			"If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.\n" +
 			"The supported cipher suites are evaluated at runtime and may differ from the ones when creating this properties file.",
-			CipherSuite.getCipherSuites(false, true));
+			null, 1, CipherSuite.getCipherSuites(false, true));
 	/**
 	 * Select curves ({@link SupportedGroup}s).
 	 */
 	public static final EnumListDefinition<SupportedGroup> DTLS_CURVES = new EnumListDefinition<>(MODULE + "CURVES",
-			"List of DTLS curves (supported groups).\nDefaults to all supported curves of the JCE at runtime.", SupportedGroup.values());
+			"List of DTLS curves (supported groups).\nDefaults to all supported curves of the JCE at runtime.",
+			SupportedGroup.getUsableGroupsArray());
 	/**
 	 * Select ({@link SignatureAndHashAlgorithm}s).
 	 */

@@ -660,6 +660,17 @@ public final class XECDHECryptography implements Destroyable {
 		}
 
 		/**
+		 * Gets all {@code SupportedGroup}s that can be used on this platform as array.
+		 * 
+		 * @return the supported groups as array.
+		 * @see #isUsable()
+		 * @since 3.0
+		 */
+		public static SupportedGroup[] getUsableGroupsArray() {
+			return Initialize.USABLE_GROUPS.toArray(new SupportedGroup[Initialize.USABLE_GROUPS.size()]);
+		}
+
+		/**
 		 * Gets the preferred <em>supported groups</em>.
 		 * 
 		 * @return the groups in order of preference as unmodifiable list.

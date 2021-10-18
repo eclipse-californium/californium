@@ -178,7 +178,7 @@ public class DtlsConnectorConfigTest {
 	@Test
 	public void testBuilderSetsPreselectedCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
 		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
-		builder.setList(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+		builder.setAsList(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 		DtlsConnectorConfig config = builder
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)

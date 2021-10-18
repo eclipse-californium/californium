@@ -39,18 +39,6 @@ public abstract class DocumentedDefinition<T> extends Definition<T> {
 	private final T defaultValue;
 
 	/**
-	 * Creates definition.
-	 * 
-	 * @param key key for properties. Must be global unique.
-	 * @param documentation documentation for properties.
-	 * @param valueType value type.
-	 * @throws NullPointerException if key is {@code null}
-	 */
-	DocumentedDefinition(String key, String documentation, Class<T> valueType) {
-		this(key, documentation, valueType, null);
-	}
-
-	/**
 	 * Creates definition with default value.
 	 * 
 	 * If the configuration value is mainly used with primitive types (e.g.
@@ -103,7 +91,7 @@ public abstract class DocumentedDefinition<T> extends Definition<T> {
 	 *         {@link Configuration#get(BasicDefinition)} instead of
 	 *         {@code null}.
 	 */
-	public T defaultValue() {
+	public T getDefaultValue() {
 		return defaultValue;
 	}
 
@@ -116,37 +104,41 @@ public abstract class DocumentedDefinition<T> extends Definition<T> {
 	 * @param value value in textual presentation. May be {@code null}.
 	 * @return value as type, or {@code null}, if provided textual value is
 	 *         {@code null}, empty, or could not be parsed.
+	 * @throws NullPointerException if value is {@code null}
+	 * @throws IllegalArgumentException if value is empty or could not parsed.
 	 */
 	public T readValue(String value) {
+		String errorMessage = null;
 		if (value == null) {
-			LOGGER.debug("key [{}] is undefined", getKey());
-			return null;
+			errorMessage = String.format("Key '%s': textual value must not be null!", getKey());
+			throw new NullPointerException(errorMessage);
 		}
 		if (useTrim()) {
 			value = value.trim();
 		}
 		if (value.isEmpty()) {
-			LOGGER.debug("key [{}] is empty", getKey());
-			return null;
+			errorMessage = String.format("Key '%s': textual value must not be empty!", getKey());
+			throw new IllegalArgumentException(errorMessage);
 		}
 		try {
 			T result = parseValue(value);
 			return checkValue(result);
 		} catch (NumberFormatException e) {
-			LOGGER.warn("Key '{}': value '{}' is no {}", getKey(), value, getTypeName());
+			errorMessage = String.format("Key '%s': value '%s' is no %s", getKey(), value, getTypeName());
 		} catch (ValueException e) {
-			LOGGER.warn("Key '{}': {}", getKey(), e.getMessage());
+			errorMessage = String.format("Key '%s': %s", getKey(), e.getMessage());
 		} catch (IllegalArgumentException e) {
-			LOGGER.warn("Key '{}': value '{}' {}", getKey(), value, e.getMessage());
+			errorMessage = String.format("Key '%s': value '%s' %s", getKey(), value, e.getMessage());
 		}
-		return null;
+		throw new IllegalArgumentException(errorMessage);
 	}
 
 	/**
 	 * Check, if value is valid.
 	 * 
 	 * @param value value to check
-	 * @return the provided value
+	 * @return the value to store. The provided value or the equivalent
+	 *         unmodifiable value.
 	 * @throws ValueException if the value is not valid, e.g. out of the
 	 *             intended range.
 	 */
@@ -164,6 +156,19 @@ public abstract class DocumentedDefinition<T> extends Definition<T> {
 	 */
 	protected boolean isAssignableFrom(Object value) {
 		return getValueType().isInstance(value);
+	}
+
+	/**
+	 * Check, if value is valid.
+	 * 
+	 * @param value value to check
+	 * @return the value to store. Usually the provided value or 
+	 * @throws ValueException if the value is not valid, e.g. out of the
+	 *             intended range.
+	 */
+	@SuppressWarnings("unchecked")
+	protected Object checkRawValue(Object value) throws ValueException {
+		return checkValue((T) value);
 	}
 
 	/**

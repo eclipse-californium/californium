@@ -37,7 +37,7 @@ public class IntegerDefinition extends BasicDefinition<Integer> {
 	 * @throws NullPointerException if key is {@code null}
 	 */
 	public IntegerDefinition(String key, String documentation) {
-		super(key, documentation, Integer.class);
+		super(key, documentation, Integer.class, null);
 		this.minimumValue = null;
 	}
 

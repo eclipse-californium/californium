@@ -38,7 +38,7 @@ public class TimeDefinition extends DocumentedDefinition<Long> {
 	 * @throws NullPointerException if key is {@code null}
 	 */
 	public TimeDefinition(String key, String documentation) {
-		super(key, documentation, Long.class);
+		super(key, documentation, Long.class, null);
 	}
 
 	/**

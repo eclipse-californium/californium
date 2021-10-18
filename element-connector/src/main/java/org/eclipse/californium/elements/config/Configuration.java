@@ -527,6 +527,9 @@ public final class Configuration {
 	 * Requires to add the {@link DocumentedDefinition}s of the modules or
 	 * custom definitions using a setter ahead.
 	 *
+	 * Unknown, transient or invalid values are ignored and the
+	 * {@link DocumentedDefinition#getDefaultValue()} will be used instead.
+	 * 
 	 * For Android, please use {@link Configuration#load(InputStream)}.
 	 * 
 	 * @param file the file
@@ -556,6 +559,9 @@ public final class Configuration {
 	 * 
 	 * Requires to add the {@link DocumentedDefinition}s of the modules or
 	 * custom definitions using a setter ahead.
+	 * 
+	 * Unknown, transient or invalid values are ignored and the
+	 * {@link DocumentedDefinition#getDefaultValue()} will be used instead.
 	 *
 	 * @param inStream the input stream
 	 * @throws NullPointerException if the inStream is {@code null}.
@@ -581,8 +587,13 @@ public final class Configuration {
 	 * Add properties.
 	 * 
 	 * Requires to add the {@link DocumentedDefinition}s of the modules or
-	 * custom definitions using a setter ahead. Apply conversion defined by that
-	 * {@link DocumentedDefinition}s.
+	 * custom definitions using a setter ahead.
+	 * 
+	 * Unknown, transient or invalid values are ignored and the
+	 * {@link DocumentedDefinition#getDefaultValue()} will be used instead.
+	 * 
+	 * Applies conversion defined by that {@link DocumentedDefinition}s to
+	 * the textual values.
 	 * 
 	 * @param properties properties to convert and add
 	 * @throws NullPointerException if properties is {@code null}.
@@ -607,7 +618,7 @@ public final class Configuration {
 					LOGGER.info("Ignore {}, definition set transient!", key);
 				} else {
 					String text = properties.getProperty(key);
-					Object value = definition.readValue(text);
+					Object value = loadValue(definition, text);
 					values.put(key, value);
 				}
 			}
@@ -618,10 +629,15 @@ public final class Configuration {
 	 * Add dictionary.
 	 * 
 	 * Requires to add the {@link DocumentedDefinition}s of the modules or
-	 * custom definitions using a setter ahead. Apply conversion defined by that
-	 * {@link DocumentedDefinition}s to String entries. Entries of other types
-	 * are added, if {@link DocumentedDefinition#isAssignableFrom(Object)}
-	 * returns {@code true}.
+	 * custom definitions using a setter ahead.
+	 * 
+	 * Unknown, transient or invalid values are ignored and the
+	 * {@link DocumentedDefinition#getDefaultValue()} will be used instead.
+	 * 
+	 * Applies conversion defined by that {@link DocumentedDefinition}s to
+	 * String entries. Entries of other types are added, if
+	 * {@link DocumentedDefinition#isAssignableFrom(Object)} returns
+	 * {@code true}.
 	 * 
 	 * @param dictionary dictionary to convert and add
 	 * @throws NullPointerException if dictionary is {@code null}.
@@ -646,14 +662,46 @@ public final class Configuration {
 				LOGGER.info("Ignore {}, definition set transient!", key);
 			} else {
 				if (value instanceof String) {
-					value = definition.readValue((String) value);
-				} else if (value != null && !definition.isAssignableFrom(value)) {
-					throw new IllegalArgumentException(
-							value.getClass().getSimpleName() + " is not a " + definition.getTypeName());
+					String text = (String) value;
+					value = loadValue(definition, text);
+				} else if (value != null) {
+					if (!definition.isAssignableFrom(value)) {
+						LOGGER.warn("{} is not a {}!", value.getClass().getSimpleName(), definition.getTypeName());
+						value = null;
+					}
+					try {
+						value = definition.checkRawValue(value);
+					} catch (ValueException e) {
+						value = null;
+					}
 				}
 				values.put(key, value);
 			}
 		}
+	}
+
+	/**
+	 * Load value from text.
+	 * 
+	 * @param definition value's definition
+	 * @param text textual value
+	 * @return value, or {@code null}, if textual value is empty or could not be
+	 *         read.
+	 */
+	private Object loadValue(DocumentedDefinition<?> definition, String text) {
+		Object value = null;
+		if (text != null) {
+			text = text.trim();
+			if (!text.isEmpty()) {
+				try {
+					value = definition.readValue(text);
+				} catch (RuntimeException ex) {
+					LOGGER.warn("{}", ex.getMessage());
+					value = null;
+				}
+			}
+		}
+		return value;
 	}
 
 	/**
@@ -779,7 +827,7 @@ public final class Configuration {
 		if (docu != null) {
 			documentation.append(docu);
 		}
-		Object defaultValue = definition.defaultValue();
+		Object defaultValue = definition.getDefaultValue();
 		if (defaultValue != null) {
 			String defaultText = definition.write(defaultValue);
 			if (defaultText != null) {
@@ -874,6 +922,8 @@ public final class Configuration {
 	/**
 	 * Associates the specified list of values with the specified definition.
 	 * 
+	 * Also used, if only a single value is set as list.
+	 * 
 	 * @param <T> item value type
 	 * @param definition the value definition
 	 * @param values the list of values
@@ -881,22 +931,20 @@ public final class Configuration {
 	 * @throws NullPointerException if the definition or values is {@code null}
 	 * @throws IllegalArgumentException if a different definition is already
 	 *             available for the key of the provided definition or the
-	 *             values are empty.
+	 *             values doesn't match the constraints of the definition.
 	 */
-	public <T extends Enum<?>> Configuration setList(EnumListDefinition<T> definition,
+	public <T> Configuration setAsList(BasicListDefinition<T> definition,
 			@SuppressWarnings("unchecked") T... values) {
 		if (values == null) {
 			throw new NullPointerException("Values must not be null!");
-		}
-		if (values.length == 0) {
-			throw new IllegalArgumentException("Values must not be empty!");
 		}
 		setInternal(definition, Arrays.asList(values), null);
 		return this;
 	}
 
 	/**
-	 * Associates the specified list of text values with the specified definition.
+	 * Associates the specified list of text values with the specified
+	 * definition.
 	 * 
 	 * @param <T> item value type
 	 * @param definition the value definition
@@ -905,22 +953,26 @@ public final class Configuration {
 	 * @throws NullPointerException if the definition or values is {@code null}
 	 * @throws IllegalArgumentException if a different definition is already
 	 *             available for the key of the provided definition or the
-	 *             values are empty.
+	 *             values doesn't match the constraints of the definition.
 	 */
-	public <T extends Enum<?>> Configuration setListFromText(EnumListDefinition<T> definition,
-			String... values) {
+	public <T> Configuration setAsListFromText(BasicListDefinition<T> definition, String... values) {
 		if (values == null) {
 			throw new NullPointerException("Values must not be null!");
 		}
-		if (values.length == 0) {
-			throw new IllegalArgumentException("Values must not be empty!");
+		if (values.length > 0) {
+			StringBuffer all = new StringBuffer();
+			for (String value : values) {
+				all.append(value).append(",");
+			}
+			int len = all.length();
+			if (len > 0) {
+				all.setLength(len - 1);
+			}
+			setInternal(definition, null, all.toString());
+		} else {
+			List<T> empty = Collections.emptyList();
+			setInternal(definition, empty, null);
 		}
-		StringBuffer all = new StringBuffer();
-		for (String value : values) {
-			all.append(value).append(",");
-		}
-		all.setLength(all.length() - 1);
-		setInternal(definition, null, all.toString());
 		return this;
 	}
 
@@ -1033,7 +1085,7 @@ public final class Configuration {
 	 * @param <T> type of the value
 	 * @param definition definition of the value.
 	 * @return the associated value. if {@code null}, return the
-	 *         {@link DocumentedDefinition#defaultValue()} instead.
+	 *         {@link DocumentedDefinition#getDefaultValue()} instead.
 	 * @throws NullPointerException if the definition is {@code null}
 	 * @throws IllegalArgumentException if a different definition is already
 	 *             available for the key of the provided definition.
@@ -1049,7 +1101,7 @@ public final class Configuration {
 		}
 		T value = (T) values.get(definition.getKey());
 		if (value == null) {
-			return definition.defaultValue();
+			return definition.getDefaultValue();
 		} else {
 			return value;
 		}
@@ -1078,15 +1130,16 @@ public final class Configuration {
 		}
 		if (value == null && text != null) {
 			value = definition.readValue(text);
-		}
-		if (value != null && !definition.isAssignableFrom(value)) {
-			throw new IllegalArgumentException(
-					value.getClass().getSimpleName() + " is not a " + definition.getTypeName());
-		}
-		try {
-			definition.checkValue(value);
-		} catch (ValueException ex) {
-			throw new IllegalArgumentException(ex.getMessage());
+		} else {
+			if (value != null && !definition.isAssignableFrom(value)) {
+				throw new IllegalArgumentException(
+						value.getClass().getSimpleName() + " is not a " + definition.getTypeName());
+			}
+			try {
+				value = definition.checkValue(value);
+			} catch (ValueException ex) {
+				throw new IllegalArgumentException(ex.getMessage());
+			}
 		}
 		values.put(definition.getKey(), value);
 	}
