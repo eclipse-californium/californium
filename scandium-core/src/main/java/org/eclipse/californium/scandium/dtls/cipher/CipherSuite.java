@@ -836,6 +836,41 @@ public enum CipherSuite {
 		return false;
 	}
 
+	/**
+	 * Apply preselection to cipher suites.
+	 * 
+	 * Select (filter) and sort the cipher suites according the preselection
+	 * list.
+	 * 
+	 * @param cipherSuites the cipher suites
+	 * @param preselect the list of preselected cipher suites
+	 * @return the selected and sorted list of cipher suites
+	 * @throws NullPointerException if any of the provided lists is {@code null}.
+	 * @throws IllegalArgumentException if any of the provided lists is empty.
+	 * @since 3.0
+	 */
+	public static List<CipherSuite> preselectCipherSuites(List<CipherSuite> cipherSuites, List<CipherSuite> preselect) {
+		if (cipherSuites == null) {
+			throw new NullPointerException("The cipher-suites must not be null!");
+		}
+		if (preselect == null) {
+			throw new NullPointerException("The preselected cipher-suites must not be null!");
+		}
+		if (cipherSuites.isEmpty()) {
+			throw new IllegalArgumentException("The cipher-suites must not be empty");
+		}
+		if (preselect.isEmpty()) {
+			throw new IllegalArgumentException("The preselected cipher-suites must not be empty!");
+		}
+		List<CipherSuite> ordered = new ArrayList<>();
+		for (CipherSuite cipherSuite : preselect) {
+			if (cipherSuites.contains(cipherSuite)) {
+				ordered.add(cipherSuite);
+			}
+		}
+		return ordered;
+	}
+
 	// Serialization //////////////////////////////////////////////////
 
 	/**

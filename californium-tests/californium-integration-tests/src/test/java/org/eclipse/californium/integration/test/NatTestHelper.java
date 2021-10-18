@@ -296,7 +296,7 @@ public class NatTestHelper {
 				.setLoggingTag(tag)
 				.setHealthHandler(health)
 				.setConnectionIdGenerator(cidGenerator)
-				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setAdvancedPskStore(new AdvancedSinglePskStore(IDENITITY + "." + size, KEY.getBytes())).build();
 
 		DebugConnectionStore connections = new DebugConnectionStore(clientDtlsConfig.getMaxConnections(),

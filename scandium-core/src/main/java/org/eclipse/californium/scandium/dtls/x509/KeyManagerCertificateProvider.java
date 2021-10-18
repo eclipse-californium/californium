@@ -77,6 +77,10 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * List of supported certificate type in order of preference.
 	 */
 	private final List<CertificateType> supportedCertificateTypes;
+	/**
+	 * List of supported certificate key algorithms.
+	 */
+	private final List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms;
 
 	/**
 	 * Create certificate provider based on key manager.
@@ -88,8 +92,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public KeyManagerCertificateProvider(X509KeyManager keyManager,
-			CertificateType... supportedCertificateTypes) {
+	public KeyManagerCertificateProvider(X509KeyManager keyManager, CertificateType... supportedCertificateTypes) {
 		this(null, keyManager, asList(supportedCertificateTypes));
 	}
 
@@ -103,8 +106,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public KeyManagerCertificateProvider(X509KeyManager keyManager,
-			List<CertificateType> supportedCertificateTypes) {
+	public KeyManagerCertificateProvider(X509KeyManager keyManager, List<CertificateType> supportedCertificateTypes) {
 		this(null, keyManager, supportedCertificateTypes);
 	}
 
@@ -158,11 +160,32 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 			supportedCertificateTypes.add(CertificateType.X_509);
 		}
 		this.supportedCertificateTypes = Collections.unmodifiableList(supportedCertificateTypes);
+		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = new ArrayList<>();
+		List<String> aliases = getAliases(false, ALL_KEY_TYPES, null);
+		for (String alias : aliases) {
+			setup(alias, supportedCertificateKeyAlgorithms);
+		}
+		aliases = getAliases(true, ALL_KEY_TYPES, null);
+		for (String alias : aliases) {
+			setup(alias, supportedCertificateKeyAlgorithms);
+		}
+		this.supportedCertificateKeyAlgorithms = Collections.unmodifiableList(supportedCertificateKeyAlgorithms);
+	}
+
+	private void setup(String alias, List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms) {
+		X509Certificate[] certificateChain = keyManager.getCertificateChain(alias);
+		if (certificateChain != null && certificateChain.length > 0) {
+			PublicKey key = certificateChain[0].getPublicKey();
+			CertificateKeyAlgorithm keyAlgorithm = CertificateKeyAlgorithm.getAlgorithm(key);
+			ListUtils.addIfAbsent(supportedCertificateKeyAlgorithms, keyAlgorithm);
+		}
 	}
 
 	@Override
 	public void setupConfigurationHelper(CertificateConfigurationHelper helper) {
-
+		if (helper == null) {
+			throw new NullPointerException("Certificate configuration helper must not be null!");
+		}
 		List<String> aliases = getAliases(false, ALL_KEY_TYPES, null);
 		for (String alias : aliases) {
 			setupConfigurationHelperForAlias(helper, alias);
@@ -174,9 +197,10 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	}
 
 	/**
-	 * Setup configuration helper using the credentials of the provided alias.
+	 * Setup {@link #supportedCertificateKeyAlgorithms} and the optional
+	 * configuration helper using the credentials of the provided alias.
 	 * 
-	 * @param helper configuration helper
+	 * @param helper configuration helper. May be {@code null}.
 	 * @param alias alias of the credentials.
 	 */
 	private void setupConfigurationHelperForAlias(CertificateConfigurationHelper helper, String alias) {
@@ -188,6 +212,11 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				helper.addConfigurationDefaultsFor(certificateChain[0].getPublicKey());
 			}
 		}
+	}
+
+	@Override
+	public List<CertificateKeyAlgorithm> getSupportedCertificateKeyAlgorithms() {
+		return supportedCertificateKeyAlgorithms;
 	}
 
 	@Override

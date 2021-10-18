@@ -49,6 +49,7 @@ import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -205,7 +206,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		californiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);
@@ -325,7 +326,7 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 
 		Configuration configuration = new Configuration();
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(configuration);
-		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+		dtlsBuilder.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		californiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);

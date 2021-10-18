@@ -51,6 +51,7 @@ public class SingleCertificateProvider implements CertificateProvider, Configura
 	 * List of supported certificate type in order of preference.
 	 */
 	private final List<CertificateType> supportedCertificateTypes;
+	private final List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms;
 
 	/**
 	 * Create static certificate provider from private key and certificate
@@ -117,6 +118,8 @@ public class SingleCertificateProvider implements CertificateProvider, Configura
 			this.certificateChain = null;
 		}
 		this.supportedCertificateTypes = Collections.unmodifiableList(supportedCertificateTypes);
+		this.supportedCertificateKeyAlgorithms = Collections
+				.unmodifiableList(Arrays.asList(CertificateKeyAlgorithm.getAlgorithm(publicKey)));
 	}
 
 	/**
@@ -146,18 +149,26 @@ public class SingleCertificateProvider implements CertificateProvider, Configura
 		this.privateKey = privateKey;
 		this.publicKey = publicKey;
 		this.certificateChain = null;
-		List<CertificateType> supportedCertificateTypes = new ArrayList<>(1);
-		supportedCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-		this.supportedCertificateTypes = Collections.unmodifiableList(supportedCertificateTypes);
+		this.supportedCertificateTypes = Collections.unmodifiableList(Arrays.asList(CertificateType.RAW_PUBLIC_KEY));
+		this.supportedCertificateKeyAlgorithms = Collections
+				.unmodifiableList(Arrays.asList(CertificateKeyAlgorithm.getAlgorithm(publicKey)));
 	}
 
 	@Override
 	public void setupConfigurationHelper(CertificateConfigurationHelper helper) {
+		if (helper == null) {
+			throw new NullPointerException("Certificate configuration helper must not be null!");
+		}
 		if (certificateChain != null) {
 			helper.addConfigurationDefaultsFor(this.certificateChain);
 		} else {
 			helper.addConfigurationDefaultsFor(this.publicKey);
 		}
+	}
+
+	@Override
+	public List<CertificateKeyAlgorithm> getSupportedCertificateKeyAlgorithms() {
+		return supportedCertificateKeyAlgorithms;
 	}
 
 	@Override

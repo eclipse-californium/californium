@@ -89,6 +89,13 @@ import org.eclipse.californium.scandium.util.ServerNames;
 public interface CertificateProvider {
 
 	/**
+	 * Get the list of supported certificate key algorithms.
+	 * 
+	 * @return the list of supported certificate key algorithms.
+	 */
+	List<CertificateKeyAlgorithm> getSupportedCertificateKeyAlgorithms();
+
+	/**
 	 * Get the list of supported certificate types in order of preference.
 	 * 
 	 * @return the list of supported certificate types.

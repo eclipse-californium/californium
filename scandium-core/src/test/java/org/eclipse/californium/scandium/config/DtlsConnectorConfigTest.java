@@ -32,6 +32,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeNotNull;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -63,7 +64,6 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.Signature
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
@@ -94,43 +94,36 @@ public class DtlsConnectorConfigTest {
 	@Test
 	public void testSetSupportedCiphersRejectsNullCipher() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(containsString("NULL Cipher Suite is not supported"));
-		builder.setSupportedCipherSuites(CipherSuite.TLS_NULL_WITH_NULL_NULL);
+		exception.expectMessage(containsString("is not in"));
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_NULL_WITH_NULL_NULL);
 	}
 
 	@Test
 	public void testSetSupportedCiphersRejectsEmptyArray() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(containsString("must support at least one cipher suite"));
-		builder.setSupportedCipherSuites(new CipherSuite[] {});
+		exception.expectMessage(containsString("must not be empty"));
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, new CipherSuite[] {});
 	}
 
 	@Test
 	public void testSetSupportedCiphersRejectsNull() {
 		exception.expect(NullPointerException.class);
-		exception.expectMessage(containsString("must support at least one cipher suite"));
-		builder.setSupportedCipherSuites((CipherSuite[]) null);
+		exception.expectMessage(containsString("must not be null"));
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, (CipherSuite[]) null);
 	}
 
 	@Test
 	public void testSetSupportedCiphersListRejectsNullCipher() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(containsString("NULL Cipher Suite is not supported"));
-		builder.setSupportedCipherSuites(Arrays.asList(CipherSuite.TLS_NULL_WITH_NULL_NULL));
+		exception.expectMessage(containsString("is not in"));
+		builder.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_NULL_WITH_NULL_NULL));
 	}
 
 	@Test
 	public void testSetSupportedCiphersListRejectsEmptyArray() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(containsString("must support at least one cipher suite"));
-		builder.setSupportedCipherSuites(new ArrayList<CipherSuite>(0));
-	}
-
-	@Test
-	public void testSetSupportedCiphersListRejectsNull() {
-		exception.expect(NullPointerException.class);
-		exception.expectMessage(containsString("must support at least one cipher suite"));
-		builder.setSupportedCipherSuites((List<CipherSuite>) null);
+		exception.expectMessage(containsString("must not be empty"));
+		builder.set(DtlsConfig.DTLS_CIPHER_SUITES, new ArrayList<CipherSuite>(0));
 	}
 
 	@Test
@@ -205,23 +198,42 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderDetectsNotRecommendedCiperSuite() {
-		exception.expect(IllegalArgumentException.class);
+		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("Not recommended cipher suites"));
-		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+		builder.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes()));
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256).build();
 	}
 
 	@Test
 	public void testBuilderDetectsNotRecommendedSignatureAndHashAlgorithms() {
-		exception.expect(IllegalArgumentException.class);
+		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("Not recommended signature and hash algorithms"));
-		builder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA);
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
+				.setAdvancedCertificateVerifier(verifier)
+				.build();
 	}
 
 	@Test
 	public void testBuilderDetectsNotRecommendedSupportedGroup() {
-		exception.expect(IllegalArgumentException.class);
+		SupportedGroup notRecommended = null;
+		for (SupportedGroup group : SupportedGroup.getUsableGroups()) {
+			if (!group.isRecommended()) {
+				notRecommended = group;
+				break;
+			}
+		}
+		assumeNotNull("no not recommended curve usable!", notRecommended);
+		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("Not recommended supported groups"));
-		builder.setSupportedGroups(XECDHECryptography.SupportedGroup.sect163k1);
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
+				.setAsList(DtlsConfig.DTLS_CURVES, notRecommended)
+				.setAdvancedCertificateVerifier(verifier)
+				.build();
 	}
 
 	@Test
@@ -229,9 +241,9 @@ public class DtlsConnectorConfigTest {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("public key used with not configured group (curve)"));
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
-		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
-				.setSupportedGroups("secp384r1")
+				.setAsListFromText(DtlsConfig.DTLS_CURVES, "secp384r1")
 				.setAdvancedCertificateVerifier(verifier)
 				.build();
 	}
@@ -240,14 +252,14 @@ public class DtlsConnectorConfigTest {
 	public void testBuilderDetectsMissingIdentity() {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("Identity must be set"));
-		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test
 	public void testBuilderDetectsMissingTrust() throws Exception {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("certificate verifier must be set"));
-		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())).build();
 	}
 
@@ -255,7 +267,7 @@ public class DtlsConnectorConfigTest {
 	public void testBuilderDetectsMissingPskStore() {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("PSK store must be set"));
-		builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8).build();
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test
@@ -327,7 +339,7 @@ public class DtlsConnectorConfigTest {
 	public void testBuildAllowsForAnonymousClientWithRpkTrust() {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
 		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
-		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 				.setAdvancedCertificateVerifier(verifier).build();
 	}
 
@@ -343,7 +355,7 @@ public class DtlsConnectorConfigTest {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("PSK store must be set"));
 		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
-		builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8).build();
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test
@@ -351,7 +363,7 @@ public class DtlsConnectorConfigTest {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("certificate verifier must be set"));
 		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
-		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test
@@ -369,7 +381,7 @@ public class DtlsConnectorConfigTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
 		DtlsConnectorConfig config = builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedCertificateVerifier(verifier)
-				.setSupportedSignatureAlgorithms((String[]) null)
+				.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, null)
 				.build();
 		assertNotNull(config.getSupportedSignatureAlgorithms());
 		assertThat(config.getSupportedSignatureAlgorithms(), is(SignatureAndHashAlgorithm.DEFAULT));
@@ -380,7 +392,7 @@ public class DtlsConnectorConfigTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
 		DtlsConnectorConfig config = builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedCertificateVerifier(verifier)
-				.setSupportedSignatureAlgorithms(Collections.<SignatureAndHashAlgorithm>emptyList())
+				.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, Collections.<SignatureAndHashAlgorithm>emptyList())
 				.build();
 		assertNotNull(config.getSupportedSignatureAlgorithms());
 		assertThat(config.getSupportedSignatureAlgorithms(), is(SignatureAndHashAlgorithm.DEFAULT));
@@ -392,7 +404,7 @@ public class DtlsConnectorConfigTest {
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedCertificateVerifier(verifier)
 				.set(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY, false)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
 				.build();
 	}
 
@@ -401,19 +413,19 @@ public class DtlsConnectorConfigTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain()))
 				.setAdvancedCertificateVerifier(verifier)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
 				.build();
 	}
 
 	@Test
 	public void testBuildDetectsErrorForSignatureAndHashAlgorithmsRpk() throws IOException, GeneralSecurityException {
-		SignatureAndHashAlgorithm algo = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.DSA);
+		SignatureAndHashAlgorithm algo = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.RSA);
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage("supported signature and hash algorithms doesn't match the public key!");
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedCertificateVerifier(verifier)
-				.setSupportedSignatureAlgorithms(algo)
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, algo)
 				.build();
 	}
 
@@ -425,7 +437,7 @@ public class DtlsConnectorConfigTest {
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain()))
 				.setAdvancedCertificateVerifier(verifier)
 				.set(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY, false)
-				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
 				.build();
 	}
 
@@ -556,15 +568,17 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST disabled, requires at least on PSK cipher suite!"));
+		exception.expect(IllegalStateException.class);
+		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST disabled for PSK, requires at least one PSK cipher suite!"));
 		builder.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, false);
-		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build());
+		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()));
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test
 	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite2() {
-		exception.expect(IllegalArgumentException.class);
+		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST disabled"));
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()));
 		builder.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, false);
@@ -574,7 +588,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testDisableHelloVerifyRequestWithoutPskCiperSuite() {
-		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		builder.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST, false);
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()));
 		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);

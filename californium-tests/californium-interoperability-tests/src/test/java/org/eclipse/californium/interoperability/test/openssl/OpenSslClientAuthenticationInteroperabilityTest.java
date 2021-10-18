@@ -251,7 +251,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
-				.setSupportedSignatureAlgorithms(defaults);
+				.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, defaults);
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, "X25519:prime256v1",

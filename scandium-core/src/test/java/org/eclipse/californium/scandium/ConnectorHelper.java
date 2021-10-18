@@ -157,7 +157,7 @@ public class ConnectorHelper {
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(),
 						DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
-				.setSupportedCipherSuites(list)
+				.set(DtlsConfig.DTLS_CIPHER_SUITES, list)
 				.setLoggingTag("server");
 	}
 

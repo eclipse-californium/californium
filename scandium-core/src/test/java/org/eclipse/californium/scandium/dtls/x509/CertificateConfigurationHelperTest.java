@@ -30,7 +30,6 @@ import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,9 +57,6 @@ public class CertificateConfigurationHelperTest {
 				.getDefaultSignatureAndHashAlgorithms();
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
 	}
 
 	@Test
@@ -74,9 +70,6 @@ public class CertificateConfigurationHelperTest {
 				.getDefaultSignatureAndHashAlgorithms();
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
 	}
 
 	@Test
@@ -92,9 +85,6 @@ public class CertificateConfigurationHelperTest {
 				.getDefaultSignatureAndHashAlgorithms();
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
 	}
 
 	@Test
@@ -112,9 +102,6 @@ public class CertificateConfigurationHelperTest {
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
 	}
 
 	@Test
@@ -130,9 +117,6 @@ public class CertificateConfigurationHelperTest {
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
 	}
 
 	@Test
@@ -181,10 +165,6 @@ public class CertificateConfigurationHelperTest {
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(2));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
 	}
 
 	@Test
@@ -207,10 +187,6 @@ public class CertificateConfigurationHelperTest {
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(2));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
 	}
 
 	@Test
@@ -229,9 +205,6 @@ public class CertificateConfigurationHelperTest {
 				.getDefaultSignatureAndHashAlgorithms();
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.EC));
 	}
 
 	@Test
@@ -251,9 +224,6 @@ public class CertificateConfigurationHelperTest {
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(2));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
 	}
 
 	@Test
@@ -271,9 +241,6 @@ public class CertificateConfigurationHelperTest {
 				.getDefaultSignatureAndHashAlgorithms();
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
-		List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = helper.getSupportedCertificateKeyAlgorithms();
-		assertThat(supportedCertificateKeyAlgorithms.size(), is(1));
-		assertThat(supportedCertificateKeyAlgorithms, hasItem(CertificateKeyAlgorithm.RSA));
 	}
 
 }

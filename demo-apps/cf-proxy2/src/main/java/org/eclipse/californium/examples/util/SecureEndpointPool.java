@@ -108,7 +108,7 @@ public class SecureEndpointPool extends EndpointPool {
 
 		List<CipherSuite> list = CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(true,
 				KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
-		dtlsConfig.setSupportedCipherSuites(list);
+		dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, list);
 		if (cidLength != null) {
 			dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 		}

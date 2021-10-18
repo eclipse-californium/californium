@@ -33,6 +33,7 @@ public interface ConfigurationHelperSetup {
 	 * provided helper.
 	 * 
 	 * @param helper configuration helper.
+	 * @throws NullPointerException if the helper is {@code null}
 	 */
 	void setupConfigurationHelper(CertificateConfigurationHelper helper);
 
