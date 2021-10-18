@@ -828,7 +828,7 @@ public class NioNatUtil implements Runnable {
 		} catch (IOException e) {
 			LOGGER.error("io-error on close!", e);
 		}
-		LOGGER.warn("NAT stopped. {} forwarded messages, {} backwarded", forwardCounter, backwardCounter);
+		LOGGER.warn("NAT {} stopped. {} forwarded messages, {} backwarded", proxyName, forwardCounter, backwardCounter);
 	}
 
 	/**
