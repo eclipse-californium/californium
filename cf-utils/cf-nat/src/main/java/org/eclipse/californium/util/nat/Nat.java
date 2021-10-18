@@ -119,10 +119,11 @@ public class Nat {
 					util.addDestination(destinationAddress);
 				}
 			}
+
 			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 			while ((line = in.readLine()) != null) {
 				if (line.equals("exit") || line.equals("quit")) {
-					util.stop();
+					System.out.println(">> " + line);
 					break;
 				} else if (line.equals("help") || line.equals("?")) {
 					System.out.println("help or ? - print this help");
@@ -180,6 +181,9 @@ public class Nat {
 					util.setReverseNatUpdate(false);
 					printInfo(util);
 				}
+			}
+			while (line == null) {
+				Thread.sleep(100000);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
