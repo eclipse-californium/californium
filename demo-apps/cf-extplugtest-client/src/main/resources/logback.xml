@@ -93,6 +93,10 @@
 		<appender-ref ref="STDOUT_SIMPLE" />
 	</logger>
 
+	<logger name="ch.qos.logback" level="ERROR" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<root level="WARN" >
 		<appender-ref ref="STDOUT" />
 		<appender-ref ref="ERROR_FILE" />
