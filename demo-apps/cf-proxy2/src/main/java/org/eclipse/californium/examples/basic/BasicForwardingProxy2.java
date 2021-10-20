@@ -84,6 +84,7 @@ public class BasicForwardingProxy2 {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 		TcpConfig.register();
 		Proxy2Config.register();
 	}

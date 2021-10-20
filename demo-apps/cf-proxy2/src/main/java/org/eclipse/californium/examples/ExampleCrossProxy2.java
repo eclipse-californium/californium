@@ -139,6 +139,7 @@ public class ExampleCrossProxy2 {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 		TcpConfig.register();
 		Proxy2Config.register();
 	}
@@ -311,7 +312,6 @@ public class ExampleCrossProxy2 {
 				}
 			}
 		}
-
 	}
 
 	private static Integer parse(String arg, String prefix, int defaultValue, Configuration config,

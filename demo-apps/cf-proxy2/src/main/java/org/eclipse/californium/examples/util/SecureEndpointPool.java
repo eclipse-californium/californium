@@ -18,7 +18,6 @@ package org.eclipse.californium.examples.util;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
-import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -31,9 +30,6 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
@@ -48,6 +44,7 @@ public class SecureEndpointPool extends EndpointPool {
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
+	private static final String SERVER_NAME = "server";
 
 	private DtlsConnectorConfig dtlsConfig;
 
@@ -90,9 +87,8 @@ public class SecureEndpointPool extends EndpointPool {
 		}
 	}
 
-	public static DtlsConnectorConfig.Builder setup(Configuration config) throws IOException, GeneralSecurityException {
+	public static DtlsConnectorConfig.Builder setupClient(Configuration config) throws IOException, GeneralSecurityException {
 		config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
-		Integer cidLength = config.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
 		SslContextUtil.Credentials clientCredentials = SslContextUtil.loadCredentials(
 				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
@@ -106,12 +102,23 @@ public class SecureEndpointPool extends EndpointPool {
 		verifierBuilder.setTrustAllRPKs();
 		dtlsConfig.setAdvancedCertificateVerifier(verifierBuilder.build());
 
-		List<CipherSuite> list = CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(true,
-				KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
-		dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, list);
-		if (cidLength != null) {
-			dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
-		}
+		return dtlsConfig;
+	}
+
+
+	public static DtlsConnectorConfig.Builder setupServer(Configuration config) throws IOException, GeneralSecurityException {
+		SslContextUtil.Credentials serverCredentials = SslContextUtil.loadCredentials(
+				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_NAME, KEY_STORE_PASSWORD,
+				KEY_STORE_PASSWORD);
+		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
+				SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
+		DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
+		dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
+				CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
+		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
+		verifierBuilder.setTrustedCertificates(trustedCertificates);
+		verifierBuilder.setTrustAllRPKs();
+		dtlsConfig.setAdvancedCertificateVerifier(verifierBuilder.build());
 
 		return dtlsConfig;
 	}

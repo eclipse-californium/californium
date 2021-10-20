@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.IntegerDefinition;
@@ -47,6 +48,7 @@ import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
+import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.unixhealth.NetStatLogger;
@@ -81,6 +83,18 @@ public class ExampleSecureProxy2 {
 	 */
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
 
+	public static final IntegerDefinition OUTGOING_MAX_ACTIVE_PEERS = new IntegerDefinition("OUTGOING_MAX_ACTIVE_PEERS",
+			"Maximum number of outgoing peers per endpoint.", 32, 8);
+
+	public static final IntegerDefinition OUTGOING_DTLS_MAX_CONNECTIONS = new IntegerDefinition(
+			"OUTGOING_DTLS_MAX_CONNECTIONS", "Maximum number of outgoing DTLS connections per endpoint.", 32, 8);
+
+	public static final IntegerDefinition MAX_CONNECTION_POOL_SIZE = new IntegerDefinition("MAX_CONNECTION_POOL_SIZE",
+			"Maximum size of connection pool.", 1000, 32);
+
+	public static final IntegerDefinition INIT_CONNECTION_POOL_SIZE = new IntegerDefinition("INIT_CONNECTION_POOL_SIZE",
+			"Initial size of connection pool.", 250, 16);
+
 	/**
 	 * Special configuration defaults handler.
 	 */
@@ -98,7 +112,15 @@ public class ExampleSecureProxy2 {
 			config.set(Proxy2Config.HTTPS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
 			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
+			config.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 1);
 			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
+			config.set(OUTGOING_MAX_ACTIVE_PEERS, 32);
+			config.set(OUTGOING_DTLS_MAX_CONNECTIONS, 32);
+			config.set(MAX_CONNECTION_POOL_SIZE, 1000);
+			config.set(INIT_CONNECTION_POOL_SIZE, 250);
 		}
 
 	};
@@ -107,6 +129,7 @@ public class ExampleSecureProxy2 {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 		DtlsConfig.register();
 		TcpConfig.register();
 		Proxy2Config.register();
@@ -126,11 +149,13 @@ public class ExampleSecureProxy2 {
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
 		Coap2CoapTranslator translater = new Coap2CoapTranslator();
 		Configuration outgoingConfig = new Configuration(config);
-		outgoingConfig.set(CoapConfig.MAX_ACTIVE_PEERS, 32);
-		outgoingConfig.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 1);
-		outgoingConfig.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 1);
-		DtlsConnectorConfig.Builder builder = SecureEndpointPool.setup(outgoingConfig);
-		pool = new SecureEndpointPool(1000, 250, outgoingConfig, mainExecutor, secondaryExecutor, builder.build());
+		outgoingConfig.set(CoapConfig.MAX_ACTIVE_PEERS, config.get(OUTGOING_MAX_ACTIVE_PEERS));
+		outgoingConfig.set(DtlsConfig.DTLS_MAX_CONNECTIONS, config.get(OUTGOING_DTLS_MAX_CONNECTIONS));
+		outgoingConfig.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
+		outgoingConfig.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 1);
+		DtlsConnectorConfig.Builder builder = SecureEndpointPool.setupClient(outgoingConfig);
+		pool = new SecureEndpointPool(config.get(MAX_CONNECTION_POOL_SIZE), config.get(INIT_CONNECTION_POOL_SIZE),
+				outgoingConfig, mainExecutor, secondaryExecutor, builder.build());
 		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, false, translater, pool);
 
 		// Forwards requests Coap to Coap or Coap to Http server
@@ -157,20 +182,24 @@ public class ExampleSecureProxy2 {
 		ExampleSecureProxy2 proxy = new ExampleSecureProxy2(proxyConfig);
 		Configuration config = ExampleCoapServer.init();
 		for (int index = 0; index < args.length; ++index) {
-			Integer port = parse(args[index], "coap", ExampleCoapServer.DEFAULT_COAP_PORT, config,
-					CoapConfig.COAP_PORT);
+			Integer port = parse(args[index], "coaps", ExampleCoapServer.DEFAULT_COAP_SECURE_PORT, config,
+					CoapConfig.COAP_SECURE_PORT);
 			if (port != null) {
-				new ExampleCoapServer(config, port);
+				DtlsConnectorConfig.Builder builder = SecureEndpointPool.setupServer(config);
+				builder.setAddress(new InetSocketAddress(port));
+				DTLSConnector connector = new DTLSConnector(builder.build());
+				CoapEndpoint endpoint = CoapEndpoint.builder().setConfiguration(config).setConnector(connector).build();
+				new ExampleCoapServer(endpoint);
 
 				// reverse proxy: add a proxy resource with a translator
 				// returning a fixed destination URI
 				// don't add this to the ProxyMessageDeliverer
-				URI destination = URI.create("coap://localhost:" + port + "/coap-target");
+				URI destination = URI.create("coaps://localhost:" + port + "/coap-target");
 				CoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination1", true, true, true,
 						destination, proxy.pool);
 				proxy.coapProxyServer.getRoot().getChild("targets").add(reverseProxy);
 				System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
-						+ "/coap2coap and demo-server at coap://localhost:" + port + ExampleCoapServer.RESOURCE);
+						+ "/coap2coap and demo-server at coaps://localhost:" + port + ExampleCoapServer.RESOURCE);
 			}
 		}
 		startManagamentStatistic();
@@ -301,4 +330,5 @@ public class ExampleSecureProxy2 {
 			return String.format("%d:%02d:%02d [h:mm:ss]", hours, minutes, seconds);
 		}
 	}
+
 }

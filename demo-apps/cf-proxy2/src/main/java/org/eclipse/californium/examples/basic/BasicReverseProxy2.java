@@ -93,6 +93,7 @@ public class BasicReverseProxy2 {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 		TcpConfig.register();
 		Proxy2Config.register();
 	}
