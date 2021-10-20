@@ -45,6 +45,7 @@ import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
@@ -151,6 +152,21 @@ public abstract class AbstractTestServer extends CoapServer {
 	public static final SecretKey HONO_PSK_SECRET = SecretUtil.create("secret".getBytes(), "PSK");
 
 	public static final Pattern IPV6_SCOPE = Pattern.compile("^([0-9a-fA-F:]+)(%\\w+)?$");
+	/**
+	 * Preferred blocksize when using coap/UDP on external interface.
+	 * 
+	 * Small value to prevent amplification.
+	 */
+	public static final IntegerDefinition EXTERNAL_UDP_PREFERRED_BLOCK_SIZE = new IntegerDefinition("EXTERNAL_UDP_PREFERRED_BLOCK_SIZE",
+			"Preferred blocksize for blockwise transfer with coap/UDP using an external network interface.", 64, 16);
+
+	/**
+	 * Maximum payload size before using blockwise when using coap/UDP on external interface.
+	 * 
+	 * Small value to prevent amplification.
+	 */
+	public static final IntegerDefinition EXTERNAL_UDP_MAX_MESSAGE_SIZE = new IntegerDefinition("EXTERNAL_UDP_MAX_MESSAGE_SIZE",
+			"Maximum payload size with coap/UDP using an external network interface.", 64, 16);
 
 	private final Configuration config;
 	private final Map<Select, Configuration> selectConfig;
@@ -346,8 +362,9 @@ public abstract class AbstractTestServer extends CoapServer {
 					Configuration dtlsConfig = getConfig(Protocol.DTLS, interfaceType);
 					int handshakeResultDelayMillis = dtlsConfig.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
 
-					dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
-
+					if (cliConfig.clientAuth != null) {
+						dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+					}
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(dtlsConfig);
 					AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
 					asyncPskStore.setDelay(handshakeResultDelayMillis);
@@ -386,7 +403,9 @@ public abstract class AbstractTestServer extends CoapServer {
 				}
 				if (protocols.contains(Protocol.TLS) && serverSslContext != null) {
 					Configuration tlsConfig = getConfig(Protocol.TLS, interfaceType);
-					tlsConfig.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+					if (cliConfig.clientAuth != null) {
+						tlsConfig.set(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+					}
 					int maxPeers = tlsConfig.get(CoapConfig.MAX_ACTIVE_PEERS);
 					int sessionTimeout = tlsConfig.getTimeAsInt(TcpConfig.TLS_SESSION_TIMEOUT, TimeUnit.SECONDS);
 					SSLSessionContext serverSessionContext = serverSslContext.getServerSessionContext();

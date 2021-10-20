@@ -37,7 +37,9 @@ import java.security.GeneralSecurityException;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -158,6 +160,8 @@ public class PlugtestServer extends AbstractTestServer {
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
 			config.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
 			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PRESELECTED_CIPHER_SUITES);
+			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
+			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
 		}
 	};
 
@@ -187,7 +191,7 @@ public class PlugtestServer extends AbstractTestServer {
 		@Option(names = "--trust-all", description = "trust all valid certificates.")
 		public boolean trustall;
 
-		@Option(names = "--client-auth", defaultValue = "NEEDED", description = "client authentication. Values ${COMPLETION-CANDIDATES}, default ${DEFAULT-VALUE}.")
+		@Option(names = "--client-auth", description = "client authentication. Values ${COMPLETION-CANDIDATES}.")
 		public CertificateAuthenticationMode clientAuth;
 
 		@ArgGroup(exclusive = false)
@@ -289,11 +293,10 @@ public class PlugtestServer extends AbstractTestServer {
 			cmd.usage(System.err);
 			System.exit(-1);
 		}
-		init(config);
+		Configuration configuration = init(config);
 		load(config);
-		Configuration netConfig = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
-				netConfig.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
+				configuration.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
 				new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil
 				.newDefaultSecondaryScheduler("CoapServer(secondary)#");
@@ -332,9 +335,15 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 	}
 
-	public static void init(BaseConfig config) {
+	public static Configuration init(BaseConfig config) {
 
-		Configuration netconfig = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration configuration = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+
+		Configuration udpConfiguration = new Configuration(configuration)
+				.set(CoapConfig.MAX_MESSAGE_SIZE, configuration.get(EXTERNAL_UDP_MAX_MESSAGE_SIZE))
+				.set(CoapConfig.PREFERRED_BLOCK_SIZE, configuration.get(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE));
+		Map<Select, Configuration> protocolConfig = new HashMap<>();
+		protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfiguration);
 
 		// create server
 		try {
@@ -342,7 +351,7 @@ public class PlugtestServer extends AbstractTestServer {
 
 			List<InterfaceType> types = config.getInterfaceTypes();
 
-			server = new PlugtestServer(netconfig);
+			server = new PlugtestServer(configuration, protocolConfig);
 			server.setTag("PLUG-TEST");
 			add(server);
 			// ETSI Plugtest environment
@@ -362,7 +371,7 @@ public class PlugtestServer extends AbstractTestServer {
 			System.err.println("Exiting");
 			System.exit(ERR_INIT_FAILED);
 		}
-
+		return configuration;
 	}
 
 	public static void add(CoapServer server) {
@@ -674,8 +683,8 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 	}
 
-	public PlugtestServer(Configuration config) throws SocketException {
-		super(config, null);
+	public PlugtestServer(Configuration config, Map<Select, Configuration> protocolConfig) throws SocketException {
+		super(config, protocolConfig);
 
 		// add resources to the server
 		add(new DefaultTest());
