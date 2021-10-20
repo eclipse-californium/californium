@@ -23,17 +23,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.X509KeyManager;
+
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
-import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
@@ -103,10 +105,10 @@ public class CredentialsUtil {
 
 	// CID
 	public static final String OPT_CID = "CID:";
-	public static final int  DEFAULT_CID_LENGTH = 6;
+	public static final int DEFAULT_CID_LENGTH = 6;
 
 	// from demo-certs
-	public static final String SERVER_NAME = "server";
+	public static final String SERVER_NAME = "server.*";
 	public static final String CLIENT_NAME = "client";
 	private static final String TRUST_NAME = "root";
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
@@ -114,7 +116,7 @@ public class CredentialsUtil {
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
-	private static final String[] OPT_CID_LIST = {OPT_CID};
+	private static final String[] OPT_CID_LIST = { OPT_CID };
 
 	/**
 	 * Get opt-cid for argument.
@@ -155,7 +157,7 @@ public class CredentialsUtil {
 				} catch (NumberFormatException e) {
 					System.err.println("'" + value + "' is no number! Use cid-lenght default " + DEFAULT_CID_LENGTH);
 				}
-				builder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
+				builder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, cidLength);
 				if (cidLength == 0) {
 					System.out.println("Enable cid support");
 				} else {
@@ -168,13 +170,10 @@ public class CredentialsUtil {
 	/**
 	 * Parse arguments to modes.
 	 * 
-	 * @param args
-	 *            arguments
-	 * @param defaults
-	 *            default modes to use, if argument is empty or only contains
-	 *            {@link Mode#NO_AUTH}.
-	 * @param supported
-	 *            supported modes
+	 * @param args      arguments
+	 * @param defaults  default modes to use, if argument is empty or only contains
+	 *                  {@link Mode#NO_AUTH}.
+	 * @param supported supported modes
 	 * @return array of modes.
 	 */
 	public static List<Mode> parse(String[] args, List<Mode> defaults, List<Mode> supported) {
@@ -265,6 +264,8 @@ public class CredentialsUtil {
 		boolean rpkTrust = modes.contains(Mode.RPK_TRUST);
 		int x509 = modes.indexOf(Mode.X509);
 		int rpk = modes.indexOf(Mode.RPK);
+		boolean certificate = false;
+		;
 
 		if (noAuth) {
 			if (x509Trust) {
@@ -274,18 +275,15 @@ public class CredentialsUtil {
 				throw new IllegalArgumentException(Mode.NO_AUTH + " doesn't support " + Mode.RPK_TRUST);
 			}
 			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
-		}
-		else if (modes.contains(Mode.WANT_AUTH)) {
+		} else if (modes.contains(Mode.WANT_AUTH)) {
 			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		}
-
-		CertificateKeyAlgorithm keyAlgorithm = null;
+		Configuration configuration = config.getIncompleteConfig().getConfiguration();
 		Builder trustBuilder = StaticNewAdvancedCertificateVerifier.builder();
 		if (x509 >= 0 || rpk >= 0) {
-			keyAlgorithm = CertificateKeyAlgorithm.EC;
 			try {
 				// try to read certificates
-				SslContextUtil.Credentials serverCredentials = SslContextUtil.loadCredentials(
+				KeyManager[] credentials = SslContextUtil.loadKeyManager(
 						SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, certificateAlias, KEY_STORE_PASSWORD,
 						KEY_STORE_PASSWORD);
 				if (!noAuth) {
@@ -299,24 +297,25 @@ public class CredentialsUtil {
 						trustBuilder.setTrustAllRPKs();
 					}
 				}
-				if (x509 >= 0 || rpk >= 0) {
-					List<CertificateType> types = new ArrayList<>();
-					if (x509 >= 0 && rpk >= 0) {
-						if (rpk < x509) {
-							types.add(CertificateType.RAW_PUBLIC_KEY);
-							types.add(CertificateType.X_509);
-						} else {
-							types.add(CertificateType.X_509);
-							types.add(CertificateType.RAW_PUBLIC_KEY);
-						}
-					} else if (x509 >= 0) {
+				List<CertificateType> types = new ArrayList<>();
+				if (x509 >= 0 && rpk >= 0) {
+					if (rpk < x509) {
+						types.add(CertificateType.RAW_PUBLIC_KEY);
 						types.add(CertificateType.X_509);
-					} else if (rpk >= 0) {
+					} else {
+						types.add(CertificateType.X_509);
 						types.add(CertificateType.RAW_PUBLIC_KEY);
 					}
-					config.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(), types));
-					keyAlgorithm = CertificateKeyAlgorithm.getAlgorithm(serverCredentials.getPubicKey());
+				} else if (x509 >= 0) {
+					types.add(CertificateType.X_509);
+				} else if (rpk >= 0) {
+					types.add(CertificateType.RAW_PUBLIC_KEY);
 				}
+				X509KeyManager keyManager = SslContextUtil.getX509KeyManager(credentials);
+				KeyManagerCertificateProvider certificateProvider = new KeyManagerCertificateProvider(keyManager,
+						types);
+				config.setCertificateIdentityProvider(certificateProvider);
+				certificate = true;
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
 				System.err.println("certificates are invalid!");
@@ -344,20 +343,27 @@ public class CredentialsUtil {
 			trustBuilder.setTrustAllRPKs();
 		}
 		if (trustBuilder.hasTrusts()) {
+			certificate = true;
 			config.setAdvancedCertificateVerifier(trustBuilder.build());
 		}
-		if (psk && config.getIncompleteConfig().getSupportedCipherSuites() == null) {
-			List<CipherSuite> suites = new ArrayList<>();
-			if (x509 >= 0 || rpk >= 0 || x509Trust || rpkTrust) {
-				suites.addAll(CipherSuite.getCertificateCipherSuites(false, keyAlgorithm));
+		List<CipherSuite> ciphers = configuration.get(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES);
+		List<CipherSuite> selectedCiphers = new ArrayList<>();
+		for (CipherSuite cipherSuite : ciphers) {
+			KeyExchangeAlgorithm keyExchange = cipherSuite.getKeyExchange();
+			if (keyExchange == KeyExchangeAlgorithm.PSK) {
+				if (plainPsk) {
+					selectedCiphers.add(cipherSuite);
+				}
+			} else if (keyExchange == KeyExchangeAlgorithm.ECDHE_PSK) {
+				if (ecdhePsk) {
+					selectedCiphers.add(cipherSuite);
+				}
+			} else if (keyExchange == KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
+				if (certificate) {
+					selectedCiphers.add(cipherSuite);
+				}
 			}
-			if (ecdhePsk) {
-				suites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK));
-			}
-			if (plainPsk) {
-				suites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.PSK));
-			}
-			config.set(DtlsConfig.DTLS_CIPHER_SUITES, suites);
 		}
+		configuration.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, selectedCiphers);
 	}
 }
