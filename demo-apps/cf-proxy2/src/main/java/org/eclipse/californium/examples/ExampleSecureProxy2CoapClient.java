@@ -24,9 +24,11 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.examples.util.CoapResponsePrinter;
 import org.eclipse.californium.examples.util.SecureEndpointPool;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 
 /**
  * Example for a coap2coaps proxy.
@@ -39,6 +41,8 @@ public class ExampleSecureProxy2CoapClient {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
+		DtlsConfig.register();
 		TcpConfig.register();
 	}
 
@@ -62,6 +66,17 @@ public class ExampleSecureProxy2CoapClient {
 		request.setDestinationContext(proxy);
 		request.setURI("coap://californium.eclipseprojects.io:5684/test");
 		request.setProxyScheme("coaps");
+		request(client, request);
+
+		request = Request.newGet();
+		request.setDestinationContext(proxy);
+		request.setURI("coap://localhost:5686/coap-target");
+		request.setProxyScheme("coaps");
+		request(client, request);
+
+		// reverse proxy
+		request = Request.newGet();
+		request.setURI("coap://localhost/targets/destination1");
 		request(client, request);
 
 		client.shutdown();

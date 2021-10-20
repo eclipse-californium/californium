@@ -32,6 +32,7 @@ public class Proxy2 {
 	private static final String HTTP_CLIENT = ExampleProxy2HttpClient.class.getSimpleName();
 	private static final String COAP_SERVER = ExampleCoapServer.class.getSimpleName();
 	private static final String HTTP_SERVER = ExampleHttpServer.class.getSimpleName();
+	private static final String SECURE_COAP_CLIENT = ExampleSecureProxy2CoapClient.class.getSimpleName();
 
 	public static void main(String[] args)
 			throws IOException, ConnectorException, InterruptedException, GeneralSecurityException {
@@ -43,6 +44,9 @@ public class Proxy2 {
 				return;
 			} else if (SECURE_PROXY.equals(start)) {
 				ExampleSecureProxy2.main(args2);
+				return;
+			} else if (SECURE_COAP_CLIENT.equals(start)) {
+				ExampleSecureProxy2CoapClient.main(args2);
 				return;
 			} else if (COAP_CLIENT.equals(start)) {
 				ExampleProxy2CoapClient.main(args2);
@@ -61,8 +65,9 @@ public class Proxy2 {
 		System.out.println("\nCalifornium (Cf) Proxy2-Starter");
 		System.out.println("(c) 2020, Bosch.IO GmbH and others");
 		System.out.println();
-		System.out.println("Usage: " + Proxy2.class.getSimpleName() + " (" + CROSS_PROXY + "|" + SECURE_PROXY + "|"
-				+ COAP_CLIENT + "|" + HTTP_CLIENT + "|" + COAP_SERVER + "|" + HTTP_SERVER + ")");
+		System.out.println(
+				"Usage: " + Proxy2.class.getSimpleName() + " (" + CROSS_PROXY + "|" + SECURE_PROXY + "|" + COAP_CLIENT
+						+ "|" + SECURE_COAP_CLIENT + "|" + HTTP_CLIENT + "|" + COAP_SERVER + "|" + HTTP_SERVER + ")");
 		if (start != null) {
 			System.out.println("   '" + start + "' is not supported!");
 		}

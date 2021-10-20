@@ -26,6 +26,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.examples.util.CoapResponsePrinter;
 import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
@@ -64,6 +65,7 @@ public class ExampleProxy2CoapClient {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 		TcpConfig.register();
 	}
 

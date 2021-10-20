@@ -35,6 +35,7 @@ import org.eclipse.californium.proxy2.http.server.HttpServer;
  * {@link http://localhost:8000/http-target}
  */
 public class ExampleHttpServer {
+
 	/**
 	 * File name for configuration.
 	 */
@@ -61,6 +62,10 @@ public class ExampleHttpServer {
 		HttpServer server = new HttpServer(config, httpPort);
 		server.setSimpleResource(RESOURCE, "Hi! I am the Http Server on %s. Request %d.", requestCounter);
 		server.start();
+		System.out.println("==================================================");
+		System.out.println("== Started HTTP server on port " + httpPort);
+		System.out.println("== Request: http://<host>:" + httpPort + RESOURCE);
+		System.out.println("==================================================");
 	}
 
 	public void dumpStatistic() {

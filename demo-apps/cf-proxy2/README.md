@@ -7,7 +7,7 @@ The ExampleCrossProxy2 demonstrates the functions of the [californium-proxy2](..
 Start the proxy:
  
 ```sh
-java -jar cf-proxy2-3.0.0-M2.jar ExampleCrossProxy2 coap http
+java -jar cf-proxy2-3.0.0-SNAPSHOT.jar ExampleCrossProxy2 coap http
 ```
 
 This starts the example cross-proxy and a co-located coap- and http-destination-server.
@@ -15,14 +15,30 @@ This starts the example cross-proxy and a co-located coap- and http-destination-
 Start a example coap-client (same host as proxy):
 
 ```sh
-java -jar cf-proxy2-3.0.0-M2.jar ExampleProxy2CoapClient
+java -jar cf-proxy2-3.0.0-SNAPSHOT.jar ExampleProxy2CoapClient
 ```
 
 Start a example http-client (same host as proxy):
 
 ```sh
-java -jar cf-proxy2-3.0.0-M2.jar ExampleProxy2HttpClient
+java -jar cf-proxy2-3.0.0-SNAPSHOT.jar ExampleProxy2HttpClient
 ```
 
 To test other setups requires to edit the examples and build them on your own.
+
+## Usage with outgoing coaps
+
+Start the proxy:
+ 
+```sh
+java -jar cf-proxy2-3.0.0-SNAPSHOT.jar ExampleSecureProxy2 coaps
+```
+
+This starts the example cross-proxy and a co-located coaps-destination-server.
+
+Start a example coaps-client (same host as proxy):
+
+```sh
+java -jar cf-proxy2-3.0.0-SNAPSHOT.jar ExampleSecureProxy2CoapClient
+```
 
