@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.Inet4Address;
@@ -24,10 +25,12 @@ import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -35,7 +38,8 @@ import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
+import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -48,14 +52,29 @@ public class MulticastTestServer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(MulticastTestServer.class);
 	private static final boolean LOOPBACK = false;
+	private static final File CONFIG_FILE = new File("Californium3MulticastServer.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for multicast server";
 
 	static {
 		CoapConfig.register();
-		TcpConfig.register();
+		UdpConfig.register();
 	}
 
+	/**
+	 * Special configuration defaults handler.
+	 */
+	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
+
+		@Override
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.LEISURE, 2, TimeUnit.SECONDS);
+		}
+
+	};
+
 	public static void main(String[] args) throws UnknownHostException {
-		Configuration config = Configuration.getStandard();
+		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		Configuration.setStandard(config);
 		int unicastPort = config.get(CoapConfig.COAP_PORT);
 		int multicastPort = unicastPort;
 		switch (args.length) {
@@ -193,7 +212,8 @@ public class MulticastTestServer {
 		public void handleGET(CoapExchange exchange) {
 			// respond to the request
 			if (exchange.isMulticastRequest()) {
-				exchange.respond("Hello Multicast-World! " + id);
+				Request request = exchange.advanced().getRequest();
+				exchange.respond("Hello Multicast-World! " + id + "\nReceived via " + StringUtil.toDisplayString(request.getLocalAddress()));
 			} else {
 				exchange.respond("Hello Unicast-World! " + id);
 			}

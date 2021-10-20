@@ -136,7 +136,9 @@ In order to support peers with dynamically assigned ip-addresses, Californium in
 With 3.0 this will now be extended for blockwise transfers. If used on the server-side, that enables a client-side to PUT/POST payload, even if a quiet phase causes an address change.
 
 Ensure, that `onResponse(Response response)` and `onResponse(CoapResponse response)` are only called with `nonNull`. Some code smells seems to assume, it could be `null`, even if I can't see, that this would have been actually happen. Only user code may have cause this and will now cause a `NullPointerException`.
- 
+
+Responses for multicast requests are randomly postponed up to `CoapConfig.LEISURE`, as specified in [RFC7252, 8.2, ](https://datatracker.ietf.org/doc/html/rfc7252#section-8.2).
+
 ### Californium-Proxy2:
 
 The apache http-components have been updated to http-client 5.0.3 and http-core 5.0.2.
