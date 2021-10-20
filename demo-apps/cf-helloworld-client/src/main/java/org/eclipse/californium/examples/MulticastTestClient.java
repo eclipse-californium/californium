@@ -17,6 +17,9 @@ package org.eclipse.californium.examples;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -29,6 +32,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
@@ -52,6 +56,10 @@ public class MulticastTestClient {
 	 */
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Multicast Client";
 	/**
+	 * Header for configuration.
+	 */
+	private static final SimpleDateFormat FORMAT = new SimpleDateFormat("s:SSS - ");
+	/**
 	 * Special configuration defaults handler.
 	 */
 	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
@@ -59,17 +67,19 @@ public class MulticastTestClient {
 		@Override
 		public void applyDefinitions(Configuration config) {
 			config.set(CoapConfig.MULTICAST_BASE_MID, 65000);
+			config.set(CoapConfig.LEISURE, 2, TimeUnit.SECONDS);
 		}
 
 	};
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 	}
 
 	private static void get(CoapClient client, int port, String resourcePath) throws ConnectorException, IOException {
 		String uri = "coap://localhost:" + port + "/" + resourcePath;
-		System.out.println("GET " + uri);
+		System.out.println(FORMAT.format(new Date()) + "GET " + uri);
 		client.setURI(uri);
 
 		Request request = Request.newGet();
@@ -85,7 +95,7 @@ public class MulticastTestClient {
 		}
 	}
 
-	private static void mget(CoapClient client, int port, String resourcePath, MulticastMode mode)
+	private static void mget(CoapClient client, int port, String resourcePath, MulticastMode mode, long leisureMillis)
 			throws ConnectorException, IOException {
 		String uri;
 		switch (mode) {
@@ -127,12 +137,13 @@ public class MulticastTestClient {
 			}
 		}
 		client.setURI(uri);
-		System.out.println("GET " + uri);
+		System.out.println(FORMAT.format(new Date()) + "GET " + uri);
 		Request multicastRequest = Request.newGet();
 		multicastRequest.setType(Type.NON);
 		// sends a multicast request
+		MultiCoapHandler handler = new MultiCoapHandler();
 		client.advanced(handler, multicastRequest);
-		while (handler.waitOn(2000))
+		while (handler.waitOn(leisureMillis + 2000))
 			;
 	}
 
@@ -156,20 +167,21 @@ public class MulticastTestClient {
 		endpoint.addPostProcessInterceptor(health);
 		CoapClient client = new CoapClient();
 		client.setEndpoint(endpoint);
+		long leisureMillis = config.get(CoapConfig.LEISURE, TimeUnit.MILLISECONDS);
 		String resourcePath = "helloWorld";
 		try {
 			// sends an uni-cast request
 			get(client, unicastPort, resourcePath);
 			// sends a multicast IPv4 request
-			mget(client, multicastPort, resourcePath, MulticastMode.IPv4);
+			mget(client, multicastPort, resourcePath, MulticastMode.IPv4, leisureMillis);
 			// sends a broadcast IPv4 request
-			mget(client, multicastPort, resourcePath, MulticastMode.IPv4_BROADCAST);
+			mget(client, multicastPort, resourcePath, MulticastMode.IPv4_BROADCAST, leisureMillis);
 			// https://bugs.openjdk.java.net/browse/JDK-8210493
 			// link-local multicast is broken
 			// sends a link-multicast IPv6 request
-			mget(client, multicastPort, resourcePath, MulticastMode.IPv6_LINK);
+			mget(client, multicastPort, resourcePath, MulticastMode.IPv6_LINK, leisureMillis);
 			// sends a site-multicast IPv6 request
-			mget(client, multicastPort, resourcePath, MulticastMode.Ipv6_SITE);
+			mget(client, multicastPort, resourcePath, MulticastMode.Ipv6_SITE, leisureMillis);
 		} catch (ConnectorException | IOException e) {
 			System.err.println("Error occurred while sending request: " + e);
 		}
@@ -177,17 +189,17 @@ public class MulticastTestClient {
 		client.shutdown();
 	}
 
-	private static final MultiCoapHandler handler = new MultiCoapHandler();
-
 	private static class MultiCoapHandler implements CoapHandler {
 
 		private boolean on;
 
 		public synchronized boolean waitOn(long timeout) {
 			on = false;
-			try {
-				wait(timeout);
-			} catch (InterruptedException e) {
+			if (timeout > 0) {
+				try {
+					wait(timeout);
+				} catch (InterruptedException e) {
+				}
 			}
 			return on;
 		}
@@ -199,9 +211,9 @@ public class MulticastTestClient {
 
 		@Override
 		public void onLoad(CoapResponse response) {
-			on();
 			System.out.println(StringUtil.toString(response.advanced().getSourceContext().getPeerAddress()));
 			System.out.println(Utils.prettyPrint(response));
+			on();
 		}
 
 		@Override

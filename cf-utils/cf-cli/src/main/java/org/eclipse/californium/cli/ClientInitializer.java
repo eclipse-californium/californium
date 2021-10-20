@@ -49,7 +49,6 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -323,7 +322,6 @@ public class ClientInitializer {
 				LOGGER.info("set [{}] to {}", DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT.getKey(),
 						config.getAsText(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT));
 			}
-			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
 
 			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
 			boolean psk = false;

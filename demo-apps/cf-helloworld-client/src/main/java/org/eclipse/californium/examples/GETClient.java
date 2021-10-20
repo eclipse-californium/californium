@@ -28,13 +28,14 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 
 
 public class GETClient {
 
 	private static final File CONFIG_FILE = new File("Californium3.properties");
-	private static final String CONFIG_HEADER = "Californium CoAP Properties file for file-client";
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2 MB
 	private static final int DEFAULT_BLOCK_SIZE = 512;
 
@@ -50,6 +51,7 @@ public class GETClient {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 	}
 
 	/*

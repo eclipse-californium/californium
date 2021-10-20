@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.SslContextUtil.IncompleteCredentialsException;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -420,8 +421,16 @@ public class ConnectorConfig implements Cloneable {
 		CoapConfig.register();
 		UdpConfig.register();
 		DtlsConfig.register();
-		configuration = Configuration.createWithFile(configurationFile, configurationHeader,
-				customConfigurationDefaultsProvider);
+		DefinitionsProvider provider = new DefinitionsProvider() {
+			@Override
+			public void applyDefinitions(Configuration config) {
+				config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+				if (customConfigurationDefaultsProvider != null) {
+					customConfigurationDefaultsProvider.applyDefinitions(config);
+				}
+			}
+		};
+		configuration = Configuration.createWithFile(configurationFile, configurationHeader, provider);
 	}
 
 	protected void defaultAuthenticationModes() {

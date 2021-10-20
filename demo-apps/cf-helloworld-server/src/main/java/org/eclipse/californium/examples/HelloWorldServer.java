@@ -30,6 +30,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
@@ -37,6 +38,7 @@ public class HelloWorldServer extends CoapServer {
 
 	static {
 		CoapConfig.register();
+		UdpConfig.register();
 		TcpConfig.register();
 	}
 
