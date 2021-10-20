@@ -36,6 +36,8 @@ import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.crypto.Cipher;
@@ -131,6 +133,26 @@ public enum CipherSuite {
 
 	// DTLS-specific constants ////////////////////////////////////////
 	public static final int CIPHER_SUITE_BITS = 16;
+
+	public static final List<CipherSuite> STRONG_ENCRYPTION_PREFERENCE;
+
+	static {
+		List<CipherSuite> secureSuites = new ArrayList<>();
+		secureSuites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN));
+		secureSuites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK));
+		secureSuites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.PSK));
+		List<CipherSuite> ccm8 = new ArrayList<>();
+		Iterator<CipherSuite> iterator = secureSuites.iterator();
+		while (iterator.hasNext()) {
+			CipherSuite cipherSuite = iterator.next();
+			if (cipherSuite.getMacLength() < 16) {
+				ccm8.add(cipherSuite);
+				iterator.remove();
+			}
+		}
+		secureSuites.addAll(ccm8);
+		STRONG_ENCRYPTION_PREFERENCE = Collections.unmodifiableList(secureSuites);
+	}
 
 	// Logging ////////////////////////////////////////////////////////
 	private static final Logger LOGGER = LoggerFactory.getLogger(CipherSuite.class);

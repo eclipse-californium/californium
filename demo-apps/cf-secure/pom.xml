@@ -17,7 +17,7 @@
 	<description>Californium (Cf) DTLS example server</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.examples.SecureServer</assembly.mainClass>
+		<assembly.mainClass>org.eclipse.californium.examples.Secure</assembly.mainClass>
 	</properties>
 
 	<dependencies>
