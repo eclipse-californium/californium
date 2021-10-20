@@ -142,6 +142,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			int processors = Runtime.getRuntime().availableProcessors();
 			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
 			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, processors);
+			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
+			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
 		}
 
 	};
@@ -314,8 +316,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			}
 
 			Configuration udpConfiguration = new Configuration(configuration)
-						.set(CoapConfig.MAX_MESSAGE_SIZE, 64)
-						.set(CoapConfig.PREFERRED_BLOCK_SIZE, 64);
+					.set(CoapConfig.MAX_MESSAGE_SIZE, configuration.get(EXTERNAL_UDP_MAX_MESSAGE_SIZE))
+					.set(CoapConfig.PREFERRED_BLOCK_SIZE, configuration.get(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE));
 			Map<Select, Configuration> protocolConfig = new HashMap<>();
 			protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfiguration);
 
@@ -611,6 +613,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 		initCredentials();
 		DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(configuration);
+		if (cliConfig.clientAuth != null) {
+			configuration.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+		}
 		// set node-id in dtls-config-builder's Configuration clone
 		dtlsConfigBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID, nodeId);
 		AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
