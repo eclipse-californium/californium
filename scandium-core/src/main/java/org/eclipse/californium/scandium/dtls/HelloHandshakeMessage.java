@@ -15,16 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.util.List;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 
 /**
  * Common base for {@link ClientHello} and {@link ServerHello}.
@@ -57,6 +52,13 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	 */
 	protected final HelloExtensions extensions = new HelloExtensions();
 
+	/**
+	 * Creates a hello handshake message.
+	 * 
+	 * @param version protocol version to use
+	 * @param sessionId session ID to use. May be empty.
+	 * @throws NullPointerException if any of the parameters are {@code null}
+	 */
 	protected HelloHandshakeMessage(ProtocolVersion version, SessionId sessionId) {
 		if (version == null) {
 			throw new NullPointerException("Negotiated protocol version must not be null");
@@ -69,56 +71,12 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 		this.random = new Random();
 	}
 
-	protected HelloHandshakeMessage(ProtocolVersion version, SessionId sessionId,
-			List<CipherSuite> supportedCipherSuites,
-			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
-			List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes,
-			List<SupportedGroup> supportedGroups) {
-		this(version, sessionId);
-
-		// we only need to include elliptic_curves and point_format extensions
-		// if the client supports at least one ECC based cipher suite
-		if (CipherSuite.containsEccBasedCipherSuite(supportedCipherSuites)) {
-			// the supported groups
-			addExtension(new SupportedEllipticCurvesExtension(supportedGroups));
-
-			// the supported point formats
-			addExtension(SupportedPointFormatsExtension.DEFAULT_POINT_FORMATS_EXTENSION);
-		}
-
-		// the supported signature and hash algorithms
-		if (!supportedSignatureAndHashAlgorithms.isEmpty()) {
-			if (useCertificateTypeRawPublicKeyOnly(supportedClientCertificateTypes)
-					&& useCertificateTypeRawPublicKeyOnly(supportedServerCertificateTypes)) {
-				List<CertificateKeyAlgorithm> certificateKeyAlgorithms = CipherSuite
-						.getCertificateKeyAlgorithms(supportedCipherSuites);
-				supportedSignatureAndHashAlgorithms = SignatureAndHashAlgorithm.getCompatibleSignatureAlgorithms(
-						supportedSignatureAndHashAlgorithms, certificateKeyAlgorithms);
-			}
-			addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
-		}
-
-		if (CipherSuite.containsCipherSuiteRequiringCertExchange(supportedCipherSuites)) {
-			// the certificate types the client is able to provide to the server
-			if (useCertificateTypeExtension(supportedClientCertificateTypes)) {
-				CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(
-						supportedClientCertificateTypes);
-				addExtension(clientCertificateType);
-			}
-
-			// the type of certificates the client is able to process when
-			// provided
-			// by the server
-			if (useCertificateTypeExtension(supportedServerCertificateTypes)) {
-				CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(
-						supportedServerCertificateTypes);
-				addExtension(serverCertificateType);
-			}
-		}
-	}
-
-	protected HelloHandshakeMessage(DatagramReader reader) throws HandshakeException {
+	/**
+	 * Creates hello handshake message from reader.
+	 * 
+	 * @param reader reader to read parameters.
+	 */
+	protected HelloHandshakeMessage(DatagramReader reader) {
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
 		protocolVersion = ProtocolVersion.valueOf(major, minor);
@@ -126,35 +84,6 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 		random = new Random(reader.readBytes(RANDOM_BYTES));
 
 		sessionId = new SessionId(reader.readVarBytes(SESSION_ID_LENGTH_BITS));
-	}
-
-	/**
-	 * Check, if certificate type extension is used.
-	 * 
-	 * If missing, or only contains X_509, don't send the extension.
-	 * 
-	 * @param supportedCertificateTypes list of certificate types
-	 * @return {@code true}, if extension must be used, {@code false}, otherwise
-	 */
-	private boolean useCertificateTypeExtension(List<CertificateType> supportedCertificateTypes) {
-		if (supportedCertificateTypes != null && !supportedCertificateTypes.isEmpty()) {
-			return supportedCertificateTypes.size() > 1 || !supportedCertificateTypes.contains(CertificateType.X_509);
-		}
-		return false;
-	}
-
-	/**
-	 * Check, if only raw public key certificates are used.
-	 * 
-	 * @param supportedCertificateTypes list of certificate types
-	 * @return {@code true}, if only raw public key is used, {@code false},
-	 *         otherwise
-	 */
-	private boolean useCertificateTypeRawPublicKeyOnly(List<CertificateType> supportedCertificateTypes) {
-		if (supportedCertificateTypes != null && supportedCertificateTypes.size() == 1) {
-			return supportedCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY);
-		}
-		return false;
 	}
 
 	protected void writeHeader(DatagramWriter writer) {
@@ -236,16 +165,6 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	 */
 	public HelloExtensions getExtensions() {
 		return extensions;
-	}
-
-	/**
-	 * Gets the supported elliptic curves.
-	 * 
-	 * @return the client's supported elliptic curves extension if available,
-	 *         otherwise {@code null}.
-	 */
-	public SupportedEllipticCurvesExtension getSupportedEllipticCurvesExtension() {
-		return extensions.getExtension(ExtensionType.ELLIPTIC_CURVES);
 	}
 
 	/**
