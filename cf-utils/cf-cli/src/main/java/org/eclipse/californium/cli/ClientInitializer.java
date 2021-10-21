@@ -322,6 +322,9 @@ public class ClientInitializer {
 				LOGGER.info("set [{}] to {}", DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT.getKey(),
 						config.getAsText(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT));
 			}
+			if (clientConfig.noCertificatesSubjectVerification != null) {
+				config.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, !clientConfig.noCertificatesSubjectVerification);
+			}
 
 			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
 			boolean psk = false;

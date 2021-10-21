@@ -115,12 +115,17 @@ public class TlsClientConnector extends TcpClientConnector {
 							return;
 						}
 						if (verifyServerSubject) {
-							Principal principal = context.getPeerIdentity();
-							if (principal instanceof X509CertPath) {
-								X509Certificate target = ((X509CertPath) principal).getTarget();
-								InetSocketAddress address = context.getPeerAddress();
-								String hostname = context.getVirtualHost();
-								verifyCertificatesSubject(hostname, address, target);
+							try {
+								Principal principal = context.getPeerIdentity();
+								if (principal instanceof X509CertPath) {
+									X509Certificate target = ((X509CertPath) principal).getTarget();
+									InetSocketAddress address = context.getPeerAddress();
+									String hostname = context.getVirtualHost();
+									verifyCertificatesSubject(hostname, address, target);
+								}
+							} catch (SSLPeerUnverifiedException ex) {
+								msg.onError(ex);
+								return;
 							}
 						}
 						/*

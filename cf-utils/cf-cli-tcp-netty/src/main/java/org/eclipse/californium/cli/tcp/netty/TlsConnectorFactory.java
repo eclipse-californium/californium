@@ -48,6 +48,10 @@ public class TlsConnectorFactory implements CliConnectorFactory {
 		int maxPeers = config.get(CoapConfig.MAX_ACTIVE_PEERS);
 		int sessionTimeout = config.getTimeAsInt(TcpConfig.TLS_SESSION_TIMEOUT, TimeUnit.SECONDS);
 
+		if (clientConfig.noCertificatesSubjectVerification != null) {
+			config.set(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, !clientConfig.noCertificatesSubjectVerification);
+		}
+
 		SSLContext clientSslContext = null;
 		try {
 			KeyManager[] keyManager;

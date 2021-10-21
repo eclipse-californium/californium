@@ -83,6 +83,14 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public String dtlsAutoHandshake;
 
 	/**
+	 * Enable verification of the server's certificate subject.
+	 * 
+	 * @since 3.0
+	 */
+	@Option(names = "--no-subject-verification", negatable = true, description = "enable/disable verification of server certificate's subject.")
+	public Boolean noCertificatesSubjectVerification;
+
+	/**
 	 * Destination URI.
 	 */
 	@Parameters(index = "0", paramLabel = LABEL_URI, arity = "0..1", description = "destination URI. Default ${DEFAULT-VALUE}")
