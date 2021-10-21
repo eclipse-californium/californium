@@ -1314,7 +1314,8 @@ public class BenchmarkClient {
 		boolean stale = false;
 		startRequestNanos = System.nanoTime();
 		startReverseResponseNanos = startRequestNanos;
-		long lastRequestsCountDown = overallResponsesDownCounter.get();
+		long lastRequestsCountDown = overallRequestsDownCounter.get();
+		long lastResponsesCountDown = overallResponsesDownCounter.get();
 		long lastTransmissions = transmissionCounter.get();
 		long lastRetransmissions = retransmissionCounter.get();
 		long lastTransmissionErrrors = transmissionErrorCounter.get();
@@ -1339,12 +1340,14 @@ public class BenchmarkClient {
 		long staleTimeout = DEFAULT_TIMEOUT_NANOS + interval;
 		// Wait with timeout or all requests send.
 		while (!overallRequestsDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
-			long currentRequestsCountDown = overallResponsesDownCounter.get();
+			long currentRequestsCountDown = overallRequestsDownCounter.get();
+			long currentResponsesCountDown = overallResponsesDownCounter.get();
 			int numberOfClients = clientCounter.get();
 			int connectsPending = initialConnectDownCounter.get();
-			long requestDifference = (lastRequestsCountDown - currentRequestsCountDown);
-			long currentOverallSentRequests = overallRequests - currentRequestsCountDown;
-			if ((requestDifference == 0 && currentRequestsCountDown < overallRequests)
+			long requestsDifference = (lastRequestsCountDown - currentRequestsCountDown);
+			long responsesDifference = (lastResponsesCountDown - currentResponsesCountDown);
+			long currentOverallSentRequests = overallRequests - currentResponsesCountDown;
+			if ((responsesDifference == 0 && currentResponsesCountDown < overallRequests)
 					|| (numberOfClients == 0)) {
 				// no new requests, clients are stale, or no clients left
 				// adjust start time with timeout
@@ -1373,6 +1376,7 @@ public class BenchmarkClient {
 			int honoCmdsDifference = honoCmds - lastHonoCmds;
 
 			lastRequestsCountDown = currentRequestsCountDown;
+			lastResponsesCountDown = currentResponsesCountDown;
 			lastTransmissions = transmissions;
 			lastRetransmissions = retransmissions;
 			lastTransmissionErrrors = transmissionErrors;
@@ -1381,14 +1385,14 @@ public class BenchmarkClient {
 
 			StringBuilder line = new StringBuilder();
 			line.append(String.format("%d requests (%d reqs/s", currentOverallSentRequests,
-					roundDiv(requestDifference, DEFAULT_TIMEOUT_SECONDS)));
-			line.append(", ").append(formatRetransmissions(retransmissionsDifference, transmissionsDifference));
-			line.append(", ").append(formatTransmissionErrors(transmissionErrorsDifference, requestDifference));
+					roundDiv(responsesDifference, DEFAULT_TIMEOUT_SECONDS)));
+			line.append(", ").append(formatRetransmissions(retransmissionsDifference, transmissionsDifference, responsesDifference));
+			line.append(", ").append(formatTransmissionErrors(transmissionErrorsDifference, requestsDifference, responsesDifference));
 			if (unavailable > 0) {
-				line.append(", ").append(formatUnavailable(unavailableDifference, requestDifference));
+				line.append(", ").append(formatUnavailable(unavailableDifference, responsesDifference));
 			}
 			if (honoCmds > 0) {
-				line.append(", ").append(formatHonoCmds(honoCmdsDifference, requestDifference));
+				line.append(", ").append(formatHonoCmds(honoCmdsDifference, responsesDifference));
 			}
 			line.append(String.format(", %d clients", numberOfClients));
 			if (connectsPending > 0) {
@@ -1612,11 +1616,11 @@ public class BenchmarkClient {
 		}
 		long retransmissions = retransmissionCounter.get();
 		if (retransmissions > 0) {
-			statisticsLogger.info("{}", formatRetransmissions(retransmissions, overallSentRequests));
+			statisticsLogger.info("{}", formatRetransmissions(retransmissions, overallSentRequests, overallSentRequests));
 		}
 		long transmissionErrors = transmissionErrorCounter.get();
 		if (transmissionErrors > 0) {
-			statisticsLogger.info("{}", formatTransmissionErrors(transmissionErrors, overallSentRequests));
+			statisticsLogger.info("{}", formatTransmissionErrors(transmissionErrors, overallSentRequests, overallSentRequests));
 		}
 		if (overallSentRequests < overallRequests) {
 			if (done) {
@@ -1657,27 +1661,26 @@ public class BenchmarkClient {
 		});
 	}
 
-	private static String formatRetransmissions(long retransmissions, long requests) {
+	private static String formatRetransmissions(long retransmissions, long requests, long responses) {
 		try (Formatter formatter = new Formatter()) {
 			if (requests > 0) {
-				return formatter
-						.format("%d retransmissions (%4.2f%%)", retransmissions, ((retransmissions * 100D) / requests))
-						.toString();
+				String amend = responses == 0 ? ", no responses received!" : "";
+				return formatter.format("%d retransmissions (%4.2f%%%s)", retransmissions,
+								((retransmissions * 100D) / requests), amend).toString();
 			} else {
-				return formatter.format("%d retransmissions (no response-messages received!)", retransmissions)
-						.toString();
+				return formatter.format("%d retransmissions", retransmissions).toString();
 			}
 		}
 	}
 
-	private static String formatTransmissionErrors(long transmissionErrors, long requests) {
+	private static String formatTransmissionErrors(long transmissionErrors, long requests, long responses) {
 		try (Formatter formatter = new Formatter()) {
 			if (requests > 0) {
-				return formatter.format("%d transmission errors (%4.2f%%)", transmissionErrors,
-						((transmissionErrors * 100D) / requests)).toString();
+				String amend = responses == 0 ? ", no responses received!" : "";
+				return formatter.format("%d transmission errors (%4.2f%%%s)", transmissionErrors,
+						((transmissionErrors * 100D) / requests), amend).toString();
 			} else {
-				return formatter.format("%d transmission errors (no response-messages received!)", transmissionErrors)
-						.toString();
+				return formatter.format("%d transmission errors", transmissionErrors).toString();
 			}
 		}
 	}
