@@ -136,7 +136,15 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 		Integer mgmtSendBuffer = addConditionally(config.getSocketSendBufferSize(), MAX_DATAGRAM_OFFSET);
 		if (identity != null) {
 			SecretKey secretkey = clusterConfiguration.getSecretKey();
+			String tag = configuration.getLoggingTag();
+			if (tag == null || tag.isEmpty()) {
+				tag = "dtls-cluster-mgmt";
+			} else {
+				tag = StringUtil.normalizeLoggingTag(tag);
+				tag += "dtls-cluster-mgmt";
+			}
 			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration.getConfiguration())
+					.setLoggingTag(tag)
 					.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 500, TimeUnit.MILLISECONDS)
 					.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 3)
 					.set(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF, 0)
