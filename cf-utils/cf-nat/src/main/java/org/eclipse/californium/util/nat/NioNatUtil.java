@@ -75,7 +75,7 @@ public class NioNatUtil implements Runnable {
 	 * 
 	 * @since 2.5
 	 */
-	private static final int LB_TIMEOUT_MS = 1000 * 10;
+	private static final int LB_TIMEOUT_MS = 1000 * 15;
 	/**
 	 * Message dropping log interval.
 	 */
@@ -116,6 +116,18 @@ public class NioNatUtil implements Runnable {
 	 * @since 2.5
 	 */
 	private final List<NatAddress> staleDestinations;
+	/**
+	 * Probe destination addresses.
+	 * 
+	 * @since 3.0
+	 */
+	private final List<NatAddress> probeDestinations;
+	/**
+	 * Pending probe destination addresses.
+	 * 
+	 * @since 3.0
+	 */
+	private final List<NatAddress> pendingDestinations;
 	/**
 	 * Buffer for proxy.
 	 */
@@ -223,6 +235,10 @@ public class NioNatUtil implements Runnable {
 	 */
 	private AtomicBoolean reverseNatUpdate = new AtomicBoolean();
 
+	public enum NatAddressState {
+		REMOVED, STALE, PROBING, PENDING, ACTIVE
+	}
+
 	/**
 	 * NAT address.
 	 * 
@@ -260,6 +276,8 @@ public class NioNatUtil implements Runnable {
 		 */
 		private boolean expired;
 
+		private NatAddressState state;
+
 		/**
 		 * Create new NAT address.
 		 * 
@@ -269,15 +287,42 @@ public class NioNatUtil implements Runnable {
 			this.address = address;
 			this.name = address.getHostString() + ":" + address.getPort();
 			this.usageCounter = new AtomicInteger();
+			this.state = NatAddressState.ACTIVE;
 			updateReceive();
 		}
 
 		/**
-		 * Reset expired address.
+		 * Stale address.
 		 */
-		private void reset() {
+		private synchronized void stale() {
+			state = NatAddressState.STALE;
 			expired = false;
-			updateReceive();
+			lastNanos = System.nanoTime();
+		}
+
+		/**
+		 * Probe stale address.
+		 */
+		private synchronized void probe() {
+			state = NatAddressState.PROBING;
+			expired = false;
+			lastNanos = -1;
+		}
+
+		/**
+		 * Pending address.
+		 */
+		private synchronized void pending() {
+			state = NatAddressState.PENDING;
+			expired = false;
+			lastNanos = -1;
+		}
+
+		/**
+		 * Remove address.
+		 */
+		private synchronized void remove() {
+			state = NatAddressState.REMOVED;
 		}
 
 		/**
@@ -318,6 +363,8 @@ public class NioNatUtil implements Runnable {
 		 * @see #expires(long)
 		 */
 		private synchronized void updateReceive() {
+			this.expired = false;
+			this.state = NatAddressState.ACTIVE;
 			this.lastNanos = -1;
 		}
 
@@ -353,6 +400,29 @@ public class NioNatUtil implements Runnable {
 
 		public int usageCounter() {
 			return usageCounter.get();
+		}
+
+		public synchronized long lastUsage() {
+			long usage = -2;
+			if (!expired) {
+				if (lastNanos > 0) {
+					usage = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - lastNanos);
+				} else {
+					usage = -1;
+				}
+			}
+			return usage;
+		}
+
+		public synchronized NatAddressState getState() {
+			return state;
+		}
+
+		public synchronized boolean usable() {
+			if (state == NatAddressState.ACTIVE) {
+				return !expired;
+			}
+			return false;
 		}
 	}
 
@@ -598,6 +668,8 @@ public class NioNatUtil implements Runnable {
 	public NioNatUtil(final InetSocketAddress bindAddress, final InetSocketAddress destination) throws IOException {
 		this.destinations = new ArrayList<>();
 		this.staleDestinations = new ArrayList<>();
+		this.probeDestinations = new ArrayList<>();
+		this.pendingDestinations = new ArrayList<>();
 		addDestination(destination);
 		this.proxyBuffer = ByteBuffer.allocateDirect(DATAGRAM_SIZE);
 		this.proxyChannel = DatagramChannel.open();
@@ -645,7 +717,13 @@ public class NioNatUtil implements Runnable {
 				for (NatAddress address : destinations) {
 					if (address.address.equals(destination)) {
 						destinations.remove(address);
-						address.expired = true;
+						address.remove();
+						return true;
+					}
+				}
+				for (NatAddress address : staleDestinations) {
+					if (address.address.equals(destination)) {
+						staleDestinations.remove(address);
 						return true;
 					}
 				}
@@ -665,7 +743,7 @@ public class NioNatUtil implements Runnable {
 		boolean added = false;
 		synchronized (destinations) {
 			for (NatAddress address : staleDestinations) {
-				address.reset();
+				address.updateReceive();
 				if (destinations.add(address)) {
 					added = true;
 				}
@@ -728,20 +806,18 @@ public class NioNatUtil implements Runnable {
 						lastLoadBalancerCheck = now;
 						long expireNanos = now - TimeUnit.MILLISECONDS.toNanos(balancerTimeout);
 						synchronized (destinations) {
-							if (destinations.size() > 1) {
-								Iterator<NatAddress> iterator = destinations.iterator();
-								while (iterator.hasNext()) {
-									NatAddress dest = iterator.next();
-									if (dest.expires(expireNanos)) {
-										iterator.remove();
-										staleDestinations.add(dest);
-										LOGGER.warn("expires {}", dest.name);
-										if (destinations.size() < 2) {
-											break;
-										}
-									}
+							revives(expireNanos);
+							Iterator<NatAddress> iterator = pendingDestinations.iterator();
+							while (iterator.hasNext()) {
+								NatAddress dest = iterator.next();
+								if (dest.getState() != NatAddressState.PENDING) {
+									iterator.remove();
+									destinations.add(dest);
+									LOGGER.warn("revived {}", dest.name);
 								}
 							}
+							expires(destinations, 1, expireNanos);
+							expires(pendingDestinations, 0, expireNanos);
 						}
 					}
 				}
@@ -774,10 +850,43 @@ public class NioNatUtil implements Runnable {
 		}
 	}
 
+	private void expires(List<NatAddress> destinations, int minimum, long expireNanos) {
+		if (destinations.size() > minimum) {
+			Iterator<NatAddress> iterator = destinations.iterator();
+			while (iterator.hasNext()) {
+				NatAddress dest = iterator.next();
+				if (dest.expires(expireNanos)) {
+					iterator.remove();
+					// prepare for revive after timeout
+					dest.stale();
+					staleDestinations.add(dest);
+					LOGGER.warn("expires {}", dest.name);
+					if (destinations.size() <= minimum) {
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	private void revives(long expireNanos) {
+		if (!staleDestinations.isEmpty()) {
+			Iterator<NatAddress> iterator = staleDestinations.iterator();
+			while (iterator.hasNext()) {
+				NatAddress dest = iterator.next();
+				if (dest.expires(expireNanos)) {
+					iterator.remove();
+					dest.probe();
+					probeDestinations.add(dest);
+					LOGGER.warn("revive {}", dest.name);
+				}
+			}
+		}
+	}
+
 	private NatEntry getNatEntry(InetSocketAddress source) throws IOException {
 		NatEntry entry = nats.get(source);
 		if (entry == null) {
-
 			entry = new NatEntry(source, selector);
 			NatEntry previousEntry = nats.putIfAbsent(source, entry);
 			if (previousEntry != null) {
@@ -918,6 +1027,26 @@ public class NioNatUtil implements Runnable {
 	}
 
 	/**
+	 * Get number of probe destinations.
+	 * 
+	 * @return number of probe destinations
+	 * @since 3.0
+	 */
+	public int getNumberOfProbeDestinations() {
+		return probeDestinations.size();
+	}
+
+	/**
+	 * Get number of pending destinations.
+	 * 
+	 * @return number of pending destinations
+	 * @since 3.0
+	 */
+	public int getNumberOfPendingDestinations() {
+		return pendingDestinations.size();
+	}
+
+	/**
 	 * Get list of destinations.
 	 * 
 	 * @return list of destinations
@@ -926,9 +1055,49 @@ public class NioNatUtil implements Runnable {
 	public List<NatAddress> getDestinations() {
 		List<NatAddress> result = new ArrayList<>();
 		synchronized (destinations) {
-			for (NatAddress address : destinations) {
-				result.add(address);
-			}
+			result.addAll(destinations);
+		}
+		return result;
+	}
+
+	/**
+	 * Get list of stale destinations.
+	 * 
+	 * @return list of stale destinations
+	 * @since 3.0
+	 */
+	public List<NatAddress> getStaleDestinations() {
+		List<NatAddress> result = new ArrayList<>();
+		synchronized (destinations) {
+			result.addAll(staleDestinations);
+		}
+		return result;
+	}
+
+	/**
+	 * Get list of probe destinations.
+	 * 
+	 * @return list of probe destinations
+	 * @since 3.0
+	 */
+	public List<NatAddress> getProbeDestinations() {
+		List<NatAddress> result = new ArrayList<>();
+		synchronized (destinations) {
+			result.addAll(probeDestinations);
+		}
+		return result;
+	}
+
+	/**
+	 * Get list of pending destinations.
+	 * 
+	 * @return list of pending destinations
+	 * @since 3.0
+	 */
+	public List<NatAddress> getPendingDestinations() {
+		List<NatAddress> result = new ArrayList<>();
+		synchronized (destinations) {
+			result.addAll(pendingDestinations);
 		}
 		return result;
 	}
@@ -1350,6 +1519,12 @@ public class NioNatUtil implements Runnable {
 		if (lastTimedoutEntriesCounter < current) {
 			LOGGER.warn("timed out NAT entries {} (overall {}).", current - lastTimedoutEntriesCounter,
 					lastTimedoutEntriesCounter);
+
+			int stale = getNumberOfStaleDestinations();
+			int destinations = getNumberOfDestinations();
+			if (stale > 0) {
+				LOGGER.warn("{} destinations, {} stale destinations.", destinations, stale);
+			}
 			lastTimedoutEntriesCounter = current;
 		}
 	}
@@ -1365,12 +1540,19 @@ public class NioNatUtil implements Runnable {
 			return null;
 		} else {
 			synchronized (destinations) {
-				int size = destinations.size();
-				if (size == 1) {
-					return destinations.get(0);
+				if (probeDestinations.isEmpty()) {
+					int size = destinations.size();
+					if (size == 1) {
+						return destinations.get(0);
+					} else {
+						int index = random.nextInt(size);
+						return destinations.get(index);
+					}
 				} else {
-					int index = random.nextInt(size);
-					return destinations.get(index);
+					NatAddress destination = probeDestinations.remove(0);
+					destination.pending();
+					pendingDestinations.add(destination);
+					return destination;
 				}
 			}
 		}
@@ -1429,6 +1611,7 @@ public class NioNatUtil implements Runnable {
 		private final InetSocketAddress local;
 		private NatAddress incoming;
 		private NatAddress destination;
+		private boolean first;
 
 		public NatEntry(InetSocketAddress incoming, Selector selector) throws IOException {
 			setDestination(getRandomDestination());
@@ -1453,6 +1636,7 @@ public class NioNatUtil implements Runnable {
 			this.destination = destination;
 			if (this.destination != null) {
 				this.destination.usageCounter.incrementAndGet();
+				this.first = true;
 			}
 			return true;
 		}
@@ -1572,21 +1756,20 @@ public class NioNatUtil implements Runnable {
 		public boolean forward(ByteBuffer packet) throws IOException {
 			NatAddress incoming;
 			NatAddress destination;
+			boolean first;
 			synchronized (this) {
 				incoming = this.incoming;
 				destination = this.destination;
+				first = this.first;
+				this.first = false;
 			}
 			if (incoming == null) {
 				return false;
 			}
 			incoming.updateUsage();
-			if (destination.expired) {
-				destination.usageCounter.decrementAndGet();
+			if (!first && !destination.usable()) {
 				destination = getRandomDestination();
-				destination.usageCounter.incrementAndGet();
-				synchronized (this) {
-					this.destination = destination;
-				}
+				setDestination(destination);
 			}
 			MessageDropping dropping = forward;
 			if (dropping != null && dropping.dropMessage()) {

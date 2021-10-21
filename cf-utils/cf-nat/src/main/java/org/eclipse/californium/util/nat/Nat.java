@@ -39,7 +39,7 @@ public class Nat {
 	}
 
 	public static void main(String[] args) {
-		if (args.length < 2) {
+		if (args.length < 3) {
 			System.out.println(
 					"usage: [localinterface]:port destination:port [destination:port...] [-r] [-d<messageDropping%>|[-f<messageDropping%>][-b<messageDropping%>]] [-s<sizeLimit:probability%>]");
 			System.out.println(
@@ -60,9 +60,15 @@ public class Nat {
 		try {
 			String line = null;
 			int argsIndex = 0;
-			InetSocketAddress proxyAddress = create(args[argsIndex++], true);
-			InetSocketAddress destination = create(args[argsIndex++], false);
-
+			InetSocketAddress proxyAddress;
+			InetSocketAddress destination;
+			if (args[argsIndex].startsWith(":")) {
+				proxyAddress = createAnyAddress(args[argsIndex++]);
+				destination = createAddress(args[argsIndex++]);
+			} else {
+				proxyAddress = createAddress(args[argsIndex++]);
+				destination = createAddress(args[argsIndex++]);
+			}
 			util = new NioNatUtil(proxyAddress, destination);
 			char droppingMode = 0;
 			while (argsIndex < args.length) {
@@ -115,7 +121,7 @@ public class Nat {
 						break;
 					}
 				} else {
-					InetSocketAddress destinationAddress = create(arg, false);
+					InetSocketAddress destinationAddress = createAddress(arg);
 					util.addDestination(destinationAddress);
 				}
 			}
@@ -156,7 +162,7 @@ public class Nat {
 					System.out.println("reassigned " + count + " destinations of " + entries + ".");
 				} else if (line.startsWith("remove ")) {
 					try {
-						InetSocketAddress dest = create("remove ", line);
+						InetSocketAddress dest = createAddress("remove ", line);
 						if (util.removeDestination(dest)) {
 							System.out.println(dest + " removed");
 						}
@@ -166,7 +172,7 @@ public class Nat {
 					}
 				} else if (line.startsWith("add ")) {
 					try {
-						InetSocketAddress dest = create("add ", line);
+						InetSocketAddress dest = createAddress("add ", line);
 						if (util.addDestination(dest)) {
 							System.out.println(dest + " added");
 						}
@@ -207,25 +213,34 @@ public class Nat {
 		for (NioNatUtil.NatAddress address : destinations) {
 			System.out.println("Destination: " + address.name + ", usage: " + address.usageCounter());
 		}
+		destinations = util.getStaleDestinations();
+		for (NioNatUtil.NatAddress address : destinations) {
+			System.out.println("Stale      : " + address.name + ", usage: " + address.usageCounter() + ", last usage: "
+					+ address.lastUsage() + "[s] " + address.getState());
+		}
+		destinations = util.getProbeDestinations();
+		for (NioNatUtil.NatAddress address : destinations) {
+			System.out.println("Probing    : " + address.name + ", usage: " + address.usageCounter() + ", last usage: "
+					+ address.lastUsage() + "[s] " + address.getState());
+		}
+		destinations = util.getPendingDestinations();
+		for (NioNatUtil.NatAddress address : destinations) {
+			System.out.println("Pending    : " + address.name + ", usage: " + address.usageCounter() + ", last usage: "
+					+ address.lastUsage() + "[s] " + address.getState());
+		}
 	}
 
 	public static int parse(String head, String line) {
 		return Integer.parseInt(line.substring(head.length()));
 	}
 
-	public static InetSocketAddress create(String head, String line) throws URISyntaxException {
-		return create(line.substring(head.length()), false);
+	public static InetSocketAddress createAddress(String head, String line) throws URISyntaxException {
+		return createAddress(line.substring(head.length()));
 	}
 
-	public static InetSocketAddress create(String address, boolean any) throws URISyntaxException {
+	public static InetSocketAddress createAddress(String address) throws URISyntaxException {
 		if (address.startsWith(":")) {
-			if (!any) {
-				throw new URISyntaxException(address, "<any>: not allowed!");
-			}
-			// port only => any local address
-			int port = Integer.parseInt(address.substring(1));
-			System.out.println(address + " => <any>:" + port);
-			return new InetSocketAddress(port);
+			throw new URISyntaxException(address, "<any>: not allowed!");
 		} else {
 			// use dummy schema
 			URI uri = new URI("proxy://" + address);
@@ -239,6 +254,17 @@ public class Nat {
 				return null;
 			}
 			return result;
+		}
+	}
+
+	public static InetSocketAddress createAnyAddress(String address) throws URISyntaxException {
+		if (address.startsWith(":")) {
+			// port only => any local address
+			int port = Integer.parseInt(address.substring(1));
+			System.out.println(address + " => <any>:" + port);
+			return new InetSocketAddress(port);
+		} else {
+			throw new IllegalArgumentException(address + ", <interface>:<port> not allowed!");
 		}
 	}
 
