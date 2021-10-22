@@ -27,9 +27,11 @@ import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
@@ -69,13 +71,13 @@ public class NioNatUtil implements Runnable {
 	/**
 	 * NAT timeout.
 	 */
-	private static final int NAT_TIMEOUT_MS = 1000 * 30;
+	public static final int NAT_TIMEOUT_MS = 1000 * 30;
 	/**
 	 * LB timeout.
 	 * 
 	 * @since 2.5
 	 */
-	private static final int LB_TIMEOUT_MS = 1000 * 15;
+	public static final int LB_TIMEOUT_MS = 1000 * 15;
 	/**
 	 * Message dropping log interval.
 	 */
@@ -117,13 +119,16 @@ public class NioNatUtil implements Runnable {
 	 */
 	private final List<NatAddress> staleDestinations;
 	/**
-	 * Probe destination addresses.
+	 * Destination addresses to be probed.
+	 * 
+	 * The probe is done by forwarding one of the next unmappped request to this
+	 * destination.
 	 * 
 	 * @since 3.0
 	 */
 	private final List<NatAddress> probeDestinations;
 	/**
-	 * Pending probe destination addresses.
+	 * Pending probed destination addresses.
 	 * 
 	 * @since 3.0
 	 */
@@ -133,9 +138,9 @@ public class NioNatUtil implements Runnable {
 	 */
 	private final ByteBuffer proxyBuffer;
 	/**
-	 * Incoming proxy channel.
+	 * Incoming proxy channels.
 	 */
-	private final DatagramChannel proxyChannel;
+	private final List<DatagramChannel> proxyChannels;
 	/**
 	 * Map of external incoming addresses to local used addresses for forwarding
 	 * the messages to the destination.
@@ -235,6 +240,11 @@ public class NioNatUtil implements Runnable {
 	 */
 	private AtomicBoolean reverseNatUpdate = new AtomicBoolean();
 
+	/**
+	 * NAT address state.
+	 * 
+	 * @since 3.0
+	 */
 	public enum NatAddressState {
 		REMOVED, STALE, PROBING, PENDING, ACTIVE
 	}
@@ -275,7 +285,11 @@ public class NioNatUtil implements Runnable {
 		 * {@link #lastNanos} gets never updated again.
 		 */
 		private boolean expired;
-
+		/**
+		 * State of this NAT address.
+		 * 
+		 * @sine 3.0
+		 */
 		private NatAddressState state;
 
 		/**
@@ -292,7 +306,9 @@ public class NioNatUtil implements Runnable {
 		}
 
 		/**
-		 * Stale address.
+		 * Change state to {@link NatAddressState#STALE}.
+		 * 
+		 * @since 3.0
 		 */
 		private synchronized void stale() {
 			state = NatAddressState.STALE;
@@ -301,7 +317,9 @@ public class NioNatUtil implements Runnable {
 		}
 
 		/**
-		 * Probe stale address.
+		 * Change state to {@link NatAddressState#PROBING}.
+		 * 
+		 * @since 3.0
 		 */
 		private synchronized void probe() {
 			state = NatAddressState.PROBING;
@@ -310,7 +328,9 @@ public class NioNatUtil implements Runnable {
 		}
 
 		/**
-		 * Pending address.
+		 * Change state to {@link NatAddressState#PENDING}.
+		 * 
+		 * @since 3.0
 		 */
 		private synchronized void pending() {
 			state = NatAddressState.PENDING;
@@ -319,7 +339,9 @@ public class NioNatUtil implements Runnable {
 		}
 
 		/**
-		 * Remove address.
+		 * Change state to {@link NatAddressState#REMOVED}.
+		 * 
+		 * @since 3.0
 		 */
 		private synchronized void remove() {
 			state = NatAddressState.REMOVED;
@@ -402,6 +424,13 @@ public class NioNatUtil implements Runnable {
 			return usageCounter.get();
 		}
 
+		/**
+		 * Last usage.
+		 * 
+		 * @return seconds since last usage. {@code -2}, if expired, {@code -1},
+		 *         if waiting for next message.
+		 * @since 3.0
+		 */
 		public synchronized long lastUsage() {
 			long usage = -2;
 			if (!expired) {
@@ -414,10 +443,22 @@ public class NioNatUtil implements Runnable {
 			return usage;
 		}
 
+		/**
+		 * Get address state.
+		 * 
+		 * @return address state
+		 * @since 3.0
+		 */
 		public synchronized NatAddressState getState() {
 			return state;
 		}
 
+		/**
+		 * Check, if address is usable/valid.
+		 * 
+		 * @return {@code true}, if usable, {@code false}, if not.
+		 * @since 3.0
+		 */
 		public synchronized boolean usable() {
 			if (state == NatAddressState.ACTIVE) {
 				return !expired;
@@ -666,17 +707,37 @@ public class NioNatUtil implements Runnable {
 	 * @throws IOException if an error occurred
 	 */
 	public NioNatUtil(final InetSocketAddress bindAddress, final InetSocketAddress destination) throws IOException {
+		this(Arrays.asList(bindAddress), destination);
+	}
+
+	/**
+	 * Create a new NAT utility.
+	 * 
+	 * @param bindAddresses addresses to bind to
+	 * @param destination destination address to forward the messages using a
+	 *            local port
+	 * @throws IOException if an error occurred
+	 * @since 3.0
+	 */
+	public NioNatUtil(List<InetSocketAddress> bindAddresses, final InetSocketAddress destination) throws IOException {
+		this.proxyChannels = new ArrayList<>();
 		this.destinations = new ArrayList<>();
 		this.staleDestinations = new ArrayList<>();
 		this.probeDestinations = new ArrayList<>();
 		this.pendingDestinations = new ArrayList<>();
 		addDestination(destination);
 		this.proxyBuffer = ByteBuffer.allocateDirect(DATAGRAM_SIZE);
-		this.proxyChannel = DatagramChannel.open();
-		this.proxyChannel.configureBlocking(false);
-		this.proxyChannel.bind(bindAddress);
-		this.proxyChannel.register(selector, SelectionKey.OP_READ);
-		InetSocketAddress proxy = (InetSocketAddress) this.proxyChannel.getLocalAddress();
+		InetSocketAddress proxy = null;
+		for (InetSocketAddress bindAddress : bindAddresses) {
+			DatagramChannel proxyChannel = DatagramChannel.open();
+			proxyChannel.configureBlocking(false);
+			proxyChannel.bind(bindAddress);
+			proxyChannel.register(selector, SelectionKey.OP_READ);
+			proxyChannels.add(proxyChannel);
+			if (proxy == null) {
+				proxy = (InetSocketAddress) proxyChannel.getLocalAddress();
+			}
+		}
 		this.proxyName = proxy.getHostString() + ":" + proxy.getPort();
 		this.proxyThread = new Thread(NAT_THREAD_GROUP, this, "NAT-" + proxy.getPort());
 		this.proxyThread.start();
@@ -777,21 +838,26 @@ public class NioNatUtil implements Runnable {
 					Set<SelectionKey> keys = selector.selectedKeys();
 					LOGGER.debug("Selected {} channels {} ready.", selector.keys().size(), keys.size());
 					for (SelectionKey key : keys) {
-						final NatEntry entry = (NatEntry) key.attachment();
 						((Buffer) proxyBuffer).clear();
-						if (entry != null) {
+						Object attachment = key.attachment();
+						if (attachment != null) {
+							LOGGER.debug("backward");
+							final NatEntry entry = (NatEntry) attachment;
 							// backward message
 							if (entry.receive(proxyBuffer) > 0) {
 								entry.backward(proxyBuffer);
 							}
 						} else if (!destinations.isEmpty()) {
 							// forward message
-							InetSocketAddress source = (InetSocketAddress) proxyChannel.receive(proxyBuffer);
-							NatEntry newEntry = getNatEntry(source);
+							DatagramChannel channel = (DatagramChannel) key.channel();
+							InetSocketAddress source = (InetSocketAddress) channel.receive(proxyBuffer);
+							NatEntry newEntry = getNatEntry(source, channel);
 							MessageReordering before = this.reorder;
 							if (before != null) {
+								LOGGER.debug("reorder forward {} bytes", proxyBuffer.position());
 								before.forward(source, newEntry, proxyBuffer);
 							} else {
+								LOGGER.debug("forward {} bytes", proxyBuffer.position());
 								newEntry.forward(proxyBuffer);
 							}
 						}
@@ -884,10 +950,10 @@ public class NioNatUtil implements Runnable {
 		}
 	}
 
-	private NatEntry getNatEntry(InetSocketAddress source) throws IOException {
+	private NatEntry getNatEntry(InetSocketAddress source, DatagramChannel proxyChannel) throws IOException {
 		NatEntry entry = nats.get(source);
 		if (entry == null) {
-			entry = new NatEntry(source, selector);
+			entry = new NatEntry(source, proxyChannel, selector);
 			NatEntry previousEntry = nats.putIfAbsent(source, entry);
 			if (previousEntry != null) {
 				entry.stop();
@@ -918,11 +984,14 @@ public class NioNatUtil implements Runnable {
 			reorder.stop();
 		}
 		running = false;
-		try {
-			proxyChannel.close();
-		} catch (IOException e) {
-			LOGGER.error("io-error on close!", e);
+		for (DatagramChannel proxyChannel : proxyChannels) {
+			try {
+				proxyChannel.close();
+			} catch (IOException e) {
+				LOGGER.error("io-error on close!", e);
+			}
 		}
+		proxyChannels.clear();
 		proxyThread.interrupt();
 		stopAllNatEntries();
 		scheduler.shutdownNow();
@@ -1140,18 +1209,16 @@ public class NioNatUtil implements Runnable {
 			}
 		} else {
 			List<NatEntry> olds = new ArrayList<>(nats.size());
-			Set<InetSocketAddress> keys = new HashSet<InetSocketAddress>(nats.keySet());
-			for (InetSocketAddress incoming : keys) {
+			List<Map.Entry<InetSocketAddress, NatEntry>> entries = new ArrayList<>(nats.entrySet());
+			for (Map.Entry<InetSocketAddress, NatEntry> entry : entries) {
+				InetSocketAddress incoming = entry.getKey();
 				try {
-					NatEntry entry = new NatEntry(incoming, selector);
-					NatEntry old = nats.put(incoming, entry);
-					if (null != old) {
-						old.setIncoming(null);
-						olds.add(old);
-						LOGGER.info("changed NAT for {} from {} to {}.", incoming, old.getPort(), entry.getPort());
-					} else {
-						LOGGER.info("add NAT for {} to {}.", incoming, entry.getPort());
-					}
+					NatEntry oldentry = entry.getValue();
+					NatEntry newEntry = new NatEntry(entry.getKey(), oldentry.proxyChannel, selector);
+					nats.put(incoming, newEntry);
+					oldentry.setIncoming(null);
+					olds.add(oldentry);
+					LOGGER.info("changed NAT for {} from {} to {}.", incoming, oldentry.getPort(), newEntry.getPort());
 				} catch (IOException e) {
 					LOGGER.error("Failed to reassing NAT entry for {}.", incoming, e);
 				}
@@ -1166,6 +1233,7 @@ public class NioNatUtil implements Runnable {
 	 * Assign local addresses for incoming address.
 	 * 
 	 * @param incoming incoming address a local address is to be assigned
+	 * @param proxyChannel proxy channel
 	 * @return port number of the assigned local address
 	 * @throws IOException if reassign failed opening the new local socket
 	 */
@@ -1194,11 +1262,23 @@ public class NioNatUtil implements Runnable {
 				}
 				return port.get();
 			} catch (InterruptedException e) {
-				return 0;
+				return -1;
 			}
 		} else {
-			NatEntry entry = new NatEntry(incoming, selector);
-			NatEntry old = nats.put(incoming, entry);
+			DatagramChannel channel;
+			NatEntry old = nats.get(incoming);
+			if (old == null) {
+				if (proxyChannels.size() == 1) {
+					channel = proxyChannels.get(0);
+				} else {
+					LOGGER.error("No NAT for {}.", incoming);
+					return -1;
+				}
+			} else {
+				channel = old.proxyChannel;
+			}
+			NatEntry entry = new NatEntry(incoming, channel, selector);
+			old = nats.put(incoming, entry);
 			if (null != old) {
 				LOGGER.info("changed NAT for {} from {} to {}.", incoming, old.getPort(), entry.getPort());
 				old.stop();
@@ -1291,7 +1371,7 @@ public class NioNatUtil implements Runnable {
 	 * @throws IOException If an I/O error occurs
 	 */
 	public InetSocketAddress getProxySocketAddress() throws IOException {
-		return (InetSocketAddress) proxyChannel.getLocalAddress();
+		return (InetSocketAddress) proxyChannels.get(0).getLocalAddress();
 	}
 
 	/**
@@ -1532,7 +1612,13 @@ public class NioNatUtil implements Runnable {
 	/**
 	 * Get random destination.
 	 * 
+	 * If destinations are pending for probe, return that and move it to
+	 * pending.
+	 * 
 	 * @return random selected destination
+	 * @see #destinations
+	 * @see #probeDestinations
+	 * @see #pendingDestinations
 	 * @since 2.4
 	 */
 	public NatAddress getRandomDestination() {
@@ -1606,6 +1692,7 @@ public class NioNatUtil implements Runnable {
 	 */
 	private class NatEntry {
 
+		private final DatagramChannel proxyChannel;
 		private final DatagramChannel outgoing;
 		private final String natName;
 		private final InetSocketAddress local;
@@ -1613,8 +1700,10 @@ public class NioNatUtil implements Runnable {
 		private NatAddress destination;
 		private boolean first;
 
-		public NatEntry(InetSocketAddress incoming, Selector selector) throws IOException {
+		public NatEntry(InetSocketAddress incoming, DatagramChannel proxyChannel, Selector selector)
+				throws IOException {
 			setDestination(getRandomDestination());
+			this.proxyChannel = proxyChannel;
 			this.outgoing = DatagramChannel.open();
 			this.outgoing.configureBlocking(false);
 			this.outgoing.bind(null);
@@ -1764,6 +1853,7 @@ public class NioNatUtil implements Runnable {
 				this.first = false;
 			}
 			if (incoming == null) {
+				LOGGER.debug("forward drops {} bytes, no incoming address.", packet.position());
 				return false;
 			}
 			incoming.updateUsage();
@@ -1803,6 +1893,8 @@ public class NioNatUtil implements Runnable {
 					} else {
 						destination.updateSend();
 						forwardCounter.incrementAndGet();
+						LOGGER.debug("forwarded {} bytes from {} to {} via {}", packet.position(), incoming.name,
+								destination.name, natName);
 					}
 				}
 			}

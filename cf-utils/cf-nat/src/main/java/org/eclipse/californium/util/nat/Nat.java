@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,17 +42,23 @@ public class Nat {
 	public static void main(String[] args) {
 		if (args.length < 3) {
 			System.out.println(
-					"usage: [localinterface]:port destination:port [destination:port...] [-r] [-d<messageDropping%>|[-f<messageDropping%>][-b<messageDropping%>]] [-s<sizeLimit:probability%>]");
+					"usage: :port destination:port [destination2:port2 ...] [-r] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit:probability%>]");
+			System.out.println(
+					"  or : localinterface:port [localinterface2:port2 ...] -- destination:port [destination2:port2 ...] [-r] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit:probability%>] [-tnat=<millis>] [-tln=<millis>]");
 			System.out.println(
 					"       -r                                          : enable reverse destination address update");
 			System.out.println(
-					"       -d<messageDropping%>                        : drops forward and backward messages with provided probability");
+					"       -d=<messageDropping%>                        : drops forward and backward messages with provided probability");
 			System.out.println(
-					"       -f<messageDropping%>                        : drops forward messages with provided probability");
+					"       -f=<messageDropping%>                        : drops forward messages with provided probability");
 			System.out.println(
-					"       -b<messageDropping%>                        : drops backward messages with provided probability");
+					"       -b=<messageDropping%>                        : drops backward messages with provided probability");
 			System.out.println(
-					"       -s<sizeLimit:probability%>                  : limit message size to provided value");
+					"       -s=<sizeLimit:probability%>                  : limit message size to provided value");
+			System.out.println(
+					"       -tnat=<milliseconds>                        : timeout for nat entries. Default " + NioNatUtil.NAT_TIMEOUT_MS + "[ms]");
+			System.out.println(
+					"       -tlb=<milliseconds>                         : timeout for destination entries. Default " + NioNatUtil.LB_TIMEOUT_MS + "[ms]");
 			System.out.println("       use -f and/or -b, if you want to test with different probabilities.");
 			return;
 		}
@@ -60,16 +67,24 @@ public class Nat {
 		try {
 			String line = null;
 			int argsIndex = 0;
-			InetSocketAddress proxyAddress;
-			InetSocketAddress destination;
+			List<InetSocketAddress> proxyAddresses = new ArrayList<>();
 			if (args[argsIndex].startsWith(":")) {
-				proxyAddress = createAnyAddress(args[argsIndex++]);
-				destination = createAddress(args[argsIndex++]);
+				proxyAddresses.add(createAnyAddress(args[argsIndex++]));
 			} else {
-				proxyAddress = createAddress(args[argsIndex++]);
-				destination = createAddress(args[argsIndex++]);
+				InetSocketAddress bind = createAddress("in ", args[argsIndex++]);
+				proxyAddresses.add(createAddress("in ", args[argsIndex++]));
+				proxyAddresses.add(bind);
+				while (argsIndex < args.length && !args[argsIndex++].equals("--")) {
+					bind = createAddress("in ", args[argsIndex]);
+					proxyAddresses.add(bind);
+				}
+				if (argsIndex >= args.length) {
+					System.out.println("Missing destination!");
+					return;
+				}
 			}
-			util = new NioNatUtil(proxyAddress, destination);
+			InetSocketAddress destination = createAddress("out", args[argsIndex++]);
+			util = new NioNatUtil(proxyAddresses, destination);
 			char droppingMode = 0;
 			while (argsIndex < args.length) {
 				int value;
@@ -116,12 +131,23 @@ public class Nat {
 						util.setForwardMessageSizeLimit(values[1], values[0], true);
 						System.out.println("size limit " + values[0] + " bytes, " + values[1] + " %.");
 						break;
+					case 't':
+						if (arg.startsWith("-tnat")) {
+							value = parse(5, arg)[0];
+							util.setNatTimeoutMillis(value);
+							System.out.println("NAT timeout " + value + "[ms].");
+						} else if (arg.startsWith("-tlb")) {
+							value = parse(4, arg)[0];
+							util.setLoadBalancerTimeoutMillis(value);
+							System.out.println("LoadBalancer timeout " + value + "[ms].");
+						}
+						break;
 					default:
 						System.out.println("option '" + arg + "' unknown!");
 						break;
 					}
 				} else {
-					InetSocketAddress destinationAddress = createAddress(arg);
+					InetSocketAddress destinationAddress = createAddress("out", arg);
 					util.addDestination(destinationAddress);
 				}
 			}
@@ -162,7 +188,7 @@ public class Nat {
 					System.out.println("reassigned " + count + " destinations of " + entries + ".");
 				} else if (line.startsWith("remove ")) {
 					try {
-						InetSocketAddress dest = createAddress("remove ", line);
+						InetSocketAddress dest = createDestinationAddress("remove ", line);
 						if (util.removeDestination(dest)) {
 							System.out.println(dest + " removed");
 						}
@@ -172,7 +198,7 @@ public class Nat {
 					}
 				} else if (line.startsWith("add ")) {
 					try {
-						InetSocketAddress dest = createAddress("add ", line);
+						InetSocketAddress dest = createDestinationAddress("add ", line);
 						if (util.addDestination(dest)) {
 							System.out.println(dest + " added");
 						}
@@ -234,11 +260,11 @@ public class Nat {
 		return Integer.parseInt(line.substring(head.length()));
 	}
 
-	public static InetSocketAddress createAddress(String head, String line) throws URISyntaxException {
-		return createAddress(line.substring(head.length()));
+	public static InetSocketAddress createDestinationAddress(String head, String line) throws URISyntaxException {
+		return createAddress("out", line.substring(head.length()));
 	}
 
-	public static InetSocketAddress createAddress(String address) throws URISyntaxException {
+	public static InetSocketAddress createAddress(String direction, String address) throws URISyntaxException {
 		if (address.startsWith(":")) {
 			throw new URISyntaxException(address, "<any>: not allowed!");
 		} else {
@@ -246,7 +272,7 @@ public class Nat {
 			URI uri = new URI("proxy://" + address);
 			String host = uri.getHost();
 			int port = uri.getPort();
-			System.out.println(address + " => " + host + ":" + port);
+			System.out.println(direction + ": " + address + " => " + host + ":" + port);
 			InetSocketAddress result = new InetSocketAddress(host, port);
 			result.getAddress();
 			if (result.isUnresolved()) {
@@ -261,7 +287,7 @@ public class Nat {
 		if (address.startsWith(":")) {
 			// port only => any local address
 			int port = Integer.parseInt(address.substring(1));
-			System.out.println(address + " => <any>:" + port);
+			System.out.println("in : " + address + " => <any>:" + port);
 			return new InetSocketAddress(port);
 		} else {
 			throw new IllegalArgumentException(address + ", <interface>:<port> not allowed!");
@@ -280,6 +306,9 @@ public class Nat {
 	public static int[] parse(int pos, String arg, int... defs) {
 		int index = 0;
 		try {
+			if (arg.charAt(pos) == '=') {
+				++pos;
+			}
 			String value = pos == 0 ? arg : arg.substring(pos);
 			String[] values = value.split(":");
 			int len = Math.max(values.length, defs.length);
