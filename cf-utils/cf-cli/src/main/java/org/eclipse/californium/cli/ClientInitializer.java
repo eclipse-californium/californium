@@ -378,19 +378,21 @@ public class ClientInitializer {
 					dtlsConfig.setAdvancedPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
 				}
 			}
-			if (!keyExchangeAlgorithms.isEmpty()) {
-				if (clientConfig.cipherSuites == null || clientConfig.cipherSuites.isEmpty()) {
-					clientConfig.cipherSuites = CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, true,
-							keyExchangeAlgorithms);
-				}
-			}
 			if (clientConfig.cipherSuites != null && !clientConfig.cipherSuites.isEmpty()) {
-				dtlsConfig.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 				dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, clientConfig.cipherSuites);
 				if (clientConfig.verbose) {
 					System.out.println("cipher suites:");
 					print("   ", 50, clientConfig.cipherSuites, System.out);
 				}
+			} else if (!keyExchangeAlgorithms.isEmpty()) {
+				boolean recommendedOnly = config.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY);
+				List<CipherSuite> preselect = config.get(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES);
+				List<CipherSuite> keyExchange = CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(recommendedOnly, true,
+						keyExchangeAlgorithms);
+				if (preselect != null && !preselect.isEmpty()) {
+					keyExchange = CipherSuite.preselectCipherSuites(preselect, keyExchange);
+				}
+				dtlsConfig.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, keyExchange);
 			}
 			dtlsConfig.setAddress(new InetSocketAddress(localPort));
 			return dtlsConfig;
