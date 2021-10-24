@@ -42,11 +42,13 @@ public class Nat {
 	public static void main(String[] args) {
 		if (args.length < 3) {
 			System.out.println(
-					"usage: :port destination:port [destination2:port2 ...] [-r] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit:probability%>]");
+					"usage: :port destination:port [destination2:port2 ...] [-r] [-x] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit:probability%>]");
 			System.out.println(
-					"  or : localinterface:port [localinterface2:port2 ...] -- destination:port [destination2:port2 ...] [-r] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit:probability%>] [-tnat=<millis>] [-tln=<millis>]");
+					"  or : localinterface:port [localinterface2:port2 ...] -- destination:port [destination2:port2 ...] [-r] [-x] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit:probability%>] [-tnat=<millis>] [-tln=<millis>]");
 			System.out.println(
-					"       -r                                          : enable reverse destination address update");
+					"       -r                                           : enable reverse destination address update");
+			System.out.println(
+					"       -x                                           : enable DTLS filter.");
 			System.out.println(
 					"       -d=<messageDropping%>                        : drops forward and backward messages with provided probability");
 			System.out.println(
@@ -56,9 +58,9 @@ public class Nat {
 			System.out.println(
 					"       -s=<sizeLimit:probability%>                  : limit message size to provided value");
 			System.out.println(
-					"       -tnat=<milliseconds>                        : timeout for nat entries. Default " + NioNatUtil.NAT_TIMEOUT_MS + "[ms]");
+					"       -tnat=<milliseconds>                         : timeout for nat entries. Default " + NioNatUtil.NAT_TIMEOUT_MS + "[ms]");
 			System.out.println(
-					"       -tlb=<milliseconds>                         : timeout for destination entries. Default " + NioNatUtil.LB_TIMEOUT_MS + "[ms]");
+					"       -tlb=<milliseconds>                          : timeout for destination entries. Default " + NioNatUtil.LB_TIMEOUT_MS + "[ms]");
 			System.out.println("       use -f and/or -b, if you want to test with different probabilities.");
 			return;
 		}
@@ -95,6 +97,9 @@ public class Nat {
 					switch (option) {
 					case 'r':
 						util.setReverseNatUpdate(true);
+						break;
+					case 'x':
+						util.setDtlsFilter(true);
 						break;
 					case 'd':
 						if (droppingMode != 0) {
