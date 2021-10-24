@@ -425,6 +425,7 @@ public class ConnectorConfig implements Cloneable {
 			@Override
 			public void applyDefinitions(Configuration config) {
 				config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+				config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 				if (customConfigurationDefaultsProvider != null) {
 					customConfigurationDefaultsProvider.applyDefinitions(config);
 				}
