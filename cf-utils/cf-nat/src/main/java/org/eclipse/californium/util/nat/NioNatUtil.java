@@ -78,6 +78,33 @@ public class NioNatUtil implements Runnable {
 	 * @since 2.5
 	 */
 	public static final int LB_TIMEOUT_MS = 1000 * 15;
+
+	/**
+	 * Minimum length of DTLS 1.2 record.
+	 */
+	private static final byte DTLS_RECORD_MINIMUM_LENGTH = 14;
+	/**
+	 * DTLS 1.2 handshake record content type.
+	 */
+	private static final byte DTLS_HANDSHAKE_RECORD = 22;
+	/**
+	 * DTLS 1.x major version.
+	 */
+	private static final byte DTLS_1_X_MAJOR_VERSION = (byte)0xfe;
+	/**
+	 * DTLS 1.0 minor version.
+	 */
+	private static final byte DTLS_1_0_MINOR_VERSION = (byte)0xff;
+	/**
+	 * DTLS 1.2 minor version.
+	 */
+	private static final byte DTLS_1_2_MINOR_VERSION = (byte)0xfd;
+
+	/**
+	 * DTLS 1.2 valid record content types.
+	 */
+	private static final byte[] DTLS_CONTENT_TYPES = { 20, 21, DTLS_HANDSHAKE_RECORD, 23, 25 };
+
 	/**
 	 * Message dropping log interval.
 	 */
@@ -196,6 +223,12 @@ public class NioNatUtil implements Runnable {
 	 */
 	private AtomicLong wrongRoutedCounter = new AtomicLong();
 	/**
+	 * Counter for dropped none-dtls-records.
+	 * 
+	 * @since 3.0
+	 */
+	private AtomicLong droppedNoneDtls = new AtomicLong();
+	/**
 	 * Last counter for backwarded messages from wrong source.
 	 * 
 	 * Used for logging.
@@ -239,6 +272,14 @@ public class NioNatUtil implements Runnable {
 	 * @since 2.5
 	 */
 	private AtomicBoolean reverseNatUpdate = new AtomicBoolean();
+	/**
+	 * Enable DTLS 1.2 filter.
+	 * 
+	 * Filter records based on the first 3 bytes. Drop all none DTLS records.
+	 * 
+	 * @since 3.0
+	 */
+	private AtomicBoolean dtlsFilter = new AtomicBoolean();
 
 	/**
 	 * NAT address state.
@@ -636,9 +677,9 @@ public class NioNatUtil implements Runnable {
 				return;
 			}
 			if (manipulateMessage()) {
-				((Buffer) data).flip();
 				final ByteBuffer clone = ByteBuffer.allocate(data.limit());
 				clone.put(data);
+				((Buffer) clone).flip();
 				final long delay = delayMillis + random.nextInt(randomDelayMillis);
 				scheduler.schedule(new Runnable() {
 
@@ -646,7 +687,7 @@ public class NioNatUtil implements Runnable {
 					public void run() {
 						if (isRunning()) {
 							try {
-								LOGGER.info("deliver message {} bytes, delayed {}ms for {}", clone.position(), delay,
+								LOGGER.info("deliver message {} bytes, delayed {}ms for {}", clone.limit(), delay,
 										source);
 								NatEntry entry = nats.get(source);
 								if (entry != null) {
@@ -851,14 +892,20 @@ public class NioNatUtil implements Runnable {
 							// forward message
 							DatagramChannel channel = (DatagramChannel) key.channel();
 							InetSocketAddress source = (InetSocketAddress) channel.receive(proxyBuffer);
-							NatEntry newEntry = getNatEntry(source, channel);
-							MessageReordering before = this.reorder;
-							if (before != null) {
-								LOGGER.debug("reorder forward {} bytes", proxyBuffer.position());
-								before.forward(source, newEntry, proxyBuffer);
+							((Buffer) proxyBuffer).flip();
+							if (dtlsFilter.get() && !isDtlsRecord(proxyBuffer)) {
+								droppedNoneDtls.incrementAndGet();
+								LOGGER.debug("drop none dtls {} bytes", proxyBuffer.limit());
 							} else {
-								LOGGER.debug("forward {} bytes", proxyBuffer.position());
-								newEntry.forward(proxyBuffer);
+								NatEntry newEntry = getNatEntry(source, channel);
+								MessageReordering before = this.reorder;
+								if (before != null) {
+									LOGGER.debug("reorder forward {} bytes", proxyBuffer.limit());
+									before.forward(source, newEntry, proxyBuffer);
+								} else {
+									LOGGER.debug("forward {} bytes", proxyBuffer.limit());
+									newEntry.forward(proxyBuffer);
+								}
 							}
 						}
 					}
@@ -914,6 +961,33 @@ public class NioNatUtil implements Runnable {
 				LOGGER.error("NAT {} to {} error", proxyName, getDestinationForLogging(), e);
 			}
 		}
+	}
+
+	private boolean isDtlsRecord(ByteBuffer packet) {
+		if (packet.limit() < DTLS_RECORD_MINIMUM_LENGTH) {
+			return false;
+		}
+		if (packet.get(1) != DTLS_1_X_MAJOR_VERSION) {
+			// not DTLS 1.x
+			return false;
+		}
+		byte minorVersion = packet.get(2);
+		if (minorVersion == DTLS_1_2_MINOR_VERSION) {
+			// DTLS 1.2
+			byte data = packet.get(0);
+			for (int index = 0; index < DTLS_CONTENT_TYPES.length; ++index) {
+				byte type = DTLS_CONTENT_TYPES[index];
+				if (data < type) {
+					return false;
+				} else if (data == type) {
+					return true;
+				}
+			}
+		} else if (minorVersion == DTLS_1_0_MINOR_VERSION) {
+			// hello verify request DTLS 1.0
+			return packet.get(0) == DTLS_HANDSHAKE_RECORD;
+		}
+		return false;
 	}
 
 	private void expires(List<NatAddress> destinations, int minimum, long expireNanos) {
@@ -1566,6 +1640,31 @@ public class NioNatUtil implements Runnable {
 	 */
 	public boolean useReverseNatUpdate() {
 		return reverseNatUpdate.get();
+
+	}
+
+	/**
+	 * Enable DTLS filter.
+	 * 
+	 * Filter dtls 1.2 records for incoming messages. Drop none dtls-records.
+	 * 
+	 * @param dtlsFilter {@code true}, enable dtls filter, {@code false},
+	 *            disable it.
+	 * @since 3.0
+	 */
+	public void setDtlsFilter(boolean dtlsFilter) {
+		this.dtlsFilter.set(dtlsFilter);
+	}
+
+	/**
+	 * Check, if DTLS filter is enabled.
+	 * 
+	 * @return {@code true}, if dtls filter is enabled, {@code false},
+	 *         otherwise.
+	 * @since 3.0
+	 */
+	public boolean useDtlsFilter() {
+		return dtlsFilter.get();
 	}
 
 	/**
@@ -1780,6 +1879,7 @@ public class NioNatUtil implements Runnable {
 			}
 			try {
 				SocketAddress source = outgoing.receive(packet);
+				((Buffer) packet).flip();
 				if (destination.address.equals(source)) {
 					destination.updateReceive();
 				} else {
@@ -1791,7 +1891,7 @@ public class NioNatUtil implements Runnable {
 						((Buffer) packet).clear();
 					}
 				}
-				return packet.position();
+				return packet.limit();
 			} catch (IOException ex) {
 				return -1;
 			}
@@ -1810,7 +1910,7 @@ public class NioNatUtil implements Runnable {
 			incoming.updateUsage();
 			MessageDropping dropping = backward;
 			if (dropping != null && dropping.dropMessage()) {
-				LOGGER.debug("backward drops {} bytes from {} to {} via {}", packet.position(), destination.name,
+				LOGGER.debug("backward drops {} bytes from {} to {} via {}", packet.limit(), destination.name,
 						incoming.name, natName);
 			} else {
 				MessageSizeLimit limit = backwardSizeLimit;
@@ -1818,22 +1918,21 @@ public class NioNatUtil implements Runnable {
 						: MessageSizeLimit.Manipulation.NONE;
 				switch (manipulation) {
 				case NONE:
-					LOGGER.debug("backward {} bytes from {} to {} via {}", packet.position(), destination.name,
+					LOGGER.debug("backward {} bytes from {} to {} via {}", packet.limit(), destination.name,
 							incoming.name, natName);
 					break;
 				case DROP:
-					LOGGER.debug("backward drops {} bytes from {} to {} via {}", packet.position(), destination.name,
+					LOGGER.debug("backward drops {} bytes from {} to {} via {}", packet.limit(), destination.name,
 							incoming.name, natName);
 					break;
 				case LIMIT:
-					LOGGER.debug("backward limited {} bytes from {} to {} via {}", packet.position(), destination.name,
+					LOGGER.debug("backward limited {} bytes from {} to {} via {}", packet.limit(), destination.name,
 							incoming.name, natName);
 					break;
 				}
 				if (manipulation != MessageSizeLimit.Manipulation.DROP) {
-					((Buffer) packet).flip();
 					if (proxyChannel.send(packet, incoming.address) == 0) {
-						LOGGER.debug("backward overloaded {} bytes from {} to {} via {}", packet.position(),
+						LOGGER.debug("backward overloaded {} bytes from {} to {} via {}", packet.limit(),
 								destination.name, incoming.name, natName);
 					} else {
 						backwardCounter.incrementAndGet();
@@ -1853,7 +1952,7 @@ public class NioNatUtil implements Runnable {
 				this.first = false;
 			}
 			if (incoming == null) {
-				LOGGER.debug("forward drops {} bytes, no incoming address.", packet.position());
+				LOGGER.debug("forward drops {} bytes, no incoming address.", packet.limit());
 				return false;
 			}
 			incoming.updateUsage();
@@ -1863,7 +1962,7 @@ public class NioNatUtil implements Runnable {
 			}
 			MessageDropping dropping = forward;
 			if (dropping != null && dropping.dropMessage()) {
-				LOGGER.debug("forward drops {} bytes from {} to {} via {}", packet.position(), incoming.name,
+				LOGGER.debug("forward drops {} bytes from {} to {} via {}", packet.limit(), incoming.name,
 						destination.name, natName);
 			} else {
 
@@ -1872,20 +1971,19 @@ public class NioNatUtil implements Runnable {
 						: MessageSizeLimit.Manipulation.NONE;
 				switch (manipulation) {
 				case NONE:
-					LOGGER.debug("forward {} bytes from {} to {} via {}", packet.position(), incoming.name,
+					LOGGER.debug("forward {} bytes from {} to {} via {}", packet.limit(), incoming.name,
 							destination.name, natName);
 					break;
 				case DROP:
-					LOGGER.debug("forward drops {} bytes from {} to {} via {}", packet.position(), incoming.name,
+					LOGGER.debug("forward drops {} bytes from {} to {} via {}", packet.limit(), incoming.name,
 							destination.name, natName);
 					break;
 				case LIMIT:
-					LOGGER.debug("forward limited {} bytes from {} to {} via {}", packet.position(), incoming.name,
+					LOGGER.debug("forward limited {} bytes from {} to {} via {}", packet.limit(), incoming.name,
 							destination.name, natName);
 					break;
 				}
 				if (manipulation != MessageSizeLimit.Manipulation.DROP) {
-					((Buffer) packet).flip();
 					if (outgoing.send(packet, destination.address) == 0) {
 						LOGGER.info("forward overloaded {} bytes from {} to {} via {}", packet.limit(), incoming.name,
 								destination.name, natName);
@@ -1893,7 +1991,7 @@ public class NioNatUtil implements Runnable {
 					} else {
 						destination.updateSend();
 						forwardCounter.incrementAndGet();
-						LOGGER.debug("forwarded {} bytes from {} to {} via {}", packet.position(), incoming.name,
+						LOGGER.debug("forwarded {} bytes from {} to {} via {}", packet.limit(), incoming.name,
 								destination.name, natName);
 					}
 				}
