@@ -33,6 +33,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -52,7 +53,10 @@ import javax.net.ssl.X509KeyManager;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
+import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.CertificateIdentityResult;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -124,6 +128,17 @@ public class DtlsConnectorConfigTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(containsString("must not be empty"));
 		builder.set(DtlsConfig.DTLS_CIPHER_SUITES, new ArrayList<CipherSuite>(0));
+	}
+
+	@Test
+	public void testBuilderSupportEdDsaForCertificate() throws Exception {
+		assumeTrue("Ed25519 not supported by JCE", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().setTrustAllRPKs().build();
+		Credentials credentials = DtlsTestTools.getCredentials("servereddsa");
+		assumeNotNull("servereddsa credentials missing!", credentials);
+		builder.setCertificateIdentityProvider(new SingleCertificateProvider(credentials.getPrivateKey(), credentials.getCertificateChain()))
+				.setAdvancedCertificateVerifier(verifier)
+				.build();
 	}
 
 	@Test

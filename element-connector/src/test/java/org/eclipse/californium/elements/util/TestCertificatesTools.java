@@ -283,7 +283,7 @@ public class TestCertificatesTools {
 				return SslContextUtil.loadCredentials(EDDSA_KEY_STORE_URI, alias,
 						KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			}
-		} catch (IOException | GeneralSecurityException e) {
+		} catch (IOException | IllegalArgumentException | GeneralSecurityException e) {
 			return null;
 		}
 	}
