@@ -1,19 +1,19 @@
 # (s)NAT / LoadBalancer Simulator
 
-In order to test NAT and LoadBalancer specific situations, this module contains a simple simulator implementation for a (s)NAT and/or load-balancer. It offers an API for own test-implementations, and an example applications.
+In order to test NAT and LoadBalancer specific situations, this module contains a simple simulator implementation for a (s)NAT and load-balancer. It offers an API for own test-implementations, and an example applications. For very simple test scenarios, this application may be used as UDP load-balancer or IPv6 gateway to cloud-components, which doesn't offer load-balancers for UDP or IPv6.
 
 Usage:
 
 (listening on the <any>-address)
 
 ```sh
-java -jar cf-nat-<version>.jar :port destination:port [destination2:port2 ...] [-r] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit>] [-tnat=<millis>] [-tln=<millis>]
+java -jar cf-nat-<version>.jar :port destination:port [destination2:port2 ...] [-r] [-x] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit>] [-tnat=<millis>] [-tlb=<millis>] [-n=<maxNatEntries>]
 ```
 
 (listening on specific addresses)
 
 ```sh
-java -jar cf-nat-<version>.jar localinterface:port [localinterface2:port2 ...] -- destination:port [destination2:port2 ...] [-r] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit>] [-tnat=<millis>] [-tln=<millis>]
+java -jar cf-nat-<version>.jar localinterface:port [localinterface2:port2 ...] -- destination:port [destination2:port2 ...] [-r] [-x] [-d=<messageDropping%>|[-f=<messageDropping%>][-b=<messageDropping%>]] [-s=<sizeLimit>] [-tnat=<millis>] [-tlb=<millis>] [-n=<maxNatEntries>]
 ```
 
 The (s)NAT receives UDP messages on the local interface(s) and port(s), creates outgoing sockets for each source endpoint of the received messages, and forwards the message using the new outgoing socket (source-NAT). If the outgoing socket receives a message back, that is the "backwarded" using the local-interface and port, which received the original incoming message. The NAT entry is removed, if during the timeout (default 30s) no new message is received.
@@ -55,3 +55,19 @@ Additionally these commands are supported:
 - add ``<host:port>`` - add new destination to load-balancer, e.g. "add node1.coaps.cluster:5684"
 - remove ``<host:port>`` - remove destination from load-balancer
 - reverse ``(on|off)`` - enable/disable reverse address updates.
+
+## Arguments
+
+    -r                                           : enable reverse destination address update
+    -x                                           : enable DTLS filter.
+    -d=<messageDropping%>                        : drops forward and backward messages with provided probability
+    -f=<messageDropping%>                        : drops forward messages with provided probability
+    -b=<messageDropping%>                        : drops backward messages with provided probability
+    -s=<sizeLimit:probability%>                  : limit message size to provided value
+    -tnat=<milliseconds>                         : timeout for nat entries. Default 30000[ms]
+    -tlb=<milliseconds>                          : timeout for destination entries. Default 15000[ms]
+    -n=<max-number-of-nat-entries>               : maximum number of NAT entries. Default 10000
+
+    use -f and/or -b, if you want to test with different probabilities.
+
+
