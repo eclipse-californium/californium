@@ -364,7 +364,7 @@ public class ClientInitializer {
 							identity.getCertificateChain(), certificateTypes));
 				} else if (certificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
 					dtlsConfig.setCertificateIdentityProvider(
-							new SingleCertificateProvider(identity.getPrivateKey(), identity.getPubicKey()));
+							new SingleCertificateProvider(identity.getPrivateKey(), identity.getPublicKey()));
 				}
 			}
 

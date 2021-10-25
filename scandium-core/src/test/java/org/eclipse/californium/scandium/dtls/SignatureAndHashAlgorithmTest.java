@@ -194,7 +194,7 @@ public class SignatureAndHashAlgorithmTest {
 		Credentials credentials = DtlsTestTools.getCredentials("clienteddsa");
 		assumeNotNull("clienteddsa credentials missing!", credentials);
 		List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>();
-		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, credentials.getPubicKey());
+		SignatureAndHashAlgorithm.ensureSignatureAlgorithm(algorithms, credentials.getPublicKey());
 		assertThat(algorithms.size(), is(1));
 		assertThat(algorithms, hasItem(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519));
 	}
