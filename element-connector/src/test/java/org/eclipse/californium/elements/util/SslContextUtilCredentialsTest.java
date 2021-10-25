@@ -291,8 +291,8 @@ public class SslContextUtilCredentialsTest {
 		Credentials credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + "certs/ec_private.pem", null, null, null);
 		assertThat(credentials, is(notNullValue()));
 		assertThat(credentials.getPrivateKey(), is(notNullValue()));
-		assertThat(credentials.getPubicKey(), is(notNullValue()));
-		assertSigning("PEMv2", credentials.getPrivateKey(), credentials.getPubicKey(), "SHA256withECDSA");
+		assertThat(credentials.getPublicKey(), is(notNullValue()));
+		assertSigning("PEMv2", credentials.getPrivateKey(), credentials.getPublicKey(), "SHA256withECDSA");
 	}
 
 	@Test
@@ -306,7 +306,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain(), is(notNullValue()));
 		assertThat(credentials.getCertificateChain().length, is(greaterThan(0)));
 		assertThat(credentials.getCertificateChain()[0].getPublicKey(), is(notNullValue()));
-		assertSigning("JKS", credentials.getPrivateKey(), credentials.getPubicKey(), "ED25519");
+		assertSigning("JKS", credentials.getPrivateKey(), credentials.getPublicKey(), "ED25519");
 	}
 
 	@Test

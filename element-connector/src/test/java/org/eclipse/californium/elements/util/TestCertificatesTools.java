@@ -295,7 +295,7 @@ public class TestCertificatesTools {
 	 * @since 2.4
 	 */
 	public static KeyPair getServerKeyPair() {
-		return new KeyPair(serverCredentials.getPubicKey(), serverCredentials.getPrivateKey());
+		return new KeyPair(serverCredentials.getPublicKey(), serverCredentials.getPrivateKey());
 	}
 
 	/**

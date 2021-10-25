@@ -172,7 +172,7 @@ public class ConnectorConfig implements Cloneable {
 				} else if (identity.certificate.getPrivateKey() == null) {
 					LOGGER.info("x509 identity from certificate and private key.");
 					credentials = new Credentials(identity.privateKey.getPrivateKey(),
-							identity.certificate.getPubicKey(), identity.certificate.getCertificateChain());
+							identity.certificate.getPublicKey(), identity.certificate.getCertificateChain());
 				} else {
 					LOGGER.info("x509 identity from certificate.");
 					credentials = identity.certificate;
@@ -180,7 +180,7 @@ public class ConnectorConfig implements Cloneable {
 				if (credentials.getPrivateKey() == null) {
 					throw new IllegalArgumentException("Missing private key!");
 				}
-				if (credentials.getPubicKey() == null) {
+				if (credentials.getPublicKey() == null) {
 					throw new IllegalArgumentException("Missing public key or certificate!");
 				}
 			}

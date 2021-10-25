@@ -1320,7 +1320,7 @@ public class SslContextUtil {
 		 * 
 		 * @return public key
 		 */
-		public PublicKey getPubicKey() {
+		public PublicKey getPublicKey() {
 			return publicKey;
 		}
 
