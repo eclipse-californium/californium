@@ -284,6 +284,39 @@ public final class SignatureAndHashAlgorithm {
 		public boolean isSupported(CertificateKeyAlgorithm certificateKeyAlgorithm) {
 			return this.certificateKeyAlgorithm == certificateKeyAlgorithm;
 		}
+
+		/**
+		 * Checks, if the signature is used with intrinsic mode.
+		 * 
+		 * @return {@code true}, if it is used with intrinsic mode,
+		 *         {@code false}, if not.
+		 * @since 3.0
+		 */
+		public boolean isIntrinsic() {
+			return isIntrinsic;
+		}
+
+		/**
+		 * Get intrinsic signature algorithm for name
+		 * 
+		 * @param algorithmName signature algorithm name
+		 * @return signature algorithm
+		 * @throws IllegalArgumentException if no intrinsic algorithm is
+		 *             available.
+		 * @since 3.0
+		 */
+		public static SignatureAlgorithm intrinsicValueOf(String algorithmName) {
+			String standardAlgorithmName = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithmName, null);
+			if (standardAlgorithmName != null) {
+				for (SignatureAlgorithm algorithm : values()) {
+					if (algorithm.isIntrinsic && algorithm.isSupported(standardAlgorithmName)) {
+						return algorithm;
+					}
+				}
+				throw new IllegalArgumentException(algorithmName + " is no supported intrinsic algorithm!");
+			}
+			throw new IllegalArgumentException(algorithmName + " is unknown intrinsic algorithm!");
+		}
 	}
 
 	/**
@@ -390,7 +423,7 @@ public final class SignatureAndHashAlgorithm {
 		} else {
 			hashAlgorithm = HashAlgorithm.INTRINSIC;
 			try {
-				signatureAlgorithm = SignatureAlgorithm.valueOf(jcaName);
+				signatureAlgorithm = SignatureAlgorithm.intrinsicValueOf(jcaName);
 			} catch (IllegalArgumentException ex) {
 				throw new IllegalArgumentException(jcaName + " is unknown!");
 			}
@@ -458,7 +491,7 @@ public final class SignatureAndHashAlgorithm {
 		for (SignatureAlgorithm signatureAlgorithm : SignatureAlgorithm.values()) {
 			if (signatureAlgorithm.isSupported(publicKey.getAlgorithm())) {
 				keyAlgorithmSupported = true;
-				if (signatureAlgorithm.isIntrinsic) {
+				if (signatureAlgorithm.isIntrinsic()) {
 					signAndHash = new SignatureAndHashAlgorithm(HashAlgorithm.INTRINSIC, signatureAlgorithm);
 					if (signAndHash.isSupported(publicKey)) {
 						ListUtils.addIfAbsent(algorithms, signAndHash);

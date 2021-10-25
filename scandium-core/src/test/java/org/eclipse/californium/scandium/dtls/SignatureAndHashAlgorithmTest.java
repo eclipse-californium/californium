@@ -157,12 +157,22 @@ public class SignatureAndHashAlgorithmTest {
 		assertNotNull(algorithm);
 		assertThat(algorithm.getHash(), is(HashAlgorithm.INTRINSIC));
 		assertThat(algorithm.getSignature(), is(SignatureAlgorithm.ED25519));
+
+		algorithm = SignatureAndHashAlgorithm.valueOf("Ed25519");
+		assertNotNull(algorithm);
+		assertThat(algorithm.getHash(), is(HashAlgorithm.INTRINSIC));
+		assertThat(algorithm.getSignature(), is(SignatureAlgorithm.ED25519));
 	}
 
 	@Test
 	public void testValueOfEd448() throws GeneralSecurityException {
 		assumeTrue("Ed448 not supported!", eddsa448 != null);
 		SignatureAndHashAlgorithm algorithm = SignatureAndHashAlgorithm.valueOf("ED448");
+		assertNotNull(algorithm);
+		assertThat(algorithm.getHash(), is(HashAlgorithm.INTRINSIC));
+		assertThat(algorithm.getSignature(), is(SignatureAlgorithm.ED448));
+
+		algorithm = SignatureAndHashAlgorithm.valueOf("Ed448");
 		assertNotNull(algorithm);
 		assertThat(algorithm.getHash(), is(HashAlgorithm.INTRINSIC));
 		assertThat(algorithm.getSignature(), is(SignatureAlgorithm.ED448));
@@ -190,7 +200,7 @@ public class SignatureAndHashAlgorithmTest {
 
 	@Test
 	public void testEnsureSignatureAlgorithmForEdDsa() throws GeneralSecurityException {
-		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+		assumeTrue("ED25519 requires JCE support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
 		Credentials credentials = DtlsTestTools.getCredentials("clienteddsa");
 		assumeNotNull("clienteddsa credentials missing!", credentials);
 		List<SignatureAndHashAlgorithm> algorithms = new ArrayList<>();
