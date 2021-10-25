@@ -61,6 +61,8 @@ public class Nat {
 					"       -tnat=<milliseconds>                         : timeout for nat entries. Default " + NioNatUtil.NAT_TIMEOUT_MS + "[ms]");
 			System.out.println(
 					"       -tlb=<milliseconds>                          : timeout for destination entries. Default " + NioNatUtil.LB_TIMEOUT_MS + "[ms]");
+			System.out.println(
+					"       -n=<max-number-of-nat-entries>               : maximum number of NAT entries. Default " + NioNatUtil.MAXIMUM_NAT_ENTRIES);
 			System.out.println("       use -f and/or -b, if you want to test with different probabilities.");
 			return;
 		}
@@ -96,9 +98,11 @@ public class Nat {
 					char option = arg.charAt(1);
 					switch (option) {
 					case 'r':
+						System.out.println("enable NAT reverse update.");
 						util.setReverseNatUpdate(true);
 						break;
 					case 'x':
+						System.out.println("enable DTLS filter.");
 						util.setDtlsFilter(true);
 						break;
 					case 'd':
@@ -135,6 +139,11 @@ public class Nat {
 						values = parse(2, arg, 0, 100);
 						util.setForwardMessageSizeLimit(values[1], values[0], true);
 						System.out.println("size limit " + values[0] + " bytes, " + values[1] + " %.");
+						break;
+					case 'n':
+						value = parse(2, arg)[0];
+						util.setMaxiumNumberOfNatEntries(value);
+						System.out.println("NAT max. entires " + value);
 						break;
 					case 't':
 						if (arg.startsWith("-tnat")) {

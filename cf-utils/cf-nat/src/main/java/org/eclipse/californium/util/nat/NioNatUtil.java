@@ -78,6 +78,12 @@ public class NioNatUtil implements Runnable {
 	 * @since 2.5
 	 */
 	public static final int LB_TIMEOUT_MS = 1000 * 15;
+	/**
+	 * Maximum number of NAT entries.
+	 * 
+	 * @since 3.0
+	 */
+	public static final int MAXIMUM_NAT_ENTRIES = 10000;
 
 	/**
 	 * Minimum length of DTLS 1.2 record.
@@ -262,6 +268,12 @@ public class NioNatUtil implements Runnable {
 	 * @since 2.5
 	 */
 	private AtomicInteger loadBalancerTimeoutMillis = new AtomicInteger(LB_TIMEOUT_MS);
+	/**
+	 * Maximum number of NAT entries.
+	 * 
+	 * @since 3.0
+	 */
+	private AtomicInteger maximumNumberOfNatEtries = new AtomicInteger(MAXIMUM_NAT_ENTRIES);
 
 	/**
 	 * Enable reverse NAT updates.
@@ -898,13 +910,17 @@ public class NioNatUtil implements Runnable {
 								LOGGER.debug("drop none dtls {} bytes", proxyBuffer.limit());
 							} else {
 								NatEntry newEntry = getNatEntry(source, channel);
-								MessageReordering before = this.reorder;
-								if (before != null) {
-									LOGGER.debug("reorder forward {} bytes", proxyBuffer.limit());
-									before.forward(source, newEntry, proxyBuffer);
+								if (newEntry != null) {
+									MessageReordering before = this.reorder;
+									if (before != null) {
+										LOGGER.debug("reorder forward {} bytes", proxyBuffer.limit());
+										before.forward(source, newEntry, proxyBuffer);
+									} else {
+										LOGGER.debug("forward {} bytes", proxyBuffer.limit());
+										newEntry.forward(proxyBuffer);
+									}
 								} else {
-									LOGGER.debug("forward {} bytes", proxyBuffer.limit());
-									newEntry.forward(proxyBuffer);
+									LOGGER.debug("drop {} bytes, NAT entries exhausted (max. {})", proxyBuffer.limit(), maximumNumberOfNatEtries.get());
 								}
 							}
 						}
@@ -1026,7 +1042,7 @@ public class NioNatUtil implements Runnable {
 
 	private NatEntry getNatEntry(InetSocketAddress source, DatagramChannel proxyChannel) throws IOException {
 		NatEntry entry = nats.get(source);
-		if (entry == null) {
+		if (entry == null && nats.size() < maximumNumberOfNatEtries.get()) {
 			entry = new NatEntry(source, proxyChannel, selector);
 			NatEntry previousEntry = nats.putIfAbsent(source, entry);
 			if (previousEntry != null) {
@@ -1641,6 +1657,26 @@ public class NioNatUtil implements Runnable {
 	public boolean useReverseNatUpdate() {
 		return reverseNatUpdate.get();
 
+	}
+
+	/**
+	 * Set maximum number of NAT entries.
+	 * 
+	 * @param maximumNumber maximum number of NAT entries.
+	 * @since 3.0
+	 */
+	public void setMaxiumNumberOfNatEntries(int maximumNumber) {
+		this.maximumNumberOfNatEtries.set(maximumNumber);
+	}
+
+	/**
+	 * Get maximum number of NAT entries.
+	 * 
+	 * @return maximum number of NAT entries.
+	 * @since 3.0
+	 */
+	public int getMaxiumNumberOfNatEntries() {
+		return maximumNumberOfNatEtries.get();
 	}
 
 	/**
