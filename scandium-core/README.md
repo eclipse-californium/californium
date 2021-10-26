@@ -10,27 +10,45 @@ sitting on top of it.
 # Usage
 
 If you search the Web, you will find many references and snippets how to setup DTLS for Californium.
-Unfortunately, the most are just deprecated. 3.0.0-RC1 comes now even with the new `Configuration` and applies therefore even more changes.
+Unfortunately, the most are just deprecated. Since 3.0.0-RC1 it comes now even with the new `Configuration` and applies therefore more changes.
 
-One good point to start with is reading the javadoc of [DtlsConnectorConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConnectorConfig.java).
+One good point to start with is reading the javadoc of [DtlsConnectorConfig](src/main/java/org/eclipse/californium/scandium/config/DtlsConnectorConfig.java).
 
-The general idea is, that you provide the credentials, and the auto-configuration does the rest. If you need a more specific setup, you may consider to read [DtlsConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) in order see, which parameters may be configured.
+The general idea is, that you provide the credentials, and the auto-configuration does the rest. If you need a more specific setup, you may consider to read [DtlsConfig](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) in order see, which parameters may be configured.
 
 ## PSK
 
-PSK credentials are provided using a implementation of the [AdvancedPskStore](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedPskStore.java) interface.
+PSK credentials are provided using a implementation of the [AdvancedPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedPskStore.java) interface.
 
-For demonstration, two implementations for server- and client-usage are available ([AdvancedMultiPskStore](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedMultiPskStore.java) and [AdvancedSinglePskStore](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedSinglePskStore.java)).
+For demonstration, two implementations for server- and client-usage are available ([AdvancedMultiPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedMultiPskStore.java) and [AdvancedSinglePskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedSinglePskStore.java)).
 
 Using the interface enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible.
 
 ## RPK/X509
 
-Certificate based credentials are provided using a implementation of the [CertificateProvider](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/CertificateProvider.java) interface. And to verify certificates of the other peers, provide a implementation of the [NewAdvancedCertificateVerifier](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/NewAdvancedCertificateVerifier.java).
+Certificate based credentials are provided using a implementation of the [CertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/CertificateProvider.java) interface. And to verify certificates of the other peers, provide a implementation of the [NewAdvancedCertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/NewAdvancedCertificateVerifier.java).
 
-For demonstration, two implementations of the `CertificateProvider` are available, the [SingleCertificateProvider](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/SingleCertificateProvider.java) (for simple setups or setups with earlier versions of Californium), and the [KeyManagerCertificateProvider](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/KeyManagerCertificateProvider.java) (for setups with multiple certificates in order to support different certificate types and/or other subjects/servernames).
+For demonstration, two implementations of the `CertificateProvider` are available, the [SingleCertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/SingleCertificateProvider.java) (for simple setups or setups with earlier versions of Californium), and the [KeyManagerCertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/KeyManagerCertificateProvider.java) (for setups with multiple certificates in order to support different certificate types and/or other subjects/servernames).
 
-Also for demonstration, one implementation of the `NewAdvancedCertificateVerifier` is available, the [StaticNewAdvancedCertificateVerifier](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/StaticNewAdvancedCertificateVerifier.java).
+Also for demonstration, one implementation of the `NewAdvancedCertificateVerifier` is available, the [StaticNewAdvancedCertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/StaticNewAdvancedCertificateVerifier.java).
+
+## Additional Parameters
+
+In order to limit the usage of some parameter, it is possible to provide them by the 
+[DtlsConnectorConfig.Builder](src/main/java/org/eclipse/californium/scandium/config/DtlsConnectorConfig.java#L1437-L2279) using the definitions from [DtlsConfig](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java).
+
+```
+...
+DtlsConfig.register();
+CoapConfig.register();
+...
+Configuration configuration ...
+DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
+builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
+...
+builder.build(); 
+```
 
 # Getting it
 
@@ -84,10 +102,10 @@ mvn clean install
 in the project's root directory.
 
 This `scandium-core` folder contains the source code for the Scandium library.
-The [demo-apps/sc-dtls-example-client](https://github.com/eclipse/californium/tree/master/demo-apps/sc-dtls-example-client) and [demo-apps/sc-dtls-example-server](https://github.com/eclipse/californium/tree/master/demo-apps/sc-dtls-example-server) folder contains some sample code illustrating how to configure and instantiate Scandium's [DTLSConnector](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/DTLSConnector.java) class to establish connections secured by DTLS.
+The [demo-apps/sc-dtls-example-client](../demo-apps/sc-dtls-example-client) and [demo-apps/sc-dtls-example-server](../demo-apps/sc-dtls-example-server) folder contains some sample code illustrating how to configure and instantiate Scandium's [DTLSConnector](src/main/java/org/eclipse/californium/scandium/DTLSConnector.java) class to establish connections secured by DTLS.
 
-Generally it's required to register the [DtlsConfig.register()](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) the DTLS configuration module or to provide it when using the `Configuration(ModuleDefinitionsProvider... providers)`.
-For more advanced configuration options take a look at the definitions of [DtlsConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) and [DtlsConnectorConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConnectorConfig.java) JavaDocs.
+Generally it's required to register the [DtlsConfig.register()](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) the DTLS configuration module or to provide it when using the `Configuration(ModuleDefinitionsProvider... providers)`.
+For more advanced configuration options take a look at the definitions of [DtlsConfig](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) and [DtlsConnectorConfig](src/main/java/org/eclipse/californium/scandium/config/DtlsConnectorConfig.java) JavaDocs.
 
 # Eclipse
 
@@ -105,7 +123,7 @@ to import Californium into Eclipse.
 
 Scandium's test cases and examples refer to Java key stores containing private and public keys. These key stores are provided by the `demo-certs` module. Please refer to the documentation of that module for more information regarding how to create your own certificates.
 
-Starting with 3.0.0-RC1 a client receiving a x509 server-certificate verifies the subject of it by default. This may be disabled using [DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L410).
+Starting with 3.0.0-RC1 a client receiving a x509 server-certificate verifies the subject of it by default. This may be disabled using [DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L410).
 
 Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to provide multiple certificates to be selected by their algorithms and/or server name. For that, a Ed25519 and a RSA certificate has been added to the `demo-certs`.
 
@@ -192,7 +210,7 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 </dependencies>
 ```
 
-And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](https://github.com/eclipse/californium/blob/master/element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
+And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
 
 Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but they may be not processed.
 

@@ -20,7 +20,8 @@ $ mvn clean install
 
 Executable JARs of the examples with all dependencies can be found in the `demo-apps/run` folder.
 
-The build-process is tested for jdk 7, jdk 8 and jdk 11. For jdk 7 the revapi maven-plugin is disabled, it requires at least java 8.
+The build-process is tested for jdk 7, jdk 8, jdk 11, jdk 15 and jdk 16. 
+For jdk 7 the revapi maven-plugin is disabled, it requires at least java 8.
 
 To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set the `JAVA_HOME`.
 
@@ -110,7 +111,7 @@ to your `pom.xml` (without the dots):
 
 ##### Current Release Candidate
 
-[Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.0.0-RC1). if you want to use the current release candidate for the upcoming 3.0.0, use version `3.0.0-RC1` from the releases.
+[Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.0.0-RC2). if you want to use the current release candidate for the upcoming 3.0.0, use version `3.0.0-RC2` from the releases.
 
 ##### Current Builds
 
@@ -157,7 +158,7 @@ A test server is running at <a href="coap://californium.eclipseprojects.io:5683/
 
 **Note**: begin of June 2021, the ip-address assigned to "californium.eclipseprojects.io" has changed. Users of the sandbox, which are using the literal ip-address must update their clients!
 
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0-RC1/cf-plugtest-server-3.0.0-RC1.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0-RC2/cf-plugtest-server-3.0.0-RC2.jar) from the demo-apps.
 The root resource responds with its current version.
 
 More information can be found at [http://www.eclipse.org/californium](http://www.eclipse.org/californium) and technical details at [https://projects.eclipse.org/projects/iot.californium](https://projects.eclipse.org/projects/iot.californium).
@@ -171,7 +172,7 @@ More information can be found at [http://coap.me/](http://coap.me/).
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.0.0-RC1.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.0.0-RC2.jar MulticastTestServer`
 
 # Contact
 
