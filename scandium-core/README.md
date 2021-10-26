@@ -7,6 +7,30 @@ _Scandium (Sc)_  is a pure Java implementation of  _Datagram Transport Layer Sec
 _Scandium (Sc)_  implements the [element-connector](https://github.com/eclipse/californium/tree/master/element-connector) interface which provides a socket-like API for sending and receiving raw data chunks (byte arrays). Hence, you can also use  _Scandium (Sc)_  as a standalone library providing a secure UDP based transport layer to any type of application
 sitting on top of it.
 
+# Usage
+
+If you search the Web, you will find many references and snippets how to setup DTLS for Californium.
+Unfortunately, the most are just deprecated. 3.0.0-RC1 comes now even with the new `Configuration` and applies therefore even more changes.
+
+One good point to start with is reading the javadoc of [DtlsConnectorConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConnectorConfig.java).
+
+The general idea is, that you provide the credentials, and the auto-configuration does the rest. If you need a more specific setup, you may consider to read [DtlsConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) in order see, which parameters may be configured.
+
+## PSK
+
+PSK credentials are provided using a implementation of the [AdvancedPskStore](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedPskStore.java) interface.
+
+For demonstration, two implementations for server- and client-usage are available ([AdvancedMultiPskStore](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedMultiPskStore.java) and [AdvancedSinglePskStore](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedSinglePskStore.java)).
+
+Using the interface enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible.
+
+## RPK/X509
+
+Certificate based credentials are provided using a implementation of the [CertificateProvider](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/CertificateProvider.java) interface. And to verify certificates of the other peers, provide a implementation of the [NewAdvancedCertificateVerifier](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/NewAdvancedCertificateVerifier.java).
+
+For demonstration, two implementations of the `CertificateProvider` are available, the [SingleCertificateProvider](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/SingleCertificateProvider.java) (for simple setups or setups with earlier versions of Californium), and the [KeyManagerCertificateProvider](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/KeyManagerCertificateProvider.java) (for setups with multiple certificates in order to support different certificate types and/or other subjects/servernames).
+
+Also for demonstration, one implementation of the `NewAdvancedCertificateVerifier` is available, the [StaticNewAdvancedCertificateVerifier](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/dtls/x509/StaticNewAdvancedCertificateVerifier.java).
 
 # Getting it
 
@@ -28,7 +52,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>scandium</artifactId>
-            <version>2.6.0</version>
+            <version>3.0.0-RC1</version>
     </dependency>
     ...
   </dependencies>
@@ -60,7 +84,10 @@ mvn clean install
 in the project's root directory.
 
 This `scandium-core` folder contains the source code for the Scandium library.
-The [demo-apps/sc-dtls-example-client](https://github.com/eclipse/californium/tree/master/demo-apps/sc-dtls-example-client) and [demo-apps/sc-dtls-example-server](https://github.com/eclipse/californium/tree/master/demo-apps/sc-dtls-example-server) folder contains some sample code illustrating how to configure and instantiate Scandium's [DTLSConnector](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/DTLSConnector.java) class to establish connections secured by DTLS. For more advanced configuration options take a look at the [DtlsConnectorConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConnectorConfig.java) JavaDocs.
+The [demo-apps/sc-dtls-example-client](https://github.com/eclipse/californium/tree/master/demo-apps/sc-dtls-example-client) and [demo-apps/sc-dtls-example-server](https://github.com/eclipse/californium/tree/master/demo-apps/sc-dtls-example-server) folder contains some sample code illustrating how to configure and instantiate Scandium's [DTLSConnector](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/DTLSConnector.java) class to establish connections secured by DTLS.
+
+Generally it's required to register the [DtlsConfig.register()](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) the DTLS configuration module or to provide it when using the `Configuration(ModuleDefinitionsProvider... providers)`.
+For more advanced configuration options take a look at the definitions of [DtlsConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) and [DtlsConnectorConfig](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConnectorConfig.java) JavaDocs.
 
 # Eclipse
 
@@ -77,6 +104,10 @@ to import Californium into Eclipse.
 # Demo Certificates
 
 Scandium's test cases and examples refer to Java key stores containing private and public keys. These key stores are provided by the `demo-certs` module. Please refer to the documentation of that module for more information regarding how to create your own certificates.
+
+Starting with 3.0.0-RC1 a client receiving a x509 server-certificate verifies the subject of it by default. This may be disabled using [DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L410).
+
+Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to provide multiple certificates to be selected by their algorithms and/or server name. For that, a Ed25519 and a RSA certificate has been added to the `demo-certs`.
 
 # Supported RFCs
 
@@ -98,11 +129,17 @@ Scandium's test cases and examples refer to Java key stores containing private a
 - TLS_PSK_WITH_AES_256_CCM
 - TLS_PSK_WITH_AES_256_CCM_8
 - TLS_PSK_WITH_AES_256_GCM_SHA378
+- TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+- TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+
 - *TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256*
 - *TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA*
 - *TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384*
 - *TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256*
 - *TLS_PSK_WITH_AES_128_CBC_SHA256*
+- *TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+- *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+- *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
 
 Note: the *CBC* cipher suite are not longer recommended for new deployments!
 
@@ -129,4 +166,36 @@ or java 11 (or newer) and a third party library [ed25519-java](https://github.co
 mvn clean install -Dno.net.i2p.crypto.eddsa=true
 ```
 
-if this library should not be included. 
+if this library should not be included.
+
+## Support for Bouncy Castle
+
+Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https://www.bouncycastle.org/) as alternative JCE has been implemented. Add the maven dependencies
+
+```
+<properties>
+	<bc.version>1.69</bc.version>
+</properties>
+<dependencies>
+	<dependency>
+		<groupId>org.bouncycastle</groupId>
+		<artifactId>bcpkix-jdk15on</artifactId>
+		<version>${bc.version}</version>
+		<scope>test</scope>
+	</dependency>
+	<dependency>
+		<groupId>org.bouncycastle</groupId>
+		<artifactId>bcprov-jdk15on</artifactId>
+		<version>${bc.version}</version>
+		<scope>test</scope>
+	</dependency>
+</dependencies>
+```
+
+And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](https://github.com/eclipse/californium/blob/master/element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
+
+Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but they may be not processed.
+
+On issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
+
+An other issue is, that the function seems to depend on the combination of the OS (Unix, Windows, Android), the java version (7, 8, 11, 15, or 16), and the Bouncy Castle build (jdk15on or jdk15to18).
