@@ -17,12 +17,18 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
 
+import org.eclipse.californium.elements.util.JceProviderUtil;
+
 /**
  * Thread local crypto function.
  * 
  * Uses {@link ThreadLocal} to cache calls to {@link Factory#getInstance()}.
  */
 public class ThreadLocalCrypto<CryptoFunction> {
+
+	static {
+		JceProviderUtil.init();
+	}
 
 	private final Factory<CryptoFunction> factory;
 	private final GeneralSecurityException exception;
