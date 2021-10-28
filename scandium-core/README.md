@@ -230,3 +230,24 @@ For both, (RFC6347 - 4.2.1.  Denial-of-Service Countermeasures)[https://datatrac
 
 Scandium is intended to use such a `HelloVerifyRequest`, if spoofing must be considered.
 
+(RFC6347 - 4.2.1.  Denial-of-Service Countermeasures)[https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1] gives a server also a second option, when a client tries to resume a previous session.
+
+    In addition, the server MAY choose not to do a cookie exchange when a session is resumed.
+
+That option comes with (4.2.8.  Establishing New Associations with Existing Parameters)[https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.8]
+
+    In cases where a server believes it has an existing association on a
+    given host/port quartet and it receives an epoch=0 ClientHello, it
+    SHOULD proceed with a new handshake but MUST NOT destroy the existing
+    association until the client has demonstrated reachability either by
+    completing a cookie exchange or by completing a complete handshake
+    including delivering a verifiable Finished message. After a correct
+    Finished message is received, the server MUST abandon the previous
+    association to avoid confusion between two valid associations with
+    overlapping epochs. The reachability requirement prevents
+    off-path/blind attackers from destroying associations merely by
+    sending forged ClientHellos.
+
+Scandium 
+
+doesn't support this second option, if spoofing must be considered. 
