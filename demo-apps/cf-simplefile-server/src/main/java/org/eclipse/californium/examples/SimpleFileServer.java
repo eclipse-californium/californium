@@ -60,7 +60,8 @@ public class SimpleFileServer extends AbstractTestServer {
 
 	private static final File CONFIG_FILE = new File("Californium3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Fileserver";
-	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2 MB
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2
+																			// MB
 	private static final int DEFAULT_BLOCK_SIZE = 512;
 
 	static {
@@ -89,10 +90,10 @@ public class SimpleFileServer extends AbstractTestServer {
 	@Command(name = "SimpleFileServer", version = "(c) 2017, Bosch Software Innovations GmbH and others.")
 	public static class Config extends BaseConfig {
 
-		@Option(names = "--file-root", description = "files root. Default " + DEFAULT_PATH)
+		@Option(names = "--file-root", description = "files root. Default \"" + DEFAULT_PATH + "\"")
 		public String fileRoot = DEFAULT_PATH;
 
-		@Option(names = "--path-root", description = "resource-path root. Default " + DEFAULT_PATH)
+		@Option(names = "--path-root", description = "resource-path root. Default \"" + DEFAULT_PATH + "\"")
 		public String pathRoot = DEFAULT_PATH;
 
 	}
@@ -149,19 +150,15 @@ public class SimpleFileServer extends AbstractTestServer {
 				return;
 			}
 
-			File[] files = filesRoot.listFiles();
-			for (File file : files) {
-				if (file.isFile() && file.canRead()) {
-					LOG.info("GET: coap://<host>/{}/{}", coapRootPath, file.getName());
-//					break;
-				} 
-			}
+			listURIs(filesRoot, coapRootPath);
+
 			// create server
 			SimpleFileServer server = new SimpleFileServer(netConfig, protocolConfig, coapRootPath, filesRoot);
 			server.add(new MyContext(MyContext.RESOURCE_NAME, version, true));
 
 			// add endpoints on all IP addresses
-			server.addEndpoints(null, null, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS), config);
+			server.addEndpoints(null, null, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS),
+					config);
 			server.start();
 
 		} catch (SocketException e) {
@@ -169,11 +166,26 @@ public class SimpleFileServer extends AbstractTestServer {
 		}
 	}
 
+	public static void listURIs(File filesRoot, String coapRootPath) {
+		File[] files = filesRoot.listFiles();
+		for (File file : files) {
+			if (file.isFile() && file.canRead()) {
+				LOG.info("GET: coap://<host>/{}/{}", coapRootPath, file.getName());
+			}
+		}
+		for (File file : files) {
+			if (file.isDirectory() && file.canRead()) {
+				listURIs(file, coapRootPath + "/" + file.getName());
+			}
+		}
+	}
+
 	/*
 	 * Constructor for a new simple file server. Here, the resources of the
 	 * server are initialized.
 	 */
-	public SimpleFileServer(Configuration config, Map<Select, Configuration> protocolConfig, String coapRootPath, File filesRoot) throws SocketException {
+	public SimpleFileServer(Configuration config, Map<Select, Configuration> protocolConfig, String coapRootPath,
+			File filesRoot) throws SocketException {
 		super(config, protocolConfig);
 		add(new FileResource(config, coapRootPath, filesRoot));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
