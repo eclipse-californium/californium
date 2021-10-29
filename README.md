@@ -30,7 +30,9 @@ $ mvn clean install -DcreateJavadoc=true
 ```
 ## Build earlier release
 
-Earlier versions (3.0.0-Mx, 2.6.5 and before) may fail to build with newer JDKs, especially, if java 16 is used! That is cause by the unit test dependency to an deprecated version of "mockito". Please try to use java 8 or 11 for that. In the most cases, it is not recommended to use previous versions of Californium. Please consider to use to most current release or release candidate.
+## !!! since 29. October 2021, the hostname "non-existing.host" is now existing and all builds of version and tags before that date will fail !!!
+
+Earlier versions (3.0.0-Mx, 2.6.5 and before) may fail to build with newer JDKs, especially, if java 16 is used! That is cause by the unit test dependency to an deprecated version of "mockito". In combination with the "non-existing.host" now existing, the build only work for the current heads of 2.6.x and master! Otherwise the unit tests must be skipped.
 
 ## Build jdk7 compliant
 
