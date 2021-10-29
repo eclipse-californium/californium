@@ -183,17 +183,18 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-resources-plugin</artifactId>
-					<version>3.1.0</version>
+					<version>3.2.0</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-site-plugin</artifactId>
-					<version>3.7.1</version>
+					<version>3.9.1</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-dependency-plugin</artifactId>
-					<version>3.1.1</version>
+					<version>3.1.2</version>
 				</plugin>
 				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-toolchains-plugin</artifactId>
 					<version>3.0.0</version>
 					<executions>
@@ -212,8 +213,9 @@
 					</configuration>
 				</plugin>
 				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.8.0</version>
+					<version>3.8.1</version>
 					<configuration>
 						<source>${project.build.javaVersion}</source>
 						<target>${project.build.javaVersion}</target>
@@ -222,7 +224,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-source-plugin</artifactId>
-					<version>3.0.1</version>
+					<version>3.2.1</version>
 					<executions>
 						<execution>
 							<id>attach-sources</id>
@@ -234,8 +236,9 @@
 					</executions>
 				</plugin>
 				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.22.1</version>
+					<version>2.22.2</version>
 					<configuration>
 						<useSystemClassLoader>false</useSystemClassLoader>
 						<systemPropertyVariables>
@@ -246,60 +249,60 @@
 						</excludes>
 						<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 					</configuration>
-				<executions>
-					<execution>
-						<id>small-tests</id>
-						<phase>test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<groups>org.eclipse.californium.elements.category.Small</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-						</configuration>
-					</execution>
-					<execution>
-						<id>medium-tests</id>
-						<phase>test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<groups>org.eclipse.californium.elements.category.Medium</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-						</configuration>
-					</execution>
-					<execution>
-						<id>large-tests</id>
-						<phase>integration-test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<groups>org.eclipse.californium.elements.category.Large</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-						</configuration>
-					</execution>
-					<execution>
-						<id>native-tests</id>
-						<phase>integration-test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<systemPropertyVariables>
-								<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
-							</systemPropertyVariables>
-							<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
-						</configuration>
-					</execution>
-				</executions>
+					<executions>
+						<execution>
+							<id>small-tests</id>
+							<phase>test</phase>
+							<goals>
+								<goal>test</goal>
+							</goals>
+							<configuration>
+								<groups>org.eclipse.californium.elements.category.Small</groups>
+								<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+							</configuration>
+						</execution>
+						<execution>
+							<id>medium-tests</id>
+							<phase>test</phase>
+							<goals>
+								<goal>test</goal>
+							</goals>
+							<configuration>
+								<groups>org.eclipse.californium.elements.category.Medium</groups>
+								<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+							</configuration>
+						</execution>
+						<execution>
+							<id>large-tests</id>
+							<phase>integration-test</phase>
+							<goals>
+								<goal>test</goal>
+							</goals>
+							<configuration>
+								<groups>org.eclipse.californium.elements.category.Large</groups>
+								<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+							</configuration>
+						</execution>
+						<execution>
+							<id>native-tests</id>
+							<phase>integration-test</phase>
+							<goals>
+								<goal>test</goal>
+							</goals>
+							<configuration>
+								<systemPropertyVariables>
+									<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
+								</systemPropertyVariables>
+								<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
+								<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
+							</configuration>
+						</execution>
+					</executions>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.felix</groupId>
 					<artifactId>maven-bundle-plugin</artifactId>
-					<version>3.5.0</version>
+					<version>5.1.2</version>
 					<executions>
 						<execution>
 							<id>bundle-manifest</id>
@@ -311,6 +314,7 @@
 					</executions>
 				</plugin>
 				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
 					<version>3.3.0</version>
 					<executions>
@@ -326,8 +330,9 @@
 					</configuration>
 				</plugin>
 				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-assembly-plugin</artifactId>
-					<version>3.2.0</version>
+					<version>3.3.0</version>
 					<inherited>true</inherited>
 					<dependencies>
 						<dependency>
@@ -358,7 +363,12 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-jar-plugin</artifactId>
-					<version>3.1.1</version>
+					<version>3.2.0</version>
+					<configuration>
+						<excludes>
+							<exclude>**/logback-test.xml</exclude>
+						</excludes>
+					</configuration>
 				</plugin>
 				<plugin>
 					<artifactId>maven-enforcer-plugin</artifactId>
@@ -371,7 +381,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-gpg-plugin</artifactId>
-					<version>1.6</version>
+					<version>3.0.1</version>
 				</plugin>
 				<plugin>
 					<groupId>org.eclipse.cbi.maven.plugins</groupId>
@@ -381,22 +391,22 @@
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>animal-sniffer-maven-plugin</artifactId>
-					<version>1.18</version>
+					<version>1.20</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>license-maven-plugin</artifactId>
-					<version>1.16</version>
+					<version>2.0.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.revapi</groupId>
 					<artifactId>revapi-maven-plugin</artifactId>
-					<version>0.11.5</version>
+					<version>0.12.2</version>
 					<dependencies>
 						<dependency>
 							<groupId>org.revapi</groupId>
 							<artifactId>revapi-java</artifactId>
-							<version>0.22.0</version>
+							<version>0.22.1</version>
 						</dependency>
 					</dependencies>
 				</plugin>
@@ -416,7 +426,7 @@
 							<rules>
 								<dependencyConvergence/>
 								<requireMavenVersion>
-									<version>3.0.5</version>
+									<version>3.2.5</version>
 								</requireMavenVersion>
 							</rules>
 						</configuration>
@@ -475,7 +485,7 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>3.0.0</version>
+				<version>3.2.0</version>
 				<executions>
 					<execution>
 						<id>parse-version</id>
@@ -640,8 +650,32 @@
 			<build>
 				<plugins>
 					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
 						<configuration>
+							<doclint>${javadoc.doclint}</doclint>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>java8-javadoc-warn</id>
+			<activation>
+				<!-- jdk executing maven, not the jdk of the toolchain -->
+				<jdk>[1.8,11)</jdk>
+				<property>
+					<name>warnJavadoc</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<configuration>
+							<show>private</show>
+							<failOnWarnings>true</failOnWarnings>
 							<doclint>${javadoc.doclint}</doclint>
 						</configuration>
 					</plugin>
@@ -660,6 +694,7 @@
 			<build>
 				<plugins>
 					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
 						<configuration>
 							<doclint>${javadoc.doclint}</doclint>
@@ -720,6 +755,7 @@
 						<artifactId>animal-sniffer-maven-plugin</artifactId>
 						<executions>
 							<execution>
+								<phase>compile</phase>
 								<goals>
 									<goal>check</goal>
 								</goals>
@@ -806,6 +842,7 @@
 			<build>
 				<plugins>
 					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
 						<executions>
 							<execution>
