@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ParseResult;
 
@@ -48,6 +49,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
+import org.eclipse.californium.plugtests.resources.MyIp;
 
 public class SimpleFileServer extends AbstractTestServer {
 
@@ -73,6 +75,12 @@ public class SimpleFileServer extends AbstractTestServer {
 	@Command(name = "SimpleFileServer", version = "(c) 2017, Bosch Software Innovations GmbH and others.")
 	public static class Config extends BaseConfig {
 
+		@Option(names = "--file-root", description = "files root. Default \"" + DEFAULT_PATH + "\"")
+		public String fileRoot = DEFAULT_PATH;
+
+		@Option(names = "--path-root", description = "resource-path root. Default \"" + DEFAULT_PATH + "\"")
+		public String pathRoot = DEFAULT_PATH;
+
 	}
 
 	private static final Config config = new Config();
@@ -81,11 +89,11 @@ public class SimpleFileServer extends AbstractTestServer {
 	 * Application entry point.
 	 */
 	public static void main(String[] args) {
+		String version = StringUtil.CALIFORNIUM_VERSION == null ? "" : StringUtil.CALIFORNIUM_VERSION;
 		CommandLine cmd = new CommandLine(config);
 		try {
 			ParseResult result = cmd.parseArgs(args);
 			if (result.isVersionHelpRequested()) {
-				String version = StringUtil.CALIFORNIUM_VERSION == null ? "" : StringUtil.CALIFORNIUM_VERSION;
 				System.out.println("\nCalifornium (Cf) " + cmd.getCommandName() + " " + version);
 				cmd.printVersionHelp(System.out);
 				System.out.println();
@@ -109,19 +117,12 @@ public class SimpleFileServer extends AbstractTestServer {
 		protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfig);
 
 		try {
-			String filesRootPath = DEFAULT_PATH;
-			String coapRootPath = DEFAULT_PATH;
+			String filesRootPath = config.fileRoot;
+			String coapRootPath = config.pathRoot;
 
-			switch (args.length) {
-			case 2:
-				coapRootPath = args[1];
-				if (0 <= coapRootPath.indexOf('/')) {
-					LOG.error("{} don't use '/'! Only one path segement for coap root allowed!", coapRootPath);
-					return;
-				}
-			case 1:
-				filesRootPath = args[0];
-				break;
+			if (0 <= coapRootPath.indexOf('/')) {
+				LOG.error("{} don't use '/'! Only one path segement for coap root allowed!", coapRootPath);
+				return;
 			}
 
 			File filesRoot = new File(filesRootPath);
@@ -133,21 +134,31 @@ public class SimpleFileServer extends AbstractTestServer {
 				return;
 			}
 
-			File[] files = filesRoot.listFiles();
-			for (File file : files) {
-				if (file.isFile() && file.canRead()) {
-					LOG.info("GET: coap://<host>/{}/{}", coapRootPath, file.getName());
-					break;
-				}
-			}
+			listURIs(filesRoot, coapRootPath);
+
 			// create server
 			SimpleFileServer server = new SimpleFileServer(netConfig, protocolConfig, coapRootPath, filesRoot);
+
 			// add endpoints on all IP addresses
 			server.addEndpoints(null, null, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS), config);
 			server.start();
 
 		} catch (SocketException e) {
 			LOG.error("Failed to initialize server: ", e);
+		}
+	}
+
+	public static void listURIs(File filesRoot, String coapRootPath) {
+		File[] files = filesRoot.listFiles();
+		for (File file : files) {
+			if (file.isFile() && file.canRead()) {
+				LOG.info("GET: coap://<host>/{}/{}", coapRootPath, file.getName());
+			}
+		}
+		for (File file : files) {
+			if (file.isDirectory() && file.canRead()) {
+				listURIs(file, coapRootPath + "/" + file.getName());
+			}
 		}
 	}
 
@@ -158,6 +169,7 @@ public class SimpleFileServer extends AbstractTestServer {
 	public SimpleFileServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, String coapRootPath, File filesRoot) throws SocketException {
 		super(config, protocolConfig);
 		add(new FileResource(config, coapRootPath, filesRoot));
+		add(new MyIp(MyIp.RESOURCE_NAME, true));
 	}
 
 	class FileResource extends CoapResource {

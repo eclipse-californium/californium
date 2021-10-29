@@ -18,6 +18,8 @@
 
 	<properties>
 		<assembly.mainClass>org.eclipse.californium.examples.SimpleFileServer</assembly.mainClass>
+		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
+		<skipStaging>false</skipStaging>
 	</properties>
 
 	<dependencies>

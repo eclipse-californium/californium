@@ -1,35 +1,110 @@
-![Californium logo](californium-180.png)
+![Californium logo](cf_64.png)
 
-Simple File Server
+# Californium (Cf) - Simple File Server
 
-Able to use CoAP blockwise [RFC7959 - Block-Wise Transfers in the Constrained Application Protocol](http://tools.ietf.org/html/rfc7959).
+Enable to use CoAP blockwise [RFC7959 - Block-Wise Transfers in the Constrained Application Protocol](http://tools.ietf.org/html/rfc7959).
 
-# General
+## General
 
 Please refer to the eclipse Californium project page for license, build, and install.
 
-# PREPARATION
+## PREPARATION
 Generate "Californium.properties" using 
 
-java -jar cf-simplefile-server-2.0.0-SNAPSHOT.jar.
+java -jar cf-simplefile-server-2.6.6-SNAPSHOT.jar.
 
 Adjust properties according you setup/environment, at least adjust "MAX_RESOURCE_BODY_SIZE"
-to the largest file size you want to support. Make sure, this "Californium.properties" is then
-used on both sides, server and client.
+to the largest file size you want to support. Make sure, this "Californium.properties" is then used on both sides, server and client.
 
 Create a folder ("data" by default), and place the file(s) in that folder.
 
-# RUN
-java -jar cf-simplefile-server-2.0.0-SNAPSHOT.jar [<file-root-directory> [<coap-root>]]
+## RUN
 
-Default for both roots: "data".
+```sh
+java -jar cf-simplefile-server-2.6.6-SNAPSHOT.jar [--file-root=<file-root-directory>] [--path-root=<coap-root>]
+```
+
+Default for both roots is: "data".
 So mostly just create a folder "data", add your files to that sub folder and start the jar.
 
-# GET
+## GET
+
+```sh
 URL: coap://<host>/<coap-root>/<file-path>
+```
 
-e.g (using cf-helloworld-client)
+e.g (using `cf-helloworld-client`)
 
-java -jar cf-helloworld-client-2.0.0-SNAPSHOT.jar coap://localhost/data/file.bin
+```sh
+java -jar cf-helloworld-client-2.6.6-SNAPSHOT.jar GETClient coap://localhost/data/file.bin file2save.bin
+```
 
 (GET file "file.bin" from file-root-directory).
+
+## Usage
+
+```
+Usage: SimpleFileServer [-h] [--dtls-only] [--[no-]external] [--[no-]ipv4] [--
+                        [no-]ipv6] [--[no-]loopback] [--[no-]tcp] [--trust-all]
+                        [--client-auth=<clientAuth>] [--file-root=<fileRoot>]
+                        [--path-root=<pathRoot>]
+                        [--interfaces-pattern=<interfacePatterns>[,
+                        <interfacePatterns>...]]...
+      --client-auth=<clientAuth>
+                        client authentication. Values NONE, WANTED, NEEDED,
+                          default NEEDED.
+      --dtls-only       only dtls endpoints.
+      --file-root=<fileRoot>
+                        files root. Default "data"
+  -h, --help            display a help message
+      --interfaces-pattern=<interfacePatterns>[,<interfacePatterns>...]
+                        interface regex patterns for endpoints.
+      --[no-]external   enable endpoints on external network.
+      --[no-]ipv4       enable endpoints for ipv4.
+      --[no-]ipv6       enable endpoints for ipv6.
+      --[no-]loopback   enable endpoints on loopback network.
+      --[no-]tcp        enable endpoints for tcp.
+      --path-root=<pathRoot>
+                        resource-path root. Default "data"
+      --trust-all       trust all valid certificates.
+```
+
+Examples:
+
+File system:
+
+```
+/home/cali/data/cf_64.png
+               /README.md
+               /fw/device.hex
+```
+
+Options:
+
+```
+--file-root=/home/cali/data
+--path-root=files
+```
+
+With that, the file system tree below `/home/cali/data` is used and the sub-path of URIs `coap://<host>/files/<sub-path>` are used to locate the file within that tree.
+
+```
+java -jar cf-simplefile-server-2.6.6-SNAPSHOT.jar --file-root=/home/cali/data --path-root=files --no-tcp
+
+INFO [SimpleFileServer]: GET: coap://<host>/files/cf_64.png
+INFO [SimpleFileServer]: GET: coap://<host>/files/README.md
+INFO [SimpleFileServer]: GET: coap://<host>/files/fw/device.hex
+```
+
+```
+java -jar cf-helloworld-client-2.6.6-SNAPSHOT.jar GETClient coap://localhost/files/cf_64.png picture2save.png
+java -jar cf-helloworld-client-2.6.6-SNAPSHOT.jar GETClient coap://localhost/files/fw/device.hex firmware.hex
+```
+
+Access files out of the file system sub-tree results in an error response.
+ 
+```
+java -jar cf-helloworld-client-2.6.6-SNAPSHOT.jar GETClient coap://localhost/files/../../other/top-secret.txt steal.txt
+
+4.01 - UNAUTHORIZED
+```
