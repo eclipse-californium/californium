@@ -32,7 +32,9 @@ $ mvn clean install -DcreateJavadoc=true
 
 ## !!! since 29. October 2021, the hostname "non-existing.host" is now existing and all builds of version and tags before that date will fail !!!
 
-Earlier versions (3.0.0-Mx, 2.6.5 and before) may fail to build with newer JDKs, especially, if java 16 is used! That is cause by the unit test dependency to an deprecated version of "mockito". In combination with the "non-existing.host" now existing, the build only work for the current heads of 2.6.x and master! Otherwise the unit tests must be skipped.
+To (re-)build versions before the unit tests must therefore be skipped.
+
+Earlier versions (3.0.0-Mx, 2.6.5 and before) may fail to build with newer JDKs, especially, if java 16 is used! That is cause by the unit test dependency to an deprecated version of "mockito". In combination with the "non-existing.host" now existing, the build only works for the current heads of 2.6.x and master!
 
 ## Build jdk7 compliant
 
