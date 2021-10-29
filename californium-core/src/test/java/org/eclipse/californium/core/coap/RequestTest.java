@@ -128,7 +128,7 @@ public class RequestTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testSetURIRejectsUnresolvableHost() {
-		Request.newGet().setURI("coap://non-existing.host");
+		Request.newGet().setURI("coap://non-existing.eclipseprojects.io");
 	}
 
 	@Test
