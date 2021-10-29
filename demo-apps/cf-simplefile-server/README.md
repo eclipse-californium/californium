@@ -85,8 +85,17 @@ File system:
                /fw/device.hex
 ```
 
+Options:
+
 ```
-java -jar cf-simplefile-server-3.0.0-SNAPSHOT.jar --file-root=/home/cali/data --path-root=files --no-tcp --no-loopback
+--file-root=/home/cali/data
+--path-root=files
+```
+
+With that, the file system tree below `/home/cali/data` is used and the sub-path of URIs `coap://<host>/files/<sub-path>` are used to locate the file within that tree.
+
+```
+java -jar cf-simplefile-server-3.0.0-SNAPSHOT.jar --file-root=/home/cali/data --path-root=files --no-tcp
 
 INFO [SimpleFileServer]: GET: coap://<host>/files/cf_64.png
 INFO [SimpleFileServer]: GET: coap://<host>/files/README.md
@@ -98,3 +107,10 @@ java -jar cf-helloworld-client-3.0.0-SNAPSHOT.jar GETClient coap://localhost/fil
 java -jar cf-helloworld-client-3.0.0-SNAPSHOT.jar GETClient coap://localhost/files/fw/device.hex firmware.hex
 ```
 
+Access files out of the file system sub-tree results in an error response.
+ 
+```
+java -jar cf-helloworld-client-3.0.0-SNAPSHOT.jar GETClient coap://localhost/files/../../other/top-secret.txt steal.txt
+
+4.01 - UNAUTHORIZED
+```
