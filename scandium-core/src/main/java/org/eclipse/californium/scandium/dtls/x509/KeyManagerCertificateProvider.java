@@ -22,13 +22,17 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.X509KeyManager;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.CertPathUtil;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.dtls.CertificateIdentityResult;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -57,22 +61,34 @@ import org.slf4j.LoggerFactory;
 public class KeyManagerCertificateProvider implements CertificateProvider, ConfigurationHelperSetup {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(KeyManagerCertificateProvider.class);
+	private static AtomicInteger ID = new AtomicInteger();
+	/**
+	 * Special Bouncy Castle key types for server credentials.
+	 */
+	private static final Map<String, String> BC_SERVER_KEY_TYPES_MAP = new HashMap<>();
+
+	static {
+		BC_SERVER_KEY_TYPES_MAP.put(Asn1DerDecoder.EC, "ECDHE_ECDSA");
+		BC_SERVER_KEY_TYPES_MAP.put(Asn1DerDecoder.RSA, "ECDHE_RSA");
+	}
 
 	/**
 	 * Key types for credentials.
 	 */
-	private static final List<String> ALL_KEY_TYPES = Arrays.asList("EC", "RSA", "EdDSA", "Ed25519", "Ed448");
-
+	private static final List<String> ALL_KEY_TYPES = Arrays.asList(Asn1DerDecoder.EC, Asn1DerDecoder.RSA,
+			Asn1DerDecoder.EDDSA, Asn1DerDecoder.ED25519, Asn1DerDecoder.ED448);
 	/**
 	 * Default alias. May be {@code null}.
 	 */
 	private final String defaultAlias;
-
 	/**
 	 * Key manager.
 	 */
 	private final X509KeyManager keyManager;
-
+	/**
+	 * Instance ID for logging. 
+	 */
+	private final int id;
 	/**
 	 * List of supported certificate type in order of preference.
 	 */
@@ -152,6 +168,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				}
 			}
 		}
+		this.id = ID.incrementAndGet();
 		this.defaultAlias = defaultAlias;
 		this.keyManager = keyManager;
 		if (supportedCertificateTypes == null) {
@@ -230,9 +247,9 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 			List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
 			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves) {
 		String role = client ? "Client" : "Server";
-		LOGGER.debug("{} certificate for {}", role, serverNames == null ? "<n.a.>" : serverNames);
+		LOGGER.debug("[{}]: {} certificate for {}", id, role, serverNames == null ? "<n.a.>" : serverNames);
 		if (issuers != null && !issuers.isEmpty()) {
-			LOGGER.debug("{} certificate issued by {}", role, issuers);
+			LOGGER.debug("[{}]: {} certificate issued by {}", id, role, issuers);
 		}
 		Principal[] principals = issuers == null ? null : issuers.toArray(new Principal[issuers.size()]);
 		List<String> keyTypes = new ArrayList<>();
@@ -259,58 +276,58 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 			keyTypes.add(Asn1DerDecoder.EC);
 		}
 
-		LOGGER.debug("{} certificate public key types {}", role, keyTypes);
+		LOGGER.debug("[{}]: {} certificate public key types {}", id, role, keyTypes);
 		if (signatureAndHashAlgorithms != null && !signatureAndHashAlgorithms.isEmpty()) {
-			LOGGER.debug("{} certificate signed with {}", role, signatureAndHashAlgorithms);
+			LOGGER.debug("[{}]: {} certificate signed with {}", id, role, signatureAndHashAlgorithms);
 		}
 		if (curves != null && !curves.isEmpty()) {
-			LOGGER.debug("{} certificate using {}", role, curves);
+			LOGGER.debug("[{}]: {} certificate using {}", id, role, curves);
 		}
 
-		List<String> alias = getAliases(client, keyTypes, principals);
-		if (!alias.isEmpty()) {
+		List<String> aliases = getAliases(client, keyTypes, principals);
+		if (!aliases.isEmpty()) {
 			List<String> matchingServerNames = new ArrayList<>();
 			List<String> matchingSignatures = new ArrayList<>();
 			List<String> matchingCurves = new ArrayList<>();
 			// after issuers, check the servernames
 			int index = 1;
-			for (String id : alias) {
-				LOGGER.debug("Apply select {} - {} of {}", id, index, alias.size());
-				X509Certificate[] certificateChain = keyManager.getCertificateChain(id);
+			for (String alias : aliases) {
+				LOGGER.debug("[{}]: Apply select {} - {} of {}", id, alias, index, aliases.size());
+				X509Certificate[] certificateChain = keyManager.getCertificateChain(alias);
 				List<X509Certificate> chain = Arrays.asList(certificateChain);
 				if (serverNames != null && matchServerNames(serverNames, certificateChain[0])) {
-					matchingServerNames.add(id);
+					matchingServerNames.add(alias);
 				}
 				if (signatureAndHashAlgorithms != null
 						&& matchSignatureAndHashAlgorithms(signatureAndHashAlgorithms, chain)) {
-					matchingSignatures.add(id);
+					matchingSignatures.add(alias);
 				}
 				if (curves != null && matchCurves(curves, chain)) {
-					matchingCurves.add(id);
+					matchingCurves.add(alias);
 				}
 				++index;
 			}
 			if (!matchingServerNames.isEmpty()) {
-				LOGGER.debug("{} selected by {}", matchingServerNames.size(), serverNames);
-				alias.retainAll(matchingServerNames);
+				LOGGER.debug("[{}]: {} selected by {}", id, matchingServerNames.size(), serverNames);
+				aliases.retainAll(matchingServerNames);
 			}
 			if (signatureAndHashAlgorithms != null) {
-				LOGGER.debug("{} selected by signature and hash algorithms", matchingSignatures.size());
-				alias.retainAll(matchingSignatures);
+				LOGGER.debug("[{}]: {} selected by signature and hash algorithms", id, matchingSignatures.size());
+				aliases.retainAll(matchingSignatures);
 			}
 			if (curves != null) {
-				LOGGER.debug("{} selected by curves", matchingCurves.size());
-				alias.retainAll(matchingCurves);
+				LOGGER.debug("[{}]: {} selected by curves", id, matchingCurves.size());
+				aliases.retainAll(matchingCurves);
 			}
-			if (alias.size() > 0) {
+			if (aliases.size() > 0) {
 				String id = null;
-				if (alias.size() > 1 && signatureAndHashAlgorithms != null && signatureAndHashAlgorithms.size() > 1) {
-					alias = selectPriorized(alias, signatureAndHashAlgorithms);
+				if (aliases.size() > 1 && signatureAndHashAlgorithms != null && signatureAndHashAlgorithms.size() > 1) {
+					aliases = selectPriorized(aliases, signatureAndHashAlgorithms);
 				}
-				if (alias.size() > 1 && defaultAlias != null && alias.contains(defaultAlias)) {
+				if (aliases.size() > 1 && defaultAlias != null && aliases.contains(defaultAlias)) {
 					id = defaultAlias;
 				} else {
-					id = alias.get(0);
+					id = aliases.get(0);
 				}
 				X509Certificate[] certificateChain = keyManager.getCertificateChain(id);
 				List<X509Certificate> chain = Arrays.asList(certificateChain);
@@ -318,7 +335,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				return new CertificateIdentityResult(cid, privateKey, chain, id);
 			}
 		} else {
-			LOGGER.debug("no matching credentials");
+			LOGGER.debug("[{}]: no matching credentials", id);
 		}
 		return new CertificateIdentityResult(cid, null);
 	}
@@ -346,10 +363,25 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				alias = keyManager.getClientAliases(keyType, issuers);
 			} else {
 				alias = keyManager.getServerAliases(keyType, issuers);
+				if (alias == null && JceProviderUtil.usesBouncyCastle()) {
+					// replace sun keyTypes as defined in
+					// https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#jssenames
+					// by the ones Bouncy Castle chose to use for the server-side
+					// https://github.com/bcgit/bc-java/issues/1053
+					String bcKeyType = BC_SERVER_KEY_TYPES_MAP.get(keyType);
+					if (bcKeyType != null) {
+						alias = keyManager.getServerAliases(bcKeyType, issuers);
+						if (alias != null) {
+							keyType = bcKeyType;
+						}
+					}
+				}
 			}
 			if (alias != null) {
-				LOGGER.debug("found {} {} keys for {}", alias.length, keyType, client ? "client" : "server");
+				LOGGER.debug("[{}]: found {} {} keys for {}", id, alias.length, keyType, client ? "client" : "server");
 				ListUtils.addIfAbsent(all, Arrays.asList(alias));
+			} else {
+				LOGGER.debug("[{}]: found no {} keys for {}", id, keyType, client ? "client" : "server");
 			}
 		}
 		return all;

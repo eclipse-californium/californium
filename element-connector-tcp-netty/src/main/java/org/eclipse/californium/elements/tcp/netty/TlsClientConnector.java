@@ -45,6 +45,8 @@ import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.util.CertPathUtil;
+import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 import io.netty.channel.Channel;
@@ -61,6 +63,13 @@ public class TlsClientConnector extends TcpClientConnector {
 	 * Context to be used to for connections.
 	 */
 	private final SSLContext sslContext;
+	/**
+	 * Weak cipher suites, or {@code null}, if no required.
+	 * 
+	 * @see JceProviderUtil#hasStrongEncryption()
+	 * @since 3.0
+	 */
+	private final String[] weakCipherSuites;
 	/**
 	 * Handshake timeout in milliseconds.
 	 */
@@ -87,6 +96,8 @@ public class TlsClientConnector extends TcpClientConnector {
 		this.handshakeTimeoutMillis = configuration.getTimeAsInt(TcpConfig.TLS_HANDSHAKE_TIMEOUT,
 				TimeUnit.MILLISECONDS);
 		this.verifyServerSubject = configuration.get(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
+		this.weakCipherSuites = JceProviderUtil.hasStrongEncryption() ? null
+				: SslContextUtil.getWeakCipherSuites(sslContext);
 	}
 
 	/**
@@ -147,6 +158,9 @@ public class TlsClientConnector extends TcpClientConnector {
 	protected void onNewChannelCreated(SocketAddress remote, Channel ch) {
 		SSLEngine sslEngine = createSllEngine(remote);
 		sslEngine.setUseClientMode(true);
+		if (weakCipherSuites != null) {
+			sslEngine.setEnabledCipherSuites(weakCipherSuites);
+		}
 		SslHandler sslHandler = new SslHandler(sslEngine);
 		sslHandler.setHandshakeTimeoutMillis(handshakeTimeoutMillis);
 		ch.pipeline().addFirst(sslHandler);

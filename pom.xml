@@ -834,6 +834,12 @@
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bctls-jdk15on</artifactId>
+					<version>${bc.version}</version>
+					<scope>test</scope>
+				</dependency>
 			</dependencies>
 			<build>
 				<plugins>

@@ -75,7 +75,11 @@ public class JceProviderUtil {
 	/**
 	 * Name of Bouncy Castle JCE provider.
 	 */
-	private static final String BOUNCY_CASTLE_PROVIDER = "org.bouncycastle.jce.provider.BouncyCastleProvider";
+	private static final String BOUNCY_CASTLE_JCE_PROVIDER = "org.bouncycastle.jce.provider.BouncyCastleProvider";
+	/**
+	 * Name of Bouncy Castle JSSE provider.
+	 */
+	private static final String BOUNCY_CASTLE_JSSE_PROVIDER = "org.bouncycastle.jsse.provider.BouncyCastleJsseProvider";
 	/**
 	 * Name of environment variable.
 	 */
@@ -83,16 +87,20 @@ public class JceProviderUtil {
 	/**
 	 * Value for {@link #CALIFORNIUM_JCE_PROVIDER} to use only the provided JCE.
 	 */
-	private static final String SYSTEM_JCE_PROVIDER = "SYSTEM";
+	private static final String JCE_PROVIDER_SYSTEM = "SYSTEM";
 	/**
 	 * Value for {@link #CALIFORNIUM_JCE_PROVIDER} to use Bouncy Castle as JCE.
 	 */
-	private static final String BOUNCY_CASTLE_JCE_PROVIDER = "BC";
+	private static final String JCE_PROVIDER_BOUNCY_CASTLE = "BC";
 	/**
 	 * Value for {@link #CALIFORNIUM_JCE_PROVIDER} to use ed25519-java as JCE
 	 * for EdDSA.
 	 */
-	private static final String NET_I2P_CRYPTO_JCE_PROVIDER = "I2P";
+	private static final String JCE_PROVIDER_NET_I2P_CRYPTO = "I2P";
+	/**
+	 * Value to use Bouncy Castle as JSSE (TLS only).
+	 */
+	private static final String JSSE_PROVIDER_BOUNCY_CASTLE = "BCJSSE";
 
 	/**
 	 * Cipher name to check for strong encryption.
@@ -119,7 +127,7 @@ public class JceProviderUtil {
 	 *         not Bouncy Castle.
 	 */
 	private static boolean isBouncyCastle(Provider provider) {
-		return provider != null && provider.getName().equals(BOUNCY_CASTLE_JCE_PROVIDER);
+		return provider != null && provider.getName().equals(JCE_PROVIDER_BOUNCY_CASTLE);
 	}
 
 	/**
@@ -185,14 +193,14 @@ public class JceProviderUtil {
 		String jce = StringUtil.getConfiguration(CALIFORNIUM_JCE_PROVIDER);
 		if (jce != null && !jce.isEmpty()) {
 			LOGGER.info("JCE setup: {}", jce);
-			if (SYSTEM_JCE_PROVIDER.equalsIgnoreCase(jce)) {
+			if (JCE_PROVIDER_SYSTEM.equalsIgnoreCase(jce)) {
 				tryBc = false;
 				tryEd25519Java = false;
-			} else if (BOUNCY_CASTLE_JCE_PROVIDER.equalsIgnoreCase(jce)) {
+			} else if (JCE_PROVIDER_BOUNCY_CASTLE.equalsIgnoreCase(jce)) {
 				tryBc = true;
 				tryJce = false;
 				tryEd25519Java = false;
-			} else if (NET_I2P_CRYPTO_JCE_PROVIDER.equalsIgnoreCase(jce)) {
+			} else if (JCE_PROVIDER_NET_I2P_CRYPTO.equalsIgnoreCase(jce)) {
 				tryJce = false;
 				tryBc = false;
 			}
@@ -213,7 +221,7 @@ public class JceProviderUtil {
 				found = true;
 				LOGGER.trace("EdDSA from BC");
 			} else {
-				Provider newProvider = loadProvider(BOUNCY_CASTLE_PROVIDER);
+				Provider newProvider = loadProvider(BOUNCY_CASTLE_JCE_PROVIDER);
 				if (newProvider != null) {
 					try {
 						KeyFactory.getInstance(Asn1DerDecoder.EDDSA, newProvider);
@@ -224,6 +232,19 @@ public class JceProviderUtil {
 						LOGGER.trace("EdDSA from BC");
 					} catch (SecurityException e) {
 					} catch (NoSuchAlgorithmException e) {
+					}
+				}
+				if (found && Security.getProvider(JSSE_PROVIDER_BOUNCY_CASTLE) == null) {
+					// support netty.io TLS
+					newProvider = loadProvider(BOUNCY_CASTLE_JSSE_PROVIDER);
+					if (newProvider != null) {
+						Security.setProperty("ssl.KeyManagerFactory.algorithm","PKIX");
+						Security.setProperty("ssl.TrustManagerFactory.algorithm","PKIX");
+						try {
+							Security.insertProviderAt(newProvider, 2);
+							LOGGER.info("TLS from BC");
+						} catch (SecurityException e) {
+						}
 					}
 				}
 			}

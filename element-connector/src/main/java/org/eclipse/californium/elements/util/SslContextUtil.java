@@ -58,6 +58,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
@@ -352,7 +353,8 @@ public class SslContextUtil {
 			}
 			ks = loadKeyStore(keyStoreUri, storePassword, configuration);
 			if (aliasPattern != null && !aliasPattern.isEmpty()) {
-				boolean found = false;;
+				boolean found = false;
+				;
 				Pattern pattern = Pattern.compile(aliasPattern);
 				KeyStore ksAlias = KeyStore.getInstance(ks.getType());
 				ksAlias.load(null);
@@ -672,8 +674,8 @@ public class SslContextUtil {
 	 *            store default type is configured. Ending is converted to lower
 	 *            case before added to the {@link #KEY_STORE_TYPES}.
 	 * @param type the key store type.
-	 * @return previous key store type, or {@code null}, if no key
-	 *         store type was configured before
+	 * @return previous key store type, or {@code null}, if no key store type
+	 *         was configured before
 	 * @throws NullPointerException if ending or type is {@code null}.
 	 * @throws IllegalArgumentException if ending doesn't start with "." and
 	 *             isn't {@link #DEFAULT_ENDING}.
@@ -843,8 +845,8 @@ public class SslContextUtil {
 	 * 
 	 * @param keyStoreUri key store URI. Use
 	 *            {@link #getInputStreamFromUri(String)} to read the key store,
-	 *            and {@link #getKeyStoreTypeFromUri(String)} to
-	 *            determine the type of the key store.
+	 *            and {@link #getKeyStoreTypeFromUri(String)} to determine the
+	 *            type of the key store.
 	 * @param storePassword password for key store.
 	 * @param configuration password for key store.
 	 * @return key store
@@ -903,8 +905,7 @@ public class SslContextUtil {
 	 * @throws IOException if key store could not be read
 	 * @since 3.0 (changed scope to public)
 	 */
-	public static Credentials loadPemCredentials(InputStream inputStream)
-			throws GeneralSecurityException, IOException {
+	public static Credentials loadPemCredentials(InputStream inputStream) throws GeneralSecurityException, IOException {
 		PemReader reader = new PemReader(inputStream);
 		try {
 			String tag;
@@ -1081,6 +1082,33 @@ public class SslContextUtil {
 		SSLContext sslContext = SSLContext.getInstance(protocol);
 		sslContext.init(keyManager, trustManager, null);
 		return sslContext;
+	}
+
+	/**
+	 * Get weak cipher suites for provided {@link SSLContext}.
+	 * 
+	 * Intended to be used, if {@link JceProviderUtil#hasStrongEncryption()}
+	 * returns {@code false}. Selects the "AES_128" cipher suites only.
+	 * 
+	 * @param sslContext context to get list of weak cipher suites.
+	 * @return array with weak cipher suites, or {@code  null}, if all cipher
+	 *         suites of the context are already weak or no weak one is
+	 *         available in the context at all.
+	 * @since 3.0
+	 */
+	public static String[] getWeakCipherSuites(SSLContext sslContext) {
+		SSLParameters sslParameters = sslContext.getDefaultSSLParameters();
+		List<String> weakCipherSuites = new ArrayList<>();
+		String[] enabledCipherSuites = sslParameters.getCipherSuites();
+		for (String suite : enabledCipherSuites) {
+			if (suite.contains("AES_128")) {
+				weakCipherSuites.add(suite);
+			}
+		}
+		if (!weakCipherSuites.isEmpty() && weakCipherSuites.size() < enabledCipherSuites.length) {
+			return weakCipherSuites.toArray(new String[weakCipherSuites.size()]);
+		}
+		return null;
 	}
 
 	/**
@@ -1556,23 +1584,23 @@ public class SslContextUtil {
 		 *            server's chain.
 		 * @throws CertificateException if the validation fails.
 		 */
-		private static void validateChain(X509Certificate[] chain, boolean client)
-				throws CertificateException {
+		private static void validateChain(X509Certificate[] chain, boolean client) throws CertificateException {
 			if (chain != null && chain.length > 0) {
-				LOGGER.debug("check certificate {} for {}", chain[0].getSubjectX500Principal(), client ? "client" : "server");
+				LOGGER.debug("check certificate {} for {}", chain[0].getSubjectX500Principal(),
+						client ? "client" : "server");
 				if (!CertPathUtil.canBeUsedForAuthentication(chain[0], client)) {
 					LOGGER.debug("check certificate {} for {} failed on key-usage!", chain[0].getSubjectX500Principal(),
 							client ? "client" : "server");
 					throw new CertificateException("Key usage not proper for " + (client ? "client" : "server"));
 				} else {
-					LOGGER.trace("check certificate {} for {} succeeded on key-usage!", chain[0].getSubjectX500Principal(),
-							client ? "client" : "server");
+					LOGGER.trace("check certificate {} for {} succeeded on key-usage!",
+							chain[0].getSubjectX500Principal(), client ? "client" : "server");
 				}
 				CertPath path = CertPathUtil.generateValidatableCertPath(Arrays.asList(chain), null);
 				try {
 					CertPathUtil.validateCertificatePathWithIssuer(true, path, EMPTY);
-					LOGGER.trace("check certificate {} [chain.length={}] for {} validated!", chain[0].getSubjectX500Principal(),
-							chain.length, client ? "client" : "server");
+					LOGGER.trace("check certificate {} [chain.length={}] for {} validated!",
+							chain[0].getSubjectX500Principal(), chain.length, client ? "client" : "server");
 				} catch (GeneralSecurityException e) {
 					LOGGER.debug("check certificate {} for {} failed on {}!", chain[0].getSubjectX500Principal(),
 							client ? "client" : "server", e.getMessage());
