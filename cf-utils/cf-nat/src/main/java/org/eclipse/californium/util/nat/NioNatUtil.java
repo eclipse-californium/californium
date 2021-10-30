@@ -770,9 +770,13 @@ public class NioNatUtil implements Runnable {
 	 * @param destination destination address to forward the messages using a
 	 *            local port
 	 * @throws IOException if an error occurred
+	 * @throws IllegalArgumentException if bind addresses are empty
 	 * @since 3.0
 	 */
 	public NioNatUtil(List<InetSocketAddress> bindAddresses, final InetSocketAddress destination) throws IOException {
+		if (bindAddresses.isEmpty()) {
+			throw new IllegalArgumentException("Bind addresses must not be empty!");
+		}
 		this.proxyChannels = new ArrayList<>();
 		this.destinations = new ArrayList<>();
 		this.staleDestinations = new ArrayList<>();
@@ -790,6 +794,9 @@ public class NioNatUtil implements Runnable {
 			if (proxy == null) {
 				proxy = (InetSocketAddress) proxyChannel.getLocalAddress();
 			}
+		}
+		if (proxy == null) {
+			proxy = bindAddresses.get(0);
 		}
 		this.proxyName = proxy.getHostString() + ":" + proxy.getPort();
 		this.proxyThread = new Thread(NAT_THREAD_GROUP, this, "NAT-" + proxy.getPort());
