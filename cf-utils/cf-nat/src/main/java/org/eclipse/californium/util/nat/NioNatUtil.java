@@ -1323,7 +1323,6 @@ public class NioNatUtil implements Runnable {
 	 * Assign local addresses for incoming address.
 	 * 
 	 * @param incoming incoming address a local address is to be assigned
-	 * @param proxyChannel proxy channel
 	 * @return port number of the assigned local address
 	 * @throws IOException if reassign failed opening the new local socket
 	 */

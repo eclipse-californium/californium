@@ -83,12 +83,12 @@ public class Nat {
 				proxyAddresses.add(createAnyAddress(args[argsIndex++]));
 			} else {
 				InetSocketAddress bind = createAddress("in ", args[argsIndex++]);
-				proxyAddresses.add(createAddress("in ", args[argsIndex++]));
 				proxyAddresses.add(bind);
-				while (argsIndex < args.length && !args[argsIndex++].equals("--")) {
-					bind = createAddress("in ", args[argsIndex]);
+				while (argsIndex < args.length && !args[argsIndex].equals("--")) {
+					bind = createAddress("in ", args[argsIndex++]);
 					proxyAddresses.add(bind);
 				}
+				++argsIndex;
 				if (argsIndex >= args.length) {
 					System.out.println("Missing destination!");
 					return;
