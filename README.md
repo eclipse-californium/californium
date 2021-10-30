@@ -20,7 +20,7 @@ $ mvn clean install
 
 Executable JARs of the examples with all dependencies can be found in the `demo-apps/run` folder.
 
-The build-process is tested for jdk 7, jdk 8, jdk 11, jdk 15 and jdk 16. 
+The build-process in branch `master` is tested for jdk 7, jdk 8, jdk 11, jdk 15 and jdk 16. 
 For jdk 7 the revapi maven-plugin is disabled, it requires at least java 8.
 
 To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set the `JAVA_HOME`.
@@ -33,17 +33,19 @@ $ mvn clean install -DcreateJavadoc=true
 ## !!! Since 29. October 2021 !!!
 **The hostname "non-existing.host" is now existing and all builds of version and tags before that date will fail.**
 
-To (re-)build versions before the unit tests must therefore be skipped.
+To (re-)build versions before that date the unit tests must therefore be skipped.
 
 ```sh
 $ mvn clean install -DskipTests
 ```
 
-Earlier versions (3.0.0-Mx, 2.6.5 and before) may fail to build with newer JDKs, especially, if java 16 is used! That is cause by the unit test dependency to an deprecated version of "mockito". In combination with the "non-existing.host" now existing, the build only works for the current heads of 2.6.x and master!
+Earlier versions (3.0.0-Mx, 2.6.5 and before) may also fail to build with newer JDKs, especially, if java 16 is used! That is cause by the unit test dependency to a deprecated version of "mockito". If such a (re-)build is required, the unit tests must be skipped (which is in the meantime anyway required caused by the "non-existing.host").
+
+In combination with the "non-existing.host" now existing, the build with unit test only works for the current heads of the branches `2.6.x` and `master`!
 
 ## Build jdk7 compliant
 
-Californium 2.x can be used with java 7 or newer. If you want to build it with a jdk 7, but use also plugins which are only supported for newer jdks, the toolchain plugin could be used. That requires a toolchains configuration in "toolchains.xml" in your maven ".m2" folder
+Californium 2.x and newer can be used with java 7 or newer. If you want to build it with a jdk 7, but use also plugins which are only supported for newer jdks, the toolchain plugin could be used. That requires a toolchains configuration in "toolchains.xml" in your maven ".m2" folder
 
 ```xml
 <?xml version="1.0" encoding="UTF8"?>
@@ -86,7 +88,7 @@ In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar
 
 ## Run unit tests using Bouncy Castle as alternative JCE provider
 
-With 3.0 a first, experimental support for using Bouncy Castle (1.69, bcprov-jdk15on, bcpkix-jdk15on) is implemented.
+With 3.0 a first, experimental support for using Bouncy Castle (1.69, bcprov-jdk15on, bcpkix-jdk15on, and, for tls, bctls-jdk15on) is implemented.
 
 To demonstrate the basic functions, run the unit-tests using the profile `bc-tests`
 
@@ -94,13 +96,11 @@ To demonstrate the basic functions, run the unit-tests using the profile `bc-tes
 $ mvn clean install -Pbc-tests
 ```
 
-Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but they may be not processed.
+Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but it may be not possible for us to answer them.
 
 On issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
 
-An other issue is, that the function seems to depend on the combination of the OS (Unix, Windows, Android), the java version (7, 8, 11, 15, or 16), and the Bouncy Castle build (jdk15on or jdk15to18). It makes also a difference, if it's used by Scandium (DTLS) or by netty.io (TLS). For Scandium internal adaption is possible, for netty.io it must be requested there.
-
-With that, it gets very time consuming to test all combinations. Therefore, if you need a specific one, please test it on your own. If you consider, that some adaption is required, let us know by creating an issue.
+With that, it gets very time consuming to test all combinations. Therefore, if you need a specific one, please test it on your own. If you consider, that some adaption is required, let us know by creating an issue or PR.
 
 # Using Californium in Maven Projects
 
