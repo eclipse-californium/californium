@@ -189,6 +189,7 @@ public class BenchmarkClient {
 			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
 			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
 			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
 			config.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 2);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it

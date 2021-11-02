@@ -66,6 +66,10 @@ public class ExampleDTLSClient {
 
 	private static String payload = "HELLO WORLD";
 
+	static {
+		DtlsConfig.register();
+	}
+
 	/**
 	 * Special configuration defaults handler.
 	 */
@@ -79,10 +83,6 @@ public class ExampleDTLSClient {
 		}
 
 	};
-
-	static {
-		DtlsConfig.register();
-	}
 
 	private DTLSConnector dtlsConnector;
 	private AtomicInteger clientMessageCounter = new AtomicInteger();

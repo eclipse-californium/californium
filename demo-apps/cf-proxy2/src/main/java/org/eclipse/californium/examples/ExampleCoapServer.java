@@ -56,6 +56,13 @@ public class ExampleCoapServer {
 	public static final int DEFAULT_COAP_PORT = 5685;
 	public static final int DEFAULT_COAP_SECURE_PORT = 5686;
 
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+		TcpConfig.register();
+		DtlsConfig.register();
+	}
+
 	/**
 	 * Special configuration defaults handler.
 	 */
@@ -67,13 +74,6 @@ public class ExampleCoapServer {
 			config.set(CoapConfig.COAP_SECURE_PORT, DEFAULT_COAP_SECURE_PORT);
 		}
 	};
-
-	static {
-		CoapConfig.register();
-		UdpConfig.register();
-		TcpConfig.register();
-		DtlsConfig.register();
-	}
 
 	private CoapServer coapServer;
 

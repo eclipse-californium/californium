@@ -87,6 +87,7 @@ public class PlugtestClient {
 			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
 		}
 
 	};

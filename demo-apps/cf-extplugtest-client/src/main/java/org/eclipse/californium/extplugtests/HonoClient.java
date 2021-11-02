@@ -50,6 +50,7 @@ import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -101,6 +102,14 @@ public class HonoClient {
 			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(TcpConfig.TCP_WORKER_THREADS, 2);
+			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2);
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
+			config.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 2);
+			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, 8192);
+			config.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
 			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 2);
 			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 2);
 			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);

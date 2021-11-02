@@ -95,6 +95,14 @@ public class ExampleSecureProxy2 {
 	public static final IntegerDefinition INIT_CONNECTION_POOL_SIZE = new IntegerDefinition("INIT_CONNECTION_POOL_SIZE",
 			"Initial size of connection pool.", 250, 16);
 
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+		DtlsConfig.register();
+		TcpConfig.register();
+		Proxy2Config.register();
+	}
+
 	/**
 	 * Special configuration defaults handler.
 	 */
@@ -126,14 +134,6 @@ public class ExampleSecureProxy2 {
 	};
 
 	private static final String COAP2COAP = "coap2coap";
-
-	static {
-		CoapConfig.register();
-		UdpConfig.register();
-		DtlsConfig.register();
-		TcpConfig.register();
-		Proxy2Config.register();
-	}
 
 	private static String start;
 

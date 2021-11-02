@@ -48,6 +48,10 @@ public class ExampleDTLSServer {
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
+	static {
+		DtlsConfig.register();
+	}
+
 	/**
 	 * Special configuration defaults handler.
 	 */
@@ -60,10 +64,6 @@ public class ExampleDTLSServer {
 		}
 
 	};
-
-	static {
-		DtlsConfig.register();
-	}
 
 	private DTLSConnector dtlsConnector;
 
