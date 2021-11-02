@@ -49,7 +49,7 @@ echo
 echo "Some cloud-provider use containers instead of real (or virtual) machines, which results in many"
 echo "cases in lower limits. Check, if \"/proc/user_beancounters\" is available and if, check the number"
 echo "for \"numproc\". That is mostly enough for servers, but for the benchmark client this limits"
-echo "currently the number of clients to less than the half."
+echo "currently the number of clients to less than the half of the value of \"numproc\"."
 echo
 echo "For real (or virtual) machines with linux, the maximum number may be increased, if the host has"
 echo "enough resources (RAM and CPU) to execute it. On Ubuntu 18.04, please adjust the values"
@@ -84,7 +84,7 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-3.0.0-SNAPSHOT.jar
+CF_JAR=cf-extplugtest-client-3.0.0.jar
 CF_JAR_FIND='cf-extplugtest-client-*.jar'
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 #CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"

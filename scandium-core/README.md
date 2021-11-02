@@ -70,7 +70,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>scandium</artifactId>
-            <version>3.0.0-RC1</version>
+            <version>3.0.0</version>
     </dependency>
     ...
   </dependencies>
@@ -169,6 +169,7 @@ Supported extensions:
 - [RFC 6066 - TLS Extensions](https://tools.ietf.org/html/rfc6066)
      - [RFC 6066 - Server Name Indication](https://tools.ietf.org/html/rfc6066#section-3)
      - [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4)
+     - [RFC 7627 - Extended Master Secret Extension](https://tools.ietf.org/html/rfc7627)
      - [RFC 8449 - Record Size Limit Extension ](https://tools.ietf.org/html/rfc8449)
      - [Draft - Connection Identifiers for DTLS 1.2](https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id)
 - [RFC 7250 - Raw Public Keys](https://tools.ietf.org/html/rfc7250)
@@ -212,8 +213,20 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 
 And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
 
-Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but they may be not processed.
+Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but it may be not possible for us to answer them.
 
 On issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
 
-An other issue is, that the function seems to depend on the combination of the OS (Unix, Windows, Android), the java version (7, 8, 11, 15, or 16), and the Bouncy Castle build (jdk15on or jdk15to18).
+# DTLS 1.2 / UDP - Considerations
+
+Using UDP, especially in public networks, comes usually with the risk of being attacked with spoofed ip-messages. Something send messages with a manipulated source ip-address. In some cases this is done in order to make the destination peer sending messages to the "victim" at the manipulated source ip-address. And in some other cases this is done to exhaust the destination's resources itself. A good general overview is provided in [NetScout - What is Distributed Denial of Service (DDoS)?](https://www.netscout.com/what-is-ddos).
+
+For Scandium, that mainly requires to:
+- prevent to send amplified messages back to unverified sources
+- prevent the own endpoint to allocate resources for unverified sources, at least not without limitation.
+
+
+For both, (RFC6347 - 4.2.1.  Denial-of-Service Countermeasures)[https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1] describes a technique using a "stateless cookie" in order to verify the source ip-address without amplification and without state.
+
+Scandium is intended to use such a `HelloVerifyRequest`, if spoofing must be considered.
+
