@@ -76,9 +76,14 @@ public class NatTestHelper {
 	static final String IDENITITY = "client1";
 	static final String KEY = "key1";
 
-	static final ConnectionIdGenerator SUPPORT_CID = new SingleNodeConnectionIdGenerator(0);
+	static final Integer SUPPORT_CID = 0;
 
-	static final ConnectionIdGenerator USE_CID_4 = new SingleNodeConnectionIdGenerator(4);
+	static final Integer USE_CID = 4;
+
+	static {
+		CoapConfig.register();
+		DtlsConfig.register();
+	}
 
 	CoapsNetworkRule network;
 
@@ -197,7 +202,7 @@ public class NatTestHelper {
 		}
 	}
 
-	void setupNetworkConfig(MatcherMode mode, int ackTimeout) {
+	void setupConfiguration(MatcherMode mode, int ackTimeout) {
 		config = network.getStandardTestConfig()
 				// retransmit starting with 200 milliseconds
 				.set(CoapConfig.ACK_TIMEOUT, ackTimeout, TimeUnit.MILLISECONDS)
@@ -209,19 +214,13 @@ public class NatTestHelper {
 				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 4);
 	}
 
+	void createSecureServer(Integer cidLength) throws IOException {
+		ConnectionIdGenerator cidGenerator = cidLength == null ? null : new SingleNodeConnectionIdGenerator(cidLength);
+		createSecureServer(cidGenerator);
+	}
+
 	void createSecureServer(ConnectionIdGenerator... cidGenerators) throws IOException {
 		MyClusterNodesProvider provider = new MyClusterNodesProvider();
-		Configuration configuration = new Configuration(config)
-				.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY)
-				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10000)
-				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 20, TimeUnit.SECONDS)
-				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
-				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 4)
-				.set(DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD, 100);
-
-		if (configuration.get(CoapConfig.RESPONSE_MATCHING) == MatcherMode.PRINCIPAL) {
-			configuration.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
-		}
 
 		int count = 1;
 		for (ConnectionIdGenerator generator : cidGenerators) {
@@ -231,7 +230,13 @@ public class NatTestHelper {
 			TestUtilPskStore pskStore = new TestUtilPskStore();
 			pskStore.set(IDENITITY, KEY.getBytes());
 			pskStore.setCatchAll(true);
-			DtlsConnectorConfig dtlsConfig = DtlsConnectorConfig.builder(configuration)
+			DtlsConnectorConfig dtlsConfig = DtlsConnectorConfig.builder(config)
+					.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY)
+					.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10000)
+					.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 20, TimeUnit.SECONDS)
+					.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
+					.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 4)
+					.set(DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD, 100)
 					.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 					.setLoggingTag(tag)
 					.setHealthHandler(health)
@@ -258,7 +263,7 @@ public class NatTestHelper {
 				serverConnector.setAlertHandler(new MyAlertHandler(dtlsConfig.getLoggingTag()));
 				builder.setConnector(serverConnector);
 			}
-			builder.setConfiguration(configuration);
+			builder.setConfiguration(config);
 			CoapEndpoint serverEndpoint = builder.build();
 			HealthStatisticLogger healthLogger = new HealthStatisticLogger(tag, true);
 			serverCoapStatistics.add(healthLogger);
@@ -276,7 +281,7 @@ public class NatTestHelper {
 		System.out.println("coap-server " + uri);
 	}
 
-	CoapEndpoint createClientEndpoint(ConnectionIdGenerator cidGenerator) throws IOException {
+	CoapEndpoint createClientEndpoint(Integer cidLength) throws IOException {
 
 		String tag = "client";
 		int size = clientEndpoints.size();
@@ -292,10 +297,10 @@ public class NatTestHelper {
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 20)
 				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
 				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, cidLength)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag(tag)
 				.setHealthHandler(health)
-				.setConnectionIdGenerator(cidGenerator)
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setAdvancedPskStore(new AdvancedSinglePskStore(IDENITITY + "." + size, KEY.getBytes())).build();
 
@@ -318,8 +323,8 @@ public class NatTestHelper {
 		return clientEndpoint;
 	}
 
-	void createDefaultClientEndpoint(ConnectionIdGenerator cidGenerator) throws IOException {
-		Endpoint clientEndpoint = createClientEndpoint(cidGenerator);
+	void createDefaultClientEndpoint(Integer cidLength) throws IOException {
+		Endpoint clientEndpoint = createClientEndpoint(cidLength);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
 		System.out.println("coap-client " + clientEndpoint.getUri());
 	}
