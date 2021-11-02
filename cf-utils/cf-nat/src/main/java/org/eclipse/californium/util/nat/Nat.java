@@ -40,7 +40,7 @@ public class Nat {
 	}
 
 	public static void main(String[] args) {
-		if (args.length < 3) {
+		if (args.length < 2) {
 			System.out.println(
 					"usage: :port destination:port [destination2:port2 ...] <other arguments>");
 			System.out.println(
