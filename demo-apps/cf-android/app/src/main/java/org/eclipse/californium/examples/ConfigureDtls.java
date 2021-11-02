@@ -77,12 +77,12 @@ public class ConfigureDtls {
             if (CERTIFICATE_MODE && endpointCredentials != null && trustedCertificates != null) {
                 dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(endpointCredentials.getPrivateKey(), endpointCredentials.getCertificateChain(), CertificateType.X_509));
                 dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build());
-                dtlsConfig.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
-                dtlsConfig.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 3);
+                dtlsConfig.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
                 credentialsSet = true;
             } else if (RPK_MODE && endpointCredentials != null) {
                 dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(endpointCredentials.getPrivateKey(), endpointCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY));
                 dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build());
+                dtlsConfig.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 1000, TimeUnit.MILLISECONDS);
                 credentialsSet = true;
             }
         }

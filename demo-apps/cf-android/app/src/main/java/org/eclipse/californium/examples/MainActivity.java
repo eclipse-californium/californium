@@ -35,6 +35,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
@@ -164,6 +165,7 @@ public class MainActivity extends Activity {
      */
     private void initCoapEndpoint() {
         CoapConfig.register();
+        UdpConfig.register();
         DtlsConfig.register();
         Configuration config = Configuration.createStandardWithoutFile();
         // setup coap EndpointManager to dtls connector
