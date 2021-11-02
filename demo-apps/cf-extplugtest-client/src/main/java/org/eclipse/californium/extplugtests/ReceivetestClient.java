@@ -55,6 +55,7 @@ import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -116,6 +117,7 @@ public class ReceivetestClient {
 			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
 		}
 	};
 

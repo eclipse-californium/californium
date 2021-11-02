@@ -68,6 +68,13 @@ public class BasicReverseProxy2 {
 	 */
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
 
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+		TcpConfig.register();
+		Proxy2Config.register();
+	}
+
 	/**
 	 * Special configuration defaults handler.
 	 */
@@ -90,13 +97,6 @@ public class BasicReverseProxy2 {
 		}
 
 	};
-
-	static {
-		CoapConfig.register();
-		UdpConfig.register();
-		TcpConfig.register();
-		Proxy2Config.register();
-	}
 
 	private CoapServer coapProxyServer;
 

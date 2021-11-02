@@ -131,6 +131,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 1000000);
 			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 60, TimeUnit.SECONDS);
 			config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1000000);
 			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);

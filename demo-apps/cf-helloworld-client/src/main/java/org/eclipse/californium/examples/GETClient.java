@@ -39,6 +39,11 @@ public class GETClient {
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2 MB
 	private static final int DEFAULT_BLOCK_SIZE = 512;
 
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+	}
+
 	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
 		@Override
@@ -49,14 +54,8 @@ public class GETClient {
 		}
 	};
 
-	static {
-		CoapConfig.register();
-		UdpConfig.register();
-	}
-
 	/*
 	 * Application entry point.
-	 * 
 	 */	
 	public static void main(String args[]) {
 		Configuration config = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);

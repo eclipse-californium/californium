@@ -78,12 +78,13 @@ public class PlugtestChecker {
 			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
 		}
-		
+
 	};
 
 	static volatile boolean verbose;
-	
+
 	/** The server uri. */
 	private String serverURI = null;
 
@@ -126,7 +127,7 @@ public class PlugtestChecker {
 				}
 				ClientInitializer.print("   ", ConnectorConfig.MAX_WIDTH, names, System.out);
 			}
-			
+
 			List<Report> reports = new ArrayList<Report>();
 			// iterate for each chosen test
 			for (Class<?> testClass : tests) {
@@ -273,7 +274,7 @@ public class PlugtestChecker {
 
 	@Command(name = "PlugtestChecker", version = "(c) 2014, Institute for Pervasive Computing, ETH Zurich.")
 	private static class Config extends ClientBaseConfig {
-		
+
 		@Option(names = "--no-ping", negatable = true, description = "use ping.")
 		public boolean ping = true;
 

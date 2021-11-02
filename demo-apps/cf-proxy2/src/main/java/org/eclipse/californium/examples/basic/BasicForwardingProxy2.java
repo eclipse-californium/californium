@@ -59,6 +59,13 @@ public class BasicForwardingProxy2 {
 	 */
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
 
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+		TcpConfig.register();
+		Proxy2Config.register();
+	}
+
 	/**
 	 * Special configuration defaults handler.
 	 */
@@ -81,13 +88,6 @@ public class BasicForwardingProxy2 {
 		}
 
 	};
-
-	static {
-		CoapConfig.register();
-		UdpConfig.register();
-		TcpConfig.register();
-		Proxy2Config.register();
-	}
 
 	private static final String COAP2HTTP = "coap2http";
 
