@@ -38,6 +38,7 @@ import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
@@ -46,6 +47,7 @@ import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.tcp.netty.TlsConnectorTestUtil.SSLTestContext;
@@ -67,6 +69,9 @@ public class TlsCorrelationTest {
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	@Rule
 	public ThreadsRule threads = THREADS_RULE;
@@ -322,6 +327,7 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testClientSendingCorrelationContext() throws Exception {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class, TlsClientConnector.class);
 		TlsEndpointContextMatcher matcher = new TlsEndpointContextMatcher();
 		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
 		TlsClientConnector client = new TlsClientConnector(clientSslContext,configuration);
@@ -404,6 +410,7 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testServerSendingCorrelationContext() throws Exception {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class, TlsServerConnector.class);
 		TlsEndpointContextMatcher matcher = new TlsEndpointContextMatcher();
 		TlsServerConnector server = new TlsServerConnector(serverSslContext, createServerAddress(0), configuration);
 		TlsClientConnector client = new TlsClientConnector(clientSslContext, configuration);
@@ -495,6 +502,7 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testServerSideClientWithBrokenCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 		/*
 		 * create client credential using the client certificate, but wrong
 		 * private key.
@@ -550,6 +558,8 @@ public class TlsCorrelationTest {
 
 	@Test
 	public void testServerSideTrustAllClientWithNoneSigningCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
+
 		SSLTestContext serverContext = initializeTrustAllContext(SERVER_NAME);
 		SSLTestContext clientContext = initializeContext("nosigning", "nosigning", null);
 
@@ -617,6 +627,7 @@ public class TlsCorrelationTest {
 	 */
 	@Test
 	public void testClientSideServerWithBrokenCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 		/*
 		 * create server credential using the server certificate, but wrong
 		 * private key.
@@ -674,6 +685,7 @@ public class TlsCorrelationTest {
 
 	@Test
 	public void testClientSideTrustAllServerWithNoneSigningCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 
 		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
 		SSLTestContext serverContext = initializeContext("nosigning", "nosigning", null);
@@ -702,6 +714,7 @@ public class TlsCorrelationTest {
 
 	@Test
 	public void testClientSideTrustAllServerWithWrongKeyUsage() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 
 		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
 		SSLTestContext serverContext = initializeContext("clientext", "clientext", null);
@@ -730,9 +743,10 @@ public class TlsCorrelationTest {
 
 	@Test
 	public void testClientSideTrustAllServerBrokenChain() throws Exception {
+		logging.setLoggingLevel("ERROR", CloseOnErrorHandler.class);
 
 		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
-		
+
 		Credentials credentials = SslContextUtil.loadCredentials(
 				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_NAME, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);

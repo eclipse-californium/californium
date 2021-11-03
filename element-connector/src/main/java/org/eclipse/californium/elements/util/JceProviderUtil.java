@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.lang.reflect.Method;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
@@ -50,6 +51,11 @@ import org.slf4j.LoggerFactory;
  * with one of the values "SYSTEM" (keep the providers configured externally),
  * "BC" (load and insert the Bouncy Castle provider), "I2P" (load
  * net.i2p.crypto.eddsa ed25519-java and use that for EdDSA).
+ * <p>
+ * Though Bouncy Castle uses JUL for logging, jul2slf4j2 is added when using BC.
+ * That requires {@code org.slf4j.bridge.SLF4JBridgeHandler} in the classpath.
+ * The bridge is only activated, if "CALIFORNIUM_JCE_PROVIDER" is set to "BC"
+ * and Bouncy Castle is not already set as security provider.
  * 
  * @since 3.0
  */
@@ -81,7 +87,7 @@ public class JceProviderUtil {
 	 */
 	private static final String BOUNCY_CASTLE_JSSE_PROVIDER = "org.bouncycastle.jsse.provider.BouncyCastleJsseProvider";
 	/**
-	 * Name of environment variable.
+	 * Name of environment variable to specify JCE,.
 	 */
 	private static final String CALIFORNIUM_JCE_PROVIDER = "CALIFORNIUM_JCE_PROVIDER";
 	/**
@@ -180,6 +186,25 @@ public class JceProviderUtil {
 	}
 
 	/**
+	 * Setup logging bridge for jul to slf4j2. BC is using jul.
+	 * 
+	 * Requires {@code org.slf4j:jul-to-slf4j} in classpath.
+	 *  
+	 * @since 3.0
+	 */
+	private static void setupLoggingBridge() {
+		try {
+			Class<?> clz = Class.forName("org.slf4j.bridge.SLF4JBridgeHandler");
+			Method method = clz.getMethod("removeHandlersForRootLogger");
+			method.invoke(null);
+			method = clz.getMethod("install");
+			method.invoke(null);
+		} catch (Throwable e) {
+			LOGGER.warn("Setup BC logging failed!", e);
+		}
+	}
+
+	/**
 	 * Setup JCE.
 	 * 
 	 * Prepare and check, if EdDSA is supported.
@@ -221,6 +246,7 @@ public class JceProviderUtil {
 				found = true;
 				LOGGER.trace("EdDSA from BC");
 			} else {
+				setupLoggingBridge();
 				Provider newProvider = loadProvider(BOUNCY_CASTLE_JCE_PROVIDER);
 				if (newProvider != null) {
 					try {

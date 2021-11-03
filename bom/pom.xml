@@ -81,6 +81,11 @@
 				<version>${slf4j.version}</version>
 			</dependency>
 			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>jul-to-slf4j</artifactId>
+				<version>${slf4j.version}</version>
+			</dependency>
+			<dependency>
 				<groupId>com.upokecenter</groupId>
 				<artifactId>cbor</artifactId>
 				<version>${cbor.version}</version>

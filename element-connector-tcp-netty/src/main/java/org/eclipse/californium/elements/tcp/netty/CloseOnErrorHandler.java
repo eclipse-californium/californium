@@ -61,6 +61,10 @@ class CloseOnErrorHandler extends ChannelInboundHandlerAdapter {
 			Throwable rootCause = cause;
 			while (null != rootCause.getCause()) {
 				rootCause = rootCause.getCause();
+				if (rootCause instanceof SSLException || rootCause instanceof GeneralSecurityException
+						|| rootCause instanceof RejectedExecutionException) {
+					break;
+				}
 			}
 			String error = rootCause.toString();
 			String remote = StringUtil.toString(ctx.channel().remoteAddress());

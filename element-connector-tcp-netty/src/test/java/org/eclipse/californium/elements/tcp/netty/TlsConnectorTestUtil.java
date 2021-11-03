@@ -35,11 +35,15 @@ import javax.net.ssl.X509ExtendedKeyManager;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utils for TLS based connector tests.
  */
 public class TlsConnectorTestUtil {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(TlsConnectorTestUtil.class);
 
 	public static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	public static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
@@ -173,25 +177,25 @@ public class TlsConnectorTestUtil {
 
 	public static void log(String name, Credentials credentials) {
 		if (credentials == null) {
-			System.out.println(name + ": null");
+			LOGGER.info("{}: null", name);
 			return;
 		}
-		System.out.println(name + ": " + credentials.getCertificateChain().length);
+		LOGGER.info("{}: {} certificates in chain.", name, credentials.getCertificateChain().length);
 		for (X509Certificate certificate : credentials.getCertificateChain()) {
-			System.out.println("      " + certificate.getSubjectX500Principal().getName());
+			LOGGER.info("      {}", certificate.getSubjectX500Principal().getName());
 		}
 	}
 
 	public static void log(String name, Certificate[] trustedCertificates, boolean logCertificate) {
 		if (trustedCertificates == null) {
-			System.out.println(name + ": null");
+			LOGGER.info("{}: null", name);
 			return;
 		}
-		System.out.println(name + ": " + trustedCertificates.length);
+		LOGGER.info("{}: {} trusted certificates.", name, trustedCertificates.length);
 		for (Certificate trust : trustedCertificates) {
 			if (logCertificate && trust instanceof X509Certificate) {
 				X509Certificate issuer = (X509Certificate) trust;
-				System.out.println("      " + issuer.getSubjectX500Principal().getName());
+				LOGGER.info("      {}", issuer.getSubjectX500Principal().getName());
 			}
 		}
 	}
