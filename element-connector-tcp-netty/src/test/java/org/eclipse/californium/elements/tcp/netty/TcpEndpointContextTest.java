@@ -47,11 +47,13 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TcpEndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
@@ -70,6 +72,9 @@ public class TcpEndpointContextTest {
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	@Rule
 	public ThreadsRule threads = THREADS_RULE;
@@ -305,6 +310,7 @@ public class TcpEndpointContextTest {
 	 */
 	@Test
 	public void testClientSendingEndpointContext() throws Exception {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class, TcpClientConnector.class);
 		TcpEndpointContextMatcher matcher = new TcpEndpointContextMatcher();
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), configuration);
 		TcpClientConnector client = new TcpClientConnector(configuration);
@@ -365,6 +371,8 @@ public class TcpEndpointContextTest {
 	 */
 	@Test
 	public void testServerSendingEndpointContext() throws Exception {
+		logging.setLoggingLevel("ERROR", EndpointContextUtil.class, TcpServerConnector.class);
+
 		TcpEndpointContextMatcher matcher = new TcpEndpointContextMatcher();
 		TcpServerConnector server = new TcpServerConnector(createServerAddress(0), configuration);
 		TcpClientConnector client = new TcpClientConnector(configuration);

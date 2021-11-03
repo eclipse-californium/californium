@@ -820,6 +820,7 @@
 			</activation>
 			<properties>
 				<bc.version>1.69</bc.version>
+				<slf4j.version>1.7.30</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>
@@ -838,6 +839,12 @@
 					<groupId>org.bouncycastle</groupId>
 					<artifactId>bctls-jdk15on</artifactId>
 					<version>${bc.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.slf4j</groupId>
+					<artifactId>jul-to-slf4j</artifactId>
+					<version>${slf4j.version}</version>
 					<scope>test</scope>
 				</dependency>
 			</dependencies>
