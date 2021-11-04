@@ -35,7 +35,7 @@ Creates a (s)NAT listening on any network interfaces at UDP port 5684 (default c
 (Note: in this examples it's assumed, that node2.coap.cluster offers the service on port 5684 and 5784.)
 
 ```sh
-java -jar cf-nat-3.0.0.jar [::1]:5684 [127.0.0.1]:5684 -- node1.coap.cluster:5684 node2.coap.cluster:5684 node2.coap.cluster:5784
+java -jar cf-nat-3.0.0.jar [::1]:5684 127.0.0.1:5684 -- node1.coap.cluster:5684 node2.coap.cluster:5684 node2.coap.cluster:5784
 ```
 
 Creates a (s)NAT listening on the Ipv6 and IPv4 loopback network interfaces at UDP port 5684 (default coaps) and forwards the traffic to 3 dtls-receivers.
