@@ -824,7 +824,7 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509MixedCertificateChainHandshakeAuthWantedAnonymClient() throws Exception {
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientAuthenticationWanted(true)
-				.setIdentity(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain())
+				.setIdentity(DtlsTestTools.getServerCaRsaPrivateKey(), DtlsTestTools.getServerCaRsaCertificateChain())
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
 		startClientX509(false, true, null);
@@ -838,10 +838,10 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testX509TrustServerCertificate() throws Exception {
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientAuthenticationWanted(true)
-				.setIdentity(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain())
+				.setIdentity(DtlsTestTools.getServerCaRsaPrivateKey(), DtlsTestTools.getServerCaRsaCertificateChain())
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
-		startClientX509(false, false, null, null, DtlsTestTools.getServerRsaCertificateChain()[0]);
+		startClientX509(false, false, null, null, DtlsTestTools.getServerCaRsaCertificateChain()[0]);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));

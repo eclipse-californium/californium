@@ -2810,7 +2810,7 @@ public class DTLSConnectorAdvancedTest {
 	public void testClientX509WithoutMatchingCertificate() throws Exception {
 
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
-				.setTrustedCertificates(DtlsTestTools.getServerRsaCertificateChain()).build();
+				.setTrustedCertificates(DtlsTestTools.getServerCaRsaCertificateChain()).build();
 
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS * 2)

@@ -188,7 +188,7 @@ public class DeprecatedDtlsConnectorConfigTest {
 	@Test
 	public void testSupportedGroupForMixedCertificateChain() throws IOException, GeneralSecurityException {
 		DtlsConnectorConfig config = builder
-				.setIdentity(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain())
+				.setIdentity(DtlsTestTools.getServerCaRsaPrivateKey(), DtlsTestTools.getServerCaRsaCertificateChain())
 				.setTrustStore(new Certificate[0])
 				.build();
 		assertNotNull(config.getSupportedGroups());
