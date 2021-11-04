@@ -1,3 +1,5 @@
+#!/bin/sh
+
 #/*******************************************************************************
 # * Copyright (c) 2020 Bosch.IO GmbH and others.
 # * 
@@ -14,25 +16,25 @@
 # *    Achim Kraus (Bosch.IO GmbH) - initial script
 # ******************************************************************************/
 #
-# usage: docker build . -t <tag> service/Dockerfile
+# edit /var/snap/microk8s/current/args/kubectl-env to load ~/.kube/config
+#
+# Replace <cloud-registry> and <cloud-context> with your values.
 
-FROM docker.io/openjdk:11-jre-slim
+echo "deploy to cloud"
 
-RUN mkdir /opt/app
-COPY ./service/build ./CaliforniumReceivetest3.properties /opt/app/
-COPY ./target/cf-extplugtest-server-3.1.0-SNAPSHOT.jar /opt/app/cf-extplugtest-server.jar
+export BUILD_FILE=cf-cloud-build
+export REGISTRY=<cloud-registry>
 
-#EXPOSE 5683/udp
-#EXPOSE 5683/tcp
-#EXPOSE 5684/udp
-#EXPOSE 5684/tcp
-EXPOSE 5783/udp
-#EXPOSE 5783/tcp
-EXPOSE 5784/udp
-#EXPOSE 5784/tcp
-EXPOSE 5884/udp
-EXPOSE 5884/tcp
-EXPOSE 8080/tcp
+# export KUBECTL=??? ; default microk8s.kubectl
+# export KUBECTL_NAMESPACE=??? ; default cali
+export KUBECTL_CONTEXT="--context=<cloud-context>"
+# export K8S_SERVICE=??? ; default k8s
 
-WORKDIR /opt/app
-CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "./cf-extplugtest-server.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884", "--k8s-monitor", ":8080", "--k8s-restore", ":5884"]
+if [ ! -d "service" ] ; then
+   if [ -d "../service" ] ; then
+      cd ..
+   fi
+fi
+
+sh ./service/deploy_k8s.sh $@
+
