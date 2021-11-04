@@ -27,7 +27,7 @@ echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 50% of the available
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may be used instead."
 echo
 echo "The required server may be started using:"
-echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0-SNAPSHOT.jar --no-external --no-plugtest"
+echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0.jar --no-external --no-plugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 50% of the available RAM."
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may also be used instead."
 echo "If the benchmark is mainly used with the loopback interface (localhost), use the --no-external as above."
@@ -47,8 +47,8 @@ echo
 echo "Depending on your OS and configuration, the maximum number of sockets or threads may be limited."
 echo
 echo "Some cloud-provider use containers instead of real (or virtual) machines, which results in many"
-echo "cases in lower limits. Check, if \"/proc/user_beancounters\" is available and if, check the number"
-echo "for \"numproc\". That is mostly enough for servers, but for the benchmark client this limits"
+echo "cases in lower limits. Check, if \"/proc/user_beancounters\" is available, and if so, check the"
+echo "number of \"numproc\". That is mostly enough for servers, but for the benchmark client this limits"
 echo "currently the number of clients to less than the half of the value of \"numproc\"."
 echo
 echo "For real (or virtual) machines with linux, the maximum number may be increased, if the host has"
