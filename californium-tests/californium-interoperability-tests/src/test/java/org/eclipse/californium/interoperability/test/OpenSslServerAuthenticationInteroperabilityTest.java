@@ -227,7 +227,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	@Test
 	public void testOpenSslServerRsaTrustTrustRoot() throws Exception {
 		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST,
-				OpenSslProcessUtil.SERVER_RSA_CERTIFICATE, OpenSslProcessUtil.DEFAULT_CURVES,
+				OpenSslProcessUtil.SERVER_CA_RSA_CERTIFICATE, OpenSslProcessUtil.DEFAULT_CURVES,
 				OpenSslProcessUtil.DEFAULT_SIGALGS, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
@@ -240,7 +240,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	@Test
 	public void testOpenSslServerRsaChainTrustRoot() throws Exception {
 		CipherSuite[] ciphers =  {CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CHAIN, OpenSslProcessUtil.SERVER_RSA_CERTIFICATE, null, null, ciphers);
+		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CHAIN, OpenSslProcessUtil.SERVER_CA_RSA_CERTIFICATE, null, null, ciphers);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA, SignatureAndHashAlgorithm.SHA256_WITH_RSA);

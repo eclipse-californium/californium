@@ -46,7 +46,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	public static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
 
 	public static final String SERVER_CERTIFICATE = "server.pem";
-	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
+	public static final String SERVER_CA_RSA_CERTIFICATE = "serverCaRsa.pem";
 
 	public static final String CLIENT_CERTIFICATE = "client.pem";
 	public static final String ROOT_CERTIFICATE = "rootTrustStore.pem";
@@ -128,7 +128,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			args.add("-cert");
 			args.add(serverCertificate);
 			String chain = CA_CERTIFICATES;
-			if (SERVER_RSA_CERTIFICATE.equals(serverCertificate)) {
+			if (SERVER_CA_RSA_CERTIFICATE.equals(serverCertificate)) {
 				chain = CA_RSA_CERTIFICATES;
 			}
 			add(args, authMode, chain);

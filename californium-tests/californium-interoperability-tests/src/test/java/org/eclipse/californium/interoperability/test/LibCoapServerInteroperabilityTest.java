@@ -111,7 +111,7 @@ public class LibCoapServerInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaRsa() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, OpenSslProcessUtil.SERVER_RSA_CERTIFICATE,
+		processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, OpenSslProcessUtil.SERVER_CA_RSA_CERTIFICATE,
 				cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -121,7 +121,7 @@ public class LibCoapServerInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaRsaSigAlg() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, OpenSslProcessUtil.SERVER_RSA_CERTIFICATE,
+		processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, OpenSslProcessUtil.SERVER_CA_RSA_CERTIFICATE,
 				cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
@@ -142,7 +142,7 @@ public class LibCoapServerInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaRsaTrust() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, OpenSslProcessUtil.SERVER_RSA_CERTIFICATE,
+		processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, OpenSslProcessUtil.SERVER_CA_RSA_CERTIFICATE,
 				cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
@@ -152,7 +152,7 @@ public class LibCoapServerInteroperabilityTest {
 	@Test
 	public void testLibCoapServerEcdsaRsaSigAlgTrust() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, OpenSslProcessUtil.SERVER_RSA_CERTIFICATE,
+		processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, OpenSslProcessUtil.SERVER_CA_RSA_CERTIFICATE,
 				cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
