@@ -22,6 +22,8 @@ package org.eclipse.californium.extplugtests;
 import java.io.File;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
@@ -114,6 +116,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Receivetest Server";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
+	private static final long MEGA = 1024 * 1024L;
 
 	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
@@ -571,9 +574,32 @@ public class ExtendedTestServer extends AbstractTestServer {
 			}
 		}
 		logger.info("gc: {} ms, {} calls", gcTime, gcCount);
+		MemoryMXBean memoryMxBean = ManagementFactory.getMemoryMXBean();
+		printMemoryUsage(logger, "heap", memoryMxBean.getHeapMemoryUsage());
+		printMemoryUsage(logger, "non-heap", memoryMxBean.getNonHeapMemoryUsage());
 		double loadAverage = osMxBean.getSystemLoadAverage();
 		if (!(loadAverage < 0.0d)) {
 			logger.info("average load: {}", String.format("%.2f", loadAverage));
+		}
+	}
+
+	private static void printMemoryUsage(Logger logger, String title, MemoryUsage memoryUsage) {
+		long max = memoryUsage.getMax();
+		if (max > 0) {
+			if (max > MEGA) {
+				logger.info("{}: {} m-bytes used of {}/{}.", title, memoryUsage.getUsed() / MEGA,
+						memoryUsage.getCommitted() / MEGA, max / MEGA);
+			} else {
+				logger.info("{}: {} bytes used of {}/{}.", title, memoryUsage.getUsed(), memoryUsage.getCommitted(),
+						max);
+			}
+			return;
+		}
+		max = memoryUsage.getCommitted();
+		if (max > MEGA) {
+			logger.info("{}: {} m-bytes used of {}.", title, memoryUsage.getUsed() / MEGA, max / MEGA);
+		} else {
+			logger.info("{}: {} bytes used of {}.", title, memoryUsage.getUsed(), max);
 		}
 	}
 
