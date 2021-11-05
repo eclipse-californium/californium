@@ -19,6 +19,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_OCTET_STREAM;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import org.eclipse.californium.core.CoapResource;
@@ -37,6 +38,7 @@ public class Hono extends CoapResource {
 		getAttributes().setTitle("Hono test request for " + name);
 		getAttributes().addContentType(APPLICATION_JSON);
 		getAttributes().addContentType(TEXT_PLAIN);
+		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
 	}
 
 	@Override
@@ -47,6 +49,8 @@ public class Hono extends CoapResource {
 		} else if (accept == APPLICATION_JSON) {
 			exchange.respond(CHANGED, "{ \"type\" : \"" + getName() + "\", \"msg\" : \"published!\" }",
 					APPLICATION_JSON);
+		} else if (accept == APPLICATION_OCTET_STREAM) {
+			exchange.respond(CHANGED, (getName() + " published!".getBytes()), APPLICATION_OCTET_STREAM);
 		} else {
 			String ct = MediaTypeRegistry.toString(accept);
 			exchange.respond(NOT_ACCEPTABLE, "Type \"" + ct + "\" is not supported for this resource!", TEXT_PLAIN);
