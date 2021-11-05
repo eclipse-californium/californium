@@ -1339,6 +1339,7 @@ public class BenchmarkClient {
 			interval = Math.max(interval, DTLS_TIMEOUT_NANOS);
 		}
 		long staleTimeout = DEFAULT_TIMEOUT_NANOS + interval;
+		int count = 0;
 		// Wait with timeout or all requests send.
 		while (!overallRequestsDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
 			long currentRequestsCountDown = overallRequestsDownCounter.get();
@@ -1357,7 +1358,7 @@ public class BenchmarkClient {
 					startRequestNanos += timeout;
 					startReverseResponseNanos = startRequestNanos;
 					stale = true;
-					System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests,
+					System.out.format("[%04d]: %d requests, stale (%d clients, %d pending)%n", ++count, currentOverallSentRequests,
 							numberOfClients, connectsPending);
 					break;
 				}
@@ -1385,6 +1386,7 @@ public class BenchmarkClient {
 			lastHonoCmds = honoCmds;
 
 			StringBuilder line = new StringBuilder();
+			line.append(String.format("[%04d]: ", ++count));
 			line.append(String.format("%d requests (%d reqs/s", currentOverallSentRequests,
 					roundDiv(responsesDifference, DEFAULT_TIMEOUT_SECONDS)));
 			line.append(", ").append(formatRetransmissions(retransmissionsDifference, transmissionsDifference, responsesDifference));
@@ -1435,23 +1437,23 @@ public class BenchmarkClient {
 					startReverseResponseNanos += time;
 					stale = true;
 					if (observe) {
-						System.out.format("%d notifies, stale (%d clients, %d observes)%n",
-								currentOverallReverseResponses, numberOfClients, observers);
+						System.out.format("[%04d]: %d notifies, stale (%d clients, %d observes)%n",
+								++count, currentOverallReverseResponses, numberOfClients, observers);
 					} else {
-						System.out.format("%d reverse-responses, stale (%d clients)%n", currentOverallReverseResponses,
-								numberOfClients);
+						System.out.format("[%04d]: %d reverse-responses, stale (%d clients)%n",
+								++count, currentOverallReverseResponses, numberOfClients);
 					}
 					break;
 				}
 				lastReverseResponsesCountDown = currentReverseResponsesCountDown;
 				if (observe) {
-					System.out.format("%d notifies (%d notifies/s, %d clients, %d observes)%n",
-							currentOverallReverseResponses,
+					System.out.format("[%04d]: %d notifies (%d notifies/s, %d clients, %d observes)%n",
+							++count, currentOverallReverseResponses,
 							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
 							numberOfClients, observers);
 				} else {
-					System.out.format("%d reverse-responses (%d reverse-responses/s, %d clients)%n",
-							currentOverallReverseResponses,
+					System.out.format("[%04d]: %d reverse-responses (%d reverse-responses/s, %d clients)%n",
+							++count, currentOverallReverseResponses,
 							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
 							numberOfClients);
 				}
