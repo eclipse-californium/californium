@@ -39,12 +39,13 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * 
  * Requires external openssl installation, otherwise the tests are skipped. On
  * linux install just the openssl package (version 1.1.1). On windows you may
- * install git for windows, <a href="https://git-scm.com/download/win" target="_blank">git</a>
- * and add the extra tools to your path ("Git/mingw64/bin", may also be done
- * using a installation option). Alternatively you may install openssl for
- * windows on it's own <a href=
- * "https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.1.1c-win64-mingw.zip" target="_blank">OpenSsl
- * for Windows</a> and add that to your path.
+ * install git for windows,
+ * <a href="https://git-scm.com/download/win" target="_blank">git</a> and add
+ * the extra tools to your path ("Git/mingw64/bin", may also be done using a
+ * installation option). Alternatively you may install openssl for windows on
+ * it's own <a href=
+ * "https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.1.1c-win64-mingw.zip"
+ * target="_blank">OpenSsl for Windows</a> and add that to your path.
  * 
  * Note: the windows version 1.1.1a to 1.1.1k of the openssl s_server seems to
  * be broken. It starts only to accept, when the first message is entered.
@@ -74,6 +75,8 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	public static final String DEFAULT_CURVES = "X25519:prime256v1";
 	public static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
 
+	private ProcessResult version;
+
 	/**
 	 * Create instance.
 	 */
@@ -87,26 +90,43 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	 * @return result of version command. {@code null}, if not available.
 	 */
 	public ProcessResult getOpenSslVersion(long timeMillis) {
-		try {
-			execute("openssl", "version");
-			return waitResult(timeMillis);
-		} catch (InterruptedException ex) {
-			return null;
-		} catch (IOException ex) {
-			return null;
+		if (version == null) {
+			try {
+				execute("openssl", "version");
+				version = waitResult(timeMillis);
+			} catch (InterruptedException ex) {
+				return null;
+			} catch (IOException ex) {
+			}
 		}
+		return version;
 	}
 
 	public void assumeServerVersion() {
 		String os = System.getProperty("os.name");
 		if (os.startsWith("Windows")) {
-			try {
-				ProcessResult result = waitResult(2000);
+			if (version != null) {
 				assumeFalse("Windows openssl server 1.1.1 seems to be broken!",
-						result.contains("OpenSSL 1\\.1\\.1[a-k]"));
-			} catch (InterruptedException ex) {
+						version.contains("OpenSSL 1\\.1\\.1[a-k]"));
+			} else {
 				assumeFalse("result for openssl version missing!", true);
 			}
+		}
+	}
+
+	/**
+	 * Assume, that server version supports PSK.
+	 * 
+	 * Version {@code 1.1.1l} has broken PSK support.
+	 * 
+	 * See <a href="https://github.com/openssl/openssl/issues/16992" target=
+	 * "_blank">openssl issue</a>.
+	 */
+	public void assumePskServerVersion() {
+		if (version != null) {
+			assumeFalse("openssl 1.1.1l - server PSK support is broken!", version.contains("OpenSSL 1\\.1\\.1l"));
+		} else {
+			assumeFalse("result for openssl version missing!", true);
 		}
 	}
 
@@ -128,6 +148,8 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		args.addAll(Arrays.asList("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher",
 				openSslCiphers));
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
+			args.add("-psk_identity");
+			args.add(OpenSslUtil.OPENSSL_PSK_IDENTITY);
 			args.add("-psk");
 			args.add(StringUtil.byteArray2Hex(OpenSslUtil.OPENSSL_PSK_SECRET));
 		}
@@ -137,6 +159,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			add(args, authMode, CA_CERTIFICATES);
 		}
 		add(args, curves, sigAlgs);
+		print(args);
 		execute(args);
 		return "(" + openSslCiphers.replace(":", "|") + ")";
 	}
@@ -154,6 +177,9 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		args.addAll(Arrays.asList("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-verify", "5",
 				"-cipher", openSslCiphers));
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
+			assumePskServerVersion();
+			args.add("-psk_identity");
+			args.add(OpenSslUtil.OPENSSL_PSK_IDENTITY);
 			args.add("-psk");
 			args.add(StringUtil.byteArray2Hex(OpenSslUtil.OPENSSL_PSK_SECRET));
 		}
@@ -167,6 +193,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			add(args, authMode, chain);
 		}
 		add(args, curves, sigAlgs);
+		print(args);
 		execute(args);
 		// ensure, server is ready to ACCEPT messages
 		assumeTrue(waitConsole("ACCEPT", TIMEOUT_MILLIS));
