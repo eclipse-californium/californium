@@ -19,6 +19,7 @@ import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_C
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
@@ -83,6 +84,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		assumeNotNull(result);
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
 		processUtil.assumeServerVersion();
+
 		scandiumUtil = new ScandiumUtil(true);
 		cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 	}
@@ -100,6 +102,16 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	@After
 	public void stop() throws InterruptedException {
 		ShutdownUtil.shutdown(scandiumUtil, processUtil);
+	}
+
+	@Test
+	public void testOpenSslServerPsk() throws Exception {
+		processUtil.assumePskServerVersion();
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		String cipher = processUtil.startupServer(ACCEPT, PSK, cipherSuite);
+
+		scandiumUtil.start(BIND, null, cipherSuite);
+		connect(cipher);
 	}
 
 	@Test
