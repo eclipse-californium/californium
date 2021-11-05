@@ -46,11 +46,13 @@ public class MediaTypeRegistryTest {
 		int[] mediaTypes = MediaTypeRegistry.parseWildcard("text/plain");
 		assertArrayEquals(new int[] {MediaTypeRegistry.TEXT_PLAIN}, mediaTypes);
 		mediaTypes = MediaTypeRegistry.parseWildcard("*/*");
-		assertThat(mediaTypes.length, is(12));
+		assertThat(mediaTypes.length, is(MediaTypeRegistry.getAllMediaTypes().size()));
 		mediaTypes = MediaTypeRegistry.parseWildcard("text/*");
-		assertThat(mediaTypes.length, is(1));
+		assertThat(mediaTypes.length, is(2));
 		mediaTypes = MediaTypeRegistry.parseWildcard("application/*");
-		assertThat(mediaTypes.length, is(11));
+		assertThat(mediaTypes.length, is(47));
+		mediaTypes = MediaTypeRegistry.parseWildcard("image/*");
+		assertThat(mediaTypes.length, is(4));
 		mediaTypes = MediaTypeRegistry.parseWildcard("plain/*");
 		assertThat(mediaTypes.length, is(0));
 		mediaTypes = MediaTypeRegistry.parseWildcard("*/plain");
