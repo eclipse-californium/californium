@@ -50,7 +50,7 @@ public class Hono extends CoapResource {
 			exchange.respond(CHANGED, "{ \"type\" : \"" + getName() + "\", \"msg\" : \"published!\" }",
 					APPLICATION_JSON);
 		} else if (accept == APPLICATION_OCTET_STREAM) {
-			exchange.respond(CHANGED, (getName() + " published!".getBytes()), APPLICATION_OCTET_STREAM);
+			exchange.respond(CHANGED, (getName() + " published!").getBytes(), APPLICATION_OCTET_STREAM);
 		} else {
 			String ct = MediaTypeRegistry.toString(accept);
 			exchange.respond(NOT_ACCEPTABLE, "Type \"" + ct + "\" is not supported for this resource!", TEXT_PLAIN);
