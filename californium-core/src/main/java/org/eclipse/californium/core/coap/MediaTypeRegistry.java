@@ -71,8 +71,8 @@ public class MediaTypeRegistry {
 	public static final int APPLICATION_SENML_EXI = 114;
 	public static final int APPLICATION_SENSML_EXI = 115;
 	public static final int APPLICATION_COAP_GROUP = 256;
-	public static final int APPLICATION_DOTS = 271;
-	public static final int APPLICATION_MISSING_BLOCKS = 272;
+	public static final int APPLICATION_DOTS_CBOR = 271;
+	public static final int APPLICATION_MISSING_BLOCKS_CBOR_SEQ = 272;
 	public static final int APPLICATION_PKCS7_SERVER_GENERATED_KEY = 280;
 	public static final int APPLICATION_PKCS7_CERTS_ONLY = 281;
 	public static final int APPLICATION_PKCS8 = 284;
@@ -104,72 +104,72 @@ public class MediaTypeRegistry {
 
 		addPrintable(TEXT_PLAIN, "text/plain", "txt", true);
 
-		addNonePrintable(APPLICATION_COSE_ENCRYPT0, "application/cose; cose-type=\"cose-encrypt0\"", "cbor");
-		addNonePrintable(APPLICATION_COSE_MAC0, "application/cose; cose-type=\"cose-mac0\"", "cbor");
-		addNonePrintable(APPLICATION_COSE_SIGN1, "application/cose; cose-type=\"cose-sign1\"", "cbor");
+		addNonPrintable(APPLICATION_COSE_ENCRYPT0, "application/cose; cose-type=\"cose-encrypt0\"", "cbor");
+		addNonPrintable(APPLICATION_COSE_MAC0, "application/cose; cose-type=\"cose-mac0\"", "cbor");
+		addNonPrintable(APPLICATION_COSE_SIGN1, "application/cose; cose-type=\"cose-sign1\"", "cbor");
 
-		addNonePrintable(APPLICATION_ACE_CBOR, "application/ace+cbor", "cbor");
+		addNonPrintable(APPLICATION_ACE_CBOR, "application/ace+cbor", "cbor");
 
-		addNonePrintable(IMAGE_GIF, "image/gif", "gif");
-		addNonePrintable(IMAGE_JPEG, "image/jpeg", "jpeg");
-		addNonePrintable(IMAGE_PNG, "image/png", "png");
+		addNonPrintable(IMAGE_GIF, "image/gif", "gif");
+		addNonPrintable(IMAGE_JPEG, "image/jpeg", "jpeg");
+		addNonPrintable(IMAGE_PNG, "image/png", "png");
 
 		addPrintable(APPLICATION_LINK_FORMAT, "application/link-format", "wlnk", false);
 		// charset is defined in xml itself.
 		// Changing it requires to adapt it in xml as well.
 		addPrintable(APPLICATION_XML, "application/xml", "xml", false);
-		addNonePrintable(APPLICATION_OCTET_STREAM, "application/octet-stream", "bin");
+		addNonPrintable(APPLICATION_OCTET_STREAM, "application/octet-stream", "bin");
 		addPrintable(APPLICATION_XMPP_XML, "application/xmpp+xml", "xmpp", false);
-		addNonePrintable(APPLICATION_EXI, "application/exi", "exi");
+		addNonPrintable(APPLICATION_EXI, "application/exi", "exi");
 		addPrintable(APPLICATION_JSON, "application/json", "json", false);
 		addPrintable(APPLICATION_JSON_PATCH, "application/json-patch+json", "json", false);
 		addPrintable(APPLICATION_MERGE_PATCH, "application/merge-patch+json", "json", false);
 		// RFC 7049
-		addNonePrintable(APPLICATION_CBOR, "application/cbor", "cbor");
-		addNonePrintable(APPLICATION_CWT, "application/cwt", "cwt");
-		addNonePrintable(APPLICATION_MULTIPART_CORE, "application/multipart-core", "part");
-		addNonePrintable(APPLICATION_CBOR_SEQ, "application/cbor-seq", "cbor");
+		addNonPrintable(APPLICATION_CBOR, "application/cbor", "cbor");
+		addNonPrintable(APPLICATION_CWT, "application/cwt", "cwt");
+		addNonPrintable(APPLICATION_MULTIPART_CORE, "application/multipart-core", "part");
+		addNonPrintable(APPLICATION_CBOR_SEQ, "application/cbor-seq", "cbor");
 
-		addNonePrintable(APPLICATION_COSE_ENCRYPT, "application/cose; cose-type=\"cose-encrypt\"", "cbor");
-		addNonePrintable(APPLICATION_COSE_MAC, "application/cose; cose-type=\"cose-mac\"", "cbor");
-		addNonePrintable(APPLICATION_COSE_SIGN, "application/cose; cose-type=\"cose-sign\"", "cbor");
-		addNonePrintable(APPLICATION_COSE_KEY, "application/cose-key", "cbor");
-		addNonePrintable(APPLICATION_COSE_KEY_SET, "application/cose-key-set", "cbor");
+		addNonPrintable(APPLICATION_COSE_ENCRYPT, "application/cose; cose-type=\"cose-encrypt\"", "cbor");
+		addNonPrintable(APPLICATION_COSE_MAC, "application/cose; cose-type=\"cose-mac\"", "cbor");
+		addNonPrintable(APPLICATION_COSE_SIGN, "application/cose; cose-type=\"cose-sign\"", "cbor");
+		addNonPrintable(APPLICATION_COSE_KEY, "application/cose-key", "cbor");
+		addNonPrintable(APPLICATION_COSE_KEY_SET, "application/cose-key-set", "cbor");
 
 		addPrintable(APPLICATION_SENML_JSON, "application/senml+json", "json", false);
 		addPrintable(APPLICATION_SENSML_JSON, "application/sensml+json", "json", false);
 		// RFC 7049
-		addNonePrintable(APPLICATION_SENML_CBOR, "application/senml+cbor", "cbor");
-		addNonePrintable(APPLICATION_SENSML_CBOR, "application/sensml+cbor", "cbor");
-		addNonePrintable(APPLICATION_SENML_EXI, "application/senml+exi", "exi");
-		addNonePrintable(APPLICATION_SENSML_EXI, "application/sensml+exi", "exi");
+		addNonPrintable(APPLICATION_SENML_CBOR, "application/senml+cbor", "cbor");
+		addNonPrintable(APPLICATION_SENSML_CBOR, "application/sensml+cbor", "cbor");
+		addNonPrintable(APPLICATION_SENML_EXI, "application/senml+exi", "exi");
+		addNonPrintable(APPLICATION_SENSML_EXI, "application/sensml+exi", "exi");
 
 		addPrintable(APPLICATION_COAP_GROUP, "application/coap-group+json", "json", false);
 
-		addNonePrintable(APPLICATION_DOTS, "application/dots+cbor", "cbor");
-		addNonePrintable(APPLICATION_MISSING_BLOCKS, "application/missing-blocks+cbor-seq", "cbor");
+		addNonPrintable(APPLICATION_DOTS_CBOR, "application/dots+cbor", "cbor");
+		addNonPrintable(APPLICATION_MISSING_BLOCKS_CBOR_SEQ, "application/missing-blocks+cbor-seq", "cbor");
 
-		addNonePrintable(APPLICATION_PKCS7_SERVER_GENERATED_KEY, "application/pkcs7-mime; smime-type=\"server-generated-key\"", "pkcs");
-		addNonePrintable(APPLICATION_PKCS7_CERTS_ONLY, "application/pkcs7-mime; smime-type=\"certs-only\"", "pkcs");
-		addNonePrintable(APPLICATION_PKCS8, "application/pkcs8", "pkcs");
-		addNonePrintable(APPLICATION_CSATTRS, "application/csattrs", "csattrs");
-		addNonePrintable(APPLICATION_PKCS10, "application/pkcs10", "pkcs");
-		addNonePrintable(APPLICATION_PKIX_CERT, "application/pkix-cert", "pkix");
+		addNonPrintable(APPLICATION_PKCS7_SERVER_GENERATED_KEY, "application/pkcs7-mime; smime-type=\"server-generated-key\"", "pkcs");
+		addNonPrintable(APPLICATION_PKCS7_CERTS_ONLY, "application/pkcs7-mime; smime-type=\"certs-only\"", "pkcs");
+		addNonPrintable(APPLICATION_PKCS8, "application/pkcs8", "pkcs");
+		addNonPrintable(APPLICATION_CSATTRS, "application/csattrs", "csattrs");
+		addNonPrintable(APPLICATION_PKCS10, "application/pkcs10", "pkcs");
+		addNonPrintable(APPLICATION_PKIX_CERT, "application/pkix-cert", "pkix");
 
 		addPrintable(APPLICATION_SENML_XML, "application/senml+xml", "xml", false);
 		addPrintable(APPLICATION_SENSML_XML, "application/sensml+xml", "xml", false);
 		addPrintable(APPLICATION_SENML_ETCH_JSON, "application/senml-etch+json", "json", false);
-		addNonePrintable(APPLICATION_SENML_ETCH_CBOR, "application/senml-etch+cbor", "cbor");
+		addNonPrintable(APPLICATION_SENML_ETCH_CBOR, "application/senml-etch+cbor", "cbor");
 
 		addPrintable(APPLICATION_TD_JSON, "application/td+json", "json", false);
 
-		addNonePrintable(APPLICATION_VND_OCF_CBOR, "application/vnd.ocf+cbor", "cbor");
-		addNonePrintable(APPLICATION_OSCORE, "application/oscore", "oscore");
+		addNonPrintable(APPLICATION_VND_OCF_CBOR, "application/vnd.ocf+cbor", "cbor");
+		addNonPrintable(APPLICATION_OSCORE, "application/oscore", "oscore");
 		addPrintable(APPLICATION_JAVASCRIPT, "application/javascript", "js", false);
 
-		addNonePrintable(APPLICATION_VND_OMA_LWM2M_TLV, "application/vnd.oma.lwm2m+tlv", "tlv");
+		addNonPrintable(APPLICATION_VND_OMA_LWM2M_TLV, "application/vnd.oma.lwm2m+tlv", "tlv");
 		addPrintable(APPLICATION_VND_OMA_LWM2M_JSON, "application/vnd.oma.lwm2m+json", "json", false);
-		addNonePrintable(APPLICATION_VND_OMA_LWM2M_CBOR, "application/vnd.oma.lwm2m+cbor", "cbor");
+		addNonPrintable(APPLICATION_VND_OMA_LWM2M_CBOR, "application/vnd.oma.lwm2m+cbor", "cbor");
 
 		addPrintable(TEXT_CSS, "text/css", "css", false);
 
@@ -338,14 +338,14 @@ public class MediaTypeRegistry {
 	}
 
 	/**
-	 * Create a none printable media-type-definition.
+	 * Create a non-printable media-type-definition.
 	 * 
 	 * @param mediaType media-type
 	 * @param mime mime
 	 * @param extension file extension
 	 * @since 3.0
 	 */
-	private static void addNonePrintable(int mediaType, String mime, String extension) {
+	private static void addNonPrintable(int mediaType, String mime, String extension) {
 		add(new MediaTypeDefintion(mediaType, mime, extension));
 	}
 
