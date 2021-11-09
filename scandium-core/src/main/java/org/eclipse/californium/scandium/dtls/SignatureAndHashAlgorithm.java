@@ -681,7 +681,8 @@ public final class SignatureAndHashAlgorithm {
 			// android's certificate returns a upper case SigAlgName, e.g.
 			// "SHA256WITHECDSA", but the getJcaName returns a mixed case
 			// name, e.g. "SHA256withECDSA"
-			if (supportedAlgorithm.getJcaName().equalsIgnoreCase(sigAlgName)) {
+			// getJcaName may also return null!
+			if (sigAlgName.equalsIgnoreCase(supportedAlgorithm.getJcaName())) {
 				return true;
 			}
 		}
