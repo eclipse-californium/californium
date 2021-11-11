@@ -45,6 +45,8 @@ spec:
         labelSelector:
           matchLabels:
             app: cf-extserver
+      imagePullSecrets:
+      - name: regcred
       containers:
       - name: cf-extserver
         volumeMounts:
@@ -122,6 +124,7 @@ spec:
             port: cf-http-monitor
           initialDelaySeconds: 3
           periodSeconds: 1
+          timeoutSeconds: 2
       volumes:
       - name: cf-extserver-config-files
         secret:
