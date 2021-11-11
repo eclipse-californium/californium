@@ -39,15 +39,22 @@ fi
 # default (microk8s) kubectl namespace cali
 : "${KUBECTL_NAMESPACE:=cali}"
 
+if [ "${KUBECTL_SVC_HOST}" = "<ip>" ] ; then
+   KUBECTL_SVC_HOST=$(${KUBECTL} ${KUBECTL_CONTEXT} get svc kubernetes -o='jsonpath={.spec.clusterIP}')
+fi
+
+# default k8s service
+: "${KUBECTL_SVC_HOST:=kubernetes.default.svc}"
+
 # default kubectl context (local)
-# e.g. KUBECTL_CONTEXT="--insecure-skip-tls-verify --context=???"
+# e.g. KUBECTL_CONTEXT="--context=???" or KUBECTL_CONTEXT="--kubeconfig=???" 
 : "${KUBECTL_CONTEXT:=}"
 
 # default k8s service yaml
 : "${K8S_SERVICE:=k8s.yaml}"
 
 CONTAINER=cf-extserver-jdk11-slim
-VERSION=3.0.0
+VERSION=3.1.0
 
 if [ "$1" = "install" ]  ; then
 	CONTAINER_VERSION="${CONTAINER}:${VERSION}"
@@ -133,6 +140,14 @@ check_ready() {
 }
 
 if [ "$1" = "install" ] ; then
+	count=`${KUBECTL} ${KUBECTL_CONTEXT} get nodes -o name | wc -l`
+	echo "$count nodes found"
+
+	# default k8s service yaml
+	: "${K8S_REPLICAS:=$count}"
+
+	echo "k8s svc: ${KUBECTL_SVC_HOST}"
+
 	# namespace
 	${KUBECTL} ${KUBECTL_CONTEXT} delete namespace ${KUBECTL_NAMESPACE} --ignore-not-found
 	${KUBECTL} ${KUBECTL_CONTEXT} create namespace ${KUBECTL_NAMESPACE}
@@ -146,16 +161,25 @@ if [ "$1" = "install" ] ; then
 	  --from-file=https_client_trust.pem="service/caTrustStore.pem" \
 	  --from-file=https_server_cert.pem="service/server.pem" \
 	  --from-file=https_server_trust.pem="service/caTrustStore.pem" \
+	  --from-literal=kubectl_host="${KUBECTL_SVC_HOST}" \
 	  --from-literal=kubectl_token="" \
 	  --from-literal=kubectl_selector_label="controller-revision-hash" \
 	  --from-literal=dtls_cid_mgmt_identity="cid-cluster-manager" \
 	  --from-literal=dtls_cid_mgmt_secret_base64="${secret}"
-	  
+
+	# container registry
+	if [ -n "${KUBECTL_DOCKER_CREDENTIALS}" ] ; then
+		${KUBECTL} ${KUBECTL_CONTEXT} create secret docker-registry regcred -n cali \
+		  ${KUBECTL_DOCKER_CREDENTIALS}	  
+	fi
+
 	# deploy
 	# create role and binding in order to grant access for the service account to list and read pods  
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/k8s_rbac.yaml
 	# create statefulset
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/k8sa.yaml
+	# apply the current number of replicas
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch statefulset cf-extserver-a --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value":'${K8S_REPLICAS}'}, {"op": "replace", "path": "/spec/template/metadata/labels/initialDtlsClusterNodes", "value":"'${K8S_REPLICAS}'"}]'
 	# apply the image
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch statefulset cf-extserver-a --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"'${IMAGE_SHA}'"}]'
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/${K8S_SERVICE}
