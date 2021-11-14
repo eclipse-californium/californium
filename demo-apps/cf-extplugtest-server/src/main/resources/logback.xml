@@ -16,7 +16,7 @@
 			<!-- each file should be at most 5MB, keep 200 files worth of history, but at most 1GB -->
 			<maxFileSize>5MB</maxFileSize>
 			<maxHistory>200</maxHistory>
-			<totalSizeCap>1GB</totalSizeCap>
+			<totalSizeCap>500MB</totalSizeCap>
 		</rollingPolicy>
 
 		<encoder>
@@ -36,7 +36,7 @@
 			<!-- each file should be at most 5MB, keep 200 files worth of history, but at most 1GB -->
 			<maxFileSize>5MB</maxFileSize>
 			<maxHistory>200</maxHistory>
-			<totalSizeCap>1GB</totalSizeCap>
+			<totalSizeCap>500MB</totalSizeCap>
 		</rollingPolicy>
 
 		<encoder>
