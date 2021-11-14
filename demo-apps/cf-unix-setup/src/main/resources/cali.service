@@ -31,7 +31,7 @@
 #  systemctl restart cali
 #
 # that file is copied to cf-plugtest-server.jar and executed.
-# If cf-extplugtest-server.jar is updated inplace when running,
+# If cf-plugtest-server.jar is updated inplace when running,
 # that my cause unintended exceptions, which prevents Californium 
 # from successfully gracefull-restart of the dtls state. 
 # 
