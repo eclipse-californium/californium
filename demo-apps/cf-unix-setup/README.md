@@ -131,6 +131,8 @@ This updates all packages, installs a java runtime and [fail2ban](#fail2ban). It
 
 ### Installation on exoscale cloud
 
+[Exoscale - European cloud hosting](https://www.exoscale.com/)
+
 [deploy_exo.sh](src/main/resources/cloud-installs/deploy_exo.sh)
 
 This script uses the exoscale cli to create a compute instance and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar).
@@ -138,6 +140,8 @@ This script uses the exoscale cli to create a compute instance and the [cloud-co
 For further instructions see the comments in that script.
 
 ### Installation on digitalocean cloud
+
+[DigitalOcean - The developer cloud](https://www.digitalocean.com/)
 
 [deploy_do.sh](src/main/resources/cloud-installs/deploy_do.sh)
 
