@@ -26,9 +26,12 @@
 # Adapt the the "vmsize" according your requirements and wanted price.
 # See https://www.digitalocean.com/pricing/ and
 # run `doctl compute size list` to see the options.
+#
+# Available regions:
+# run `doctl compute run `doctl compute size list` list`
 
-ssh_key_id="5a:1a:63:b7:81:56:0f:57:1c:b1:30:ba:54:ef:7a:cb"
-vmsize="s-2vcpu-2gb-amd"
+ssh_key_id="7d:2a:03:72:eb:d6:95:52:1d:7f:77:73:22:35:0f:93"
+vmsize="s-2vcpu-2gb"
 
 if [ "$1" = "create" ]  ; then
    echo "create digitalocean server"
