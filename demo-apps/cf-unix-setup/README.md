@@ -107,6 +107,8 @@ packages:
  - openjdk-17-jre-headless
  - fail2ban
 
+disable_root: false
+
 users:
  - name: cali
    gecos: (Cf) Californium Server
@@ -129,37 +131,49 @@ runcmd:
 
 This updates all packages, installs a java runtime and [fail2ban](#fail2ban). It the follows the manual installation, copying files and configuring the systemd service. The used files are downloaded from this git repository and the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar) 
 
-### Installation on exoscale cloud
+### Installation on Exoscale cloud
 
 [Exoscale - European cloud hosting](https://www.exoscale.com/)
 
 [deploy_exo.sh](src/main/resources/cloud-installs/deploy_exo.sh)
 
-This script uses the exoscale cli to create a compute instance and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar).
+This script uses the exoscale cli (exo) to create a compute instance and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar).
 
 Features: IPv4, IPv6, Firewall
 
 For further instructions see the comments in that script.
 
-### Installation on digitalocean cloud
+### Installation on DigitalOcean cloud
 
 [DigitalOcean - The developer cloud](https://www.digitalocean.com/)
 
 [deploy_do.sh](src/main/resources/cloud-installs/deploy_do.sh)
 
-This script uses the digitalocean cli to create a compute droplet and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar) 
+This script uses the digitalocean cli (doctl) to create a compute droplet and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar) 
 
 Features: IPv4, IPv6, Firewall
 
 For further instructions see the comments in that script.
 
-### Installation on google cloud
+### Installation on Google cloud
 
 [Google Cloud - Cloud-Computing-Service](https://cloud.google.com)
 
 [deploy_gcloud.sh](src/main/resources/cloud-installs/deploy_gcloud.sh)
 
 This script uses the google cloud API (gcloud) to create a compute instance and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar) 
+
+Features: IPv4, Firewall
+
+For further instructions see the comments in that script.
+
+### Installation on Azure cloud
+
+[Azure Cloud - The innovate-anywhere, create-anything cloud.](azure.microsoft.com)
+
+[deploy_azure.sh](src/main/resources/cloud-installs/deploy_azure.sh)
+
+This script uses the azure cloud API (az) to create a compute instance and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar) 
 
 Features: IPv4, Firewall
 

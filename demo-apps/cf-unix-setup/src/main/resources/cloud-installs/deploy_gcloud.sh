@@ -17,18 +17,17 @@
 # ******************************************************************************/
 #
 # requirements (still not complete):
-# - active account at https://cloud.google.com
+# - active account at https://cloud.google.com (please obey the resulting costs!)
 # - install https://cloud.google.com/sdk/docs/quickstart and configure it
 # - gcloud services enable compute.googleapis.com
-# - copy your ssh-key to "sshkey" below.
+# - upload your ssh-key to https://console.cloud.google.com/compute/metadata/sshKeys
+#   use "root" as comment/last part, "<key-type> <public key> root" 
 #
 # Adapt the the "vmsize" according your requirements and wanted price.
 # See https://cloud.google.com/compute, 
 # https://cloud.google.com/compute/docs/machine-types
 # and https://cloud.google.com/compute/vm-instance-pricing
 # gcloud compute machine-types list
-
-sshkey="ssh-rsa AAAAB3???"
 
 vmsize="e2-micro"
 
@@ -45,7 +44,6 @@ if [ "$1" = "create" ]  ; then
       --machine-type="${vmsize}" \
       --image-family ubuntu-2004-lts \
       --image-project ubuntu-os-cloud \
-      --metadata=ssh-keys=root:"${sshkey}" \
       --metadata-from-file user-data=cloud-config.yaml
 
    echo "wait to give vm time to finish the installation!"

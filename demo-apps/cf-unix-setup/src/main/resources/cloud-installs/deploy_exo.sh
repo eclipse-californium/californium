@@ -22,7 +22,7 @@
 # - install https://community.exoscale.com/documentation/tools/exoscale-command-line-interface/
 #   and configure it
 # - upload your ssh-key at https://portal.exoscale.com/compute/keypairs 
-#   and copy the used name to "ssh_key_id" below.
+#   using the name "cali" or copy a different used name to "ssh_key_id" below.
 #
 # Adapt the the "vmsize" according your requirements and wanted price.
 # See https://www.exoscale.com/pricing/ and
