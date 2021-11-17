@@ -169,11 +169,11 @@ For further instructions see the comments in that script.
 
 ### Installation on Azure cloud
 
-[Azure - The innovate-anywhere, create-anything cloud](https://azure.microsoft.com)
+[Azure - Cloud-Computing-Service](https://azure.microsoft.com)
 
 [deploy_azure.sh](src/main/resources/cloud-installs/deploy_azure.sh)
 
-This script uses the azure cloud API (az) to create a compute instance and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar) 
+This script uses the azure cloud API (az) to create a vm and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.0.0/cf-plugtest-server-3.0.0.jar) 
 
 Features: IPv4, Firewall
 
