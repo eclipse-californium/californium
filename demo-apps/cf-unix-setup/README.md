@@ -169,7 +169,7 @@ For further instructions see the comments in that script.
 
 ### Installation on Azure cloud
 
-[Azure Cloud - The innovate-anywhere, create-anything cloud.](azure.microsoft.com)
+[Azure - The innovate-anywhere, create-anything cloud](https://azure.microsoft.com)
 
 [deploy_azure.sh](src/main/resources/cloud-installs/deploy_azure.sh)
 
