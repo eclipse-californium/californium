@@ -227,11 +227,17 @@ public final class DtlsConfig {
 	/**
 	 * DTLS auto handshake timeout.
 	 * 
-	 * After that period without exchanged messages, new messages will start a
-	 * new handshake. If possible a resumption/abbreviated handshake is used.
+	 * After that period without exchanged messages, new messages will initiate
+	 * a handshake. If possible a resumption/abbreviated handshake is used. Must
+	 * not be used with {@link DtlsRole#SERVER_ONLY}. {@code 30s} is a common
+	 * value to compensate assumed NAT timeouts.
 	 */
 	public static final TimeDefinition DTLS_AUTO_HANDSHAKE_TIMEOUT = new TimeDefinition(
-			MODULE + "AUTO_HANDSHAKE_TIMEOUT", "DTLS auto-handshake timeout. <blank>, disabled.");
+			MODULE + "AUTO_HANDSHAKE_TIMEOUT",
+			"DTLS auto-handshake timeout. After that period without exchanging messages, "
+					+ "a new message will initiate a handshake. Must not be used with SERVER_ONLY! "
+					+ "Common value will be \"30[s]\" in order to compensate assumed NAT timeouts. "
+					+ "<blank>, disabled.");
 	/**
 	 * DTLS connection id length.
 	 * 

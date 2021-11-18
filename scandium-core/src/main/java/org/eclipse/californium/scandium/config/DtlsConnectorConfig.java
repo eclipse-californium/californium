@@ -1944,11 +1944,16 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			if (config.getDtlsRole() == DtlsRole.SERVER_ONLY
-					&& config.getCertificateAuthenticationMode() == CertificateAuthenticationMode.NONE
-					&& config.advancedCertificateVerifier != null) {
-				throw new IllegalStateException(
-						"configured certificate verifier is not used for client authentication mode NONE!");
+			if (config.getDtlsRole() == DtlsRole.SERVER_ONLY) {
+				if (config.getCertificateAuthenticationMode() == CertificateAuthenticationMode.NONE
+						&& config.advancedCertificateVerifier != null) {
+					throw new IllegalStateException(
+							"configured certificate verifier is not used for client authentication mode NONE!");
+				}
+				if (config.getAutoHandshakeTimeoutMillis() != null) {
+					throw new IllegalStateException(
+							"DTLS_AUTO_HANDSHAKE_TIMEOUT must not be used with SERVER_ONLY!");
+				}
 			}
 
 			Integer cidCodePoint = config.useDeprecatedCid();
