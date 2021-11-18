@@ -54,8 +54,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Test utility to emulate a NAT and LoadBalancer.
  *
- * Provide function to change the address mapping. Uses none-blocking io,
- * intended to replace {@link NatUtil}.
+ * Provide function to change the address mapping. Uses none-blocking io.
  * 
  * @see #assignLocalAddress(InetSocketAddress)
  * @see #reassignNewLocalAddresses()
@@ -341,7 +340,7 @@ public class NioNatUtil implements Runnable {
 		/**
 		 * State of this NAT address.
 		 * 
-		 * @sine 3.0
+		 * @since 3.0
 		 */
 		private NatAddressState state;
 
