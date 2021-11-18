@@ -1,4 +1,4 @@
-![Californium logo](cf_64.png)
+![Californium logo](../../cf_64.png)
 
 # Californium as old style unix systemd service
 

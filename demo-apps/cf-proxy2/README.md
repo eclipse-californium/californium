@@ -1,3 +1,5 @@
+![Californium logo](../../cf_64.png)
+
 # Californium - Example Cross Proxy 2
 
 The ExampleCrossProxy2 demonstrates the functions of the [californium-proxy2](../../californium-proxy2) library. See [californium-proxy2 README.md](../../californium-proxy2/README.md) for more details.

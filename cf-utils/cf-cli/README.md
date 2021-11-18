@@ -1,3 +1,5 @@
+![Californium logo](../../cf_64.png)
+
 # CLI - Common Command Line Interface for Californium Clients
 
 This module provides a common command line interface for several clients.

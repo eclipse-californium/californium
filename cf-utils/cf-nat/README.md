@@ -1,3 +1,5 @@
+![Californium logo](../../cf_64.png)
+
 # (s)NAT / LoadBalancer Simulator
 
 In order to test NAT and LoadBalancer specific situations, this module contains a simple simulator implementation for a (s)NAT and load-balancer. It offers an API for own test-implementations, and an example applications. For very simple test scenarios, this application may be used as UDP load-balancer or IPv6 gateway to cloud-components, which doesn't offer load-balancers for UDP or IPv6.
