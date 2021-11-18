@@ -37,6 +37,7 @@ import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 public class SecureServer {
@@ -53,6 +54,7 @@ public class SecureServer {
 
 		@Override
 		public void applyDefinitions(Configuration config) {
+			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY);
 			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, CipherSuite.STRONG_ENCRYPTION_PREFERENCE);
 		}
