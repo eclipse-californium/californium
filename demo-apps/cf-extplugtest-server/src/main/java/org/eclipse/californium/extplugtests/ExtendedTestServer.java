@@ -76,6 +76,7 @@ import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
+import org.eclipse.californium.plugtests.resources.Hono;
 import org.eclipse.californium.plugtests.resources.MyContext;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
@@ -610,6 +611,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 		// add resources to the server
 		add(new RequestStatistic());
 		add(new Benchmark(noBenchmark, maxResourceSize));
+		add(new Hono("telemetry"));
+		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 		add(new MyContext(MyContext.RESOURCE_NAME, version, true));
 	}
