@@ -499,7 +499,7 @@ public class BenchmarkClient {
 
 	private static final TimeStatistic errorRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
 
-	private static final TimeStatistic transmissioRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
+	private static final TimeStatistic transmissionRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
 
 	private static volatile String[] args;
 	private static volatile int clients;
@@ -895,17 +895,17 @@ public class BenchmarkClient {
 	}
 
 	private void addToStatistic(CoapResponse response) {
+		Long rtt = response.advanced().getApplicationRttNanos();
 		TimeStatistic statistic = errorRttStatistic;
 		if (connect.compareAndSet(true, false)) {
 			statistic = connectRttStatistic;
 		} else {
 			statistic = rttStatistic;
 			Long transmissionRttNanos = response.advanced().getTransmissionRttNanos();
-			if (transmissionRttNanos != null) {
-				transmissioRttStatistic.add(transmissionRttNanos, TimeUnit.NANOSECONDS);
+			if (transmissionRttNanos != null && transmissionRttNanos != rtt) {
+				transmissionRttStatistic.add(transmissionRttNanos, TimeUnit.NANOSECONDS);
 			}
 		}
-		Long rtt = response.advanced().getApplicationRttNanos();
 		statistic.add(rtt, TimeUnit.NANOSECONDS);
 	}
 
@@ -1646,8 +1646,7 @@ public class BenchmarkClient {
 		statisticsLogger.info("connects          : {}", connectRttStatistic.getSummaryAsText());
 		statisticsLogger.info("success-responses : {}", rttStatistic.getSummaryAsText());
 		statisticsLogger.info("errors-responses  : {}", errorRttStatistic.getSummaryAsText());
-
-		statisticsLogger.info("success-responses : {}", transmissioRttStatistic.getSummaryAsText());
+		statisticsLogger.info("single-blocks     : {}", transmissionRttStatistic.getSummaryAsText());
 
 		health.dump();
 		netstat.dump();
