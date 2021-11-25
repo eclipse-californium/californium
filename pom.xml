@@ -141,6 +141,14 @@
 				<enabled>false</enabled>
 			</releases>
 		</pluginRepository>
+		<pluginRepository>
+			<id>eclipse-maven-releases</id>
+			<url>https://repo.eclipse.org/content/repositories/releases</url>
+		</pluginRepository>
+		<pluginRepository>
+			<id>eclipse-cbi-releases</id>
+			<url>https://repo.eclipse.org/content/repositories/cbi-releases</url>
+		</pluginRepository>
 	</pluginRepositories>
 
 	<modules>
