@@ -36,9 +36,16 @@ import org.slf4j.LoggerFactory;
 /**
  * Utility class for NetworkInterfaces. Determine MTU, IPv4, IPv6 support.
  * 
+ * Use environment "COAP_NETWORK_INTERFACES" to define a regular expression for
+ * network interfaces to use, defaults to all. Use environment
+ * "COAP_NETWORK_INTERFACES_EXCLUDES" to define a regular expression for network
+ * interfaces to exclude from usage, defaults to common virtual networks.
+ * 
  * @since 2.1
  * @since 2.3 use only "up" NetworkInterfaces (see
  *        {@link NetworkInterface#isUp()}.
+ * @since 3.1 supports environment "COAP_NETWORK_INTERFACES_EXCLUDE" and
+ *        excludes common virtual networks from being used.
  */
 public class NetworkInterfacesUtil {
 
@@ -51,6 +58,19 @@ public class NetworkInterfacesUtil {
 
 	public static final int DEFAULT_IPV6_MTU = 1280;
 	public static final int DEFAULT_IPV4_MTU = 576;
+
+	public static final String COAP_NETWORK_INTERFACES = "COAP_NETWORK_INTERFACES";
+	public static final String COAP_NETWORK_INTERFACES_EXCLUDE = "COAP_NETWORK_INTERFACES_EXCLUDE";
+	public static final String DEFAULT_COAP_NETWORK_INTERFACES_EXCLUDE = "(vxlan\\.calico|cali[0123456789abcdef]{10,}|virbr\\d+|docker\\d+)";
+
+	/**
+	 * Default pattern to exclude common virtual networks.
+	 * 
+	 * Excludes "docker\d+", "virbr\d+", "vxlan.calico" and "calixxxxxxxxxx".
+	 * 
+	 * @since 3.1
+	 */
+	private static final Pattern DEFAULT_EXCLUDE = Pattern.compile(DEFAULT_COAP_NETWORK_INTERFACES_EXCLUDE);
 
 	/**
 	 * MTU for any interface.
@@ -115,46 +135,112 @@ public class NetworkInterfacesUtil {
 	 */
 	private static final Set<String> ipv6Scopes = new HashSet<>();
 
+	private static class Filter implements Enumeration<NetworkInterface> {
+
+		private NetworkInterface nextInterface;
+		private final Enumeration<NetworkInterface> source;
+		private final Pattern filter;
+		private final Pattern excludeFilter;
+
+		private Filter(Enumeration<NetworkInterface> source) {
+			this.source = source;
+			Pattern filter = null;
+			Pattern excludeFilter = null;
+			String regex = StringUtil.getConfiguration(COAP_NETWORK_INTERFACES);
+			String excludeRegex = StringUtil.getConfiguration(COAP_NETWORK_INTERFACES_EXCLUDE);
+			if (regex != null && !regex.isEmpty()) {
+				filter = Pattern.compile(regex);
+			} else if (excludeRegex == null || excludeRegex.isEmpty()) {
+				excludeFilter = DEFAULT_EXCLUDE;
+			}
+			if (excludeRegex != null && !excludeRegex.isEmpty()) {
+				excludeFilter = Pattern.compile(excludeRegex);
+			}
+			this.filter = filter;
+			this.excludeFilter = excludeFilter;
+			next();
+		}
+
+		@Override
+		public boolean hasMoreElements() {
+			return nextInterface != null;
+		}
+
+		@Override
+		public NetworkInterface nextElement() {
+			NetworkInterface result = nextInterface;
+			next();
+			return result;
+		}
+
+		private void next() {
+			nextInterface = null;
+			while (source.hasMoreElements()) {
+				NetworkInterface iface = source.nextElement();
+				String name = iface.getName();
+				try {
+					if (iface.isUp() && (filter == null || filter.matcher(name).matches())) {
+						if (excludeFilter == null || !excludeFilter.matcher(name).matches()) {
+							nextInterface = iface;
+							break;
+						}
+					}
+				} catch (SocketException e) {
+				}
+				LOGGER.debug("skip {}", name);
+			}
+		}
+	}
+
 	private synchronized static void initialize() {
 		if (anyMtu == 0) {
 			clear();
 			int mtu = MAX_MTU;
 			int ipv4mtu = MAX_MTU;
 			int ipv6mtu = MAX_MTU;
-			Pattern filter = null;
-			String regex = StringUtil.getConfiguration("COAP_NETWORK_INTERFACES");
-			if (regex != null && !regex.isEmpty()) {
-				filter = Pattern.compile(regex);
-			}
+
 			try {
 				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
 				if (interfaces == null) {
 					throw new SocketException("Network interfaces not available!");
 				}
+				interfaces = new Filter(interfaces);
 				while (interfaces.hasMoreElements()) {
 					NetworkInterface iface = interfaces.nextElement();
-					if (iface.isUp() && !iface.isLoopback()
-							&& (filter == null || filter.matcher(iface.getName()).matches())) {
+					if (!iface.isLoopback()) {
 						int ifaceMtu = iface.getMTU();
 						if (ifaceMtu > 0 && ifaceMtu < mtu) {
 							mtu = ifaceMtu;
 						}
+						if (iface.supportsMulticast()) {
+							Enumeration<InetAddress> inetAddresses = iface.getInetAddresses();
+							while (inetAddresses.hasMoreElements()) {
+								InetAddress address = inetAddresses.nextElement();
+								if (address instanceof Inet6Address) {
+									if (((Inet6Address) address).getScopeId() > 0) {
+										ipv6Scopes.add(iface.getName());
+									}
+								}
+							}
+						}
 						if (iface.supportsMulticast() && (multicastInterfaceIpv4 == null
 								|| multicastInterfaceIpv6 == null || broadcastIpv4 == null)) {
-							int count = 0;
 							Inet4Address broad4 = null;
 							Inet4Address link4 = null;
 							Inet4Address site4 = null;
 							Inet6Address link6 = null;
 							Inet6Address site6 = null;
+							// find the network interface with the most
+							// multicast/broadcast possibilities
+							int countMultiFeatures = 0;
 							if (broadcastIpv4 != null) {
-								--count;
+								--countMultiFeatures;
 							}
 							if (multicastInterfaceIpv4 != null) {
-								--count;
+								--countMultiFeatures;
 							}
 							if (multicastInterfaceIpv6 != null) {
-								--count;
+								--countMultiFeatures;
 							}
 							Enumeration<InetAddress> inetAddresses = iface.getInetAddresses();
 							while (inetAddresses.hasMoreElements()) {
@@ -184,9 +270,6 @@ public class NetworkInterfacesUtil {
 											link6 = address6;
 										}
 									}
-									if (address6.getScopeId() > 0) {
-										ipv6Scopes.add(iface.getName());
-									}
 								}
 							}
 							for (InterfaceAddress interfaceAddress : iface.getInterfaceAddresses()) {
@@ -198,18 +281,20 @@ public class NetworkInterfacesUtil {
 										LOGGER.debug("Found broadcast address {} - {}.", broadcast, iface.getName());
 										if (broad4 == null) {
 											broad4 = (Inet4Address) broadcast;
-											++count;
+											++countMultiFeatures;
 										}
 									}
 								}
 							}
 							if (link4 != null || site4 != null) {
-								++count;
+								++countMultiFeatures;
 							}
 							if (link6 != null || site6 != null) {
-								++count;
+								++countMultiFeatures;
 							}
-							if (count > 0) {
+							if (countMultiFeatures > 0) {
+								// more multicast/broadcast possibilities as
+								// before
 								multicastInterface = iface;
 								broadcastIpv4 = broad4;
 								multicastInterfaceIpv4 = site4 == null ? link4 : site4;
@@ -387,6 +472,12 @@ public class NetworkInterfacesUtil {
 	/**
 	 * Get collection of available local inet addresses of network interfaces.
 	 * 
+	 * Applies environment "COAP_NETWORK_INTERFACES" to define a regular
+	 * expression for network interfaces to use, defaults to all. And
+	 * environment "COAP_NETWORK_INTERFACES_EXCLUDES" to define a regular
+	 * expression for network interfaces to exclude from usage, defaults to
+	 * common virtual networks.
+	 * 
 	 * @return collection of local inet addresses.
 	 */
 	public static Collection<InetAddress> getNetworkInterfaces() {
@@ -396,13 +487,13 @@ public class NetworkInterfacesUtil {
 			if (nets == null) {
 				throw new SocketException("Network interfaces not available!");
 			}
+			nets = new Filter(nets);
 			while (nets.hasMoreElements()) {
 				NetworkInterface networkInterface = nets.nextElement();
-				if (networkInterface.isUp()) {
-					Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
-					while (inetAddresses.hasMoreElements()) {
-						interfaces.add(inetAddresses.nextElement());
-					}
+				Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+				while (inetAddresses.hasMoreElements()) {
+					InetAddress address = inetAddresses.nextElement();
+					interfaces.add(address);
 				}
 			}
 		} catch (SocketException e) {
@@ -413,6 +504,8 @@ public class NetworkInterfacesUtil {
 
 	/**
 	 * Gets available IPv6 scopes.
+	 * 
+	 * Only scopes with multicast support are included.
 	 * 
 	 * @return available IPv6 scopes
 	 * @since 3.0
