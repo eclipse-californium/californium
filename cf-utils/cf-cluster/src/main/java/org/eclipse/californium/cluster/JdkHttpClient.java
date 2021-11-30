@@ -15,7 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.cluster;
 
+import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.GeneralSecurityException;
@@ -29,6 +32,7 @@ import javax.net.ssl.SSLSession;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +110,14 @@ public class JdkHttpClient {
 			}
 			LOGGER.info("Sending 'GET' request to URL : {}", url);
 			LOGGER.info("Response Code : {} - {}", responseCode, responseMessage);
-			return new HttpResult(responseCode, responseMessage, peerPrincipal, con.getInputStream());
+			InputStream content = null;
+			try {
+				content = con.getInputStream();
+			} catch (FileNotFoundException ex) {
+				// errors, e.g. 404 may have no content
+				content = new ByteArrayInputStream(Bytes.EMPTY);
+			}
+			return new HttpResult(responseCode, responseMessage, peerPrincipal, content);
 		} catch (RuntimeException ex) {
 			LOGGER.info("Sending 'GET' request to URL : {} failed!", url, ex);
 			return new HttpResult(0, ex.getMessage(), null, null);
