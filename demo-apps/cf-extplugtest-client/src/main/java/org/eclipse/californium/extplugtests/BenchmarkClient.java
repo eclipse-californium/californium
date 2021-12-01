@@ -84,6 +84,7 @@ import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider
 import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -158,6 +159,15 @@ public class BenchmarkClient {
 	 */
 	private static final IntegerDefinition BENCHMARK_CLIENT_THREADS = new IntegerDefinition("BENCHMARK_CLIENT_THREADS",
 			"Number of threads used per client. 0 to use a shared thread pool.");
+	/**
+	 * Response timeout for requests.
+	 * 
+	 * NON request may be limited by a smaller {@link CoapConfig#NON_LIFETIME}.
+	 * 
+	 * @since 3.1
+	 */
+	private static final TimeDefinition BENCHMARK_RESPONSE_TIMEOUT = new TimeDefinition("BENCHMARK_RESPONSE_TIMEOUT",
+			"Response timeout.", 30, TimeUnit.SECONDS);
 
 	private static final ThreadGroup CLIENT_THREAD_GROUP = new ThreadGroup("Client"); //$NON-NLS-1$
 
@@ -170,13 +180,13 @@ public class BenchmarkClient {
 		@Override
 		public void applyDefinitions(Configuration config) {
 			config.set(BENCHMARK_CLIENT_THREADS, 0);
+			config.set(BENCHMARK_RESPONSE_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
 			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
 			config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
 			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.set(CoapConfig.NON_LIFETIME, 15, TimeUnit.SECONDS); // lifetime / timeout for non-requests
 			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
 			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 1);
 			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by cli option!
@@ -571,7 +581,7 @@ public class BenchmarkClient {
 	private final DTLSConnector dtlsConnector;
 
 	private final long ackTimeout;
-	private final long nonTimeout;
+	private final long responseTimeout;
 
 	private Request prepareRequest(CoapClient client, long c) {
 		if (overallRequestsDownCounter.get() == 0) {
@@ -618,8 +628,7 @@ public class BenchmarkClient {
 			request.setDestinationContext(destinationContext);
 		}
 		request.setURI(client.getURI());
-		ResponseTimeout timeout = new ResponseTimeout(request, request.isConfirmable() ? nonTimeout : nonTimeout,
-				executorService);
+		ResponseTimeout timeout = new ResponseTimeout(request, responseTimeout, executorService);
 		request.addMessageObserver(timeout);
 		request.addMessageObserver(retransmissionDetector);
 		return request;
@@ -628,6 +637,7 @@ public class BenchmarkClient {
 	private class TestHandler implements CoapHandler {
 
 		private final Request post;
+		private final long start = ClockUtil.nanoRealtime();
 
 		private TestHandler(final Request post) {
 			this.post = post;
@@ -716,11 +726,12 @@ public class BenchmarkClient {
 				boolean non = !post.isConfirmable();
 				String type = non ? "NON" : "CON";
 				long c = requestsCounter.get();
+				long time = ClockUtil.nanoRealtime() - start;
 				String msg = "";
 				if (post.getSendError() != null) {
 					msg = post.getSendError().getMessage();
 				} else if (post.isTimedOut()) {
-					msg = "timeout";
+					msg = "timeout (" + TimeUnit.NANOSECONDS.toSeconds(time) + "s)";
 				} else if (post.isRejected()) {
 					msg = "rejected";
 				}
@@ -864,7 +875,7 @@ public class BenchmarkClient {
 			this.shutdown = false;
 		}
 		this.ackTimeout =  config.getTimeAsInt(CoapConfig.ACK_TIMEOUT, TimeUnit.MILLISECONDS);
-		this.nonTimeout =  config.getTimeAsInt(CoapConfig.NON_LIFETIME, TimeUnit.MILLISECONDS);
+		this.responseTimeout =  config.getTimeAsInt(BENCHMARK_RESPONSE_TIMEOUT, TimeUnit.MILLISECONDS);
 		endpoint.addInterceptor(new MessageTracer());
 		endpoint.setExecutors(this.executorService, secondaryExecutor);
 		this.client = new CoapClient(uri);
