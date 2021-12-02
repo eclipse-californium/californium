@@ -25,6 +25,9 @@ package org.eclipse.californium.core.network;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -113,6 +116,27 @@ public class CoapEndpointTest {
 	@After
 	public void shutDownEndpoint() {
 		endpoint.destroy();
+	}
+
+	@Test
+	public void testAddEndpointObserver() throws IOException {
+		EndpointObserver observer = mock(EndpointObserver.class);
+		endpoint.addObserver(observer);
+		verify(observer, times(1)).started(endpoint);
+		endpoint.stop();
+		verify(observer, times(1)).stopped(endpoint);
+		endpoint.destroy();
+		verify(observer, times(1)).destroyed(endpoint);
+
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setConnector(connector);
+		builder.setConfiguration(CONFIG);
+		endpoint = builder.build();
+		observer = mock(EndpointObserver.class);
+		endpoint.addObserver(observer);
+		verify(observer, times(0)).started(endpoint);
+		endpoint.start();
+		verify(observer, times(1)).started(endpoint);
 	}
 
 	@Test

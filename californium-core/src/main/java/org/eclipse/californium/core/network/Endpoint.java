@@ -100,10 +100,16 @@ public interface Endpoint {
 	void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor);
 
 	/**
-	 * Adds the observer to the list of observers. This has nothing to do with
-	 * CoAP observe relations.
+	 * Adds the observer to the list of observers.
+	 * 
+	 * If the endpoint {@link #isStarted()}, calls
+	 * {@link EndpointObserver#started(Endpoint)}.
+	 * 
+	 * <b>Note:</b> This has nothing to do with CoAP observe relations.
 	 * 
 	 * @param obs the observer
+	 * @since 3.1 (calls {@link EndpointObserver#started(Endpoint)}, if already
+	 *        {@link #isStarted()})
 	 */
 	void addObserver(EndpointObserver obs);
 
