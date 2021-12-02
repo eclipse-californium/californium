@@ -564,6 +564,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 	@Override
 	public void addObserver(final EndpointObserver observer) {
 		observers.add(observer);
+		if (isStarted()) {
+			observer.started(this);
+		}
 	}
 
 	@Override
