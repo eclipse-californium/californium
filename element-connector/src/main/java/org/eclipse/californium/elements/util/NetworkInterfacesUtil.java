@@ -61,15 +61,16 @@ public class NetworkInterfacesUtil {
 
 	public static final String COAP_NETWORK_INTERFACES = "COAP_NETWORK_INTERFACES";
 	public static final String COAP_NETWORK_INTERFACES_EXCLUDE = "COAP_NETWORK_INTERFACES_EXCLUDE";
-	public static final String DEFAULT_COAP_NETWORK_INTERFACES_EXCLUDE = "(vxlan\\.calico|cali[0123456789abcdef]{10,}|virbr\\d+|docker\\d+)";
-
 	/**
 	 * Default pattern to exclude common virtual networks.
 	 * 
-	 * Excludes "docker\d+", "virbr\d+", "vxlan.calico" and "calixxxxxxxxxx".
+	 * Excludes "docker\d+", "virbr\d+", "vxlan.calico", "calixxxxxxxxxx",
+	 * "cilium_\w+", and "lxcxxxxxxxxxxxx".
 	 * 
 	 * @since 3.1
 	 */
+	public static final String DEFAULT_COAP_NETWORK_INTERFACES_EXCLUDE = "(vxlan\\.calico|cali[0123456789abcdef]{10,}|cilium_\\w+|lxc[0123456789abcdef]{12,}|virbr\\d+|docker\\d+)";
+
 	private static final Pattern DEFAULT_EXCLUDE = Pattern.compile(DEFAULT_COAP_NETWORK_INTERFACES_EXCLUDE);
 
 	/**
