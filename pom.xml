@@ -1,7 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <project
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -418,12 +419,12 @@
 				<plugin>
 					<groupId>org.revapi</groupId>
 					<artifactId>revapi-maven-plugin</artifactId>
-					<version>0.12.2</version>
+					<version>0.14.6</version>
 					<dependencies>
 						<dependency>
 							<groupId>org.revapi</groupId>
 							<artifactId>revapi-java</artifactId>
-							<version>0.22.1</version>
+							<version>0.26.1</version>
 						</dependency>
 					</dependencies>
 				</plugin>
@@ -455,7 +456,7 @@
 						</goals>
 						<configuration>
 							<rules>
-								<dependencyConvergence/>
+								<dependencyConvergence />
 								<requireMavenVersion>
 									<version>3.2.5</version>
 								</requireMavenVersion>
@@ -491,19 +492,15 @@
 				<artifactId>license-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
-				<!-- 
-					Use the Nexus Staging plugin as a full replacement for the standard
-					Maven Deploy plugin.
-					See https://github.com/sonatype/nexus-maven-plugins/tree/master/staging/maven-plugin
-					why this makes sense :-)
-					We can control whether we want to deploy to the Eclipse repo or Maven Central
-					by a combination of the version being a SNAPHOT or release version and property
-					skipStaging=true/false.
-					In any case we can take advantage of the plugin's "deferred deploy" feature which
-					makes sure that all artifacts of a multi-module project are deployed as a whole
-					at the end of the build process instead of deploying each module's artifacts
-					individually as part of building the module.
-				 -->
+				<!-- Use the Nexus Staging plugin as a full replacement for the standard 
+					Maven Deploy plugin. See https://github.com/sonatype/nexus-maven-plugins/tree/master/staging/maven-plugin 
+					why this makes sense :-) We can control whether we want to deploy to the 
+					Eclipse repo or Maven Central by a combination of the version being a SNAPHOT 
+					or release version and property skipStaging=true/false. In any case we can 
+					take advantage of the plugin's "deferred deploy" feature which makes sure 
+					that all artifacts of a multi-module project are deployed as a whole at the 
+					end of the build process instead of deploying each module's artifacts individually 
+					as part of building the module. -->
 				<groupId>org.sonatype.plugins</groupId>
 				<artifactId>nexus-staging-maven-plugin</artifactId>
 				<extensions>true</extensions>
@@ -530,65 +527,48 @@
 				<groupId>org.revapi</groupId>
 				<artifactId>revapi-maven-plugin</artifactId>
 				<configuration>
-					<oldVersion>2.6.0</oldVersion>
+					<oldVersion>3.0.0</oldVersion>
 					<analysisConfiguration>
-						<revapi.semver.ignore>
+						<revapi.versions>
 							<enabled>true</enabled>
-							<versionIncreaseAllows>
-								<major>breaking</major>
-								<minor>nonBreaking</minor>
-								<patch>equivalent</patch>
-							</versionIncreaseAllows>
-						</revapi.semver.ignore>
-						<revapi.java.filter.annotated>
-							<regex>false</regex>
-							<exclude>
-								<item>@org.eclipse.californium.elements.util.NoPublicAPI</item>
-								<item>@org.eclipse.californium.elements.util.WipAPI</item>
-								<item>@java.lang.Deprecated</item>
-							</exclude>
-						</revapi.java.filter.annotated>
-						<revapi.java>
-							<checks>
-								<nonPublicPartOfAPI>
-									<reportUnchanged>true</reportUnchanged>
-								</nonPublicPartOfAPI>
-							</checks>
-							<filter>
-								<!--packages>
+							<onAllowed>
+								<criticality>documented</criticality>
+							</onAllowed>
+						</revapi.versions>
+						<revapi.differences>
+							<ignore>true</ignore>
+							<differences>
+								<item>
 									<regex>true</regex>
-									<exclude>
-										<item>org\.eclipse\.californium\.scandium\.dtls.*</item>
-									</exclude>
-								</packages-->
-								<!--classes>
-									<regex>false</regex>
-									<exclude>
-										<item>org.eclipse.californium.scandium.dtls.Handshaker</item>
-									</exclude>
-								</classes-->
-							</filter>
-						</revapi.java>
-						<revapi.ignore>
-							<item>
-								<regex>true</regex>
-								<code>java\.class\.externalClassExposedInAPI</code>
-								<package>org\.eclipse\.californium\..*</package>
-								<justification>
-									Californium uses classes of other californium modules very
-									frequently in the APIs. It's considered, that always all
-									used californium modules must have the same version!
-								</justification>
-							</item>
-							<item>
-								<regex>true</regex>
-								<code>java\.class\.externalClassExposedInAPI</code>
-								<package>org\.slf4j</package>
-								<justification>
-									Californium uses classes of slf4j in some case with scope protected.
-								</justification>
-							</item>
-						</revapi.ignore>
+									<code>java.class.externalClassExposedInAPI</code>
+									<package>org\.eclipse\.californium\..*</package>
+									<justification>
+										Californium uses classes of other californium modules
+										very frequently in the APIs. It's considered, that
+										always all used californium modules must have the same
+										version!
+									</justification>
+								</item>
+							</differences>
+						</revapi.differences>
+						<revapi.filter>
+							<elements>
+								<exclude>
+									<item>
+										<matcher>java</matcher>
+										<match>@org.eclipse.californium.elements.util.NoPublicAPI ^*;</match>
+									</item>
+									<item>
+										<matcher>java</matcher>
+										<match>@org.eclipse.californium.elements.util.WipAPI ^*;</match>
+									</item>
+									<item>
+										<matcher>java</matcher>
+										<match>@java.lang.Deprecated ^*;</match>
+									</item>
+								</exclude>
+							</elements>
+						</revapi.filter>
 					</analysisConfiguration>
 					<failOnMissingConfigurationFiles>false</failOnMissingConfigurationFiles>
 					<analysisConfigurationFiles>
@@ -600,7 +580,15 @@
 						</configurationFile>
 					</analysisConfigurationFiles>
 				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
+
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>animal-sniffer-maven-plugin</artifactId>
@@ -620,9 +608,7 @@
 
 	<profiles>
 		<profile>
-			<!--
-				this profile downloads licenses used by 3rd-party library
-			-->
+			<!-- this profile downloads licenses used by 3rd-party library -->
 			<id>download-licenses</id>
 			<activation>
 				<property>
@@ -736,7 +722,8 @@
 			</build>
 		</profile>
 		<profile>
-			<!-- This profile activate the usage of toolchain to compile using JDK 1.7-->
+			<!-- This profile activate the usage of toolchain to compile using JDK 
+				1.7 -->
 			<id>useToolchain</id>
 			<activation>
 				<property>
@@ -752,7 +739,8 @@
 			</build>
 		</profile>
 		<profile>
-			<!-- This profile activate the usage of toolchain to compile and javadoc using JDK 1.7-->
+			<!-- This profile activate the usage of toolchain to compile and javadoc 
+				using JDK 1.7 -->
 			<id>toolchain-javadoc</id>
 			<activation>
 				<property>
@@ -808,15 +796,15 @@
 			<build>
 				<plugins>
 					<plugin>
-					<groupId>org.revapi</groupId>
-					<artifactId>revapi-maven-plugin</artifactId>
-					<executions>
-						<execution>
-							<goals>
-								<goal>check</goal>
-							</goals>
-						</execution>
-					</executions>
+						<groupId>org.revapi</groupId>
+						<artifactId>revapi-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<goals>
+									<goal>check</goal>
+								</goals>
+							</execution>
+						</executions>
 					</plugin>
 				</plugins>
 			</build>
