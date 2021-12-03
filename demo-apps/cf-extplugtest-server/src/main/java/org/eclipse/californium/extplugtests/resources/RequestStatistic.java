@@ -161,6 +161,7 @@ public class RequestStatistic extends CoapResource {
 		getAttributes().setTitle("Resource that collects requests for client statistics");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_JSON);
+		getAttributes().addContentType(APPLICATION_CBOR);
 		requests.setEvictingOnReadAccess(false);
 	}
 
@@ -245,13 +246,14 @@ public class RequestStatistic extends CoapResource {
 		}
 
 		Response response = new Response(CHANGED);
-		response.setToken(request.getToken());
 		int maxPayloadLength = DEFAULT_MAX_PAYLOAD_LENGTH;
 		if (rlen != null) {
 			maxPayloadLength = rlen;
 		} else {
 			rlen = request.getSourceContext().get(DtlsEndpointContext.KEY_MESSAGE_SIZE_LIMIT);
 			if (rlen != null) {
+				// set the token for calculateMessageHeaderSize
+				response.setToken(request.getToken());
 				maxPayloadLength = rlen - calculateMessageHeaderSize(response);
 			}
 		}
