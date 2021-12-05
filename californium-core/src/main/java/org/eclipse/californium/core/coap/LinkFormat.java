@@ -27,146 +27,145 @@ import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.regex.Pattern;
 
-
 public class LinkFormat {
-	
-	public static final String RESOURCE_TYPE         = "rt";
+
+	public static final String RESOURCE_TYPE = "rt";
 	public static final String INTERFACE_DESCRIPTION = "if";
-	public static final String CONTENT_TYPE          = "ct";
-	public static final String MAX_SIZE_ESTIMATE     = "sz";
-	public static final String TITLE                 = "title";
-	public static final String OBSERVABLE            = "obs";
-	public static final String LINK                  = "href";
+	public static final String CONTENT_TYPE = "ct";
+	public static final String MAX_SIZE_ESTIMATE = "sz";
+	public static final String TITLE = "title";
+	public static final String OBSERVABLE = "obs";
+	public static final String LINK = "href";
 
 	// for Resource Directory
-	public static final String LIFE_TIME             = "lt";
-	public static final String SECTOR                = "d";
-	public static final String CONTEXT               = "anchor";
-	public static final String BASE                  = "base";
-	public static final String RELATION              = "rel";
-	public static final String END_POINT             = "ep";
-	public static final String END_POINT_TYPE        = "et";
-	public static final String COUNT                 = "count";
-	public static final String PAGE                  = "page";
+	public static final String LIFE_TIME = "lt";
+	public static final String SECTOR = "d";
+	public static final String CONTEXT = "anchor";
+	public static final String BASE = "base";
+	public static final String RELATION = "rel";
+	public static final String END_POINT = "ep";
+	public static final String END_POINT_TYPE = "et";
+	public static final String COUNT = "count";
+	public static final String PAGE = "page";
 
 	// for parsing
-	public static final Pattern DELIMITER      = Pattern.compile("\\s*,+\\s*");
-	public static final Pattern SEPARATOR      = Pattern.compile("\\s*;+\\s*");
-	public static final Pattern WORD           = Pattern.compile("\\w+");
-	public static final Pattern QUOTED_STRING  = Pattern.compile("\\G\".*?\"");
-	public static final Pattern CARDINAL       = Pattern.compile("\\G\\d+");
-	
+	public static final Pattern DELIMITER = Pattern.compile("\\s*,+\\s*");
+	public static final Pattern SEPARATOR = Pattern.compile("\\s*;+\\s*");
+	public static final Pattern WORD = Pattern.compile("\\w+");
+	public static final Pattern QUOTED_STRING = Pattern.compile("\\G\".*?\"");
+	public static final Pattern CARDINAL = Pattern.compile("\\G\\d+");
+
 	public static String serializeTree(Resource resource) {
 		StringBuilder buffer = new StringBuilder();
 		List<String> noQueries = Collections.emptyList();
-		
+
 		// only include children, not the entry point itself
-		for (Resource child:resource.getChildren()) {
+		for (Resource child : resource.getChildren()) {
 			serializeTree(child, noQueries, buffer);
 		}
-		
-		if (buffer.length()>1)
-			buffer.delete(buffer.length()-1, buffer.length());
+
+		if (buffer.length() > 1)
+			buffer.delete(buffer.length() - 1, buffer.length());
 		return buffer.toString();
 	}
 
 	public static void serializeTree(Resource resource, List<String> queries, StringBuilder buffer) {
 		// add the current resource to the buffer
-		if (resource.isVisible()
-				&& LinkFormat.matches(resource, queries)) {
+		if (resource.isVisible() && LinkFormat.matches(resource, queries)) {
 			buffer.append(LinkFormat.serializeResource(resource));
 		}
-		
+
 		// sort by resource name
 		List<Resource> childs = new ArrayList<Resource>(resource.getChildren());
 		Collections.sort(childs, new Comparator<Resource>() {
-		    @Override
-		    public int compare(Resource o1, Resource o2) {
-		        return o1.getName().compareTo(o2.getName());
-		    }
+
+			@Override
+			public int compare(Resource o1, Resource o2) {
+				return o1.getName().compareTo(o2.getName());
+			}
 		});
-		
-		for (Resource child:childs) {
+
+		for (Resource child : childs) {
 			serializeTree(child, queries, buffer);
 		}
 	}
 
 	public static StringBuilder serializeResource(Resource resource) {
 		StringBuilder buffer = new StringBuilder();
-		buffer.append("<")
-			.append(resource.getPath())
-			.append(resource.getName())
-			.append(">")
-			.append(LinkFormat.serializeAttributes(resource.getAttributes()))
-			.append(",");
+		buffer.append("<").append(resource.getPath()).append(resource.getName()).append(">")
+				.append(LinkFormat.serializeAttributes(resource.getAttributes())).append(",");
 		return buffer;
 	}
-	
+
 	public static StringBuilder serializeAttributes(ResourceAttributes attributes) {
 		StringBuilder buffer = new StringBuilder();
-		
 
 		List<String> attributesList = new ArrayList<String>(attributes.getAttributeKeySet());
 		Collections.sort(attributesList);
 		for (String attr : attributesList) {
 			List<String> values = attributes.getAttributeValues(attr);
-			if (values == null) continue;
+			if (values == null)
+				continue;
 			buffer.append(";");
-			
-			// Make a copy to not  depend on thread-safety
+
+			// Make a copy to not depend on thread-safety
 			buffer.append(serializeAttribute(attr, new LinkedList<String>(values)));
 		}
 		return buffer;
 	}
-	
+
 	public static StringBuilder serializeAttribute(String key, List<String> values) {
-		
+
 		String delimiter = "=";
-		
+
 		StringBuilder linkFormat = new StringBuilder();
 		boolean quotes = false;
-		
+
 		linkFormat.append(key);
-		
-		if (values==null) {
+
+		if (values == null) {
 			throw new RuntimeException("Values null");
 		}
-		
-		if (values.isEmpty() || values.get(0).equals("")) 
+
+		if (values.isEmpty() || values.get(0).equals(""))
 			return linkFormat;
-		
+
 		linkFormat.append(delimiter);
-		
-		if (values.size()>1 || !values.get(0).matches("^[0-9]+$")) {
+
+		if (values.size() > 1 || !values.get(0).matches("^[0-9]+$")) {
 			linkFormat.append('"');
 			quotes = true;
 		}
-		
+
 		Iterator<String> it = values.iterator();
 		while (it.hasNext()) {
 			linkFormat.append(it.next());
-			
+
 			if (it.hasNext()) {
 				linkFormat.append(' ');
 			}
 		}
-		
+
 		if (quotes) {
 			linkFormat.append('"');
 		}
-		
+
 		return linkFormat;
 	}
 
 	/**
 	 * Check whether the given resource matches the given list of queries.
 	 *
-	 * Queries are interpreted according to <a href="https://tools.ietf.org/html/rfc6690#section-4.1" target="_blank">RFC 6690</a>,
-	 * section 4.1, with the important difference that more than one query can be passed to the function. The
-	 * resource only matches the list of queries if the resource matches every query in the list. This functionality
-	 * is required to implement resource directory filtering according to the
-	 * <a href="https://tools.ietf.org/html/draft-ietf-core-resource-directory-11#section-7" target="_blank">Resource directory</a>
-	 * draft, which requires support for matching multiple attributes.
+	 * Queries are interpreted according to
+	 * <a href="https://tools.ietf.org/html/rfc6690#section-4.1" target=
+	 * "_blank">RFC 6690</a>, section 4.1, with the important difference that
+	 * more than one query can be passed to the function. The resource only
+	 * matches the list of queries if the resource matches every query in the
+	 * list. This functionality is required to implement resource directory
+	 * filtering according to the <a href=
+	 * "https://tools.ietf.org/html/draft-ietf-core-resource-directory-11#section-7"
+	 * target="_blank">Resource directory</a> draft, which requires support for
+	 * matching multiple attributes.
 	 *
 	 * @param resource The resource to match.
 	 * @param queries The list of queries to match the resource with.
@@ -232,29 +231,30 @@ public class LinkFormat {
 		}
 		return true;
 	}
-	
+
 	public static Set<WebLink> parse(String linkFormat) {
 		Pattern DELIMITER = Pattern.compile("\\s*,+\\s*");
 
 		Set<WebLink> links = new ConcurrentSkipListSet<WebLink>();
-		
-		if (linkFormat!=null) {
+
+		if (linkFormat != null) {
 			Scanner scanner = new Scanner(linkFormat);
 			String path = null;
 			while ((path = scanner.findInLine("<[^>]*>")) != null) {
-				
+
 				// Trim <...>
 				path = path.substring(1, path.length() - 1);
-				
+
 				WebLink link = new WebLink(path);
-				
+
 				// Read link format attributes
 				String attr = null;
-				while (scanner.findWithinHorizon(DELIMITER, 1)==null && (attr = scanner.findInLine(WORD))!=null) {
+				while (scanner.findWithinHorizon(DELIMITER, 1) == null && (attr = scanner.findInLine(WORD)) != null) {
 					if (scanner.findWithinHorizon("=", 1) != null) {
 						String value = null;
 						if ((value = scanner.findInLine(QUOTED_STRING)) != null) {
-							value = value.substring(1, value.length()-1); // trim " "
+							// trim " "
+							value = value.substring(1, value.length() - 1);
 							if (attr.equals(TITLE)) {
 								link.getAttributes().addAttribute(attr, value);
 							} else {
@@ -269,13 +269,13 @@ public class LinkFormat {
 						} else if (scanner.hasNext()) {
 							value = scanner.next();
 						}
-						
+
 					} else {
 						// flag attribute without value
 						link.getAttributes().addAttribute(attr);
 					}
 				}
-				
+
 				links.add(link);
 			}
 			scanner.close();
