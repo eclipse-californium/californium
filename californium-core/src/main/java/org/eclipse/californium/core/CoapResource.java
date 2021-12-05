@@ -43,6 +43,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
@@ -175,7 +176,13 @@ public  class CoapResource implements Resource {
 	/**
 	 * Constructs a new resource with the specified name.
 	 *
+	 * Due to the limitation of {@link OptionSet#getUriPathString()} and similar
+	 * functions, {@code /} characters are not supported!
+	 * 
 	 * @param name the name
+	 * @throws IllegalArgumentException if the name contains a {@code /}
+	 * @since 3.1 (throws IllegalArgumentException, if the name contains a
+	 *        {@code /})
 	 */
 	public CoapResource(String name) {
 		this(name, true);
@@ -185,10 +192,19 @@ public  class CoapResource implements Resource {
 	 * Constructs a new resource with the specified name and makes it visible to
 	 * clients if the flag is true.
 	 * 
+	 * Due to the limitation of {@link OptionSet#getUriPathString()} and similar
+	 * functions, {@code /} characters are not supported!
+	 * 
 	 * @param name the name
 	 * @param visible if the resource is visible
+	 * @throws IllegalArgumentException if the name contains a {@code /}
+	 * @since 3.1 (throws IllegalArgumentException, if the name contains a
+	 *        {@code /})
 	 */
 	public CoapResource(String name, boolean visible) {
+		if (name.contains("/")) {
+			throw new IllegalArgumentException("'/' is not supported by the implementation!");
+		}
 		this.name = name;
 		this.path = "";
 		this.visible = visible;

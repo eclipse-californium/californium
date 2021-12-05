@@ -19,13 +19,22 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Scanner;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.regex.Pattern;
+
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.regex.Pattern;
 
 public class LinkFormat {
 
@@ -71,8 +80,8 @@ public class LinkFormat {
 
 	public static void serializeTree(Resource resource, List<String> queries, StringBuilder buffer) {
 		// add the current resource to the buffer
-		if (resource.isVisible() && LinkFormat.matches(resource, queries)) {
-			buffer.append(LinkFormat.serializeResource(resource));
+		if (resource.isVisible() && matches(resource, queries)) {
+			buffer.append(serializeResource(resource));
 		}
 
 		// sort by resource name
@@ -92,9 +101,30 @@ public class LinkFormat {
 
 	public static StringBuilder serializeResource(Resource resource) {
 		StringBuilder buffer = new StringBuilder();
-		buffer.append("<").append(resource.getPath()).append(resource.getName()).append(">")
-				.append(LinkFormat.serializeAttributes(resource.getAttributes())).append(",");
+		buffer.append("<").append(serializePath(resource)).append(">");
+		buffer.append(serializeAttributes(resource.getAttributes())).append(",");
 		return buffer;
+	}
+
+	public static StringBuilder serializePath(Resource resource) {
+		StringBuilder builder = new StringBuilder();
+		serializePath(builder, resource);
+		builder.setLength(builder.length() - 1);
+		return builder;
+	}
+
+	private static void serializePath(StringBuilder builder, Resource resource) {
+		if (resource == null) {
+			return;
+		}
+		serializePath(builder, resource.getParent());
+		String path;
+		try {
+			path = URLEncoder.encode(resource.getName(), CoAP.UTF8_CHARSET.name());
+			builder.append(path).append("/");
+		} catch (UnsupportedEncodingException e) {
+			// UTF-8 must be supported, otherwise many functions will fail 
+		}
 	}
 
 	public static StringBuilder serializeAttributes(ResourceAttributes attributes) {
