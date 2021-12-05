@@ -549,6 +549,14 @@
 										version!
 									</justification>
 								</item>
+								<item>
+									<regex>true</regex>
+									<code>java.class.externalClassExposedInAPI</code>
+									<package>org\.slf4j</package>
+									<justification>
+										Californium uses classes of slf4j in some case with scope protected.
+									</justification>
+								</item>
 							</differences>
 						</revapi.differences>
 						<revapi.filter>
