@@ -49,7 +49,11 @@ public class NetworkInterfacesUtilTest {
 		int mtu = NetworkInterfacesUtil.getAnyMtu();
 		int mtu4 = NetworkInterfacesUtil.getIPv4Mtu();
 		int mtu6 = NetworkInterfacesUtil.getIPv6Mtu();
-		assertThat(mtu, is(inRange(mtu4, mtu6 + 1)));
+		if (mtu4 < mtu6) {
+			assertThat(mtu, is(inRange(mtu4, mtu6 + 1)));
+		} else {
+			assertThat(mtu, is(inRange(mtu6, mtu4 + 1)));
+		}
 	}
 
 	@Test

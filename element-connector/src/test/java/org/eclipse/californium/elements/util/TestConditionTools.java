@@ -82,6 +82,7 @@ public final class TestConditionTools {
 	 * @param min inclusive minimum value
 	 * @param max exclusive maximum value
 	 * @return matcher.
+	 * @throws IllegalArgumentException if min is not less than max
 	 */
 	public static <T extends Number> org.hamcrest.Matcher<T> inRange(T min, T max) {
 		return new InRange<T>(min, max);
@@ -98,6 +99,15 @@ public final class TestConditionTools {
 		private final Number max;
 
 		private InRange(Number min, Number max) {
+			if (min instanceof Float || min instanceof Double) {
+				if (min.doubleValue() >= max.doubleValue()) {
+					throw new IllegalArgumentException("Min " + min + " must be less than max " + max + "!");
+				}
+			} else {
+				if (min.longValue() >= max.longValue()) {
+					throw new IllegalArgumentException("Min " + min + " must be less than max " + max + "!");
+				}
+			}
 			this.min = min;
 			this.max = max;
 		}
