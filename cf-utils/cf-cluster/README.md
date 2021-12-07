@@ -1,3 +1,5 @@
+![Californium logo](../../cf_64.png)
+
 # Californium (Cf) - DTLS Cluster Support
 
 [Californium/Scandium](https://github.com/eclipse/californium/tree/master/scandium-core) offers starting with the 2.5.0 the feature to forward tls_cid records to the `DTLSConnector`, which has the security context (e.g. keys) for that.
