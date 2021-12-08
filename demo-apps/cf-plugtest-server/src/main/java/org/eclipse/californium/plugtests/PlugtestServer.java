@@ -32,7 +32,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.SocketException;
-import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.ArrayList;
@@ -53,14 +52,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.config.CoapConfig;
-import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointObserver;
-import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
-import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
-import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.ServersSerializationUtil;
 import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
@@ -106,6 +99,8 @@ import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.eclipse.californium.unixhealth.NetSocketHealthLogger;
+import org.eclipse.californium.unixhealth.NetStatLogger;
 
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
@@ -133,16 +128,11 @@ public class PlugtestServer extends AbstractTestServer {
 	public static final int ERR_INIT_FAILED = 1;
 
 	public static final List<CipherSuite> PRESELECTED_CIPHER_SUITES = Arrays.asList(
-			CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-			CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
-			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-			CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
-			CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
-			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-			CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256,
-			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-			CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-			CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256);
+			CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
+			CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+			CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+			CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256);
 
 	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
@@ -162,6 +152,7 @@ public class PlugtestServer extends AbstractTestServer {
 			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PRESELECTED_CIPHER_SUITES);
 			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
 			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
+			config.set(UDP_DROPS_READ_INTERVAL, 2000, TimeUnit.MILLISECONDS);
 		}
 	};
 
@@ -194,11 +185,11 @@ public class PlugtestServer extends AbstractTestServer {
 		@Option(names = "--client-auth", description = "client authentication. Values ${COMPLETION-CANDIDATES}.")
 		public CertificateAuthenticationMode clientAuth;
 
-		@ArgGroup(exclusive = false)
-		public Store store;
-
 		@Option(names = "--interfaces-pattern", split = ",", description = "interface regex patterns for endpoints.")
 		public List<String> interfacePatterns;
+
+		@ArgGroup(exclusive = false)
+		public Store store;
 
 		public static class Store {
 
@@ -214,15 +205,15 @@ public class PlugtestServer extends AbstractTestServer {
 
 		public List<Protocol> getProtocols() {
 			List<Protocol> protocols = new ArrayList<>();
+			protocols.add(Protocol.DTLS);
 			if (!onlyDtls) {
 				protocols.add(Protocol.UDP);
+				if (tcp) {
+					protocols.add(Protocol.TCP);
+					protocols.add(Protocol.TLS);
+				}
 			} else {
 				tcp = false;
-			}
-			protocols.add(Protocol.DTLS);
-			if (tcp) {
-				protocols.add(Protocol.TCP);
-				protocols.add(Protocol.TLS);
 			}
 			return protocols;
 		}
@@ -300,7 +291,23 @@ public class PlugtestServer extends AbstractTestServer {
 				new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil
 				.newDefaultSecondaryScheduler("CoapServer(secondary)#");
-		start(executor, secondaryExecutor, config, new ActiveInputReader());
+		EndpointNetSocketObserver socketObserver = null;
+		final NetSocketHealthLogger socketLogger = new NetSocketHealthLogger("udp");
+		long interval = configuration.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
+		if (interval > 0 && socketLogger.isEnabled()) {
+			long readInterval = configuration.get(UDP_DROPS_READ_INTERVAL, TimeUnit.MILLISECONDS);
+			if (interval > readInterval) {
+				secondaryExecutor.scheduleAtFixedRate(new Runnable() {
+					
+					@Override
+					public void run() {
+						socketLogger.read();
+					}
+				}, readInterval, readInterval, TimeUnit.MILLISECONDS);
+			}
+			socketObserver = new EndpointNetSocketObserver(socketLogger);
+		}
+		start(executor, secondaryExecutor, config, configuration, socketObserver, new ActiveInputReader());
 		LOGGER.info("Executor shutdown ...");
 		ExecutorsUtil.shutdownExecutorGracefully(500, executor, secondaryExecutor);
 		exit();
@@ -471,52 +478,40 @@ public class PlugtestServer extends AbstractTestServer {
 	}
 
 	public static void start(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor,
-			BaseConfig config, ActiveInputReader inputReader) {
+			BaseConfig config, Configuration configuration, EndpointNetSocketObserver observer,
+			ActiveInputReader inputReader) {
 		registerShutdown();
 
 		if (server != null) {
 			server.setExecutors(mainExecutor, secondaryExecutor, true);
-			server.start();
-
-			// add special interceptor for message traces
-			for (Endpoint ep : server.getEndpoints()) {
-				URI uri = ep.getUri();
-				ep.addInterceptor(new MessageTracer());
-				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
-				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
-				long interval = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
-				final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
-						!CoAP.isTcpScheme(uri.getScheme()), interval, TimeUnit.MILLISECONDS, secondaryExecutor);
-				if (healthLogger.isEnabled()) {
-					ep.addPostProcessInterceptor(healthLogger);
-					ep.addObserver(new EndpointObserver() {
-
-						@Override
-						public void stopped(Endpoint endpoint) {
-							healthLogger.stop();
-						}
-
-						@Override
-						public void started(Endpoint endpoint) {
-							healthLogger.start();
-						}
-
-						@Override
-						public void destroyed(Endpoint endpoint) {
-							healthLogger.stop();
-						}
-					});
-					healthLogger.start();
-				}
+			if (observer != null) {
+				server.addDefaultEndpointObserver(observer);
 			}
+			server.start();
+			server.addLogger(true);
 
 			LOGGER.info("{} started ...", PlugtestServer.class.getSimpleName());
 
 			if (inputReader != null) {
+				long interval = configuration.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
+				if (interval > 0) {
+					if (observer != null) {
+						server.add(observer.getNetSocketHealth());
+					}
+					if (config.ipv4) {
+						server.add(new NetStatLogger("udp", false));
+					}
+					if (config.ipv6) {
+						server.add(new NetStatLogger("udp6", true));
+					}
+				} else {
+					interval = 30000;
+				}
 				for (;;) {
-					if (console(inputReader, 15000)) {
+					if (console(inputReader, interval)) {
 						break;
 					}
+					server.dump();
 				}
 				LOGGER.info("{} stopping ...", PlugtestServer.class.getSimpleName());
 				shutdown();

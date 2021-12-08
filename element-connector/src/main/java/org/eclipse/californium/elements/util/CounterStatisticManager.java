@@ -24,6 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Counter statistic manager.
@@ -86,6 +87,13 @@ abstract public class CounterStatisticManager {
 	 * Check, if manager was {@link #start()}ed or {@link #stop()ped.
 	 */
 	private AtomicBoolean running = new AtomicBoolean();
+	/**
+	 * The nano-realtime of the last transfer.
+	 * 
+	 * @see ClockUtil#nanoRealtime()
+	 * @since 3.1
+	 */
+	private AtomicLong lastTransfer = new AtomicLong(ClockUtil.nanoRealtime());
 
 	/**
 	 * Create passive statistic manager.
@@ -113,7 +121,8 @@ abstract public class CounterStatisticManager {
 	 * @param executor executor to schedule active calls of {@link #dump()}.
 	 * @throws NullPointerException if executor is {@code null}
 	 * @since 3.0 (added unit)
-	 * @deprecated use {@link CounterStatisticManager#CounterStatisticManager(String)}
+	 * @deprecated use
+	 *             {@link CounterStatisticManager#CounterStatisticManager(String)}
 	 *             instead and call {@link #dump()} externally.
 	 */
 	protected CounterStatisticManager(String tag, long interval, TimeUnit unit, ScheduledExecutorService executor) {
@@ -290,6 +299,19 @@ abstract public class CounterStatisticManager {
 	public abstract void dump();
 
 	/**
+	 * Get the nano-realtime of the last transfer.
+	 * 
+	 * @return the nano-realtime of the last transfer
+	 * @see ClockUtil#nanoRealtime()
+	 * @see #transferCounter()
+	 * @see #reset()
+	 * @since 3.1
+	 */
+	public long getLastTransferTime() {
+		return lastTransfer.get();
+	}
+
+	/**
 	 * Transfer all current counters to overall counters.
 	 * 
 	 * @since 3.1
@@ -298,6 +320,7 @@ abstract public class CounterStatisticManager {
 		for (SimpleCounterStatistic statistic : statistics.values()) {
 			statistic.transferCounter();
 		}
+		lastTransfer.set(ClockUtil.nanoRealtime());
 	}
 
 	/**
@@ -307,6 +330,7 @@ abstract public class CounterStatisticManager {
 		for (SimpleCounterStatistic statistic : statistics.values()) {
 			statistic.reset();
 		}
+		lastTransfer.set(ClockUtil.nanoRealtime());
 	}
 
 	/**
