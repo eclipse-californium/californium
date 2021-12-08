@@ -30,14 +30,22 @@ import org.slf4j.LoggerFactory;
  * Health implementation using counter and logging for results.
  */
 @NoPublicAPI
-public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHealth {
+public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHealth, DtlsHealthExtended {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName() + ".health");
 
+	/**
+	 * Message dropping is accessed via {@link #getByKey(String)}.
+	 * 
+	 * @since 3.1
+	 */
+	public static final String DROPPED_UDP_MESSAGES = "dropped udp messages";
+
 	private final AtomicInteger pendingHandshakes = new AtomicInteger();
 
 	protected final SimpleCounterStatistic.AlignGroup align = new SimpleCounterStatistic.AlignGroup();
+	private final SimpleCounterStatistic connections = new SimpleCounterStatistic("connections", align);
 	private final SimpleCounterStatistic succeededHandshakes = new SimpleCounterStatistic("handshakes succeeded",
 			align);
 	private final SimpleCounterStatistic failedHandshakes = new SimpleCounterStatistic("handshakes failed", align);
@@ -47,6 +55,7 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	private final SimpleCounterStatistic sentRecords = new SimpleCounterStatistic("sending records", align);
 	private final SimpleCounterStatistic droppedSentRecords = new SimpleCounterStatistic("dropped sending records",
 			align);
+	private final SimpleCounterStatistic droppedMessages = new SimpleCounterStatistic(DROPPED_UDP_MESSAGES, align);
 
 	/**
 	 * Create passive dtls health logger.
@@ -75,6 +84,8 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	 * @param executor executor to schedule active calls of {@link #dump()}.
 	 * @throws NullPointerException if executor is {@code null}
 	 * @since 3.0 (added unit)
+	 * @deprecated use {@link DtlsHealthLogger#DtlsHealthLogger(String)}
+	 *             instead and call {@link #dump()} externally.
 	 */
 	public DtlsHealthLogger(String tag, int interval, TimeUnit unit, ScheduledExecutorService executor) {
 		super(tag, interval, unit, executor);
@@ -82,30 +93,39 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	}
 
 	private void init() {
+		add(connections);
 		add(succeededHandshakes);
 		add(failedHandshakes);
 		add(receivedRecords);
 		add(droppedReceivedRecords);
 		add(sentRecords);
 		add(droppedSentRecords);
+		add(droppedMessages);
 	}
 
 	@Override
 	public void dump() {
 		try {
-			if (isUsed()) {
-				String eol = StringUtil.lineSeparator();
-				String head = "   " + tag;
-				StringBuilder log = new StringBuilder();
-				log.append(tag).append("statistic:").append(eol);
-				log.append(head).append(succeededHandshakes).append(eol);
-				log.append(head).append(failedHandshakes).append(eol);
-				log.append(head).append(sentRecords).append(eol);
-				log.append(head).append(droppedSentRecords).append(eol);
-				log.append(head).append(receivedRecords).append(eol);
-				log.append(head).append(droppedReceivedRecords);
-				dump(head, log);
-				LOGGER.debug("{}", log);
+			if (isEnabled()) {
+				if (isUsed() && LOGGER.isDebugEnabled()) {
+					String eol = StringUtil.lineSeparator();
+					String head = "   " + tag;
+					StringBuilder log = new StringBuilder();
+					log.append(tag).append("dtls statistic:").append(eol);
+					log.append(head).append(connections).append(eol);
+					log.append(head).append(succeededHandshakes).append(eol);
+					log.append(head).append(failedHandshakes).append(eol);
+					log.append(head).append(sentRecords).append(eol);
+					log.append(head).append(droppedSentRecords).append(eol);
+					log.append(head).append(receivedRecords).append(eol);
+					log.append(head).append(droppedReceivedRecords);
+					if (droppedMessages.isStarted()) {
+						log.append(eol).append(head).append(droppedMessages);
+					}
+					dump(head, log);
+					LOGGER.debug("{}", log);
+				}
+				transferCounter();
 			}
 		} catch (Throwable e) {
 			LOGGER.error("{}", tag, e);
@@ -114,30 +134,38 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 
 	public void dump(String tag, int maxConnections, int remainingCapacity, int pendingWithoutVerify) {
 		try {
-			if (isUsed()) {
-				String eol = StringUtil.lineSeparator();
-				String head = "   " + tag;
-				String associations = "associations";
-				String handshakes = "handshakes pending";
-				align.add(associations);
-				align.add(handshakes);
-				StringBuilder log = new StringBuilder();
-				log.append(tag).append("statistic:").append(eol);
-				String msg = SimpleCounterStatistic.format(align.getAlign(), associations,
-						maxConnections - remainingCapacity);
-				log.append(head).append(msg);
-				log.append(" (").append(remainingCapacity).append(" remaining capacity).").append(eol);
-				msg = SimpleCounterStatistic.format(align.getAlign(), handshakes, pendingHandshakes.get());
-				log.append(head).append(msg);
-				log.append(" (").append(pendingWithoutVerify).append(" without verify).").append(eol);
-				log.append(head).append(succeededHandshakes).append(eol);
-				log.append(head).append(failedHandshakes).append(eol);
-				log.append(head).append(sentRecords).append(eol);
-				log.append(head).append(droppedSentRecords).append(eol);
-				log.append(head).append(receivedRecords).append(eol);
-				log.append(head).append(droppedReceivedRecords);
-				dump(head, log);
-				LOGGER.debug("{}", log);
+			if (isEnabled()) {
+				connections.transferCounter();
+				connections.set(maxConnections - remainingCapacity);
+				if (isUsed() && LOGGER.isDebugEnabled()) {
+					String eol = StringUtil.lineSeparator();
+					String head = "   " + tag;
+					String associations = "associations";
+					String handshakes = "handshakes pending";
+					align.add(associations);
+					align.add(handshakes);
+					StringBuilder log = new StringBuilder();
+					log.append(tag).append("dtls statistic:").append(eol);
+					String msg = SimpleCounterStatistic.format(align.getAlign(), associations,
+							maxConnections - remainingCapacity);
+					log.append(head).append(msg);
+					log.append(" (").append(remainingCapacity).append(" remaining capacity).").append(eol);
+					msg = SimpleCounterStatistic.format(align.getAlign(), handshakes, pendingHandshakes.get());
+					log.append(head).append(msg);
+					log.append(" (").append(pendingWithoutVerify).append(" without verify).").append(eol);
+					log.append(head).append(succeededHandshakes).append(eol);
+					log.append(head).append(failedHandshakes).append(eol);
+					log.append(head).append(sentRecords).append(eol);
+					log.append(head).append(droppedSentRecords).append(eol);
+					log.append(head).append(receivedRecords).append(eol);
+					log.append(head).append(droppedReceivedRecords);
+					if (droppedMessages.isStarted()) {
+						log.append(eol).append(head).append(droppedMessages);
+					}
+					dump(head, log);
+					LOGGER.debug("{}", log);
+				}
+				transferCounter();
 			}
 		} catch (Throwable e) {
 			LOGGER.error("{}", tag, e);
@@ -170,7 +198,7 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 
 	@Override
 	public boolean isEnabled() {
-		return LOGGER.isDebugEnabled();
+		return LOGGER.isInfoEnabled();
 	}
 
 	@Override
@@ -205,4 +233,10 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 			sentRecords.increment();
 		}
 	}
+
+	@Override
+	public void setConnections(int count) {
+		connections.set(count);
+	}
+
 }

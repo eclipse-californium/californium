@@ -49,6 +49,7 @@ import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -1331,6 +1332,8 @@ public final class DtlsConnectorConfig {
 	 * @see SystemConfig#HEALTH_STATUS_INTERVAL
 	 * @since 3.0 (renamed, was getHealthStatusInterval, changed return type to
 	 *        {@code int} and returns milliseconds instead of seconds)
+	 * @deprecated pass in {@link DtlsHealth} and call
+	 *             {@link CounterStatisticManager#dump()} externally.
 	 */
 	public int getHealthStatusIntervalMilliseconds() {
 		return configuration.getTimeAsInt(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
@@ -1951,8 +1954,7 @@ public final class DtlsConnectorConfig {
 							"configured certificate verifier is not used for client authentication mode NONE!");
 				}
 				if (config.getAutoHandshakeTimeoutMillis() != null) {
-					throw new IllegalStateException(
-							"DTLS_AUTO_HANDSHAKE_TIMEOUT must not be used with SERVER_ONLY!");
+					throw new IllegalStateException("DTLS_AUTO_HANDSHAKE_TIMEOUT must not be used with SERVER_ONLY!");
 				}
 			}
 

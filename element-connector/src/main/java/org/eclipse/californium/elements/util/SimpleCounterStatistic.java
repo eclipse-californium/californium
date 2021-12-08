@@ -18,8 +18,9 @@ package org.eclipse.californium.elements.util;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Simple count statistic. Count current occurrences and transfers them to an
- * overall counter.
+ * Simple count statistic.
+ * 
+ * Count current occurrences and transfers them to an overall counter.
  */
 public class SimpleCounterStatistic {
 
@@ -32,21 +33,35 @@ public class SimpleCounterStatistic {
 	 */
 	private final int align;
 	/**
-	 * Alignment group. Determines alignment based on the longest name of the
-	 * group.
+	 * Alignment group.
+	 * 
+	 * Determines alignment based on the longest name of the group.
 	 */
 	private final AlignGroup group;
 	/**
-	 * Current counter. Transferred to {@link #overallCounter} on
-	 * {@link #dump(int)} and indirect on {@link #toString()}.
+	 * Current counter.
+	 * 
+	 * Transferred to {@link #overallCounter} on {@link #dump(int)} and indirect
+	 * on {@link #toString()}.
 	 */
 	private final AtomicLong currentCounter = new AtomicLong();
 	/**
-	 * Overall counter. Accumulates the transferred current counters. Note:
-	 * accessing both counter requires additional synchronisation using this
-	 * counter!
+	 * Overall counter.
+	 * 
+	 * Accumulates the transferred current counters.
+	 * 
+	 * <b>Note:</b> accessing both counter requires additional synchronization
+	 * using this counter!
 	 */
 	private final AtomicLong overallCounter = new AtomicLong();
+	/**
+	 * Start counter.
+	 * 
+	 * Support statistics on external maintained data.
+	 * 
+	 * @since 3.1
+	 */
+	private final AtomicLong startCounter = new AtomicLong(-1);
 
 	/**
 	 * Create statistic.
@@ -86,18 +101,30 @@ public class SimpleCounterStatistic {
 	}
 
 	/**
-	 * Dump statistic. Transfer current counts to overall and returns result as
-	 * text with name, current counts and overall counts.
+	 * Transfer current counter to overall counter.
+	 * 
+	 * @since 3.1
+	 */
+	public void transferCounter() {
+		synchronized (overallCounter) {
+			long current = currentCounter.getAndSet(0);
+			overallCounter.addAndGet(current);
+		}
+	}
+
+	/**
+	 * Dump statistic.
 	 * 
 	 * @param align width to align names. {@code 0}, don't align name.
 	 * @return statistic as text.
+	 * @since 3.1 ({@link #transferCounter()} must be called explicitly.)
 	 */
 	public String dump(int align) {
 		long current;
 		long overall;
 		synchronized (overallCounter) {
-			current = currentCounter.getAndSet(0);
-			overall = overallCounter.addAndGet(current);
+			current = currentCounter.get();
+			overall = overallCounter.get();
 		}
 		return format(align, name, current) + String.format(" (%8d overall).", overall);
 	}
@@ -109,6 +136,44 @@ public class SimpleCounterStatistic {
 	 */
 	public String getName() {
 		return name;
+	}
+
+	/**
+	 * Set start value.
+	 * 
+	 * @param value start value
+	 * @see #set(long)
+	 * @throws IllegalArgumentException if value is less than {@code 0}.
+	 * @since 3.1
+	 */
+	public void setStart(long value) {
+		if (value < 0) {
+			throw new IllegalArgumentException("Value " + value + " must not be less than 0!");
+		}
+		synchronized (overallCounter) {
+			startCounter.set(value);
+		}
+	}
+
+	/**
+	 * Set current value.
+	 * 
+	 * <b>Note:</b> not intended to be called as high frequently as
+	 * {@link #increment()}.
+	 * 
+	 * @param value current value.
+	 * @see #setStart(long)
+	 * @since 3.1
+	 */
+	public void set(long value) {
+		synchronized (overallCounter) {
+			long start = startCounter.get();
+			if (start < 0) {
+				start = 0;
+				startCounter.set(0);
+			}
+			currentCounter.set(value - overallCounter.get() - start);
+		}
 	}
 
 	/**
@@ -143,27 +208,63 @@ public class SimpleCounterStatistic {
 	}
 
 	/**
-	 * Rest counters.
+	 * Get pair of current counter values.
 	 * 
-	 * @return reseted values of current and overall counter.
+	 * @return array with counter values. Position 0, the current, position 1,
+	 *         the overall so far.
+	 * @since 3.1
+	 */
+	public long[] getCountersPair() {
+		synchronized (overallCounter) {
+			return new long[] { currentCounter.get(), overallCounter.get() };
+		}
+	}
+
+	/**
+	 * Resets counters to {@code 0}.
+	 * 
+	 * Adjust {@link #startCounter} using the sum of the current and overall
+	 * counter.
+	 * 
+	 * @return values of current and overall counter before reseted.
 	 */
 	public long reset() {
 		synchronized (overallCounter) {
 			long current = currentCounter.getAndSet(0);
 			overallCounter.addAndGet(current);
-			return overallCounter.getAndSet(0);
+			current = overallCounter.getAndSet(0);
+			long start = startCounter.get();
+			if (start > 0) {
+				startCounter.set(current + start);
+			} else {
+				startCounter.set(current);
+			}
+			return current;
 		}
 	}
 
 	/**
 	 * Check, if statistic is used.
 	 * 
-	 * @return {@code true}, if at least one counter is larger than 0.
+	 * @return {@code true}, if {@link #currentCounter} or
+	 *         {@link #overallCounter} is larger than {@code 0}.
 	 */
 	public boolean isUsed() {
 		synchronized (overallCounter) {
 			return currentCounter.get() > 0 || overallCounter.get() > 0;
 		}
+	}
+
+	/**
+	 * Check, if statistic is started.
+	 * 
+	 * @return {@code true}, if {@link #startCounter} is {@code 0} or larger
+	 *         than {@code 0}.
+	 * @see #setStart(long)
+	 * @since 3.1
+	 */
+	public boolean isStarted() {
+		return startCounter.get() >= 0;
 	}
 
 	@Override
@@ -193,7 +294,7 @@ public class SimpleCounterStatistic {
 	}
 
 	/**
-	 * Group for statistics to determine name alginment based on the longest
+	 * Group for statistics to determine name alignment based on the longest
 	 * name in the group.
 	 */
 	public static class AlignGroup {
@@ -228,10 +329,10 @@ public class SimpleCounterStatistic {
 		}
 
 		/**
-		 * Gets alginment based on the longest name of the group.
+		 * Gets alignment based on the longest name of the group.
 		 * 
 		 * @return the negative value of one more than length of the longest
-		 *         name in the group. Results in left algined names with one
+		 *         name in the group. Results in left aligned names with one
 		 *         additional space.
 		 */
 		public int getAlign() {
