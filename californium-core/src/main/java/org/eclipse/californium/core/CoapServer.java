@@ -32,14 +32,15 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
@@ -50,6 +51,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -63,21 +65,24 @@ import org.slf4j.LoggerFactory;
  * An execution environment for CoAP {@link Resource}s.
  * 
  * A server hosts a tree of {@link Resource}s which are exposed to clients by
- * means of one or more {@link Endpoint}s which are bound to a network interface.
+ * means of one or more {@link Endpoint}s which are bound to a network
+ * interface.
  * 
- * A server can be started and stopped. When the server stops the endpoint
- * frees the port it is listening on, but keeps the executors running to resume.
+ * A server can be started and stopped. When the server stops the endpoint frees
+ * the port it is listening on, but keeps the executors running to resume.
  * <p>
  * The following code snippet provides an example of a server with a resource
  * that responds with a <em>"hello world"</em> to any incoming GET request.
+ * 
  * <pre>
- *   CoapServer server = new CoapServer(port);
- *   server.add(new CoapResource(&quot;hello-world&quot;) {
- * 	   public void handleGET(CoapExchange exchange) {
- * 	  	 exchange.respond(ResponseCode.CONTENT, &quot;hello world&quot;);
- * 	   }
- *   });
- *   server.start();
+ * CoapServer server = new CoapServer(port);
+ * server.add(new CoapResource(&quot;hello-world&quot;) {
+ * 
+ * 	public void handleGET(CoapExchange exchange) {
+ * 		exchange.respond(ResponseCode.CONTENT, &quot;hello world&quot;);
+ * 	}
+ * });
+ * server.start();
  * </pre>
  * 
  * The following figure shows the server's basic architecture.
@@ -128,12 +133,19 @@ public class CoapServer implements ServerInterface {
 	private MessageDeliverer deliverer;
 
 	/** The list of endpoints the server connects to the network. */
-	private final List<Endpoint> endpoints;
+	private final List<Endpoint> endpoints = new CopyOnWriteArrayList<>();
+
+	private final List<EndpointObserver> defaultObservers = new CopyOnWriteArrayList<>();
+
+	private final List<CounterStatisticManager> statistics = new CopyOnWriteArrayList<>();
 
 	/** The executor of the server for its endpoints (can be null). */
 	private ScheduledExecutorService executor;
 
-	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
+	/**
+	 * Scheduled executor intended to be used for rare executing timers (e.g.
+	 * cleanup tasks).
+	 */
 	private ScheduledExecutorService secondaryExecutor;
 	/**
 	 * Indicate, it the server-specific executor service is detached, or
@@ -178,7 +190,8 @@ public class CoapServer implements ServerInterface {
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	public CoapServer(final Configuration config, final int... ports) {
-		// global configuration that is passed down (can be observed for changes)
+		// global configuration that is passed down (can be observed for
+		// changes)
 		if (config != null) {
 			this.config = config;
 		} else {
@@ -195,7 +208,6 @@ public class CoapServer implements ServerInterface {
 		root.add(wellKnown);
 
 		// endpoints
-		this.endpoints = new ArrayList<>();
 		// create endpoint for each port
 		if (ports != null) {
 			for (int port : ports) {
@@ -264,9 +276,11 @@ public class CoapServer implements ServerInterface {
 		}
 
 		if (endpoints.isEmpty()) {
-			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
+			// servers should bind to the configured port (while clients should
+			// use an ephemeral port through the default endpoint)
 			int port = config.get(CoapConfig.COAP_PORT);
-			LOGGER.info("{}no endpoints have been defined for server, setting up server endpoint on default port {}", getTag(), port);
+			LOGGER.info("{}no endpoints have been defined for server, setting up server endpoint on default port {}",
+					getTag(), port);
 			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 			builder.setPort(port);
 			builder.setConfiguration(config);
@@ -292,8 +306,8 @@ public class CoapServer implements ServerInterface {
 
 	/**
 	 * Stops the server, i.e., unbinds it from all ports. Frees as much system
-	 * resources as possible to still be able to be re-started with the previous binds.
-	 * To free all system resources {@link #destroy()} must be called!
+	 * resources as possible to still be able to be re-started with the previous
+	 * binds. To free all system resources {@link #destroy()} must be called!
 	 */
 	@Override
 	public synchronized void stop() {
@@ -309,7 +323,8 @@ public class CoapServer implements ServerInterface {
 	}
 
 	/**
-	 * Destroys the server, i.e., unbinds from all ports and frees all system resources.
+	 * Destroys the server, i.e., unbinds from all ports and frees all system
+	 * resources.
 	 */
 	@Override
 	public synchronized void destroy() {
@@ -320,7 +335,7 @@ public class CoapServer implements ServerInterface {
 				if (running) {
 					ExecutorsUtil.shutdownExecutorGracefully(2000, executor, secondaryExecutor);
 				} else {
-					if (executor !=null) {
+					if (executor != null) {
 						executor.shutdownNow();
 					}
 					if (secondaryExecutor != null) {
@@ -372,6 +387,9 @@ public class CoapServer implements ServerInterface {
 		if (executor != null && secondaryExecutor != null) {
 			endpoint.setExecutors(executor, secondaryExecutor);
 		}
+		for (EndpointObserver observer : defaultObservers) {
+			endpoint.addObserver(observer);
+		}
 		endpoints.add(endpoint);
 	}
 
@@ -387,8 +405,9 @@ public class CoapServer implements ServerInterface {
 
 	/**
 	 * Returns the endpoint with a specific port.
+	 * 
 	 * @param port the port
-	 * @return the endpoint 
+	 * @return the endpoint
 	 */
 	@Override
 	public Endpoint getEndpoint(int port) {
@@ -418,8 +437,9 @@ public class CoapServer implements ServerInterface {
 
 	/**
 	 * Returns the endpoint with a specific socket address.
+	 * 
 	 * @param address the socket address
-	 * @return the endpoint 
+	 * @return the endpoint
 	 */
 	@Override
 	public Endpoint getEndpoint(InetSocketAddress address) {
@@ -437,12 +457,13 @@ public class CoapServer implements ServerInterface {
 
 	/**
 	 * Add a resource to the server.
+	 * 
 	 * @param resources the resource(s)
 	 * @return the server
 	 */
 	@Override
 	public CoapServer add(Resource... resources) {
-		for (Resource r:resources)
+		for (Resource r : resources)
 			root.add(r);
 		return this;
 	}
@@ -450,6 +471,46 @@ public class CoapServer implements ServerInterface {
 	@Override
 	public boolean remove(Resource resource) {
 		return root.delete(resource);
+	}
+
+	/**
+	 * Add endpoint observer to all endpoints.
+	 * 
+	 * @param observer endpoint observer
+	 * @since 3.1
+	 */
+	public void addDefaultEndpointObserver(EndpointObserver observer) {
+		defaultObservers.add(observer);
+		for (Endpoint ep : getEndpoints()) {
+			ep.addObserver(observer);
+		}
+	}
+
+	/**
+	 * Remove endpoint observer from all endpoints.
+	 * 
+	 * @param observer endpoint observer
+	 * @since 3.1
+	 */
+	public void removeDefaultEndpointObserver(EndpointObserver observer) {
+		defaultObservers.remove(observer);
+		for (Endpoint ep : getEndpoints()) {
+			ep.removeObserver(observer);
+		}
+	}
+
+	public void add(CounterStatisticManager statistic) {
+		statistics.add(statistic);
+	}
+
+	public void remove(CounterStatisticManager statistic) {
+		statistics.remove(statistic);
+	}
+
+	public void dump() {
+		for (CounterStatisticManager statistic : statistics) {
+			statistic.dump();
+		}
 	}
 
 	/**
@@ -529,7 +590,7 @@ public class CoapServer implements ServerInterface {
 			}
 		} catch (IllegalArgumentException ex) {
 			LOGGER.warn("loading failed, out of sync!");
-			throw new IOException(ex.getMessage() +" " + in.available() + " bytes left.");
+			throw new IOException(ex.getMessage() + " " + in.available() + " bytes left.");
 		}
 
 		String tag = SerializationUtil.readString(reader, Byte.SIZE);
@@ -632,9 +693,8 @@ public class CoapServer implements ServerInterface {
 				title = String.format("%s %50s", title, version);
 			}
 			StringBuilder builder = new StringBuilder()
-					.append("****************************************************************\n")
-					.append(title).append("\n")
-					.append("****************************************************************\n")
+					.append("****************************************************************\n").append(title)
+					.append("\n").append("****************************************************************\n")
 					.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
 					.append("published under EPL+EDL: http://www.eclipse.org/californium/\n\n");
 			builder.append("(c) 2014-2021 Institute for Pervasive Computing, ETH Zurich and others\n");
