@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Health implementation using counter and logging for result.
+ * 
  * @since 2.1
  */
 public class HealthStatisticLogger extends CounterStatisticManager implements MessageInterceptor {
@@ -89,8 +90,11 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Me
 	 * @param executor executor executor to schedule active logging.
 	 * @throws NullPointerException if executor is {@code null}
 	 * @since 3.0 (added unit)
+	 * @deprecated use {@link HealthStatisticLogger#HealthStatisticLogger(String, boolean)}
+	 *             instead and call {@link #dump()} externally.
 	 */
-	public HealthStatisticLogger(String tag, boolean udp, long interval, TimeUnit unit, ScheduledExecutorService executor) {
+	public HealthStatisticLogger(String tag, boolean udp, long interval, TimeUnit unit,
+			ScheduledExecutorService executor) {
 		super(tag, interval, unit, executor);
 		this.udp = udp;
 		init();
@@ -99,59 +103,69 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Me
 	private void init() {
 		add("send-", sentRequests);
 		add("send-", sentResponses);
-		add("send-", sentAcknowledges);
-		add("send-", sentRejects);
-		add("send-", resentRequests);
-		add("send-", resentResponses);
+		if (udp) {
+			add("send-", sentAcknowledges);
+			add("send-", sentRejects);
+			add("send-", resentRequests);
+			add("send-", resentResponses);
+		}
 		add("send-", sendErrors);
 
 		add("recv-", receivedRequests);
 		add("recv-", receivedResponses);
-		add("recv-", receivedAcknowledges);
-		add("recv-", receivedRejects);
-		add("recv-", duplicateRequests);
-		add("recv-", duplicateResponses);
+		if (udp) {
+			add("recv-", receivedAcknowledges);
+			add("recv-", receivedRejects);
+			add("recv-", duplicateRequests);
+			add("recv-", duplicateResponses);
+			add("recv-", offloadedMessages);
+		}
 		add("recv-", ignoredMessages);
 	}
 
 	@Override
 	public boolean isEnabled() {
-		return LOGGER.isDebugEnabled();
+		return LOGGER.isInfoEnabled();
 	}
 
 	@Override
 	public void dump() {
 		try {
-			if (receivedRequests.isUsed() || sentRequests.isUsed() || sendErrors.isUsed()) {
-				String eol = StringUtil.lineSeparator();
-				String head = "   " + tag;
-				StringBuilder log = new StringBuilder();
-				log.append(tag).append("endpoint statistic:").append(eol);
-				log.append(tag).append("send statistic:").append(eol);
-				log.append(head).append(sentRequests).append(eol);
-				log.append(head).append(sentResponses).append(eol);
-				if (udp) {
-					log.append(head).append(sentAcknowledges).append(eol);
-					log.append(head).append(sentRejects).append(eol);
-					log.append(head).append(resentRequests).append(eol);
-					log.append(head).append(resentResponses).append(eol);
+			if (isEnabled()) {
+				if (LOGGER.isDebugEnabled()) {
+					if (receivedRequests.isUsed() || sentRequests.isUsed() || sendErrors.isUsed()) {
+						String eol = StringUtil.lineSeparator();
+						String head = "   " + tag;
+						StringBuilder log = new StringBuilder();
+						log.append(tag).append("endpoint statistic:").append(eol);
+						log.append(tag).append("send statistic:").append(eol);
+						log.append(head).append(sentRequests).append(eol);
+						log.append(head).append(sentResponses).append(eol);
+						if (udp) {
+							log.append(head).append(sentAcknowledges).append(eol);
+							log.append(head).append(sentRejects).append(eol);
+							log.append(head).append(resentRequests).append(eol);
+							log.append(head).append(resentResponses).append(eol);
+						}
+						log.append(head).append(sendErrors).append(eol);
+						log.append(tag).append("receive statistic:").append(eol);
+						log.append(head).append(receivedRequests).append(eol);
+						log.append(head).append(receivedResponses).append(eol);
+						if (udp) {
+							log.append(head).append(receivedAcknowledges).append(eol);
+							log.append(head).append(receivedRejects).append(eol);
+							log.append(head).append(duplicateRequests).append(eol);
+							log.append(head).append(duplicateResponses).append(eol);
+							log.append(head).append(offloadedMessages).append(eol);
+						}
+						log.append(head).append(ignoredMessages).append(eol);
+						long sent = getSentCounters();
+						long processed = getProcessedCounters();
+						log.append(tag).append("sent ").append(sent).append(", received ").append(processed);
+						LOGGER.debug("{}", log);
+					}
 				}
-				log.append(head).append(sendErrors).append(eol);
-				log.append(tag).append("receive statistic:").append(eol);
-				log.append(head).append(receivedRequests).append(eol);
-				log.append(head).append(receivedResponses).append(eol);
-				if (udp) {
-					log.append(head).append(receivedAcknowledges).append(eol);
-					log.append(head).append(receivedRejects).append(eol);
-					log.append(head).append(duplicateRequests).append(eol);
-					log.append(head).append(duplicateResponses).append(eol);
-					log.append(head).append(offloadedMessages).append(eol);
-				}
-				log.append(head).append(ignoredMessages).append(eol);
-				long sent = getSentCounters();
-				long processed = getProcessedCounters();
-				log.append(tag).append("sent ").append(sent).append(", received ").append(processed);
-				LOGGER.debug("{}", log);
+				transferCounter();
 			}
 		} catch (Throwable e) {
 			LOGGER.error("{}", tag, e);

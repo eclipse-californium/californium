@@ -342,6 +342,23 @@ public class DtlsClusterConnector extends DTLSConnector {
 	}
 
 	/**
+	 * Gets the address the cluster internal connector is bound to.
+	 * 
+	 * @return the IP address and port of the cluster internal connector is
+	 *         bound to or configured to bind to
+	 * @since 3.1
+	 */
+	public InetSocketAddress getClusterInternalAddress() {
+		DatagramSocket socket = clusterInternalSocket;
+		int localPort = socket == null ? -1 : socket.getLocalPort();
+		if (localPort < 0) {
+			return clusterInternalSocketAddress;
+		} else {
+			return new InetSocketAddress(socket.getLocalAddress(), localPort);
+		}
+	}
+
+	/**
 	 * Check, if internal message is forwarded or backwarded record.
 	 * 
 	 * @param clusterPacket cluster internal message

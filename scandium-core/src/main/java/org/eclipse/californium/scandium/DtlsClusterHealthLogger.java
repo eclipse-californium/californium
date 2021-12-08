@@ -28,6 +28,13 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class DtlsClusterHealthLogger extends DtlsHealthLogger implements DtlsClusterHealth {
 
+	/**
+	 * Message dropping is accessed via {@link #getByKey(String)}.
+	 * 
+	 * @since 3.1
+	 */
+	public static final String DROPPED_INTERNAL_UDP_MESSAGES = "dropped internal udp";
+
 	private final SimpleCounterStatistic forwardedMessage = new SimpleCounterStatistic("forwarded", align);
 	private final SimpleCounterStatistic processedForwardedMessage = new SimpleCounterStatistic("process forwarded",
 			align);
@@ -42,6 +49,8 @@ public class DtlsClusterHealthLogger extends DtlsHealthLogger implements DtlsClu
 			"sent cluster mgmt", align);
 	private final SimpleCounterStatistic receivingClusterManagementMessage = new SimpleCounterStatistic(
 			"recv cluster mgmt", align);
+	private final SimpleCounterStatistic droppedInternalMessages = new SimpleCounterStatistic(
+			DROPPED_INTERNAL_UDP_MESSAGES, align);
 
 	/**
 	 * Create passive dtls cluster health logger.
@@ -64,12 +73,14 @@ public class DtlsClusterHealthLogger extends DtlsHealthLogger implements DtlsClu
 	 * Create active dtls cluster health logger with logging tag.
 	 * 
 	 * @param tag logging tag
-	 * @param interval interval. {@code 0} to disable actively
-	 *            calling {@link #dump()}.
+	 * @param interval interval. {@code 0} to disable actively calling
+	 *            {@link #dump()}.
 	 * @param unit time unit of interval
 	 * @param executor executor to schedule active calls of {@link #dump()}.
 	 * @throws NullPointerException if executor is {@code null}
 	 * @since 3.0 (added unit)
+	 * @deprecated use {@link DtlsClusterHealthLogger#DtlsClusterHealthLogger(String)}
+	 *             instead and call {@link #dump()} externally.
 	 */
 	public DtlsClusterHealthLogger(String tag, int interval, TimeUnit unit, ScheduledExecutorService executor) {
 		super(tag, interval, unit, executor);
@@ -87,6 +98,7 @@ public class DtlsClusterHealthLogger extends DtlsHealthLogger implements DtlsClu
 		add(dropBackwardMessage);
 		add(sendingClusterManagementMessage);
 		add(receivingClusterManagementMessage);
+		add(droppedInternalMessages);
 	}
 
 	protected boolean isUsed() {
@@ -106,6 +118,9 @@ public class DtlsClusterHealthLogger extends DtlsHealthLogger implements DtlsClu
 		log.append(head).append(dropBackwardMessage).append(eol);
 		log.append(head).append(sendingClusterManagementMessage).append(eol);
 		log.append(head).append(receivingClusterManagementMessage);
+		if (droppedInternalMessages.isStarted()) {
+			log.append(eol).append(head).append(droppedInternalMessages);
+		}
 	}
 
 	@Override

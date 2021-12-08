@@ -625,6 +625,16 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	}
 
 	/**
+	 * Get health handler.
+	 * 
+	 * @return health handler.
+	 * @since 3.1
+	 */
+	public DtlsHealth getHealthHandler() {
+		return health;
+	}
+
+	/**
 	 * Create default health handler.
 	 * 
 	 * @param configuration configuration
@@ -1057,16 +1067,35 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (health != null && health.isEnabled()) {
-			final int healthStatusInterval = config.getHealthStatusIntervalMilliseconds();
-			if (healthStatusInterval > 0) {
+			final int healthStatusIntervalMillis = config.getHealthStatusIntervalMilliseconds();
+			// check either for interval or DtlsHealthExtended
+			long intervalMillis = healthStatusIntervalMillis;
+			if (health instanceof DtlsHealthExtended) {
+				// schedule more frequent updates of adjust the number of connections
+				if (healthStatusIntervalMillis == 0 || healthStatusIntervalMillis > 2000) {
+					intervalMillis = 2000;
+				}
+			}
+			if (intervalMillis > 0) {
 				statusLogger = timer.scheduleAtFixedRate(new Runnable() {
+
+					private volatile long lastNanos = ClockUtil.nanoRealtime();
 
 					@Override
 					public void run() {
-						health.dump(config.getLoggingTag(), config.getMaxConnections(), connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
+						long now = ClockUtil.nanoRealtime();
+						if (healthStatusIntervalMillis > 0
+								&& TimeUnit.NANOSECONDS.toMillis(now - lastNanos) > healthStatusIntervalMillis) {
+							health.dump(config.getLoggingTag(), config.getMaxConnections(),
+									connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
+							lastNanos = now;
+						} else if (health instanceof DtlsHealthExtended) {
+							((DtlsHealthExtended) health)
+									.setConnections(config.getMaxConnections() - connectionStore.remainingCapacity());
+						}
 					}
 
-				}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
+				}, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
 			}
 		}
 
