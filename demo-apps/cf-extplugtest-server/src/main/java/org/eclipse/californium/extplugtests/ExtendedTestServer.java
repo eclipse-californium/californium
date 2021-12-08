@@ -55,31 +55,37 @@ import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointObserver;
-import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
-import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.MyIpResource;
+import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
+import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.SimpleCounterStatistic;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
+import org.eclipse.californium.extplugtests.resources.Diagnose;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
 import org.eclipse.californium.extplugtests.resources.ReverseObserve;
 import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
+import org.eclipse.californium.plugtests.EndpointNetSocketObserver;
 import org.eclipse.californium.plugtests.PlugtestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.plugtests.resources.Hono;
 import org.eclipse.californium.plugtests.resources.MyContext;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
+import org.eclipse.californium.scandium.DtlsClusterHealthLogger;
 import org.eclipse.californium.scandium.DtlsManagedClusterConnector;
 import org.eclipse.californium.scandium.MdcConnectionListener;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
@@ -90,6 +96,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.eclipse.californium.unixhealth.NetSocketHealthLogger;
 import org.eclipse.californium.unixhealth.NetStatLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,6 +156,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, processors);
 			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
 			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
+			config.set(UDP_DROPS_READ_INTERVAL, 2000, TimeUnit.MILLISECONDS);
 		}
 
 	};
@@ -161,6 +169,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 		@Option(names = "--benchmark", negatable = true, description = "enable benchmark resource.")
 		public boolean benchmark;
+
+		@Option(names = "--diagnose", negatable = true, description = "enable diagnose resource.")
+		public boolean diagnose;
 
 		public static class SimpleCluster {
 
@@ -219,6 +230,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		public List<Protocol> getProtocols() {
 			List<Protocol> protocols = super.getProtocols();
 			if (cluster != null) {
+				// cluster uses specific dtls connector
 				protocols.remove(Protocol.DTLS);
 			}
 			return protocols;
@@ -337,7 +349,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			ScheduledExecutorService secondaryExecutor = ExecutorsUtil
 					.newDefaultSecondaryScheduler("ExtCoapServer(secondary)#");
 
-			ExtendedTestServer server = new ExtendedTestServer(configuration, protocolConfig, !config.benchmark);
+			final ExtendedTestServer server = new ExtendedTestServer(configuration, protocolConfig, config.benchmark,
+					config.diagnose);
 			server.setTag("EXTENDED-TEST");
 			server.setExecutors(executor, secondaryExecutor, false);
 			server.add(new ReverseRequest(configuration, executor));
@@ -382,11 +395,54 @@ public class ExtendedTestServer extends AbstractTestServer {
 					}
 				}
 			}
+
+			// Statistic for dropped udp messages
+			final NetSocketHealthLogger socketLogger = new NetSocketHealthLogger("udp");
+			EndpointNetSocketObserver socketObserver = null;
+			long interval = configuration.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
+			if (interval > 0 && socketLogger.isEnabled()) {
+				server.add(socketLogger);
+				long readInterval = configuration.get(UDP_DROPS_READ_INTERVAL, TimeUnit.MILLISECONDS);
+				if (interval > readInterval) {
+					secondaryExecutor.scheduleAtFixedRate(new Runnable() {
+						
+						@Override
+						public void run() {
+							socketLogger.read();
+						}
+					}, readInterval, readInterval, TimeUnit.MILLISECONDS);
+				}
+				socketObserver = new EndpointNetSocketObserver(socketLogger);
+				server.addDefaultEndpointObserver(socketObserver);
+				EndpointNetSocketObserver internalSocketObserver = new EndpointNetSocketObserver(socketLogger) {
+
+					protected SimpleCounterStatistic getExternalStatistic(Endpoint endpoint) {
+						CounterStatisticManager dtlsStatisticManager = getDtlsStatisticManager(endpoint);
+						return dtlsStatisticManager != null
+								? dtlsStatisticManager.getByKey(DtlsClusterHealthLogger.DROPPED_INTERNAL_UDP_MESSAGES)
+								: null;
+					}
+
+					@Override
+					protected InetSocketAddress getAddress(Endpoint endpoint) {
+						if (endpoint instanceof CoapEndpoint) {
+							Connector connector = ((CoapEndpoint) endpoint).getConnector();
+							if (connector instanceof DtlsClusterConnector) {
+								return ((DtlsClusterConnector) connector).getClusterInternalAddress();
+							}
+						}
+						return null;
+					}
+				};
+				server.addDefaultEndpointObserver(internalSocketObserver);
+			}
+			// using cluster removes dtls from protocols
 			server.addEndpoints(config.interfacePatterns, types, protocols, config);
 			if (server.getEndpoints().isEmpty()) {
 				System.err.println("no endpoint available!");
 				System.exit(PlugtestServer.ERR_INIT_FAILED);
 			}
+
 			for (Endpoint ep : server.getEndpoints()) {
 				ep.addNotificationListener(reverseObserver);
 			}
@@ -395,7 +451,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			SSLContext context = null;
 			RestoreHttpClient client = null;
 			SSLContext clientContext = null;
-	
+
 			if (httpsRestore != null) {
 				context = CredentialsUtil.getClusterInternalHttpsServerContext();
 			}
@@ -414,80 +470,70 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			PlugtestServer.add(server);
 			PlugtestServer.load(config);
-			// start standard plugtest server and shutdown
-			PlugtestServer.start(executor, secondaryExecutor, config, null);
 
+			// start standard plugtest server and shutdown
+			PlugtestServer.start(executor, secondaryExecutor, config, configuration, socketObserver, null);
 			server.start();
 
-			// add special interceptor for message traces
-			for (Endpoint ep : server.getEndpoints()) {
-				URI uri = ep.getUri();
-				if (!config.benchmark) {
-					// Anonymized IoT metrics for validation.
-					ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
-					ep.addInterceptor(new MessageTracer());
-				}
-				if (ep.getPostProcessInterceptors().isEmpty()) {
-					long interval = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
-					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
-							!CoAP.isTcpScheme(uri.getScheme()), interval, TimeUnit.MILLISECONDS, executor);
-					if (healthLogger.isEnabled()) {
-						ep.addPostProcessInterceptor(healthLogger);
-						ep.addObserver(new EndpointObserver() {
+			server.addLogger(!config.benchmark);
 
-							@Override
-							public void stopped(Endpoint endpoint) {
-								healthLogger.stop();
-							}
-
-							@Override
-							public void started(Endpoint endpoint) {
-								healthLogger.start();
-							}
-
-							@Override
-							public void destroyed(Endpoint endpoint) {
-								healthLogger.stop();
-							}
-						});
-						healthLogger.start();
-					}
-				}
+			Resource child = server.getRoot().getChild(Diagnose.RESOURCE_NAME);
+			if (child instanceof Diagnose) {
+				((Diagnose) child).update();
 			}
 
 			PlugtestServer.ActiveInputReader reader = new PlugtestServer.ActiveInputReader();
-			if (!config.benchmark) {
-				LOGGER.info("{} without benchmark started ...", ExtendedTestServer.class.getSimpleName());
-				while (!server.isReady()) {
-					Thread.sleep(500);
+			if (interval > 0) {
+				if (config.ipv4) {
+					NetStatLogger netStatLogger = new NetStatLogger("udp", false);
+					if (netStatLogger.isEnabled()) {
+						server.add(netStatLogger);
+						LOGGER.info("udp health enabled.");
+					} else {
+						LOGGER.warn("udp health not enabled!");
+					}
 				}
-				if (httpsRestore != null && client != null) {
-					client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
-				}
-				for (;;) {
-					if (PlugtestServer.console(reader, 15000)) {
-						break;
+				if (config.ipv6) {
+					NetStatLogger netStatLogger = new NetStatLogger("udp6", true);
+					if (netStatLogger.isEnabled()) {
+						server.add(netStatLogger);
+						LOGGER.info("udp6 health enabled.");
+					} else {
+						LOGGER.warn("udp6 health not enabled!");
 					}
 				}
 			} else {
-				NetStatLogger netstat = new NetStatLogger("udp");
-				Runtime runtime = Runtime.getRuntime();
-				long max = runtime.maxMemory();
-				StringBuilder builder = new StringBuilder(ExtendedTestServer.class.getSimpleName());
-				if (StringUtil.CALIFORNIUM_VERSION != null) {
-					builder.append(", version ").append(StringUtil.CALIFORNIUM_VERSION);
-				}
-				builder.append(", ").append(max / (1024 * 1024)).append("MB heap, started ...");
-				LOGGER.info("{}", builder);
-				while (!server.isReady()) {
-					Thread.sleep(500);
-				}
-				if (httpsRestore != null && client != null) {
-					client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
-				}
-				long lastGcCount = 0;
+				interval = 30000;
+			}
+
+			Runtime runtime = Runtime.getRuntime();
+			long max = runtime.maxMemory();
+			StringBuilder builder = new StringBuilder(ExtendedTestServer.class.getSimpleName());
+			if (StringUtil.CALIFORNIUM_VERSION != null) {
+				builder.append(", version ").append(StringUtil.CALIFORNIUM_VERSION);
+			}
+			builder.append(", ").append(max / (1024 * 1024)).append("MB heap, started ...");
+			LOGGER.info("{}", builder);
+			while (!server.isReady()) {
+				Thread.sleep(500);
+			}
+			if (httpsRestore != null && client != null) {
+				client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
+			}
+			if (!config.benchmark) {
+				LOGGER.info("{} without benchmark started ...", ExtendedTestServer.class.getSimpleName());
 				for (;;) {
-					if (PlugtestServer.console(reader, 15000)) {
+					if (PlugtestServer.console(reader, interval)) {
+						break;
+					}
+					server.dump();
+				}
+			} else {
+				long inputTimeout = interval < 15000 ? interval : 15000;
+				long lastGcCount = 0;
+				long lastDumpNanos = ClockUtil.nanoRealtime();
+				for (;;) {
+					if (PlugtestServer.console(reader, inputTimeout)) {
 						break;
 					}
 					long used = runtime.totalMemory() - runtime.freeMemory();
@@ -510,13 +556,17 @@ public class ExtendedTestServer extends AbstractTestServer {
 					if (lastGcCount < gcCount) {
 						printManagamentStatistic();
 						lastGcCount = gcCount;
-						netstat.dump();
 						long clones = DatagramWriter.COPIES.get();
 						long takes = DatagramWriter.TAKES.get();
 						if (clones + takes > 0) {
 							STATISTIC_LOGGER.info("DatagramWriter {} clones, {} takes, {}%", clones, takes,
 									(takes * 100L) / (takes + clones));
 						}
+					}
+					long now = ClockUtil.nanoRealtime();
+					if ((now - lastDumpNanos - TimeUnit.MILLISECONDS.toNanos(interval)) > 0) {
+						lastDumpNanos = now;
+						server.dump();
 					}
 				}
 			}
@@ -604,17 +654,20 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 	}
 
-	public ExtendedTestServer(Configuration config, Map<Select, Configuration> protocolConfig, boolean noBenchmark)
-			throws SocketException {
+	public ExtendedTestServer(Configuration config, Map<Select, Configuration> protocolConfig, boolean benchmark,
+			boolean diagnose) throws SocketException {
 		super(config, protocolConfig);
 		int maxResourceSize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());
-		add(new Benchmark(noBenchmark, maxResourceSize));
+		add(new Benchmark(!benchmark, maxResourceSize));
 		add(new Hono("telemetry"));
 		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 		add(new MyContext(MyContext.RESOURCE_NAME, version, true));
+		if (diagnose) {
+			add(new Diagnose(this));
+		}
 	}
 
 	private boolean isReady() {
@@ -635,6 +688,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		InterfaceType interfaceType = dtlsInterface.getAddress().isLoopbackAddress() ? InterfaceType.LOCAL
 				: InterfaceType.EXTERNAL;
 		Configuration configuration = getConfig(Protocol.DTLS, interfaceType);
+		String tag = "dtls:node-" + nodeId + ":" + StringUtil.toString(dtlsInterface);
 		int handshakeResultDelayMillis = configuration.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
 		long healthStatusIntervalMillis = configuration.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 		Integer cidLength = configuration.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
@@ -644,7 +698,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		initCredentials();
 		DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(configuration);
 		if (cliConfig.clientAuth != null) {
-			configuration.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+			dtlsConfigBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
 		}
 		// set node-id in dtls-config-builder's Configuration clone
 		dtlsConfigBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID, nodeId);
@@ -668,7 +722,14 @@ public class ExtendedTestServer extends AbstractTestServer {
 		verifier.setDelay(handshakeResultDelayMillis);
 		dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
 		dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
-		dtlsConfigBuilder.setLoggingTag("node-" + nodeId);
+		dtlsConfigBuilder.setLoggingTag(tag);
+		if (healthStatusIntervalMillis > 0) {
+			DtlsClusterHealthLogger health = new DtlsClusterHealthLogger(tag);
+			dtlsConfigBuilder.setHealthHandler(health);
+			add(health);
+			// reset to prevent active logger
+			dtlsConfigBuilder.set(SystemConfig.HEALTH_STATUS_INTERVAL, 0, TimeUnit.MILLISECONDS);
+		}
 		DtlsConnectorConfig dtlsConnectorConfig = dtlsConfigBuilder.build();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		EndpointObserver endpointObserver = null;
@@ -695,7 +756,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					manager.stop();
 				}
 			};
-			components.add( manager);
+			components.add(manager);
 		} else if (nodesProvider != null) {
 			builder.setConnector(new DtlsClusterConnector(dtlsConnectorConfig, clusterConfiguration, nodesProvider));
 		}
@@ -703,30 +764,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 		builder.setConfiguration(dtlsConnectorConfig.getConfiguration());
 		CoapEndpoint endpoint = builder.build();
 		if (healthStatusIntervalMillis > 0) {
-			String tag = CoAP.COAP_SECURE_URI_SCHEME;
-			tag += "-" + nodeId;
-			final HealthStatisticLogger healthLogger = new HealthStatisticLogger(tag, true, healthStatusIntervalMillis,
-					 TimeUnit.MILLISECONDS, secondaryExecutor);
+			HealthStatisticLogger healthLogger = new HealthStatisticLogger(CoAP.COAP_SECURE_URI_SCHEME + "-" + nodeId,
+					true);
 			if (healthLogger.isEnabled()) {
 				endpoint.addPostProcessInterceptor(healthLogger);
-				endpoint.addObserver(new EndpointObserver() {
-
-					@Override
-					public void stopped(Endpoint endpoint) {
-						healthLogger.stop();
-					}
-
-					@Override
-					public void started(Endpoint endpoint) {
-						healthLogger.start();
-					}
-
-					@Override
-					public void destroyed(Endpoint endpoint) {
-						healthLogger.stop();
-					}
-				});
-				healthLogger.start();
+				add(healthLogger);
 			}
 		}
 		if (endpointObserver != null) {

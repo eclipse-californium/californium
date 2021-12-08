@@ -22,6 +22,7 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
@@ -40,20 +41,28 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509KeyManager;
 
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
+import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.IntegerDefinition;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.DtlsHealthLogger;
 import org.eclipse.californium.scandium.MdcConnectionListener;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -157,16 +166,25 @@ public abstract class AbstractTestServer extends CoapServer {
 	 * 
 	 * Small value to prevent amplification.
 	 */
-	public static final IntegerDefinition EXTERNAL_UDP_PREFERRED_BLOCK_SIZE = new IntegerDefinition("EXTERNAL_UDP_PREFERRED_BLOCK_SIZE",
+	public static final IntegerDefinition EXTERNAL_UDP_PREFERRED_BLOCK_SIZE = new IntegerDefinition(
+			"EXTERNAL_UDP_PREFERRED_BLOCK_SIZE",
 			"Preferred blocksize for blockwise transfer with coap/UDP using an external network interface.", 64, 16);
 
 	/**
-	 * Maximum payload size before using blockwise when using coap/UDP on external interface.
+	 * Maximum payload size before using blockwise when using coap/UDP on external
+	 * interface.
 	 * 
 	 * Small value to prevent amplification.
 	 */
-	public static final IntegerDefinition EXTERNAL_UDP_MAX_MESSAGE_SIZE = new IntegerDefinition("EXTERNAL_UDP_MAX_MESSAGE_SIZE",
-			"Maximum payload size with coap/UDP using an external network interface.", 64, 16);
+	public static final IntegerDefinition EXTERNAL_UDP_MAX_MESSAGE_SIZE = new IntegerDefinition(
+			"EXTERNAL_UDP_MAX_MESSAGE_SIZE", "Maximum payload size with coap/UDP using an external network interface.",
+			64, 16);
+
+	/**
+	 * Interval to read number of dropped udp messages.
+	 */
+	public static final TimeDefinition UDP_DROPS_READ_INTERVAL = new TimeDefinition("UDP_DROPS_READ_INTERVAL",
+			"Interval to read upd drops from OS (currently only Linux).", 2000, TimeUnit.MILLISECONDS);
 
 	private final Configuration config;
 	private final Map<Select, Configuration> selectConfig;
@@ -285,21 +303,31 @@ public abstract class AbstractTestServer extends CoapServer {
 				continue;
 			}
 			if (interfaceTypes != null && !interfaceTypes.isEmpty()) {
-				if (addr.isLoopbackAddress()) {
+				if (addr.isLoopbackAddress() || addr.isLinkLocalAddress()) {
 					if (!interfaceTypes.contains(InterfaceType.LOCAL)) {
+						String scope = "???";
+						if (addr.isLoopbackAddress()) {
+							scope = "lo";
+						} else if (addr.isLinkLocalAddress()) {
+							scope = "link";
+						}
+						LOGGER.info("{}skip local {} ({})", getTag(), addr, scope);
 						continue;
 					}
 				} else {
 					if (!interfaceTypes.contains(InterfaceType.EXTERNAL)) {
+						LOGGER.info("{}skip external {}", getTag(), addr);
 						continue;
 					}
 				}
 				if (addr instanceof Inet4Address) {
 					if (!interfaceTypes.contains(InterfaceType.IPV4)) {
+						LOGGER.info("{}skip ipv4 {}", getTag(), addr);
 						continue;
 					}
 				} else if (addr instanceof Inet6Address) {
 					if (!interfaceTypes.contains(InterfaceType.IPV6)) {
+						LOGGER.info("{}skip ipv6 {}", getTag(), addr);
 						continue;
 					}
 				}
@@ -360,19 +388,22 @@ public abstract class AbstractTestServer extends CoapServer {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
 				if (protocols.contains(Protocol.DTLS)) {
 					Configuration dtlsConfig = getConfig(Protocol.DTLS, interfaceType);
-					int handshakeResultDelayMillis = dtlsConfig.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY, TimeUnit.MILLISECONDS);
+					int handshakeResultDelayMillis = dtlsConfig.getTimeAsInt(DTLS_HANDSHAKE_RESULT_DELAY,
+							TimeUnit.MILLISECONDS);
 
-					if (cliConfig.clientAuth != null) {
-						dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
-					}
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(dtlsConfig);
+					if (cliConfig.clientAuth != null) {
+						dtlsConfigBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+					}
+					String tag = "dtls:" + StringUtil.toString(bindToAddress);
+					dtlsConfigBuilder.setLoggingTag(tag);
 					AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
 					asyncPskStore.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 					dtlsConfigBuilder.setAddress(bindToAddress);
 					X509KeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
-					AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(keyManager,
-							CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+					AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(
+							keyManager, CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 					certificateProvider.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
 					AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier
@@ -390,6 +421,13 @@ public abstract class AbstractTestServer extends CoapServer {
 					resumptionVerifier.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setResumptionVerifier(resumptionVerifier);
 					dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
+					if (dtlsConfig.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS) > 0) {
+						DtlsHealthLogger health = new DtlsHealthLogger(tag);
+						dtlsConfigBuilder.setHealthHandler(health);
+						add(health);
+						// reset to prevent active logger
+						dtlsConfigBuilder.set(SystemConfig.HEALTH_STATUS_INTERVAL, 0, TimeUnit.MILLISECONDS);
+					}
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
@@ -425,11 +463,37 @@ public abstract class AbstractTestServer extends CoapServer {
 		}
 	}
 
-	protected void print(CoapEndpoint endpoint, InterfaceType interfaceType) {
+	protected void print(Endpoint endpoint, InterfaceType interfaceType) {
 		LOGGER.info("{}listen on {} ({}) max msg size: {}, block size: {}", getTag(), endpoint.getUri(), interfaceType,
 				endpoint.getConfig().get(CoapConfig.MAX_MESSAGE_SIZE),
 				endpoint.getConfig().get(CoapConfig.PREFERRED_BLOCK_SIZE));
 	}
+
+	public void addLogger(boolean messageTracer) {
+		// add special interceptor for message traces
+		for (Endpoint ep : getEndpoints()) {
+			URI uri = ep.getUri();
+			String scheme = uri.getScheme();
+			if (messageTracer) {
+				ep.addInterceptor(new MessageTracer());
+				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
+				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + scheme));
+			}
+			if (ep.getPostProcessInterceptors().isEmpty()) {
+				long healthStatusIntervalMillis = ep.getConfig().get(SystemConfig.HEALTH_STATUS_INTERVAL,
+						TimeUnit.MILLISECONDS);
+				if (healthStatusIntervalMillis > 0) {
+					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
+							CoAP.isUdpScheme(scheme));
+					if (healthLogger.isEnabled()) {
+						ep.addPostProcessInterceptor(healthLogger);
+						add(healthLogger);
+					}
+				}
+			}
+		}
+	}
+
 
 	public static class PlugPskStore implements AdvancedPskStore {
 
@@ -458,7 +522,8 @@ public abstract class AbstractTestServer extends CoapServer {
 
 		@Override
 		public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
-				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
+				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
+				boolean useExtendedMasterSecret) {
 			SecretKey key = getKey(identity.getPublicInfoAsString());
 			return new PskSecretResult(cid, identity, key);
 		}
