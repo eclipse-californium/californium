@@ -105,6 +105,8 @@ public interface Resource {
 	 * the name and adding it again after the name change.
 	 * 
 	 * @param name the new name
+	 * @throws NullPointerException if name is {@code null}
+	 * @throws IllegalArgumentException if the name contains a {@code /}
 	 */
 	public void setName(String name);
 	
