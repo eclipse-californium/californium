@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.MdcConnectionListener;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
@@ -91,6 +92,7 @@ public class SecureServer {
 		CredentialsUtil.setupCid(args, builder);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_SERVER_MODES, SUPPORTED_MODES);
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.SERVER_NAME, modes);
+		builder.setConnectionListener(new MdcConnectionListener());
 		DTLSConnector connector = new DTLSConnector(builder.build());
 		CoapEndpoint.Builder coapBuilder = new CoapEndpoint.Builder()
 				.setConfiguration(configuration)
