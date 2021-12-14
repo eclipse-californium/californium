@@ -79,12 +79,12 @@ else
 fi
 
 if [ -z "$1" ]  ; then
-	kubectl="microk8s.kubectl"
-	if ! [ -x "$(command -v microk8s.kubectl)" ]; then
-	  if [ -x "$(command -v kubectl)" ]; then
-	     kubectl="kubectl"
+	kubectl="kubectl"
+	if ! [ -x "$(command -v kubectl)" ]; then
+	  if [ -x "$(command -v microk8s.kubectl)" ]; then
+	     kubectl="microk8s.kubectl"
 	  else
-	     echo "missing kubectl, please provid hono-host!"
+	     echo "missing kubectl, please provide hono-host!"
 	     exit 1
 	  fi
 	fi
