@@ -20,6 +20,10 @@
 		<appender-ref ref="STDOUT" />
 	</logger>
 
+	<logger name="org.eclipse.californium.core.test.lockstep.IntegrationTestTools" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<logger name="org.eclipse.californium.core.network.stack.ReliabilityLayer" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>

@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * The BaseCoapStack passes the messages through the layers configured in the
  * stacks implementations.
  */
-public abstract class BaseCoapStack implements CoapStack {
+public abstract class BaseCoapStack implements CoapStack, ExtendedCoapStack {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BaseCoapStack.class);
 
@@ -167,6 +167,17 @@ public abstract class BaseCoapStack implements CoapStack {
 	@Override
 	public final boolean hasDeliverer() {
 		return deliverer != null;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T extends Layer> T getLayer(Class<T> type) {
+		for (Layer layer : layers) {
+			if (type.isInstance(layer)) {
+				return (T) layer;
+			}
+		}
+		return null;
 	}
 
 	@Override

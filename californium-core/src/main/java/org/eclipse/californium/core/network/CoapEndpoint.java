@@ -371,6 +371,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 *             but the connector is not a {@link UDPConnector}
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
+	@SuppressWarnings("deprecation")
 	protected CoapEndpoint(Connector connector, Configuration config,
 			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
 			EndpointContextMatcher endpointContextMatcher, DataSerializer serializer, DataParser parser,
@@ -404,8 +405,16 @@ public class CoapEndpoint implements Endpoint, Executor {
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{}{} uses {}", tag, getClass().getSimpleName(), endpointContextMatcher.getName());
 
-		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), this.tag, config, new OutboxImpl(),
-				customStackArgument);
+		if (coapStackFactory instanceof ExtendedCoapStackFactory) {
+			// use the new factory to pass in the matcher (since 3.1)
+			this.coapstack = ((ExtendedCoapStackFactory) coapStackFactory).createCoapStack(connector.getProtocol(),
+					this.tag, config, endpointContextMatcher, new OutboxImpl(), customStackArgument);
+		} else {
+			// use the old factory without protection for blockwise follow up requests
+			// deprecated, will be removed with 4.0
+			this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), this.tag, config,
+					new OutboxImpl(), customStackArgument);
+		}
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.useRequestOffloading = false; // no deduplication
@@ -1383,6 +1392,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		/**
 		 * Coap-stack-factory to create coap-stack.
 		 */
+		@SuppressWarnings("deprecation")
 		private CoapStackFactory coapStackFactory;
 		/**
 		 * Serializer to convert messages to datagrams.
@@ -1586,6 +1596,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		 * @return this
 		 * @see #coapStackFactory
 		 */
+		@SuppressWarnings("deprecation")
 		public Builder setCoapStackFactory(CoapStackFactory coapStackFactory) {
 			this.coapStackFactory = coapStackFactory;
 			return this;
@@ -1608,7 +1619,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		/**
 		 * Set logging tag.
 		 * 
-		 * @param tag logging tag. Defautls to connector's scheme.
+		 * @param tag logging tag. Defaults to connector's scheme.
 		 * @return this
 		 */
 		public Builder setLoggingTag(String tag) {
@@ -1678,23 +1689,34 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * {@link #setDefaultCoapStackFactory(CoapStackFactory)}. If an other
 	 * default factory is used, this one may be used to build a standard
 	 * coap-stack on demand.
+	 * 
+	 * Note: since 3.1 this is a {@link ExtendedCoapStackFactory} in order to
+	 * support to match blockwise follow-up requests.
 	 */
-	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new CoapStackFactory() {
+	@SuppressWarnings("deprecation")
+	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new ExtendedCoapStackFactory() {
+
+		@Override
+		public CoapStack createCoapStack(String protocol, String tag, Configuration config,
+				EndpointContextMatcher matchingStrategy, Outbox outbox, Object customStackArgument) {
+			if (CoAP.isTcpProtocol(protocol)) {
+				return new CoapTcpStack(tag, config, matchingStrategy, outbox);
+			} else {
+				return new CoapUdpStack(tag, config, matchingStrategy, outbox);
+			}
+		}
 
 		@Override
 		public CoapStack createCoapStack(String protocol, String tag, Configuration config, Outbox outbox,
 				Object customStackArgument) {
-			if (CoAP.isTcpProtocol(protocol)) {
-				return new CoapTcpStack(tag, config, outbox);
-			} else {
-				return new CoapUdpStack(tag, config, outbox);
-			}
+			return createCoapStack(protocol, tag, config, null, outbox, customStackArgument);
 		}
 	};
 
 	/**
 	 * Default coap-stack-factory. Intended to be set only once.
 	 */
+	@SuppressWarnings("deprecation")
 	private static CoapStackFactory defaultCoapStackFactory;
 
 	/**
@@ -1703,6 +1725,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * 
 	 * @return default coap-stack-factory
 	 */
+	@SuppressWarnings("deprecation")
 	private static synchronized CoapStackFactory getDefaultCoapStackFactory() {
 		if (defaultCoapStackFactory == null) {
 			defaultCoapStackFactory = STANDARD_COAP_STACK_FACTORY;
@@ -1720,6 +1743,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * @throws NullPointerException if new factory is {@code null}
 	 * @throws IllegalStateException if factory is already set.
 	 */
+	@SuppressWarnings("deprecation")
 	public static synchronized void setDefaultCoapStackFactory(CoapStackFactory newFactory) {
 		if (defaultCoapStackFactory != null) {
 			throw new IllegalStateException("Default coap-stack-factory already set!");

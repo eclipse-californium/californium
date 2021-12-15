@@ -27,6 +27,7 @@ package org.eclipse.californium.core.network.stack;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 
 /**
@@ -79,20 +80,36 @@ public class CoapTcpStack extends BaseCoapStack {
 	 * 
 	 * @param tag logging tag
 	 * @param config The configuration values to use.
-	 * @param outbox The adapter for submitting outbound messages to the transport.
-	 * @since 3.0 (logging tag added and changed parameter to Configuration)
+	 * @param matchingStrategy endpoint context matcher to relate responses with
+	 *            requests
+	 * @param outbox The adapter for submitting outbound messages to the
+	 *            transport.
+	 * @since 3.1
 	 */
-	public CoapTcpStack(String tag, Configuration config, Outbox outbox) {
+	public CoapTcpStack(String tag, Configuration config, EndpointContextMatcher matchingStrategy, Outbox outbox) {
 		super(outbox);
 
-		Layer layers[] = new Layer[] {
-				new TcpExchangeCleanupLayer(),
-				new TcpObserveLayer(config),
-				new BlockwiseLayer(tag, true, config),
-				new TcpAdaptionLayer() };
+		Layer layers[] = new Layer[] { new TcpExchangeCleanupLayer(), new TcpObserveLayer(config),
+				new BlockwiseLayer(tag, true, config, matchingStrategy), new TcpAdaptionLayer() };
 
 		setLayers(layers);
 
 		// make sure the endpoint sets a MessageDeliverer
+	}
+
+	/**
+	 * Creates a new stack using TCP as the transport.
+	 * 
+	 * @param tag logging tag
+	 * @param config The configuration values to use.
+	 * @param outbox The adapter for submitting outbound messages to the
+	 *            transport.
+	 * @deprecated use
+	 *             {@link #CoapTcpStack(String, Configuration, EndpointContextMatcher, Outbox)}
+	 *             instead.
+	 * @since 3.0 (logging tag added and changed parameter to Configuration)
+	 */
+	public CoapTcpStack(String tag, Configuration config, Outbox outbox) {
+		this(tag, config, null, outbox);
 	}
 }
