@@ -141,7 +141,7 @@ public class OSCoreAlgorithmsTest {
 		byte[] sid = new byte[] { 0x02 };
 		byte[] rid = new byte[] { 0x01 };
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
-		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
+		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
 
 		// send request
 		Request request = new Request(CoAP.Code.POST);

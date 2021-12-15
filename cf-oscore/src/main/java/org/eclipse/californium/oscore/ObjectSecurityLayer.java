@@ -131,7 +131,12 @@ public class ObjectSecurityLayer extends AbstractLayer {
 					return;
 				}
 
-				String uri = request.getURI();
+				final String uri;
+				if (request.getOptions().hasProxyUri()) {
+					uri = request.getOptions().getProxyUri();
+				} else {
+					uri = request.getURI();
+				}
 
 				if (uri == null) {
 					LOGGER.error(ErrorDescriptions.URI_NULL);

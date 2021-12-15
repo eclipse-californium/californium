@@ -47,7 +47,12 @@ public class RequestEncryptor extends Encryptor {
 	 */
 	public static Request encrypt(OSCoreCtxDB db, Request request) throws OSException {
 
-		String uri = request.getURI();
+		final String uri;
+		if (request.getOptions().hasProxyUri()) {
+			uri = request.getOptions().getProxyUri();
+		} else {
+			uri = request.getURI();
+		}
 		OSCoreCtx ctx = db.getContext(uri);
 
 		if (ctx == null) {

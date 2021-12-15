@@ -111,7 +111,12 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 	public void sendRequest(final Exchange exchange, final Request request) {
 		if (shouldProtectRequest(request)) {
 			try {
-				final String uri = request.getURI();
+				final String uri;
+				if (request.getOptions().hasProxyUri()) {
+					uri = request.getOptions().getProxyUri();
+				} else {
+					uri = request.getURI();
+				}
 
 				if (uri == null) {
 					LOGGER.error(ErrorDescriptions.URI_NULL);
