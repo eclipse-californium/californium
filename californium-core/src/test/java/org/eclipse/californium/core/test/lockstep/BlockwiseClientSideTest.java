@@ -65,6 +65,7 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
@@ -273,7 +274,7 @@ public class BlockwiseClientSideTest {
 		// We get the response the transfer is complete : BlockwiseLayer should
 		// be empty
 		request.waitForResponse();
-		assertTrue("BlockwiseLayer should be empty", client.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue("BlockwiseLayer should be empty", client.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 
 		clientInterceptor.logNewLine("// next transfer");
 		request = createRequest(GET, path, server);
@@ -296,7 +297,7 @@ public class BlockwiseClientSideTest {
 		// We get the response the transfer is complete : BlockwiseLayer should
 		// be empty
 		request.waitForResponse();
-		assertTrue("BlockwiseLayer should be empty", client.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue("BlockwiseLayer should be empty", client.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 
 		printServerLog(clientInterceptor);
 	}
@@ -1326,7 +1327,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 128).go();
 		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
-		assertTrue(!client.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue(!client.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 		// we don't answer to the last request, @after should check is there is
 		// no leak.
 
@@ -1359,7 +1360,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, PUT, path).storeBoth("C").block1(2, true, 128).payload(reqtPayload, 256, 384).go();
 		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 		
-		assertTrue(!client.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue(!client.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 		// we don't answer to the last request, @after should check is there is
 		// no leak.
 

@@ -20,29 +20,42 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapStackFactory;
+import org.eclipse.californium.core.network.ExtendedCoapStackFactory;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.CoapStack;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 
 /**
  * Coap stack factory creating a {@link OSCoreStack} including a
  * {@link ObjectSecurityLayer}.
  */
-public class OSCoreCoapStackFactory implements CoapStackFactory {
+public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 
 	private static AtomicBoolean init = new AtomicBoolean();
 	private static volatile OSCoreCtxDB defaultCtxDb;
 
 	@Override
-	public CoapStack createCoapStack(String protocol, String tag, Configuration config, Outbox outbox, Object customStackArgument) {
+	public CoapStack createCoapStack(String protocol, String tag, Configuration config,
+			EndpointContextMatcher matchingStrategy, Outbox outbox, Object customStackArgument) {
 		if (CoAP.isTcpProtocol(protocol)) {
 			throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 		}
 		OSCoreCtxDB ctxDb = defaultCtxDb;
 		if (customStackArgument != null) {
+			if (!(customStackArgument instanceof OSCoreCtxDB)) {
+				throw new IllegalArgumentException(
+						"custom argument must be a OSCoreCtxDB, not " + customStackArgument.getClass() + "!");
+			}
 			ctxDb = (OSCoreCtxDB) customStackArgument;
 		}
-		return new OSCoreStack(tag, config, outbox, ctxDb);
+		return new OSCoreStack(tag, config, matchingStrategy, outbox, ctxDb);
+	}
+
+	@Override
+	public CoapStack createCoapStack(String protocol, String tag, Configuration config, Outbox outbox,
+			Object customStackArgument) {
+		return createCoapStack(protocol, tag, config, null, outbox, customStackArgument);
 	}
 
 	/**

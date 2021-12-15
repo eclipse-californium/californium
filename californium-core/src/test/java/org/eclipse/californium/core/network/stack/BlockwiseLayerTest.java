@@ -66,7 +66,7 @@ public class BlockwiseLayerTest {
 				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 0);
 		Layer appLayer = mock(Layer.class);
 
-		final BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
+		final BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config, null);
 		blockwiseLayer.setUpperLayer(appLayer);
 
 		Request request = newReceivedBlockwiseRequest(256, 64);
@@ -89,7 +89,7 @@ public class BlockwiseLayerTest {
 		Layer outbox = mock(Layer.class);
 		ArgumentCaptor<Response> errorResponse = ArgumentCaptor.forClass(Response.class);
 
-		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config, null);
 		blockwiseLayer.setLowerLayer(outbox);
 
 		Request request = newReceivedBlockwiseRequest(256, 64);
@@ -113,7 +113,7 @@ public class BlockwiseLayerTest {
 				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
 				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 200);
 		MessageObserver requestObserver = mock(MessageObserver.class);
-		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config, null);
 
 		Request request = Request.newGet();
 		request.setURI("coap://127.0.0.1/bigResource");
@@ -139,7 +139,7 @@ public class BlockwiseLayerTest {
 				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
 				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, 200);
 		Layer upperLayer = mock(Layer.class);
-		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config, null);
 		blockwiseLayer.setUpperLayer(upperLayer);
 
 		// GIVEN an established observation of a resource with a body requiring blockwise transfer

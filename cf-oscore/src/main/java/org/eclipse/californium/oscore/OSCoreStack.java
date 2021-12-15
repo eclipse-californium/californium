@@ -25,6 +25,7 @@ import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 import org.eclipse.californium.core.network.stack.ExchangeCleanupLayer;
 import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 
 /**
@@ -33,6 +34,30 @@ import org.eclipse.californium.elements.config.Configuration;
  *
  */
 public class OSCoreStack extends BaseCoapStack {
+	/**
+	 * Creates a new stack for UDP as the transport.
+	 * 
+	 * @param tag logging tag
+	 * @param config The configuration values to use.
+	 * @param matchingStrategy endpoint context matcher to relate responses with
+	 *            requests
+	 * @param outbox The adapter for submitting outbound messages to the
+	 *            transport.
+	 * @param ctxDb context DB.
+	 * @since 3.1
+	 */
+	public OSCoreStack(String tag, Configuration config, EndpointContextMatcher matchingStrategy, Outbox outbox, OSCoreCtxDB ctxDb) {
+		super(outbox);
+
+		Layer layers[] = new Layer[] {
+				new ObjectSecurityContextLayer(ctxDb),
+				new ExchangeCleanupLayer(config),
+				new ObserveLayer(config),
+				new BlockwiseLayer(tag, false, config, matchingStrategy),
+				CongestionControlLayer.newImplementation(tag, config),
+				new ObjectSecurityLayer(ctxDb)};
+		setLayers(layers);
+	}
 
 	/**
 	 * Creates a new stack for UDP as the transport.
@@ -42,18 +67,12 @@ public class OSCoreStack extends BaseCoapStack {
 	 * @param outbox The adapter for submitting outbound messages to the
 	 *            transport.
 	 * @param ctxDb context DB.
+	 * @deprecated use
+	 *             {@link #OSCoreStack(String, Configuration, EndpointContextMatcher, Outbox, OSCoreCtxDB)}
+	 *             instead
 	 * @since 3.0 (logging tag added and changed parameter to Configuration)
 	 */
 	public OSCoreStack(String tag, Configuration config, Outbox outbox, OSCoreCtxDB ctxDb) {
-		super(outbox);
-
-		Layer layers[] = new Layer[] {
-				new ObjectSecurityContextLayer(ctxDb),
-				new ExchangeCleanupLayer(config),
-				new ObserveLayer(config),
-				new BlockwiseLayer(tag, false, config),
-				CongestionControlLayer.newImplementation(tag, config),
-				new ObjectSecurityLayer(ctxDb)};
-		setLayers(layers);
+		this(tag, config, null, outbox, ctxDb);
 	}
 }

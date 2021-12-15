@@ -43,6 +43,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.NON;
+import static org.eclipse.californium.core.coap.CoAP.Type.RST;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
@@ -59,14 +60,22 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.network.UdpMatcher;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
+import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.assume.TimeAssume;
 import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.TestCondition;
@@ -101,6 +110,9 @@ public class BlockwiseServerSideTest {
 
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
+
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
 
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
@@ -383,7 +395,7 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
 		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
-		assertTrue(!serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue(!serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 
 		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
@@ -391,11 +403,11 @@ public class BlockwiseServerSideTest {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
-				return serverEndpoint.getStack().getBlockwiseLayer().isEmpty();
+				return serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty();
 			}
 		});
 
-		assertTrue(serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue(serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 
 		serverInterceptor.logNewLine("//////// Missing last GET ////////");
 	}
@@ -434,7 +446,7 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go();
 		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
-		assertTrue(!serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue(!serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 
 		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
@@ -442,11 +454,11 @@ public class BlockwiseServerSideTest {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
-				return serverEndpoint.getStack().getBlockwiseLayer().isEmpty();
+				return serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty();
 			}
 		});
 
-		assertTrue(serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue(serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 		
 		serverInterceptor.logNewLine("//////// Missing last PUT ////////");
 	}
@@ -499,7 +511,7 @@ public class BlockwiseServerSideTest {
 		assume.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
 		// Transfer is complete : ensure BlockwiseLayer is empty.
-		assertTrue("BlockwiseLayer should be empty", serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue("BlockwiseLayer should be empty", serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 
 		// Try another BlockwiseLayer transfer from same peer, same URL, same
 		// option.
@@ -521,7 +533,7 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, ResponseCode.CHANGED, tok, mid).block1(2, false, 128).go(assume);
 		assume.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
 
-		assertTrue("blockwise layer should be empty", serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue("blockwise layer should be empty", serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 	}
 
 	/**
@@ -644,6 +656,40 @@ public class BlockwiseServerSideTest {
 		// now send last block without having sent middle block altogether
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, false, 128).payload(reqtPayload, 256, 300).go();
 		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).go();
+	}
+
+	/**
+	 * Verifies that a block1 transfer fails with a RST, if the follow-up request 
+	 * has no matching endpoint context.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTFailsWithChangingEndpointContext() throws Exception {
+		Token tok = generateNextToken();
+		reqtPayload = generateRandomPayload(300);
+
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload, 0, 128).go();
+		client.expectResponse(ACK, CONTINUE, tok, mid).block1(0, true, 128).go();
+
+		logging.setLoggingLevel("ERROR", UdpMatcher.class);
+
+		serverEndpoint.addInterceptor(new MessageInterceptorAdapter() {
+
+			@Override
+			public void receiveRequest(Request request) {
+				EndpointContext originalSourceContext = request.getSourceContext();
+				Attributes breaking = new Attributes();
+				EndpointContext breakingSourceContext = MapBasedEndpointContext.setEntries(originalSourceContext, breaking);
+				request.setSourceContext(breakingSourceContext);
+			}
+
+
+		});
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128).payload(reqtPayload, 128, 256)
+				.go();
+		client.expectEmpty(RST, mid).go();
 	}
 
 	/**
