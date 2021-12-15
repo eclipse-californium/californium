@@ -103,6 +103,8 @@ public class OSCoreServerClientTest {
 
 	/**
 	 * Tests working OSCORE confirmable request and response.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testConfirmable() throws Exception {	
@@ -112,7 +114,7 @@ public class OSCoreServerClientTest {
 		byte[] sid = new byte[0];
 		byte[] rid = new byte[] { 0x01 };
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
-		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
+		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
 
 		// send request
 		Request request = new Request(CoAP.Code.POST);
@@ -134,9 +136,12 @@ public class OSCoreServerClientTest {
 	}
 
 	/**
-	 * Tests OSCORE functionality when the server replies with a non-OSCORE CoAP error message.
-	 * In this test the client Sender ID is modified to be incorrect.
-	 * The server will reply with an error message with a payload describing the error.
+	 * Tests OSCORE functionality when the server replies with a non-OSCORE CoAP
+	 * error message. In this test the client Sender ID is modified to be
+	 * incorrect. The server will reply with an error message with a payload
+	 * describing the error.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testErrorResponse() throws Exception {	
@@ -146,7 +151,7 @@ public class OSCoreServerClientTest {
 		byte[] sid = new byte[] { 0x77 }; //Modified sender ID to be incorrect
 		byte[] rid = new byte[] { 0x01 };
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
-		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
+		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
 		
 		// send request
 		Request request = new Request(CoAP.Code.POST);
@@ -175,6 +180,8 @@ public class OSCoreServerClientTest {
 	 * many contexts match that RID). The server replies with a non-OSCORE CoAP
 	 * error message. The server will reply with an error message with a payload
 	 * describing the error.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testIncludeContextIDResponse() throws Exception {	
@@ -185,13 +192,13 @@ public class OSCoreServerClientTest {
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
 		OSCoreCtx serverCtxDup = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, Bytes.EMPTY, MAX_UNFRAGMENTED_SIZE);
-		dbServer.addContext("coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostName(), serverCtxDup);
+		dbServer.addContext(serverCtxDup);
 
 		//Set up OSCORE context information for request (client)
 		sid = Bytes.EMPTY;
 		rid = new byte[] { 0x01 };
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
-		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
+		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
 		
 		// send request
 		Request request = new Request(CoAP.Code.POST);
@@ -247,7 +254,7 @@ public class OSCoreServerClientTest {
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
-		dbServer.addContext("coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostName(), ctx);
+		dbServer.addContext(ctx);
 
 		//Create server
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();

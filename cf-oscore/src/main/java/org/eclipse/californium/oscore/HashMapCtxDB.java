@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.util.Bytes;
@@ -292,8 +293,10 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	 */
 	private static String normalizeServerUri(String uri) throws OSException {
 		String normalized = null;
+		int port = -1;
 
 		try {
+			port = (new URI(uri)).getPort();
 			normalized = (new URI(uri)).getHost();
 		} catch (URISyntaxException e) {
 			// workaround for openjdk bug JDK-8199396.
@@ -341,7 +344,12 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 			LOGGER.error("Error finding host of request URI: " + uri + " message: " + e.getMessage());
 		}
 		if (ipv6Addr instanceof Inet6Address) {
-			normalized = ipv6Addr.getHostAddress();
+			normalized = "[" + ipv6Addr.getHostAddress() + "]";
+		}
+
+		// Consider port, if not default
+		if (port != -1 && port != CoAP.DEFAULT_COAP_PORT) {
+			normalized = normalized + ":" + port;
 		}
 
 		return normalized;
