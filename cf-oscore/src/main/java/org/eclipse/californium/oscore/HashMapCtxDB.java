@@ -296,8 +296,9 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		int port = -1;
 
 		try {
-			port = (new URI(uri)).getPort();
-			normalized = (new URI(uri)).getHost();
+			URI serverUri = new URI(uri);
+			port = serverUri.getPort();
+			normalized = serverUri.getHost();
 		} catch (URISyntaxException e) {
 			// workaround for openjdk bug JDK-8199396.
 			// some characters are not supported for the ipv6 scope.
