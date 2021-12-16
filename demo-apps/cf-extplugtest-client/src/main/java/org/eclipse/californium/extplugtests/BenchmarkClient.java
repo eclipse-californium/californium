@@ -525,7 +525,6 @@ public class BenchmarkClient {
 	private static volatile long timeReverseResponseNanos;
 	private static volatile HealthStatisticLogger health;
 	private static volatile NetStatLogger netstat4;
-	private static volatile NetStatLogger netstat6;
 	private static volatile boolean done;
 
 	/**
@@ -1231,8 +1230,7 @@ public class BenchmarkClient {
 		final AtomicBoolean errors = new AtomicBoolean();
 		health = new HealthStatisticLogger(uri.getScheme(), CoAP.isUdpScheme(uri.getScheme()));
 		if (CoAP.isUdpScheme(uri.getScheme())) {
-			netstat4 = new NetStatLogger("udp4", false);
-			netstat6 = new NetStatLogger("udp6", true);
+			netstat4 = new NetStatLogger("udp");
 		}
 		final String tag = config.tag == null ? "client-" : config.tag;
 		final int pskOffset = config.pskIndex != null ? config.pskIndex : 0;
@@ -1695,9 +1693,6 @@ public class BenchmarkClient {
 		health.dump();
 		if (netstat4 != null) {
 			netstat4.dump();
-		}
-		if (netstat6 != null) {
-			netstat6.dump();
 		}
 	}
 
