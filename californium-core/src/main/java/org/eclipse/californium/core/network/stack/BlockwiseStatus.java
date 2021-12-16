@@ -57,7 +57,7 @@ public abstract class BlockwiseStatus {
 	protected EndpointContext followUpEndpointContext;
 
 	private ScheduledFuture<?> cleanUpTask;
-	private Message first;
+	protected Message first;
 	private int currentNum;
 	private int currentSzx;
 	private boolean complete;

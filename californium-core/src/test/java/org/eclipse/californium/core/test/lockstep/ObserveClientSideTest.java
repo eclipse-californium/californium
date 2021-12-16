@@ -65,6 +65,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
@@ -430,9 +431,9 @@ public class ObserveClientSideTest {
 		// ensure client don't ask for block anymore
 		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
 		assertNull("No block2 message expected anymore", message);
-		assertTrue("Blockwise layer must be empty", client.getStack().getBlockwiseLayer().isEmpty());
+		assertTrue("Blockwise layer must be empty", client.getStack().getLayer(BlockwiseLayer.class).isEmpty());
 
-		// Send new notif without block
+		// Send new notify without block
 		notifyPayload = generateRandomPayload(8);
 		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(3).mid(++mid).payload(notifyPayload).go();
 		server.expectEmpty(ACK, mid).go();

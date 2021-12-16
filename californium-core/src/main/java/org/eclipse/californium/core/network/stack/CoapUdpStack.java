@@ -31,6 +31,7 @@ import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * The CoAPStack builds up the stack of CoAP layers that process the CoAP
@@ -84,7 +85,35 @@ public class CoapUdpStack extends BaseCoapStack {
 	 * Creates a new stack for UDP as the transport.
 	 * 
 	 * @param config The configuration values to use.
+	 * @param matchingStrategy endpoint context matcher to relate responses with
+	 *            requests
 	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 * @since 3.1 (back-ported to 2.7.0)
+	 */
+	public CoapUdpStack(final NetworkConfig config, final EndpointContextMatcher matchingStrategy, final Outbox outbox) {
+		super(outbox);
+		ReliabilityLayer reliabilityLayer;
+		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL) == true) {
+			reliabilityLayer = CongestionControlLayer.newImplementation(config);
+			LOGGER.info("Enabling congestion control: {}", reliabilityLayer.getClass().getSimpleName());
+		} else {
+			reliabilityLayer = new ReliabilityLayer(config);
+		}
+		Layer layers[] = new Layer[] {
+				new ExchangeCleanupLayer(config),
+				new ObserveLayer(config),
+				new BlockwiseLayer(config, matchingStrategy),
+				reliabilityLayer};
+
+		setLayers(layers);
+	}
+
+	/**
+	 * Creates a new stack for UDP as the transport.
+	 * 
+	 * @param config The configuration values to use.
+	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 * @deprecated use {@link #CoapUdpStack(NetworkConfig, EndpointContextMatcher, Outbox)} instead.
 	 */
 	public CoapUdpStack(final NetworkConfig config, final Outbox outbox) {
 		super(outbox);
@@ -97,18 +126,22 @@ public class CoapUdpStack extends BaseCoapStack {
 		setLayers(layers);
 	}
 
+	@Deprecated
 	protected Layer createExchangeCleanupLayer(NetworkConfig config) {
 		return new ExchangeCleanupLayer(config);
 	}
 
+	@Deprecated
 	protected Layer createObserveLayer(NetworkConfig config) {
 		return new ObserveLayer(config);
 	}
 
+	@Deprecated
 	protected Layer createBlockwiseLayer(NetworkConfig config) {
-		return new BlockwiseLayer(config);
+		return new BlockwiseLayer(config, null);
 	}
 
+	@Deprecated
 	protected Layer createReliabilityLayer(NetworkConfig config) {
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL) == true) {

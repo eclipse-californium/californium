@@ -28,6 +28,7 @@ import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * The CoapTcpStack builds up the stack of CoAP layers that process the CoAP
@@ -73,24 +74,37 @@ import org.eclipse.californium.elements.Connector;
  * </pre></blockquote><hr>
  */
 public class CoapTcpStack extends BaseCoapStack {
+	/**
+	 * Creates a new stack using TCP as the transport.
+	 * 
+	 * @param config The configuration values to use.
+	 * @param matchingStrategy endpoint context matcher to relate responses with
+	 *            requests
+	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 * @since 3.1 (back-ported to 2.7.0)
+	 */
+	public CoapTcpStack(final NetworkConfig config, final EndpointContextMatcher matchingStrategy, final Outbox outbox) {
+		super(outbox);
+
+		Layer layers[] = new Layer[] {
+				new TcpExchangeCleanupLayer(),
+				new TcpObserveLayer(config),
+				new BlockwiseLayer(config, matchingStrategy),
+				new TcpAdaptionLayer() };
+
+		setLayers(layers);
+
+		// make sure the endpoint sets a MessageDeliverer
+	}
 
 	/**
 	 * Creates a new stack using TCP as the transport.
 	 * 
 	 * @param config The configuration values to use.
 	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 * @deprecated use {@link #CoapTcpStack(NetworkConfig, EndpointContextMatcher, Outbox)} instead.
 	 */
 	public CoapTcpStack(final NetworkConfig config, final Outbox outbox) {
-		super(outbox);
-
-		Layer layers[] = new Layer[] {
-				new TcpExchangeCleanupLayer(),
-				new TcpObserveLayer(config),
-				new BlockwiseLayer(config),
-				new TcpAdaptionLayer() };
-
-		setLayers(layers);
-
-		// make sure the endpoint sets a MessageDeliverer
+		this(config, null, outbox);
 	}
 }

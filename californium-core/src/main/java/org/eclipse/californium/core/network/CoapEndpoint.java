@@ -467,7 +467,16 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{}{} uses {}", tag, getClass().getSimpleName(), endpointContextMatcher.getName());
 
-		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), config, new OutboxImpl(), customStackArgument);
+		if (coapStackFactory instanceof ExtendedCoapStackFactory) {
+			// endpoint context matching for blockwise follow up requests
+			this.coapstack = ((ExtendedCoapStackFactory) coapStackFactory).createCoapStack(connector.getProtocol(),
+					config, endpointContextMatcher, new OutboxImpl(), customStackArgument);
+		} else {
+			// no check for blockwise follow up requests, support for deprecated API
+			// not recommended
+			this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), config, new OutboxImpl(),
+					customStackArgument);
+		}
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.useRequestOffloading = false; // no deduplication
@@ -1982,15 +1991,26 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 	 * {@link #setDefaultCoapStackFactory(CoapStackFactory)}. If an other
 	 * default factory is used, this one may be used to build a standard
 	 * coap-stack on demand.
+	 * 
+	 * Note: since 3.1 (back-ported to 2.7) this is a {@link ExtendedCoapStackFactory} in order to
+	 * support to match blockwise follow-up requests.
 	 */
-	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new CoapStackFactory() {
+	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new ExtendedCoapStackFactory() {
 
-		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+		@Override
+		public CoapStack createCoapStack(String protocol, NetworkConfig config,
+				EndpointContextMatcher matchingStrategy, Outbox outbox, Object customStackArgument) {
 			if (CoAP.isTcpProtocol(protocol)) {
-				return new CoapTcpStack(config, outbox);
+				return new CoapTcpStack(config, matchingStrategy, outbox);
 			} else {
-				return new CoapUdpStack(config, outbox);
+				return new CoapUdpStack(config, matchingStrategy, outbox);
 			}
+		}
+
+		@Override
+		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox,
+				Object customStackArgument) {
+			return createCoapStack(protocol, config, null, outbox, customStackArgument);
 		}
 	};
 

@@ -27,20 +27,15 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.CoapStackFactory;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
-import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
-import org.eclipse.californium.core.network.stack.CoapStack;
-import org.eclipse.californium.core.network.stack.CoapUdpStack;
-import org.eclipse.californium.core.network.stack.Layer;
+import org.eclipse.californium.core.network.stack.ExtendedCoapStack;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
@@ -161,39 +156,6 @@ public class MessageExchangeStoreTool {
 		return empty;
 	}
 
-	private static final CoapStackFactory COAP_STACK_TEST_FACTORY = new CoapStackFactory() {
-
-		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
-			if (CoAP.isTcpProtocol(protocol)) {
-				throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
-			}
-			return new CoapUdpTestStack(config, outbox);
-		}
-	};
-
-	public static class CoapUdpTestStack extends CoapUdpStack {
-
-		private BlockwiseLayer blockwiseLayer;
-
-		public CoapUdpTestStack(NetworkConfig config, Outbox outbox) {
-			super(config, outbox);
-		}
-
-		@Override
-		protected Layer createBlockwiseLayer(NetworkConfig config) {
-			blockwiseLayer = (BlockwiseLayer) super.createBlockwiseLayer(config);
-			return blockwiseLayer;
-		}
-
-		public BlockwiseLayer getBlockwiseLayer() {
-			return blockwiseLayer;
-		}
-
-		public boolean isEmpty() {
-			return blockwiseLayer == null || blockwiseLayer.isEmpty();
-		}
-	}
-
 	public static class CoapTestEndpoint extends CoapEndpoint {
 
 		private final InMemoryMessageExchangeStore exchangeStore;
@@ -205,7 +167,7 @@ public class MessageExchangeStoreTool {
 				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore,
 				EndpointContextMatcher matcher) {
 			super(connector, applyConfiguration, config, new RandomTokenGenerator(config), observationStore,
-					exchangeStore, matcher, null, null, null, COAP_STACK_TEST_FACTORY, null);
+					exchangeStore, matcher, null, null, null, null, null);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
@@ -239,12 +201,12 @@ public class MessageExchangeStoreTool {
 			return observationStore;
 		}
 
-		public CoapUdpTestStack getStack() {
-			return (CoapUdpTestStack) coapstack;
+		public ExtendedCoapStack getStack() {
+			return (ExtendedCoapStack) coapstack;
 		}
 
 		public boolean isEmpty() {
-			return exchangeStore.isEmpty() && getStack().isEmpty();
+			return exchangeStore.isEmpty() && getStack().getLayer(BlockwiseLayer.class).isEmpty();
 		}
 
 		@Override

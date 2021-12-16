@@ -80,6 +80,8 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,6 +165,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
 	private final AtomicInteger ignoredBlock2 = new AtomicInteger();
+	private final EndpointContextMatcher matchingStrategy;
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
 	private int maxMessageSize;
@@ -209,9 +212,50 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * </ul>
 
 	 * @param config The configuration values to use.
+	 * @deprecated use {@link BlockwiseLayer#BlockwiseLayer(NetworkConfig, EndpointContextMatcher)} instead
 	 */
 	public BlockwiseLayer(final NetworkConfig config) {
+		this(config, null);
+	}
 
+	/**
+	 * Creates a new blockwise layer for a configuration.
+	 * <p>
+	 * The following configuration properties are used:
+	 * <ul>
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_MESSAGE_SIZE} -
+	 * This value is used as the threshold for determining
+	 * whether an inbound or outbound message's body needs to be transferred blockwise.
+	 * If not set, a default value of 4096 bytes is used.</li>
+	 * 
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#PREFERRED_BLOCK_SIZE} -
+	 * This value is used as the value proposed to a peer when doing a transparent blockwise transfer.
+	 * The value indicates the number of bytes, not the szx code.
+	 * If not set, a default value of 1024 bytes is used.</li>
+	 * 
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MAX_RESOURCE_BODY_SIZE} -
+	 * This value (in bytes) is used as the upper limit for the size of the buffer used for assembling
+	 * blocks of a transparent blockwise transfer. Resource bodies larger than this value can only be
+	 * transferred in a manually managed blockwise transfer. Setting this value to 0 disables transparent
+	 * blockwise handling altogether, i.e. all messages will simply be forwarded directly up and down to
+	 * the next layer.
+	 * If not set, a default value of 8192 bytes is used.</li>
+	 * 
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STATUS_LIFETIME} -
+	 * The maximum amount of time (in milliseconds) allowed between transfers of individual blocks before
+	 * the blockwise transfer state is discarded.
+	 * If not set, a default value of 30 seconds is used.</li>
+	 * 
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} -
+	 * This value is used to indicate if the response should always include the Block2 option when client request early blockwise negociation but the response can be sent on one packet.
+	 * If not set, the default value is {@link org.eclipse.californium.core.network.config.NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}</li>
+	 * </ul>
+
+	 * @param config The configuration values to use.
+	 * @param matchingStrategy endpoint context matcher to relate follow-up requests
+	 */
+	public BlockwiseLayer(final NetworkConfig config, final EndpointContextMatcher matchingStrategy) {
+		this.matchingStrategy = matchingStrategy;
 		maxMessageSize = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, NetworkConfigDefaults.DEFAULT_MAX_MESSAGE_SIZE);
 		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
 		preferredBlockSzx = BlockOption.size2Szx(preferredBlockSize);
@@ -1194,16 +1238,25 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	private Block1BlockwiseStatus getInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
+		boolean check = true;
 		Block1BlockwiseStatus status;
 		int maxPayloadSize = getMaxResourceBodySize(request);
 		synchronized (block1Transfers) {
 			status = block1Transfers.get(key);
 			if (status == null) {
+				check = false;
 				status = Block1BlockwiseStatus.forInboundRequest(exchange, request, maxPayloadSize);
 				block1Transfers.put(key, status);
 				enableStatus = true;
 				LOGGER.debug("created tracker for inbound block1 transfer {}, transfers in progress: {}", status,
 						block1Transfers.size());
+			}
+		}
+		if (check && matchingStrategy != null) {
+			EndpointContext sourceContext1 = status.first.getSourceContext();
+			EndpointContext sourceContext2 = request.getSourceContext();
+			if (!matchingStrategy.isResponseRelatedToRequest(sourceContext1, sourceContext2)) {
+				throw new IllegalArgumentException("Endpoint context mismatch!");
 			}
 		}
 		// register a task for cleaning up if the peer does not send all blocks
@@ -1292,7 +1345,6 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	private Block1BlockwiseStatus getBlock1Status(final KeyUri key) {
-
 		synchronized (block1Transfers) {
 			return block1Transfers.get(key);
 		}
