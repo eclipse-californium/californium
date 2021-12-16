@@ -45,6 +45,7 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  * <li>Option numbers</li>
  * <li>Message format</li>
  * </ul>
+ * 
  * @see OptionNumberRegistry
  * @see MediaTypeRegistry
  */
@@ -137,7 +138,7 @@ public final class CoAP {
 	 * Gets the string representation of a CoAP code.
 	 * 
 	 * @param code the CoAP code.
-	 * @return a string following the pattern C.DD where C is the code class nd DD is the code detail.
+	 * @return a string following the pattern C.DD where C is the code class and DD is the code detail.
 	 */
 	public static String formatCode(final int code) {
 		return formatCode(getCodeClass(code), getCodeDetail(code));
@@ -189,10 +190,24 @@ public final class CoAP {
 	}
 
 	/**
+	 * Checks, if provided protocol is {@link #PROTOCOL_UDP} or {@link #PROTOCOL_DTLS}.
+	 * 
+	 * @param protocol protocol to be checked
+	 * @return {@code true}, if the provided protocol matches one of the list
+	 *         above, {@code false}, otherwise.
+	 * @since 3.1
+	 */
+	public static boolean isUdpProtocol(final String protocol) {
+		return PROTOCOL_UDP.equalsIgnoreCase(protocol) 
+				|| PROTOCOL_DTLS.equalsIgnoreCase(protocol);
+	}
+
+	/**
 	 * Checks, if provided protocol is {@link #PROTOCOL_TCP} or {@link #PROTOCOL_TLS}.
 	 * 
 	 * @param protocol protocol to be checked
-	 * @return true, if the provided protocol matchs one of the list above, false, otherwise.
+	 * @return {@code true}, if the provided protocol matches one of the list
+	 *         above, {@code false}, otherwise.
 	 */
 	public static boolean isTcpProtocol(final String protocol) {
 		return PROTOCOL_TCP.equalsIgnoreCase(protocol)
@@ -203,7 +218,8 @@ public final class CoAP {
 	 * Checks, if provided protocol is {@link #PROTOCOL_DTLS} or {@link #PROTOCOL_TLS}.
 	 * 
 	 * @param protocol protocol to be checked
-	 * @return true, if the provided protocol matchs one of the list above, false, otherwise.
+	 * @return {@code true}, if the provided protocol matches one of the list
+	 *         above, {@code false}, otherwise.
 	 */
 	public static boolean isSecureProtocol(final String protocol) {
 		return PROTOCOL_DTLS.equalsIgnoreCase(protocol)
@@ -211,10 +227,24 @@ public final class CoAP {
 	}
 
 	/**
+	 * Checks, if provided scheme is {@link #COAP_URI_SCHEME} or {@link #COAP_SECURE_URI_SCHEME}.
+	 * 
+	 * @param uriScheme scheme to be checked
+	 * @return {@code true}, if the provided scheme matches one of the list
+	 *         above, {@code false}, otherwise.
+	 * @since 3.1
+	 */
+	public static boolean isUdpScheme(final String uriScheme) {
+		return COAP_URI_SCHEME.equalsIgnoreCase(uriScheme)
+				|| COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme);
+	}
+
+	/**
 	 * Checks, if provided scheme is {@link #COAP_TCP_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
 	 * 
 	 * @param uriScheme scheme to be checked
-	 * @return true, if the provided scheme match one of the list above, false, otherwise.
+	 * @return {@code true}, if the provided scheme matches one of the list
+	 *         above, {@code false}, otherwise.
 	 */
 	public static boolean isTcpScheme(final String uriScheme) {
 		return COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)
@@ -225,7 +255,8 @@ public final class CoAP {
 	 * Checks, if provided scheme is {@link #COAP_SECURE_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
 	 * 
 	 * @param uriScheme scheme to be checked
-	 * @return true, if the provided scheme match one of the list above, false, otherwise.
+	 * @return {@code true}, if the provided scheme matches one of the list
+	 *         above, {@code false}, otherwise.
 	 */
 	public static boolean isSecureScheme(final String uriScheme) {
 		return COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)
@@ -236,7 +267,8 @@ public final class CoAP {
 	 * Checks, if provided scheme is {@link #COAP_URI_SCHEME}, {@link #COAP_SECURE_URI_SCHEME}, {@link #COAP_TCP_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
 	 * 
 	 * @param uriScheme scheme to be checked
-	 * @return true, if the provided scheme match one of the list above, false, otherwise.
+	 * @return {@code true}, if the provided scheme matches one of the list
+	 *         above, {@code false}, otherwise.
 	 */
 	public static boolean isSupportedScheme(final String uriScheme) {
 		return CoAP.COAP_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
@@ -421,7 +453,7 @@ public final class CoAP {
 		/** The server error response class code. */
 		SERVER_ERROR_RESPONSE(5),
 
-		/** The signaling  class code. */
+		/** The signaling class code. */
 		SIGNAL(7);
 
 		/** The code value. */
@@ -481,7 +513,7 @@ public final class CoAP {
 		/** The IPATCH code. */
 		IPATCH(7),
 
-		/** 
+		/**
 		 * The custom code 30.
 		 * 
 		 * Support for openHAB custom CoAP extension, CoIoT, used for shelly binding.
@@ -495,8 +527,9 @@ public final class CoAP {
 
 		/** The code value. */
 		public final int value;
-		/** 
+		/**
 		 * The code value in textual format. "0.dd"
+		 * 
 		 * @since 2.1
 		 */
 		public final String text;
@@ -558,7 +591,8 @@ public final class CoAP {
 	public enum ResponseCode {
 
 		// Success: 2.01 - 2.31
-		_UNKNOWN_SUCCESS_CODE(CodeClass.SUCCESS_RESPONSE, 0), // undefined -- only used to identify class
+		// undefined -- only used to identify class
+		_UNKNOWN_SUCCESS_CODE(CodeClass.SUCCESS_RESPONSE, 0),
 		CREATED(CodeClass.SUCCESS_RESPONSE, 1),
 		DELETED(CodeClass.SUCCESS_RESPONSE, 2),
 		VALID(CodeClass.SUCCESS_RESPONSE, 3),
@@ -594,8 +628,9 @@ public final class CoAP {
 		public final int value;
 		public final int codeClass;
 		public final int codeDetail;
-		/** 
+		/**
 		 * The code value in textual format. "c.dd"
+		 * 
 		 * @since 2.1
 		 */
 		public final String text;
@@ -620,7 +655,7 @@ public final class CoAP {
 		 * @return {@code true} if the given code's class is {@link CodeClass#SUCCESS_RESPONSE}).
 		 * @since 3.0
 		 */
-		public  boolean isSuccess() {
+		public boolean isSuccess() {
 			return codeClass == CodeClass.SUCCESS_RESPONSE.value;
 		}
 
@@ -735,14 +770,15 @@ public final class CoAP {
 	 * CoAP message format.
 	 */
 	public final class MessageFormat {
+
 		/** The length of len nibble when running in TCP mode. */
 		public static final int LENGTH_NIBBLE_BITS = 4;
 
 		/** number of bits used for the encoding of the CoAP version field. */
-		public static final int VERSION_BITS     = 2;
+		public static final int VERSION_BITS = 2;
 
 		/** number of bits used for the encoding of the message type field. */
-		public static final int TYPE_BITS        = 2;
+		public static final int TYPE_BITS = 2;
 
 		/** number of bits used for the encoding of the token length field. */
 		public static final int TOKEN_LENGTH_BITS = 4;
