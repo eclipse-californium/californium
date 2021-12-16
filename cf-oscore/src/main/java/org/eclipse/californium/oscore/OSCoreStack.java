@@ -29,6 +29,7 @@ import org.eclipse.californium.core.network.stack.ExchangeCleanupLayer;
 import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * 
@@ -49,8 +50,9 @@ public class OSCoreStack extends BaseCoapStack {
 	 * @param outbox The adapter for submitting outbound messages to the
 	 *            transport.
 	 * @param ctxDb context DB.
+	 * @since 3.1 (back-ported to 2.7.0)
 	 */
-	public OSCoreStack(final NetworkConfig config, final Outbox outbox, final OSCoreCtxDB ctxDb) {
+	public OSCoreStack(final NetworkConfig config, final EndpointContextMatcher matchingStrategy, final Outbox outbox, final OSCoreCtxDB ctxDb) {
 		super(outbox);
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL)) {
@@ -61,8 +63,21 @@ public class OSCoreStack extends BaseCoapStack {
 		}
 
 		Layer layers[] = new Layer[] { new ObjectSecurityContextLayer(ctxDb), new ExchangeCleanupLayer(config),
-				new ObserveLayer(config), new BlockwiseLayer(config), reliabilityLayer,
+				new ObserveLayer(config), new BlockwiseLayer(config, matchingStrategy), reliabilityLayer,
 				new ObjectSecurityLayer(ctxDb), };
 		setLayers(layers);
+	}
+
+	/**
+	 * Creates a new stack for UDP as the transport.
+	 * 
+	 * @param config The configuration values to use.
+	 * @param outbox The adapter for submitting outbound messages to the
+	 *            transport.
+	 * @param ctxDb context DB.
+	 * @deprecated use {@link #OSCoreStack(NetworkConfig, EndpointContextMatcher, Outbox, OSCoreCtxDB)} instead.
+	 */
+	public OSCoreStack(final NetworkConfig config, final Outbox outbox, final OSCoreCtxDB ctxDb) {
+		this(config, null, outbox, ctxDb);
 	}
 }

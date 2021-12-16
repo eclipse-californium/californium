@@ -20,29 +20,41 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapStackFactory;
+import org.eclipse.californium.core.network.ExtendedCoapStackFactory;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.CoapStack;
+import org.eclipse.californium.elements.EndpointContextMatcher;
 
 /**
  * Coap stack factory creating a {@link OSCoreStack} including a
  * {@link ObjectSecurityLayer}.
  */
-public class OSCoreCoapStackFactory implements CoapStackFactory {
+public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 
 	private static AtomicBoolean init = new AtomicBoolean();
 	private static volatile OSCoreCtxDB defaultCtxDb;
 
 	@Override
-	public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+	public CoapStack createCoapStack(String protocol, NetworkConfig config, EndpointContextMatcher matchingStrategy,
+			Outbox outbox, Object customStackArgument) {
 		if (CoAP.isTcpProtocol(protocol)) {
 			throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 		}
 		OSCoreCtxDB ctxDb = defaultCtxDb;
 		if (customStackArgument != null) {
+			if (!(customStackArgument instanceof OSCoreCtxDB)) {
+				throw new IllegalArgumentException(
+						"custom argument must be a OSCoreCtxDB, not " + customStackArgument.getClass() + "!");
+			}
 			ctxDb = (OSCoreCtxDB) customStackArgument;
 		}
-		return new OSCoreStack(config, outbox, ctxDb);
+		return new OSCoreStack(config, matchingStrategy, outbox, ctxDb);
+	}
+
+	@Override
+	public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+		return createCoapStack(protocol, config, null, outbox, customStackArgument);
 	}
 
 	/**
@@ -61,4 +73,5 @@ public class OSCoreCoapStackFactory implements CoapStackFactory {
 		}
 		OSCoreCoapStackFactory.defaultCtxDb = defaultCtxDb;
 	}
+
 }
