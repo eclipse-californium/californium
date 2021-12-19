@@ -40,7 +40,7 @@ $ mvn clean install -DskipTests
 
 Earlier versions (3.0.0-Mx, 2.6.5 and before) may also fail to build with newer JDKs, especially, if java 16 is used! That is cause by the unit test dependency to a deprecated version of "mockito". If such a (re-)build is required, the unit tests must be skipped (which is in the meantime anyway required caused by the "non-existing.host").
 
-In combination with the "non-existing.host" now existing, the build with unit test only works for the current heads of the branches `2.6.x` and `master`!
+In combination with the "non-existing.host" now existing, the build with unit test only works for the current heads of the branches `2.6.x`, `2.7.x` and `master`!
 
 ## Build jdk7 compliant
 
