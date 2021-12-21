@@ -448,7 +448,25 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				} else {
 					// The peer wants to retrieve the next block of a blockwise transfer
-					handleInboundRequestForNextBlock(exchange, request, key, status);
+					boolean matching = true;
+					if (matchingStrategy != null) {
+						EndpointContext sourceContext2 = request.getSourceContext();
+						// use context of first response
+						EndpointContext sourceContext1 = status.first.getDestinationContext();
+						matching = matchingStrategy.isResponseRelatedToRequest(sourceContext1, sourceContext2);
+					}
+					if (matching) {
+						// matching context, use available response
+						handleInboundRequestForNextBlock(exchange, request, key, status);
+					} else {
+						// not matching context, forward request to application layer
+						clearBlock2Status(key, status);
+						LOGGER.debug(
+								"peer wants to retrieve block2 {} of {} with new security context, delivering request to application layer",
+								block2, key);
+						exchange.setRequest(request);
+						upper().receiveRequest(exchange, request);
+					}
 				}
 
 			} else {

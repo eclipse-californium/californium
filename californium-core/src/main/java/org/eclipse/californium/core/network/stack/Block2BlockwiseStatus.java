@@ -78,6 +78,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 */
 	public static Block2BlockwiseStatus forOutboundResponse(final Exchange exchange, final Response response, final int preferredBlockSize) {
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(response.getPayloadSize(), response.getOptions().getContentFormat());
+		status.setFirst(response);
 		status.response = response;
 		status.exchange = exchange;
 		if (response.getPayload() != null) {
