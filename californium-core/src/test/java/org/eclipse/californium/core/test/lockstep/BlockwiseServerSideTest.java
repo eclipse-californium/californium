@@ -55,6 +55,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
@@ -412,6 +413,36 @@ public class BlockwiseServerSideTest {
 		serverInterceptor.logNewLine("//////// Missing last GET ////////");
 	}
 
+	@Test
+	public void testGETWithChangingEndpointContext() throws Exception {
+		respPayload = generateRandomPayload(76); // smaller than MAX MESSAGE SIZE
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(0, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 32).size2(respPayload.length())
+			.payload(respPayload.substring(0, 32)).go();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 32).payload(respPayload.substring(32, 64)).go();
+
+		serverEndpoint.addInterceptor(new MessageInterceptorAdapter() {
+
+			@Override
+			public void receiveRequest(Request request) {
+				EndpointContext originalSourceContext = request.getSourceContext();
+				Attributes breaking = new Attributes();
+				EndpointContext breakingSourceContext = MapBasedEndpointContext.setEntries(originalSourceContext, breaking);
+				request.setSourceContext(breakingSourceContext);
+			}
+
+		});
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(2, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 32).payload(respPayload.substring(64)).go();
+
+		assertThat(testResource.calls.get(), is(2));
+	}
+
 	/**
 	 * Shows an incomplete transfer of a resource that would require
 	 * three PUT requests. The client, however, only sends the first
@@ -685,7 +716,6 @@ public class BlockwiseServerSideTest {
 				request.setSourceContext(breakingSourceContext);
 			}
 
-
 		});
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128).payload(reqtPayload, 128, 256)
 				.go();
@@ -914,6 +944,8 @@ public class BlockwiseServerSideTest {
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(4, true, 64).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(4, false, 64).payload(respPayload.substring(4*64, 300)).go();
+
+		assertThat(testResource.calls.get(), is(2));
 	}
 
 	@Test
@@ -1027,6 +1059,8 @@ public class BlockwiseServerSideTest {
 	// All tests are made with this resource
 	private class TestResource extends CoapResource {
 
+		public AtomicInteger calls = new AtomicInteger();
+
 		public TestResource(String name) { 
 			super(name);
 		}
@@ -1058,6 +1092,7 @@ public class BlockwiseServerSideTest {
 		}
 
 		private void respond (final CoapExchange exchange, final Response response) {
+			calls.incrementAndGet();
 			if (etag != null) {
 				response.getOptions().addETag(etag);
 			}

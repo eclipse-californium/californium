@@ -529,15 +529,31 @@ public class BlockwiseLayer extends AbstractLayer {
 				// follow up block, respond from status?
 				KeyUri key = KeyUri.getKey(exchange);
 				Block2BlockwiseStatus status = getBlock2Status(key);
-				if (status != null) {
-					// The peer wants to retrieve the next block
-					// of a blockwise transfer
-					handleInboundRequestForNextBlock(exchange, request, status);
-					return;
+				if (status == null) {
+					LOGGER.debug(
+							"{}peer wants to retrieve individual block2 {} of {}, delivering request to application layer",
+							tag, block2, key);
+				} else {
+					// The peer wants to retrieve the next block of a blockwise transfer
+					boolean matching = true;
+					if (matchingStrategy != null) {
+						EndpointContext sourceContext2 = request.getSourceContext();
+						// use context of first response
+						EndpointContext sourceContext1 = status.firstMessage.getDestinationContext();
+						matching = matchingStrategy.isResponseRelatedToRequest(sourceContext1, sourceContext2);
+					}
+					if (matching) {
+						// matching endpoint context, use available response 
+						handleInboundRequestForNextBlock(exchange, request, status);
+						return;
+					} else {
+						// not matching endpoint context, forward request to application layer
+						clearBlock2Status(status);
+						LOGGER.debug(
+								"{}peer wants to retrieve block2 {} of {} with new security context, delivering request to application layer",
+								tag, block2, key);
+					}
 				}
-				LOGGER.debug(
-						"{}peer wants to retrieve individual block2 {} of {}, delivering request to application layer",
-						tag, block2, key);
 			}
 		}
 
