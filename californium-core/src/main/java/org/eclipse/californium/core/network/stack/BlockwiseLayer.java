@@ -1348,7 +1348,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private Block1BlockwiseStatus getInboundBlock1Status(KeyUri key, Exchange exchange, Request request,
 			boolean reset) {
 
-		boolean check = true;
+		boolean check = !reset;
 		Integer size = null;
 		Block1BlockwiseStatus previousStatus = null;
 		Block1BlockwiseStatus status = null;
@@ -1375,7 +1375,9 @@ public class BlockwiseLayer extends AbstractLayer {
 			EndpointContext sourceContext1 = status.firstMessage.getSourceContext();
 			EndpointContext sourceContext2 = request.getSourceContext();
 			if (!matchingStrategy.isResponseRelatedToRequest(sourceContext1, sourceContext2)) {
-				throw new IllegalArgumentException("Endpoint context mismatch!");
+				LOGGER.debug("{}stop block1 transfer {} {} by context mismatch!", tag, key, previousStatus);
+				// get new inbound block1 status.
+				return getInboundBlock1Status(key, exchange, request, true);
 			}
 		}
 		if (size != null) {
