@@ -1274,7 +1274,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			EndpointContext sourceContext1 = status.first.getSourceContext();
 			EndpointContext sourceContext2 = request.getSourceContext();
 			if (!matchingStrategy.isResponseRelatedToRequest(sourceContext1, sourceContext2)) {
-				throw new IllegalArgumentException("Endpoint context mismatch!");
+				return resetInboundBlock1Status(key, exchange, request);
 			}
 		}
 		// register a task for cleaning up if the peer does not send all blocks
@@ -1285,16 +1285,23 @@ public class BlockwiseLayer extends AbstractLayer {
 	private Block1BlockwiseStatus resetInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
 		Block1BlockwiseStatus removedStatus;
 		Block1BlockwiseStatus newStatus;
+		int maxPayloadSize = getMaxResourceBodySize(request);
 		synchronized (block1Transfers) {
 			removedStatus = block1Transfers.remove(key);
 			LOGGER.debug("inbound block1 transfer reset at {} by peer: {}", removedStatus, request);
 			// remove old status ensures, that getInboundBlock1Status could be
 			// called in synchronized (block1Transfers)
-			newStatus = getInboundBlock1Status(key, exchange, request);
+			newStatus = Block1BlockwiseStatus.forInboundRequest(exchange, request, maxPayloadSize);
+			block1Transfers.put(key, newStatus);
+			enableStatus = true;
+			LOGGER.debug("created tracker for inbound block1 transfer {}, transfers in progress: {}", newStatus,
+					block1Transfers.size());
 		}
 		if (removedStatus != null) {
 			removedStatus.setComplete(true);
 		}
+		// register a task for cleaning up if the peer does not send all blocks
+		prepareBlock1Cleanup(newStatus, key);
 		return newStatus;
 	}
 
