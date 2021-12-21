@@ -43,7 +43,6 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.NON;
-import static org.eclipse.californium.core.coap.CoAP.Type.RST;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
@@ -692,7 +691,7 @@ public class BlockwiseServerSideTest {
 		});
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128).payload(reqtPayload, 128, 256)
 				.go();
-		client.expectEmpty(RST, mid).go();
+		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).go();
 	}
 
 	/**
