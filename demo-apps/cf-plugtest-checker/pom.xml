@@ -22,6 +22,9 @@
 			in order to execute the demo from the IDE with tcp-support -->
 		<maven.test.skip>true</maven.test.skip>
 		<assembly.mainClass>org.eclipse.californium.plugtests.PlugtestChecker</assembly.mainClass>
+		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
+		<skipStaging>false</skipStaging>
+		<maven.javadoc.skip>false</maven.javadoc.skip>
 	</properties>
 
 	<dependencies>

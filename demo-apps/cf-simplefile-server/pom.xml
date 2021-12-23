@@ -20,6 +20,7 @@
 		<assembly.mainClass>org.eclipse.californium.examples.SimpleFileServer</assembly.mainClass>
 		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
 		<skipStaging>false</skipStaging>
+		<maven.javadoc.skip>false</maven.javadoc.skip>
 	</properties>
 
 	<dependencies>
