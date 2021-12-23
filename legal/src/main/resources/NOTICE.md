@@ -84,11 +84,7 @@ com.upokecenter.cbor (4.4.4)
 * Project: https://github.com/peteroupc/CBOR-Java
 * Source: https://github.com/peteroupc/CBOR-Java/tree/v4.4.4
 
-commons-logging (1.2)
-
-* License: Apache License, 2.0
-
-Google Guava (28.2-android)
+Google Guava (30.0-android)
 
 * License: Apache License, 2.0
 
@@ -112,11 +108,11 @@ javax.websocket API (1.0)
 
 * License: Common Development and Distribution License
 
-Logback Classic (1.2.3)
+Logback Classic (1.2.8)
 
 * License: EPL-1.0
 
-Logback Core (1.2.3)
+Logback Core (1.2.8)
 
 * License: EPL-1.0
 
@@ -126,7 +122,7 @@ logback-android (1.1.1)
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
-Netty (4.1.67)
+Netty (4.1.71)
 
 * License: Apache-2.0 AND BSD-3-Clause AND MIT
 * Project: https://netty.io/
@@ -168,12 +164,12 @@ openssl (1.1.1) used for interoperability tests only
 * Project: https://www.openssl.org/
 * Source:  https://github.com/openssl/openssl.git
 
-libcoap (4.3.0-rc3) used for interoperability tests only
+libcoap (4.3.0) used for interoperability tests only
 
 * License:  simplified BSD license - 
             depending on OS; the examples may also contain "AT&T public domain source"
 * Project: https://libcoap.net/
-* Source:  https://github.com/obgm/libcoap/archive/refs/tags/v4.3.0-rc3.zip
+* Source:  https://github.com/obgm/libcoap/archive/refs/tags/v4.3.0.zip
 
 (including tinydtls, openssl, mbedtls, and gnutls bindings for libcoap.)
 
