@@ -84,7 +84,7 @@ abstract public class CounterStatisticManager {
 	 */
 	private ScheduledFuture<?> taskHandle;
 	/**
-	 * Check, if manager was {@link #start()}ed or {@link #stop()ped.
+	 * Check, if manager was {@link #start()}ed or {@link #stop()}ped.
 	 */
 	private AtomicBoolean running = new AtomicBoolean();
 	/**

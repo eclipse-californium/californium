@@ -184,7 +184,7 @@ public class PlugtestChecker {
 	 * start all tests.
 	 * 
 	 * @param args the arguments
-	 * @throws IOException 
+	 * @throws IOException if an i/o error starting the coap-endpoint occurred
 	 */
 	public static void main(String[] args) throws IOException {
 

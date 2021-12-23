@@ -85,7 +85,7 @@ public abstract class TestClientAbstract {
 	 * Replaces deprecated notification processing with
 	 * {@link Request#waitForResponse(long)}.
 	 * 
-	 * @see #waitForNotification(int)
+	 * @see #waitForNotification(long)
 	 * @see #startObserve(Request)
 	 * @see #stopObservation()
 	 */
@@ -93,7 +93,7 @@ public abstract class TestClientAbstract {
 
 	/**
 	 * Notification listener forwarding notifications to
-	 * {@link #waitForNotification(int)}.
+	 * {@link #waitForNotification(long)}.
 	 */
 	protected TestNotificationListener listener;
 
@@ -102,6 +102,7 @@ public abstract class TestClientAbstract {
 	 * 
 	 * @param testName the test name
 	 * @param verbose the verbose
+	 * @param synchronous use synchronous or asynchronous requests
 	 */
 	public TestClientAbstract(String testName, boolean verbose, boolean synchronous) {
 		if (testName == null || testName.isEmpty()) {
@@ -128,6 +129,8 @@ public abstract class TestClientAbstract {
 
 	/**
 	 * Start observe.
+	 * 
+	 * @param request request to start observation.
 	 */
 	protected void startObserve(Request request) {
 		stopObservation();
@@ -726,7 +729,9 @@ public abstract class TestClientAbstract {
 	 * Checks for Observe option.
 	 * 
 	 * @param response the response
-	 * @return true, if successful
+	 * @param invert   invert the result. If {@code true}, the test passes, if the
+	 *                 response has no observer option.
+	 * @return {@code true}, if successful
 	 */
 	private boolean hasObserve(Response response, boolean invert) {
 		// boolean success =
