@@ -50,6 +50,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * Note: the windows version 1.1.1a to 1.1.1k of the openssl s_server seems to
  * be broken. It starts only to accept, when the first message is entered.
  * Therefore the test are skipped on windows.
+ * 
+ * Note: version 1.1.1l of the openssl s_server' PSK support is broken. See
+ * {@link #assumePskServerVersion()} for more details.
  */
 public class OpenSslProcessUtil extends ProcessUtil {
 

@@ -37,7 +37,7 @@ The k8s demonstration setup uses a [statefulset](../../demo-apps/cf-extplugtest-
 
 ## k8s Blue/Green Update With DTLS Graceful Restart
 
-With the upcoming 3.0, _Scandium_ offers saving and loading of DTLS states.
+Since the release 3.0, _Scandium_ offers saving and loading of DTLS states.
 
 That enables a implementation of a blue-green update without losing the DTLS states. Client may continue to send data without new handshakes. To switch between blue/green takes a small couple of seconds. The client, which sends data in that switching-period, will therefore lose their messages or they will need to resend them. Therefore `CON` messages are very well for this case. DTLS handshakes with the switching period will fail, the clients are required to retry the handshake later.
 

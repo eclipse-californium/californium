@@ -74,6 +74,11 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * After {@code sudo make install}, execution of {@code sudo ldconfig} may be
  * required on Ubuntu 18.04. If {@code --disable-shared} is added, the binaries
  * are statically linked.
+ * 
+ * Note: eclipse/tinydtls has been continuously improved over 2021. Consider to
+ * use the development branch
+ * <a href="https://github.com/eclipse/tinydtls/tree/develop">github
+ * eclipse/tinydtls - develop"</a> for the interoperability tests.
  */
 public class LibCoapProcessUtil extends ProcessUtil {
 

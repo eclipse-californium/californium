@@ -1,0 +1,32 @@
+maven/mavencentral/com.github.peteroupc/numbers/1.8.0, CC0-1.0, approved, clearlydefined
+maven/mavencentral/com.google.code.gson/gson/2.8.8, Apache-2.0, approved, CQ23496
+maven/mavencentral/com.google.errorprone/error_prone_annotations/2.3.4, Apache-2.0, approved, #807
+maven/mavencentral/com.google.guava/failureaccess/1.0.1, Apache-2.0, approved, CQ22654
+maven/mavencentral/com.google.guava/guava/30.0-android, Apache-2.0, approved, clearlydefined
+maven/mavencentral/com.google.guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava, NONE, approved, #803
+maven/mavencentral/com.google.j2objc/j2objc-annotations/1.3, Apache-2.0, approved, CQ21195
+maven/mavencentral/com.upokecenter/cbor/4.4.4, CC0-1.0, approved, #254
+maven/mavencentral/info.picocli/picocli/4.6.1, Apache-2.0, approved, clearlydefined
+maven/mavencentral/io.netty/netty-buffer/4.1.71.Final, Apache-2.0, approved, CQ21842
+maven/mavencentral/io.netty/netty-codec/4.1.71.Final, Apache-2.0 AND BSD-3-Clause AND MIT, approved, CQ20926
+maven/mavencentral/io.netty/netty-common/4.1.71.Final, Apache-2.0 AND MIT AND CC0-1.0, approved, CQ21843
+maven/mavencentral/io.netty/netty-handler/4.1.71.Final, Apache-2.0 AND BSD-3-Clause AND MIT, approved, CQ20926
+maven/mavencentral/io.netty/netty-resolver/4.1.71.Final, Apache-2.0 AND BSD-3-Clause AND MIT, approved, CQ20926
+maven/mavencentral/io.netty/netty-tcnative-classes/2.0.46.Final, Apache-2.0, approved, clearlydefined
+maven/mavencentral/io.netty/netty-transport/4.1.71.Final, Apache-2.0 AND BSD-3-Clause AND MIT, approved, CQ20926
+maven/mavencentral/org.apache.httpcomponents.client5/httpclient5/5.1, Apache-2.0 AND MIT, approved, #255
+maven/mavencentral/org.apache.httpcomponents.core5/httpcore5-h2/5.1.1, Apache-2.0, approved, clearlydefined
+maven/mavencentral/org.apache.httpcomponents.core5/httpcore5/5.1.1, Apache-2.0, approved, clearlydefined
+maven/mavencentral/org.checkerframework/checker-compat-qual/2.5.5, MIT, approved, clearlydefined
+maven/mavencentral/org.eclipse.californium/californium-core/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.eclipse.californium/californium-proxy2/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.eclipse.californium/cf-cli/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.eclipse.californium/cf-cluster/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.eclipse.californium/cf-plugtest-server/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.eclipse.californium/cf-unix-health/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.eclipse.californium/element-connector-tcp-netty/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.eclipse.californium/element-connector/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.eclipse.californium/scandium/3.1.0-SNAPSHOT, , approved, science.californium
+maven/mavencentral/org.osgi/org.osgi.compendium/5.0.0, Apache-2.0, approved, CQ9373
+maven/mavencentral/org.osgi/org.osgi.core/5.0.0, Apache-2.0, approved, CQ5932
+maven/mavencentral/org.slf4j/slf4j-api/1.7.30, MIT, approved, CQ13368

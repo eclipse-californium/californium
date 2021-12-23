@@ -166,7 +166,7 @@ To translate the incoming request in an outgoing request, the Proxy2 library com
 
 ### Implementing coap2http Forwarding Cross Proxy
 
-To execute http-request, the californium proxy uses the `httpasyncclient` of [org.apache.httpcomponents](https://hc.apache.org/), currently in version 4.1.4.
+To execute http-request, the californium proxy uses the `httpclient5` of [org.apache.httpcomponents](https://hc.apache.org/), currently in version 5.1.
 
 A coap2http forward proxy could be implemented by
 
@@ -214,7 +214,7 @@ If the general processing in `ProxyCoapClientResource` works also for the specia
 
 ## Implementing a Http Forwarding Cross Proxy
 
-Naturally this requires a http-server, which is aware of proxy requests. The californium proxy2 comes with [ProxyHttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) implementation based on [org.apache.httpcomponents](https://hc.apache.org/). Currently the `httpcore` and `httpcore-nio` in version 4.4.10 is used.
+Naturally this requires a http-server, which is aware of proxy requests. The californium proxy2 comes with [ProxyHttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) implementation based on [org.apache.httpcomponents](https://hc.apache.org/). Currently the `httpcore5` in version 5.1.1 is used.
 
 The [ProxyHttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) uses a [HttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/HttpServer.java) and the [HttpStack](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/HttpStack.java), which adds the required http-request-handlers to it. These http-request-handler are using a [Http2CoapTranslator](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/Http2CoapTranslator.java) to translate the http-requests into coap-requests, which is then processed by the californium coap-stack using a coap2coap proxy.
 
