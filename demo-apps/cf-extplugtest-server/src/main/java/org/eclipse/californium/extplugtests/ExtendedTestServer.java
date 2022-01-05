@@ -81,6 +81,7 @@ import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.EndpointNetSocketObserver;
 import org.eclipse.californium.plugtests.PlugtestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
+import org.eclipse.californium.plugtests.resources.Echo;
 import org.eclipse.californium.plugtests.resources.Hono;
 import org.eclipse.californium.plugtests.resources.MyContext;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
@@ -353,6 +354,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 					config.diagnose);
 			server.setTag("EXTENDED-TEST");
 			server.setExecutors(executor, secondaryExecutor, false);
+			server.add(
+					new Echo(configuration.get(CoapConfig.MAX_RESOURCE_BODY_SIZE), config.echoDelay ? executor : null));
 			server.add(new ReverseRequest(configuration, executor));
 			ReverseObserve reverseObserver = new ReverseObserve(configuration, executor);
 			server.add(reverseObserver);
@@ -405,7 +408,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				long readInterval = configuration.get(UDP_DROPS_READ_INTERVAL, TimeUnit.MILLISECONDS);
 				if (interval > readInterval) {
 					secondaryExecutor.scheduleAtFixedRate(new Runnable() {
-						
+
 						@Override
 						public void run() {
 							socketLogger.read();
