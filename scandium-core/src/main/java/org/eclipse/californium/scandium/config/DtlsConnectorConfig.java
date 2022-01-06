@@ -68,6 +68,7 @@ import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
@@ -240,6 +241,12 @@ public final class DtlsConnectorConfig {
 	 * Connection Listener.
 	 */
 	private ConnectionListener connectionListener;
+	/**
+	 * Session Listener.
+	 * 
+	 * @since 3.2
+	 */
+	private SessionListener sessionListener;
 
 	/**
 	 * Session store for {@link InMemoryConnectionStore}.
@@ -1280,6 +1287,17 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets session listener.
+	 * 
+	 * @return session listener
+	 * @see Builder#setSessionListener(SessionListener)
+	 * @since 3.2
+	 */
+	public SessionListener getSessionListener() {
+		return sessionListener;
+	}
+
+	/**
 	 * Gets session store for {@link InMemoryConnectionStore}.
 	 * 
 	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
@@ -1406,6 +1424,7 @@ public final class DtlsConnectorConfig {
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		cloned.connectionListener = connectionListener;
+		cloned.sessionListener = sessionListener;
 		cloned.sessionStore = sessionStore;
 		cloned.resumptionVerifier = resumptionVerifier;
 		cloned.healthHandler = healthHandler;
@@ -1816,6 +1835,19 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setConnectionListener(ConnectionListener connectionListener) {
 			config.connectionListener = connectionListener;
+			return this;
+		}
+
+		/**
+		 * Set session listener.
+		 * 
+		 * @param sessionListener session listener
+		 * @return this builder for command chaining.
+		 * @see DtlsConnectorConfig#getSessionListener()
+		 * @since 3.2
+		 */
+		public Builder setSessionListener(SessionListener sessionListener) {
+			config.sessionListener = sessionListener;
 			return this;
 		}
 

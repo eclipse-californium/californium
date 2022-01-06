@@ -59,6 +59,12 @@ public interface ConnectionListener {
 	/**
 	 * Callback, when connection gets removed from the connection store.
 	 * 
+	 * Note: since 3.0, the {@link Connection} is now always cleaned up before
+	 * it is used in this callback. {@link Connection#getPeerAddress()},
+	 * {@link Connection#getOngoingHandshake()}, and
+	 * {@link Connection#getDtlsContext()} (including the other variants) will
+	 * return {@code null}.
+	 * 
 	 * @param connection connection, which gets removed from the connection
 	 *            store
 	 */
