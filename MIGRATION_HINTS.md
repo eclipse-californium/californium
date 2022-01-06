@@ -33,8 +33,6 @@ That uncovered a couple of differences just in order to make the unit test runni
 
 One issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
 
-An other issue is, that the function seems to depend on the combination of the OS (Unix, Windows, Android), the java version (7, 8, 11, 15, or 16), and the Bouncy Castle build (jdk15on or jdk15to18). It makes also a difference, if it's used by Scandium (DTLS) or by netty.io (TLS). For Scandium internal adaption is possible, for netty.io it must be requested there.
-
 With that, it gets very time consuming to test all combinations. Therefore, if you need a specific one, please test it on your own. If you consider, that some adaption is required, let us know by creating an issue.
 
 ### Element-Connector:
@@ -97,6 +95,8 @@ The maximum message size calculations from [Record Size Limit](https://tools.iet
 Using X509 to authenticate the server now includes to match the destination with the server certificate's subject. This is enabled per default, as requested by [RFC7252 - 9.1.3.3. X.509 Certificates](https://datatracker.ietf.org/doc/html/rfc7252#section-9.1.3.3). It could be disabled using `DTLS.VERIFY_SERVER_CERTIFICATES_SUBJECT`.
 
 Introducing support for multiple x509 certificates (see `KeyManagerCertificateProvider`) and RSA, also in combination with `CLIENT_ONLY` and support the asymmetric certificate based handshakes (means: a peer may send credentials with algorithms, the peer itself doesn't support), makes the "auto-configuration" feature very hard. Please report, if you consider that the auto-configuration has issues. That may help to either improve it, or at least to improve the documentation.
+
+The `Connection` provided in the callback of `ConnectionListener.onConnectionRemoved(Connection connection)` is now always "cleaned up" before. That results in a `null` peer address, ongoing handshake, and dtls context. Please consider to use a `SessionListener` instead. With Californium 3.2.0 this is included in the `DtlsConnectorConfig` (see issue #1868, PR #1869).
 
 ### Element-Connector-TCP-Netty:
 

@@ -275,11 +275,17 @@ public abstract class Handshaker implements Destroyable {
 	 * Associated connection for this handshaker.
 	 */
 	private final Connection connection;
+	/**
+	 * Associated peer for this handshaker.
+	 * @since 3.2
+	 */
+	private final InetSocketAddress peer;
+
+	protected final Object peerToLog;
 
 	/** Buffer for received records that can not be processed immediately. */
 	private InboundMessageBuffer inboundMessageBuffer;
 
-	protected final Object peerToLog;
 	/** List of handshake messages */
 	protected final List<HandshakeMessage> handshakeMessages = new ArrayList<HandshakeMessage>();
 
@@ -525,7 +531,8 @@ public abstract class Handshaker implements Destroyable {
 		this.recordLayer = recordLayer;
 		this.timer = timer;
 		this.connection = connection;
-		this.peerToLog = StringUtil.toLog(connection.getPeerAddress());
+		this.peer = connection.getPeerAddress();
+		this.peerToLog = StringUtil.toLog(this.peer);
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.retransmissionTimeout = config.getRetransmissionTimeout();
 		this.maxRetransmissionTimeout = config.getMaxRetransmissionTimeout();
@@ -1683,10 +1690,14 @@ public abstract class Handshaker implements Destroyable {
 	 * Gets the IP address and port of the peer this handshaker is used to
 	 * negotiate a session with.
 	 * 
+	 * Note: since 3.2 this doesn't longer return
+	 * {@link Connection#getPeerAddress()}, instead it returns {@link #peer}.
+	 * Therefore it's not longer {@code null} when the handshaker fails.
+	 * 
 	 * @return the peer address
 	 */
 	public final InetSocketAddress getPeerAddress() {
-		return connection.getPeerAddress();
+		return peer;
 	}
 
 	/**

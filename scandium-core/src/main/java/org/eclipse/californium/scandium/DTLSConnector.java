@@ -442,6 +442,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	private volatile RawDataChannel messageHandler;
 	private volatile AlertHandler alertHandler;
 	private final SessionListener sessionListener;
+	private final SessionListener customSessionListener;
 	private final ConnectionListener connectionListener;
 	private volatile ExecutorService executorService;
 	private boolean hasInternalExecutor;
@@ -506,6 +507,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
+			this.customSessionListener = config.getSessionListener();
 			this.connectionListener = config.getConnectionListener();
 			HandshakeResultHandler handler = new HandshakeResultHandler() {
 
@@ -654,6 +656,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	private final void initializeHandshaker(final Handshaker handshaker) {
 		handshaker.addSessionListener(sessionListener);
+		handshaker.addSessionListener(customSessionListener);
 		if (health != null) {
 			health.startHandshake();
 		}
