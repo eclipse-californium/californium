@@ -181,6 +181,7 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -669,6 +670,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * Intended to be used for subclass specific handshaker initialization.
 	 * 
 	 * @param handshaker new create handshaker
+	 * @deprecated use {@link Builder#setSessionListener(SessionListener)} instead 
 	 */
 	protected void onInitializeHandshaker(final Handshaker handshaker) {
 	}
