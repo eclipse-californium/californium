@@ -75,6 +75,8 @@ if [ "$1" = "delete" ]  ; then
       doctl compute firewall delete ${id}
    fi
 
+   echo "Please verify the successful deletion via the Web UI."
+
    exit 0
 fi
 

@@ -62,6 +62,8 @@ if [ "$1" = "delete" ]  ; then
    gcloud compute instances delete cali
    gcloud compute firewall-rules delete coaps
 
+   echo "Please verify the successful deletion via the Web UI."
+
    exit 0
 fi
 

@@ -73,6 +73,8 @@ if [ "$1" = "delete" ]  ; then
    echo "delete azure group"
    az group delete --name CaliResources
 
+   echo "Please verify the successful deletion via the Web UI."
+
    exit 0
 fi
 

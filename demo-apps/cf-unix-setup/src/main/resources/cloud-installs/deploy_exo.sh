@@ -85,6 +85,8 @@ if [ "$1" = "delete" ]  ; then
    exo compute instance delete cali
    exo compute security-group delete cali-group --force
 
+   echo "Please verify the successful deletion via the Web UI."
+
    exit 0
 fi
 
