@@ -25,6 +25,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -44,6 +45,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -107,6 +109,13 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	 * URI query parameter to specify reverse observation.
 	 */
 	private static final String URI_QUERY_OPTION_TIMEOUT = "timeout";
+	/**
+	 * Supported query parameter.
+	 * 
+	 * @since 3.2
+	 */
+	private static final List<String> SUPPORTED = Arrays.asList(URI_QUERY_OPTION_OBSERVE, URI_QUERY_OPTION_RESOURCE,
+			URI_QUERY_OPTION_TIMEOUT);
 	/**
 	 * Maximum number of notifies before reregister is triggered.
 	 */
@@ -214,7 +223,8 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 					observeRequest.setDestinationContext(request.getSourceContext());
 					observeRequest.addMessageObserver(new RequestObserver(exchange, observeRequest, observe));
-					observeRequest.addMessageObserver(new ResponseTimeout(observeRequest, RESPONSE_TIMEOUT_MILLIS, executor));
+					observeRequest
+							.addMessageObserver(new ResponseTimeout(observeRequest, RESPONSE_TIMEOUT_MILLIS, executor));
 					observeRequest.send(endpoint);
 					overallObserves.incrementAndGet();
 				} else {
@@ -271,53 +281,25 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			this.incomingExchange = incomingExchange;
 			Request request = incomingExchange.advanced().getRequest();
 			this.accept = request.getOptions().getAccept();
-			List<String> uriQuery = request.getOptions().getUriQuery();
 			int timeout = 30;
 			Integer observe = null;
 			String resource = null;
-			for (String query : uriQuery) {
-				if (query.startsWith(URI_QUERY_OPTION_OBSERVE + "=")) {
-					String message = null;
-					String obs = query.substring(URI_QUERY_OPTION_OBSERVE.length() + 1);
-					try {
-						observe = Integer.parseInt(obs);
-						if (observe < 0) {
-							message = "URI-query-option " + query + " is negative number!";
-						} else if (observe > MAX_NOTIFIES) {
-							message = "URI-query-option " + query + " is too large (max. " + MAX_NOTIFIES + ")!";
-						}
-					} catch (NumberFormatException ex) {
-						message = "URI-query-option " + query + " is no number!";
-					}
-					if (message != null) {
-						Response response = Response.createResponse(request, BAD_OPTION);
-						response.setPayload(message);
-						respond(response);
-						break;
-					}
-				} else if (query.startsWith(URI_QUERY_OPTION_TIMEOUT + "=")) {
-					String message = null;
-					String obs = query.substring(URI_QUERY_OPTION_TIMEOUT.length() + 1);
-					try {
-						timeout = Integer.parseInt(obs);
-						if (timeout < 0) {
-							message = "URI-query-option " + query + " is negative number!";
-						}
-					} catch (NumberFormatException ex) {
-						message = "URI-query-option " + query + " is no number!";
-					}
-					if (message != null) {
-						Response response = Response.createResponse(request, BAD_OPTION);
-						response.setPayload(message);
-						respond(response);
-						break;
-					}
-				} else if (query.startsWith(URI_QUERY_OPTION_RESOURCE + "=")) {
-					resource = query.substring(URI_QUERY_OPTION_RESOURCE.length() + 1);
-				} else {
-					observeUriQuery.add(query);
+			try {
+				List<String> uriQuery = request.getOptions().getUriQuery();
+				UriQueryParameter helper = new UriQueryParameter(uriQuery, SUPPORTED, observeUriQuery);
+				timeout = helper.getArgumentAsInteger(URI_QUERY_OPTION_TIMEOUT, 30, 0);
+				if (helper.hasParameter(URI_QUERY_OPTION_OBSERVE)) {
+					observe = helper.getArgumentAsInteger(URI_QUERY_OPTION_OBSERVE, 0, 0, MAX_NOTIFIES);
 				}
+				if (helper.hasParameter(URI_QUERY_OPTION_RESOURCE)) {
+					resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE);
+				}
+			} catch (IllegalArgumentException ex) {
+				Response response = Response.createResponse(request, BAD_OPTION);
+				response.setPayload(ex.getMessage());
+				respond(response);
 			}
+
 			this.resource = resource;
 			this.observe = observe;
 			this.timeout = timeout;

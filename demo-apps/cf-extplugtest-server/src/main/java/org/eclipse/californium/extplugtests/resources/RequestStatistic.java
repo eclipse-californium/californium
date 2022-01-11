@@ -27,6 +27,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.core.CoapResource;
@@ -34,6 +35,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -143,6 +145,13 @@ public class RequestStatistic extends CoapResource {
 	private static final String URI_QUERY_OPTION_REQUEST_ID = "rid";
 	private static final String URI_QUERY_OPTION_ENDPOINT = "ep";
 	private static final String URI_QUERY_OPTION_RESPONSE_LENGTH = "rlen";
+	/**
+	 * Supported query parameter.
+	 * 
+	 * @since 3.2
+	 */
+	private static final List<String> SUPPORTED = Arrays.asList(URI_QUERY_OPTION_DEV_ID, URI_QUERY_OPTION_REQUEST_ID,
+			URI_QUERY_OPTION_ENDPOINT, URI_QUERY_OPTION_RESPONSE_LENGTH);
 	private static final long START_TIME = System.currentTimeMillis();
 	/**
 	 * Maximum entries in the request history.
@@ -171,50 +180,35 @@ public class RequestStatistic extends CoapResource {
 		// get request to read out details
 		Request request = exchange.advanced().getRequest();
 
-		List<String> uriQuery = request.getOptions().getUriQuery();
-
 		String error = null;
 		String rid = null;
 		String dev = null;
 		Integer rlen = null;
 		boolean sourceEndpoint = false;
-		for (String query : uriQuery) {
-			if (query.startsWith(URI_QUERY_OPTION_REQUEST_ID + "=")) {
-				rid = query.substring(4);
-				if (rid.contains(TEXT_SEPARATER)) {
-					error = "URI-query-option " + URI_QUERY_OPTION_REQUEST_ID + " contains " + TEXT_SEPARATER + "!";
-					break;
-				}
-			} else if (query.startsWith(URI_QUERY_OPTION_DEV_ID + "=")) {
-				dev = query.substring(4);
-			} else if (query.startsWith(URI_QUERY_OPTION_RESPONSE_LENGTH + "=")) {
-				try {
-					rlen = Integer.valueOf(query.substring(5));
-					if (rlen < 1 || rlen > 1023) {
-						error = "URI-query-option " + URI_QUERY_OPTION_RESPONSE_LENGTH + " '" + query
-								+ "' is not in range [1-1023]!";
-						break;
-					}
-				} catch (NumberFormatException ex) {
-					error = "URI-query-option " + URI_QUERY_OPTION_RESPONSE_LENGTH + " in no number!";
-					break;
-				}
-			} else if (query.equals(URI_QUERY_OPTION_ENDPOINT)) {
-				sourceEndpoint = true;
-			} else {
-				error = "URI-query-option " + query + " is not supported!";
-				break;
+		try {
+			List<String> uriQuery = request.getOptions().getUriQuery();
+			UriQueryParameter helper = new UriQueryParameter(uriQuery, SUPPORTED);
+			sourceEndpoint = helper.hasParameter(URI_QUERY_OPTION_ENDPOINT);
+			rid = helper.getArgument(URI_QUERY_OPTION_REQUEST_ID, null);
+			dev = helper.getArgument(URI_QUERY_OPTION_DEV_ID, null);
+			if (helper.hasParameter(URI_QUERY_OPTION_RESPONSE_LENGTH)) {
+				rlen = helper.getArgumentAsInteger(URI_QUERY_OPTION_RESPONSE_LENGTH, DEFAULT_MAX_PAYLOAD_LENGTH, 1,
+						1023);
 			}
+		} catch (IllegalArgumentException ex) {
+			error = ex.getMessage();
 		}
 
 		if (error == null) {
 			if (rid == null && dev == null) {
-				error = "missing URI-query-options for " + URI_QUERY_OPTION_DEV_ID + " and "
-						+ URI_QUERY_OPTION_REQUEST_ID + "!";
+				error = "missing URI-query-options for '" + URI_QUERY_OPTION_DEV_ID + "' and '"
+						+ URI_QUERY_OPTION_REQUEST_ID + "'!";
 			} else if (rid == null) {
-				error = "missing URI-query-option for " + URI_QUERY_OPTION_REQUEST_ID + "!";
+				error = "missing URI-query-option for '" + URI_QUERY_OPTION_REQUEST_ID + "'!";
 			} else if (dev == null) {
-				error = "missing URI-query-option for " + URI_QUERY_OPTION_DEV_ID + "!";
+				error = "missing URI-query-option for '" + URI_QUERY_OPTION_DEV_ID + "'!";
+			} else if (rid.contains(TEXT_SEPARATER)) {
+				error = "URI-query-option '" + URI_QUERY_OPTION_REQUEST_ID + "' contains " + TEXT_SEPARATER + "!";
 			}
 		}
 		if (error != null) {
@@ -365,8 +359,8 @@ public class RequestStatistic extends CoapResource {
 	/**
 	 * Calculate size of the serialized message.
 	 * 
-	 * Assumes, that payload may be extended/applied later.
-	 * Ensure, that the token is already set.
+	 * Assumes, that payload may be extended/applied later. Ensure, that the
+	 * token is already set.
 	 * 
 	 * @param message message to be serialized
 	 * @return message size

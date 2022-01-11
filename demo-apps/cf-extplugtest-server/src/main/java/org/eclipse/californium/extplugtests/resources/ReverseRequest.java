@@ -23,6 +23,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +34,7 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseTimeout;
+import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.config.Configuration;
@@ -86,6 +88,12 @@ public class ReverseRequest extends CoapResource {
 	 * URI query parameter to specify reverse resource.
 	 */
 	private static final String URI_QUERY_OPTION_RESOURCE = "res";
+	/**
+	 * Supported query parameter.
+	 * 
+	 * @since 3.2
+	 */
+	private static final List<String> SUPPORTED = Arrays.asList(URI_QUERY_OPTION_REQUEST, URI_QUERY_OPTION_RESOURCE);
 	/**
 	 * Maximum number of requests.
 	 */
@@ -150,34 +158,22 @@ public class ReverseRequest extends CoapResource {
 		}
 
 		List<String> requestUriQuery = new ArrayList<>();
-		List<String> uriQuery = request.getOptions().getUriQuery();
 		Integer numberOfRequests = null;
 		String resource = null;
-		for (String query : uriQuery) {
-			if (query.startsWith(URI_QUERY_OPTION_REQUEST + "=")) {
-				String message = null;
-				String req = query.substring(URI_QUERY_OPTION_REQUEST.length() + 1);
-				try {
-					numberOfRequests = Integer.parseInt(req);
-					if (numberOfRequests < 0) {
-						message = "URI-query-option " + query + " is negative number!";
-					} else if (numberOfRequests > MAX_REQUESTS) {
-						message = "URI-query-option " + query + " is too large (max. " + MAX_REQUESTS + ")!";
-					}
-				} catch (NumberFormatException ex) {
-					message = "URI-query-option " + query + " is no number!";
-				}
-				if (message != null) {
-					Response response = Response.createResponse(request, BAD_OPTION);
-					response.setPayload(message);
-					exchange.respond(response);
-					return;
-				}
-			} else if (query.startsWith(URI_QUERY_OPTION_RESOURCE + "=")) {
-				resource = query.substring(URI_QUERY_OPTION_RESOURCE.length() + 1);
-			} else {
-				requestUriQuery.add(query);
+		try {
+			List<String> uriQuery = request.getOptions().getUriQuery();
+			UriQueryParameter helper = new UriQueryParameter(uriQuery, SUPPORTED, requestUriQuery);
+			if (helper.hasParameter(URI_QUERY_OPTION_REQUEST)) {
+				numberOfRequests = helper.getArgumentAsInteger(URI_QUERY_OPTION_REQUEST, 1, 1, MAX_REQUESTS);
 			}
+			if (helper.hasParameter(URI_QUERY_OPTION_RESOURCE)) {
+				resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE);
+			}
+		} catch (IllegalArgumentException ex) {
+			Response response = Response.createResponse(request, BAD_OPTION);
+			response.setPayload(ex.getMessage());
+			exchange.respond(response);
+			return;
 		}
 
 		if (resource != null && numberOfRequests != null) {
