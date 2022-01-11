@@ -28,6 +28,7 @@ import java.util.List;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 /**
@@ -46,6 +47,12 @@ public class Benchmark extends CoapResource {
 	 * URI query parameter to specify ack and separate response.
 	 */
 	private static final String URI_QUERY_OPTION_ACK = "ack";
+	/**
+	 * Supported query parameter.
+	 * 
+	 * @since 3.2
+	 */
+	private static final List<String> SUPPORTED = Arrays.asList(URI_QUERY_OPTION_ACK, URI_QUERY_OPTION_RESPONSE_LENGTH);
 
 	/**
 	 * Default response.
@@ -90,36 +97,20 @@ public class Benchmark extends CoapResource {
 			return;
 		}
 
-		List<String> uriQuery = request.getOptions().getUriQuery();
 		boolean ack = false;
 		int length = 0;
-		for (String query : uriQuery) {
-			String message = null;
-			if (query.startsWith(URI_QUERY_OPTION_RESPONSE_LENGTH + "=")) {
-				String rlen = query.substring(URI_QUERY_OPTION_RESPONSE_LENGTH.length() + 1);
-				try {
-					length = Integer.parseInt(rlen);
-					if (length < 0) {
-						message = "URI-query-option " + query + " is negative number!";
-					} else if (length > maxResourceSize && maxResourceSize > 0) {
-						message = "URI-query-option " + query + " is too large (max. " + maxResourceSize + ")!";
-					}
-				} catch (NumberFormatException ex) {
-					message = "URI-query-option " + query + " is no number!";
-				}
-			} else if (query.startsWith(URI_QUERY_OPTION_ACK)) {
-				ack = true;
-			} else {
-				message = "URI-query-option " + query + " is not supported!";
-			}
-			if (message != null) {
-				Response response = Response.createResponse(request, BAD_OPTION);
-				response.setPayload(message);
-				exchange.respond(response);
-				return;
-			}
+		try {
+			List<String> uriQuery = request.getOptions().getUriQuery();
+			UriQueryParameter helper = new UriQueryParameter(uriQuery, SUPPORTED);
+			ack = helper.hasParameter(URI_QUERY_OPTION_ACK);
+			length = helper.getArgumentAsInteger(URI_QUERY_OPTION_RESPONSE_LENGTH, 0, 0, maxResourceSize);
+		} catch (IllegalArgumentException ex) {
+			Response response = Response.createResponse(request, BAD_OPTION);
+			response.setPayload(ex.getMessage());
+			exchange.respond(response);
+			return;
 		}
-		
+
 		if (ack) {
 			exchange.accept();
 		}
