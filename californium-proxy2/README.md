@@ -1,4 +1,6 @@
-# Californium - Proxy 2
+![Californium logo](../cf_64.png)
+
+# Californium (Cf) - Proxy 2
 
 CoAP [RFC 7252](https://tools.ietf.org/html/rfc7252) specifies in [5.7 Proxying](https://tools.ietf.org/html/rfc7252#section-5.7) also a proxy functionality. That contains 
 
