@@ -90,6 +90,12 @@ public class Record {
 	 */
 	public static final int DTLS_HANDSHAKE_HEADER_LENGTH = RECORD_HEADER_BYTES
 			+ HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES;
+	/**
+	 * The maximum plaintext fragment size for TLS 1.2
+	 * 
+	 * @since 3.2
+	 */
+	public static final int DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // 2^14
 
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 

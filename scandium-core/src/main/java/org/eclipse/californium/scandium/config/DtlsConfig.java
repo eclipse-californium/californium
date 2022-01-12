@@ -367,7 +367,7 @@ public final class DtlsConfig {
 	 * 8449</a> for details.
 	 */
 	public static final IntegerDefinition DTLS_RECORD_SIZE_LIMIT = new IntegerDefinition(MODULE + "RECORD_SIZE_LIMIT",
-			"DTLS record size limit (RFC 8449). Between 64 and 65535.", null, 64);
+			"DTLS record size limit (RFC 8449). Between 64 and 16K.", null, 64);
 
 	/**
 	 * Specify the maximum fragment length.
