@@ -1,6 +1,6 @@
 ![Californium logo](../../cf_64.png)
 
-# Californium - Extended Plugtest Server
+# Californium (Cf) - Extended Plugtest Server
 
 Californium contains a plugtest server, that implements the test specification for the ETSI IoT, CoAP Plugtests, London, UK, 7--9 Mar 2014.
 
