@@ -22,15 +22,17 @@ PSK credentials are provided using a implementation of the [AdvancedPskStore](sr
 
 For demonstration, two implementations for server- and client-usage are available ([AdvancedMultiPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedMultiPskStore.java) and [AdvancedSinglePskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedSinglePskStore.java)).
 
-Using the interface enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible.
+Using the interface enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible. Such a design with larger latency will still cause delays in the handshakes and limit the possible handshakes in a period of time, but has only slightly effects on the other ongoing traffic.
 
 ## RPK/X509
 
 Certificate based credentials are provided using a implementation of the [CertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/CertificateProvider.java) interface. And to verify certificates of the other peers, provide a implementation of the [NewAdvancedCertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/NewAdvancedCertificateVerifier.java).
 
-For demonstration, two implementations of the `CertificateProvider` are available, the [SingleCertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/SingleCertificateProvider.java) (for simple setups or setups with earlier versions of Californium), and the [KeyManagerCertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/KeyManagerCertificateProvider.java) (for setups with multiple certificates in order to support different certificate types and/or other subjects/servernames).
+For demonstration, two implementations of the `CertificateProvider` are available, the [SingleCertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/SingleCertificateProvider.java) (for simple setups or setups with earlier versions of Californium), and the [KeyManagerCertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/KeyManagerCertificateProvider.java) (for setups with multiple certificates in order to support different certificate types and/or other subjects/servernames (SNI)).
 
 Also for demonstration, one implementation of the `NewAdvancedCertificateVerifier` is available, the [StaticNewAdvancedCertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/StaticNewAdvancedCertificateVerifier.java).
+
+Using the interfaces enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible. Such a design with larger latency will still cause delays in the handshakes and limit the possible handshakes in a period of time, but has only slightly effects on the other ongoing traffic.
 
 ## Additional Parameters
 
@@ -123,11 +125,12 @@ to import Californium into Eclipse.
 
 Scandium's test cases and examples refer to Java key stores containing private and public keys. These key stores are provided by the `demo-certs` module. Please refer to the documentation of that module for more information regarding how to create your own certificates.
 
-Starting with 3.0.0-RC1 a client receiving a x509 server-certificate verifies the subject of it by default. This may be disabled using [DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L410).
+Starting with 3.0.0-RC1 a client receiving a x509 server-certificate verifies the subject of it by default. This may be disabled using [DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L416).
 
 Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to provide multiple certificates to be selected by their algorithms and/or server name. For that, a Ed25519 and a RSA certificate has been added to the `demo-certs`.
 
-# Supported RFCs
+# Supported Features
+## Supported RFCs
 
 [Supported Cipher Suites](src/main/java/org/eclipse/californium/scandium/dtls/cipher/CipherSuite.java):
 
@@ -171,7 +174,7 @@ Supported extensions:
      - [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4)
      - [RFC 7627 - Extended Master Secret Extension](https://tools.ietf.org/html/rfc7627)
      - [RFC 8449 - Record Size Limit Extension ](https://tools.ietf.org/html/rfc8449)
-     - [Draft - Connection Identifiers for DTLS 1.2](https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id)
+- [Upcoming RFC 9146 - Connection Identifiers for DTLS 1.2](https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id)
 - [RFC 7250 - Raw Public Keys](https://tools.ietf.org/html/rfc7250)
 - [RFC 7748 - Elliptic Curves for Security](https://tools.ietf.org/html/rfc7748)
 
@@ -226,15 +229,15 @@ For Scandium, that mainly requires to:
 - prevent the own endpoint to allocate resources for unverified sources, at least not without limitation.
 
 
-For both, (RFC6347 - 4.2.1.  Denial-of-Service Countermeasures)[https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1] describes a technique using a "stateless cookie" in order to verify the source ip-address without amplification and without state.
+For both, [RFC 6347 - 4.2.1.  Denial-of-Service Countermeasures](https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1) describes a technique using a "stateless cookie" in order to verify the source ip-address without amplification and without state.
 
 Scandium is intended to use such a `HelloVerifyRequest`, if spoofing must be considered.
 
-(RFC6347 - 4.2.1.  Denial-of-Service Countermeasures)[https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1] gives a server also a second option, when a client tries to resume a previous session.
+[RFC 6347 - 4.2.1.  Denial-of-Service Countermeasures](https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1) gives a server also a second option, when a client tries to resume a previous session.
 
     In addition, the server MAY choose not to do a cookie exchange when a session is resumed.
 
-That option comes with (4.2.8.  Establishing New Associations with Existing Parameters)[https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.8]
+That option comes with [RFC 6347 4.2.8.  Establishing New Associations with Existing Parameters](https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.8)
 
     In cases where a server believes it has an existing association on a
     given host/port quartet and it receives an epoch=0 ClientHello, it
@@ -248,6 +251,38 @@ That option comes with (4.2.8.  Establishing New Associations with Existing Para
     off-path/blind attackers from destroying associations merely by
     sending forged ClientHellos.
 
-Scandium 
+Scandium hasn't implemented this second option. If spoofing must be considered, please always use a `HelloVerifyRequest`. Configure `DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD` therefore to `0`.
 
-doesn't support this second option, if spoofing must be considered. 
+# Message Size Limits - MTU
+
+Using UDP the message size becomes more significant than for TCP. General information may be found in [WikiPedia - IP fragmentation](https://en.wikipedia.org/wiki/IP_fragmentation). For IPv4 fragmentation is supported, but it is considered to be somehow unreliable. For IPv6 it is considered to be mostly disabled. With that, the PMTU (Path MTU - smallest MTU on the IP route/path) becomes more important. But unfortunately, Java usually have no access to the ICMP protocol in order to discover the PMTU. Anyway, that PMTU discover requires to exchange a couple of messages, maybe more, than the DTLS of CoAP exchange would require. That leaves a deployment usually in a state, where a priori information about the MTU provides a benefit. Without that, Californium can be configured to assume a MTU, auto-detect the "link-local" MTU (default without configuration), or auto-detect the "link-local" MTU and limit that MTU by a configured value.
+
+- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L428) 
+- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L442) 
+
+If the a priori information is only available for one of both peers, then it gets important to negotiate some how the message size to be used. The same applies, if the server requires flexibility to support clients with different possibilities.
+
+## DTLS 1.2 Record Size Limits Extension
+
+DTLS 1.2 offers two ways to define a limit of the size for handshake record or messages.
+
+- [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4)
+- [RFC 8449 - Record Size Limit Extension ](https://tools.ietf.org/html/rfc8449)
+
+Without extension, [RFC 5246 - 6.2.1.  Fragmentation](https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.1) limits the plaintext fragment length to 2^14 bytes (16K). Using [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4) enables to negotiate (always triggered by the client) 2^9, 2^10, 2^11, or 2^12 (512, 1024, 2048, 4096). For DTLS mainly the 512 and 1024 are relevant. [RFC 8449 - Record Size Limit Extension ](https://tools.ietf.org/html/rfc8449) enables the peer to negotiate a length in bytes, ranging from 64 to 2^14 (16K, values much larger than about 1024 or 1280 are not that common).
+
+- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L428)
+- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L442)
+
+If all that fails, or is not supported by both peers, [RFC 6347 - 4.1.1.1.  PMTU Issues](https://datatracker.ietf.org/doc/html/rfc6347#section-4.1.1.1) defines to reduce the message size on retransmissions as backoff strategy.
+
+    If repeated retransmissions do not result in a response, and the
+    PMTU is unknown, subsequent retransmissions SHOULD back off to a
+    smaller record size, fragmenting the handshake message as
+    appropriate.  This standard does not specify an exact number of
+    retransmits to attempt before backing off, but 2-3 seems
+    appropriate.
+
+In Californium this number of retransmissions before using smaller messages can be configure with [DtlsConfig.DTLS_RETRANSMISSION_BACKOFF](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L341), the default is half the value of [DtlsConfig.DTLS_MAX_RETRANSMISSIONS](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L317).
+
+
