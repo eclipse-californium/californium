@@ -251,14 +251,14 @@ That option comes with [RFC 6347 4.2.8.  Establishing New Associations with Exis
     off-path/blind attackers from destroying associations merely by
     sending forged ClientHellos.
 
-Scandium hasn't implemented this second option. If spoofing must be considered, please always use a `HelloVerifyRequest`. Configure `DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD` therefore to `0`.
+Scandium hasn't implemented this second option. If spoofing must be considered, please always use a `HelloVerifyRequest`. Configure [DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L621) therefore to `0`.
 
 # Message Size Limits - MTU
 
 Using UDP the message size becomes more significant than for TCP. General information may be found in [WikiPedia - IP fragmentation](https://en.wikipedia.org/wiki/IP_fragmentation). For IPv4 fragmentation is supported, but it is considered to be somehow unreliable. For IPv6 it is considered to be mostly disabled. With that, the PMTU (Path MTU - smallest MTU on the IP route/path) becomes more important. But unfortunately, Java usually have no access to the ICMP protocol in order to discover the PMTU. Anyway, that PMTU discover requires to exchange a couple of messages, maybe more, than the DTLS of CoAP exchange would require. That leaves a deployment usually in a state, where a priori information about the MTU provides a benefit. Without that, Californium can be configured to assume a MTU, auto-detect the "link-local" MTU (default without configuration), or auto-detect the "link-local" MTU and limit that MTU by a configured value.
 
-- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L428) 
-- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L442) 
+- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L428) 
+- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L442) 
 
 If the a priori information is only available for one of both peers, then it gets important to negotiate some how the message size to be used. The same applies, if the server requires flexibility to support clients with different possibilities.
 
@@ -271,8 +271,8 @@ DTLS 1.2 offers two ways to define a limit of the size for handshake record or m
 
 Without extension, [RFC 5246 - 6.2.1.  Fragmentation](https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.1) limits the plaintext fragment length to 2^14 bytes (16K). Using [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4) enables to negotiate (always triggered by the client) 2^9, 2^10, 2^11, or 2^12 (512, 1024, 2048, 4096). For DTLS mainly the 512 and 1024 are relevant. [RFC 8449 - Record Size Limit Extension ](https://tools.ietf.org/html/rfc8449) enables the peer to negotiate a length in bytes, ranging from 64 to 2^14 (16K, values much larger than about 1024 or 1280 are not that common).
 
-- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L428)
-- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L442)
+- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L428)
+- [DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L442)
 
 If all that fails, or is not supported by both peers, [RFC 6347 - 4.1.1.1.  PMTU Issues](https://datatracker.ietf.org/doc/html/rfc6347#section-4.1.1.1) defines to reduce the message size on retransmissions as backoff strategy.
 
@@ -283,6 +283,5 @@ If all that fails, or is not supported by both peers, [RFC 6347 - 4.1.1.1.  PMTU
     retransmits to attempt before backing off, but 2-3 seems
     appropriate.
 
-In Californium this number of retransmissions before using smaller messages can be configure with [DtlsConfig.DTLS_RETRANSMISSION_BACKOFF](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L341), the default is half the value of [DtlsConfig.DTLS_MAX_RETRANSMISSIONS](src/main/java/org/eclipse/californium/scandium/dtls/config/DtlsConfig.java#L317).
-
+In Californium this number of retransmissions before using smaller messages can be configure with [DtlsConfig.DTLS_RETRANSMISSION_BACKOFF](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L341), the default is half the value of [DtlsConfig.DTLS_MAX_RETRANSMISSIONS](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L317).
 
