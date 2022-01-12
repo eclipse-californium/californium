@@ -72,7 +72,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>scandium</artifactId>
-            <version>3.0.0</version>
+            <version>3.2.0</version>
     </dependency>
     ...
   </dependencies>
@@ -103,7 +103,7 @@ mvn clean install
 
 in the project's root directory.
 
-This `scandium-core` folder contains the source code for the Scandium library.
+The `scandium-core` folder contains the source code for the Scandium library.
 The [demo-apps/sc-dtls-example-client](../demo-apps/sc-dtls-example-client) and [demo-apps/sc-dtls-example-server](../demo-apps/sc-dtls-example-server) folder contains some sample code illustrating how to configure and instantiate Scandium's [DTLSConnector](src/main/java/org/eclipse/californium/scandium/DTLSConnector.java) class to establish connections secured by DTLS.
 
 Generally it's required to register the [DtlsConfig.register()](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) the DTLS configuration module or to provide it when using the `Configuration(ModuleDefinitionsProvider... providers)`.

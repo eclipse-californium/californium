@@ -155,4 +155,73 @@ if (response != null) {
 client.shutdown();
 ```
 
-and you will get a response containing your IP-address visible to the server. 
+and you will get a response containing your IP-address visible to the server.
+
+# Getting it
+
+You can either use  _Californium (Cf)_  binaries from Maven or you can build your own binaries from source code.
+
+### Binaries
+
+The most recent  _Californium_  snapshot binaries are available from the Eclipse Foundation's Maven repository.
+Simply add  _Californium_  as as dependency to your Maven POM file as shown below. Don't forget to also add the definition for Eclipse's snapshot repository.
+
+The  _Californium_  release binaries are also available via Maven Central. Thus, you will
+not need to define any additional Maven repos in your POM file or Maven settings.xml in order to get release versions.
+
+See [Californium Project Plan](https://projects.eclipse.org/projects/iot.californium/governance) for scheduled releases.
+
+```xml
+  <dependencies>
+    ...
+    <dependency>
+            <groupId>org.eclipse.californium</groupId>
+            <artifactId>californium-core</artifactId>
+            <version>3.2.0</version>
+    </dependency>
+    ...
+  </dependencies>
+  
+  <repositories>
+    ...
+    <repository>
+      <id>repo.eclipse.org</id>
+      <name>Californium Repository - Releases</name>
+      <url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
+    </repository>
+    <repository>
+      <id>repo.eclipse.org</id>
+      <name>Californium Repository - Snapshots</name>
+      <url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
+    </repository>
+    ...
+  </repositories>
+```
+
+### Building from Source
+
+If you want to build and install  _Californium_  from source, simply run
+
+```sh
+mvn clean install
+```
+
+in the project's root directory.
+
+The `californium-core` folder contains the source code for the Californium-Core library.
+The [demo-apps/cf-helloworld-client](../demo-apps/cf-helloworld-client) and [demo-apps/cf-helloworld-server](../demo-apps/cf-helloworld-server) folder contains some sample code illustrating how to use Californium.
+
+Generally it's required to register the [CoapConfig.register()](src/main/java/org/eclipse/californium/core/config/CoapConfig.java) the CoAP configuration module or to provide it when using the `Configuration(ModuleDefinitionsProvider... providers)`.
+For more advanced configuration options take a look at the definitions of [CoapConfig](src/main/java/org/eclipse/californium/core/config/CoapConfig.java).
+
+# Eclipse
+
+The project also includes the project files for Eclipse. Make sure to have the
+following before importing the Californium (Cf) project:
+
+* [Eclipse EGit](http://www.eclipse.org/egit/)
+* [m2e - Maven Integration for Eclipse](http://www.eclipse.org/m2e/)
+* UTF-8 workspace text file encoding (Preferences &raquo; General &raquo; Workspace)
+
+Then choose *[Import... &raquo; Git &raquo; Projects from Git &raquo; Local]*
+to import Californium into Eclipse.
