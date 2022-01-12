@@ -67,6 +67,7 @@ import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
+import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionStore;
@@ -1977,6 +1978,12 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException(
 							"MTU (" + mtu + " bytes) is larger than the limit (" + limit + " bytes)!");
 				}
+			}
+
+			if (config.getRecordSizeLimit() != null
+					&& config.getRecordSizeLimit() > Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH) {
+				throw new IllegalStateException("Record size limit " + config.getRecordSizeLimit()
+						+ " must be less than " + Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH + "!");
 			}
 
 			if (config.getDtlsRole() == DtlsRole.SERVER_ONLY) {

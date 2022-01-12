@@ -251,9 +251,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class);
 	private static final Logger DROP_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".drops");
-	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION = CipherSuite.getOverallMaxCiphertextExpansion();
-	private static final int MAX_DATAGRAM_BUFFER_SIZE = MAX_PLAINTEXT_FRAGMENT_LENGTH
+	private static final int MAX_DATAGRAM_BUFFER_SIZE = Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH
 			+ Record.DTLS_HANDSHAKE_HEADER_LENGTH
 			+ MAX_CIPHERTEXT_EXPANSION;
 
@@ -2472,10 +2471,10 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		if (!running.get()) {
 			connection = null;
 			error = new IllegalStateException("connector must be started before sending messages is possible");
-		} else if (message.getSize() > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
+		} else if (message.getSize() > Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH) {
 			connection = null;
 			error = new IllegalArgumentException(
-					"Message data must not exceed " + MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
+					"Message data must not exceed " + Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
 		} else {
 			boolean create = dtlsRole != DtlsRole.SERVER_ONLY;
 			if (create) {
