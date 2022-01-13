@@ -130,7 +130,8 @@ Starting with 3.0.0-RC1 a client receiving a x509 server-certificate verifies th
 Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to provide multiple certificates to be selected by their algorithms and/or server name. For that, a Ed25519 and a RSA certificate has been added to the `demo-certs`.
 
 # Supported Features
-## Supported RFCs
+
+## Supported Cipher Suites
 
 [Supported Cipher Suites](src/main/java/org/eclipse/californium/scandium/dtls/cipher/CipherSuite.java):
 
@@ -163,6 +164,30 @@ Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to pr
 - *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
 
 Note: the *CBC* cipher suite are not longer recommended for new deployments!
+
+## Supported Signature- and Hash-Algorithms
+
+- *SHA256_WITH_ECDSA*
+- *SHA256_WITH_RSA*
+- *ED25519* (if supported by JCE)
+- *ED448* (if supported by JCE)
+- *SHA1_WITH_ECDSA* (if explicitly enabled)
+- *SHA378_WITH_ECDSA* (if explicitly enabled)
+- *SHA512_WITH_ECDSA* (if explicitly enabled)
+
+## Supported Curves
+
+- *secp256r1*
+- *secp384r1*
+- *secp521r1*
+- *X25519* (if supported by JCE)
+- *X448* (if supported by JCE)
+
+(There are also some more, but their support depends on the JCE, see [SupportedGroup](src/main/java/org/eclipse/californium/scandium/dtls/cipher/XECDHECryptography.java#L351-L387)
+
+## Supported RFCs
+
+[RFC 6347 - Datagram Transport Layer Security Version 1.2](https://tools.ietf.org/html/rfc6347).
 
 Supported extensions:
 - [RFC 4279 - Pre-Shared Key](https://tools.ietf.org/html/rfc4279) simple and light authentication.

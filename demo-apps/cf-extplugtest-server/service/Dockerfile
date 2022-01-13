@@ -20,7 +20,7 @@ FROM docker.io/openjdk:11-jre-slim
 
 RUN mkdir /opt/app
 COPY ./service/build ./CaliforniumReceivetest3.properties /opt/app/
-COPY ./target/cf-extplugtest-server-3.1.0-SNAPSHOT.jar /opt/app/cf-extplugtest-server.jar
+COPY ./target/cf-extplugtest-server-3.3.0-SNAPSHOT.jar /opt/app/cf-extplugtest-server.jar
 
 #EXPOSE 5683/udp
 #EXPOSE 5683/tcp

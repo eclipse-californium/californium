@@ -94,7 +94,7 @@ client.shutdown();
 
 # Server
 
-A [CoapServer](src/main/java/org/eclipse/californium/core/CoapServer.java) combines receiver `Endpoint`s and a tree of [Resources](src/main/java/org/eclipse/californium/core/server/resources/Resource.java). The same `Endpoint`s can be used for sending `Request` (as client) and receiving `Request`s (as server).
+A [CoapServer](src/main/java/org/eclipse/californium/core/CoapServer.java) combines receiver `Endpoint`s and a tree of [Resources](src/main/java/org/eclipse/californium/core/server/resources/Resource.java). The same `Endpoint`s can be used for sending `Request` (as client) and receiving `Request`s (as server). Please keep in mind, that such CoAP role exchanges may only work, if both peers are reachable by each other. In many network setups, only one peer is reachable, the other other one is only reachable on a return path (e.g. NATed). The same is also true for the TCP variants, where usually only the TCP-client connects to the TCP-server, and a host, which acts as TCP-server usually can't connect a host, which acts as TCP-client. For  DTLS that may be similar to TCP as well, except DTLS implementations, which supports both roles (default for Californium's DTLS implementation Scandium).
 
 ```
 ...
@@ -224,4 +224,18 @@ following before importing the Californium (Cf) project:
 * UTF-8 workspace text file encoding (Preferences &raquo; General &raquo; Workspace)
 
 Then choose *[Import... &raquo; Git &raquo; Projects from Git &raquo; Local]*
-to import Californium into Eclipse.
+to import Californium's parent module and all sub-modules into Eclipse.
+
+# Supported Features
+
+## Supported RFCs
+
+[RFC 7252 - The Constrained Application Protocol (CoAP)](https://tools.ietf.org/html/rfc7252).
+
+Supported extensions:
+- [RFC 7641 - Observing Resources in the Constrained Application Protocol (CoAP)](https://tools.ietf.org/html/rfc7641).
+- [RFC 7959 - Block-Wise Transfers in the Constrained Application Protocol (CoAP)](https://tools.ietf.org/html/rfc7959)
+- [RFC 7967 - Constrained Application Protocol (CoAP) Option for No Server Response](https://tools.ietf.org/html/rfc7967)
+- [RFC 8323 - CoAP (Constrained Application Protocol) over TCP, TLS, and WebSockets](https://tools.ietf.org/html/rfc8323) (Experimental, not complete, not compliant to the final RFC. Help welcome :-).)
+
+

@@ -10,14 +10,14 @@ Please refer to the eclipse Californium project page for license, build, and ins
 
 ## Download
 
-[Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-simplefile-server/3.1.0/cf-simplefile-server-3.1.0.jar)
+[Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-simplefile-server/3.2.0/cf-simplefile-server-3.2.0.jar)
 
 ## PREPARATION
 
 Generate "Californium.properties" using 
 
 ```sh
-java -jar cf-simplefile-server-3.1.0.jar.
+java -jar cf-simplefile-server-3.2.0.jar.
 ```
 
 Adjust properties according you setup/environment, at least adjust "MAX_RESOURCE_BODY_SIZE"
@@ -28,7 +28,7 @@ Create a folder ("data" by default), and place the file(s) in that folder.
 ## RUN
 
 ```sh
-java -jar cf-simplefile-server-3.1.0.jar [--file-root=<file-root-directory>] [--path-root=<coap-root>]
+java -jar cf-simplefile-server-3.2.0.jar [--file-root=<file-root-directory>] [--path-root=<coap-root>]
 ```
 
 Default for both roots is: "data".
@@ -43,7 +43,7 @@ URL: coap://<host>/<coap-root>/<file-path>
 e.g (using `cf-helloworld-client`)
 
 ```sh
-java -jar cf-helloworld-client-3.1.0.jar GETClient coap://localhost/data/file.bin file2save.bin
+java -jar cf-helloworld-client-3.2.0.jar GETClient coap://localhost/data/file.bin file2save.bin
 ```
 
 (GET file "file.bin" from file-root-directory).
@@ -102,7 +102,7 @@ Options:
 With that, the file system tree below `/home/cali/data` is used and the sub-path of URIs `coap://<host>/files/<sub-path>` are used to locate the file within that tree.
 
 ```
-java -jar cf-simplefile-server-3.1.0.jar --file-root=/home/cali/data --path-root=files --no-tcp
+java -jar cf-simplefile-server-3.2.0.jar --file-root=/home/cali/data --path-root=files --no-tcp
 
 INFO [SimpleFileServer]: GET: coap://<host>/files/cf_64.png
 INFO [SimpleFileServer]: GET: coap://<host>/files/README.md
@@ -110,14 +110,14 @@ INFO [SimpleFileServer]: GET: coap://<host>/files/fw/device.hex
 ```
 
 ```
-java -jar cf-helloworld-client-3.1.0.jar GETClient coap://localhost/files/cf_64.png picture2save.png
-java -jar cf-helloworld-client-3.1.0.jar GETClient coap://localhost/files/fw/device.hex firmware.hex
+java -jar cf-helloworld-client-3.2.0.jar GETClient coap://localhost/files/cf_64.png picture2save.png
+java -jar cf-helloworld-client-3.2.0.jar GETClient coap://localhost/files/fw/device.hex firmware.hex
 ```
 
 Access files out of the file system sub-tree results in an error response.
  
 ```
-java -jar cf-helloworld-client-3.1.0.jar GETClient coap://localhost/files/../../other/top-secret.txt steal.txt
+java -jar cf-helloworld-client-3.2.0.jar GETClient coap://localhost/files/../../other/top-secret.txt steal.txt
 
 4.01 - UNAUTHORIZED
 ```

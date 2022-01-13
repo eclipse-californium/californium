@@ -54,7 +54,7 @@ fi
 : "${K8S_SERVICE:=k8s.yaml}"
 
 CONTAINER=cf-extserver-jdk11-slim
-VERSION=3.1.0
+VERSION=3.3.0
 
 if [ "$1" = "install" ]  ; then
 	CONTAINER_VERSION="${CONTAINER}:${VERSION}"
