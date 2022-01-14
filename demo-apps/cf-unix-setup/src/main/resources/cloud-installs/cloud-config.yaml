@@ -38,5 +38,6 @@ runcmd:
  - [ systemctl, enable, cali ]
  - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/src/main/resources/fail2ban/cali2fail.conf", -O, "/etc/fail2ban/jail.d/cali2fail.conf" ]
  - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/src/main/resources/fail2ban/cali.conf", -O, "/etc/fail2ban/filter.d/cali.conf" ]
+ - [ sleep, 5 ]
  - [ systemctl, restart, fail2ban ]
 

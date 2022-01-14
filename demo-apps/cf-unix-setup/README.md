@@ -119,8 +119,8 @@ runcmd:
  - [ systemctl, enable, cali ]
  - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/src/main/resources/fail2ban/cali2fail.conf", -O, "/etc/fail2ban/jail.d/cali2fail.conf" ]
  - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/src/main/resources/fail2ban/cali.conf", -O, "/etc/fail2ban/filter.d/cali.conf" ]
+ - [ sleep, 5 ]
  - [ systemctl, restart, fail2ban ]
-
 ```
 
 [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml)
@@ -352,3 +352,5 @@ Status for the jail: cali-udp
    |- Total banned:	7
    `- Banned IP list:	
 ```
+
+(If fail2ban is started before the "ban.log" is available, it fails. Just restart it with `sudo systemctl restart fail2ban` should fix it.)
