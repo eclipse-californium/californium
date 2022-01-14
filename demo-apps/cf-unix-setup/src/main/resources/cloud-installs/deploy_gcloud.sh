@@ -29,17 +29,44 @@
 # and https://cloud.google.com/compute/vm-instance-pricing
 # gcloud compute machine-types list
 
+name=cali
 vmsize="e2-micro"
 
-if [ "$1" = "create" ]  ; then
-   echo "create google cloud server"
+get_ip() {
+   ip=$(gcloud compute instances describe ${name} --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+   echo "vm-ip: ${ip}"
+}
 
-   gcloud compute firewall-rules create coaps --allow udp:5684 --target-tags=coaps
+wait_vm_ready() {
+   status=$(gcloud compute instances describe ${name} --format='get(status)')
+   while [ "${status}" != "RUNNING" ] ; do
+      echo "vm: ${status}, waiting for RUNNING"
+      sleep 10
+      status=$(gcloud compute instances describe ${name} --format='get(status)')
+   done
+   echo "vm: ${status}"
+}
+
+wait_cloud_init_ready() {
+   status=$(ssh -o "StrictHostKeyChecking=accept-new" root@${ip} "cloud-init status")
+
+   while [ "${status}" != "status: done" ] ; do
+      echo "cloud-init: ${status}, waiting for done"
+      sleep 10
+      status=$(ssh -o "StrictHostKeyChecking=accept-new" root@${ip} "cloud-init status")
+   done
+   echo "cloud-init: ${status}"
+}
+
+if [ "$1" = "create" ]  ; then
+   echo "create google cloud server ${name}"
+
+   gcloud compute firewall-rules create ${name}-coaps --allow udp:5684 --target-tags=${name}-coaps
 
    zone="europe-west3-a"
 
-   gcloud compute instances create cali \
-      --tags="coaps" \
+   gcloud compute instances create ${name} \
+      --tags="${name}-coaps" \
       --zone "${zone}" \
       --machine-type="${vmsize}" \
       --image-family ubuntu-2004-lts \
@@ -47,9 +74,12 @@ if [ "$1" = "create" ]  ; then
       --metadata-from-file user-data=cloud-config.yaml
 
    echo "wait to give vm time to finish the installation!"
-   sleep 30 
 
-   ip=$(gcloud compute instances describe cali --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+   wait_vm_ready
+
+   get_ip
+
+   wait_cloud_init_ready
 
    echo "use: ssh root@${ip} to login!"
 
@@ -57,15 +87,19 @@ if [ "$1" = "create" ]  ; then
 fi
 
 if [ "$1" = "delete" ]  ; then
-   echo "delete google cloud server"
+   echo "delete google cloud server ${name}"
 
-   gcloud compute instances delete cali
-   gcloud compute firewall-rules delete coaps
+   get_ip
+
+   gcloud compute instances delete ${name}
+   gcloud compute firewall-rules delete ${name}-coaps
 
    echo "Please verify the successful deletion via the Web UI."
+
+   echo "Remove the ssh trust for ${ip} with:"
+   echo "ssh-keygen -f ~/.ssh/known_hosts -R \"${ip}\""
 
    exit 0
 fi
 
 echo "usage: (create|delete)"
-
