@@ -175,6 +175,18 @@ Features: IPv4, Firewall
 
 For further instructions see the comments in that script.
 
+### Installation on AWS
+
+[Amazon Web Service](https://aws.amazon.com)
+
+[deploy_aws.sh](src/main/resources/cloud-installs/deploy_aws.sh)
+
+This script uses the aws API (aws) to create a vm and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.2.0/cf-plugtest-server-3.2.0.jar).
+
+Features: IPv4, Firewall
+
+For further instructions see the comments in that script.
+
 ## Handling of the "cali.service"
 
 To start the service, use
