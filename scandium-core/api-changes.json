@@ -350,5 +350,31 @@
 				}
 			]
 		}
-	}
+	},
+	"3.3.0": [
+		{
+			"extension": "revapi.differences",
+			"configuration": {
+				"ignore": true,
+				"differences": [
+					{
+						"ignore": true,
+						"code": "java.annotation.added",
+						"old": "field org.eclipse.californium.scandium.dtls.cipher.CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378",
+						"new": "field org.eclipse.californium.scandium.dtls.cipher.CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378",
+						"annotation": "@org.eclipse.californium.elements.util.PublicAPITypo(fixedName = \"TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384\")",
+						"justification": "Annotation is used to announce an API change in the future."
+					},
+					{
+						"ignore": true,
+						"code": "java.annotation.added",
+						"old": "field org.eclipse.californium.scandium.dtls.cipher.CipherSuite.TLS_PSK_WITH_AES_256_GCM_SHA378",
+						"new": "field org.eclipse.californium.scandium.dtls.cipher.CipherSuite.TLS_PSK_WITH_AES_256_GCM_SHA378",
+						"annotation": "@org.eclipse.californium.elements.util.PublicAPITypo(fixedName = \"TLS_PSK_WITH_AES_256_GCM_SHA384\")",
+						"justification": "Annotation is used to announce an API change in the future."
+					}
+				]
+			}
+		}
+	]
 }

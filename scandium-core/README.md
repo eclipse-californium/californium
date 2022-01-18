@@ -144,13 +144,13 @@ Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to pr
 - TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256
 - TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256
 - TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256
-- TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378
+- *TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378*
 - TLS_PSK_WITH_AES_128_CCM
 - TLS_PSK_WITH_AES_128_CCM_8
 - TLS_PSK_WITH_AES_128_GCM_SHA256
 - TLS_PSK_WITH_AES_256_CCM
 - TLS_PSK_WITH_AES_256_CCM_8
-- TLS_PSK_WITH_AES_256_GCM_SHA378
+- *TLS_PSK_WITH_AES_256_GCM_SHA378*
 - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
 
@@ -159,11 +159,13 @@ Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to pr
 - *TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384*
 - *TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256*
 - *TLS_PSK_WITH_AES_128_CBC_SHA256*
-- *TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-- *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-- *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+- *TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256*
+- *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384*
+- *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA*
 
-Note: the *CBC* cipher suite are not longer recommended for new deployments!
+Note: the *CBC* cipher suites are not longer recommended for new deployments!
+
+Note: *SHA378* in the cipher suite names are typos. It must be *SHA384*. The straight forward fix would break the API, therefore the fix is postponed to 4.0 (no schedule for now)!
 
 ## Supported Signature- and Hash-Algorithms
 
