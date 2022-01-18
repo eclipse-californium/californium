@@ -15,12 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.CLIENT_CERTIFICATE;
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.OPENSSL_PSK_IDENTITY;
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.OPENSSL_PSK_SECRET;
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.ROOT_CERTIFICATE;
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
-import static org.eclipse.californium.interoperability.test.OpenSslUtil.TRUSTSTORE;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.CLIENT_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_IDENTITY;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_SECRET;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.ROOT_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.TRUSTSTORE;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;

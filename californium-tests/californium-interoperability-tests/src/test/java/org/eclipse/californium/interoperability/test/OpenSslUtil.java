@@ -29,20 +29,6 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  */
 public class OpenSslUtil {
 
-	public static final String SERVER_CERTIFICATE = "server.pem";
-	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
-	public static final String SERVER_CA_RSA_CERTIFICATE = "serverCaRsa.pem";
-
-	public static final String CLIENT_CERTIFICATE = "client.pem";
-	public static final String CLIENT_RSA_CERTIFICATE = "clientRsa.pem";
-	public static final String ROOT_CERTIFICATE = "rootTrustStore.pem";
-	public static final String CA_CERTIFICATES = "caTrustStore.pem";
-	public static final String CA_RSA_CERTIFICATES = "caRsaTrustStore.pem";
-	public static final String TRUSTSTORE = "trustStore.pem";
-
-	public static final String OPENSSL_PSK_IDENTITY = "Client_identity";
-	public static final byte[] OPENSSL_PSK_SECRET = "secretPSK".getBytes();
-
 	/**
 	 * Map of Californium's cipher suites to openssl names.
 	 */
