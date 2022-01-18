@@ -32,12 +32,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
- * Test for openssl interoperability.
+ * Test utility for openssl interoperability.
  * 
  * Requires external openssl installation, otherwise the tests are skipped. On
  * linux install just the openssl package (version 1.1.1). On windows you may
