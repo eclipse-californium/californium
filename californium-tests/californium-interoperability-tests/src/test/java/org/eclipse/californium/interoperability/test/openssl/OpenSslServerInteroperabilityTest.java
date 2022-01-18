@@ -19,6 +19,7 @@ import static org.eclipse.californium.interoperability.test.CredentialslUtil.SER
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -120,8 +121,8 @@ public class OpenSslServerInteroperabilityTest {
 		String message = "Hello OpenSSL!";
 		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
 
-		processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS);
-		processUtil.waitConsole(message, TIMEOUT_MILLIS);
+		assertTrue(processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS));
+		assertTrue(processUtil.waitConsole(message, TIMEOUT_MILLIS));
 		processUtil.send("ACK-" + message);
 
 		scandiumUtil.assertReceivedData("ACK-" + message, TIMEOUT_MILLIS);
@@ -145,8 +146,8 @@ public class OpenSslServerInteroperabilityTest {
 		String message = "Hello OpenSSL!";
 		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
 
-		processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS);
-		processUtil.waitConsole(message, TIMEOUT_MILLIS);
+		assertTrue(processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS));
+		assertTrue(processUtil.waitConsole(message, TIMEOUT_MILLIS));
 		processUtil.send("ACK-" + message);
 
 		scandiumUtil.assertReceivedData("ACK-" + message, TIMEOUT_MILLIS);
