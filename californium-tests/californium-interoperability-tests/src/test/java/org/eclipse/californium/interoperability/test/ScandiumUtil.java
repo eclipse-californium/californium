@@ -16,6 +16,7 @@
 package org.eclipse.californium.interoperability.test;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -156,6 +157,22 @@ public class ScandiumUtil extends ConnectorUtil {
 		receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
 		assertNotNull("scandium missing message '" + message + "'!", receivedData);
 		assertThat(new String(receivedData.getBytes()), is(message));
+	}
+
+	/**
+	 * Assert, that this message is received in time.
+	 * 
+	 * The message must be contained in the first received one.
+	 * 
+	 * @param message message the receiving is to be asserted
+	 * @param timeoutMillis timeout of message
+	 * @throws InterruptedException if interrupted during wait
+	 * @since 3.3
+	 */
+	public void assertContainsReceivedData(String message, long timeoutMillis) throws InterruptedException {
+		receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
+		assertNotNull("scandium missing message '" + message + "'!", receivedData);
+		assertThat(new String(receivedData.getBytes()), containsString(message));
 	}
 
 	/**
