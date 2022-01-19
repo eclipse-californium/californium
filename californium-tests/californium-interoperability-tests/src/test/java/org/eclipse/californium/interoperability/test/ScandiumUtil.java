@@ -93,7 +93,7 @@ public class ScandiumUtil extends ConnectorUtil {
 	 * Start connector.
 	 * 
 	 * @param bind address to bind connector to
-	 * @param dtlsBuilder preconfigured dtls builder. May be {@link null}.
+	 * @param dtlsBuilder preconfigured dtls builder. May be {@code null}.
 	 * @param trust alias of trusted certificate, or {@code null} to trust all
 	 *            received certificates.
 	 * @param cipherSuites cipher suites to support.

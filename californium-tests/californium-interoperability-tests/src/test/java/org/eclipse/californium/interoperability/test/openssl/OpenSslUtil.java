@@ -155,10 +155,10 @@ public class OpenSslUtil {
 	}
 
 	/**
-	 * Get ":" separated list of openssl signature and algorithm named.
+	 * Get ":" separated list of openssl signature and algorithm names.
 	 * 
-	 * @param jcaNamed JCA named. e.g. "SHA256withECDSA", "SHA256withRSA"
-	 * @return openssl name. e.g. "ECDSA+SHA256:RSA+SHA256"
+	 * @param jcaNames JCA names. e.g. "SHA256withECDSA", "SHA256withRSA"
+	 * @return openssl names. e.g. "ECDSA+SHA256:RSA+SHA256"
 	 * @throws IllegalArgumentException if one of the jcaNames does not contain
 	 *             a "with"
 	 * @since 2.3
