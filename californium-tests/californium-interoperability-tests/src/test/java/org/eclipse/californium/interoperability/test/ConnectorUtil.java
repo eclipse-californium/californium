@@ -150,7 +150,7 @@ public class ConnectorUtil {
 	 * Build connector.
 	 * 
 	 * @param bind address to bind connector to
-	 * @param dtlsBuilder preconfigured dtls builder. Maybe {@link null}.
+	 * @param dtlsBuilder preconfigured dtls builder. Maybe {@code null}.
 	 * @param trust alias of trusted certificate, or {@code null} to trust all
 	 *            received certificates.
 	 * @param cipherSuites cipher suites to support.
