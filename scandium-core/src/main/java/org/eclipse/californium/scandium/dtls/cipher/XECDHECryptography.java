@@ -61,7 +61,7 @@ import javax.security.auth.Destroyable;
  * <p>
  * A ECDHE key exchange starts with negotiating a curve. The possible curves are
  * listed at <a href=
- * "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8">
+ * "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8" target="_blank">
  * IANA Transport Layer Security (TLS) Parameters - TLS Supported Groups</a>.
  * The {@link SupportedGroup} reflects that and offer the curve's
  * {@link SupportedGroup#name()} (description in the IANA table) or
