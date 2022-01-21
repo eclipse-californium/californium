@@ -23,6 +23,7 @@ import java.security.cert.Certificate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -31,6 +32,8 @@ import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
+import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 import io.netty.channel.Channel;
@@ -129,10 +132,36 @@ public class TlsContextUtil extends TcpContextUtil {
 				String sslId = StringUtil.byteArray2HexString(sessionId, StringUtil.NO_SEPARATOR, 0);
 				String cipherSuite = sslSession.getCipherSuite();
 				LOGGER.debug("TLS({},{},{})", id, StringUtil.trunc(sslId, 14), cipherSuite);
-				return new TlsEndpointContext(address, principal, id, sslId, cipherSuite, sslSession.getLastAccessedTime());
+				return new TlsEndpointContext(address, principal, id, sslId, cipherSuite,
+						sslSession.getLastAccessedTime());
 			}
 		}
 		// TLS handshake not finished
 		throw new IllegalStateException("TLS handshake " + id + " not ready!");
+	}
+
+	/**
+	 * Get array of weak cipher suites.
+	 * 
+	 * Work-around for <a href="https://github.com/bcgit/bc-java/issues/1054"
+	 * target="_blank">Bouncy Castle issue 1054: Default cipher suites when
+	 * running with java 7 (restricted)</a>. Fixed with bouncy castle 1.7.0.
+	 * 
+	 * @param sslContext ssl context with default cipher suite
+	 * @return array with weak cipher suites, subset of the ssl context.
+	 *         {@code null}, if not required.
+	 * 
+	 * @see JceProviderUtil#usesBouncyCastle()
+	 * @see JceProviderUtil#getProviderVersion()
+	 * @see JceProviderUtil#hasStrongEncryption()
+	 * @see SslContextUtil#getWeakCipherSuites(SSLContext)
+	 * @since 3.3
+	 */
+	public static String[] getWeakCipherSuites(SSLContext sslContext) {
+		if (!JceProviderUtil.hasStrongEncryption() && JceProviderUtil.usesBouncyCastle()
+				&& JceProviderUtil.getProviderVersion() < 1.70) {
+			return SslContextUtil.getWeakCipherSuites(sslContext);
+		}
+		return null;
 	}
 }

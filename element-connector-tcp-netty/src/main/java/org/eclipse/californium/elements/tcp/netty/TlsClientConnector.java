@@ -45,8 +45,6 @@ import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.util.CertPathUtil;
-import org.eclipse.californium.elements.util.JceProviderUtil;
-import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 import io.netty.channel.Channel;
@@ -66,7 +64,7 @@ public class TlsClientConnector extends TcpClientConnector {
 	/**
 	 * Weak cipher suites, or {@code null}, if no required.
 	 * 
-	 * @see JceProviderUtil#hasStrongEncryption()
+	 * @see TlsContextUtil#getWeakCipherSuites(SSLContext)
 	 * @since 3.0
 	 */
 	private final String[] weakCipherSuites;
@@ -96,8 +94,7 @@ public class TlsClientConnector extends TcpClientConnector {
 		this.handshakeTimeoutMillis = configuration.getTimeAsInt(TcpConfig.TLS_HANDSHAKE_TIMEOUT,
 				TimeUnit.MILLISECONDS);
 		this.verifyServerSubject = configuration.get(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
-		this.weakCipherSuites = JceProviderUtil.hasStrongEncryption() ? null
-				: SslContextUtil.getWeakCipherSuites(sslContext);
+		this.weakCipherSuites = TlsContextUtil.getWeakCipherSuites(sslContext);
 	}
 
 	/**
