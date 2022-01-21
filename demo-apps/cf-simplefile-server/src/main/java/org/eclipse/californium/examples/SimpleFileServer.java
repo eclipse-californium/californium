@@ -60,8 +60,8 @@ public class SimpleFileServer extends AbstractTestServer {
 
 	private static final File CONFIG_FILE = new File("Californium3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Fileserver";
-	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2
-																			// MB
+	// 2 MB
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024;
 	private static final int DEFAULT_BLOCK_SIZE = 512;
 
 	static {
