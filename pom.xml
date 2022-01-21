@@ -823,7 +823,7 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.version>1.69</bc.version>
+				<bc.version>1.70</bc.version>
 				<slf4j.version>1.7.30</slf4j.version>
 			</properties>
 			<dependencies>
@@ -842,6 +842,12 @@
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
 					<artifactId>bctls-jdk15on</artifactId>
+					<version>${bc.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcutil-jdk15on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>

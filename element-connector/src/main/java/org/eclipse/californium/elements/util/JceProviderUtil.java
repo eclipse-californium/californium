@@ -119,6 +119,7 @@ public class JceProviderUtil {
 	private final boolean ed25519;
 	private final boolean ed448;
 	private final boolean strongEncryption;
+	private final double providerVersion;
 
 	static {
 		setupJce();
@@ -313,6 +314,7 @@ public class JceProviderUtil {
 		} catch (NoSuchAlgorithmException e) {
 		}
 		LOGGER.debug("RSA: {}, EC: {}, strong encryption: {}", rsa, ec, strongEncryption);
+		double version = provider == null ? 0.0 : provider.getVersion();
 		boolean ed25519 = false;
 		boolean ed448 = false;
 		if (found && provider != null) {
@@ -333,7 +335,7 @@ public class JceProviderUtil {
 			provider = null;
 			LOGGER.debug("EdDSA not supported!");
 		}
-		JceProviderUtil newSupport = new JceProviderUtil(isBouncyCastle(provider), rsa, ec, ed25519, ed448, strongEncryption);
+		JceProviderUtil newSupport = new JceProviderUtil(isBouncyCastle(provider), rsa, ec, ed25519, ed448, strongEncryption, version);
 		if (!newSupport.equals(features)) {
 			features = newSupport;
 		}
@@ -391,13 +393,25 @@ public class JceProviderUtil {
 		return false;
 	}
 
-	private JceProviderUtil(boolean useBc, boolean rsa, boolean ec, boolean ed25519, boolean ed448, boolean strongEncryption) {
+	/**
+	 * Get provider version.
+	 * 
+	 * @return provider version. {@code 0.0}, if not available.
+	 * @see Provider#getVersion()
+	 * @since 3.3
+	 */
+	public static double getProviderVersion() {
+		return features.providerVersion;
+	}
+
+	private JceProviderUtil(boolean useBc, boolean rsa, boolean ec, boolean ed25519, boolean ed448, boolean strongEncryption, double providerVersion) {
 		this.useBc = useBc;
 		this.rsa = rsa;
 		this.ec = ec;
 		this.ed25519 = ed25519;
 		this.ed448 = ed448;
 		this.strongEncryption = strongEncryption;
+		this.providerVersion = providerVersion;
 	}
 
 	@Override
