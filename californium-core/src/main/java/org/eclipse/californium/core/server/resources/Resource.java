@@ -58,10 +58,11 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * A resource is able to respond to CoAP requests. The requests are contained in
  * an instance of type {@link Exchange} that contains additional information
  * about the current exchange. The request will always be a complete request and
- * not only a block as defined in the CoAP RFC7959 (<a
- * href="https://tools.ietf.org/html/rfc7959" target="_blank">
- * RFC 7959 - Block-Wise Transfers in the Constrained Application Protocol (CoAP)</a>)
- * </p><p>
+ * not only a block as defined in the CoAP RFC7959
+ * (<a href="https://tools.ietf.org/html/rfc7959" target="_blank"> RFC 7959 -
+ * Block-Wise Transfers in the Constrained Application Protocol (CoAP)</a>)
+ * </p>
+ * <p>
  * When a request arrives at the server, the {@link ServerMessageDeliverer}
  * searches in the resource tree for the destination resource. It travels down
  * the resource tree by looking for one element of the destination URI after
@@ -69,10 +70,11 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * It is allowed to override this method and to return an arbitrary resource.
  * This allows for instance to serve URIs with wildcards or delegate requests to
  * any sub-URI to the same resource.
- * </p><p>
+ * </p>
+ * <p>
  * A resource can have its own {@link Executor}. If a resource has such an
- * executor, all requests will be handled by it. Otherwise, the request will
- * be executed on the executor of the parent or transitively the first ancestor
+ * executor, all requests will be handled by it. Otherwise, the request will be
+ * executed on the executor of the parent or transitively the first ancestor
  * that defines its own executor. If no resource up to the root defines its own
  * executor, the currently executing thread will handle the request. A class
  * that implements this interface can export further methods to allow the
@@ -81,164 +83,184 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * </p>
  */
 public interface Resource {
-	
+
 	/**
 	 * Handles the request from the specified exchange.
 	 *
 	 * @param exchange the exchange with the request
 	 */
 	public void handleRequest(Exchange exchange);
-	
+
 	/**
 	 * Gets the name of the resource.
 	 *
 	 * @return the name
 	 */
 	public String getName();
-	
+
 	/**
-	 * Sets the name of the resource. Note that changing the name of a resource
-	 * changes the path and URI of all children. Note that the parent of this
-	 * resource must be notified that the name has changed so that it finds the
-	 * resource under the correct new URI when another request arrives. The
-	 * easiest way to achieve this is by removing the resource before changing
-	 * the name and adding it again after the name change.
+	 * Sets the name of the resource.
+	 * 
+	 * Note that changing the name of a resource changes the path and URI of all
+	 * children.
+	 * 
+	 * Note that the parent of this resource must be notified that the name has
+	 * changed so that it finds the resource under the correct new URI when
+	 * another request arrives. The easiest way to achieve this is by removing
+	 * the resource before changing the name and adding it again after the name
+	 * change.
 	 * 
 	 * @param name the new name
 	 * @throws NullPointerException if name is {@code null}
 	 * @throws IllegalArgumentException if the name contains a {@code /}
 	 */
 	public void setName(String name);
-	
+
 	/**
 	 * Gets the path to the resource which is equal to the URI of its parent
-	 * plus a slash. Note that that the name of a resource is not part of its
-	 * path but instead it holds that getURI().equals(getPath() + getName()).
+	 * plus a slash.
+	 * 
+	 * Note that that the name of a resource is not part of its path but instead
+	 * it holds that getURI().equals(getPath() + getName()).
 	 * 
 	 * @return the path
 	 */
 	public String getPath();
-	
+
 	/**
-	 * Sets the path of the resource. Note that changing the path of a resource
-	 * also changes the path of all its children.
+	 * Sets the path of the resource.
+	 * 
+	 * Note that changing the path of a resource also changes the path of all
+	 * its children.
 	 * 
 	 * @param path the new path
 	 */
 	public void setPath(String path);
-	
+
 	/**
 	 * Gets the URI of the resource.
 	 *
 	 * @return the uri
 	 */
 	public String getURI();
-	
+
 	/**
 	 * Checks if the resource is visible to remote CoAP clients.
 	 *
-	 * @return true, if the resource is visible
+	 * @return {@code true}, if the resource is visible
 	 */
 	public boolean isVisible();
-	
+
 	/**
-	 * Checks if is the URI of the resource can be cached. If another request
-	 * with the same destination URI arrives, it can be forwarded to this
-	 * resource right away instead of traveling through the resource tree
-	 * looking for it.
+	 * Checks if is the URI of the resource can be cached.
 	 * 
-	 * @return true, if this resource's URI is cachable
+	 * If another request with the same destination URI arrives, it can be
+	 * forwarded to this resource right away instead of traveling through the
+	 * resource tree looking for it.
+	 * 
+	 * @return {@code true}, if this resource's URI is cachable
 	 */
 	public boolean isCachable();
-	
+
 	/**
 	 * Checks if this resource is observable by remote CoAP clients.
 	 *
-	 * @return true, if this resource is observable
+	 * @return {@code true}, if this resource is observable
 	 */
 	public boolean isObservable();
-	
+
 	/**
 	 * Gets the attributes of this resource.
 	 *
 	 * @return the attributes
 	 */
 	public ResourceAttributes getAttributes();
-	
+
 	/**
-	 * Adds the specified resource as child. Note that the resource should set
-	 * the correct path of the child when added.
+	 * Adds the specified resource as child.
+	 * 
+	 * Note that the resource should set the correct path of the child when
+	 * added.
 	 * 
 	 * @param child the child
 	 */
 	public void add(Resource child);
-	
+
 	/**
-	 * Removes the the specified child. Note that an implementation should set
-	 * the path of the child to null.
+	 * Removes the the specified child.
 	 * 
-	 * @param child
-	 *            the child
-	 * @return true, if the child was found
+	 * Note that an implementation should set the path of the child to
+	 * {@code null}.
+	 * 
+	 * @param child the child
+	 * @return {@code true}, if the child was found and deleted
 	 */
 	public boolean delete(Resource child);
-	
+
 	/**
 	 * Gets all child resources.
 	 *
 	 * @return the children
 	 */
 	public Collection<Resource> getChildren();
-	
+
 	/**
-	 * Gets the child with the specified name. Note that a resource is allowed
-	 * to return any resource that it likes to associate with that name. This
-	 * allows to support URIs containing wildcards for example.
+	 * Gets the child with the specified name.
+	 * 
+	 * Note that a resource is allowed to return any resource that it likes to
+	 * associate with that name. This allows to support URIs containing
+	 * wildcards for example. That implies, returning children not contained in
+	 * {@link #getChildren()} nor being discovered via a
+	 * <tt>/.well-known/core</tt>.
 	 * 
 	 * @param name the name
 	 * @return the child
 	 */
 	public Resource getChild(String name);
-	
+
 	/**
 	 * Gets the parent of this resource.
 	 *
 	 * @return the parent
 	 */
 	public Resource getParent();
-	
+
 	/**
 	 * Sets the parent of this resource.
 	 *
 	 * @param parent the new parent
 	 */
 	public void setParent(Resource parent);
-	
+
 	/**
-	 * Adds the specified ResourceObserver. Note that ResourceObserver have
-	 * nothing to do with CoAP's observe relations (@see
-	 * {@link #addObserveRelation(ObserveRelation)}. ResourceObserver simply is
-	 * the observer pattern used in Java to observe a certain object.
+	 * Adds the specified ResourceObserver.
+	 * 
+	 * Note that ResourceObserver have nothing to do with CoAP's observe
+	 * relations (@see {@link #addObserveRelation(ObserveRelation)}.
+	 * ResourceObserver simply is the observer pattern used in Java to observe a
+	 * certain object.
 	 * 
 	 * @param observer the observer
 	 */
 	public void addObserver(ResourceObserver observer);
-	
+
 	/**
 	 * Removes the the specified observer.
 	 *
 	 * @param observer the observer
 	 */
 	public void removeObserver(ResourceObserver observer);
-	
+
 	/**
-	 * Adds the specified CoAP observe relation. If this resource's state
-	 * changes, all observer should be notified with a new response.
+	 * Adds the specified CoAP observe relation.
+	 * 
+	 * If this resource's state changes, all observer should be notified with a
+	 * new response.
 	 * 
 	 * @param relation the relation
 	 */
 	public void addObserveRelation(ObserveRelation relation);
-	
+
 	/**
 	 * Removes the specified CoAP observe relation.
 	 *
