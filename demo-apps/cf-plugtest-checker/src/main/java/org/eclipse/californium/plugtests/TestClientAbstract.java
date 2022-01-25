@@ -19,12 +19,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.LinkFormat;
@@ -39,7 +41,6 @@ import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.observe.NotificationListener;
-import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -932,24 +933,18 @@ public abstract class TestClientAbstract {
 			return false;
 		}
 
-		Resource res = LinkParser.parseTree(actualDiscovery);
+		Set<WebLink> links = LinkFormat.parse(actualDiscovery);
 
 		List<String> query = Arrays.asList(expextedAttribute);
 
 		boolean success = true;
 
-		for (Resource sub : res.getChildren()) {
+		for (WebLink link : links) {
 
-			// goes to leaf resource -- necessary?
-			while (sub.getChildren().size() > 0) {
-				sub = sub.getChildren().iterator().next();
-			}
-
-			success &= LinkFormat.matches(sub, query);
+			success &= LinkFormat.matches(link, query);
 
 			if (!success) {
-				System.out.printf("FAIL: Expected %s, but was %s\n", expextedAttribute,
-						LinkFormat.serializeResource(sub));
+				System.out.printf("FAIL: Expected %s, but was %s\n", expextedAttribute, link);
 			}
 		}
 
