@@ -100,16 +100,6 @@ public class DiscoveryResource extends CoapResource {
 	 * @return the list of resources as string
 	 */
 	public String discoverTree(Resource root, List<String> queries) {
-		StringBuilder buffer = new StringBuilder();
-		for (Resource child : root.getChildren()) {
-			LinkFormat.serializeTree(child, queries, buffer);
-		}
-
-		// remove last comma ',' of the buffer
-		if (buffer.length() > 1) {
-			buffer.setLength(buffer.length() - 1);
-		}
-
-		return buffer.toString();
+		return LinkFormat.serializeTree(root, queries);
 	}
 }

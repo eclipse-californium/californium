@@ -22,6 +22,7 @@ package org.eclipse.californium.core.coap;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -59,46 +60,104 @@ public class LinkFormat {
 
 	// for parsing
 	public static final Pattern DELIMITER = Pattern.compile("\\s*,+\\s*");
+	public static final Pattern TAG = Pattern.compile("<[^>]*>");
 	public static final Pattern SEPARATOR = Pattern.compile("\\s*;+\\s*");
 	public static final Pattern WORD = Pattern.compile("\\w+");
 	public static final Pattern QUOTED_STRING = Pattern.compile("\\G\".*?\"");
 	public static final Pattern CARDINAL = Pattern.compile("\\G\\d+");
+	public static final Pattern EQUAL = Pattern.compile("=");
 
-	public static String serializeTree(Resource resource) {
-		StringBuilder buffer = new StringBuilder();
-		List<String> noQueries = Collections.emptyList();
+	public static final Pattern SPACE = Pattern.compile("\\s");
+	public static final Pattern NUMBER = Pattern.compile("^\\d+$");
 
-		// only include children, not the entry point itself
-		for (Resource child : resource.getChildren()) {
-			serializeTree(child, noQueries, buffer);
-		}
-
-		if (buffer.length() > 1)
-			buffer.delete(buffer.length() - 1, buffer.length());
-		return buffer.toString();
-	}
-
-	public static void serializeTree(Resource resource, List<String> queries, StringBuilder buffer) {
-		// add the current resource to the buffer
-		if (resource.isVisible() && matches(resource, queries)) {
-			buffer.append(serializeResource(resource));
-		}
-
+	/**
+	 * Sort collection of resources by name.
+	 * 
+	 * @param resources collection of resources
+	 * @return list of resources sorted by name
+	 * @since 3.3
+	 */
+	public static List<Resource> sort(Collection<Resource> resources) {
 		// sort by resource name
-		List<Resource> childs = new ArrayList<Resource>(resource.getChildren());
-		Collections.sort(childs, new Comparator<Resource>() {
+		List<Resource> sortedResources = new ArrayList<Resource>(resources);
+		Collections.sort(sortedResources, new Comparator<Resource>() {
 
 			@Override
 			public int compare(Resource o1, Resource o2) {
 				return o1.getName().compareTo(o2.getName());
 			}
 		});
+		return sortedResources;
+	}
 
-		for (Resource child : childs) {
+	/**
+	 * Serialize sub-tree of provided resource.
+	 * 
+	 * The provided resource itself is not serialized. The children are listed
+	 * ordered by their name.
+	 * 
+	 * @param resource resource to serialize
+	 * @return serialized (sub-)tree
+	 */
+	public static String serializeTree(Resource resource) {
+		return serializeTree(resource, null);
+	}
+
+	/**
+	 * Serialize sub-tree of provided resource.
+	 * 
+	 * The provided resource itself is not serialized. The children are listed
+	 * ordered by their name.
+	 * 
+	 * @param resource resource to serialize
+	 * @param queries The list of queries to match the resource with. A empty
+	 *            list or {@code null} matches all resources.
+	 * @return serialized (sub-)tree
+	 * @since 3.3
+	 */
+	public static String serializeTree(Resource resource, List<String> queries) {
+		StringBuilder buffer = new StringBuilder();
+
+		// only include children, not the entry point itself
+		for (Resource child : sort(resource.getChildren())) {
+			serializeTree(child, queries, buffer);
+		}
+
+		// remove last comma ',' of the buffer
+		if (buffer.length() > 1) {
+			buffer.setLength(buffer.length() - 1);
+		}
+		return buffer.toString();
+	}
+
+	/**
+	 * Serialize tree of provided resource into the buffer.
+	 * 
+	 * The provided resource and all children are serialized. The children are
+	 * listed ordered by their name.
+	 * 
+	 * @param resource resource to serialize
+	 * @param queries The list of queries to match the resource with. A empty
+	 *            list or {@code null} matches all resources.
+	 * @param buffer buffer to serialize the (sub-)tree of the provided resource
+	 */
+	public static void serializeTree(Resource resource, List<String> queries, StringBuilder buffer) {
+		// add the current resource to the buffer
+		if (resource.isVisible() && matches(resource, queries)) {
+			buffer.append(serializeResource(resource));
+		}
+
+		for (Resource child : sort(resource.getChildren())) {
 			serializeTree(child, queries, buffer);
 		}
 	}
 
+	/**
+	 * Serialize provided resource.
+	 * 
+	 * @param resource resource to serialize
+	 * @return serialized resource.
+	 */
 	public static StringBuilder serializeResource(Resource resource) {
 		StringBuilder buffer = new StringBuilder();
 		buffer.append("<").append(serializePath(resource)).append(">");
@@ -127,6 +186,14 @@ public class LinkFormat {
 		}
 	}
 
+	/**
+	 * Serialize attributes.
+	 * 
+	 * The attributes are listed ordered by their name.
+	 * 
+	 * @param attributes attributes to serialize
+	 * @return serialized attributes
+	 */
 	public static StringBuilder serializeAttributes(ResourceAttributes attributes) {
 		StringBuilder buffer = new StringBuilder();
 
@@ -134,7 +201,7 @@ public class LinkFormat {
 		Collections.sort(attributesList);
 		for (String attr : attributesList) {
 			List<String> values = attributes.getAttributeValues(attr);
-			if (values == null)
+			if (values.isEmpty())
 				continue;
 			buffer.append(";");
 
@@ -144,9 +211,14 @@ public class LinkFormat {
 		return buffer;
 	}
 
+	/**
+	 * Serialize attribute.
+	 * 
+	 * @param key attribute name
+	 * @param values list of attribute values
+	 * @return serialized attribute
+	 */
 	public static StringBuilder serializeAttribute(String key, List<String> values) {
-
-		String delimiter = "=";
 
 		StringBuilder linkFormat = new StringBuilder();
 		boolean quotes = false;
@@ -154,15 +226,16 @@ public class LinkFormat {
 		linkFormat.append(key);
 
 		if (values == null) {
-			throw new RuntimeException("Values null");
+			throw new RuntimeException("Values must not be null!");
 		}
 
-		if (values.isEmpty() || values.get(0).equals(""))
+		if (values.isEmpty() || (values.size() == 1 && values.get(0).isEmpty())) {
 			return linkFormat;
+		}
 
-		linkFormat.append(delimiter);
+		linkFormat.append('=');
 
-		if (values.size() > 1 || !values.get(0).matches("^[0-9]+$")) {
+		if (values.size() > 1 || !NUMBER.matcher(values.get(0)).matches()) {
 			linkFormat.append('"');
 			quotes = true;
 		}
@@ -198,63 +271,93 @@ public class LinkFormat {
 	 * matching multiple attributes.
 	 *
 	 * @param resource The resource to match.
-	 * @param queries The list of queries to match the resource with.
-	 * @return True if the resource matches all queries, false otherwise.
+	 * @param queries The list of queries to match the resource with. A empty
+	 *            list or {@code null} matches all resources.
+	 * @return {@code true}, if the resource matches all queries, {@code false}
+	 *         otherwise.
+	 * @see #matches(WebLink, List)
 	 */
 	public static boolean matches(Resource resource, List<String> queries) {
 
-		if (resource == null)
+		if (resource == null) {
 			return false;
-		if (queries == null || queries.size() == 0)
-			return true;
+		}
 
-		ResourceAttributes attributes = resource.getAttributes();
-		String path = resource.getPath() + resource.getName();
+		WebLink link = new WebLink(resource.getURI());
+		link.getAttributes().copy(resource.getAttributes());
+
+		return matches(link, queries);
+	}
+
+	/**
+	 * Check whether the given web-link matches the given list of queries.
+	 *
+	 * Queries are interpreted according to
+	 * <a href="https://tools.ietf.org/html/rfc6690#section-4.1" target=
+	 * "_blank">RFC 6690</a>, section 4.1, with the important difference that
+	 * more than one query can be passed to the function. The resource only
+	 * matches the list of queries if the resource matches every query in the
+	 * list. This functionality is required to implement resource directory
+	 * filtering according to the <a href=
+	 * "https://tools.ietf.org/html/draft-ietf-core-resource-directory-11#section-7"
+	 * target="_blank">Resource directory</a> draft, which requires support for
+	 * matching multiple attributes.
+	 *
+	 * @param link The web-link to match.
+	 * @param queries The list of queries to match the resource with. A empty
+	 *            list or {@code null} matches all resources.
+	 * @return {@code true}, if the web-link matches all queries, {@code false}
+	 *         otherwise.
+	 * @see #matches(Resource, List)
+	 * @since 3.3
+	 */
+	public static boolean matches(WebLink link, List<String> queries) {
+
+		if (link == null) {
+			return false;
+		}
+		if (queries == null || queries.isEmpty()) {
+			return true;
+		}
+
+		ResourceAttributes attributes = link.getAttributes();
 
 		for (String s : queries) {
-			int delim = s.indexOf("=");
+			String attrName = s;
+			String expected = null;
+			boolean prefix = false;
+			int delim = s.indexOf('=');
 			if (delim != -1) {
 				// split name-value-pair
-				String attrName = s.substring(0, delim);
-				String expected = s.substring(delim + 1);
+				attrName = s.substring(0, delim);
+				prefix = s.endsWith("*");
+				int end = s.length();
+				if (prefix) {
+					--end;
+				}
+				expected = s.substring(delim + 1, end);
 				if (attrName.equals(LinkFormat.LINK)) {
-					if (expected.endsWith("*")) {
-						if (!path.startsWith(expected.substring(0, expected.length() - 1)))
-							return false;
-					} else {
-						if (!path.equals(expected))
-							return false;
-					}
-				} else if (attributes.containsAttribute(attrName)) {
-					// lookup attribute value
-					boolean matched = false;
-					for (String actual : attributes.getAttributeValues(attrName)) {
-						// get prefix length according to "*"
-						int prefixLength = expected.indexOf('*');
-						if (prefixLength >= 0 && prefixLength < actual.length()) {
-							// reduce to prefixes
-							String shortened = expected.substring(0, prefixLength);
-							actual = actual.substring(0, prefixLength);
-							// Wildcard query
-							if (actual.equals(shortened)) {
-								matched = true;
-								break;
-							}
-						} else if (actual.equals(expected)) {
-							// Regular query
-							matched = true;
-							break;
-						}
-					}
-					if (!matched) {
+					if (!matches(prefix, expected, link.getURI())) {
 						return false;
 					}
-				} else if (!attributes.containsAttribute(attrName)) {
-					return false;
+					continue;
 				}
-			} else {
-				// flag attribute
-				if (attributes.getAttributeValues(s).size() == 0) {
+			}
+			List<String> values = attributes.getAttributeValues(attrName);
+			if (values.isEmpty()) {
+				// no attribute of that name found
+				return false;
+			}
+			if (expected != null) {
+				// lookup attribute value
+				boolean matched = false;
+				for (String actual : values) {
+					if (matches(prefix, expected, actual)) {
+						matched = true;
+						break;
+					}
+				}
+				if (!matched) {
 					return false;
 				}
 			}
@@ -262,15 +365,38 @@ public class LinkFormat {
 		return true;
 	}
 
+	/**
+	 * Matches two {@link String} values supporting to match the prefix only.
+	 * 
+	 * @param prefix {@code true}, if expected is the prefix to match the value,
+	 *            {@code false}, if expected must fully match the value.
+	 * @param expected expected value or prefix
+	 * @param value actual value
+	 * @return {@code true}, if expected matches the value, {@code false}, if
+	 *         not.
+	 * @since 3.3
+	 */
+	private static boolean matches(boolean prefix, String expected, String value) {
+		if (!value.startsWith(expected)) {
+			return false;
+		}
+		return prefix || expected.length() == value.length();
+	}
+
+	/**
+	 * Parse formated links.
+	 * 
+	 * @param linkFormat formated links
+	 * @return set of parsed {@link WebLink}s
+	 */
 	public static Set<WebLink> parse(String linkFormat) {
-		Pattern DELIMITER = Pattern.compile("\\s*,+\\s*");
 
 		Set<WebLink> links = new ConcurrentSkipListSet<WebLink>();
 
 		if (linkFormat != null) {
 			Scanner scanner = new Scanner(linkFormat);
 			String path = null;
-			while ((path = scanner.findInLine("<[^>]*>")) != null) {
+			while ((path = scanner.findInLine(TAG)) != null) {
 
 				// Trim <...>
 				path = path.substring(1, path.length() - 1);
@@ -279,8 +405,8 @@ public class LinkFormat {
 
 				// Read link format attributes
 				String attr = null;
-				while (scanner.findWithinHorizon(DELIMITER, 1) == null && (attr = scanner.findInLine(WORD)) != null) {
-					if (scanner.findWithinHorizon("=", 1) != null) {
+				while (scanner.findWithinHorizon(SEPARATOR, 1) != null && (attr = scanner.findInLine(WORD)) != null) {
+					if (scanner.findWithinHorizon(EQUAL, 1) != null) {
 						String value = null;
 						if ((value = scanner.findInLine(QUOTED_STRING)) != null) {
 							// trim " "
@@ -288,7 +414,7 @@ public class LinkFormat {
 							if (attr.equals(TITLE)) {
 								link.getAttributes().addAttribute(attr, value);
 							} else {
-								for (String part : value.split("\\s", 0)) {
+								for (String part : SPACE.split(value)) {
 									link.getAttributes().addAttribute(attr, part);
 								}
 							}
@@ -307,6 +433,10 @@ public class LinkFormat {
 				}
 
 				links.add(link);
+
+				if (scanner.findWithinHorizon(DELIMITER, 1) == null) {
+					break;
+				}
 			}
 			scanner.close();
 		}
