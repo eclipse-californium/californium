@@ -91,7 +91,9 @@ public class WebLink implements Comparable<WebLink> {
 		if (this.attributes.containsAttribute(attributeName)) {
 			builder.append(StringUtil.lineSeparator()).append("\t").append(attributeName);
 			List<String> values = this.attributes.getAttributeValues(attributeName);
-			if (!values.isEmpty()) {
+			if (values.size() == 1) {
+				builder.append(":\t").append(values.get(0));
+			} else if (values.size() > 1) {
 				builder.append(":\t").append(values);
 			}
 		}
