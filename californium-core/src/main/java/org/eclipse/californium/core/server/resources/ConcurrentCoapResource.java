@@ -85,14 +85,27 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
  * </pre>
  */
 public class ConcurrentCoapResource extends CoapResource {
-	
+
 	/** The constant 1 for single threaded executors */
 	public static int SINGLE_THREADED = 1;
-	
-	/** The number of threads. */
+
+	/**
+	 * The number of threads provided when creating the instance.
+	 * 
+	 * {@code -1}, if {@link #setExecutor(ExecutorService)} is used.
+	 * 
+	 * @since 3.3
+	 */
 	private int threads;
-	
-	/** The executor of this resource or null */
+
+	/**
+	 * Indicator to shutdown the executor of this resource.
+	 * 
+	 * @since 3.3
+	 */
+	private boolean shutdown;
+
+	/** The executor of this resource or {@code null}. */
 	private ExecutorService executor;
 
 	/**
@@ -104,30 +117,52 @@ public class ConcurrentCoapResource extends CoapResource {
 	public ConcurrentCoapResource(String name) {
 		this(name, getAvailableProcessors());
 	}
-	
+
 	/**
 	 * Constructs a new resource that uses the specified amount of threads to
 	 * process requests.
 	 * 
 	 * @param name the name
-	 * @param threads the number of threads
+	 * @param threads the number of threads for
+	 *            {@link ExecutorsUtil#newFixedThreadPool(int, java.util.concurrent.ThreadFactory)}.
 	 */
 	public ConcurrentCoapResource(String name, int threads) {
-		super(name);
-		this.threads = threads;
-		setExecutor(ExecutorsUtil.newFixedThreadPool(threads,
+		this(name, threads, ExecutorsUtil.newFixedThreadPool(threads,
 				new NamedThreadFactory("ConcurrentCoapResource-" + name + '#'))); //$NON-NLS-1$
+		shutdown = true;
 	}
-	
+
+	/**
+	 * Constructs a new resource that uses the specified executor process
+	 * requests.
+	 * 
+	 * @param name the name
+	 * @param threads the number of threads
+	 * @param executor the executor service
+	 * @since 3.3
+	 */
+	public ConcurrentCoapResource(String name, int threads, ExecutorService executor) {
+		super(name);
+		setExecutor(executor);
+		this.threads = threads;
+	}
+
 	/**
 	 * Sets the specified executor service to the resource.
+	 * 
+	 * Resets {@link #threads} to {@code -1}.
 	 * 
 	 * @param executor the executor service
 	 */
 	public void setExecutor(ExecutorService executor) {
+		if (this.executor != null && shutdown) {
+			this.executor.shutdown();
+			this.shutdown = false;
+		}
+		this.threads = -1;
 		this.executor = executor;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.CoapResource#getExecutor()
 	 */
@@ -136,7 +171,7 @@ public class ConcurrentCoapResource extends CoapResource {
 		if (executor != null) return executor;
 		else return super.getExecutor();
 	}
-	
+
 	/**
 	 * Gets the number of available processors.
 	 *
@@ -146,10 +181,13 @@ public class ConcurrentCoapResource extends CoapResource {
 	protected static int getAvailableProcessors() {
 		return Runtime.getRuntime().availableProcessors();
 	}
-	
+
 	/**
-	 * Gets the number of threads
-	 *
+	 * Gets the number of threads.
+	 * 
+	 * Number of threads provided when creating the instance. Using
+	 * {@link #setExecutor(ExecutorService)} will reset it to {@code -1}.
+	 * 
 	 * @return the thread count
 	 */
 	public int getThreadCount() {
@@ -167,6 +205,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	 */
 	public static ConcurrentCoapResource createConcurrentCoapResource(int threads, final Resource impl) {
 		return new ConcurrentCoapResource(impl.getName(), threads) {
+
 			@Override
 			public void handleRequest(Exchange exchange) {
 				impl.handleRequest(exchange);
