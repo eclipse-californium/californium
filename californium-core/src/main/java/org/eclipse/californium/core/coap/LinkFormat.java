@@ -165,6 +165,14 @@ public class LinkFormat {
 		return buffer;
 	}
 
+	/**
+	 * Serialize resource path into provided builder.
+	 * 
+	 * Apply URL encoding for the single elements.
+	 * 
+	 * @param resource Resource to serialize the path
+	 * @return builder with serialized resource path
+	 */
 	public static StringBuilder serializePath(Resource resource) {
 		StringBuilder builder = new StringBuilder();
 		serializePath(builder, resource);
@@ -172,17 +180,38 @@ public class LinkFormat {
 		return builder;
 	}
 
+	/**
+	 * Serialize resource path into provided builder.
+	 * 
+	 * Apply URL encoding for the single elements.
+	 * 
+	 * @param builder builder to serialize the resource path
+	 * @param resource Resource to serialize the path
+	 */
 	private static void serializePath(StringBuilder builder, Resource resource) {
 		if (resource == null) {
 			return;
 		}
 		serializePath(builder, resource.getParent());
-		String path;
+		String path = serializePathName(resource.getName());
+		builder.append(path).append("/");
+	}
+
+	/**
+	 * Serialize name in path.
+	 * 
+	 * Apply URL encoding.
+	 * 
+	 * @param name name to encode.
+	 * @return URL encoded name
+	 * @since 3.3
+	 */
+	public static String serializePathName(String name) {
 		try {
-			path = URLEncoder.encode(resource.getName(), CoAP.UTF8_CHARSET.name());
-			builder.append(path).append("/");
+			return URLEncoder.encode(name, CoAP.UTF8_CHARSET.name());
 		} catch (UnsupportedEncodingException e) {
-			// UTF-8 must be supported, otherwise many functions will fail 
+			// UTF-8 must be supported, otherwise many functions will fail
+			return "";
 		}
 	}
 
