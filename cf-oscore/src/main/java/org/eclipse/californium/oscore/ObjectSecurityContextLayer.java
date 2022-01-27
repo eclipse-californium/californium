@@ -71,12 +71,13 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 
 			LOGGER.debug("Incoming OSCORE request uses outer block-wise");
 
-			// Retrieve the OSCORE context for this RID and ID Context
-			byte[] rid = OptionJuggle.getRid(request.getOptions().getOscore());
-			byte[] IDContext = OptionJuggle.getIDContext(request.getOptions().getOscore());
-
 			OSCoreCtx ctx = null;
 			try {
+				// Retrieve the OSCORE context for this RID and ID Context
+				OscoreOptionDecoder optionDecoder = new OscoreOptionDecoder(request.getOptions().getOscore());
+				byte[] rid = optionDecoder.getKid();
+				byte[] IDContext = optionDecoder.getIdContext();
+
 				ctx = ctxDb.getContext(rid, IDContext);
 			} catch (CoapOSException e) {
 				LOGGER.error("Error while receiving OSCore request: " + e.getMessage());
@@ -88,9 +89,10 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 				return;
 			}
 
+			byte[] requestOscoreOption;
 			try {
 				request = RequestDecryptor.decrypt(ctxDb, request, ctx);
-				rid = request.getOptions().getOscore();
+				requestOscoreOption = request.getOptions().getOscore();
 				request.getOptions().setOscore(Bytes.EMPTY);
 				exchange.setRequest(request);
 			} catch (CoapOSException e) {
@@ -102,7 +104,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 				}
 				return;
 			}
-			exchange.setCryptographicContextID(rid);
+			exchange.setCryptographicContextID(requestOscoreOption);
 		}
 		super.receiveRequest(exchange, request);
 	}
@@ -247,7 +249,12 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 				// If response is protected with OSCORE parse it first with
 				// prepareReceive
 				if (isProtected(response)) {
-					response = ObjectSecurityLayer.prepareReceive(ctxDb, response);
+					// Parse the OSCORE option from the corresponding request
+					OscoreOptionDecoder optionDecoder = new OscoreOptionDecoder(exchange.getCryptographicContextID());
+					int requestSequenceNumber = optionDecoder.getSequenceNumber();
+					
+					response = ObjectSecurityLayer.prepareReceive(ctxDb, response,
+							requestSequenceNumber);
 				}
 			} catch (OSException e) {
 				LOGGER.error("Error while receiving OSCore response: " + e.getMessage());

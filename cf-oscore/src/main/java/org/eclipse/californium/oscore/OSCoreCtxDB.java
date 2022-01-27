@@ -13,6 +13,7 @@
  * Contributors:
  *    Joakim Brorsson
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -84,37 +85,11 @@ public interface OSCoreCtxDB {
 	public OSCoreCtx getContext(String uri) throws OSException;
 
 	/**
-	 * Retrieves the sequence number associated by this token or null
-	 * 
 	 * @param token the token
-	 * @return sequence number for this token or null if not existing
-	 */
-	public Integer getSeqByToken(Token token);
-
-	/**
-	 * Saves the sequence number associated by this token
-	 * 
-	 * @param seq the sequence number
-	 * @param token the token
-	 */
-	public void addSeqByToken(Token token, Integer seq);
-
-	/**
-	 * @param token the token
-	 * @return {@code true}, if an association for this token exists, {@code false}, otherwise
+	 * @return {@code true}, if an association for this token exists,
+	 *         {@code false}, otherwise
 	 */
 	public boolean tokenExist(Token token);
-
-	/**
-	 * @param token the token
-	 */
-	public void removeSeqByToken(Token token);
-
-	/**
-	 * @param token the token
-	 * @param seq the sequence number
-	 */
-	public void updateSeqByToken(Token token, Integer seq);
 
 	/**
 	 * purge all contexts

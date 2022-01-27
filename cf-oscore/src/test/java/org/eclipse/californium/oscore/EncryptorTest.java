@@ -120,7 +120,7 @@ public class EncryptorTest {
 		
 		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null, MAX_UNFRAGMENTED_SIZE);
 		ctx.setSenderSeq(0);
-		ctx.setReceiverSeq(seq);
+		ctx.setRecipientSeq(seq);
 
 		//Create response message from raw byte array
 		byte[] responseBytes = new byte[] { 0x64, 0x45, 0x5d, 0x1f, 0x00, 0x00, 0x39, 0x74,
@@ -136,7 +136,7 @@ public class EncryptorTest {
 
 		//Encrypt the response message
 		boolean newPartialIV = true;
-		Response encrypted = ResponseEncryptor.encrypt(null, r, ctx, newPartialIV, false);
+		Response encrypted = ResponseEncryptor.encrypt(null, r, ctx, newPartialIV, false, seq);
 		
 		//Check the OSCORE option value
 		byte[] predictedOSCoreOption = { 0x01, 0x00 };

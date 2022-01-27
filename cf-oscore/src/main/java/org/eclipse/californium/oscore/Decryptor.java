@@ -20,11 +20,9 @@
 package org.eclipse.californium.oscore;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -212,73 +210,43 @@ public abstract class Decryptor {
 	}
 
 	/**
-	 * Decodes the Object-Security value.
+	 * Decodes and checks the Object-Security value.
 	 * 
 	 * @param message the received message
 	 * @param enc the Encrypt0Message object
 	 * @throws OSException if OSCORE option fails to decode
 	 */
 	private static void decodeObjectSecurity(Message message, Encrypt0Message enc) throws OSException {
-		byte[] total = message.getOptions().getOscore();
 
-		/**
-		 * If the OSCORE option value is a zero length byte array
-		 * it represents a byte array of length 1 with a byte 0x00
-		 * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#section-2  
-		 */
-		if (total.length == 0) {
-			total = new byte[] { 0x00 };
-		}
-		
-		byte flagByte = total[0];
+		OscoreOptionDecoder optionDecoder = new OscoreOptionDecoder(message.getOptions().getOscore());
 
-		int n = flagByte & 0x07;
-		int k = flagByte & 0x08;
-		int h = flagByte & 0x10;
+		int n = optionDecoder.getN();
+		int k = optionDecoder.getK();
+		int h = optionDecoder.getH();
 
-		byte[] partialIV = null;
-		byte[] kid = null;
-		byte[] kidContext = null;
-		int index = 1;
+		byte[] partialIV = optionDecoder.getPartialIV();
+		byte[] kid = optionDecoder.getKid();
+		byte[] kidContext = optionDecoder.getIdContext();
 
-		//Parsing Partial IV
-		if (n > 0) {
-			try {
-				partialIV = Arrays.copyOfRange(total, index, index + n);
-				index += n;
-			} catch (Exception e) {
-				LOGGER.error("Partial_IV is missing from message when it is expected.");
-				throw new OSException(ErrorDescriptions.FAILED_TO_DECODE_COSE);
-			}
+		// Check Partial IV
+		if (n > 0 && partialIV == null) {
+			LOGGER.error("Partial_IV is missing from message when it is expected.");
+			throw new OSException(ErrorDescriptions.FAILED_TO_DECODE_COSE);
 		}
 
-		//Parsing KID Context
-		if (h != 0) {
-			int s = total[index];
-
-			kidContext = Arrays.copyOfRange(total, index + 1, index + 1 + s);
-
-			index += s + 1;
-
-			if (s > 0) {
-				LOGGER.info("Received KID Context: " + Utils.toHexString(kidContext));
-			} else {
-				LOGGER.error("Kid context is missing from message when it is expected.");
-				throw new OSException(ErrorDescriptions.FAILED_TO_DECODE_COSE);
-			}
+		// Check KID Context
+		if (h != 0 && kidContext == null) {
+			LOGGER.error("Kid context is missing from message when it is expected.");
+			throw new OSException(ErrorDescriptions.FAILED_TO_DECODE_COSE);
 		}
 
-		//Parsing KID
-		if (k != 0) {
-			kid = Arrays.copyOfRange(total, index, total.length);
-		} else {
-			if (message instanceof Request) {
-				LOGGER.error("Kid is missing from message when it is expected.");
-				throw new OSException(ErrorDescriptions.FAILED_TO_DECODE_COSE);
-			}
+		// Check KID
+		if (k != 0 && kid == null && message instanceof Request) {
+			LOGGER.error("Kid is missing from message when it is expected.");
+			throw new OSException(ErrorDescriptions.FAILED_TO_DECODE_COSE);
 		}
 
-		//Adding parsed data to Encrypt0Message object
+		// Adding parsed data to Encrypt0Message object
 		try {
 			if (partialIV != null) {
 				enc.addAttribute(HeaderKeys.PARTIAL_IV, CBORObject.FromObject(partialIV), Attribute.UNPROTECTED);
@@ -286,10 +254,13 @@ public abstract class Decryptor {
 			if (kid != null) {
 				enc.addAttribute(HeaderKeys.KID, CBORObject.FromObject(kid), Attribute.UNPROTECTED);
 			}
-			//COSE Header parameter for KID Context defined with label 10
-			//https://www.iana.org/assignments/cose/cose.xhtml
+
+			// COSE Header parameter for KID Context defined as 10
+			// https://www.iana.org/assignments/cose/cose.xhtml
+			int kidContextKey = 10;
 			if (kidContext != null) {
-				enc.addAttribute(CBORObject.FromObject(10), CBORObject.FromObject(kidContext), Attribute.UNPROTECTED);
+				enc.addAttribute(CBORObject.FromObject(kidContextKey), CBORObject.FromObject(kidContext),
+						Attribute.UNPROTECTED);
 			}
 		} catch (CoseException e) {
 			LOGGER.error("COSE processing of message failed.");
