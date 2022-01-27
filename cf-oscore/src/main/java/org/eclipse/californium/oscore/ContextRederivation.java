@@ -445,7 +445,6 @@ public class ContextRederivation {
 
 			// Generate a new context with the concatenated Context ID
 			OSCoreCtx newCtx = rederiveWithContextID(ctx, protectContextID);
-			newCtx.setReceiverSeq(0);
 
 			// Outgoing response from this context only uses R2 as
 			// Context ID (not concatenated one used to generate the context).

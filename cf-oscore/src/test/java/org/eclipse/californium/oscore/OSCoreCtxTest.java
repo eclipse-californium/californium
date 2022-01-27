@@ -81,7 +81,7 @@ public class OSCoreCtxTest {
 		assertEquals(this.kdf, ctx.getKdf());
 		assertEquals(13, ctx.getIVLength());
 		assertTrue(Arrays.equals(this.master_secret, ctx.getMasterSecret()));
-		assertEquals(-1, ctx.getReceiverSeq());
+		assertEquals(0, ctx.getLowestRecipientSeq());
 		assertTrue(Arrays.equals(this.rid, ctx.getRecipientId()));
 		assertTrue(Arrays.equals(this.sid, ctx.getSenderId()));
 		assertEquals(0, ctx.getSenderSeq());

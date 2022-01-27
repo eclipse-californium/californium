@@ -12,14 +12,13 @@
  * 
  * Contributors:
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.cose.AlgorithmID;
@@ -46,7 +45,6 @@ public class HashMapCtxDBTest {
 	private final byte[] modifiedRid = new byte[] { 0x01, 0x65, 0x72, 0x76, 0x65, 0x72 };
 	private final byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
 	private final byte[] context_id_2 = {  0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11 };
-	private final Integer seq = 42;
 	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
 	@Rule
@@ -86,7 +84,7 @@ public class HashMapCtxDBTest {
 	 * Get a context using both RID and ID Context. Only a single context is
 	 * added to the context DB.
 	 * 
-	 * @throws OSException
+	 * @throws OSException on test failure
 	 */
 	@Test
 	public void testAddGetContextRidIDContext() throws OSException {
@@ -105,7 +103,7 @@ public class HashMapCtxDBTest {
 	 * Get a context using both RID and ID Context. Multiple contexts are added
 	 * to the context DB.
 	 * 
-	 * @throws OSException
+	 * @throws OSException on test failure
 	 */
 	@Test
 	public void testAddGetContextRidIDContextMultiple() throws OSException {
@@ -128,7 +126,7 @@ public class HashMapCtxDBTest {
 	 * Get a context using only RID. Multiple contexts are added to the context
 	 * DB. But since only one matches the RID it is returned.
 	 * 
-	 * @throws OSException
+	 * @throws OSException on test failure
 	 */
 	@Test
 	public void testAddGetContextRidMultipleSuccess() throws OSException {
@@ -152,7 +150,7 @@ public class HashMapCtxDBTest {
 	 * DB. Since both of them have the same RID, the retrieval fails since it's
 	 * not unique and the ID Context is not used to disambiguate.
 	 * 
-	 * @throws OSException
+	 * @throws OSException on test failure
 	 */
 	@Test
 	public void testAddGetContextRidMultipleFail() throws OSException {
@@ -179,6 +177,8 @@ public class HashMapCtxDBTest {
 	 * Test retrieving a context using the getContext method that only takes a
 	 * RID. In such case this RID must be unique. If a RID is used that is not
 	 * unique an exception should be thrown.
+	 * 
+	 * @throws OSException on test failure
 	 * 
 	 */
 	@Test
@@ -226,68 +226,4 @@ public class HashMapCtxDBTest {
 		assertNull(db.getContextByToken(modifiedToken));
 	}
 
-	@Test
-	public void testNullSeqByToken() throws OSException {
-		HashMapCtxDB db = new HashMapCtxDB();
-		exception.expect(NullPointerException.class);
-
-		db.addSeqByToken(token, null);
-	}
-
-	@Test
-	public void testSeqByNullToken() throws OSException {
-		HashMapCtxDB db = new HashMapCtxDB();
-		exception.expect(NullPointerException.class);
-
-		db.addSeqByToken(null, seq);
-	}
-
-	@Test
-	public void testSeqBytToken() throws OSException {
-		HashMapCtxDB db = new HashMapCtxDB();
-		db.addSeqByToken(token, seq);
-
-		assertEquals(seq, db.getSeqByToken(token));
-		assertNull(db.getSeqByToken(modifiedToken));
-	}
-
-	@Test
-	public void testRemoveSeqBytToken() throws OSException {
-		HashMapCtxDB db = new HashMapCtxDB();
-		db.addSeqByToken(token, seq);
-		db.removeSeqByToken(token);
-
-		assertNull(db.getSeqByToken(token));
-		assertFalse(db.tokenExist(token));
-	}
-
-	@Test
-	public void testUpdateNonExistentSeqByToken() {
-		HashMapCtxDB db = new HashMapCtxDB();
-
-		try {
-			db.updateSeqByToken(null, seq);
-			db.updateSeqByToken(token, 44);
-		} catch (NullPointerException e) {
-			assertEquals(ErrorDescriptions.TOKEN_NULL, e.getMessage());
-		}
-
-		try {
-			db.updateSeqByToken(token, -5);
-		} catch (Exception e) {
-			assertEquals(ErrorDescriptions.SEQ_NBR_INVALID, e.getMessage());
-		}
-
-		assertFalse(db.tokenExist(token));
-		assertNull(db.getSeqByToken(token));
-	}
-
-	@Test
-	public void testTokenExists() throws OSException {
-		HashMapCtxDB db = new HashMapCtxDB();
-		db.addSeqByToken(token, seq);
-
-		assertTrue(db.tokenExist(token));
-		assertFalse(db.tokenExist(modifiedToken));
-	}
 }

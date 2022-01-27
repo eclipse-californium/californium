@@ -50,13 +50,15 @@ public class ResponseDecryptor extends Decryptor {
 	 *
 	 * @param db the context database used
 	 * @param response the response
+	 * @param requestSequenceNr sequence number (Partial IV) from the request
+	 *            (if encrypting a response)
 	 * 
 	 * @return the decrypted response
 	 * 
 	 * @throws OSException when decryption fails
 	 * 
 	 */
-	public static Response decrypt(OSCoreCtxDB db, Response response) throws OSException {
+	public static Response decrypt(OSCoreCtxDB db, Response response, int requestSequenceNr) throws OSException {
 
 		LOGGER.info("Removes E options from outer options which are not allowed there");
 		discardEOptions(response);
@@ -96,7 +98,7 @@ public class ResponseDecryptor extends Decryptor {
 
 		//Check if parsing of response plaintext succeeds
 		try {
-			byte[] plaintext = decryptAndDecode(enc, response, ctx, db.getSeqByToken(token));
+			byte[] plaintext = decryptAndDecode(enc, response, ctx, requestSequenceNr);
 	
 			DatagramReader reader = new DatagramReader(new ByteArrayInputStream(plaintext));
 			

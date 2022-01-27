@@ -42,15 +42,19 @@ public class ResponseEncryptor extends Encryptor {
 	 * @param db the context DB
 	 * @param response the response
 	 * @param ctx the OSCore context
-	 * @param newPartialIV boolean to indicate whether to use a new partial IV or not
-	 * @param outerBlockwise boolean to indicate whether the block-wise options should be encrypted or not
+	 * @param newPartialIV boolean to indicate whether to use a new partial IV
+	 *            or not
+	 * @param outerBlockwise boolean to indicate whether the block-wise options
+	 *            should be encrypted or not
+	 * @param requestSequenceNr sequence number (Partial IV) from the request
+	 *            (if encrypting a response)
 	 * 
 	 * @return the response with the encrypted OSCore option
 	 * 
 	 * @throws OSException when encryption fails
 	 */
 	public static Response encrypt(OSCoreCtxDB db, Response response, OSCoreCtx ctx, final boolean newPartialIV,
-			boolean outerBlockwise) throws OSException {
+			boolean outerBlockwise, int requestSequenceNr) throws OSException {
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CTX_NULL);
 			throw new OSException(ErrorDescriptions.CTX_NULL);
@@ -78,7 +82,7 @@ public class ResponseEncryptor extends Encryptor {
 
 		byte[] confidential = OSSerializer.serializeConfidentialData(options, response.getPayload(), realCode);
 		Encrypt0Message enc = prepareCOSEStructure(confidential);
-		byte[] cipherText = encryptAndEncode(enc, ctx, response, newPartialIV);
+		byte[] cipherText = encryptAndEncode(enc, ctx, response, newPartialIV, requestSequenceNr);
 		compression(ctx, cipherText, response, newPartialIV);
 
 		options = response.getOptions();

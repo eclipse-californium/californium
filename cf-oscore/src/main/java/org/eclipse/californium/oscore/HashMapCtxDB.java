@@ -54,7 +54,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 
 	private HashMap<Token, OSCoreCtx> tokenMap;
 	private HashMap<String, OSCoreCtx> uriMap;
-	private HashMap<Token, Integer> seqMap;
 
 	private ArrayList<Token> allTokens;
 
@@ -66,7 +65,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		this.tokenMap = new HashMap<>();
 		this.contextMap = new HashMap<>();
 		this.uriMap = new HashMap<>();
-		this.seqMap = new HashMap<>();
 		this.allTokens = new ArrayList<Token>();
 	}
 
@@ -79,8 +77,8 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	public synchronized OSCoreCtx getContext(byte[] rid, byte[] IDContext) throws CoapOSException {
 		// Do not allow a null RID
 		if (rid == null) {
-			LOGGER.error(ErrorDescriptions.BYTE_ARRAY_NULL);
-			throw new NullPointerException(ErrorDescriptions.BYTE_ARRAY_NULL);
+			LOGGER.error(ErrorDescriptions.MISSING_KID);
+			throw new CoapOSException(ErrorDescriptions.MISSING_KID, ResponseCode.UNAUTHORIZED);
 		}
 
 		HashMap<ByteId, OSCoreCtx> matchingRidMap = contextMap.get(new ByteId(rid));
@@ -230,56 +228,12 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	}
 
 	@Override
-	public synchronized Integer getSeqByToken(Token token) {
-		if (token != null) {
-			return seqMap.get(token);
-		} else {
-			LOGGER.error(ErrorDescriptions.TOKEN_NULL);
-			throw new NullPointerException(ErrorDescriptions.TOKEN_NULL);
-		}
-	}
-
-	@Override
-	public synchronized void addSeqByToken(Token token, Integer seq) {
-		if (seq == null || seq < 0) {
-			throw new NullPointerException(ErrorDescriptions.SEQ_NBR_INVALID);
-		}
-		if (token == null) {
-			throw new NullPointerException(ErrorDescriptions.TOKEN_NULL);
-		}
-		if (tokenExist(token)) {
-			LOGGER.info("Token exists, but this could be a refresh if not there is a problem");
-		} else {
-			allTokens.add(token);
-		}
-		seqMap.put(token, seq);
-	}
-
-	@Override
 	public synchronized boolean tokenExist(Token token) {
 		if (token != null) {
 			return allTokens.contains(token);
 		} else {
 			LOGGER.error(ErrorDescriptions.TOKEN_NULL);
 			throw new NullPointerException(ErrorDescriptions.TOKEN_NULL);
-		}
-	}
-
-	@Override
-	public synchronized void removeSeqByToken(Token token) {
-		if (token != null) {
-			seqMap.remove(token);
-			removeTokenIf(token);
-		} else {
-			LOGGER.error(ErrorDescriptions.TOKEN_NULL);
-			throw new NullPointerException(ErrorDescriptions.TOKEN_NULL);
-		}
-	}
-
-	@Override
-	public synchronized void updateSeqByToken(Token token, Integer seq) {
-		if (tokenExist(token)) {
-			addSeqByToken(token, seq);
 		}
 	}
 
@@ -356,12 +310,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		return normalized;
 	}
 
-	private synchronized void removeTokenIf(Token token) {
-		if (!tokenMap.containsKey(token) && !seqMap.containsKey(token)) {
-			allTokens.remove(token);
-		}
-	}
-
 	/**
 	 * Removes associations for this token, except for the generator
 	 * 
@@ -370,7 +318,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	@Override
 	public synchronized void removeToken(Token token) {
 		tokenMap.remove(token);
-		seqMap.remove(token);
 	}
 
 	/**
@@ -381,7 +328,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		contextMap.clear();
 		tokenMap.clear();
 		uriMap.clear();
-		seqMap.clear();
 		allTokens = new ArrayList<Token>();
 	}
 }
