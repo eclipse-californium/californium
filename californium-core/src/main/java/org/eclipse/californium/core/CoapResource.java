@@ -35,6 +35,7 @@ package org.eclipse.californium.core;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
@@ -158,7 +159,7 @@ public class CoapResource implements Resource {
 	 * guarantees in a multi-threaded environment (e.g. for discovery to work
 	 * properly).
 	 */
-	private ConcurrentHashMap<String, Resource> children;
+	private ConcurrentMap<String, Resource> children;
 
 	/* The parent of this resource. */
 	private Resource parent;
@@ -741,7 +742,7 @@ public class CoapResource implements Resource {
 	 */
 	private void adjustChildrenPath() {
 		String childpath = path + name + /* since 23.7.2013 */ "/";
-		for (Resource child : children.values()) {
+		for (Resource child : getChildren()) {
 			child.setPath(childpath);
 		}
 	}
