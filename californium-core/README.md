@@ -94,7 +94,8 @@ client.shutdown();
 
 # Server
 
-A [CoapServer](src/main/java/org/eclipse/californium/core/CoapServer.java) combines receiver `Endpoint`s and a tree of [Resources](src/main/java/org/eclipse/californium/core/server/resources/Resource.java). The same `Endpoint`s can be used for sending `Request` (as client) and receiving `Request`s (as server). Please keep in mind, that such CoAP role exchanges may only work, if both peers are reachable by each other. In many network setups, only one peer is reachable, the other other one is only reachable on a return path (e.g. NATed). The same is also true for the TCP variants, where usually only the TCP-client connects to the TCP-server, and a host, which acts as TCP-server usually can't connect a host, which acts as TCP-client. For  DTLS that may be similar to TCP as well, except DTLS implementations, which supports both roles (default for Californium's DTLS implementation Scandium).
+A [CoapServer](src/main/java/org/eclipse/californium/core/CoapServer.java) combines receiver `Endpoint`s and a tree of [Resources](src/main/java/org/eclipse/californium/core/server/resources/Resource.java). The same `Endpoint`s can be used for sending `Request` (as client) and receiving `Request`s (as server). Please keep in mind, that such CoAP role exchanges may only work, if both peers are reachable by each other. In many network setups, only one peer is reachable, the other one is only reachable on a return path (e.g. NATed). With that, the initial message exchange is still required to be initiated by a client. Follow up exchanges may use then a role exchange. After a quiet period, the client must initiated the excahnges again.
+The same is also true for the TCP variants, where usually only the TCP-client connects to the TCP-server. Once the TCP connection is established, the CoAP roles may be exchanged. For DTLS that is usually similar to TCP, except DTLS implementations, which supports both DTLS roles (default for Californium's DTLS implementation Scandium).
 
 ```
 ...
@@ -123,7 +124,24 @@ client.shutdown();
 
 ## Server - Add a Resource
 
-To add a [CoapResource](src/main/java/org/eclipse/californium/core/CoapResource.java) usually at least one of the REST methods is overriden in order to provide functionality to be executed on request. [MyIpResource](src/main/java/org/eclipse/californium/core/server/resources/MyIpResource.java#L57) demonstrates, how to do that. Once you have implemented your `Resource`, it must be added to the server.
+To add a [CoapResource](src/main/java/org/eclipse/californium/core/CoapResource.java) usually at least one of the REST methods is overriden in order to provide functionality to be executed on request. [MyIpResource](src/main/java/org/eclipse/californium/core/server/resources/MyIpResource.java#L57) demonstrates, how to do that. 
+
+```
+@Override
+public void handleGET(CoapExchange exchange) {
+
+   // get request to read out details
+   Request request = exchange.advanced().getRequest();
+   ...
+   Response response = new Response(CONTENT);
+   ...
+   response.setPayload(???payload???);
+   ...
+   exchange.respond(response);
+}
+```
+
+Once you have implemented your `Resource`, it must be added to the server.
 
 ```
 ...
@@ -156,6 +174,54 @@ client.shutdown();
 ```
 
 and you will get a response containing your IP-address visible to the server.
+
+## Server Resource - Asynchronous Exchange Handler
+
+The processing of an exchange can be customized as shown above. Sometimes that processing can not be done synchronous, e.g. because a data-base access is required, which would block the executing thread for a undefined time. To support such use-cases, the `CoapExchange.respond()` may be also called from an different thread.
+
+```
+@Override
+public void handleGET(final CoapExchange exchange) {
+   // get request to read out details
+   Request request = exchange.advanced().getRequest();
+   ...
+   // start asynchronous processing, passing the exchange to a result callback
+   startSynchronousProcessing(new Callback() {
+       @Override
+       public void onResultAvailable(String payload) {
+         // executed by other thread
+         Response response = new Response(CONTENT);
+         response.setPayload(payload);
+         exchange.respond(response);
+       }
+   });
+   // returns without calling exchange.respond();
+}
+```
+
+This approach must also consider the CoAP message timings, e.g. the client would retransmit a CON request, if it doesn't receive an ACK within 2s. If the processing time exceeds that, then it's recommended to use a [Separate Response](https://datatracker.ietf.org/doc/html/rfc7252#section-5.2.2). That is achieved by calling `CoapExchange.accept()`.
+
+```
+@Override
+public void handleGET(final CoapExchange exchange) {
+   // get request to read out details
+   Request request = exchange.advanced().getRequest();
+   ...
+   // valid request
+   exchange.accept();
+   // start asynchronous processing, passing the exchange to a result callback
+   startSynchronousProcessing(new Callback() {
+       @Override
+       public void onResultAvailable(String payload) {
+         // executed by other thread
+         Response response = new Response(CONTENT);
+         response.setPayload(payload);
+         exchange.respond(response);
+       }
+   });
+   // returns without calling exchange.respond();
+}
+```
 
 # Getting it
 
