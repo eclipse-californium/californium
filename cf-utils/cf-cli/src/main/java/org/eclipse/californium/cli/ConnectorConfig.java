@@ -81,6 +81,23 @@ public class ConnectorConfig implements Cloneable {
 	}
 
 	/**
+	 * Helper class for {@link ITypeConverter}, wrapper around
+	 * {@link Certificate} array.
+	 * 
+	 * Arrays as destination type are interpreted as multiple options.
+	 * 
+	 * @since 3.3
+	 */
+	private static class TrustedCertificates {
+
+		private final Certificate[] trusts;
+
+		private TrustedCertificates(Certificate[] trusts) {
+			this.trusts = trusts;
+		}
+	}
+
+	/**
 	 * Default Ec credentials. Load Californium's client credentials from demo
 	 * keystore.
 	 * 
@@ -231,15 +248,52 @@ public class ConnectorConfig implements Cloneable {
 		/**
 		 * X509 trusts loaded from store.
 		 */
+		public Certificate[] trusts;
+
+		/**
+		 * Helper class for trusted {@link Certificate} array.
+		 * 
+		 * @since 3.3
+		 */
 		@Option(names = { "-t",
 				"--trusts" }, description = "trusted certificates. Format keystore#hexstorepwd#alias or truststore.pem")
-		public Certificate[] trusts;
+		public TrustedCertificates trusted;
 
 		/**
 		 * X509 trusts all.
 		 */
 		@Option(names = "--trust-all", description = "trust all valid certificates.")
 		public boolean trustall;
+
+		/**
+		 * Setup default trusts.
+		 * 
+		 * If {@link #trusts} is not initialized, use {@link #trusted},
+		 * {@link #trustall}, or the provided parameter defaultEcTrusts in that
+		 * order to initialize it
+		 * 
+		 * @param defaultEcTrusts default ec trusts.
+		 * @see ConnectorConfig#defaultEcTrusts
+		 * @since 3.3
+		 */
+		public void defaults(String defaultEcTrusts) {
+			if (trusted != null && trusts == null) {
+				trusts = trusted.trusts;
+			}
+			if (trusts == null) {
+				if (trustall) {
+					trusts = new Certificate[0];
+				} else {
+					try {
+						trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
+					} catch (GeneralSecurityException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -352,7 +406,7 @@ public class ConnectorConfig implements Cloneable {
 	 */
 	public void register(CommandLine cmd) {
 		cmd.registerConverter(SslContextUtil.Credentials.class, credentialsReader);
-		cmd.registerConverter(Certificate[].class, trustsReader);
+		cmd.registerConverter(TrustedCertificates.class, trustsReader);
 		cmd.registerConverter(PskCredentialStore.class, pskCredentialsStoreReader);
 		cmd.setDefaultValueProvider(defaultValueProvider);
 	}
@@ -386,19 +440,7 @@ public class ConnectorConfig implements Cloneable {
 			if (trust == null) {
 				trust = new Trust();
 			}
-			if (trust.trusts == null) {
-				if (trust.trustall) {
-					trust.trusts = new Certificate[0];
-				} else {
-					try {
-						trust.trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
-					} catch (GeneralSecurityException e) {
-						e.printStackTrace();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-			}
+			trust.defaults(defaultEcTrusts);
 			if (authentication == null) {
 				authentication = new Authentication();
 			}
@@ -422,6 +464,7 @@ public class ConnectorConfig implements Cloneable {
 		UdpConfig.register();
 		DtlsConfig.register();
 		DefinitionsProvider provider = new DefinitionsProvider() {
+
 			@Override
 			public void applyDefinitions(Configuration config) {
 				config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
@@ -482,14 +525,15 @@ public class ConnectorConfig implements Cloneable {
 
 	/**
 	 * Truststore reader.
+	 * 
+	 * @since 3.3 (changed type from Certificate[] to TrustedCertificates)
 	 */
-	private static ITypeConverter<Certificate[]> trustsReader = new ITypeConverter<Certificate[]>() {
+	private static ITypeConverter<TrustedCertificates> trustsReader = new ITypeConverter<TrustedCertificates>() {
 
 		@Override
-		public Certificate[] convert(String value) throws Exception {
-			return SslContextUtil.loadTrustedCertificates(value);
+		public TrustedCertificates convert(String value) throws Exception {
+			return new TrustedCertificates(SslContextUtil.loadTrustedCertificates(value));
 		}
-
 	};
 
 	/**
