@@ -89,13 +89,6 @@ public final class OptionSet {
 	private List<Option> others;
 
 	/**
-	 * {@code true}, if URI-path or URI-query are set independent from
-	 * {@link Request#setURI}. Preserve them from being cleaned up, if the URI
-	 * doesn't contain them.
-	 */
-	private boolean explicitUriOptions;
-
-	/**
 	 * Creates an empty set of options.
 	 * <p>
 	 * Once a list is touched and constructed it must never become null again.
@@ -307,7 +300,7 @@ public final class OptionSet {
 	/**
 	 * Gets the string value of the Uri-Host option.
 	 * 
-	 * @return the Uri-Host or null if the option is not present
+	 * @return the Uri-Host, or {@code null}, if the option is not present
 	 */
 	public String getUriHost() {
 		return uri_host;
@@ -691,7 +684,6 @@ public final class OptionSet {
 	public OptionSet addUriPath(String segment) {
 		checkOptionValue(OptionNumberRegistry.URI_PATH, segment);
 		getUriPath().add(segment);
-		this.explicitUriOptions = true;
 		return this;
 	}
 
@@ -886,7 +878,6 @@ public final class OptionSet {
 	public OptionSet addUriQuery(String argument) {
 		checkOptionValue(OptionNumberRegistry.URI_QUERY, argument);
 		getUriQuery().add(argument);
-		this.explicitUriOptions = true;
 		return this;
 	}
 
@@ -1602,14 +1593,6 @@ public final class OptionSet {
 
 		Collections.sort(options);
 		return options;
-	}
-
-	boolean hasExplicitUriOptions() {
-		return explicitUriOptions;
-	}
-
-	void resetExplicitUriOptions() {
-		explicitUriOptions = false;
 	}
 
 	/**

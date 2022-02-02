@@ -274,11 +274,11 @@ public class RequestTest {
 		assertThat(req.getOptions().getUriPathString(), is("test2"));
 		assertThat(req.getOptions().getURIQueryCount(), is(0));
 
-		// only for 2.x.y, in 3.x.y the uri-query option must be set after the URI  
+		// since 3.3, a preset uri-query option is cleared by the URI  
 		req.getOptions().addUriQuery("param2");
 		req.setURI("coap://192.168.0.1/test2");
 		assertThat(req.getOptions().getUriPathString(), is("test2"));
-		assertThat(req.getOptions().getUriQueryString(), is("param2"));
+		assertThat(req.getOptions().getURIQueryCount(), is(0));
 	}
 
 	@Test(expected = IllegalStateException.class)

@@ -411,21 +411,12 @@ public class Request extends Message {
 	 * options directly in the optons-set using {@link #getOptions()}.
 	 * </p>
 	 * <p>
-	 * Note: if the URI contains a hostname, a DNS lookup may be used to
-	 * resolve the address. That may block for a unknown time. To prevent from
-	 * that, the address may be resolved ahead by {@link InetAddress#getByName(String)}.
+	 * Note: if the URI contains a hostname, a DNS lookup may be used to resolve
+	 * the address. That may block for a unknown time. To prevent from that, the
+	 * address may be resolved ahead by {@link InetAddress#getByName(String)}.
 	 * </p>
-	 * Note: if uri-path or uri-query option was set explicitly before, they are
-	 * not cleaned up, if the URI doesn't contain that part. e.g.
-	 * {@code request.getOptions().setUriQuery("param=2")} and
-	 * {@code request.setURI("coap://host/path")} results in
-	 * {@code "coap://host/path?param=2"}. But
-	 * {@code request.getOptions().setUriQuery("param=2")} and
-	 * {@code request.setURI("coap://host/path?mark")} results in
-	 * {@code "coap://host/path?mark"}.
-	 * 
-	 * That will be removed in the next major version! Don't set uri-path or
-	 * uri-query options before the URI!
+	 * Note: since 3.3, uri-path or uri-query options, if required, must be set
+	 * after the URI! The URI will clean them, if not contained in the URI.
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -473,17 +464,8 @@ public class Request extends Message {
 	 * resolve the address. That may block for a unknown time. To prevent from
 	 * that, the address may be resolved ahead by {@link InetAddress#getByName(String)}.
 	 * <p>
-	 * Note: if uri-path or uri-query option was set explicitly before, they are
-	 * not cleaned up, if the URI doesn't contain that part. e.g.
-	 * {@code request.getOptions().setUriQuery("param=2")} and
-	 * {@code request.setURI("coap://host/path")} results in
-	 * {@code "coap://host/path?param=2"}. But
-	 * {@code request.getOptions().setUriQuery("param=2")} and
-	 * {@code request.setURI("coap://host/path?mark")} results in
-	 * {@code "coap://host/path?mark"}.
-	 * 
-	 * That will be removed in the next major version! Don't set uri-path or
-	 * uri-query options before the URI!
+	 * Note: since 3.3, uri-path or uri-query options, if required, must be set
+	 * after the URI! The URI will clean them, if not contained in the URI.
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -537,17 +519,8 @@ public class Request extends Message {
 	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
 	 * options directly in the optons-set using {@link #getOptions()}.
 	 * </p>
-	 * Note: if uri-path or uri-query option was set explicitly before, they are
-	 * not cleaned up, if the URI doesn't contain that part. e.g.
-	 * {@code request.getOptions().setUriQuery("param=2")} and
-	 * {@code request.setURI("coap://host/path")} results in
-	 * {@code "coap://host/path?param=2"}. But
-	 * {@code request.getOptions().setUriQuery("param=2")} and
-	 * {@code request.setURI("coap://host/path?mark")} results in
-	 * {@code "coap://host/path?mark"}.
-	 * 
-	 * That will be removed in the next major version! Don't set uri-path or
-	 * uri-query options before the URI!
+	 * Note: since 3.3, uri-path or uri-query options, if required, must be set
+	 * after the URI! The URI will clean them, if not contained in the URI.
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -620,7 +593,6 @@ public class Request extends Message {
 			throw new NullPointerException("destination address must not be null!");
 		}
 		OptionSet options = getOptions();
-		boolean explicitUriOption = options.hasExplicitUriOptions();
 		String host = uri.getHost();
 
 		if (host != null) {
@@ -670,18 +642,15 @@ public class Request extends Message {
 		String path = uri.getPath();
 		if (path != null && path.length() > 1) {
 			options.setUriPath(path);
-		} else if (!explicitUriOption) {
+		} else {
 			options.clearUriPath();
 		}
 		// set Uri-Query options
 		String query = uri.getQuery();
 		if (query != null) {
 			options.setUriQuery(query);
-		} else if (!explicitUriOption) {
+		} else {
 			options.clearUriQuery();
-		}
-		if (!explicitUriOption) {
-			options.resetExplicitUriOptions();
 		}
 	}
 
