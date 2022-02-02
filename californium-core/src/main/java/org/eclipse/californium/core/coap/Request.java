@@ -410,21 +410,28 @@ public class Request extends Message {
 	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
 	 * options directly in the optons-set using {@link #getOptions()}.
 	 * </p>
-	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * <p>
+	 * Note: if the URI contains a hostname, a DNS lookup may be used to
+	 * resolve the address. That may block for a unknown time. To prevent from
+	 * that, the address may be resolved ahead by {@link InetAddress#getByName(String)}.
+	 * </p>
+	 * Note: if uri-path or uri-query option was set explicitly before, they are
 	 * not cleaned up, if the URI doesn't contain that part. e.g.
 	 * {@code request.getOptions().setUriQuery("param=2")} and
 	 * {@code request.setURI("coap://host/path")} results in
 	 * {@code "coap://host/path?param=2"}. But
 	 * {@code request.getOptions().setUriQuery("param=2")} and
 	 * {@code request.setURI("coap://host/path?mark")} results in
-	 * {@code "coap://host/path?mark"}. That will be removed in the next major
-	 * version! Don't set uri-path or uri-query options before the URI!
+	 * {@code "coap://host/path?mark"}.
+	 * 
+	 * That will be removed in the next major version! Don't set uri-path or
+	 * uri-query options before the URI!
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param uri A CoAP URI as specified by
-	 *            <a href="https://tools.ietf.org/html/rfc7252#section-6" target="_blank">
-	 *            Section 6 of RFC 7252</a>
+	 *            <a href="https://tools.ietf.org/html/rfc7252#section-6" target
+	 *            ="_blank"> Section 6 of RFC 7252</a>
 	 * @return This request for command chaining.
 	 * @throws NullPointerException if the URI is {@code null}.
 	 * @throws IllegalArgumentException if the given string is not a valid CoAP
@@ -461,15 +468,22 @@ public class Request extends Message {
 	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
 	 * options directly in the optons-set using {@link #getOptions()}.
 	 * </p>
-	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * <p>
+	 * Note: if the URI contains a hostname, a DNS lookup may be used to
+	 * resolve the address. That may block for a unknown time. To prevent from
+	 * that, the address may be resolved ahead by {@link InetAddress#getByName(String)}.
+	 * <p>
+	 * Note: if uri-path or uri-query option was set explicitly before, they are
 	 * not cleaned up, if the URI doesn't contain that part. e.g.
 	 * {@code request.getOptions().setUriQuery("param=2")} and
 	 * {@code request.setURI("coap://host/path")} results in
 	 * {@code "coap://host/path?param=2"}. But
 	 * {@code request.getOptions().setUriQuery("param=2")} and
 	 * {@code request.setURI("coap://host/path?mark")} results in
-	 * {@code "coap://host/path?mark"}. That will be removed in the next major
-	 * version! Don't set uri-path or uri-query options before the URI!
+	 * {@code "coap://host/path?mark"}.
+	 * 
+	 * That will be removed in the next major version! Don't set uri-path or
+	 * uri-query options before the URI!
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -512,8 +526,8 @@ public class Request extends Message {
 
 	/**
 	 * Sets this request's options from a given URI as defined in
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.4" target="_blank">RFC 7252,
-	 * Section 6.4</a>.
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.4" target=
+	 * "_blank">RFC 7252, Section 6.4</a>.
 	 * <p>
 	 * This method requires the <em>destination</em> to be set already because
 	 * it does not try to resolve a host name that is part of the given URI.
@@ -523,15 +537,17 @@ public class Request extends Message {
 	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
 	 * options directly in the optons-set using {@link #getOptions()}.
 	 * </p>
-	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * Note: if uri-path or uri-query option was set explicitly before, they are
 	 * not cleaned up, if the URI doesn't contain that part. e.g.
 	 * {@code request.getOptions().setUriQuery("param=2")} and
 	 * {@code request.setURI("coap://host/path")} results in
 	 * {@code "coap://host/path?param=2"}. But
 	 * {@code request.getOptions().setUriQuery("param=2")} and
 	 * {@code request.setURI("coap://host/path?mark")} results in
-	 * {@code "coap://host/path?mark"}. That will be removed in the next major
-	 * version! Don't set uri-path or uri-query options before the URI!
+	 * {@code "coap://host/path?mark"}.
+	 * 
+	 * That will be removed in the next major version! Don't set uri-path or
+	 * uri-query options before the URI!
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
