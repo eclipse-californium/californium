@@ -298,11 +298,11 @@ public class Request extends Message {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * GET and DELETE request are not intended to have payload.
+	 * GET, DELETE, and PING request are not intended to have payload.
 	 */
 	@Override
 	public boolean isIntendedPayload() {
-		return code != Code.GET && code != Code.DELETE;
+		return code != Code.GET && code != Code.DELETE && code != null;
 	}
 
 	/**
