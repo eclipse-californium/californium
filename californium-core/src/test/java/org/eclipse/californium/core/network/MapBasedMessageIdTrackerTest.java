@@ -24,10 +24,10 @@ import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
@@ -99,10 +99,8 @@ public class MapBasedMessageIdTrackerTest {
 
 	@Test
 	public void testGetNextMessageIdReusesIdAfterExchangeLifetime() throws Exception {
-		// GIVEN a tracker with an EXCHANGE_LIFETIME of 100ms
-		int exchangeLifetime = 100; // ms
+		// GIVEN a tracker with an EXCHANGE_LIFETIME
 		Configuration config = network.createStandardTestConfig();
-		config.set(CoapConfig.EXCHANGE_LIFETIME, exchangeLifetime, TimeUnit.MILLISECONDS);
 		final MapBasedMessageIdTracker tracker = new MapBasedMessageIdTracker(INITIAL_MID, 0, TOTAL_NO_OF_MIDS, config);
 
 		// WHEN retrieving all message IDs from the tracker
@@ -110,12 +108,17 @@ public class MapBasedMessageIdTrackerTest {
 		for (int i = 1; i < TOTAL_NO_OF_MIDS; i++) {
 			tracker.getNextMessageId();
 		}
+		try {
+			tracker.getNextMessageId();
+			fail("mids expected to run out.");
+		} catch (IllegalStateException ex) {
+			assertThat(ex.getMessage(), containsString("No MID available, all"));
+		}
 
-		// THEN the first message ID is re-used after 
-		// EXCHANGE_LIFETIME has expired
-		exchangeLifetime += (exchangeLifetime >> 1); // a little longer
+		// THEN the first message ID is re-used after EXCHANGE_LIFETIME has expired
+		time.addTestTimeShift(config.getTimeAsInt(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS) + 1, TimeUnit.MILLISECONDS);
 
-		int mid = TestTools.waitForNextMID(tracker, inRange(0, TOTAL_NO_OF_MIDS), exchangeLifetime, 10, TimeUnit.MILLISECONDS);
+		int mid = tracker.getNextMessageId();
 		assertThat(mid, is(firstMid));
 	}
 

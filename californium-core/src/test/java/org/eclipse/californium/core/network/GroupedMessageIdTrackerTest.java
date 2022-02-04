@@ -26,7 +26,6 @@ import static org.junit.Assert.fail;
 
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
@@ -105,15 +104,12 @@ public class GroupedMessageIdTrackerTest {
 
 	@Test
 	public void testGetNextMessageIdReusesIdAfterExchangeLifetime() throws Exception {
-		// GIVEN a tracker with an EXCHANGE_LIFETIME of 100ms
-		int exchangeLifetime = 100; // ms
+		// GIVEN a tracker with an EXCHANGE_LIFETIME
 		Configuration config = network.createStandardTestConfig();
-		config.set(CoapConfig.EXCHANGE_LIFETIME, exchangeLifetime, TimeUnit.MILLISECONDS);
 		final GroupedMessageIdTracker tracker = new GroupedMessageIdTracker(INITIAL_MID, 0, TOTAL_NO_OF_MIDS, config);
 		int groupSize = tracker.getGroupSize();
 
 		// WHEN retrieving all message IDs from the tracker
-		long start = System.nanoTime();
 		try {
 			for (int i = 1; i < TOTAL_NO_OF_MIDS; i++) {
 				int mid = tracker.getNextMessageId();
@@ -124,15 +120,10 @@ public class GroupedMessageIdTrackerTest {
 			assertThat(ex.getMessage(), containsString("No MID available, all"));
 		}
 
-		// THEN the first message ID is re-used after EXCHANGE_LIFETIME has
-		// expired
-		exchangeLifetime += (exchangeLifetime >> 1); // a little longer
-		long timeLeft = exchangeLifetime - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-		if (100 > timeLeft) {
-			timeLeft = 100;
-		}
+		// THEN the first message ID is re-used after EXCHANGE_LIFETIME has expired
+		time.addTestTimeShift(config.getTimeAsInt(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS) + 1, TimeUnit.MILLISECONDS);
 
-		int mid = TestTools.waitForNextMID(tracker, inRange(0, TOTAL_NO_OF_MIDS), timeLeft, 50 ,TimeUnit.MILLISECONDS);
+		int mid = tracker.getNextMessageId();
 		assertThat(mid, is(inRange(0, TOTAL_NO_OF_MIDS)));
 
 		for (int i = 1; i < groupSize; i++) {
