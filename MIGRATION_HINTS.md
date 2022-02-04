@@ -4,7 +4,7 @@
 
 October, 2021
 
-The version 2.x is now out for about more than a year and reached version 2.6.5.
+The version 2.x is now out for about more than a year and reached version 2.7.0.
 We have already started to work on a 3.0 on December 2020 starting with removing deprecates APIs.
 
 To migrate to the 3.0 this gives some hints to do so. If you miss something, don't hesitate to create an issue.
@@ -15,7 +15,7 @@ Please, keep in mind, that the 3.0 API is under develop.
 
 This document doesn't contain hints for migrating versions before 2.0. That excludes also hints to migrate any of the 2.0 MILESTONE releases.
 
-If a 2.0.0 or newer is used, it's recommended to update first to 2.6.5 and cleanup all deprecation using the documentation on the deprecation.
+If a 2.0.0 or newer is used, it's recommended to update first to 2.7.0 and cleanup all deprecation using the documentation on the deprecation.
 
 The version 3.0.0-M4 is the last one with the old `NetworkConfig` and `DtlsConnectorConfig.Builder`. Depending on the usage of these classes, it may be easier to first migrate to that 3.0.0-M4 and then in a final step migrate to the 3.0 adapting for these changes in the configuration.
 
