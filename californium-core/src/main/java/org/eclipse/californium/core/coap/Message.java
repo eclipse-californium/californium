@@ -1308,6 +1308,7 @@ public abstract class Message {
 	 * Returns the observers registered for this message.
 	 * 
 	 * @return an immutable list of the registered observers.
+	 * @see #getMessageObservers(Class)
 	 * @see #addMessageObserver(MessageObserver)
 	 * @see #addMessageObserver(int, MessageObserver)
 	 * @see #addMessageObservers(List)
@@ -1319,6 +1320,32 @@ public abstract class Message {
 		} else {
 			return unmodifiableMessageObserversFacade;
 		}
+	}
+
+	/**
+	 * Returns the observer of the provided type registered for this message.
+	 * 
+	 * @param type type of observers
+	 * @return the registered observers of that type, or {@code null}, if not
+	 *         available.
+	 * @see #getMessageObservers()
+	 * @see #addMessageObserver(MessageObserver)
+	 * @see #addMessageObserver(int, MessageObserver)
+	 * @see #addMessageObservers(List)
+	 * @see #removeMessageObserver(MessageObserver)
+	 * @since 3.3
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends MessageObserver> T getMessageObserver(Class<T> type) {
+		List<MessageObserver> list = unmodifiableMessageObserversFacade;
+		if (null != list) {
+			for (MessageObserver obs : list) {
+				if (type.isInstance(obs)) {
+					return (T) obs;
+				}
+			}
+		}
+		return null;
 	}
 
 	/**
