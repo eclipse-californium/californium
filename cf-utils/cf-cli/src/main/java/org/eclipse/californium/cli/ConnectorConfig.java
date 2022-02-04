@@ -202,6 +202,21 @@ public class ConnectorConfig implements Cloneable {
 				}
 			}
 		}
+
+		public void defaults(String defaultEcCredentials) {
+			if (!anonymous && identity == null) {
+				try {
+					identity = new Identity();
+					identity.certificate = SslContextUtil.loadCredentials(defaultEcCredentials);
+					LOGGER.info("x509 default identity.");
+				} catch (GeneralSecurityException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			defaults();
+		}
 	}
 
 	/**
@@ -444,18 +459,7 @@ public class ConnectorConfig implements Cloneable {
 			if (authentication == null) {
 				authentication = new Authentication();
 			}
-			if (!authentication.anonymous && authentication.identity == null) {
-				try {
-					authentication.identity = new Identity();
-					authentication.identity.certificate = SslContextUtil.loadCredentials(defaultEcCredentials);
-					LOGGER.info("x509 default identity.");
-				} catch (GeneralSecurityException e) {
-					e.printStackTrace();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-			authentication.defaults();
+			authentication.defaults(defaultEcCredentials);
 		}
 		if (cipherHelpRequested || authHelpRequested) {
 			helpRequested = true;
