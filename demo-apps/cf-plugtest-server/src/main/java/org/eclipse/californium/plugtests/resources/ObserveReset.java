@@ -15,13 +15,20 @@
  ******************************************************************************/
 package org.eclipse.californium.plugtests.resources;
 
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 
 public class ObserveReset extends CoapResource {
+
+	/**
+	 * URI query parameter to specify response length.
+	 */
+	private static final String URI_QUERY_OPTION_NOTFOUND = "notfound";
 
 	public ObserveReset() {
 		super("obs-reset");
@@ -31,9 +38,11 @@ public class ObserveReset extends CoapResource {
 	public void handlePOST(CoapExchange exchange) {
 		if (exchange.getRequestText().equals("sesame")) {
 			System.out.println("obs-reset received POST. Clearing observers");
+			ResponseCode code = exchange.getQueryParameter(URI_QUERY_OPTION_NOTFOUND) != null ? ResponseCode.NOT_FOUND
+					: null;
 			for (Resource child : this.getParent().getChildren()) {
 				if (child.isObservable() && child instanceof CoapResource) {
-					((CoapResource) child).clearObserveRelations();
+					((CoapResource) child).clearAndNotifyObserveRelations(code);
 				}
 			}
 			exchange.respond(CHANGED);
