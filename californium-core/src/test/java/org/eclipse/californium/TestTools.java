@@ -17,26 +17,16 @@
  ******************************************************************************/
 package org.eclipse.californium;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.MessageIdTracker;
-import org.eclipse.californium.elements.util.TestCondition;
-import org.eclipse.californium.elements.util.TestConditionTools;
-import org.hamcrest.Matcher;
 
 /**
  * A collection of utility methods for implementing tests.
@@ -169,26 +159,6 @@ public final class TestTools {
 				message.removeMessageObserver(observer);
 			}
 		}
-	}
-
-	public static int waitForNextMID(final MessageIdTracker tracker, final Matcher<Integer> midMatcher, long timeout, long interval, TimeUnit unit) throws InterruptedException {
-		final AtomicInteger mid = new AtomicInteger(-1);
-		TestConditionTools.waitForCondition(timeout, interval, unit, new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				try {
-					int nextMid = tracker.getNextMessageId();
-					assertThat(nextMid, is(midMatcher));
-					mid.set(nextMid);
-					return true;
-				} catch (IllegalStateException ex) {
-					assertThat(ex.getMessage(), containsString("No MID available, all"));
-					return false;
-				}
-			}
-		});
-		return mid.get();
 	}
 
 }
