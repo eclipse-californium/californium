@@ -232,6 +232,8 @@ public class ClientObserveRelation {
 			cancel.addMessageObserver(observer);
 		}
 
+		this.request = cancel;
+
 		endpoint.sendRequest(cancel);
 	}
 
