@@ -26,6 +26,8 @@ import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.cli.CliConnectorFactory;
 import org.eclipse.californium.cli.ClientBaseConfig;
+import org.eclipse.californium.cli.ConnectorConfig.Authentication;
+import org.eclipse.californium.cli.ConnectorConfig.Trust;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.config.Configuration;
@@ -55,6 +57,10 @@ public class TlsConnectorFactory implements CliConnectorFactory {
 		SSLContext clientSslContext = null;
 		try {
 			KeyManager[] keyManager;
+			if (clientConfig.authentication == null) {
+				clientConfig.authentication = new Authentication();
+			}
+			clientConfig.authentication.defaults(clientConfig.defaultEcCredentials);
 			if (clientConfig.authentication.anonymous) {
 				keyManager = SslContextUtil.createAnonymousKeyManager();
 			} else {
@@ -63,6 +69,10 @@ public class TlsConnectorFactory implements CliConnectorFactory {
 						clientConfig.authentication.credentials.getCertificateChain());
 			}
 			TrustManager[] trustManager;
+			if (clientConfig.trust == null) {
+				clientConfig.trust = new Trust();
+			}
+			clientConfig.trust.defaults(clientConfig.defaultEcTrusts);
 			if (clientConfig.trust.trustall) {
 				trustManager = SslContextUtil.createTrustAllManager();
 			} else {
