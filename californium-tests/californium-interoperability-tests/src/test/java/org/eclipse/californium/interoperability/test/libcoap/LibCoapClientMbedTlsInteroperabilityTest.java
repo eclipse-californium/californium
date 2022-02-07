@@ -112,6 +112,17 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	}
 
 	@Test
+	public void testLibCoapClientPskGCM() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256;
+		assumeTrue("GCM not support by JCE", cipherSuite.isSupported());
+		californiumUtil.start(BIND, builder, null, cipherSuite);
+
+		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
+		connect("Hello, CoAP!", "Greetings!");
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
 	public void testLibCoapClientPsk() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		californiumUtil.start(BIND, builder, null, cipherSuite);
@@ -141,6 +152,17 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapClientEcdsaGCM() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+		assumeTrue("GCM not support by JCE", cipherSuite.isSupported());
+		californiumUtil.start(BIND, builder, null, cipherSuite);
+
+		processUtil.startupClient(DESTINATION_URL + "test", CHAIN, "Hello, CoAP!", cipherSuite);
+		connect("Hello, CoAP!", "Greetings!");
+		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
 	@Test
