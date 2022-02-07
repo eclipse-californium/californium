@@ -29,6 +29,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -105,6 +106,17 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	}
 
 	@Test
+	public void testLibCoapServerPskGCM() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256;
+		assumeTrue("GCM not support by JCE", cipherSuite.isSupported());
+		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
+
+		californiumUtil.start(BIND, null, cipherSuite);
+		connect(true);
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
 	public void testLibCoapServerPsk() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
@@ -137,6 +149,19 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 
 		connect(true);
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapServerEcdsaGCM() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256;
+		assumeTrue("GCM not support by JCE", cipherSuite.isSupported());
+		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
+
+		californiumUtil.start(BIND, null, cipherSuite);
+		ProcessResult result = connect(true);
+		assertFalse(result.contains("write certificate request"));
+		assertFalse(result.contains("'cf-client'"));
+		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
 	@Test
