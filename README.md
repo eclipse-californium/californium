@@ -19,7 +19,7 @@ $ mvn clean install
 
 Executable JARs of the examples with all dependencies can be found in the `demo-apps/run` folder.
 
-The build-process in branch `master` is tested for jdk 7, jdk 8, jdk 11, jdk 15 and jdk 16. 
+The build-process in branch `master` is tested for jdk 7, jdk 8, jdk 11, jdk 15, jdk 16 and jdk 17. 
 For jdk 7 the revapi maven-plugin is disabled, it requires at least java 8.
 
 To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set the `JAVA_HOME`.
@@ -38,7 +38,7 @@ To (re-)build versions before that date the unit tests must therefore be skipped
 $ mvn clean install -DskipTests
 ```
 
-Earlier versions (3.0.0-Mx, 2.6.5 and before) may also fail to build with newer JDKs, especially, if java 16 is used! That is cause by the unit test dependency to a deprecated version of "mockito". If such a (re-)build is required, the unit tests must be skipped (which is in the meantime anyway required caused by the "non-existing.host").
+Earlier versions (3.0.0-Mx, 2.6.5 and before) may also fail to build with newer JDKs, especially, if java 16 or 17 is used! That is cause by the unit test dependency to a deprecated version of "mockito". If such a (re-)build is required, the unit tests must be skipped (which is in the meantime anyway required caused by the "non-existing.host").
 
 In combination with the "non-existing.host" now existing, the build with unit test only works for the current heads of the branches `2.6.x`, `2.7.x` and `master`!
 
@@ -76,7 +76,7 @@ $ mvn clean install -DuseToolchainJavadoc=true
 
 ## Build with jdk11 and EdDSA support
 
-To support EdDSA, either java 15, java 16, or java 11 with [ed25519-java](https://github.com/str4d/ed25519-java) is required at runtime. Using java 15 to build Californium, leaves out `ed25519-java`, 
+To support EdDSA, either java 15, java 16, java 17 or java 11 with [ed25519-java](https://github.com/str4d/ed25519-java) is required at runtime. Using java 15 to build Californium, leaves out `ed25519-java`, 
 using java 11 for building, includes `ed25519-java` by default. If `ed25519-java` should **NOT** be included into the californium's jars, add `-Dno.net.i2p.crypto.eddsa=true` to maven's arguments.
 
 ```sh
