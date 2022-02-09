@@ -259,63 +259,7 @@
 					<version>2.22.2</version>
 					<configuration>
 						<useSystemClassLoader>false</useSystemClassLoader>
-						<systemPropertyVariables>
-							<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
-						</systemPropertyVariables>
-						<excludes>
-							<exclude>**/*$*</exclude>
-						</excludes>
-						<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 					</configuration>
-					<executions>
-						<execution>
-							<id>small-tests</id>
-							<phase>test</phase>
-							<goals>
-								<goal>test</goal>
-							</goals>
-							<configuration>
-								<groups>org.eclipse.californium.elements.category.Small</groups>
-								<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-							</configuration>
-						</execution>
-						<execution>
-							<id>medium-tests</id>
-							<phase>test</phase>
-							<goals>
-								<goal>test</goal>
-							</goals>
-							<configuration>
-								<groups>org.eclipse.californium.elements.category.Medium</groups>
-								<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-							</configuration>
-						</execution>
-						<execution>
-							<id>large-tests</id>
-							<phase>integration-test</phase>
-							<goals>
-								<goal>test</goal>
-							</goals>
-							<configuration>
-								<groups>org.eclipse.californium.elements.category.Large</groups>
-								<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-							</configuration>
-						</execution>
-						<execution>
-							<id>native-tests</id>
-							<phase>integration-test</phase>
-							<goals>
-								<goal>test</goal>
-							</goals>
-							<configuration>
-								<systemPropertyVariables>
-									<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
-								</systemPropertyVariables>
-								<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
-								<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
-							</configuration>
-						</execution>
-					</executions>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.felix</groupId>
@@ -446,6 +390,68 @@
 		</pluginManagement>
 
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
+					</systemPropertyVariables>
+					<excludes>
+						<exclude>**/*$*</exclude>
+					</excludes>
+					<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+				</configuration>
+				<executions>
+					<execution>
+						<id>small-tests</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.elements.category.Small</groups>
+							<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+						</configuration>
+					</execution>
+					<execution>
+						<id>medium-tests</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.elements.category.Medium</groups>
+							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+						</configuration>
+					</execution>
+					<execution>
+						<id>large-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.elements.category.Large</groups>
+							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+						</configuration>
+					</execution>
+					<execution>
+						<id>native-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<systemPropertyVariables>
+								<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
+							</systemPropertyVariables>
+							<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
+							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<artifactId>maven-enforcer-plugin</artifactId>
 				<executions>
