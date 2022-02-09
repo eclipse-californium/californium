@@ -4,7 +4,7 @@
 
 _Californium (Cf)_  is a pure Java implementation of the _Constrained Application Protocol (CoAP)_ , also known as [RFC 7252](https://tools.ietf.org/html/rfc7252). 
 
-_Californium (Cf)_ uses an [element-connector](https://github.com/eclipse/californium/tree/master/element-connector) to exchange message via different transport implementations. CoAP message serialization and deserialization is implemented here, together with the protocol's state-machines.
+_Californium (Cf)_ uses an [element-connector](../element-connector) to exchange message via different transport implementations. CoAP message serialization and deserialization is implemented here, together with the protocol's state-machines.
 
 # Usage
 
