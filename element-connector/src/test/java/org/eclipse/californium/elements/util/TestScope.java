@@ -15,6 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Configurable test scope and coverage.
  * 
@@ -23,12 +26,13 @@ package org.eclipse.californium.elements.util;
  * @since 2.4
  */
 public class TestScope {
+	private static final Logger LOGGER = LoggerFactory.getLogger(TestScope.class);
 
 	private static final boolean INTENSIVE_TESTS;
 
 	static {
 		INTENSIVE_TESTS = Boolean.TRUE.equals(StringUtil.getConfigurationBoolean("INTENSIVE_TESTS"));
-		System.out.println("INTENSIVE TEST " + INTENSIVE_TESTS);
+		LOGGER.info("INTENSIVE TEST: {}", INTENSIVE_TESTS);
 	}
 
 	/**

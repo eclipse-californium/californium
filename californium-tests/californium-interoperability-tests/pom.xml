@@ -54,6 +54,43 @@
 					<scope>test</scope>
 				</dependency>
 			</dependencies>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<useSystemClassLoader>false</useSystemClassLoader>
+							<systemPropertyVariables>
+								<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
+							</systemPropertyVariables>
+							<excludes>
+								<exclude>**/*$*</exclude>
+							</excludes>
+						</configuration>
+						<executions>
+							<execution>
+								<id>small-tests</id>
+								<phase></phase>
+							</execution>
+							<execution>
+								<id>medium-tests</id>
+								<phase></phase>
+							</execution>
+							<execution>
+								<id>large-tests</id>
+								<phase></phase>
+							</execution>
+							<execution>
+								<id>native-tests</id>
+								<phase></phase>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+
 		</profile>
 	</profiles>
 

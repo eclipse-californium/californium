@@ -339,6 +339,8 @@ public class JceProviderUtil {
 		if (!newSupport.equals(features)) {
 			features = newSupport;
 		}
+		LOGGER.info("JCE setup: {}, ready.", jce);
+		LOGGER.debug("JCE setup callstack:", new Throwable("JCE setup"));
 	}
 
 	/**
