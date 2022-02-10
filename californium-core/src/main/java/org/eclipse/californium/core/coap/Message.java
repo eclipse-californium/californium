@@ -1308,7 +1308,7 @@ public abstract class Message {
 	 * Returns the observers registered for this message.
 	 * 
 	 * @return an immutable list of the registered observers.
-	 * @see #getMessageObservers(Class)
+	 * @see #getMessageObserver(Class)
 	 * @see #addMessageObserver(MessageObserver)
 	 * @see #addMessageObserver(int, MessageObserver)
 	 * @see #addMessageObservers(List)
@@ -1325,8 +1325,9 @@ public abstract class Message {
 	/**
 	 * Returns the observer of the provided type registered for this message.
 	 * 
-	 * @param type type of observers
-	 * @return the registered observers of that type, or {@code null}, if not
+	 * @param <T> type of observer
+	 * @param type type of observer
+	 * @return the registered observer of that type, or {@code null}, if not
 	 *         available.
 	 * @see #getMessageObservers()
 	 * @see #addMessageObserver(MessageObserver)
