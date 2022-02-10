@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.InvalidMethodException;
@@ -38,8 +39,10 @@ import org.eclipse.californium.proxy2.TranslationException;
 import org.hamcrest.Description;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 
+@Category(Small.class)
 public class CrossProtocolTranslatorTest {
 
 	/**

@@ -24,12 +24,15 @@ import java.net.URI;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * This tests checks the functionality of the CoapTranslator.
  */
+@Category(Small.class)
 public class Coap2CoapTranslatorTest {
 
 	@Test

@@ -31,13 +31,16 @@ import org.apache.hc.core5.http.protocol.HttpContext;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.proxy2.TranslationException;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * This tests checks the functionality of the CoapTranslator.
  */
+@Category(Small.class)
 public class Coap2HttpTranslatorTest {
 
 	private Coap2HttpTranslator translator;
