@@ -35,13 +35,15 @@ import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceReference;
 
-
+@Category(Small.class)
 public class ManagedServerTest {
 
 	ServerInterfaceFactory serverFactory;
