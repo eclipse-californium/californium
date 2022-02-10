@@ -39,6 +39,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
+import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -78,6 +79,14 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	private final List<CertificateType> supportedCertificateTypes;
 
 	/**
+	 * Use empty list of accepted issuers instead of a list based on the
+	 * {@link #trustedCertificates}.
+	 * 
+	 * @since 3.3
+	 */
+	private final boolean useEmptyAcceptedIssuers;
+
+	/**
 	 * Create delegating certificate verifier for x509 and RPK.
 	 * 
 	 * @param trustedCertificates trusted x509 certificates. {@code null} not
@@ -94,6 +103,31 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	 */
 	public StaticNewAdvancedCertificateVerifier(X509Certificate[] trustedCertificates,
 			RawPublicKeyIdentity[] trustedRPKs, List<CertificateType> supportedCertificateTypes) {
+		this(trustedCertificates, trustedRPKs, supportedCertificateTypes, false);
+	}
+
+	/**
+	 * Create delegating certificate verifier for x509 and RPK.
+	 * 
+	 * @param trustedCertificates trusted x509 certificates. {@code null} not
+	 *            support x.509, empty, to trust all.
+	 * @param trustedRPKs trusted RPK identities. {@code null} not support RPK,
+	 *            empty, to trust all.
+	 * @param supportedCertificateTypes list of supported certificate type in
+	 *            order of preference. {@code null} to create a list based on
+	 *            the provided trusts with Raw Public key before x509.
+	 * @param useEmptyAcceptedIssuers {@code true} to enable to use a empty list
+	 *            of accepted issuers instead of a list based on the provided
+	 *            certificates.
+	 * @throws IllegalArgumentException if both, trustedCertificates and
+	 *             trustedRPKs, are {@code null}, the supportedCertificateTypes
+	 *             is empty, or the trusts for an provided certificate type are
+	 *             {@code null}.
+	 * @since 3.3
+	 */
+	public StaticNewAdvancedCertificateVerifier(X509Certificate[] trustedCertificates,
+			RawPublicKeyIdentity[] trustedRPKs, List<CertificateType> supportedCertificateTypes,
+			boolean useEmptyAcceptedIssuers) {
 		if (trustedCertificates == null && trustedRPKs == null) {
 			throw new IllegalArgumentException("no trusts provided!");
 		}
@@ -119,6 +153,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 				: Arrays.copyOf(trustedCertificates, trustedCertificates.length);
 		this.trustedRPKs = trustedRPKs == null ? null : new HashSet<>(Arrays.asList(trustedRPKs));
 		this.supportedCertificateTypes = Collections.unmodifiableList(supportedCertificateTypes);
+		this.useEmptyAcceptedIssuers = useEmptyAcceptedIssuers;
 	}
 
 	@Override
@@ -260,7 +295,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 
 	@Override
 	public List<X500Principal> getAcceptedIssuers() {
-		if (trustedCertificates != null) {
+		if (!useEmptyAcceptedIssuers && trustedCertificates != null) {
 			return CertPathUtil.toSubjects(Arrays.asList(trustedCertificates));
 		} else {
 			return CertPathUtil.toSubjects(null);
@@ -272,6 +307,11 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		// empty implementation
 	}
 
+	/**
+	 * Get a builder.
+	 * 
+	 * @return builder.
+	 */
 	public static Builder builder() {
 		return new Builder();
 	}
@@ -291,6 +331,26 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		 */
 		protected List<CertificateType> supportedCertificateTypes;
 
+		/**
+		 * Use empty list of accepted issuers instead of a list based on the
+		 * {@link #trustedCertificates}.
+		 * 
+		 * @since 3.3
+		 */
+		protected boolean useEmptyAcceptedIssuers;
+
+		/**
+		 * Set trusted x509 certificates
+		 * 
+		 * @param trustedCertificates trusted x509 certificates. {@code null},
+		 *            trust no one. If no trusted certificates are provided
+		 *            (empty array), all valid x509 certificates will be trusted
+		 *            (same as {@link #setTrustAllCertificates()}).
+		 * @return this builder for chaining
+		 * @throws IllegalArgumentException if trustedCertificates contains
+		 *             duplicates
+		 * @see SslContextUtil#ensureUniqueCertificates(X509Certificate[])
+		 */
 		public Builder setTrustedCertificates(Certificate... trustedCertificates) {
 			if (trustedCertificates == null) {
 				this.trustedCertificates = null;
@@ -304,34 +364,100 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 			return this;
 		}
 
+		/**
+		 * Set to trust all valid certificates.
+		 * 
+		 * @return this builder for chaining
+		 */
 		public Builder setTrustAllCertificates() {
 			this.trustedCertificates = X509_TRUST_ALL;
 			return this;
 
 		}
 
+		/**
+		 * Set trusted RPK (Raw Public Key) identities.
+		 * 
+		 * @param trustedRPKs trusted RPK identities. {@code null}, trust no
+		 *            one. If no trusted RPK identities are provided (empty
+		 *            array), all RPK identities will be trusted (same as
+		 *            {@link #setTrustAllRPKs()}).
+		 * @return this builder for chaining
+		 * @throws IllegalArgumentException if trustedRPKs contains duplicates
+		 */
 		public Builder setTrustedRPKs(RawPublicKeyIdentity... trustedRPKs) {
+			// Search for duplicates
+			Set<RawPublicKeyIdentity> set = new HashSet<>();
+			for (RawPublicKeyIdentity identity : trustedRPKs) {
+				if (!set.add(identity)) {
+					throw new IllegalArgumentException(
+							"Truststore contains raw public key certificates duplicates: " + identity.getName());
+				}
+			}
 			this.trustedRPKs = trustedRPKs;
 			return this;
 		}
 
+		/**
+		 * Set to trust all RPK (Raw Public Key) identities.
+		 * 
+		 * @return this builder for chaining
+		 */
 		public Builder setTrustAllRPKs() {
 			this.trustedRPKs = RPK_TRUST_ALL;
 			return this;
 		}
 
+		/**
+		 * Set list of supported certificate types in order of preference.
+		 * 
+		 * @param supportedCertificateTypes list of supported certificate types
+		 * @return this builder for chaining
+		 */
 		public Builder setSupportedCertificateTypes(List<CertificateType> supportedCertificateTypes) {
 			this.supportedCertificateTypes = supportedCertificateTypes;
 			return this;
 		}
 
+		/**
+		 * Set to use a empty accepted issuers list.
+		 * 
+		 * The list of accepted issuers is send to the client in the
+		 * {@link CertificateRequest} in order to help the client to select a
+		 * trusted client certificate. In some case, that list may get larger.
+		 * If the client has a priori knowledge, which certificate is trusted,
+		 * using an empty list may save traffic. One consequence of sending an
+		 * empty list may be, that the client sends an untrusted certificate,
+		 * which then may be rejected. With an accepted issuers, the client may
+		 * chose to send a empty certificate chain instead.
+		 * 
+		 * @param useEmptyAcceptedIssuers {@code true}, to use an empty accepted
+		 *            issuers list, {@code false}, to generate that list based
+		 *            on the trusted x509 certificates.
+		 * @return this builder for chaining
+		 */
+		public Builder setUseEmptyAcceptedIssuers(boolean useEmptyAcceptedIssuers) {
+			this.useEmptyAcceptedIssuers = useEmptyAcceptedIssuers;
+			return this;
+		}
+
+		/**
+		 * Check, if any trust is available.
+		 * 
+		 * @return {@code true}, if trusts are available, {@code false}, if not.
+		 */
 		public boolean hasTrusts() {
 			return trustedCertificates != null || trustedRPKs != null;
 		}
 
+		/**
+		 * Build NewAdvancedCertificateVerifier.
+		 * 
+		 * @return NewAdvancedCertificateVerifier
+		 */
 		public NewAdvancedCertificateVerifier build() {
-			return new StaticNewAdvancedCertificateVerifier(trustedCertificates, trustedRPKs,
-					supportedCertificateTypes);
+			return new StaticNewAdvancedCertificateVerifier(trustedCertificates, trustedRPKs, supportedCertificateTypes,
+					useEmptyAcceptedIssuers);
 		}
 	}
 }
