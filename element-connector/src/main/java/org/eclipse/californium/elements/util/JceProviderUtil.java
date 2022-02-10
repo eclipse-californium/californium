@@ -340,7 +340,7 @@ public class JceProviderUtil {
 			features = newSupport;
 		}
 		LOGGER.info("JCE setup: {}, ready.", jce);
-		LOGGER.debug("JCE setup callstack:", new Throwable("JCE setup"));
+		LOGGER.trace("JCE setup callstack:", new Throwable("JCE setup"));
 	}
 
 	/**
