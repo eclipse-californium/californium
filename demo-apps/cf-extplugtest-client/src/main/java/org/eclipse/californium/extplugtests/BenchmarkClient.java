@@ -925,17 +925,19 @@ public class BenchmarkClient {
 
 	private void addToStatistic(CoapResponse response) {
 		Long rtt = response.advanced().getApplicationRttNanos();
-		TimeStatistic statistic = errorRttStatistic;
-		if (connect.compareAndSet(true, false)) {
-			statistic = connectRttStatistic;
-		} else {
-			statistic = rttStatistic;
-			Long transmissionRttNanos = response.advanced().getTransmissionRttNanos();
-			if (transmissionRttNanos != null && transmissionRttNanos != rtt) {
-				transmissionRttStatistic.add(transmissionRttNanos, TimeUnit.NANOSECONDS);
+		if (rtt != null) {
+			TimeStatistic statistic = errorRttStatistic;
+			if (connect.compareAndSet(true, false)) {
+				statistic = connectRttStatistic;
+			} else {
+				statistic = rttStatistic;
+				Long transmissionRttNanos = response.advanced().getTransmissionRttNanos();
+				if (transmissionRttNanos != null && !transmissionRttNanos.equals(rtt)) {
+					transmissionRttStatistic.add(transmissionRttNanos, TimeUnit.NANOSECONDS);
+				}
 			}
+			statistic.add(rtt, TimeUnit.NANOSECONDS);
 		}
-		statistic.add(rtt, TimeUnit.NANOSECONDS);
 	}
 
 	/**
