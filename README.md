@@ -76,11 +76,16 @@ $ mvn clean install -DuseToolchainJavadoc=true
 
 ## Build with jdk11 and EdDSA support
 
-To support EdDSA, either java 15, java 16, java 17 or java 11 with [ed25519-java](https://github.com/str4d/ed25519-java) is required at runtime. Using java 15 to build Californium, leaves out `ed25519-java`, 
-using java 11 for building, includes `ed25519-java` by default. If `ed25519-java` should **NOT** be included into the californium's jars, add `-Dno.net.i2p.crypto.eddsa=true` to maven's arguments.
+To support EdDSA, either java 15, java 16, java 17 or java 11 with [ed25519-java](https://github.com/str4d/ed25519-java) is required at runtime. Using java 15 (or newer) to build Californium, leaves out `ed25519-java`, using java 11 for building, includes `ed25519-java` by default. If `ed25519-java` should **NOT** be included into the californium's jars, add `-Dno.net.i2p.crypto.eddsa=true` to maven's arguments.
 
 ```sh
 $ mvn clean install -Dno.net.i2p.crypto.eddsa=true
+```
+*Note*: if "-DuseToolchain=true" is used and the actual jdk to build is java 11, you must disable the i2p eddsa support as well.
+ 
+```sh
+# java 11 with java 7 toolchain
+$ mvn clean install -DuseToolchain=true -Dno.net.i2p.crypto.eddsa=true
 ```
 
 In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar) is provided to the classpath separately.
@@ -97,7 +102,17 @@ $ mvn clean install -Pbc-tests
 
 Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but it may be not possible for us to answer them.
 
-On issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
+On issue seems to be the `SecureRandom` generator of BC. Dependent on the runtime environment, that is based on `SecureRandom.getInstanceStrong()`, which has blocking behaviour by default. If the platform your application runs on, has not enough entropy to start the `SecureRandom`, BC waits until that gets available. In common cases, that starts quite fast, but in some cases, that takes up to 60s (and more).
+
+One option to overcome that on some linux variants is using `rng-tools`. That may help to provide more entropy.
+
+A second option o overcome that is to setup `CALIFORNIUM_JCE_PROVIDER` using the value `BC_NON_BLOCKING_RANDOM` instead of `BC`. The `JceProviderUtil` then adapts `SecureRandom` to use a, maybe weaker, non-blocking `SecureRandom`. If that works, depends unfortunately on your platform, so especially for Android, that may not work. In that cases, please use `BC` as `CALIFORNIUM_JCE_PROVIDER` and configure "securerandom.strongAlgorithms" ahead with
+
+```
+Security.setProperty("securerandom.strongAlgorithms", "<your-android-algorithm>");
+```
+
+according your android variant. That may require some analysis by you.
 
 With that, it gets very time consuming to test all combinations. Therefore, if you need a specific one, please test it on your own. If you consider, that some adaption is required, let us know by creating an issue or PR.
 

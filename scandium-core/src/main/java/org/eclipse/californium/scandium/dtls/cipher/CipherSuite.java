@@ -1097,10 +1097,10 @@ public enum CipherSuite {
 		NULL("NULL", CipherType.NULL, 0, 0, 0),
 		AES_128_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 16, 0, 16), // http://www.ietf.org/mail-archive/web/tls/current/msg08445.html
 		AES_256_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 32, 0, 16),
-		AES_128_CCM_8(AeadBlockCipher.AES_CCM, CipherType.AEAD, 16, 4, 8, 8), // explicit nonce (record IV) length = 8
-		AES_256_CCM_8(AeadBlockCipher.AES_CCM, CipherType.AEAD, 32, 4, 8, 8), // explicit nonce (record IV) length = 8
-		AES_128_CCM(AeadBlockCipher.AES_CCM, CipherType.AEAD, 16, 4, 8, 16), // explicit nonce (record IV) length = 8
-		AES_256_CCM(AeadBlockCipher.AES_CCM, CipherType.AEAD, 32, 4, 8, 16), // explicit nonce (record IV) length = 8
+		AES_128_CCM_8(AeadBlockCipher.AES_CCM_NO_PADDING, CipherType.AEAD, 16, 4, 8, 8), // explicit nonce (record IV) length = 8
+		AES_256_CCM_8(AeadBlockCipher.AES_CCM_NO_PADDING, CipherType.AEAD, 32, 4, 8, 8), // explicit nonce (record IV) length = 8
+		AES_128_CCM(AeadBlockCipher.AES_CCM_NO_PADDING, CipherType.AEAD, 16, 4, 8, 16), // explicit nonce (record IV) length = 8
+		AES_256_CCM(AeadBlockCipher.AES_CCM_NO_PADDING, CipherType.AEAD, 32, 4, 8, 16), // explicit nonce (record IV) length = 8
 		AES_128_GCM("AES/GCM/NoPadding", CipherType.AEAD, 16, 4, 8, 16), // requires jvm implementation of AES/GCM
 		AES_256_GCM("AES/GCM/NoPadding", CipherType.AEAD, 32, 4, 8, 16); // requires jvm implementation of AES/GCM
 
@@ -1134,7 +1134,7 @@ public enum CipherSuite {
 			if (type == CipherType.AEAD || type == CipherType.BLOCK) {
 				supported = AeadBlockCipher.isSupported(transformation, keyLength);
 			}
-			if (AeadBlockCipher.AES_CCM.equals(transformation)) {
+			if (AeadBlockCipher.AES_CCM_NO_PADDING.equals(transformation)) {
 				this.cipher = null;
 				this.supported = supported;
 			} else {

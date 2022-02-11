@@ -224,6 +224,7 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 ```
 <properties>
 	<bc.version>1.69</bc.version>
+	<slf4j.version>1.7.34</slf4j.version>
 </properties>
 <dependencies>
 	<dependency>
@@ -238,16 +239,44 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 		<version>${bc.version}</version>
 		<scope>test</scope>
 	</dependency>
+	<dependency>
+		<groupId>org.bouncycastle</groupId>
+		<artifactId>bctls-jdk15on</artifactId>
+		<version>${bc.version}</version>
+		<scope>test</scope>
+	</dependency>
+	<dependency>
+		<groupId>org.bouncycastle</groupId>
+		<artifactId>bcutil-jdk15on</artifactId>
+		<version>${bc.version}</version>
+		<scope>test</scope>
+	</dependency>
+	<dependency>
+		<groupId>org.slf4j</groupId>
+		<artifactId>jul-to-slf4j</artifactId>
+		<version>${slf4j.version}</version>
+		<scope>test</scope>
+	</dependency>
 </dependencies>
 ```
 
-(With 3.3 the tests are using the updated version 1.70).
+(With 3.3 the tests are using the updated version 1.70 instead of the 1.69).
 
 And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
 
 Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but it may be not possible for us to answer them.
 
-On issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
+On issue seems to be the `SecureRandom` generator of BC. Dependent on the runtime environment, that is based on `SecureRandom.getInstanceStrong()`, which has blocking behaviour by default. If the platform your application runs on, has not enough entropy to start the `SecureRandom`, BC waits until that gets available. In common cases, that starts quite fast, but in some cases, that takes up to 60s (and more).
+
+One option to overcome that on some linux variants is using `rng-tools`. That may help to provide more entropy.
+
+A second option o overcome that is to setup `CALIFORNIUM_JCE_PROVIDER` using the value `BC_NON_BLOCKING_RANDOM` instead of `BC`. The `JceProviderUtil` then adapts `SecureRandom` to use a, maybe weaker, non-blocking `SecureRandom`. If that works, depends unfortunately on your platform, so especially for Android, that may not work. In that cases, please use `BC` as `CALIFORNIUM_JCE_PROVIDER` and configure "securerandom.strongAlgorithms" ahead with
+
+```
+Security.setProperty("securerandom.strongAlgorithms", "<your-android-algorithm>");
+```
+
+according your android variant. That may require some analysis by you.
 
 # DTLS 1.2 / UDP - Considerations
 

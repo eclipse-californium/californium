@@ -674,9 +674,18 @@ public final class SignatureAndHashAlgorithm {
 	 * 
 	 * @since 2.3
 	 */
-	private static boolean isSignedWithSupportedAlgorithm(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
+	public static boolean isSignedWithSupportedAlgorithm(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
 			X509Certificate certificate) {
 		String sigAlgName = certificate.getSigAlgName();
+		String sigEdDsa = Asn1DerDecoder.getEdDsaStandardAlgorithmName(sigAlgName, null);
+		if (sigEdDsa != null) {
+			if (SignatureAlgorithm.ED25519.isSupported(sigEdDsa)) {
+				return supportedSignatureAlgorithms.contains(INTRINSIC_WITH_ED25519);
+			} else if (SignatureAlgorithm.ED448.isSupported(sigEdDsa)) {
+				return supportedSignatureAlgorithms.contains(INTRINSIC_WITH_ED448);
+			}
+			return false;
+		}
 		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
 			// android's certificate returns a upper case SigAlgName, e.g.
 			// "SHA256WITHECDSA", but the getJcaName returns a mixed case

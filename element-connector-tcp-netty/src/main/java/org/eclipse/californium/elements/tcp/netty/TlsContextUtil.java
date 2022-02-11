@@ -159,7 +159,7 @@ public class TlsContextUtil extends TcpContextUtil {
 	 */
 	public static String[] getWeakCipherSuites(SSLContext sslContext) {
 		if (!JceProviderUtil.hasStrongEncryption() && JceProviderUtil.usesBouncyCastle()
-				&& JceProviderUtil.getProviderVersion() < 1.70) {
+				&& JceProviderUtil.getProviderVersion().compareTo("1.70") < 0) {
 			return SslContextUtil.getWeakCipherSuites(sslContext);
 		}
 		return null;

@@ -12,6 +12,10 @@
 		<appender-ref ref="STDOUT" />
 	</logger>
 
+	<logger name="org.eclipse.californium.elements.util.JceProviderUtil" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<root level="INFO">
 		<appender-ref ref="STDOUT" />
 	</root>
