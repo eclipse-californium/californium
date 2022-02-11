@@ -141,7 +141,7 @@ public class StringUtil {
 					// unresolved, return literal IP
 					return textAddress.substring(1);
 				} else {
-					// resolved, safe to call getHostName 
+					// resolved, safe to call getHostName
 					return address.getHostName();
 				}
 			} else {
@@ -737,6 +737,26 @@ public class StringUtil {
 	 */
 	public static String toDisplayString(PublicKey publicKey) {
 		return publicKey.toString().replaceAll("\n\\s+", "\n");
+	}
+
+	/**
+	 * Checks, whether the set contains the value, or not.
+	 * 
+	 * The check is done using {@link String#equalsIgnoreCase(String)}.
+	 * 
+	 * @param set set of strings
+	 * @param value value to match
+	 * @return {@code true}, if value is contained in set, {@code false},
+	 *         otherwise.
+	 * @since 3.3
+	 */
+	public static boolean containsIgnoreCase(String[] set, String value) {
+		for (String item : set) {
+			if (item.equalsIgnoreCase(value)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

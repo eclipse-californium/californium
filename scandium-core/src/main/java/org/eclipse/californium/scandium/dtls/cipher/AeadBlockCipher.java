@@ -16,23 +16,49 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A generic Authenticated Encryption with Associated Data block cipher mode.
  */
-public class AeadBlockCipher {
+public final class AeadBlockCipher {
+	private static final Logger LOGGER = LoggerFactory.getLogger(AeadBlockCipher.class);
 
 	/**
 	 * Support java prior 1.7, aes-ccm is a non-java-vm transformation and
 	 * handled as special transformation.
 	 * 
 	 * @see CCMBlockCipher
+	 * @deprecated use {@link #AES_CCM_NO_PADDING} instead
 	 */
 	public static final String AES_CCM = "AES/CCM";
+	/**
+	 * Support java prior 1.7, aes-ccm is a non-java-vm transformation and
+	 * handled as special transformation.
+	 * 
+	 * @see CCMBlockCipher
+	 * @since 3.3
+	 */
+	public static final String AES_CCM_NO_PADDING = "AES/CCM/NoPadding";
+
+	/**
+	 * Test, if transformation is "AES/CCM/???".
+	 * 
+	 * @param transformation transformation.
+	 * @return {@code true}, if transformation is "AES/CCM/???", {@code false},
+	 *         otherwise.
+	 * @since 3.3
+	 */
+	public final static boolean isAesCcm(String transformation) {
+		return AES_CCM_NO_PADDING.equalsIgnoreCase(transformation) || AES_CCM.equalsIgnoreCase(transformation);
+	}
 
 	/**
 	 * Test, if cipher is supported.
@@ -42,20 +68,19 @@ public class AeadBlockCipher {
 	 * @return {@code true}, if supported
 	 */
 	public final static boolean isSupported(String transformation, int keyLength) {
+		int maxKeyLengthBits = 0;
 		try {
-			int keyLengthBits = keyLength * Byte.SIZE;
-			// check, if java-vm supports transformation
-			if (AES_CCM.equals(transformation)) {
-				if (CCMBlockCipher.isSupported()) {
-					return keyLengthBits <= CCMBlockCipher.getMaxAllowedKeyLength();
-				}
-			} else {
-				Cipher cipher = Cipher.getInstance(transformation);
-				return keyLengthBits <= Cipher.getMaxAllowedKeyLength(cipher.getAlgorithm());
-			}
-		} catch (GeneralSecurityException ex) {
+			maxKeyLengthBits = Cipher.getMaxAllowedKeyLength(transformation);
+		} catch (NoSuchAlgorithmException ex) {
 		}
-		return false;
+		if (maxKeyLengthBits == 0) {
+			LOGGER.info("{} is not supported!", transformation);
+		} else if (maxKeyLengthBits == Integer.MAX_VALUE) {
+			LOGGER.info("{} is not restricted!", transformation, maxKeyLengthBits);
+		} else {
+			LOGGER.info("Max. allowed key length for {} is {} bits", transformation, maxKeyLengthBits);
+		}
+		return keyLength * Byte.SIZE <= maxKeyLengthBits;
 	}
 
 	/**
@@ -74,10 +99,11 @@ public class AeadBlockCipher {
 	 *             e.g. because the ciphertext's block size is not correct
 	 * @throws InvalidMacException if the message could not be authenticated
 	 */
-	public final static byte[] decrypt(CipherSuite cipherSuite, SecretKey key, byte[] nonce, byte[] additionalData, byte[] crypted, int cryptedOffset, int cryptedLength)
-			throws GeneralSecurityException {
-		if (AES_CCM.equals(cipherSuite.getTransformation())) {
-			return CCMBlockCipher.decrypt(key, nonce, additionalData, crypted, cryptedOffset, cryptedLength, cipherSuite.getMacLength());
+	public final static byte[] decrypt(CipherSuite cipherSuite, SecretKey key, byte[] nonce, byte[] additionalData,
+			byte[] crypted, int cryptedOffset, int cryptedLength) throws GeneralSecurityException {
+		if (isAesCcm(cipherSuite.getTransformation())) {
+			return CCMBlockCipher.decrypt(key, nonce, additionalData, crypted, cryptedOffset, cryptedLength,
+					cipherSuite.getMacLength());
 		} else {
 			return jreDecrypt(cipherSuite, key, nonce, additionalData, crypted, cryptedOffset, cryptedLength);
 		}
@@ -95,10 +121,11 @@ public class AeadBlockCipher {
 	 * @throws GeneralSecurityException if the data could not be encrypted, e.g.
 	 *             because the JVM does not support the AES cipher algorithm
 	 */
-	public final static byte[] encrypt(CipherSuite cipherSuite, SecretKey key, byte[] nonce,
-			byte[] additionalData, byte[] message) throws GeneralSecurityException {
-		if (AES_CCM.equals(cipherSuite.getTransformation())) {
-			return CCMBlockCipher.encrypt(cipherSuite.getRecordIvLength(), key, nonce, additionalData, message, cipherSuite.getMacLength());
+	public final static byte[] encrypt(CipherSuite cipherSuite, SecretKey key, byte[] nonce, byte[] additionalData,
+			byte[] message) throws GeneralSecurityException {
+		if (isAesCcm(cipherSuite.getTransformation())) {
+			return CCMBlockCipher.encrypt(cipherSuite.getRecordIvLength(), key, nonce, additionalData, message,
+					cipherSuite.getMacLength());
 		} else {
 			return jreEncrypt(cipherSuite.getRecordIvLength(), cipherSuite, key, nonce, additionalData, message);
 		}

@@ -42,11 +42,11 @@ public class Asn1DerDecoder {
 	/**
 	 * Key algorithm EC to be used by KeyFactory.
 	 */
-	public static final String EC = "EC";
+	public static final String EC = JceNames.EC;
 	/**
 	 * Key algorithm RSA to be used by KeyFactory.
 	 */
-	public static final String RSA = "RSA";
+	public static final String RSA = JceNames.RSA;
 	/**
 	 * Key algorithm DSA to be used by KeyFactory.
 	 */
@@ -60,13 +60,13 @@ public class Asn1DerDecoder {
 	 * 
 	 * @see #readEcPrivateKeyV2(byte[])
 	 */
-	public static final String ECv2 = "EC.v2";
+	public static final String ECv2 = JceNames.ECv2;
 	/**
 	 * Key algorithm ED25519 (RFC 8422).
 	 * 
 	 * @since 2.4
 	 */
-	public static final String ED25519 = "Ed25519";
+	public static final String ED25519 = JceNames.ED25519;
 	/**
 	 * Key algorithm Ed25519 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
@@ -74,13 +74,13 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String ED25519v2 = "Ed25519.v2";
+	public static final String ED25519v2 = JceNames.ED25519v2;
 	/**
 	 * Key algorithm ED448 (RFC 8422).
 	 * 
 	 * @since 2.4
 	 */
-	public static final String ED448 = "Ed448";
+	public static final String ED448 = JceNames.ED448;
 	/**
 	 * Key algorithm Ed448 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
@@ -88,31 +88,31 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String ED448v2 = "Ed448.v2";
+	public static final String ED448v2 = JceNames.ED448v2;
 	/**
 	 * Key algorithm X25519 (RFC 8422).
 	 * 
 	 * @since 3.0
 	 */
-	public static final String X25519 = "X25519";
+	public static final String X25519 = JceNames.X25519;
 	/**
 	 * Key algorithm X25519 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
 	 * @since 3.0
 	 */
-	public static final String X25519v2 = "X25519.v2";
+	public static final String X25519v2 = JceNames.X25519v2;
 	/**
 	 * Key algorithm X448 (RFC 8422).
 	 * 
 	 * @since 3.0
 	 */
-	public static final String X448 = "X448";
+	public static final String X448 = JceNames.X448;
 	/**
 	 * Key algorithm X448 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
 	 * @since 3.0
 	 */
-	public static final String X448v2 = "X448.v2";
+	public static final String X448v2 = JceNames.X448v2;
 	/**
 	 * OID key algorithm X25519
 	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
@@ -121,7 +121,7 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String OID_X25519 = "OID.1.3.101.110";
+	public static final String OID_X25519 = JceNames.OID_X25519;
 	/**
 	 * OID key algorithm X448
 	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
@@ -130,7 +130,7 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	public static final String OID_XD448 = "OID.1.3.101.111";
+	public static final String OID_XD448 = JceNames.OID_X448;
 	/**
 	 * OID key algorithm ED25519
 	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
@@ -139,7 +139,7 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 2.4
 	 */
-	public static final String OID_ED25519 = "OID.1.3.101.112";
+	public static final String OID_ED25519 = JceNames.OID_ED25519;
 	/**
 	 * OID key algorithm ED448
 	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
@@ -148,13 +148,13 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 2.4
 	 */
-	public static final String OID_ED448 = "OID.1.3.101.113";
+	public static final String OID_ED448 = JceNames.OID_ED448;
 	/**
 	 * Key algorithm EdDSA (RFC 8422).
 	 * 
 	 * @since 2.4
 	 */
-	public static final String EDDSA = "EdDSA";
+	public static final String EDDSA = JceNames.EDDSA;
 	/**
 	 * ECPoint uncompressed.
 	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target="_blank">RFC 5480, Section 2.2</a>
@@ -352,27 +352,6 @@ public class Asn1DerDecoder {
 			MAX_DEFAULT_LENGTH, "CONTEXT SPECIFIC PRIMITIVE 1");
 
 	/**
-	 * Alias algorithms for Ed25519.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String[] ED25519_ALIASES = { ED25519, "1.3.101.112", OID_ED25519, EDDSA, ED25519v2 };
-
-	/**
-	 * Alias algorithms for Ed448.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String[] ED448_ALIASES = { ED448, "1.3.101.113", OID_ED448, EDDSA, ED448v2 };
-
-	/**
-	 * Table of algorithm aliases.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String[][] ALGORITHM_ALIASES = { { "DH", "DiffieHellman" }, ED25519_ALIASES, ED448_ALIASES };
-
-	/**
 	 * ISO-10646-UCS-2 charset, if supported.
 	 * 
 	 * @since 3.0
@@ -399,25 +378,6 @@ public class Asn1DerDecoder {
 		}
 		UCS_4 = charset;
 		JceProviderUtil.init();
-	}
-
-	/**
-	 * Checks, whether the set contains the value, or not. The check is done
-	 * using {@link String#equalsIgnoreCase(String)}.
-	 * 
-	 * @param set set of strings
-	 * @param value value to match
-	 * @return {@code true}, if value is contained in set, {@code false},
-	 *         otherwise.
-	 * @since 3.0
-	 */
-	private static boolean contains(String[] set, String value) {
-		for (String item : set) {
-			if (item.equalsIgnoreCase(value)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	/**
@@ -902,23 +862,13 @@ public class Asn1DerDecoder {
 	/**
 	 * Check for equal key algorithm synonyms.
 	 * 
-	 * Currently on "DH" and "DiffieHellman" are supported synonyms.
-	 * 
 	 * @param keyAlgorithm1 key algorithm 1
 	 * @param keyAlgorithm2 key algorithm 2
 	 * @return {@code true}, if the key algorithms are equal or synonyms,
 	 *         {@code false}, otherwise.
 	 */
 	public static boolean equalKeyAlgorithmSynonyms(String keyAlgorithm1, String keyAlgorithm2) {
-		if (keyAlgorithm1 != null && keyAlgorithm1.equals(keyAlgorithm2)) {
-			return true;
-		}
-		for (String[] aliases : ALGORITHM_ALIASES) {
-			if (contains(aliases, keyAlgorithm1) && contains(aliases, keyAlgorithm2)) {
-				return true;
-			}
-		}
-		return false;
+		return JceProviderUtil.equalKeyAlgorithmSynonyms(keyAlgorithm1, keyAlgorithm2);
 	}
 
 	/**
@@ -940,22 +890,17 @@ public class Asn1DerDecoder {
 	/**
 	 * Get EdDSA standard algorithm name.
 	 * 
+	 * Supports {@link #ED25519v2} and {@link #ED448v2} as well.
+	 * 
 	 * @param algorithm algorithm
 	 * @param def default algorithm
 	 * @return Either {@link #OID_ED25519}, {@link #OID_ED448}, {@link #EDDSA},
 	 *         or the provided default algorithm
+	 * @see JceProviderUtil#getEdDsaStandardAlgorithmName(String, String)
 	 * @since 2.4
 	 */
 	public static String getEdDsaStandardAlgorithmName(String algorithm, String def) {
-		if (EDDSA.equalsIgnoreCase(algorithm)) {
-			return EDDSA;
-		} else if (contains(ED25519_ALIASES, algorithm)) {
-			return OID_ED25519;
-		} else if (contains(ED448_ALIASES, algorithm)) {
-			return OID_ED448;
-		} else {
-			return def;
-		}
+		return JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, def);
 	}
 
 	/**

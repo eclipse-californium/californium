@@ -47,7 +47,7 @@ public class CCMBlockCipher {
 	 * The underlying block cipher.
 	 * <p>
 	 * <b>Note:</b> code scanners seems to be limited in analyzing code.
-	 * Therefore some code scanners may report the use of "AES/ECB" as finding.
+	 * Therefore these scanners may report the use of "AES/ECB" as finding.
 	 * This implementation uses the basic form of AES ciphers (AES/ECB) to build
 	 * AES/CCM for older JREs. For more details, see
 	 * <a href="https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation"

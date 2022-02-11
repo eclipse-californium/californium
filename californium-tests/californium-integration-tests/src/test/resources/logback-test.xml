@@ -38,6 +38,9 @@
 	<logger name="org.eclipse.californium.integration.test.SecureCidClusterTest" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.elements.util.JceProviderUtil" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 
 	<root level="WARN">
 		<appender-ref ref="STDOUT" />

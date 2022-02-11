@@ -872,7 +872,7 @@
 						<artifactId>maven-surefire-plugin</artifactId>
 						<configuration>
 							<systemPropertyVariables>
-								<CALIFORNIUM_JCE_PROVIDER>BC</CALIFORNIUM_JCE_PROVIDER>
+								<CALIFORNIUM_JCE_PROVIDER>BC_NON_BLOCKING_RANDOM</CALIFORNIUM_JCE_PROVIDER>
 							</systemPropertyVariables>
 						</configuration>
 					</plugin>
