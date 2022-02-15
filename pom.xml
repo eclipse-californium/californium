@@ -829,31 +829,32 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
+				<bc.art>jdk15on</bc.art>
 				<bc.version>1.70</bc.version>
-				<slf4j.version>1.7.30</slf4j.version>
+				<slf4j.version>1.7.32</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcpkix-jdk15on</artifactId>
+					<artifactId>bcpkix-${bc.art}</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcprov-jdk15on</artifactId>
+					<artifactId>bcprov-${bc.art}</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bctls-jdk15on</artifactId>
+					<artifactId>bctls-${bc.art}</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcutil-jdk15on</artifactId>
+					<artifactId>bcutil-${bc.art}</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
