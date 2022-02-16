@@ -217,6 +217,8 @@ mvn clean install -Dno.net.i2p.crypto.eddsa=true
 
 if this library should not be included.
 
+*Note:* using the oracle build 28 of openjdk 11 uncovers, that calling `EdDSAEngine.engineSetParameter(null)` fails with `ǸullPointerException` instead of `InvalidAlgorithmParameterException`. That causes to fail the verification of the signature at all. Using the aptopen build seems not to call `EdDSAEngine.engineSetParameter(null)` and therefore works. [ed25519-java](https://github.com/str4d/ed25519-java) seems to be not longer maintained. It's therefore recommended to update to newer jdks (e.g. 17) or to use Bouncy Castle (see next section, even if the Bouncy Castle support is experimental).
+
 ## Support for Bouncy Castle
 
 Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https://www.bouncycastle.org/) as alternative JCE has been implemented. Add the maven dependencies

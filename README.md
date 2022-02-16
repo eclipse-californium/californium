@@ -90,6 +90,8 @@ $ mvn clean install -DuseToolchain=true -Dno.net.i2p.crypto.eddsa=true
 
 In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar) is provided to the classpath separately.
 
+*Note:* using the oracle build 28 of openjdk 11 uncovers, that calling `EdDSAEngine.engineSetParameter(null)` fails with `ǸullPointerException` instead of `InvalidAlgorithmParameterException`. That causes to fail the verification of the signature at all. Using the aptopen build seems not to call `EdDSAEngine.engineSetParameter(null)` and therefore works. [ed25519-java](https://github.com/str4d/ed25519-java) seems to be not longer maintained. It's therefore recommended to update to newer jdks (e.g. 17) or to use Bouncy Castle (see next section, even if the Bouncy Castle support is experimental).
+
 ## Run unit tests using Bouncy Castle as alternative JCE provider
 
 With 3.0 a first, experimental support for using Bouncy Castle (version 1.69, bcprov-jdk15on, bcpkix-jdk15on, and, for tls, bctls-jdk15on) is implemented. With 3.3 the tests are using the updated version 1.70 (for tls also  bcutil-jdk15on is used additionally).
