@@ -53,8 +53,8 @@ import javax.net.ssl.X509KeyManager;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
+import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
@@ -132,7 +132,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderSupportEdDsaForCertificate() throws Exception {
-		assumeTrue("Ed25519 not supported by JCE", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
+		assumeTrue("Ed25519 not supported by JCE", JceProviderUtil.isSupported(JceNames.ED25519));
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().setTrustAllRPKs().build();
 		Credentials credentials = DtlsTestTools.getCredentials("servereddsa");
 		assumeNotNull("servereddsa credentials missing!", credentials);

@@ -297,7 +297,7 @@ public class SslContextUtilCredentialsTest {
 
 	@Test
 	public void testLoadEdDsaCredentials() throws IOException, GeneralSecurityException {
-		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
+		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(JceNames.ED25519));
 		assumeTrue(EDDSA_KEY_STORE_URI + " missing!", SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI));
 
 		Credentials credentials = SslContextUtil.loadCredentials(EDDSA_KEY_STORE_URI, "clienteddsa",
@@ -311,28 +311,28 @@ public class SslContextUtilCredentialsTest {
 
 	@Test
 	public void testLoadPemPrivateKeyEd25519() throws IOException, GeneralSecurityException {
-		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
+		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(JceNames.ED25519));
 		PrivateKey privateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed25519_private.pem", null, null, null);
 		assertThat(privateKey, is(notNullValue()));
 	}
 
 	@Test
 	public void testLoadPemPublicKeyEd25519() throws IOException, GeneralSecurityException {
-		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
+		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(JceNames.ED25519));
 		PublicKey publicKey = SslContextUtil.loadPublicKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed25519_public.pem", null, null);
 		assertThat(publicKey, is(notNullValue()));
 	}
 
 	@Test
 	public void testLoadPemPrivateKeyEd448() throws IOException, GeneralSecurityException {
-		assumeTrue("ED448 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED448));
+		assumeTrue("ED448 requires JCE support!", JceProviderUtil.isSupported(JceNames.ED448));
 		PrivateKey privateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed448_private.pem", null, null, null);
 		assertThat(privateKey, is(notNullValue()));
 	}
 
 	@Test
 	public void testLoadPemPublicKeyEd448() throws IOException, GeneralSecurityException {
-		assumeTrue("ED448 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED448));
+		assumeTrue("ED448 requires JCE support!", JceProviderUtil.isSupported(JceNames.ED448));
 		PublicKey publicKey = SslContextUtil.loadPublicKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed448_public.pem", null, null);
 		assertThat(publicKey, is(notNullValue()));
 	}

@@ -37,7 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -566,10 +566,10 @@ public final class XECDHECryptography implements Destroyable {
 				} else {
 					// EdDsa work around ...
 					String algorithm = publicKey.getAlgorithm();
-					String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
-					if (Asn1DerDecoder.OID_ED25519.equals(oid) || Asn1DerDecoder.EDDSA.equalsIgnoreCase(oid)) {
+					String oid = JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, null);
+					if (JceNames.OID_ED25519.equals(oid) || JceNames.EDDSA.equalsIgnoreCase(oid)) {
 						return X25519;
-					} else if (Asn1DerDecoder.OID_ED448.equals(oid)) {
+					} else if (JceNames.OID_ED448.equals(oid)) {
 						return X448;
 					} else {
 						LOGGER.warn("No supported curve {}/{}", publicKey.getAlgorithm(), oid);

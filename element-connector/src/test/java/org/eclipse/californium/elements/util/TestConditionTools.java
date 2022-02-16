@@ -157,11 +157,11 @@ public final class TestConditionTools {
 
 				@Override
 				public boolean isFulFilled() throws IllegalStateException {
-					return matcher.matches(manager.getCounter(name));
+					return matcher.matches(manager.getCounterByKey(name));
 				}
 			});
 		}
-		assertThat(prepareMessaga(null, name, manager), manager.getCounter(name), matcher);
+		assertThat(prepareMessaga(null, name, manager), manager.getCounterByKey(name), matcher);
 	}
 
 	/**
@@ -187,11 +187,11 @@ public final class TestConditionTools {
 
 				@Override
 				public boolean isFulFilled() throws IllegalStateException {
-					return matcher.matches(manager.getCounter(name));
+					return matcher.matches(manager.getCounterByKey(name));
 				}
 			});
 		}
-		assertThat(prepareMessaga(message, name, manager), manager.getCounter(name), matcher);
+		assertThat(prepareMessaga(message, name, manager), manager.getCounterByKey(name), matcher);
 	}
 
 	/**
@@ -203,7 +203,7 @@ public final class TestConditionTools {
 	 */
 	public static void assertStatisticCounter(CounterStatisticManager manager, String name,
 			Matcher<? super Long> matcher) {
-		assertThat(prepareMessaga(null, name, manager), manager.getCounter(name), matcher);
+		assertThat(prepareMessaga(null, name, manager), manager.getCounterByKey(name), matcher);
 	}
 
 	/**
@@ -217,7 +217,7 @@ public final class TestConditionTools {
 	 */
 	public static void assertStatisticCounter(String message, CounterStatisticManager manager, String name,
 			Matcher<? super Long> matcher) {
-		assertThat(prepareMessaga(message, name, manager), manager.getCounter(name), matcher);
+		assertThat(prepareMessaga(message, name, manager), manager.getCounterByKey(name), matcher);
 	}
 
 	/**

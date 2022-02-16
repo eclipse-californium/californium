@@ -110,7 +110,7 @@ public class TestCertificatesTools {
 			keyManager = SslContextUtil.loadKeyManager(KEY_STORE_URI, "client", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			clientKeyManager = SslContextUtil.getX509KeyManager(keyManager);
 
-			if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)
+			if (JceProviderUtil.isSupported(JceNames.ED25519)
 					&& SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI)) {
 				keyManager = SslContextUtil.loadKeyManager(EDDSA_KEY_STORE_URI, "server.*", KEY_STORE_PASSWORD,
 						KEY_STORE_PASSWORD);
@@ -507,7 +507,7 @@ public class TestCertificatesTools {
 	 * @since 3.0
 	 */
 	private static Signature getSignatureInstance(String algorithm) throws NoSuchAlgorithmException {
-		String standardAlgorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, algorithm);
+		String standardAlgorithm = JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, algorithm);
 		return Signature.getInstance(standardAlgorithm);
 	}
 

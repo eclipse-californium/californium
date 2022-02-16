@@ -181,8 +181,8 @@ public class Asn1DerDecoderTest {
 	@Test
 	public void testKeyAlgorithmEddsa() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(EDDSA_BASE64);
-		assertThat(Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is(Asn1DerDecoder.ED25519));
-		if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)) {
+		assertThat(Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is(JceNames.ED25519));
+		if (JceProviderUtil.isSupported(JceNames.ED25519)) {
 			assertThat(Asn1DerDecoder.readSubjectPublicKey(data), is(notNullValue()));
 		}
 	}
@@ -203,6 +203,7 @@ public class Asn1DerDecoderTest {
 		assertSynonym("", true, "EdDSA", "ED25519");
 		assertSynonym("", true, "EdDSA", "ED448");
 		assertSynonym("", true, "ED25519.v2", "ED25519");
+		assertSynonym("", true, "X25519.v2", "X25519");
 	}
 
 	/**
@@ -211,7 +212,7 @@ public class Asn1DerDecoderTest {
 	@Test
 	public void testPrivateKeyAlgorithmRSA() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(RSA_PRIVATE_KEY_BASE64);
-		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.RSA));
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(JceNames.RSA));
 		assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 	}
 
@@ -221,7 +222,7 @@ public class Asn1DerDecoderTest {
 	@Test
 	public void testPrivateKeyAlgorithmDsa() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(DSA_PRIVATE_KEY_BASE64);
-		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.DSA));
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(JceNames.DSA));
 		assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 	}
 
@@ -231,7 +232,7 @@ public class Asn1DerDecoderTest {
 	@Test
 	public void testPrivateKeyAlgorithmEc() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(EC_PRIVATE_KEY_BASE64);
-		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.EC));
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(JceNames.EC));
 		assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 	}
 
@@ -241,7 +242,7 @@ public class Asn1DerDecoderTest {
 	@Test
 	public void testPrivateKeyAlgorithmDH() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(DH_PRIVATE_KEY_BASE64);
-		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.DH));
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(JceNames.DH));
 		assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 	}
 
@@ -251,8 +252,8 @@ public class Asn1DerDecoderTest {
 	@Test
 	public void testPrivateKeyAlgorithmEddsa() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_BASE64);
-		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.ED25519));
-		if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519)) {
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(JceNames.ED25519));
+		if (JceProviderUtil.isSupported(JceNames.ED25519)) {
 			assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 		}
 	}
@@ -263,7 +264,7 @@ public class Asn1DerDecoderTest {
 	@Test
 	public void testPrivateKeyAlgorithmEcV2() throws IOException {
 		byte[] data = Base64.decode(EC_PRIVATE_KEY_V2_BASE64);
-		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.ECv2));
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(JceNames.ECv2));
 	}
 
 	/**
@@ -272,7 +273,7 @@ public class Asn1DerDecoderTest {
 	@Test
 	public void testPrivateKeyAlgorithmEdDsaV2() throws IOException {
 		byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_V2_BASE64);
-		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.ED25519v2));
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(JceNames.ED25519v2));
 	}
 
 	/**
@@ -293,13 +294,13 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testReadPrivateKeyEdDsaV2() throws IOException, GeneralSecurityException {
-		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
+		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(JceNames.ED25519));
 		byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_V2_BASE64);
 		Keys keys = Asn1DerDecoder.readPrivateKey(data);
 		assertThat(keys, is(notNullValue()));
 		assertThat(keys.getPrivateKey(), is(notNullValue()));
 		assertThat(keys.getPublicKey(), is(notNullValue()));
-		TestCertificatesTools.assertSigning("asn.1", keys.getPrivateKey(), keys.getPublicKey(), Asn1DerDecoder.ED25519);
+		TestCertificatesTools.assertSigning("asn.1", keys.getPrivateKey(), keys.getPublicKey(), JceNames.ED25519);
 	}
 
 	/**
@@ -307,7 +308,7 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testRsaKeyAlgorithmGenerated() throws IOException {
-		assertKeyAlgorithmGenerated(Asn1DerDecoder.RSA);
+		assertKeyAlgorithmGenerated(JceNames.RSA);
 	}
 
 	/**
@@ -315,7 +316,7 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testDsaKeyAlgorithmGenerated() throws IOException {
-		assertKeyAlgorithmGenerated(Asn1DerDecoder.DSA);
+		assertKeyAlgorithmGenerated(JceNames.DSA);
 	}
 
 	/**
@@ -323,7 +324,7 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testEcKeyAlgorithmGenerated() throws IOException {
-		assertKeyAlgorithmGenerated(Asn1DerDecoder.EC);
+		assertKeyAlgorithmGenerated(JceNames.EC);
 	}
 
 	/**
@@ -331,7 +332,7 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testDHKeyAlgorithmGenerated() throws IOException {
-		assertKeyAlgorithmGenerated(Asn1DerDecoder.DH);
+		assertKeyAlgorithmGenerated(JceNames.DH);
 	}
 
 	/**
@@ -339,8 +340,8 @@ public class Asn1DerDecoderTest {
 	 */
 	@Test
 	public void testEdDsaKeyAlgorithmGenerated() throws IOException {
-		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
-		assertKeyAlgorithmGenerated(Asn1DerDecoder.ED25519);
+		assumeTrue("ED25519 requires JCE support!", JceProviderUtil.isSupported(JceNames.ED25519));
+		assertKeyAlgorithmGenerated(JceNames.ED25519);
 	}
 
 	private void assertKeyAlgorithmGenerated(String algorithm) throws IOException {
@@ -368,7 +369,7 @@ public class Asn1DerDecoderTest {
 	 * @param keyAlgorithm2 key algorithm
 	 */
 	private void assertSynonym(String message, boolean expected, String keyAlgorithm1, String keyAlgorithm2) {
-		if (expected != Asn1DerDecoder.equalKeyAlgorithmSynonyms(keyAlgorithm1, keyAlgorithm2)) {
+		if (expected != JceProviderUtil.equalKeyAlgorithmSynonyms(keyAlgorithm1, keyAlgorithm2)) {
 			if (expected) {
 				fail(message + " " + keyAlgorithm1 + " should be a valid synonym for " + keyAlgorithm2);
 			} else {

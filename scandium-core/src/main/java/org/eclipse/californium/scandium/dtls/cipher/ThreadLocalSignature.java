@@ -18,7 +18,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import java.security.GeneralSecurityException;
 import java.security.Signature;
 
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 
 /**
  * Thread local Signature.
@@ -44,7 +44,7 @@ public class ThreadLocalSignature extends ThreadLocalCrypto<Signature> {
 
 			@Override
 			public Signature getInstance() throws GeneralSecurityException {
-				String standardAlgorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, algorithm);
+				String standardAlgorithm = JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, algorithm);
 				return Signature.getInstance(standardAlgorithm);
 			}
 

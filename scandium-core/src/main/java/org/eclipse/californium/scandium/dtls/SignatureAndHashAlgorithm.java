@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
@@ -162,19 +162,19 @@ public final class SignatureAndHashAlgorithm {
 	public static enum SignatureAlgorithm {
 
 		ANONYMOUS(0, null), RSA(1, CertificateKeyAlgorithm.RSA), DSA(2, CertificateKeyAlgorithm.DSA), ECDSA(3,
-				CertificateKeyAlgorithm.EC, Asn1DerDecoder.EC, false),
+				CertificateKeyAlgorithm.EC, JceNames.EC, false),
 		/**
 		 * ED25519 signature.
 		 * 
 		 * @since 2.4
 		 */
-		ED25519(7, CertificateKeyAlgorithm.EC, Asn1DerDecoder.OID_ED25519, true),
+		ED25519(7, CertificateKeyAlgorithm.EC, JceNames.OID_ED25519, true),
 		/**
 		 * ED448 signature
 		 * 
 		 * @since 2.4
 		 */
-		ED448(8, CertificateKeyAlgorithm.EC, Asn1DerDecoder.OID_ED448, true);
+		ED448(8, CertificateKeyAlgorithm.EC, JceNames.OID_ED448, true);
 
 		private final int code;
 		private final CertificateKeyAlgorithm certificateKeyAlgorithm;
@@ -254,15 +254,15 @@ public final class SignatureAndHashAlgorithm {
 				return JceProviderUtil.isSupported(keyAlgorithm);
 			}
 			if (ED25519 == this || ED448 == this) {
-				String key = Asn1DerDecoder.getEdDsaStandardAlgorithmName(keyAlgorithm, null);
+				String key = JceProviderUtil.getEdDsaStandardAlgorithmName(keyAlgorithm, null);
 				if (key != null) {
 					if (ED25519 == this) {
-						if (Asn1DerDecoder.OID_ED25519 == key || Asn1DerDecoder.EDDSA == key) {
-							return JceProviderUtil.isSupported(Asn1DerDecoder.ED25519);
+						if (JceNames.OID_ED25519 == key || JceNames.EDDSA == key) {
+							return JceProviderUtil.isSupported(JceNames.ED25519);
 						}
 					} else {
-						if (Asn1DerDecoder.OID_ED448 == key || Asn1DerDecoder.EDDSA == key) {
-							return JceProviderUtil.isSupported(Asn1DerDecoder.ED448);
+						if (JceNames.OID_ED448 == key || JceNames.EDDSA == key) {
+							return JceProviderUtil.isSupported(JceNames.ED448);
 						}
 					}
 				}
@@ -306,7 +306,7 @@ public final class SignatureAndHashAlgorithm {
 		 * @since 3.0
 		 */
 		public static SignatureAlgorithm intrinsicValueOf(String algorithmName) {
-			String standardAlgorithmName = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithmName, null);
+			String standardAlgorithmName = JceProviderUtil.getEdDsaStandardAlgorithmName(algorithmName, null);
 			if (standardAlgorithmName != null) {
 				for (SignatureAlgorithm algorithm : values()) {
 					if (algorithm.isIntrinsic && algorithm.isSupported(standardAlgorithmName)) {
@@ -677,7 +677,7 @@ public final class SignatureAndHashAlgorithm {
 	public static boolean isSignedWithSupportedAlgorithm(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
 			X509Certificate certificate) {
 		String sigAlgName = certificate.getSigAlgName();
-		String sigEdDsa = Asn1DerDecoder.getEdDsaStandardAlgorithmName(sigAlgName, null);
+		String sigEdDsa = JceProviderUtil.getEdDsaStandardAlgorithmName(sigAlgName, null);
 		if (sigEdDsa != null) {
 			if (SignatureAlgorithm.ED25519.isSupported(sigEdDsa)) {
 				return supportedSignatureAlgorithms.contains(INTRINSIC_WITH_ED25519);

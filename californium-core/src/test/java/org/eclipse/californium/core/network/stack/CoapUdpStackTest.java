@@ -32,6 +32,7 @@ import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.TestSynchroneExecutor;
@@ -60,7 +61,7 @@ public class CoapUdpStackTest {
 
 	@Before
 	public void initialize() {
-		stack = new CoapUdpStack("udp-test ", CONFIG, outbox);
+		stack = new CoapUdpStack("udp-test ", CONFIG, new UdpEndpointContextMatcher(true), outbox);
 		stack.setDeliverer(deliverer);
 		stack.setExecutors(executor, executor);
 
