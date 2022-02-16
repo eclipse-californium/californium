@@ -24,7 +24,7 @@ import static org.junit.Assume.assumeNotNull;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
@@ -53,7 +53,7 @@ public class X509CertPathIdentityTest {
 		} catch (GeneralSecurityException e) {
 			assumeNoException("vm's without EC are not usable for CoAP!", e);
 		}
-		if (JceProviderUtil.isSupported(Asn1DerDecoder.ED25519) && SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI)) {
+		if (JceProviderUtil.isSupported(JceNames.ED25519) && SslContextUtil.isAvailableFromUri(EDDSA_KEY_STORE_URI)) {
 			try {
 				ed25519Credentials = SslContextUtil.loadCredentials(EDDSA_KEY_STORE_URI, "clienteddsa",
 						KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);

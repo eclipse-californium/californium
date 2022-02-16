@@ -33,6 +33,7 @@ import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.TcpEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.LoggingRule;
@@ -65,7 +66,7 @@ public class CoapTcpStackTest {
 
 	@Before
 	public void initialize() {
-		stack = new CoapTcpStack("tcp-test ", CONFIG, outbox);
+		stack = new CoapTcpStack("tcp-test ", CONFIG, new TcpEndpointContextMatcher(), outbox);
 		stack.setDeliverer(deliverer);
 		stack.setExecutors(executor, executor);
 

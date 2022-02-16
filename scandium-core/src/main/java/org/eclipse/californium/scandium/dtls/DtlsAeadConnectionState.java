@@ -156,7 +156,7 @@ public class DtlsAeadConnectionState extends DTLSConnectionState {
 			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce));
 			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData));
 		}
-		if (LOGGER.isDebugEnabled() && AeadBlockCipher.AES_CCM.equals(cipherSuite.getTransformation())) {
+		if (LOGGER.isDebugEnabled() && AeadBlockCipher.AES_CCM_NO_PADDING.equals(cipherSuite.getTransformation())) {
 			// create explicit nonce from values provided in DTLS record
 			byte[] explicitNonceUsed = Arrays.copyOf(ciphertextFragment, recordIvLength);
 			// retrieve actual explicit nonce as contained in GenericAEADCipher

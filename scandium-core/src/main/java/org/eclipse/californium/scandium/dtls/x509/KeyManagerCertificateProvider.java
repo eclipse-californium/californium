@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.X509KeyManager;
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.JceProviderUtil;
@@ -68,15 +69,15 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	private static final Map<String, String> BC_SERVER_KEY_TYPES_MAP = new HashMap<>();
 
 	static {
-		BC_SERVER_KEY_TYPES_MAP.put(Asn1DerDecoder.EC, "ECDHE_ECDSA");
-		BC_SERVER_KEY_TYPES_MAP.put(Asn1DerDecoder.RSA, "ECDHE_RSA");
+		BC_SERVER_KEY_TYPES_MAP.put(JceNames.EC, "ECDHE_ECDSA");
+		BC_SERVER_KEY_TYPES_MAP.put(JceNames.RSA, "ECDHE_RSA");
 	}
 
 	/**
 	 * Key types for credentials.
 	 */
-	private static final List<String> ALL_KEY_TYPES = Arrays.asList(Asn1DerDecoder.EC, Asn1DerDecoder.RSA,
-			Asn1DerDecoder.EDDSA, Asn1DerDecoder.ED25519, Asn1DerDecoder.ED448);
+	private static final List<String> ALL_KEY_TYPES = Arrays.asList(JceNames.EC, JceNames.RSA,
+			JceNames.EDDSA, JceNames.ED25519, JceNames.ED448);
 	/**
 	 * Default alias. May be {@code null}.
 	 */
@@ -262,18 +263,18 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 		}
 		if (signatureAndHashAlgorithms != null && !signatureAndHashAlgorithms.isEmpty()) {
 			if (keyTypes.isEmpty()) {
-				if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatureAndHashAlgorithms, Asn1DerDecoder.EC)) {
-					ListUtils.addIfAbsent(keyTypes, Asn1DerDecoder.EC);
+				if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatureAndHashAlgorithms, JceNames.EC)) {
+					ListUtils.addIfAbsent(keyTypes, JceNames.EC);
 				}
-				if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatureAndHashAlgorithms, Asn1DerDecoder.RSA)) {
-					ListUtils.addIfAbsent(keyTypes, Asn1DerDecoder.RSA);
+				if (SignatureAndHashAlgorithm.isSupportedAlgorithm(signatureAndHashAlgorithms, JceNames.RSA)) {
+					ListUtils.addIfAbsent(keyTypes, JceNames.RSA);
 				}
 				addEdDsaSupport(keyTypes, signatureAndHashAlgorithms);
-			} else if (keyTypes.contains(Asn1DerDecoder.EC)) {
+			} else if (keyTypes.contains(JceNames.EC)) {
 				addEdDsaSupport(keyTypes, signatureAndHashAlgorithms);
 			}
 		} else if (keyTypes.isEmpty()) {
-			keyTypes.add(Asn1DerDecoder.EC);
+			keyTypes.add(JceNames.EC);
 		}
 
 		LOGGER.debug("[{}]: {} certificate public key types {}", id, role, keyTypes);
@@ -487,12 +488,12 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	private static void addEdDsaSupport(List<String> publicKeyTypes,
 			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
 		if (signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519)) {
-			ListUtils.addIfAbsent(publicKeyTypes, Asn1DerDecoder.EDDSA);
-			ListUtils.addIfAbsent(publicKeyTypes, Asn1DerDecoder.ED25519);
+			ListUtils.addIfAbsent(publicKeyTypes, JceNames.EDDSA);
+			ListUtils.addIfAbsent(publicKeyTypes, JceNames.ED25519);
 		}
 		if (signatureAndHashAlgorithms.contains(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448)) {
-			ListUtils.addIfAbsent(publicKeyTypes, Asn1DerDecoder.EDDSA);
-			ListUtils.addIfAbsent(publicKeyTypes, Asn1DerDecoder.ED448);
+			ListUtils.addIfAbsent(publicKeyTypes, JceNames.EDDSA);
+			ListUtils.addIfAbsent(publicKeyTypes, JceNames.ED448);
 		}
 	}
 

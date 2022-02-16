@@ -33,7 +33,7 @@ import java.util.List;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.interoperability.test.ConnectorUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
@@ -225,7 +225,7 @@ public class MbedTlsClientAuthenticationInteroperabilityTest {
 	@Ignore
 	public void testMbedTlsClientEdDsaCertificatChain() throws Exception {
 		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
-		assumeTrue("Ed25519 not support by JCE", JceProviderUtil.isSupported(Asn1DerDecoder.ED25519));
+		assumeTrue("Ed25519 not support by JCE", JceProviderUtil.isSupported(JceNames.ED25519));
 		assumeTrue("Ed25519 certificate missing", new File("clientEdDsa.pem").exists());
 
 		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);

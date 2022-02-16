@@ -29,6 +29,7 @@ import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Base64;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 
 /**
  * A principal representing an authenticated peer's <em>RawPublicKey</em>.
@@ -123,7 +124,7 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 				if (specKeyAlgorithm == null) {
 					// use the provided key algorithm
 					specKeyAlgorithm = keyAlgorithm;
-				} else if (!Asn1DerDecoder.equalKeyAlgorithmSynonyms(specKeyAlgorithm, keyAlgorithm)) {
+				} else if (!JceProviderUtil.equalKeyAlgorithmSynonyms(specKeyAlgorithm, keyAlgorithm)) {
 					throw new GeneralSecurityException(String.format("Provided key algorithm %s doesn't match %s!",
 							keyAlgorithm, specKeyAlgorithm));
 				}

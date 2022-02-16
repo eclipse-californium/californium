@@ -279,7 +279,7 @@ public class ExampleCrossProxy2 {
 		System.out.println(
 				ExampleCrossProxy2.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
 		long lastGcCount = 0;
-		NetStatLogger netstat = new NetStatLogger("udp");
+		NetStatLogger netstat = new NetStatLogger("udp", false);
 		for (;;) {
 			try {
 				Thread.sleep(15000);

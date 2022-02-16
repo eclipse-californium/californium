@@ -576,10 +576,6 @@
 										<matcher>java</matcher>
 										<match>@org.eclipse.californium.elements.util.WipAPI ^*;</match>
 									</item>
-									<item>
-										<matcher>java</matcher>
-										<match>@java.lang.Deprecated ^*;</match>
-									</item>
 								</exclude>
 							</elements>
 						</revapi.filter>

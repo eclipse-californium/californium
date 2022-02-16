@@ -39,79 +39,110 @@ import java.util.Arrays;
  * ASN.1 DER decoder for SEQUENCEs and OIDs.
  */
 public class Asn1DerDecoder {
+
 	/**
 	 * Key algorithm EC to be used by KeyFactory.
+	 * 
+	 * @deprecated use {@link JceNames#EC} instead
 	 */
+	@Deprecated
 	public static final String EC = JceNames.EC;
 	/**
 	 * Key algorithm RSA to be used by KeyFactory.
+	 * 
+	 * @deprecated use {@link JceNames#RSA} instead
 	 */
+	@Deprecated
 	public static final String RSA = JceNames.RSA;
 	/**
 	 * Key algorithm DSA to be used by KeyFactory.
+	 * 
+	 * @deprecated use {@link JceNames#DSA} instead
 	 */
+	@Deprecated
 	public static final String DSA = "DSA";
 	/**
 	 * Key algorithm DH to be used by KeyFactory.
+	 * 
+	 * @deprecated use {@link JceNames#DH} instead
 	 */
+	@Deprecated
 	public static final String DH = "DH";
 	/**
 	 * Key algorithm EC v2 (RFC 5958), not to be used by KeyFactory.
 	 * 
 	 * @see #readEcPrivateKeyV2(byte[])
+	 * @deprecated use {@link JceNames#ECv2} instead
 	 */
+	@Deprecated
 	public static final String ECv2 = JceNames.ECv2;
 	/**
 	 * Key algorithm ED25519 (RFC 8422).
 	 * 
+	 * @deprecated use {@link JceNames#ED25519} instead
 	 * @since 2.4
 	 */
+	@Deprecated
 	public static final String ED25519 = JceNames.ED25519;
 	/**
 	 * Key algorithm Ed25519 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
 	 * @see #readEdDsaPrivateKeyV2(byte[])
 	 * 
+	 * @deprecated use {@link JceNames#ED25519v2} instead
 	 * @since 3.0
 	 */
+	@Deprecated
 	public static final String ED25519v2 = JceNames.ED25519v2;
 	/**
 	 * Key algorithm ED448 (RFC 8422).
 	 * 
+	 * @deprecated use {@link JceNames#ED448} instead
 	 * @since 2.4
 	 */
+	@Deprecated
 	public static final String ED448 = JceNames.ED448;
 	/**
 	 * Key algorithm Ed448 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
 	 * @see #readEdDsaPrivateKeyV2(byte[])
 	 * 
+	 * @deprecated use {@link JceNames#ED448v2} instead
 	 * @since 3.0
 	 */
+	@Deprecated
 	public static final String ED448v2 = JceNames.ED448v2;
 	/**
 	 * Key algorithm X25519 (RFC 8422).
 	 * 
+	 * @deprecated use {@link JceNames#X25519} instead
 	 * @since 3.0
 	 */
+	@Deprecated
 	public static final String X25519 = JceNames.X25519;
 	/**
 	 * Key algorithm X25519 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
+	 * @deprecated use {@link JceNames#X25519v2} instead
 	 * @since 3.0
 	 */
+	@Deprecated
 	public static final String X25519v2 = JceNames.X25519v2;
 	/**
 	 * Key algorithm X448 (RFC 8422).
 	 * 
+	 * @deprecated use {@link JceNames#X448} instead
 	 * @since 3.0
 	 */
+	@Deprecated
 	public static final String X448 = JceNames.X448;
 	/**
 	 * Key algorithm X448 v2 (RFC 8410), not to be used by KeyFactory.
 	 * 
+	 * @deprecated use {@link JceNames#X448v2} instead
 	 * @since 3.0
 	 */
+	@Deprecated
 	public static final String X448v2 = JceNames.X448v2;
 	/**
 	 * OID key algorithm X25519
@@ -119,8 +150,10 @@ public class Asn1DerDecoder {
 	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
 	 * Identifiers</a>).
 	 * 
+	 * @deprecated use {@link JceNames#OID_X25519} instead
 	 * @since 3.0
 	 */
+	@Deprecated
 	public static final String OID_X25519 = JceNames.OID_X25519;
 	/**
 	 * OID key algorithm X448
@@ -128,8 +161,10 @@ public class Asn1DerDecoder {
 	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
 	 * Identifiers</a>).
 	 * 
+	 * @deprecated use {@link JceNames#OID_X448} instead
 	 * @since 3.0
 	 */
+	@Deprecated
 	public static final String OID_XD448 = JceNames.OID_X448;
 	/**
 	 * OID key algorithm ED25519
@@ -137,8 +172,10 @@ public class Asn1DerDecoder {
 	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
 	 * Identifiers</a>).
 	 * 
+	 * @deprecated use {@link JceNames#OID_ED25519} instead
 	 * @since 2.4
 	 */
+	@Deprecated
 	public static final String OID_ED25519 = JceNames.OID_ED25519;
 	/**
 	 * OID key algorithm ED448
@@ -146,18 +183,23 @@ public class Asn1DerDecoder {
 	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
 	 * Identifiers</a>).
 	 * 
+	 * @deprecated use {@link JceNames#OID_ED448} instead
 	 * @since 2.4
 	 */
+	@Deprecated
 	public static final String OID_ED448 = JceNames.OID_ED448;
 	/**
 	 * Key algorithm EdDSA (RFC 8422).
 	 * 
+	 * @deprecated use {@link JceNames#EDDSA} instead
 	 * @since 2.4
 	 */
+	@Deprecated
 	public static final String EDDSA = JceNames.EDDSA;
 	/**
 	 * ECPoint uncompressed.
-	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target="_blank">RFC 5480, Section 2.2</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target=
+	 * "_blank">RFC 5480, Section 2.2</a>
 	 * 
 	 * @since 2.3
 	 */
@@ -172,6 +214,7 @@ public class Asn1DerDecoder {
 	private static final int TAG_SEQUENCE = 0x30;
 	/**
 	 * Tag for ASN.1 SET.
+	 * 
 	 * @since 3.0
 	 */
 	private static final int TAG_SET = 0x31;
@@ -236,7 +279,8 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	private static final int[] TAGS_STRING = {TAG_UTF8_STRING, TAG_PRINTABLE_STRING, TAG_BMP_STRING, TAG_UNIVERSAL_STRING, TAG_TELETEX_STRING};
+	private static final int[] TAGS_STRING = { TAG_UTF8_STRING, TAG_PRINTABLE_STRING, TAG_BMP_STRING,
+			TAG_UNIVERSAL_STRING, TAG_TELETEX_STRING };
 	/**
 	 * Tag for ASN.1 CONTEXT SPECIFIC 0.
 	 */
@@ -348,8 +392,8 @@ public class Asn1DerDecoder {
 	 * 
 	 * @since 3.0
 	 */
-	private static final EntityDefinition CONTEXT_SPECIFIC_PRIMITIVE_1 = new EntityDefinition(TAG_CONTEXT_1_SPECIFIC_PRIMITIVE,
-			MAX_DEFAULT_LENGTH, "CONTEXT SPECIFIC PRIMITIVE 1");
+	private static final EntityDefinition CONTEXT_SPECIFIC_PRIMITIVE_1 = new EntityDefinition(
+			TAG_CONTEXT_1_SPECIFIC_PRIMITIVE, MAX_DEFAULT_LENGTH, "CONTEXT SPECIFIC PRIMITIVE 1");
 
 	/**
 	 * ISO-10646-UCS-2 charset, if supported.
@@ -387,32 +431,35 @@ public class Asn1DerDecoder {
 	 * 
 	 * @param oid OID of public key.
 	 * @param version version of format. {@code 0}, for v1, {@code 2} for v2.
-	 * @return {@link #EC}, {@link #RSA}, {@link #DSA}, {@link #DH},
-	 *         {@link #ED25519}, and {@link #ED448} for v1, {@link #ECv2},
-	 *         {@link #ED25519v2}, and {@link #ED448v2} for v2, {@code null}, if
-	 *         unknown.
+	 * @return {@link JceNames#EC}, {@link JceNames#RSA}, {@link JceNames#DSA},
+	 *         {@link JceNames#DH}, {@link JceNames#ED25519},
+	 *         {@link JceNames#ED448}, {@link JceNames#X25519}, and
+	 *         {@link JceNames#X448} for v1, {@link JceNames#ECv2},
+	 *         {@link JceNames#ED25519v2}, and {@link JceNames#ED448v2},
+	 *         {@link JceNames#X25519v2}, and {@link JceNames#X448v2} for v2,
+	 *         {@code null}, if unknown.
 	 * @since 3.0
 	 */
 	private static String getPublicKeyAlgorithm(final byte[] oid, int version) {
 		String algorithm = null;
 		if (Arrays.equals(oid, OID_EC_PUBLIC_KEY)) {
-			algorithm = version == 0 ? EC : ECv2;
+			algorithm = version == 0 ? JceNames.EC : JceNames.ECv2;
 		} else if (Arrays.equals(oid, OID_RSA_PUBLIC_KEY)) {
-			algorithm = version == 0 ? RSA : null;
+			algorithm = version == 0 ? JceNames.RSA : null;
 		} else if (Arrays.equals(oid, OID_DSA_PUBLIC_KEY)) {
-			algorithm = version == 0 ? DSA : null;
+			algorithm = version == 0 ? JceNames.DSA : null;
 		} else if (Arrays.equals(oid, OID_DH_PUBLIC_KEY)) {
-			algorithm = version == 0 ? DH : null;
+			algorithm = version == 0 ? JceNames.DH : null;
 		} else if (Arrays.equals(oid, OID_DH_KEY_AGREEMENT)) {
-			algorithm = version == 0 ? DH : null;
+			algorithm = version == 0 ? JceNames.DH : null;
 		} else if (Arrays.equals(oid, OID_ED25519_PUBLIC_KEY)) {
-			algorithm = version == 0 ? ED25519 : ED25519v2;
+			algorithm = version == 0 ? JceNames.ED25519 : JceNames.ED25519v2;
 		} else if (Arrays.equals(oid, OID_ED448_PUBLIC_KEY)) {
-			algorithm = version == 0 ? ED448 : ED448v2;
+			algorithm = version == 0 ? JceNames.ED448 : JceNames.ED448v2;
 		} else if (Arrays.equals(oid, OID_X25519_PUBLIC_KEY)) {
-			algorithm = version == 0 ? X25519 : X25519v2;
+			algorithm = version == 0 ? JceNames.X25519 : JceNames.X25519v2;
 		} else if (Arrays.equals(oid, OID_X448_PUBLIC_KEY)) {
-			algorithm = version == 0 ? X448 : X448v2;
+			algorithm = version == 0 ? JceNames.X448 : JceNames.X448v2;
 		}
 		return algorithm;
 	}
@@ -425,7 +472,7 @@ public class Asn1DerDecoder {
 	 * @since 3.0
 	 */
 	public static boolean isEcBased(String algorithm) {
-		if (EC.equalsIgnoreCase(algorithm)) {
+		if (JceNames.EC.equalsIgnoreCase(algorithm)) {
 			return true;
 		} else {
 			return getEdDsaStandardAlgorithmName(algorithm, null) != null;
@@ -492,7 +539,8 @@ public class Asn1DerDecoder {
 	 * Read key algorithm from subjects public key encoded in ASN.1 DER.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480" target="_blank">RFC 5480</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480" target=
+	"_blank">RFC 5480</a>
 	 * SubjectPublicKeyInfo ::= SEQUENCE { 
 	 *    algorithm AlgorithmIdentifier,
 	 *    subjectPublicKey BIT STRING 
@@ -530,7 +578,8 @@ public class Asn1DerDecoder {
 	 * Read public key from subjects public key encoded in ASN.1 DER.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480" target="_blank">RFC 5480</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480" target=
+	"_blank">RFC 5480</a>
 	 * SubjectPublicKeyInfo ::= SEQUENCE { 
 	 *    algorithm AlgorithmIdentifier,
 	 *    subjectPublicKey BIT STRING 
@@ -570,7 +619,8 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target="_blank">RFC 5208</a>
+	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target=
+	"_blank">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -578,8 +628,10 @@ public class Asn1DerDecoder {
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
 	 * v2 (PKCS12), 
-	 * <a href="https://tools.ietf.org/html/rfc5958" target="_blank">RFC 5958 - (EC only!)</a>,
-	 * <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>
+	 * <a href="https://tools.ietf.org/html/rfc5958" target=
+	"_blank">RFC 5958 - (EC only!)</a>,
+	 * <a href="https://tools.ietf.org/html/rfc8410" target=
+	"_blank">RFC 8410 - EdDSA</a>
 	 * OneAsymmetricKey ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -592,9 +644,10 @@ public class Asn1DerDecoder {
 	 * </pre>
 	 * 
 	 * @param data private key encoded in ASN.1 DER
-	 * @return key algorithm name to be used by KeyFactory, or {@link #ECv2},
-	 *         {@link #ED25519v2}, and {@link #ED448v2} for v2, which are not
-	 *         supported by the java 7 KeyFactory, or {@code null}, if unknown.
+	 * @return key algorithm name to be used by KeyFactory, or
+	 *         {@link JceNames#ECv2}, {@link JceNames#ED25519v2}, and
+	 *         {@link JceNames#ED448v2} for v2, which are not supported by the
+	 *         java 7 KeyFactory, or {@code null}, if unknown.
 	 * @throws IllegalArgumentException if the private key algorithm could not
 	 *             be read
 	 * @see #readEcPrivateKeyV2(byte[])
@@ -632,7 +685,7 @@ public class Asn1DerDecoder {
 					try {
 						ECParameterSpec ecParameterSpec = getECParameterSpec(oidAsString);
 						if (ecParameterSpec != null) {
-							algorithm = ECv2;
+							algorithm = JceNames.ECv2;
 						}
 					} catch (GeneralSecurityException e) {
 					}
@@ -657,7 +710,8 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target="_blank">RFC 5208</a>
+	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target=
+	"_blank">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -665,8 +719,10 @@ public class Asn1DerDecoder {
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
 	 * v2 (PKCS12), 
-	 * <a href="https://tools.ietf.org/html/rfc5958" target="_blank">RFC 5958 - (EC only!)</a>,
-	 * <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>
+	 * <a href="https://tools.ietf.org/html/rfc5958" target=
+	"_blank">RFC 5958 - (EC only!)</a>,
+	 * <a href="https://tools.ietf.org/html/rfc8410" target=
+	"_blank">RFC 8410 - EdDSA</a>
 	 * OneAsymmetricKey ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -688,9 +744,9 @@ public class Asn1DerDecoder {
 		Keys keys = null;
 		String algorithm = readPrivateKeyAlgorithm(data);
 		if (algorithm != null) {
-			if (algorithm == ED25519v2 || algorithm == ED448v2) {
+			if (algorithm == JceNames.ED25519v2 || algorithm == ED448v2) {
 				keys = readEdDsaPrivateKeyV2(data);
-			} else if (algorithm == ECv2) {
+			} else if (algorithm == JceNames.ECv2) {
 				keys = readEcPrivateKeyV2(data);
 			} else {
 				KeyFactory factory = getKeyFactory(algorithm);
@@ -720,7 +776,7 @@ public class Asn1DerDecoder {
 		if (readValue.length == 1 && readValue[0] == 1) {
 			try {
 				SEQUENCE.createRangeReader(reader, false);
-			} catch(IllegalArgumentException ex) {
+			} catch (IllegalArgumentException ex) {
 				// ignore, optional
 			}
 			// RFC 5958
@@ -760,7 +816,8 @@ public class Asn1DerDecoder {
 	 * Read EC public key from encoded ec public key.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target="_blank">RFC 5480, Section 2.2</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target=
+	"_blank">RFC 5480, Section 2.2</a>
 	 *  byte[0]        : compression := 4 (not compressed)
 	 *  byte[1..n]     : x
 	 *  byte[n+1..n+n] : y
@@ -793,7 +850,8 @@ public class Asn1DerDecoder {
 	/**
 	 * Read EdDSA private key (and public key) from PKCS12 / RFC 8410 v2 format.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC
+	 * 8410 - EdDSA</a>.
 	 * 
 	 * @param data eddsa private key encoded according RFC 8410 v2
 	 * @return keys with private and public key. {@code null}, if keys could not
@@ -866,7 +924,11 @@ public class Asn1DerDecoder {
 	 * @param keyAlgorithm2 key algorithm 2
 	 * @return {@code true}, if the key algorithms are equal or synonyms,
 	 *         {@code false}, otherwise.
+	 * @deprecated use
+	 *             {@link JceProviderUtil#equalKeyAlgorithmSynonyms(String, String)}
+	 *             instead
 	 */
+	@Deprecated
 	public static boolean equalKeyAlgorithmSynonyms(String keyAlgorithm1, String keyAlgorithm2) {
 		return JceProviderUtil.equalKeyAlgorithmSynonyms(keyAlgorithm1, keyAlgorithm2);
 	}
@@ -881,7 +943,7 @@ public class Asn1DerDecoder {
 	 * @throws GeneralSecurityException if curve ist not available
 	 */
 	public static ECParameterSpec getECParameterSpec(String oid) throws GeneralSecurityException {
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(EC);
+		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(JceNames.EC);
 		keyPairGenerator.initialize(new ECGenParameterSpec(oid));
 		ECPublicKey apub = (ECPublicKey) keyPairGenerator.generateKeyPair().getPublic();
 		return apub.getParams();
@@ -890,15 +952,19 @@ public class Asn1DerDecoder {
 	/**
 	 * Get EdDSA standard algorithm name.
 	 * 
-	 * Supports {@link #ED25519v2} and {@link #ED448v2} as well.
+	 * Supports {@link JceNames#ED25519v2} and {@link JceNames#ED448v2} as well.
 	 * 
 	 * @param algorithm algorithm
 	 * @param def default algorithm
-	 * @return Either {@link #OID_ED25519}, {@link #OID_ED448}, {@link #EDDSA},
-	 *         or the provided default algorithm
+	 * @return Either {@link JceNames#OID_ED25519}, {@link JceNames#OID_ED448},
+	 *         {@link JceNames#EDDSA}, or the provided default algorithm
 	 * @see JceProviderUtil#getEdDsaStandardAlgorithmName(String, String)
+	 * @deprecated use
+	 *             {@link JceProviderUtil#getEdDsaStandardAlgorithmName(String, String)}
+	 *             instead
 	 * @since 2.4
 	 */
+	@Deprecated
 	public static String getEdDsaStandardAlgorithmName(String algorithm, String def) {
 		return JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, def);
 	}
@@ -912,7 +978,7 @@ public class Asn1DerDecoder {
 	 * @since 2.4
 	 */
 	public static KeyFactory getKeyFactory(String algorithm) throws NoSuchAlgorithmException {
-		String standardAlgorithm = getEdDsaStandardAlgorithmName(algorithm, algorithm);
+		String standardAlgorithm = JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, algorithm);
 		return KeyFactory.getInstance(standardAlgorithm);
 	}
 
@@ -925,7 +991,7 @@ public class Asn1DerDecoder {
 	 * @since 3.0
 	 */
 	public static KeyPairGenerator getKeyPairGenerator(String algorithm) throws NoSuchAlgorithmException {
-		String standardAlgorithm = getEdDsaStandardAlgorithmName(algorithm, algorithm);
+		String standardAlgorithm = JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, algorithm);
 		return KeyPairGenerator.getInstance(standardAlgorithm);
 	}
 
@@ -1167,7 +1233,8 @@ public class Asn1DerDecoder {
 				throw new IllegalArgumentException(String.format("Not enough bytes for %s! Required %d, available %d.",
 						description, HEADER_LENGTH, leftBytes));
 			}
-			// mark reader, if the entity must be returned, or the tag doesn't match
+			// mark reader, if the entity must be returned, or the tag doesn't
+			// match
 			reader.mark();
 			// check tag
 			int tag = reader.read(Byte.SIZE);
@@ -1218,7 +1285,7 @@ public class Asn1DerDecoder {
 	}
 
 	private static class OidEntityDefinition extends EntityDefinition {
-		
+
 		public OidEntityDefinition() {
 			super(TAG_OID, MAX_OID_LENGTH, "OID");
 		}

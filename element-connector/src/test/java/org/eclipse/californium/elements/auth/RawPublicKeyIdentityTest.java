@@ -29,7 +29,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.junit.BeforeClass;
@@ -59,13 +59,13 @@ public class RawPublicKeyIdentityTest {
 			assumeNoException("vm's without EC are not usable for CoAP!", e);
 		}
 		try {
-			KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED25519);
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(JceNames.OID_ED25519);
 			ed25519KeyPair = generator.generateKeyPair();
 		} catch (NoSuchAlgorithmException e) {
 			// ignores missing Ed25519
 		}
 		try {
-			KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED448);
+			KeyPairGenerator generator = KeyPairGenerator.getInstance(JceNames.OID_ED448);
 			ed448KeyPair = generator.generateKeyPair();
 		} catch (NoSuchAlgorithmException e) {
 			// ignores missing Ed448

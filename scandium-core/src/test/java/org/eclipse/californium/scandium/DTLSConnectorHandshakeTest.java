@@ -69,7 +69,7 @@ import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -1722,7 +1722,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509RsaHandshake() throws Exception {
-		assumeTrue("RSA requires JCE support!", JceProviderUtil.isSupported(Asn1DerDecoder.RSA));
+		assumeTrue("RSA requires JCE support!", JceProviderUtil.isSupported(JceNames.RSA));
 		Credentials credentials = TestCertificatesTools.getCredentials("clientrsa");
 		assumeNotNull("clientrsa credentials missing!", credentials);
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
