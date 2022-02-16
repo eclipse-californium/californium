@@ -27,7 +27,7 @@ echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 50% of the available
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may be used instead."
 echo
 echo "The required server may be started using:"
-echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0.jar --no-external --no-plugtest"
+echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.2.0.jar --no-external --no-plugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 50% of the available RAM."
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may also be used instead."
 echo "If the benchmark is mainly used with the loopback interface (localhost), use the --no-external as above."
@@ -116,12 +116,12 @@ fi
 : "${PLAIN_PORT:=5783}"
 : "${SECURE_PORT:=5784}"
 
-# adjust the multiplier according the speed of your CPU
+# 0 := disable, 1 := enable
 : "${USE_TCP:=1}"
 : "${USE_UDP:=1}"
 : "${USE_PLAIN:=1}"
 : "${USE_SECURE:=1}"
-: "${USE_CON:=2}"                         # 0:= not used, 1 := used, 2 := also with separate response  
+: "${USE_CON:=2}"                         # 0:= not used, 1 := used with piggybacked response, 2 := with separate response, 3 := both variants  
 : "${USE_NON:=1}"
 : "${USE_LARGE_BLOCK1:=1}"
 
@@ -133,11 +133,14 @@ fi
 : "${USE_HTTP:=0}"
 
 : "${USE_NONESTOP:=--no-stop}"
+# may be "misused" for other arguments, e.g. "--no-stop --handshakes-full=5" for full handshakes after 5 requests.
 
 : "${USE_NSTART:=--nstart 1}"
 
 # export EXECUTER_REMOVE_ON_CANCEL=true
 # export EXECUTER_LOGGING_QUEUE_SIZE_DIFF=1000
+
+# adjust the multiplier according the speed of your CPU
 
 MULTIPLIER=10
 : "${REQS:=$((1000 * $MULTIPLIER))}"
@@ -228,7 +231,7 @@ benchmark_all()
 {
    if [ ${USE_REQUEST} -eq 1 ] ; then
 # POST
-      if [ ${USE_CON} -ne 0 ] ; then
+      if [ ${USE_CON} -eq 1 ] || [ ${USE_CON} -eq 3 ] ; then
          if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
             benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
          fi
@@ -247,7 +250,7 @@ benchmark_all()
       fi
       benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
 
-      if [ ${USE_CON} -eq 2 ] ; then
+      if [ ${USE_CON} -eq 2 ] || [ ${USE_CON} -eq 3 ] ; then
 # POST separate response
          benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART}
       fi
