@@ -251,12 +251,13 @@ On issue seems to be the `SecureRandom` generator, which shows in some environme
 
 # DTLS 1.2 / UDP - Considerations
 
+## IP Spoofing - DDoS and Amplification
+ 
 Using UDP, especially in public networks, comes usually with the risk of being attacked with spoofed ip-messages. Something send messages with a manipulated source ip-address. In some cases this is done in order to make the destination peer sending messages to the "victim" at the manipulated source ip-address. And in some other cases this is done to exhaust the destination's resources itself. A good general overview is provided in [NetScout - What is Distributed Denial of Service (DDoS)?](https://www.netscout.com/what-is-ddos).
 
 For Scandium, that mainly requires to:
 - prevent to send amplified messages back to unverified sources
 - prevent the own endpoint to allocate resources for unverified sources, at least not without limitation.
-
 
 For both, [RFC 6347 - 4.2.1.  Denial-of-Service Countermeasures](https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.1) describes a technique using a "stateless cookie" in order to verify the source ip-address without amplification and without state.
 
@@ -286,6 +287,40 @@ Additional configuration values, use with care:
 
 - [DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L637)
 - [DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L650)
+
+## IP Spoofing - DoS - MAC Errors
+
+Not only a large amplification of data may be a risk, also processing a DTLS record may introduce a risk, if IP spoofing must be considered.
+
+Therefore RFC6347 says in [4.1.2.1 MAC](https://datatracker.ietf.org/doc/html/rfc6347#section-4.1.2.1):
+
+    Note that one important difference between DTLS and TLS MAC handling
+    is that in TLS, MAC errors must result in connection termination. In
+    DTLS, the receiving implementation MAY simply discard the offending
+    record and continue with the connection. This change is possible
+    because DTLS records are not dependent on each other in the way that
+    TLS records are.
+
+and adds in [4.1.2.7 Handling Invalid Records](https://datatracker.ietf.org/doc/html/rfc6347#section-4.1.2.7):
+
+    Unlike TLS, DTLS is resilient in the face of invalid records (e.g.,
+    invalid formatting, length, MAC, etc.). In general, invalid records
+    SHOULD be silently discarded, thus preserving the association;
+    however, an error MAY be logged for diagnostic purposes.
+    Implementations which choose to generate an alert instead, MUST
+    generate fatal level alerts to avoid attacks where the attacker
+    repeatedly probes the implementation to see how it responds to
+    various types of error. Note that if DTLS is run over UDP, then any
+    implementation which does this will be extremely susceptible to
+    denial-of-service (DoS) attacks because UDP forgery is so easy.
+    Thus, this practice is NOT RECOMMENDED for such transports.
+
+In practice, that implies some more pain: if one peer loses the DTLS context for the other, that peer is not longer able to verify encrypted DTLS records from the other, nor is it able to decrypt that DTLS records. Additionally, that peer will also be not able, to send a proper encrypted DTLS record back to the other peer. Over the years therefore one question was raised again and again: could such a peer, which lost the DTLS context, not just send a message back in order to notify the other peer about that. The nasty point is, though this message could not be protected by encryption, it would also be possible, that an attacker creates such an unprotected message and send that with a spoofed ip-address. Therefore it doesn't work.
+
+- [Californium issues - Handling of unknown PSK identity](https://github.com/eclipse/californium/issues/606)
+- [IETF TLS mailing list - Handling of unknown PSK identity](https://mailarchive.ietf.org/arch/msg/tls/3sXyPNowGI1zn3qwTQr7ZWhIBMI/)
+- [Californium issues - Handling of session errors](https://github.com/eclipse/californium/issues/1413)
+- [Californium issues - Handling of session errors](https://github.com/eclipse/californium/issues/1879)
 
 # Message Size Limits - MTU
 
