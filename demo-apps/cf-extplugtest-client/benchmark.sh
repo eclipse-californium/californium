@@ -121,7 +121,7 @@ fi
 : "${USE_UDP:=1}"
 : "${USE_PLAIN:=1}"
 : "${USE_SECURE:=1}"
-: "${USE_CON:=2}"                         # 0:= not used, 1 := used with piggybacked response, 2 := with separate response, 3 := both variants  
+: "${USE_CON:=3}"                         # 0:= not used, 1 := used with piggybacked response, 2 := with separate response, 3 := both variants  
 : "${USE_NON:=1}"
 : "${USE_LARGE_BLOCK1:=1}"
 
