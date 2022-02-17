@@ -325,7 +325,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-jar-plugin</artifactId>
-					<version>3.2.0</version>
+					<version>3.2.2</version>
 					<configuration>
 						<excludes>
 							<exclude>**/logback-test.xml</exclude>
@@ -729,7 +729,7 @@
 						<artifactId>maven-javadoc-plugin</artifactId>
 						<configuration>
 							<doclint>${javadoc.doclint}</doclint>
-							<additionalparam>-X-html4</additionalparam>
+							<additionalOptions>-html4</additionalOptions>
 						</configuration>
 					</plugin>
 				</plugins>

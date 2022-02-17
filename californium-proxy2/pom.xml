@@ -172,7 +172,6 @@
 					<groupId>${project.groupId}</groupId>
 					<artifactId>californium-core</artifactId>
 					<classifier>tests</classifier>
-					<scope>test</scope>
 					<type>test-jar</type>
 				</dependency>
 			</dependencies>

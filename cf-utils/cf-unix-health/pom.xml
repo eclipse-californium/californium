@@ -18,7 +18,6 @@
 	<description>Californium (Cf) Unix Health</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.examples.SecureServer</assembly.mainClass>
 		<skipTests>true</skipTests>
 	</properties>
 
@@ -52,7 +51,6 @@
 					<groupId>${project.groupId}</groupId>
 					<artifactId>californium-core</artifactId>
 					<classifier>tests</classifier>
-					<scope>test</scope>
 					<type>test-jar</type>
 				</dependency>
 				<dependency>
