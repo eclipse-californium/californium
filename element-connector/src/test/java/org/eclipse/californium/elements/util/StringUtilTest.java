@@ -40,6 +40,13 @@ public class StringUtilTest {
 	}
 
 	@Test
+	public void testByteArray2Hex() {
+		byte[] data = { 0x41, 0x30, 0x01, 0x0a };
+		String result = StringUtil.byteArray2Hex(data);
+		assertThat(result, is("4130010A"));
+	}
+
+	@Test
 	public void testHex2CharArray() {
 		String line = "4130010A";
 		char[] result = StringUtil.hex2CharArray(line);
@@ -65,6 +72,74 @@ public class StringUtilTest {
 	public void testHex2CharArrayIllegalArgumentContent() {
 		String line = "4130010A0Z";
 		StringUtil.hex2CharArray(line);
+	}
+
+	@Test
+	public void testBase64String2ByteArray() {
+		String line = "QTABCg=="; // hex 4130010A
+		byte[] result = StringUtil.base64ToByteArray(line);
+		assertThat(result, is(new byte[] { 0x41, 0x30, 0x01, 0x0a }));
+	}
+
+	@Test
+	public void testByteArray2Base64() {
+		byte[] data = { 0x41, 0x30, 0x01, 0x0a };
+		String result = StringUtil.byteArrayToBase64(data);
+		assertThat(result, is("QTABCg=="));
+	}
+
+	@Test
+	public void testBase64String2ByteArrayPadding() {
+		String line = "QTABCg"; // hex 4130010A
+		byte[] result = StringUtil.base64ToByteArray(line);
+		assertThat(result, is(new byte[] { 0x41, 0x30, 0x01, 0x0a }));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testBase64String2ByteArrayIllegalLength() {
+		String line = "QTABC";
+		StringUtil.base64ToByteArray(line);
+	}
+
+	@Test
+	public void testBase64String2ByteArrayIllegalCharacter() {
+		String line = "QTABC\u0100";
+		byte[] result = StringUtil.base64ToByteArray(line);
+		// will change with next major release to IllegalArgumentException
+		assertThat(result, is(Bytes.EMPTY));
+	}
+
+	@Test
+	public void testBase64CharArray2ByteArray() {
+		char[] line = "QTABCg==".toCharArray(); // hex 4130010A
+		byte[] result = StringUtil.base64ToByteArray(line);
+		assertThat(result, is(new byte[] { 0x41, 0x30, 0x01, 0x0a }));
+	}
+
+	@Test
+	public void testByteArray2Base64CharArray() {
+		byte[] data = { 0x41, 0x30, 0x01, 0x0a };
+		char[] result = StringUtil.byteArrayToBase64CharArray(data);
+		assertThat(result, is("QTABCg==".toCharArray()));
+	}
+
+	@Test
+	public void testBase64CharArray2ByteArrayPadding() {
+		char[] line = "QTABCg".toCharArray(); // hex 4130010A
+		byte[] result = StringUtil.base64ToByteArray(line);
+		assertThat(result, is(new byte[] { 0x41, 0x30, 0x01, 0x0a }));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testBase64CharArray2ByteArrayIllegalLength() {
+		char[] line = "QTABC".toCharArray();
+		StringUtil.base64ToByteArray(line);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testBase64CharArray2ByteArrayIllegalCharacter() {
+		char[] line = "QTABC\u0100".toCharArray();
+		StringUtil.base64ToByteArray(line);
 	}
 
 	@Test

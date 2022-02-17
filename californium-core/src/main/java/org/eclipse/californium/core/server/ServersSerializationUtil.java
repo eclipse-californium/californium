@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapServer;
@@ -43,6 +44,99 @@ import org.slf4j.LoggerFactory;
 public class ServersSerializationUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServersSerializationUtil.class);
+
+	/**
+	 * List of {@link CoapServer} to save and load.
+	 * 
+	 * @since 3.3
+	 */
+	private List<CoapServer> servers = new CopyOnWriteArrayList<>();
+
+	/**
+	 * Create servers serialization utility.
+	 * 
+	 * @since 3.3
+	 */
+	public ServersSerializationUtil() {
+
+	}
+
+	/**
+	 * Add coap-server to serialization list.
+	 * 
+	 * @param server coap-server to serialization
+	 * @see #loadServers(InputStream)
+	 * @see #saveServers(OutputStream, long)
+	 * @since 3.3
+	 */
+	public void add(CoapServer server) {
+		servers.add(server);
+	}
+
+	/**
+	 * Load all added servers from input stream.
+	 * 
+	 * @param in input stream to read data from
+	 * @see #add(CoapServer)
+	 * @since 3.3
+	 */
+	public void loadServers(InputStream in) {
+		loadServers(in, servers);
+	}
+
+	/**
+	 * Save all added servers to output stream.
+	 * 
+	 * @param out output stream to write data to
+	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
+	 *            seconds. Connections without traffic for that time are skipped
+	 *            during serialization.
+	 * @throws IOException if an i/o-error occurred
+	 * @see #add(CoapServer)
+	 * @since 3.3
+	 */
+	public void saveServers(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
+		saveServers(out, maxQuietPeriodInSeconds, servers);
+	}
+
+	/**
+	 * Start all added servers.
+	 * 
+	 * @see CoapServer#start()
+	 * @see #add(CoapServer)
+	 * @since 3.3
+	 */
+	public void start() {
+		for (CoapServer server : servers) {
+			server.start();
+		}
+	}
+
+	/**
+	 * Stop all added servers.
+	 * 
+	 * @see CoapServer#stop()
+	 * @see #add(CoapServer)
+	 * @since 3.3
+	 */
+	public void stop() {
+		for (CoapServer server : servers) {
+			server.stop();
+		}
+	}
+
+	/**
+	 * Destroy all added servers.
+	 * 
+	 * @see CoapServer#destroy()
+	 * @see #add(CoapServer)
+	 * @since 3.3
+	 */
+	public void destroy() {
+		for (CoapServer server : servers) {
+			server.destroy();
+		}
+	}
 
 	/**
 	 * Load coap servers from input stream.

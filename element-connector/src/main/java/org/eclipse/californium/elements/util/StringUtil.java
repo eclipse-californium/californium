@@ -340,8 +340,14 @@ public class StringUtil {
 	 * 
 	 * Add padding, if missing.
 	 * 
+	 * <b>Note:</b> Function will change with the next major release to throw an
+	 * IllegalArgumentException instead of returning an empty array, if invalid
+	 * characters are contained.
+	 * 
 	 * @param base64 base64 string
-	 * @return byte array.
+	 * @return byte array. empty, if provided string could not be decoded.
+	 * @throws IllegalArgumentException if the length is invalid for base 64
+	 * @see #base64ToByteArray(char[])
 	 * @since 2.3
 	 */
 	public static byte[] base64ToByteArray(String base64) {
@@ -364,6 +370,47 @@ public class StringUtil {
 	}
 
 	/**
+	 * Decode base 64 char array into byte array.
+	 * 
+	 * Alternative to {@link #base64ToByteArray(String)} for converting
+	 * credentials. A char array could be cleared after usage, while a String
+	 * may only get garbage collected. Add padding, if missing.
+	 * 
+	 * @param base64 base64 char array
+	 * @return byte array.
+	 * @throws IllegalArgumentException if the length is invalid for base 64 or
+	 *             character is out of the supported character set of base 64.
+	 * @since 3.3
+	 */
+	public static byte[] base64ToByteArray(char[] base64) {
+		int pad = base64.length % 4;
+		if (pad > 0) {
+			pad = 4 - pad;
+			if (pad != 1 && pad != 2) {
+				throw new IllegalArgumentException("'" + new String(base64) + "' invalid base64!");
+			}
+		}
+		int index = 0;
+		byte[] data64 = new byte[base64.length + pad];
+		for (; index < base64.length; ++index) {
+			char b = base64[index];
+			if (b > 127) {
+				throw new IllegalArgumentException("'" + new String(base64) + "' has invalid base64 char '" + b + "'!");
+			}
+			data64[index] = (byte) b;
+		}
+		while (pad > 0) {
+			--pad;
+			data64[index++] = (byte) '=';
+		}
+		try {
+			return Base64.decode(data64);
+		} catch (IOException e) {
+			throw new IllegalArgumentException(e.getMessage());
+		}
+	}
+
+	/**
 	 * Encode byte array into base64 string.
 	 * 
 	 * @param bytes byte array
@@ -372,6 +419,23 @@ public class StringUtil {
 	 */
 	public static String byteArrayToBase64(byte[] bytes) {
 		return Base64.encodeBytes(bytes);
+	}
+
+	/**
+	 * Encode byte array into base64 char array.
+	 * 
+	 * @param bytes byte array
+	 * @return base64 char array
+	 * @since 3.3
+	 */
+	public static char[] byteArrayToBase64CharArray(byte[] bytes) {
+		byte[] base64 = Base64.encodeBytesToBytes(bytes);
+		char[] result = new char[base64.length];
+		for (int index = 0; index < base64.length; ++index) {
+			result[index] = (char) base64[index];
+		}
+		Bytes.clear(base64);
+		return result;
 	}
 
 	/**
