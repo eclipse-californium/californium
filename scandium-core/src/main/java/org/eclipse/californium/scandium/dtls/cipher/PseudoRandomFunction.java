@@ -185,6 +185,7 @@ public final class PseudoRandomFunction {
 		} catch (ShortBufferException e) {
 			e.printStackTrace();
 		}
+		Bytes.clear(aAndSeed);
 		return expansion;
 	}
 
