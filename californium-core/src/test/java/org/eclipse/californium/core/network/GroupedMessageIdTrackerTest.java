@@ -148,7 +148,6 @@ public class GroupedMessageIdTrackerTest {
 
 	public void assertMessageIdRangeRollover(int min, int max) throws Exception {
 		Configuration config = network.createStandardTestConfig();
-		config.set(CoapConfig.EXCHANGE_LIFETIME, 0, TimeUnit.MILLISECONDS);
 		final int range = max - min;
 		final GroupedMessageIdTracker tracker = new GroupedMessageIdTracker(INITIAL_MID + min, min, max, config);
 		final String msg = "not next mid in range[" + min + "..." + max + ") for ";
@@ -171,7 +170,7 @@ public class GroupedMessageIdTrackerTest {
 				maxMid = nextMid;
 			}
 			lastMid = nextMid;
-			time.addTestTimeShift(1, TimeUnit.MILLISECONDS);
+			time.addTestTimeShift(config.getTimeAsInt(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS) + 1, TimeUnit.MILLISECONDS);
 		}
 		assertThat("minimun not reached", minMid, is(min));
 		assertThat("maximun not reached", maxMid, is(max - 1));
