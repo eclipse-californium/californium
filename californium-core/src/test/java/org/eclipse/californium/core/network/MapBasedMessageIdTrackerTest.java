@@ -139,7 +139,6 @@ public class MapBasedMessageIdTrackerTest {
 	public void assertMessageIdRangeRollover(int min, int max) throws Exception {
 		// GIVEN a tracker with an EXCHANGE_LIFETIME of 0 (MID always expired)
 		Configuration config = network.createStandardTestConfig();
-		config.set(CoapConfig.EXCHANGE_LIFETIME, 0, TimeUnit.MILLISECONDS);
 		final int range = max - min;
 		final MapBasedMessageIdTracker tracker = new MapBasedMessageIdTracker(INITIAL_MID + min, min, max, config);
 		final String msg = "not next mid in range[" + min + "..." + max + ") for ";
@@ -162,7 +161,7 @@ public class MapBasedMessageIdTrackerTest {
 				maxMid = nextMid;
 			}
 			lastMid = nextMid;
-			time.addTestTimeShift(1, TimeUnit.MILLISECONDS);
+			time.addTestTimeShift(config.getTimeAsInt(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS) + 1, TimeUnit.MILLISECONDS);
 		}
 		assertThat("minimun not reached", minMid, is(min));
 		assertThat("maximun not reached", maxMid, is(max - 1));

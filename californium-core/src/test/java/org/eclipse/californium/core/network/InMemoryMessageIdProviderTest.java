@@ -156,13 +156,13 @@ public class InMemoryMessageIdProviderTest {
 	public void testGetNextMessageIdIfMaxPeersIsReachedWithStaleEntry() throws InterruptedException {
 
 		int MAX_PEERS = 2;
-		int MAX_PEER_INACTIVITY_PERIOD = 1; // seconds
+		int MAX_PEER_INACTIVITY_PERIOD = 1000; // milliseconds
 		config.set(CoapConfig.MAX_ACTIVE_PEERS, MAX_PEERS);
-		config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, MAX_PEER_INACTIVITY_PERIOD, TimeUnit.SECONDS);
+		config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, MAX_PEER_INACTIVITY_PERIOD, TimeUnit.MILLISECONDS);
 		InMemoryMessageIdProvider provider = new InMemoryMessageIdProvider(config);
 		addPeers(provider, MAX_PEERS);
 
-		time.addTestTimeShift(MAX_PEER_INACTIVITY_PERIOD * 1200, TimeUnit.MILLISECONDS);
+		time.addTestTimeShift(MAX_PEER_INACTIVITY_PERIOD + 200, TimeUnit.MILLISECONDS);
 
 		assertThat(provider.getNextMessageId(getPeerAddress(MAX_PEERS + 1)), is(not(-1)));
 	}
