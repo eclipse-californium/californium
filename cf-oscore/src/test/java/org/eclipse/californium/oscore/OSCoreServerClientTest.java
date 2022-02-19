@@ -352,6 +352,72 @@ public class OSCoreServerClientTest {
 	}
 
 	/**
+	 * Tests scenario where the client sends a larger number of requests (300)
+	 * to the server.
+	 * 
+	 * @throws Exception on test failure
+	 */
+	@Test
+	public void testManyRequests() throws Exception {
+		createSimpleServer();
+
+		// Set up OSCORE context information for request (client)
+		byte[] sid = new byte[0];
+		byte[] rid = new byte[] { 0x01 };
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id,
+				MAX_UNFRAGMENTED_SIZE);
+		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
+
+		// Tests sending a larger number of requests in sequence
+		int requestsToSend = 300;
+		for (int i = 0; i < requestsToSend; i++) {
+			// send request
+			Request request = buildOscoreRequest(CoAP.Code.POST);
+			request.send();
+
+			// receive response and check
+			Response response = request.waitForResponse(1000);
+			assertNotNull("Client received no response for request: " + i, response);
+			assertEquals(SERVER_RESPONSE, response.getPayloadString());
+		}
+	}
+
+	/**
+	 * Tests scenario where the client varies the sender sequence number (SSN)
+	 * used in requests from 0 to 2^30. This tests that the whole range of
+	 * Partial IVs (which are built from the SSN) works correctly.
+	 * 
+	 * @throws Exception on test failure
+	 */
+	@Test
+	public void testVaryingSsn() throws Exception {
+		createSimpleServer();
+
+		// Set up OSCORE context information for request (client)
+		byte[] sid = new byte[0];
+		byte[] rid = new byte[] { 0x01 };
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id,
+				MAX_UNFRAGMENTED_SIZE);
+		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
+
+		// Sends requests with varying SSN
+		for (int i = 0; i < 30; i++) {
+
+			int senderSequenceNumber = (int) Math.pow(2, i);
+			ctx.setSenderSeq(senderSequenceNumber);
+
+			// send request
+			Request request = buildOscoreRequest(CoAP.Code.POST);
+			request.send();
+
+			// receive response and check
+			Response response = request.waitForResponse(1000);
+			assertNotNull("Client received no response for request with seq: " + senderSequenceNumber, response);
+			assertEquals(SERVER_RESPONSE, response.getPayloadString());
+		}
+	}
+
+	/**
 	 * Tests replay scenario where client first sends a request with Sender
 	 * Sequence Number 1000, followed by a request with Sender Sequence Number
 	 * 100 - 3 * Replay Window Size. This tests that this old message is
@@ -421,7 +487,6 @@ public class OSCoreServerClientTest {
 
 			@Override
 			public void deliverRequest(Exchange exchange) {
-				System.out.println("server received request");
 				Response response = new Response(ResponseCode.CONTENT);
 				response.setMID(exchange.getRequest().getMID());
 				response.setConfirmable(false);

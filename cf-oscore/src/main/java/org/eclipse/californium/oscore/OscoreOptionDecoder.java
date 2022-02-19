@@ -16,10 +16,10 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,8 +92,8 @@ public class OscoreOptionDecoder {
 		byte flagByte = total[0];
 
 		int n = flagByte & 0x07;
-		int k = flagByte & 0x08;
-		int h = flagByte & 0x10;
+		int k = (flagByte & 0x08) >> 3;
+		int h = (flagByte & 0x10) >> 4;
 
 		byte[] partialIV = null;
 		byte[] kid = null;
@@ -179,9 +179,7 @@ public class OscoreOptionDecoder {
 			return 0;
 		}
 
-		byte[] partialIvInt = Arrays.copyOf(partialIV, Integer.SIZE / Byte.SIZE);
-
-		return ByteBuffer.wrap(partialIvInt).getInt();
+		return new DatagramReader(partialIV, false).read(partialIV.length * Byte.SIZE);
 	}
 
 	/**
