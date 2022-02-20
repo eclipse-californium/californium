@@ -359,7 +359,7 @@ public class JceProviderUtil {
 						if (algorithms == null) {
 							algorithms = "not available";
 						}
-						LOGGER.info("StrongRandom: {} {}", algorithms);
+						LOGGER.info("StrongRandom: {}", algorithms);
 						LOGGER.trace("EdDSA added from BC");
 					} catch (SecurityException e) {
 					} catch (NoSuchAlgorithmException e) {
