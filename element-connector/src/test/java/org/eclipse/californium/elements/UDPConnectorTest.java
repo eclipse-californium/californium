@@ -182,6 +182,23 @@ public class UDPConnectorTest {
 	}
 
 	@Test
+	public void testMessageToPortZeroFails() throws InterruptedException {
+		byte[] data = { 0, 1, 2 };
+		InetSocketAddress malicousDestination = new InetSocketAddress(destination.getAddress().getAddress(), 0);
+		EndpointContext context = new UdpEndpointContext(malicousDestination);
+
+		matcher = new TestEndpointContextMatcher(1, 0);
+		connector.setEndpointContextMatcher(matcher);
+
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		RawData message = RawData.outbound(data, context, callback, false);
+		connector.send(message);
+
+		callback.await(100);
+		assertThat(callback.toString(), callback.getError(), is(notNullValue()));
+	}
+
+	@Test
 	public void testStopCallsMessageCallbackOnError() throws InterruptedException {
 		testStopCallsMessageCallbackOnError(100, 20);
 	}
