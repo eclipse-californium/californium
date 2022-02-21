@@ -257,6 +257,23 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
+	public void testSendToPortZeroFails() throws Exception {
+
+		// GIVEN a message including a MessageCallback
+		InetSocketAddress malicousDestination = new InetSocketAddress(serverHelper.serverEndpoint.getAddress(), 0);
+		SimpleMessageCallback callback = new SimpleMessageCallback();
+		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 },
+				new AddressEndpointContext(malicousDestination), callback, false);
+
+		// WHEN sending the message
+		client.start();
+		client.send(outboundMessage);
+
+		// THEN assert that the callback has been invoked with an error
+		assertThat(callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(notNullValue()));
+	}
+
+	@Test
 	public void testConnectorEstablishesSecureSession() throws Exception {
 		givenAnEstablishedSession();
 	}

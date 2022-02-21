@@ -310,6 +310,13 @@ public class UDPConnector implements Connector {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
 		}
+		if (msg.getInetSocketAddress().getPort() == 0) {
+			String destination = StringUtil.toString(msg.getInetSocketAddress());
+			LOGGER.trace("Discarding message with {} bytes to [{}] without destination-port",
+					msg.getSize(), destination);
+			msg.onError(new IOException("CoAP message to " + destination + " dropped, destination port 0!"));
+			return;
+		}
 		// move onError callback out of synchronized block
 		boolean running;
 		synchronized (this) {
@@ -463,6 +470,16 @@ public class UDPConnector implements Connector {
 	 */
 	protected void processDatagram(DatagramPacket datagram) {
 		RawDataChannel dataReceiver = receiver;
+		if (datagram.getPort() == 0) {
+			// RFC 768
+			// Source Port is an optional field, when meaningful, it indicates
+			// the port of the sending process, and may be assumed to be the
+			// port to which a reply should be addressed in the absence of any
+			// other information. If not used, a value of zero is inserted.
+			LOGGER.trace("Discarding message with {} bytes from {}:{} without source-port",
+					datagram.getLength(), datagram.getAddress(), datagram.getPort());
+			return;
+		}
 		if (datagram.getLength() > receiverPacketSize) {
 			// too large datagram for our buffer! data could have been
 			// truncated, so we discard it.

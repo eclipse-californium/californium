@@ -1320,6 +1320,19 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 		long timestamp = ClockUtil.nanoRealtime();
 
+		if (peerAddress.getPort() == 0) {
+			// RFC 768
+			// Source Port is an optional field, when meaningful, it indicates
+			// the port of the sending process, and may be assumed to be the
+			// port to which a reply should be addressed in the absence of any
+			// other information. If not used, a value of zero is inserted.
+			DROP_LOGGER.trace("Discarding record with {} bytes from [{}] without source-port", packet.getLength(),
+					peerAddress);
+			if (health != null) {
+				health.receivingRecord(true);
+			}
+			return;
+		}
 		DatagramReader reader = new DatagramReader(packet.getData(), packet.getOffset(), packet.getLength());
 		List<Record> records = Record.fromReader(reader, peerAddress, router, connectionIdGenerator, timestamp);
 		LOGGER.trace("Received {} DTLS records from {} using a {} byte datagram buffer",
@@ -2311,6 +2324,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 			return;
 		}
+		if (message.getInetSocketAddress().getPort() == 0) {
+			String destination = StringUtil.toString(message.getInetSocketAddress());
+			DROP_LOGGER.warn("DTLSConnector drops {} outgoing bytes to [{}] without destination-port",
+					message.getSize(), destination);
+			message.onError(new IOException("CoAPs message to " + destination + " dropped, destination port 0!"));
+			return;
+		}
 		final Connection connection;
 		RuntimeException error = null;
 
@@ -2734,6 +2754,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 	protected void sendNextDatagramOverNetwork(final DatagramPacket datagramPacket) throws IOException {
 		DatagramSocket socket = getSocket();
 		if (socket != null && !socket.isClosed()) {
+			if (datagramPacket.getPort() == 0) {
+				String destination = StringUtil.toString((InetSocketAddress) datagramPacket.getSocketAddress());
+				DROP_LOGGER.trace("Discarding record with {} bytes to [{}] without destination-port",
+						datagramPacket.getLength(), destination);
+				if (health != null) {
+					health.sendingRecord(true);
+				}
+				throw new IOException("DTLS Record to " + destination + " dropped, destination port 0!");
+			}
 			try {
 				socket.send(datagramPacket);
 				return;
