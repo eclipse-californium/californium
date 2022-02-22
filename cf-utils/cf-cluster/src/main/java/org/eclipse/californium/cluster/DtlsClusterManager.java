@@ -209,6 +209,11 @@ public class DtlsClusterManager implements Readiness {
 	 * Schedule timer with {@link DtlsClusterManagerConfig#TIMER_INTERVAL}.
 	 */
 	public synchronized void start() {
+		if (discoverScope.getInitialClusterNodes() < 2) {
+			// only 1 cluster node, no discover required.
+			ready = true;
+			return;
+		}
 		if (schedule != null) {
 			return;
 		}
