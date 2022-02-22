@@ -261,20 +261,13 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	private List<Readiness> components = new ArrayList<>();
 
-	private static String version = StringUtil.CALIFORNIUM_VERSION;
-
 	public static void main(String[] args) {
-		String build = StringUtil.readFile(new File("build"), null);
-		if (build != null && !build.isEmpty()) {
-			version = version + "_" + build;
-		}
 		CommandLine cmd = new CommandLine(config);
 		config.register(cmd);
 		try {
 			ParseResult result = cmd.parseArgs(args);
 			if (result.isVersionHelpRequested()) {
-				String version = StringUtil.CALIFORNIUM_VERSION == null ? "" : StringUtil.CALIFORNIUM_VERSION;
-				System.out.println("\nCalifornium (Cf) " + cmd.getCommandName() + " " + version);
+				System.out.println("\nCalifornium (Cf) " + cmd.getCommandName() + " " + PlugtestServer.CALIFORNIUM_BUILD_VERSION);
 				cmd.printVersionHelp(System.out);
 				System.out.println();
 			}
@@ -352,6 +345,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			final ExtendedTestServer server = new ExtendedTestServer(configuration, protocolConfig, config.benchmark,
 					config.diagnose);
+			server.setVersion(PlugtestServer.CALIFORNIUM_BUILD_VERSION);
 			server.setTag("EXTENDED-TEST");
 			server.setExecutors(executor, secondaryExecutor, false);
 			server.add(
@@ -512,8 +506,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			Runtime runtime = Runtime.getRuntime();
 			long max = runtime.maxMemory();
 			StringBuilder builder = new StringBuilder(ExtendedTestServer.class.getSimpleName());
-			if (StringUtil.CALIFORNIUM_VERSION != null) {
-				builder.append(", version ").append(StringUtil.CALIFORNIUM_VERSION);
+			if (!PlugtestServer.CALIFORNIUM_BUILD_VERSION.isEmpty()) {
+				builder.append(", version ").append(PlugtestServer.CALIFORNIUM_BUILD_VERSION);
 			}
 			builder.append(", ").append(max / (1024 * 1024)).append("MB heap, started ...");
 			LOGGER.info("{}", builder);
@@ -667,7 +661,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		add(new Hono("telemetry"));
 		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
-		add(new MyContext(MyContext.RESOURCE_NAME, version, true));
+		add(new MyContext(MyContext.RESOURCE_NAME, PlugtestServer.CALIFORNIUM_BUILD_VERSION, true));
 		if (diagnose) {
 			add(new Diagnose(this));
 		}
