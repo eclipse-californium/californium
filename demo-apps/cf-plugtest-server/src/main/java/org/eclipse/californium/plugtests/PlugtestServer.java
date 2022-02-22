@@ -104,6 +104,13 @@ import picocli.CommandLine.ParseResult;
  */
 public class PlugtestServer extends AbstractTestServer {
 
+	static {
+		CoapConfig.register();
+		UdpConfig.register();
+		DtlsConfig.register();
+		TcpConfig.register();
+	}
+
 	private static final File CONFIG_FILE = new File("CaliforniumPlugtest3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Server";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
@@ -245,14 +252,23 @@ public class PlugtestServer extends AbstractTestServer {
 	private static EncryptedServersSerializationUtil serversSerialization = new EncryptedServersSerializationUtil();
 	private static byte[] state;
 
+	public static final String CALIFORNIUM_BUILD_VERSION;
+
 	static {
-		CoapConfig.register();
-		UdpConfig.register();
-		DtlsConfig.register();
-		TcpConfig.register();
+		String version = StringUtil.CALIFORNIUM_VERSION;
+		if (version != null) {
+			String build = StringUtil.readFile(new File("build"), null);
+			if (build != null && !build.isEmpty()) {
+				version = version + "_" + build;
+			}
+		} else {
+			version = "";
+		}
+		CALIFORNIUM_BUILD_VERSION = version;
 	}
 
 	public static void main(String[] args) {
+
 		CommandLine cmd = new CommandLine(config);
 		try {
 			ParseResult result = cmd.parseArgs(args);
@@ -348,17 +364,14 @@ public class PlugtestServer extends AbstractTestServer {
 			List<InterfaceType> types = config.getInterfaceTypes();
 
 			server = new PlugtestServer(configuration, protocolConfig);
+			server.setVersion(CALIFORNIUM_BUILD_VERSION);
 			server.setTag("PLUG-TEST");
 			add(server);
 			// ETSI Plugtest environment
-			// server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("::1",
-			// port)));
-			// server.addEndpoint(new CoAPEndpoint(new
-			// InetSocketAddress("127.0.0.1", port)));
-			// server.addEndpoint(new CoAPEndpoint(new
-			// InetSocketAddress("2a01:c911:0:2010::10", port)));
-			// server.addEndpoint(new CoAPEndpoint(new
-			// InetSocketAddress("10.200.1.2", port)));
+			// server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("::1", port)));
+			// server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));
+			// server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("2a01:c911:0:2010::10", port)));
+			// server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("10.200.1.2", port)));
 			server.addEndpoints(config.interfacePatterns, types, protocols, config);
 			if (server.getEndpoints().isEmpty()) {
 				System.err.println("no endpoint available!");
@@ -583,6 +596,6 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new Hono("telemetry"));
 		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, false));
-		add(new MyContext(MyContext.RESOURCE_NAME, StringUtil.CALIFORNIUM_VERSION, false));
+		add(new MyContext(MyContext.RESOURCE_NAME, CALIFORNIUM_BUILD_VERSION, false));
 	}
 }

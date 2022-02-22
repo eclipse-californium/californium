@@ -230,6 +230,18 @@ public class CoapServer implements ServerInterface {
 		}
 	}
 
+	/**
+	 * Set version for root resource.
+	 * 
+	 * @param version version to include in root resource
+	 * @since 3.4
+	 */
+	public void setVersion(String version) {
+		if (root instanceof RootResource) {
+			((RootResource) root).setVersion(version);
+		}
+	}
+
 	public synchronized void setExecutors(final ScheduledExecutorService mainExecutor,
 			final ScheduledExecutorService secondaryExecutor, final boolean detach) {
 		if (mainExecutor == null || secondaryExecutor == null) {
@@ -694,21 +706,25 @@ public class CoapServer implements ServerInterface {
 	private class RootResource extends CoapResource {
 
 		// get version from Maven package
-		private final String msg;
+		private volatile String msg;
 
 		public RootResource() {
 			super("");
+			setVersion(StringUtil.CALIFORNIUM_VERSION);
+		}
+
+		private void setVersion(String version) {
 			String title = "CoAP RFC 7252";
-			if (StringUtil.CALIFORNIUM_VERSION != null) {
-				String version = "Cf " + StringUtil.CALIFORNIUM_VERSION;
-				title = String.format("%s %50s", title, version);
+			if (version != null && !version.isEmpty()) {
+				title = String.format("%s %50s%n", title, "Cf " + version);
 			}
 			StringBuilder builder = new StringBuilder()
-					.append("****************************************************************\n").append(title)
-					.append("\n").append("****************************************************************\n")
+					.append("****************************************************************\n")
+					.append(title)
+					.append("****************************************************************\n")
 					.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
 					.append("published under EPL+EDL: http://www.eclipse.org/californium/\n\n");
-			builder.append("(c) 2014-2021 Institute for Pervasive Computing, ETH Zurich and others\n");
+			builder.append("(c) 2014-2022 Institute for Pervasive Computing, ETH Zurich and others\n");
 			String master = StringUtil.getConfiguration("COAP_ROOT_RESOURCE_FOOTER");
 			if (master != null) {
 				builder.append(master).append("\n");
