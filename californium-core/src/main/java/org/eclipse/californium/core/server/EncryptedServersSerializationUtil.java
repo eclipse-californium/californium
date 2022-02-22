@@ -145,6 +145,8 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 	/**
 	 * Load all added servers from input stream.
 	 * 
+	 * The coap-servers must not be {@link CoapServer#start()}ed before loading.
+	 * 
 	 * @param in input stream to read data from
 	 * @param password password for decryption. If {@code null}, the input
 	 *            stream must not be encrypted.
@@ -169,6 +171,11 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 
 	/**
 	 * Save all added servers to output stream.
+	 * 
+	 * The coap-servers are {@link CoapServer#stop()}ed before saving.
+	 * 
+	 * Note: without password the stream will contain not encrypted critical
+	 * credentials. It is required to protect this data before exporting it.
 	 * 
 	 * @param out output stream to write data to
 	 * @param password password for encryption. If {@code null}, the output

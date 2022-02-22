@@ -51,9 +51,8 @@ public interface PersistentConnector {
 	/**
 	 * Load connections.
 	 * 
-	 * Note: this is "Work In Progress"; the stream will contain not encrypted
-	 * critical credentials. The encoding of the content may also change in the
-	 * future.
+	 * Note: the stream contain not encrypted critical credentials. It is
+	 * required to protect this data.
 	 * 
 	 * @param in input stream to load connections
 	 * @param delta adjust-delta for nano-uptime. In nanoseconds. The stream
