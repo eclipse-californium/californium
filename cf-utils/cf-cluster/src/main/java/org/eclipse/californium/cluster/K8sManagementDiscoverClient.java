@@ -168,8 +168,6 @@ public abstract class K8sManagementDiscoverClient extends K8sManagementClient im
 						discoverScope.add(pod.address);
 					}
 				}
-			}
-			synchronized (discoverScope) {
 				for (String address : discoverScope) {
 					scope.add(new InetSocketAddress(address, externalPort));
 				}

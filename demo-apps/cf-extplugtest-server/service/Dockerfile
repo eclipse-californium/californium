@@ -35,4 +35,4 @@ EXPOSE 5884/tcp
 EXPOSE 8080/tcp
 
 WORKDIR /opt/app
-CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "./cf-extplugtest-server.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884", "--k8s-monitor", ":8080", "--k8s-restore", ":5884"]
+CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "./cf-extplugtest-server.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--diagnose", "--k8s-dtls-cluster", ":5784;:5884;5884", "--k8s-monitor", ":8080", "--k8s-restore", ":5884"]

@@ -696,6 +696,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		int count = 0;
 		long startNanos = ClockUtil.nanoRealtime();
 		DataStreamReader reader = new DataStreamReader(in);
+		long progressNanos = startNanos;
 		try {
 			Connection connection;
 			while ((connection = Connection.fromReader(reader, delta)) != null) {
@@ -707,6 +708,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 						TimeUnit.NANOSECONDS.toSeconds(startNanos - lastUpdate));
 				restore(connection);
 				++count;
+				long now = ClockUtil.nanoRealtime();
+				if ((now - progressNanos) > TimeUnit.SECONDS.toNanos(2)) {
+					LOGGER.info("{}read {} connections", tag, count);
+					progressNanos = now;
+				}
 			}
 			clear = false;
 		} catch (IllegalArgumentException ex) {
