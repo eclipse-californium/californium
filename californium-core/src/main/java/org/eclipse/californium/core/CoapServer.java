@@ -158,21 +158,30 @@ public class CoapServer implements ServerInterface {
 	private volatile String tag;
 
 	/**
-	 * Constructs a default server. The server starts after the method
-	 * {@link #start()} is called. If a server starts and has no specific ports
-	 * assigned, it will bind to CoAP's default port 5683.
+	 * Constructs a server with the default configuration
+	 * {@link Configuration#getStandard()}.
+	 * 
+	 * The server starts after the method {@link #start()} is called. If a
+	 * server starts and has no specific ports assigned, it will bind to CoAP's
+	 * port configured in the default configuration with
+	 * {@link CoapConfig#COAP_PORT}, default {@code 5683}.
+	 * 
+	 * The number of threads 
 	 */
 	public CoapServer() {
 		this(Configuration.getStandard());
 	}
 
 	/**
-	 * Constructs a server that listens to the specified port(s) after method
-	 * {@link #start()} is called.
+	 * Constructs a server with the default configuration
+	 * {@link Configuration#getStandard()} and listens to the specified port(s)
+	 * after method {@link #start()} is called.
 	 * 
 	 * @param ports the ports to bind to. If empty or {@code null} and no
 	 *            endpoints are added with {@link #addEndpoint(Endpoint)}, it
-	 *            will bind to CoAP's default port 5683 on {@link #start()}.
+	 *            will bind to CoAP's port configured in the default
+	 *            configuration with {@link CoapConfig#COAP_PORT}, default
+	 *            {@code 5683}, on {@link #start()}.
 	 */
 	public CoapServer(final int... ports) {
 		this(Configuration.getStandard(), ports);
@@ -186,7 +195,9 @@ public class CoapServer implements ServerInterface {
 	 *            returned by {@link Configuration#getStandard()} is used.
 	 * @param ports the ports to bind to. If empty or {@code null} and no
 	 *            endpoints are added with {@link #addEndpoint(Endpoint)}, it
-	 *            will bind to CoAP's default port 5683 on {@link #start()}.
+	 *            will bind to CoAP's port configured in the provided
+	 *            configuration with {@link CoapConfig#COAP_PORT}, default
+	 *            {@code 5683}, on {@link #start()}.
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	public CoapServer(final Configuration config, final int... ports) {
@@ -533,8 +544,8 @@ public class CoapServer implements ServerInterface {
 	/**
 	 * Save all connector's connections.
 	 * 
-	 * Each entry contains the {@link #tag}, followed by the
-	 * {@link Endpoint#getUri()} as ASCII string.
+	 * {@link #stop()}s before saving. Each entry contains the {@link #tag},
+	 * followed by the {@link Endpoint#getUri()} as ASCII string.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
 	 * required to protect this data before exporting it.

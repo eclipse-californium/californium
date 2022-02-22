@@ -36,6 +36,9 @@ import org.slf4j.LoggerFactory;
  * 
  * Currently only the dtls connections are serialized.
  * 
+ * The coaps server are stopped before saving. And are intended to be not
+ * started on loading.
+ * 
  * Note: the stream will contain not encrypted critical credentials. It is
  * required to protect this data before exporting it.
  * 
@@ -76,6 +79,8 @@ public class ServersSerializationUtil {
 	/**
 	 * Load all added servers from input stream.
 	 * 
+	 * The coap-servers must not be {@link CoapServer#start()}ed before loading.
+	 * 
 	 * @param in input stream to read data from
 	 * @see #add(CoapServer)
 	 * @since 3.3
@@ -86,6 +91,11 @@ public class ServersSerializationUtil {
 
 	/**
 	 * Save all added servers to output stream.
+	 * 
+	 * The coap-servers are {@link CoapServer#stop()}ed before saving.
+	 * 
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * required to protect this data before exporting it.
 	 * 
 	 * @param out output stream to write data to
 	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
@@ -141,6 +151,7 @@ public class ServersSerializationUtil {
 	/**
 	 * Load coap servers from input stream.
 	 * 
+	 * The coap-servers must not be {@link CoapServer#start()}ed before loading.
 	 * Reads a
 	 * {@link SerializationUtil#readNanotimeSynchronizationMark(DataStreamReader)}
 	 * ahead in order to synchronize the nano-uptimes.
@@ -161,6 +172,7 @@ public class ServersSerializationUtil {
 	/**
 	 * Load coap servers from input stream.
 	 * 
+	 * The coap-servers must not be {@link CoapServer#start()}ed before loading.
 	 * Reads a
 	 * {@link SerializationUtil#readNanotimeSynchronizationMark(DataStreamReader)}
 	 * ahead in order to synchronize the nano-uptimes.
@@ -219,9 +231,9 @@ public class ServersSerializationUtil {
 	/**
 	 * Save coap servers to output stream.
 	 * 
-	 * Writes a
+	 * The coap-servers are {@link CoapServer#stop()}ed before saving. A
 	 * {@link SerializationUtil#writeNanotimeSynchronizationMark(DatagramWriter)}
-	 * ahead in order to synchronize the nano-uptimes.
+	 * is written ahead in order to synchronize the nano-uptimes.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
 	 * required to protect this data before exporting it.
@@ -245,9 +257,9 @@ public class ServersSerializationUtil {
 	/**
 	 * Save coap servers to output stream.
 	 * 
-	 * Writes a
+	 * The coap-servers are {@link CoapServer#stop()}ed before saving. A
 	 * {@link SerializationUtil#writeNanotimeSynchronizationMark(DatagramWriter)}
-	 * ahead in order to synchronize the nano-uptimes.
+	 * is written ahead in order to synchronize the nano-uptimes.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
 	 * required to protect this data before exporting it.
