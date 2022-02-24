@@ -27,7 +27,7 @@ echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 50% of the available
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may be used instead."
 echo
 echo "The required server may be started using:"
-echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.2.0.jar --no-external --no-plugtest"
+echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.3.0.jar --no-external --no-plugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 50% of the available RAM."
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may also be used instead."
 echo "If the benchmark is mainly used with the loopback interface (localhost), use the --no-external as above."
@@ -84,13 +84,13 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-3.2.0.jar
+CF_JAR=cf-extplugtest-client-3.3.0.jar
 CF_JAR_FIND='cf-extplugtest-client-*.jar'
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 #CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
 CF_OPT="-XX:MaxRAMPercentage=50"
 
-export CALIFORNIUM_STATISTIC="3.2.0"
+export CALIFORNIUM_STATISTIC="3.3.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
