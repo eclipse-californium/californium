@@ -19,11 +19,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.eclipse.californium.elements.util.SerializationUtil;
+
 /**
  * Interface for connector supporting persistent connections.
  * 
  * Note: the stream will contain not encrypted critical credentials. It is
  * required to protect this data before exporting it.
+ * 
+ * In order to be able to
+ * {@link SerializationUtil#skipItems(org.eclipse.californium.elements.util.DataStreamReader, int)},
+ * on failures, the stream must consist of items with {@code Short.SIZE} length
+ * fields and must be finished with a
+ * {@link SerializationUtil#writeNoItem(org.eclipse.californium.elements.util.DatagramWriter)}.
  * 
  * @since 3.0
  */
