@@ -158,6 +158,43 @@ public class SerializationUtilTest {
 		assertThat(delta, is(inRange(9 * MILLISECOND_IN_NANOS, timePassed + 11 * MILLISECOND_IN_NANOS)));
 	}
 
+	@Test
+	public void testSkipItems() {
+		int pos = SerializationUtil.writeStartItem(writer, 10, Short.SIZE);
+		writer.writeVarBytes("hello".getBytes(), Byte.SIZE);
+		SerializationUtil.writeFinishedItem(writer, pos, Short.SIZE);
+		pos = SerializationUtil.writeStartItem(writer, 10, Short.SIZE);
+		writer.writeVarBytes(",".getBytes(), Byte.SIZE);
+		SerializationUtil.writeFinishedItem(writer, pos, Short.SIZE);
+		pos = SerializationUtil.writeStartItem(writer, 10, Short.SIZE);
+		writer.writeVarBytes("world!".getBytes(), Byte.SIZE);
+		SerializationUtil.writeFinishedItem(writer, pos, Short.SIZE);
+		SerializationUtil.writeNoItem(writer);
+		pos = SerializationUtil.writeStartItem(writer, 10, Short.SIZE);
+		writer.writeVarBytes("Next!".getBytes(), Byte.SIZE);
+		SerializationUtil.writeFinishedItem(writer, pos, Short.SIZE);
+		SerializationUtil.writeNoItem(writer);
+		swap();
+		int len = SerializationUtil.readStartItem(reader, 10, Short.SIZE);
+		byte[] data = reader.readVarBytes(Byte.SIZE);
+		assertThat(data, is("hello".getBytes()));
+		assertThat(len, is(data.length + 1)); // size of var-bytes
+		int count = SerializationUtil.skipItems(reader, Short.SIZE);
+		assertThat(count, is(2));
+		len = SerializationUtil.readStartItem(reader, 10, Short.SIZE);
+		data = reader.readVarBytes(Byte.SIZE);
+		assertThat(data, is("Next!".getBytes()));
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testSkipBitsEndOfStream() {
+		int pos = SerializationUtil.writeStartItem(writer, 10, Short.SIZE);
+		writer.writeVarBytes("hello".getBytes(), Byte.SIZE);
+		SerializationUtil.writeFinishedItem(writer, pos, Short.SIZE);
+		swap();
+		SerializationUtil.skipBits(reader, 1024);
+	}
+
 	private void swap() {
 		reader = new DatagramReader(writer.toByteArray());
 	}
