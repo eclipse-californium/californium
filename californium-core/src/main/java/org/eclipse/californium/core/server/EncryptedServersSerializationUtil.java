@@ -186,6 +186,7 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 	 * @throws IOException if an i/o-error occurred
 	 */
 	public void saveServers(OutputStream out, SecretKey password, long maxQuietPeriodInSeconds) throws IOException {
+		OutputStream serversOut = out;
 		DatagramWriter writer = new DatagramWriter();
 		if (password != null) {
 			byte[] seed = new byte[16];
@@ -194,10 +195,9 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 			if (cipher != null) {
 				writer.writeVarBytes(seed, Byte.SIZE);
 				writer.writeTo(out);
-				out = new CipherOutputStream(out, cipher);
+				serversOut = new CipherOutputStream(out, cipher);
 			} else {
 				LOGGER.warn("crypto error!");
-				writer.reset();
 				password = null;
 			}
 		}
@@ -205,7 +205,11 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 			writer.writeVarBytes(Bytes.EMPTY, Byte.SIZE);
 			writer.writeTo(out);
 		}
-		saveServers(out, maxQuietPeriodInSeconds);
+		saveServers(serversOut, maxQuietPeriodInSeconds);
+		if (serversOut != out) {
+			// close CipherOutputStream to append padding
+			serversOut.close();
+		}
 	}
 
 	/**
