@@ -145,7 +145,7 @@ Benchmark started.
 
 ## Benchmarks - DTLS Graceful Restart
 
-The benchmark server is now extended to "save" the connection state (into memory) and "load" it again. For demonstration, type
+The benchmark server is now extended to "save" the DTLS connection state (into memory) and "load" it again. For demonstration, type
 
 ```
 save
@@ -225,6 +225,8 @@ Benchmark client console:
 
 Note: if it takes too long between "save" and "load", the clients will detect a timeout and trigger new handshakes. So just pause a small couple of seconds!
 
+Note: only the DTLS state is persisted. To use this feature, the client is intended to use mainly CON request and the server the use piggybacked responses. Neither DTLS handshake, separate responses, observe/notifies, nor blockwise transfers are supported.
+
 ## k8s Blue/Green Update With DTLS Graceful Restart
 
 To perform a blue/green update with DTLS graceful restart, the script [deploy_k8s.sh](service/deploy_k8s.sh) contains the statements to do so. The script requires "docker", "kubectl" (e.g. microk8s), "head", "grep", "cut" and "base64" to be installed ahead.
@@ -250,8 +252,8 @@ The script could be configured be environment variable:
 # default local container registry of microk8s
 : "${REGISTRY:=localhost:32000}"
 
-# default microk8s kubectl
-: "${KUBECTL:=microk8s.kubectl}"
+# default kubectl, use "export KUBECTL=microk8s.kubectl" for microk8s
+: "${KUBECTL:=kubectl}"
 
 # default (microk8s) kubectl namespace cali
 : "${KUBECTL_NAMESPACE:=cali}"
@@ -264,8 +266,17 @@ The script could be configured be environment variable:
 # e.g. KUBECTL_CONTEXT="--insecure-skip-tls-verify --context=???"
 : "${KUBECTL_CONTEXT:=}"
 
-# default k8s service yaml
-: "${K8S_SERVICE:=k8s.yaml}"
+# default k8s type
+: "${K8S_TYPE:=statefulset}"
+
+# default k8s component
+: "${K8S_COMPONENT:=k8s_${K8S_TYPE}}"
+
+# default dockerfile
+: "${DOCKERFILE:=service/Dockerfile}"
+
+# default number of replicas (number of nodes)
+: "${K8S_REPLICAS:=#nodes}"
 
 # if ${KUBECTL_DOCKER_CREDENTIALS} are provided, they are used to
 # create secret docker-registry regcred

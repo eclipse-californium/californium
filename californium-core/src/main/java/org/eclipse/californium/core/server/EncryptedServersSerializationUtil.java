@@ -46,6 +46,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Encrypted serialization and file based persistence for {@link CoapServer}s.
  * 
+ * {@link #add(CoapServer)} all {@link CoapServer} and call
+ * {@link #loadAndRegisterShutdown(String, char[], long)} before starting them.
+ * 
  * @since 3.3
  */
 public class EncryptedServersSerializationUtil extends ServersSerializationUtil {

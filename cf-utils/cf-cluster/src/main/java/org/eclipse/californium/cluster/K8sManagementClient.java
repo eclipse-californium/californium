@@ -32,7 +32,6 @@ import java.util.Set;
 import javax.net.ssl.SSLContext;
 
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.DTLSConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +76,7 @@ import com.google.gson.JsonParser;
  *      target="_blank">kubernetes.io - Accessing the Kubernetes API from a
  *      Pod</a>
  * 
- * @since 3.0 (extracted from {@link K8sManagementDiscoverClient}.
+ * @since 3.0 (extracted from {@link K8sDiscoverClient}.
  */
 public abstract class K8sManagementClient {
 
@@ -104,7 +103,6 @@ public abstract class K8sManagementClient {
 	private static final File KUBECTL_DEFAULT_CA_CERT_FILE = new File(KUBECTL_DEFAULT_SERVICE_ACCOUNT, "ca.crt");
 
 	private static final String K8S_API_VERSION = "v1";
-	private static final String KUBECTL_NODE_ID = "KUBECTL_NODE_ID";
 	private static final String KUBECTL_HOST = "KUBECTL_HOST";
 	private static final String KUBECTL_TOKEN = "KUBECTL_TOKEN";
 	private static final String KUBECTL_NAMESPACE = "KUBECTL_NAMESPACE";
@@ -113,11 +111,6 @@ public abstract class K8sManagementClient {
 	 * Logger.
 	 */
 	protected static final Logger LOGGER = LoggerFactory.getLogger(K8sManagementClient.class);
-
-	/**
-	 * Node-id of this {@link DTLSConnector}.
-	 */
-	private final int nodeId;
 	/**
 	 * Hostname.
 	 */
@@ -138,6 +131,12 @@ public abstract class K8sManagementClient {
 	 * http client ssl context.
 	 */
 	private final SSLContext sslContext;
+	/**
+	 * Own pod.
+	 * 
+	 * @since 3.4
+	 */
+	private final Pod pod;
 
 	/**
 	 * Create k8s management client.
@@ -147,31 +146,6 @@ public abstract class K8sManagementClient {
 	 */
 	public K8sManagementClient() throws GeneralSecurityException, IOException {
 		this.hostName = InetAddress.getLocalHost().getHostName();
-		Integer node = null;
-		String id = StringUtil.getConfiguration(KUBECTL_NODE_ID);
-		if (id != null && !id.isEmpty()) {
-			try {
-				node = Integer.valueOf(id);
-			} catch (NumberFormatException ex) {
-				LOGGER.warn("KUBECTL_NODE_ID: {}", id, ex);
-			}
-		}
-		if (node == null) {
-			int pos = hostName.lastIndexOf("-");
-			if (pos >= 0) {
-				id = hostName.substring(pos + 1);
-				try {
-					node = Integer.valueOf(id);
-				} catch (NumberFormatException ex) {
-					LOGGER.warn("HOSTNAME: {}", hostName, ex);
-				}
-			}
-		}
-		if (node != null) {
-			nodeId = node;
-		} else {
-			throw new IllegalArgumentException("node-id not available!");
-		}
 		String kubectlHost = StringUtil.getConfiguration(KUBECTL_HOST);
 		if (kubectlHost == null || kubectlHost.isEmpty()) {
 			kubectlHost = KUBECTL_DEFAULT_HOST;
@@ -189,7 +163,7 @@ public abstract class K8sManagementClient {
 			token = StringUtil.readFile(KUBECTL_DEFAULT_TOKEN_FILE, token);
 		}
 		this.token = token;
-		LOGGER.info("Node-ID: {}, host: {}, namespace: {}", nodeId, hostUrl, namespace);
+		LOGGER.info("Host: {}, namespace: {}", hostUrl, namespace);
 		if (token != null && !token.isEmpty()) {
 			int len = token.length();
 			int end = len > 20 ? 10 : len / 2;
@@ -198,6 +172,7 @@ public abstract class K8sManagementClient {
 			LOGGER.info("no bearer token!");
 		}
 		sslContext = CredentialsUtil.getK8sHttpsClientContext(KUBECTL_DEFAULT_CA_CERT_FILE);
+		pod = getOwnPod();
 	}
 
 	/**
@@ -210,26 +185,31 @@ public abstract class K8sManagementClient {
 	}
 
 	/**
-	 * Get node-id.
+	 * Get value of k8s label of own pod.
 	 * 
-	 * @return node-id
+	 * @param label name of label, e.g. "app"
+	 * @return value of k8s label. {@code null}, if not available.
+	 * @since 3.4
 	 */
-	public int getNodeID() {
-		return nodeId;
+	public String getLabel(String label) {
+		return Pod.getLabel(pod, label);
 	}
 
 	/**
-	 * Execute http GET request.
+	 * Get selector with k8s label and current label value of own pod.
 	 * 
-	 * @param url url of get request
-	 * @param token bearer token for authentication
-	 * @param sslContext ssl context to verify API server.
-	 * @return http result.
-	 * @throws IOException if an i/o error occurred.
-	 * @throws GeneralSecurityException if an security error occurred.
+	 * @param label name of label, e.g. "app"
+	 * @return selector with k8s label and current label value.
+	 *         {@code label%3Dvalue}. {@code null}, if not available
+	 * @since 3.4
 	 */
-	public abstract HttpResult executeHttpRequest(String url, String token, SSLContext sslContext)
-			throws IOException, GeneralSecurityException;
+	public String getLabelSelector(String label) {
+		String value = Pod.getLabel(pod, label);
+		if (value != null) {
+			return label + "%3D" + value;
+		}
+		return null;
+	}
 
 	/**
 	 * Get k8s management URL.
@@ -251,7 +231,8 @@ public abstract class K8sManagementClient {
 	 * Get pods from k8s API.
 	 * 
 	 * @param append text to append to the {@link #getK8sManagementUrl()}, or
-	 *            {@code null}.
+	 *            {@code null}. Used to specify a specific pod or a selector for
+	 *            a group.
 	 * @return set of pods. May be empty, if no matching pod is found.
 	 * @throws IOException if an i/o error occurs during the http GET
 	 * @throws GeneralSecurityException if an security error occurs during the
@@ -328,6 +309,46 @@ public abstract class K8sManagementClient {
 		}
 
 		return pods;
+	}
+
+	/**
+	 * Execute http GET request.
+	 * 
+	 * Note: this is called during initialization of the class instance.
+	 * 
+	 * @param url url of get request
+	 * @param token bearer token for authentication
+	 * @param sslContext ssl context to verify API server.
+	 * @return http result.
+	 * @throws IOException if an i/o error occurred.
+	 * @throws GeneralSecurityException if an security error occurred.
+	 */
+	public abstract HttpResult executeHttpRequest(String url, String token, SSLContext sslContext)
+			throws IOException, GeneralSecurityException;
+
+	/**
+	 * Get information about own pod from k8s API.
+	 * 
+	 * @return own pod, {@code null}, if not available.
+	 * @since 3.4
+	 */
+	private Pod getOwnPod() {
+		try {
+			Set<Pod> pods = getPods("/" + hostName);
+			if (!pods.isEmpty()) {
+				Pod pod = pods.iterator().next();
+				LOGGER.info("own pod: {}", pod);
+				return pod;
+			}
+			LOGGER.info("missing own pod! {}", hostName);
+		} catch (HttpResultException e) {
+			LOGGER.error("http: ", e);
+		} catch (IOException e) {
+			LOGGER.error("io error: ", e);
+		} catch (GeneralSecurityException e) {
+			LOGGER.error("security error: ", e);
+		}
+		return null;
 	}
 
 	/**
@@ -532,6 +553,38 @@ public abstract class K8sManagementClient {
 				builder.append(", ip: ").append(address);
 			}
 			return builder.toString();
+		}
+
+		/**
+		 * Get value of k8s label of this pod.
+		 * 
+		 * @param label name of label, e.g. "app"
+		 * @return value of k8s label. {@code null}, if not available.
+		 * @since 3.4
+		 */
+		public String getLabel(String label) {
+			if (labels != null) {
+				String value = labels.get(label);
+				if (value != null && !value.isEmpty()) {
+					return value;
+				}
+			}
+			return null;
+		}
+
+		/**
+		 * Get value of k8s label.
+		 * 
+		 * @param pod pod to get the label's value
+		 * @param label name of label, e.g. "app"
+		 * @return value of k8s label. {@code null}, if not available.
+		 * @since 3.4
+		 */
+		public static String getLabel(Pod pod, String label) {
+			if (pod != null) {
+				return pod.getLabel(label);
+			}
+			return null;
 		}
 	}
 }

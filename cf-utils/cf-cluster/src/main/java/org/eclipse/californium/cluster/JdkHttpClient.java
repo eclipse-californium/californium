@@ -67,8 +67,27 @@ public class JdkHttpClient {
 	 * @throws GeneralSecurityException if an encryption error occurred
 	 * @since 3.0 (added serverPrincipal)
 	 */
-	public HttpResult get(String url, String token, final boolean verifyHostname, SSLContext sslContext)
+	public HttpResult get(String url, String token, boolean verifyHostname, SSLContext sslContext)
 			throws IOException, GeneralSecurityException {
+		return get(url, REQUEST_TIMEOUT_MILLIS, token, verifyHostname, sslContext);
+	}
+
+	/**
+	 * Execute http GET request.
+	 * 
+	 * @param url url for GET
+	 * @param requestTimeoutMillis request timeout in milliseconds
+	 * @param token optional bearer token
+	 * @param verifyHostname {@code true} to verify principal of server
+	 *            certificate for weak hostname verification
+	 * @param sslContext ssl context for https
+	 * @return http result.
+	 * @throws IOException if an i/o error occurred
+	 * @throws GeneralSecurityException if an encryption error occurred
+	 * @since 3.4
+	 */
+	public HttpResult get(String url, int requestTimeoutMillis, String token, final boolean verifyHostname,
+			SSLContext sslContext) throws IOException, GeneralSecurityException {
 
 		try {
 			URL get = new URL(url);
@@ -101,7 +120,7 @@ public class JdkHttpClient {
 				con.setRequestProperty("Authorization", "Bearer " + token);
 			}
 			con.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
-			con.setReadTimeout(REQUEST_TIMEOUT_MILLIS);
+			con.setReadTimeout(requestTimeoutMillis);
 			int responseCode = con.getResponseCode();
 			String responseMessage = con.getResponseMessage();
 			Principal peerPrincipal = null;

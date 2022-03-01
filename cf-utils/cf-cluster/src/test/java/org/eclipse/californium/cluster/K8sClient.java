@@ -41,7 +41,8 @@ public class K8sClient {
 		System.setProperty("KUBECTL_NAMESPACE", "cali");
 		System.setProperty("KUBECTL_SELECTOR_LABEL", "controller-revision-hash");
 		try {
-			K8sManagementDiscoverClient client = new K8sManagementDiscoverJdkClient(5885);
+			K8sManagementJdkClient k8sClient = new K8sManagementJdkClient();
+			K8sDiscoverClient client = new K8sDiscoverClient(k8sClient, 5885);
 			List<InetSocketAddress> discoverScope = client.getClusterNodesDiscoverScope();
 			if (discoverScope.isEmpty()) {
 				System.out.println("no pods found!");

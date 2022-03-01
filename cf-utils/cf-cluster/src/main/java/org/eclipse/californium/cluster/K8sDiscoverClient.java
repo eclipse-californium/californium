@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2020 Bosch.IO GmbH and others.
+ * Copyright (c) 2022 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch IO.GmbH - initial creation
+ *                    derived from K8sManagementDiscoverJdkClient
  ******************************************************************************/
 package org.eclipse.californium.cluster;
 
@@ -26,9 +27,13 @@ import java.util.Set;
 import javax.crypto.SecretKey;
 
 import org.eclipse.californium.cluster.DtlsClusterManager.ClusterNodesDiscover;
+import org.eclipse.californium.cluster.K8sManagementClient.Pod;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig.Builder;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * K8s discover implementation.
@@ -48,26 +53,36 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * <dt>KUBECTL_SELECTOR</dt>
  * <dd>selector expression. Optional, value e.g. "app%3Dcf-extserver"</dd>
  * <dt>KUBECTL_SELECTOR_LABEL</dt>
- * <dd>selector expression. Optional, value e.g. "app"</dd>
+ * <dd>selector expression. Optional, default "controller-revision-hash"</dd>
  * <dt>DTLS_CID_MGMT_IDENTITY</dt>
  * <dd>PSK identity for cluster management interface encryption</dd>
  * <dt>DTLS_CID_MGMT_SECRET_BASE64</dt>
  * <dd>PSK secret in base64 for cluster management interface encryption</dd>
  * </dl>
  * 
- * @since 2.5
+ * @since 3.4
  */
-public abstract class K8sManagementDiscoverClient extends K8sManagementClient implements ClusterNodesDiscover {
+public class K8sDiscoverClient implements ClusterNodesDiscover {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(K8sDiscoverClient.class);
+
 	private static final String KUBECTL_SELECTOR = "KUBECTL_SELECTOR";
 	private static final String KUBECTL_SELECTOR_LABEL = "KUBECTL_SELECTOR_LABEL";
+	private static final String KUBECTL_NODE_ID = "KUBECTL_NODE_ID";
 	private static final String DTLS_CID_MGMT_IDENTITY = "DTLS_CID_MGMT_IDENTITY";
 	private static final String DTLS_CID_MGMT_SECRET_BASE64 = "DTLS_CID_MGMT_SECRET_BASE64";
 	private static final String INITIAL_CLUSTERNODES_LABEL = "initialDtlsClusterNodes";
+	private static final String DEFAULT_SELECTOR_LABEL = "controller-revision-hash";
 
+	private final K8sManagementClient client;
 	/**
 	 * External (exposed) ports for cluster internal management interfaces.
 	 */
 	private final int externalPort;
+	/**
+	 * Node-id of this {@link DTLSConnector}.
+	 */
+	private final int nodeId;
 	/**
 	 * k8s selector for cid-cluster pods.
 	 */
@@ -83,25 +98,54 @@ public abstract class K8sManagementDiscoverClient extends K8sManagementClient im
 	/**
 	 * Create k8s discover client.
 	 * 
+	 * @param client k8s management client used to discover cluster nodes
 	 * @param externalPort external/exposed port for cluster internal management
 	 *            interfaces.
 	 * @throws GeneralSecurityException if initializing ssl context fails
 	 * @throws IOException if loading trust store fails
 	 */
-	public K8sManagementDiscoverClient(int externalPort) throws GeneralSecurityException, IOException {
-		super();
+	public K8sDiscoverClient(K8sManagementClient client, int externalPort)
+			throws GeneralSecurityException, IOException {
+		this.client = client;
 		this.externalPort = externalPort;
-		Pod own = getOwnPod();
+		Integer node = null;
+		String id = StringUtil.getConfiguration(KUBECTL_NODE_ID);
+		if (id != null && !id.isEmpty()) {
+			try {
+				node = Integer.valueOf(id);
+			} catch (NumberFormatException ex) {
+				LOGGER.warn("KUBECTL_NODE_ID: {}", id, ex);
+			}
+		}
+		String hostName = client.getHostName();
+		if (node == null) {
+			int pos = hostName.lastIndexOf("-");
+			if (pos >= 0) {
+				id = hostName.substring(pos + 1);
+				try {
+					node = Integer.valueOf(id);
+				} catch (NumberFormatException ex) {
+					LOGGER.warn("HOSTNAME: {}", hostName, ex);
+				}
+			}
+		}
+		if (node != null) {
+			nodeId = node;
+		} else {
+			throw new IllegalArgumentException("node-id not available!");
+		}
+
 		String selector = StringUtil.getConfiguration(KUBECTL_SELECTOR);
 		if (selector == null || selector.isEmpty()) {
 			String label = StringUtil.getConfiguration(KUBECTL_SELECTOR_LABEL);
-			if (label != null && !label.isEmpty()) {
-				selector = getLabelSelector(own, label);
+			if (label == null || label.isEmpty()) {
+				label = DEFAULT_SELECTOR_LABEL;
 			}
+			selector = client.getLabelSelector(label);
 		}
 		this.selector = selector;
 		int clusterNodes = 0;
-		String nodesLabel = getLabel(own, INITIAL_CLUSTERNODES_LABEL);
+		String nodesLabel = client.getLabel(INITIAL_CLUSTERNODES_LABEL);
 		if (nodesLabel != null) {
 			try {
 				clusterNodes = Integer.parseInt(nodesLabel);
@@ -109,58 +153,38 @@ public abstract class K8sManagementDiscoverClient extends K8sManagementClient im
 			}
 		}
 		this.clusterNodes = clusterNodes;
-		LOGGER.info("External-port: {}, cluster-nodes: {}, selector: {}", externalPort, clusterNodes, selector);
+		LOGGER.info("Node-ID: {}, external-port: {}, cluster-nodes: {}, selector: {}", nodeId, externalPort,
+				clusterNodes, selector);
 	}
 
-	private Pod getOwnPod() {
-		try {
-			Set<Pod> pods = getPods("/" + hostName);
-			for (Pod pod : pods) {
-				LOGGER.info("own pod: {}", pod);
-				return pod;
-			}
-			LOGGER.info("missing own pod! {}", hostName);
-		} catch (HttpResultException e) {
-			LOGGER.error("http: ", e);
-		} catch (IOException e) {
-			LOGGER.error("io error: ", e);
-		} catch (GeneralSecurityException e) {
-			LOGGER.error("security error: ", e);
+	/**
+	 * Get node-id.
+	 * 
+	 * @return node-id
+	 * @throws IllegalStateException if node-id is not available (no cluster
+	 *             support)
+	 */
+	public int getNodeID() {
+		if (nodeId < 0) {
+			throw new IllegalStateException("node-id not available!");
 		}
-		return null;
-	}
-
-	private String getLabelSelector(Pod pod, String label) {
-		String value = getLabel(pod, label);
-		if (value != null) {
-			return label + "%3D" + value;
-		}
-		return null;
-	}
-
-	private String getLabel(Pod pod, String label) {
-		if (pod != null && pod.labels != null) {
-			String value = pod.labels.get(label);
-			if (value != null && !value.isEmpty()) {
-				return value;
-			}
-		}
-		return null;
+		return nodeId;
 	}
 
 	@Override
 	public List<InetSocketAddress> getClusterNodesDiscoverScope() {
 		List<InetSocketAddress> scope = new ArrayList<>();
 		try {
+			String hostName = client.getHostName();
 			String append = null;
 			if (selector != null) {
 				append = "?labelSelector=" + selector;
 			}
-			Set<Pod> pods = getPods(append);
+			Set<Pod> pods = client.getPods(append);
 			for (Pod pod : pods) {
 				LOGGER.info("{}", pod);
 			}
-			LOGGER.info("host: {}", hostName);
+			LOGGER.info("host: {}", client.hostName);
 			synchronized (discoverScope) {
 				discoverScope.clear();
 				for (Pod pod : pods) {
