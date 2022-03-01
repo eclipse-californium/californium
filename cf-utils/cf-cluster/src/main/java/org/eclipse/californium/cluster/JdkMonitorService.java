@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2021 Bosch.IO GmbH and others.
+ * Copyright (c) 2022 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch IO.GmbH - initial creation
+ *                    was JdkK8sMonitorService
  ******************************************************************************/
 package org.eclipse.californium.cluster;
 
@@ -22,13 +23,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLContext;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.server.ServersSerializationUtil;
-import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +40,7 @@ import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 
 /**
- * K8s Monitor service.
+ * Monitor service.
  * 
  * <dl>
  * <dt>{@code http://<pod>:8080/ready}</dt>
@@ -50,23 +50,163 @@ import com.sun.net.httpserver.HttpsServer;
  * connector.</dd>
  * </dl>
  * 
- * @since 3.0
+ * Usable with k8s to monitor the pod.
+ * 
+ * {@link #addServer(CoapServer)} all {@link CoapServer} and all other
+ * {@link Readiness} components with {@link #addComponent(Readiness)} before
+ * {@link #start()}. If {@link RestoreJdkHttpClient} is used to download the
+ * state from the double on green/blue update, add that client as component as
+ * well.
+ * 
+ * @since 3.4 (was JdkK8sMonitorService)
  */
 @SuppressWarnings("restriction")
-public class JdkK8sMonitorService {
+public class JdkMonitorService {
 
 	/**
 	 * Logger.
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(JdkK8sMonitorService.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(JdkMonitorService.class);
 
-	private static final String DTLS_MAX_QUIET_IN_S = "DTLS_MAX_QUIET_IN_S";
+	private static final long DELAY_IN_SECONDS = 4;
 
 	/**
-	 * Indicates, that the CoAP servers has been stopped by
-	 * {@link RestoreHttpClient}.
+	 * State with delay switching to off.
+	 * 
+	 * @since 3.4
 	 */
-	private final AtomicBoolean stopped = new AtomicBoolean();
+	private static class State {
+
+		/**
+		 * Name of the state for logging.
+		 */
+		private final String name;
+		/**
+		 * State, {@code true} for active, {@code false}, for not active.
+		 */
+		private boolean state;
+		/**
+		 * Realtime nanos, when state is pending. {@code -1}, if not pending.
+		 * During the pending phase, the {@link #state} is already not active,
+		 * but {@link #get()} and {@link #set(boolean, long, TimeUnit)} will
+		 * still return {@code true}.
+		 */
+		private long pending = -1;
+
+		/**
+		 * Create state.
+		 * 
+		 * @param name name for logging
+		 */
+		private State(String name) {
+			this.name = name;
+		}
+
+		/**
+		 * Set state.
+		 * 
+		 * Switching to active without delay, switching to inactive with delay.
+		 * 
+		 * @param state {@code true} for active, {@code false}, for not active.
+		 * @param delay delay in to switch from active to not active.
+		 * @param unit time unit of delay
+		 * @return delayed state, {@code true} for active, {@code false}, for
+		 *         not active.
+		 */
+		private boolean set(boolean state, long delay, TimeUnit unit) {
+			boolean result = state;
+			String msg = "none";
+			long now = ClockUtil.nanoRealtime();
+			synchronized (this) {
+				if (state) {
+					this.state = true;
+					this.pending = -1;
+					msg = "active";
+				} else if (this.state) {
+					state = false;
+					pending = now + unit.toNanos(delay);
+					if (delay > 0) {
+						msg = "shutdown";
+					} else {
+						msg = "down";
+						result = false;
+					}
+				} else if (pending > -1) {
+					msg = "shutdown";
+					result = (pending - now) > 0;
+					if (!result) {
+						msg = "down";
+					}
+				}
+			}
+			LOGGER.info("{}: {}", name, msg);
+			return result;
+		}
+
+		/**
+		 * Get state.
+		 * 
+		 * @return delayed state, {@code true} for active, {@code false}, for
+		 *         not active.
+		 */
+		private boolean get() {
+			boolean result;
+			long now = ClockUtil.nanoRealtime();
+			synchronized (this) {
+				if (state) {
+					result = true;
+				} else if (pending > -1) {
+					result = (pending - now) > 0;
+				} else {
+					result = false;
+				}
+			}
+			return result;
+		}
+
+		/**
+		 * Get left pending time of active, before switching to inactive.
+		 * 
+		 * @param unit time unit
+		 * @return left pending time in units. {@code -1}, not pending.
+		 */
+		private long left(TimeUnit unit) {
+			long left = -1;
+			long now = ClockUtil.nanoRealtime();
+			synchronized (this) {
+				if (pending > -1) {
+					left = (pending - now);
+					if (left < 0) {
+						left = 0;
+					}
+				}
+			}
+			return unit.convert(left, TimeUnit.NANOSECONDS);
+		}
+	}
+
+	/**
+	 * Ready state.
+	 * 
+	 * Indicates to connect the pods network to the associated service. In order
+	 * to prevent the connectors to send messages after the pod signals "not
+	 * ready", the state is switched delayed from active to not active.
+	 * Therefore unexpected messages pending after the connectors shutdown will
+	 * still be sent in state "ready".
+	 * 
+	 * @see JdkMonitorService#DELAY_IN_SECONDS
+	 * @since 3.4
+	 */
+	private final State stateReady = new State("ready");
+
+	/**
+	 * Alive state.
+	 * 
+	 * Indicates, that an other pod overtake the states.
+	 * 
+	 * @since 3.4
+	 */
+	private final State stateAlive = new State("alive");
 
 	/**
 	 * Local (non secure) address-
@@ -112,18 +252,18 @@ public class JdkK8sMonitorService {
 	 * 
 	 * @param localAddress local address for non secure endpoint (http).
 	 * @param localSecureAddress local address for secure endpoint (https).
+	 * @param maxQuietPeriodInSeconds maxium quiet period of connection to be
+	 *            saved
 	 * @param context server ssl context
+	 * @since 3.4 (added maxQuietPeriodInSeconds)
 	 */
-	public JdkK8sMonitorService(InetSocketAddress localAddress, InetSocketAddress localSecureAddress,
-			SSLContext context) {
+	public JdkMonitorService(InetSocketAddress localAddress, InetSocketAddress localSecureAddress,
+			long maxQuietPeriodInSeconds, SSLContext context) {
 		this.localAddress = localAddress;
 		this.localSecureAddress = localSecureAddress;
 		this.context = context;
-		Long quiet = StringUtil.getConfigurationLong(DTLS_MAX_QUIET_IN_S);
-		if (quiet == null) {
-			quiet = TimeUnit.HOURS.toSeconds(12);
-		}
-		maxQuietPeriodInSeconds = quiet;
+		this.maxQuietPeriodInSeconds = maxQuietPeriodInSeconds;
+		this.stateAlive.set(true, 0, TimeUnit.SECONDS);
 	}
 
 	/**
@@ -259,10 +399,16 @@ public class JdkK8sMonitorService {
 	 */
 	public void stop() {
 		if (server != null) {
+			// stop with 2s delay
 			server.stop(2);
 		}
 		if (secureServer != null) {
+			// stop with 2s delay
 			secureServer.stop(2);
+		}
+		try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
 		}
 		if (executor != null) {
 			executor.shutdown();
@@ -275,7 +421,9 @@ public class JdkK8sMonitorService {
 		public void handle(HttpExchange exchange) throws IOException {
 			LOGGER.info("request: {} {}", exchange.getRequestMethod(), exchange.getRequestURI());
 			byte[] response;
-			if (isReady()) {
+
+			boolean ready = isReady();
+			if (stateReady.set(ready, DELAY_IN_SECONDS, TimeUnit.SECONDS)) {
 				response = "OK\n".getBytes();
 				exchange.sendResponseHeaders(200, response.length);
 			} else {
@@ -297,12 +445,24 @@ public class JdkK8sMonitorService {
 			LOGGER.info("request: {} {}", exchange.getRequestMethod(), exchange.getRequestURI());
 			exchange.sendResponseHeaders(200, 0);
 			try (OutputStream out = exchange.getResponseBody()) {
+				boolean ready = isReady();
+				for (CoapServer server : coapServers) {
+					server.stop();
+				}
+				if (ready) {
+					stateReady.set(ready, 0, TimeUnit.SECONDS);
+				}
 				int count = ServersSerializationUtil.saveServers(out, maxQuietPeriodInSeconds, coapServers);
 				LOGGER.info("response: {} connections", count);
 			} catch (IOException e) {
 				LOGGER.warn("write response to {} failed!", exchange.getRemoteAddress(), e);
 			} finally {
-				stopped.set(true);
+				long delay = stateReady.left(TimeUnit.NANOSECONDS);
+				if (delay < 0) {
+					stateAlive.set(false, DELAY_IN_SECONDS, TimeUnit.SECONDS);
+				} else {
+					stateAlive.set(false, delay, TimeUnit.NANOSECONDS);
+				}
 			}
 		}
 	}
@@ -313,8 +473,8 @@ public class JdkK8sMonitorService {
 		public void handle(HttpExchange exchange) throws IOException {
 			LOGGER.info("request: {} {}", exchange.getRequestMethod(), exchange.getRequestURI());
 			byte[] response;
-			if (stopped.get()) {
-				response = "SHUTDOWN\n".getBytes();
+			if (!stateAlive.get()) {
+				response = "STOPPED\n".getBytes();
 				exchange.sendResponseHeaders(503, response.length);
 			} else {
 				response = "OK\n".getBytes();

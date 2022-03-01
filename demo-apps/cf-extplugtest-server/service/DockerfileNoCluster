@@ -1,5 +1,5 @@
 #/*******************************************************************************
-# * Copyright (c) 2020 Bosch.IO GmbH and others.
+# * Copyright (c) 2022 Bosch.IO GmbH and others.
 # * 
 # * All rights reserved. This program and the accompanying materials
 # * are made available under the terms of the Eclipse Public License v2.0
@@ -12,9 +12,10 @@
 # * 
 # * Contributors:
 # *    Achim Kraus (Bosch.IO GmbH) - initial script
+# *                                  derived from Dockerfile 
 # ******************************************************************************/
 #
-# usage: docker build . -t <tag> service/Dockerfile
+# usage: docker build . -t <tag> service/DockerfileNoCluster
 
 FROM eclipse-temurin:17.0.2_8-jre
 
@@ -35,4 +36,4 @@ EXPOSE 5884/tcp
 EXPOSE 8080/tcp
 
 WORKDIR /opt/app
-CMD ["java", "-XX:+UseZGC", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=80", "-jar", "./cf-extplugtest-server.jar", "--no-loopback", "--no-tcp", "--no-plugtest", "--benchmark", "--diagnose", "--k8s-dtls-cluster", ":5784;:5884;5884", "--k8s-monitor", ":8080", "--k8s-restore", ":5884"]
+CMD ["java", "-XX:+UseZGC", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=80", "-jar", "./cf-extplugtest-server.jar", "--no-loopback", "--no-tcp", "--no-plugtest", "--benchmark", "--diagnose", "--k8s-monitor", ":8080", "--k8s-restore", ":5884"]

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2020 Bosch.IO GmbH and others.
+ * Copyright (c) 2022 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -21,22 +21,28 @@ import java.security.GeneralSecurityException;
 import javax.net.ssl.SSLContext;
 
 /**
- * K8s discover implementation using the jdk http-client.
+ * K8s management client.
+ *
+ * Uses k8s management API to list cluster-pods:
  * 
- * @since 2.5
+ * <ul>
+ * <li>{@code "${KUBECTL_HOST}/api/v1/namespaces/default/pods"}</li>
+ * <li>{@code "${KUBECTL_HOST}/api/v1/namespaces/${KUBECTL_NAMESPACE}/pods}"</li>
+ * <li>{@code "${KUBECTL_HOST}/api/v1/namespaces/${KUBECTL_NAMESPACE}/pods?labelSelector=app%3D${pod.label}"}</li>
+ * </ul>
+ * 
+ * @since 3.4
  */
-public class K8sManagementDiscoverJdkClient extends K8sManagementDiscoverClient {
+public class K8sManagementJdkClient extends K8sManagementClient {
 
 	/**
-	 * Create k8s discover client.
+	 * Create k8s management client.
 	 * 
-	 * @param externalPort external/exposed port for cluster internal management
-	 *            interfaces.
 	 * @throws GeneralSecurityException if initializing ssl context fails
 	 * @throws IOException if loading trust store fails
 	 */
-	public K8sManagementDiscoverJdkClient(int externalPort) throws GeneralSecurityException, IOException {
-		super(externalPort);
+	public K8sManagementJdkClient() throws GeneralSecurityException, IOException {
+		super();
 	}
 
 	@Override

@@ -18,12 +18,16 @@ package org.eclipse.californium.core.server;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -41,6 +45,15 @@ import org.slf4j.LoggerFactory;
  * 
  * Note: the stream will contain not encrypted critical credentials. It is
  * required to protect this data before exporting it.
+ * 
+ * Note: the local address is used to identify the connection. If the servers
+ * are restarted on the same host, that also works, if the server uses
+ * connectors on each network interface in order to overcome some IPv6 issues of
+ * ambiguous outgoing addresses (see
+ * <a href="https://github.com/eclipse/californium/issues/315" target=
+ * "_blank">Source IP address for response returned by a COAP server created with
+ * wildcard IP address</a>). If the server runs on a virtualized environment,
+ * that fails. Currently you need to use the wildcard address as local address.
  * 
  * @since 3.0
  */
@@ -189,6 +202,7 @@ public class ServersSerializationUtil {
 	public static int loadServers(InputStream in, List<CoapServer> servers) {
 		int count = 0;
 		long time = System.nanoTime();
+		List<CoapServer.ConnectorIdentifier> failed = new ArrayList<>();
 		try {
 			DataStreamReader reader = new DataStreamReader(in);
 			long delta = SerializationUtil.readNanotimeSynchronizationMark(reader);
@@ -208,20 +222,45 @@ public class ServersSerializationUtil {
 				}
 				if (foundTag) {
 					if (loaded < 0) {
-						LOGGER.warn("{}loading {} failed, no connector in {} servers!", id.tag, id.uri, servers.size());
-						SerializationUtil.skipItems(in, Short.SIZE);
+						int skip = SerializationUtil.skipItems(new DataStreamReader(in), Short.SIZE);
+						LOGGER.warn("{}loading {} failed, {} connections skipped, no connector in {} servers!", id.tag,
+								id.uri, skip, servers.size());
+						failed.add(id);
 					} else {
 						LOGGER.info("{}loading {}, {} connections, {} servers.", id.tag, id.uri, loaded,
 								servers.size());
 					}
 				} else {
-					SerializationUtil.skipItems(in, Short.SIZE);
+					int skip = SerializationUtil.skipItems(new DataStreamReader(in), Short.SIZE);
+					LOGGER.warn("{}loading {} failed, {} connections skipped, no server in {} servers!", id.tag, id.uri,
+							skip, servers.size());
+					failed.add(id);
 				}
 			}
 		} catch (IllegalArgumentException e) {
 			LOGGER.warn("loading failed:", e);
 		} catch (IOException e) {
 			LOGGER.warn("loading failed:", e);
+		}
+		if (!failed.isEmpty()) {
+			LOGGER.warn("Loading failures:");
+			for (int index = 0; index < failed.size(); ++index) {
+				LOGGER.warn("[CON {}] {}", index, failed.get(index));
+			}
+			int index2 = 0;
+			for (CoapServer server : servers) {
+				List<Endpoint> endpoints = server.getEndpoints();
+				for (Endpoint endpoint : endpoints) {
+					if (endpoint instanceof CoapEndpoint) {
+						Connector connector = ((CoapEndpoint) endpoint).getConnector();
+						if (connector instanceof PersistentConnector) {
+							LOGGER.warn("[SRV {}] {}{}", index2, server.getTag(),
+									endpoint.getUri().toASCIIString());
+							++index2;
+						}
+					}
+				}
+			}
 		}
 		time = System.nanoTime() - time;
 		LOGGER.info("load: {} ms, {} connections", TimeUnit.NANOSECONDS.toMillis(time), count);

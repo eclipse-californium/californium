@@ -1,5 +1,5 @@
 #/*******************************************************************************
-# * Copyright (c) 2021 Bosch.IO GmbH and others.
+# * Copyright (c) 2022 Bosch.IO GmbH and others.
 # * 
 # * All rights reserved. This program and the accompanying materials
 # * are made available under the terms of the Eclipse Public License v2.0
@@ -11,32 +11,42 @@
 # *    http://www.eclipse.org/org/documents/edl-v10.html.
 # * 
 # * Contributors:
-# *    Achim Kraus (Bosch.IO GmbH) - initial script
-# *                                  create a statefulset 
+# *    Achim Kraus (Bosch.IO GmbH) - initial definition
+# *                                  create a deployment for a single server
 # ******************************************************************************/
 #
-# Note: the image of the container is applied later with 
-# ... patch statefulset cf-extserver-b --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"'${REGISTRY}/${CONTAINER}'"}]'
-# On update0, the current number of replicas and initialDtlsClusterNodes is also applied after creating the statefulset and before applying the image. 
+# Note: the image of the container is applied later with
+# ... set image deployment cf-extserver-a cf-extserver="${REGISTRY}/${CONTAINER}@${SHA256}"
+#
+# This only intended for demonstrating the dtls graceful restart using
+# the current local build!
+#
+# Common deployments will start with a valid image.
+#
+# An update is applied with the following steps:
+# - ensure current pod is ready, otherwise exit
+# - label the current pod with restore=true,
+#      kubectl ... label pods restore=true -l app=cf-extserver
+# - set new image
+#      kubectl ... set image deployment cf-extserver-a cf-extserver="${REGISTRY}/${CONTAINER}@${SHA256}"
+# 
 
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
-  name: cf-extserver-b
+  name: cf-extserver-a
   labels:
     app: cf-extserver
 spec:
-  replicas: 2
-  podManagementPolicy: "Parallel"
+  replicas: 1
   selector:
     matchLabels:
       app: cf-extserver
-  serviceName: "cf-extserver"
   template:
     metadata:
       labels:
         app: cf-extserver
-        initialDtlsClusterNodes: "2"
+        initialDtlsClusterNodes: "1"
     spec:
       topologySpreadConstraints:
       - maxSkew: 1
@@ -49,10 +59,17 @@ spec:
       - name: regcred
       containers:
       - name: cf-extserver
+        # dummy, overwritten in the next installation step, just for testing!
+        image: DUMMY@sha256:1111111111111111111111111111111111111111111111111111111111111111
         volumeMounts:
         - name: cf-extserver-config-files
           mountPath: "/etc/certs"
           readOnly: true
+        resources:
+          limits:
+            cpu: 3500m
+          requests:
+            cpu: 500m
         env:
         - name: KUBECTL_TOKEN
           valueFrom:
@@ -72,35 +89,11 @@ spec:
               name: cf-extserver-config
               key:  kubectl_namespace
               optional: true
-        - name: KUBECTL_SELECTOR
+        - name: KUBECTL_RESTORE_SELECTOR_LABEL
           valueFrom:
             secretKeyRef:
               name: cf-extserver-config
-              key:  kubectl_selector
-              optional: true
-        - name: KUBECTL_SELECTOR_LABEL
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  kubectl_selector_label
-              optional: true
-        - name: KUBECTL_NODE_ID
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  kubectl_node_id
-              optional: true
-        - name: DTLS_CID_MGMT_IDENTITY
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  dtls_cid_mgmt_identity
-              optional: true
-        - name: DTLS_CID_MGMT_SECRET_BASE64
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  dtls_cid_mgmt_secret_base64
+              key:  kubectl_restore_selector_label
               optional: true
         ports:
         - name: cf-coap2
@@ -129,3 +122,4 @@ spec:
       - name: cf-extserver-config-files
         secret:
           secretName: cf-extserver-config
+

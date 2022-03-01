@@ -33,8 +33,8 @@ fi
 # default local container registry of microk8s
 : "${REGISTRY:=localhost:32000}"
 
-# default microk8s kubectl
-: "${KUBECTL:=microk8s.kubectl}"
+# default kubectl, use "export KUBECTL=microk8s.kubectl" for microk8s
+: "${KUBECTL:=kubectl}"
 
 # default (microk8s) kubectl namespace cali
 : "${KUBECTL_NAMESPACE:=cali}"
@@ -52,6 +52,15 @@ fi
 
 # default k8s service yaml
 : "${K8S_SERVICE:=k8s.yaml}"
+
+# default k8s type
+: "${K8S_TYPE:=statefulset}"
+
+# default k8s component
+: "${K8S_COMPONENT:=k8s_${K8S_TYPE}}"
+
+# default dockerfile
+: "${DOCKERFILE:=service/Dockerfile}"
 
 CONTAINER=cf-extserver-jdk11-slim
 VERSION=3.4.0
@@ -80,7 +89,7 @@ echo "${BUILD_NUMBER}" > ${BUILD_FILE}
 echo "${BUILD_NUMBER}" > service/build
 
 # build container
-docker build . -t ${REGISTRY}/${CONTAINER_VERSION} -f service/Dockerfile
+docker build . -t ${REGISTRY}/${CONTAINER_VERSION} -f ${DOCKERFILE}
 
 # push to container registry
 docker push ${REGISTRY}/${CONTAINER_VERSION}
@@ -90,15 +99,30 @@ IMAGE_SHA="${REGISTRY}/${CONTAINER}@${SHA}"
 
 echo "Image: ${IMAGE_SHA}"
 
+count=`${KUBECTL} ${KUBECTL_CONTEXT} get nodes -o name | wc -l`
+echo "${count} nodes found"
+
+if [ "${K8S_TYPE}" = "statefulset" ] ; then
+  # default number of replicase
+  : "${K8S_REPLICAS:=${count}}"
+else
+  # default number of replicase
+  : "${K8S_REPLICAS:=1}"
+fi
+
+echo "Use ${K8S_REPLICAS} replicas"
+
 # get current replicas counter.
 # parameter: name of statefulset, e.g.
 #
 # get_count cf-extserver-a
 #
 get_count() {
-	count=$(${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} get statefulset $1 --output='jsonpath={.status.currentReplicas}' --ignore-not-found)
+	count=$(${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} get ${K8S_TYPE} $1 \
+		--output='jsonpath={.status.currentReplicas}' --ignore-not-found)
 	if [ "$count" = "" ]  ; then
-		return 0
+		# deployments doesn't have currentReplicas
+		return ${K8S_REPLICAS}
 	fi
 	if [ "$count" = "<none>" ]  ; then
 		return 0
@@ -112,7 +136,8 @@ get_count() {
 # get_ready cf-extserver-a
 #
 get_ready() {
-	ready=$(${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} get statefulset $1 --output='jsonpath={.status.readyReplicas}' --ignore-not-found)
+	ready=$(${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} get ${K8S_TYPE} $1 \
+		--output='jsonpath={.status.readyReplicas}' --ignore-not-found)
 	if [ "$ready" = "" ] ; then
 		return 0
 	fi
@@ -132,7 +157,7 @@ check_ready() {
 	count=$?
 	get_ready $1
 	ready=$?
-#	echo "$1 : ${ready} of ${count}"
+	echo "$1 : ${ready} of ${count}"
 	if [ $ready -eq $count ] && [ $count -gt 0 ] ; then
 		return 1
 	fi
@@ -140,11 +165,6 @@ check_ready() {
 }
 
 if [ "$1" = "install" ] ; then
-	count=`${KUBECTL} ${KUBECTL_CONTEXT} get nodes -o name | wc -l`
-	echo "$count nodes found"
-
-	# default k8s service yaml
-	: "${K8S_REPLICAS:=$count}"
 
 	echo "k8s svc: ${KUBECTL_SVC_HOST}"
 
@@ -156,13 +176,15 @@ if [ "$1" = "install" ] ; then
 	secret=$(cat /dev/urandom | head -c32 | base64)
 
 	# use empty token in order to read the token from the service account 
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} create secret generic cf-extserver-config \
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} create secret generic \
+	  cf-extserver-config \
 	  --from-file=https_client_cert.pem="service/client.pem" \
 	  --from-file=https_client_trust.pem="service/caTrustStore.pem" \
 	  --from-file=https_server_cert.pem="service/server.pem" \
 	  --from-file=https_server_trust.pem="service/caTrustStore.pem" \
 	  --from-literal=kubectl_host="${KUBECTL_SVC_HOST}" \
 	  --from-literal=kubectl_token="" \
+	  --from-literal=kubectl_restore_selector_label="app" \
 	  --from-literal=kubectl_selector_label="controller-revision-hash" \
 	  --from-literal=dtls_cid_mgmt_identity="cid-cluster-manager" \
 	  --from-literal=dtls_cid_mgmt_secret_base64="${secret}"
@@ -176,12 +198,25 @@ if [ "$1" = "install" ] ; then
 	# deploy
 	# create role and binding in order to grant access for the service account to list and read pods  
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/k8s_rbac.yaml
-	# create statefulset
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/k8sa.yaml
-	# apply the current number of replicas
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch statefulset cf-extserver-a --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value":'${K8S_REPLICAS}'}, {"op": "replace", "path": "/spec/template/metadata/labels/initialDtlsClusterNodes", "value":"'${K8S_REPLICAS}'"}]'
+
+	if [ -s "service/k8s_limits.yaml" ] ; then
+		# create default resource limits
+		${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/k8s_limits.yaml
+	fi
+
+	if [ "${K8S_TYPE}" = "statefulset" ] ; then
+	  # create statefulset
+	  ${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/${K8S_COMPONENT}_a.yaml
+	  # apply the current number of replicas
+	  ${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch ${K8S_TYPE} cf-extserver-a --type='json' \
+		-p='[{"op": "replace", "path": "/spec/replicas", "value":'${K8S_REPLICAS}'}, {"op": "replace", "path": "/spec/template/metadata/labels/initialDtlsClusterNodes", "value":"'${K8S_REPLICAS}'"}]'
+	else
+	  # create deployment
+	  ${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/${K8S_COMPONENT}.yaml
+	fi
 	# apply the image
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch statefulset cf-extserver-a --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"'${IMAGE_SHA}'"}]'
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} set image ${K8S_TYPE} cf-extserver-a cf-extserver="${IMAGE_SHA}"
+
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/${K8S_SERVICE}
 	echo "installed"
 
@@ -204,12 +239,12 @@ if [ "$1" = "install" ] ; then
 elif [ "$1" = "update" ] ; then
 
 	# update the image
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch statefulset cf-extserver-a --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"'${IMAGE_SHA}'"}]'
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} set image ${K8S_TYPE} cf-extserver-a cf-extserver="${IMAGE_SHA}"
 
 	echo "updated"
 
-elif [ "$1" = "update0" ] ; then
-
+elif [ "$1" = "update0" ] && [ "${K8S_TYPE}" = "statefulset" ] ; then
+	# green/blue for statefulset
 	old_deployment=a
 	new_deployment=b
 	# check, if a is ready
@@ -232,16 +267,17 @@ elif [ "$1" = "update0" ] ; then
 
 	# updateb
 	# remove statefulset, if left over 
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} delete --ignore-not-found statefulset cf-extserver-${new_deployment}
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} delete --ignore-not-found ${K8S_TYPE} cf-extserver-${new_deployment}
 	# label old set
 	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} label pods restore=true -l app=cf-extserver
 	# create new statefulset
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/k8s${new_deployment}.yaml
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} apply -f service/${K8S_COMPONENT}_${new_deployment}.yaml
 	# apply the current number of replicas
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch statefulset cf-extserver-${new_deployment} --type='json' -p='[{"op": "replace", "path": "/spec/replicas", "value":'${count}'}, {"op": "replace", "path": "/spec/template/metadata/labels/initialDtlsClusterNodes", "value":"'${count}'"}]'
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch ${K8S_TYPE} cf-extserver-${new_deployment} --type='json' \
+		-p='[{"op": "replace", "path": "/spec/replicas", "value":'${count}'}, {"op": "replace", "path": "/spec/template/metadata/labels/initialDtlsClusterNodes", "value":"'${count}'"}]'
 
 	# apply the image
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} patch statefulset cf-extserver-${new_deployment} --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"'${IMAGE_SHA}'"}]'
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} set image ${K8S_TYPE} cf-extserver-${new_deployment} cf-extserver="${IMAGE_SHA}"
 
 	start=$(date +%s)
 	elapse=0
@@ -266,11 +302,28 @@ elif [ "$1" = "update0" ] ; then
 	echo " ${elapse} secs. ${old_deployment} reports ${old_ready}, ${new_deployment} reports ${new_ready} of ${count} ready."
 
 	# remove the old statefulset 
-	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} delete statefulset cf-extserver-${old_deployment}
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} delete ${K8S_TYPE} cf-extserver-${old_deployment}
 
 	elapse=$(($(date +%s) - $start))
 
 	echo " ${elapse} secs. ${new_deployment} updated. $(date)"
+
+elif [ "$1" = "update0" ] ; then
+	# green/blue for deployments
+
+	# check, if current deployment is ready
+	check_ready cf-extserver-a
+	if [ $? -ne 1 ] ; then
+		echo "current deployment doesn't report ready, ... cancel update"
+		exit 1
+	fi
+
+	echo "current deployment reports ready, start update"
+
+	# label old pod
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} label pods restore=true -l app=cf-extserver
+
+	${KUBECTL} ${KUBECTL_CONTEXT} -n ${KUBECTL_NAMESPACE} set image ${K8S_TYPE} cf-extserver-a cf-extserver="${IMAGE_SHA}"
 
 fi
 

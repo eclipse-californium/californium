@@ -165,8 +165,6 @@ public class CoapServer implements ServerInterface {
 	 * server starts and has no specific ports assigned, it will bind to CoAP's
 	 * port configured in the default configuration with
 	 * {@link CoapConfig#COAP_PORT}, default {@code 5683}.
-	 * 
-	 * The number of threads 
 	 */
 	public CoapServer() {
 		this(Configuration.getStandard());
@@ -648,8 +646,19 @@ public class CoapServer implements ServerInterface {
 	 */
 	public int loadConnector(ConnectorIdentifier identifier, InputStream in, long delta) throws IOException {
 		Endpoint endpoint = getEndpoint(identifier.uri);
+		if (endpoint == null && identifier.wildcard != null) {
+			// Seems, that ipv4 wildcards are not equal to ipv6 wildcards.
+			// And a wildcard may be changed into the other ip version when
+			// starting the connector
+			for (Endpoint ep : endpoints) {
+				if (identifier.matchWildcard(ep.getUri())) {
+					endpoint = ep;
+					break;
+				}
+			}
+		}
 		if (endpoint == null) {
-			LOGGER.warn("{}connector {} not available!", getTag(), identifier.uri);
+			LOGGER.warn("{}connector {} not available!", getTag(), identifier.uri.toASCIIString());
 			return -1;
 		}
 		PersistentConnector persistentConnector = null;
@@ -667,7 +676,7 @@ public class CoapServer implements ServerInterface {
 				return 0;
 			}
 		} else {
-			LOGGER.warn("{}connector {} doesn't support persistence!", getTag(), identifier.uri);
+			LOGGER.warn("{}connector {} doesn't support persistence!", getTag(), identifier.uri.toASCIIString());
 		}
 		return -1;
 	}
@@ -758,10 +767,38 @@ public class CoapServer implements ServerInterface {
 		 * Connectors URI.
 		 */
 		public final URI uri;
+		/**
+		 * IPv4/IPv6 wildcard address.
+		 */
+		public final String wildcard;
 
 		private ConnectorIdentifier(String tag, URI uri) {
 			this.tag = tag;
 			this.uri = uri;
+			String local = uri.getHost();
+			if (local.equals("0.0.0.0")) {
+				wildcard = "[0:0:0:0:0:0:0:0]";
+			} else if (local.equals("[0:0:0:0:0:0:0:0]")) {
+				wildcard = "0.0.0.0";
+			} else {
+				wildcard = null;
+			}
+		}
+
+		private boolean matchWildcard(URI uri) {
+			if (wildcard != null) {
+				if (this.uri.getScheme().equalsIgnoreCase(uri.getScheme()) && this.uri.getPort() == uri.getPort()) {
+					if (wildcard.equalsIgnoreCase(uri.getHost())) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		@Override
+		public String toString() {
+			return tag + uri.toASCIIString();
 		}
 	}
 }

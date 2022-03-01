@@ -1,0 +1,138 @@
+#/*******************************************************************************
+# * Copyright (c) 2021 Bosch.IO GmbH and others.
+# * 
+# * All rights reserved. This program and the accompanying materials
+# * are made available under the terms of the Eclipse Public License v2.0
+# * and Eclipse Distribution License v1.0 which accompany this distribution.
+# * 
+# * The Eclipse Public License is available at
+# *    http://www.eclipse.org/legal/epl-v20.html
+# * and the Eclipse Distribution License is available at
+# *    http://www.eclipse.org/org/documents/edl-v10.html.
+# * 
+# * Contributors:
+# *    Achim Kraus (Bosch.IO GmbH) - initial definition
+# *                                  create a statefulset for cluster
+# ******************************************************************************/
+#
+# Note: the image of the container is applied later with
+# ... set image deployment cf-extserver-a cf-extserver="${REGISTRY}/${CONTAINER}@${SHA256}"
+#
+# This only intended for demonstrating the dtls graceful restart using
+# the current local build!
+#
+# Common deployments will start with a valid image.
+#
+# On update0, the current number of replicas and initialDtlsClusterNodes is also applied after
+# creating the statefulset and before applying the image.
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cf-extserver-a
+  labels:
+    app: cf-extserver
+spec:
+  replicas: 2
+  podManagementPolicy: "Parallel"
+  selector:
+    matchLabels:
+      app: cf-extserver
+  serviceName: "cf-extserver"
+  template:
+    metadata:
+      labels:
+        app: cf-extserver
+        initialDtlsClusterNodes: "2"
+    spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: cf-extserver
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: cf-extserver
+        volumeMounts:
+        - name: cf-extserver-config-files
+          mountPath: "/etc/certs"
+          readOnly: true
+        env:
+        - name: KUBECTL_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cf-extserver-config
+              key:  kubectl_token
+              optional: true
+        - name: KUBECTL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: cf-extserver-config
+              key:  kubectl_host
+              optional: true
+        - name: KUBECTL_NAMESPACE
+          valueFrom:
+            secretKeyRef:
+              name: cf-extserver-config
+              key:  kubectl_namespace
+              optional: true
+        - name: KUBECTL_SELECTOR
+          valueFrom:
+            secretKeyRef:
+              name: cf-extserver-config
+              key:  kubectl_selector
+              optional: true
+        - name: KUBECTL_SELECTOR_LABEL
+          valueFrom:
+            secretKeyRef:
+              name: cf-extserver-config
+              key:  kubectl_selector_label
+              optional: true
+        - name: KUBECTL_NODE_ID
+          valueFrom:
+            secretKeyRef:
+              name: cf-extserver-config
+              key:  kubectl_node_id
+              optional: true
+        - name: DTLS_CID_MGMT_IDENTITY
+          valueFrom:
+            secretKeyRef:
+              name: cf-extserver-config
+              key:  dtls_cid_mgmt_identity
+              optional: true
+        - name: DTLS_CID_MGMT_SECRET_BASE64
+          valueFrom:
+            secretKeyRef:
+              name: cf-extserver-config
+              key:  dtls_cid_mgmt_secret_base64
+              optional: true
+        ports:
+        - name: cf-coap2
+          containerPort: 5783
+          protocol: UDP
+        - name: cf-coaps2
+          containerPort: 5784
+          protocol: UDP
+        - name: cf-coaps-mgmt
+          containerPort: 5884
+          protocol: UDP
+        - name: cf-http-monitor
+          containerPort: 8080
+          protocol: TCP
+        - name: cf-https-mgmt
+          containerPort: 5884
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: cf-http-monitor
+          initialDelaySeconds: 3
+          periodSeconds: 1
+          timeoutSeconds: 2
+      volumes:
+      - name: cf-extserver-config-files
+        secret:
+          secretName: cf-extserver-config

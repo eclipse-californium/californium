@@ -104,7 +104,7 @@ public class CredentialsUtil {
 	/**
 	 * Create ssl context for cluster internal https clients.
 	 * 
-	 * {@link RestoreHttpClient} disables hostname verification. Use with care!
+	 * {@link RestoreJdkHttpClient} disables hostname verification. Use with care!
 	 * This usually requires, that no public trust root is used!
 	 * 
 	 * @return ssl context for cluster internal https clients.
@@ -124,7 +124,7 @@ public class CredentialsUtil {
 	/**
 	 * Create ssl context for cluster internal https server.
 	 * 
-	 * Though the {@link RestoreHttpClient} disables hostname verification, use
+	 * Though the {@link RestoreJdkHttpClient} disables hostname verification, use
 	 * with care! This usually requires, that no public trust root is used!
 	 * 
 	 * @return ssl context for cluster internal https server.
