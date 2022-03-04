@@ -13,7 +13,7 @@ For more details, please look at https://www.eclipse.org/security/.
 | Version | Supported          |
 | ------- | ------------------ |
 | 3.4.0-SNAPSHOT (master) | :heavy_check_mark: |
-| 3.3.0   | :heavy_check_mark: |
+| 3.3.1   | :heavy_check_mark: |
 | 3.2.0   | :question: |
 | 3.1.0   | :question: |
 | 3.0.0   | :question: |
