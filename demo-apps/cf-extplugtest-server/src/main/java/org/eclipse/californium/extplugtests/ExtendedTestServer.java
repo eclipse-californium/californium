@@ -20,12 +20,6 @@
 package org.eclipse.californium.extplugtests;
 
 import java.io.File;
-import java.lang.management.GarbageCollectorMXBean;
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.MemoryUsage;
-import java.lang.management.OperatingSystemMXBean;
-import java.lang.management.ThreadMXBean;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
@@ -45,8 +39,8 @@ import org.eclipse.californium.cluster.CredentialsUtil;
 import org.eclipse.californium.cluster.DtlsClusterManager;
 import org.eclipse.californium.cluster.DtlsClusterManager.ClusterNodesDiscover;
 import org.eclipse.californium.cluster.JdkMonitorService;
-import org.eclipse.californium.cluster.K8sManagementClient;
 import org.eclipse.californium.cluster.K8sDiscoverClient;
+import org.eclipse.californium.cluster.K8sManagementClient;
 import org.eclipse.californium.cluster.K8sManagementJdkClient;
 import org.eclipse.californium.cluster.K8sRestoreJdkHttpClient;
 import org.eclipse.californium.cluster.Readiness;
@@ -314,7 +308,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			System.exit(-1);
 		}
 		STATISTIC_LOGGER.error("start!");
-		startManagamentStatistic();
+		ManagementStatistic management = new ManagementStatistic(STATISTIC_LOGGER);
 		try {
 			K8sManagementClient k8sClient = null;
 			K8sDiscoverClient k8sGroup = null;
@@ -598,25 +592,21 @@ public class ExtendedTestServer extends AbstractTestServer {
 					if (PlugtestServer.console(reader, inputTimeout)) {
 						break;
 					}
-					long used = runtime.totalMemory() - runtime.freeMemory();
-					int fill = (int) ((used * 100L) / max);
-					if (fill > 80) {
-						LOGGER.info("Maxium heap size: {}M  {}% used.", max / (1024 * 1024), fill);
-						LOGGER.info("Heap may exceed! Enlarge the maxium heap size.");
-						LOGGER.info("Or consider to reduce the value of " + CoapConfig.EXCHANGE_LIFETIME);
-						LOGGER.info("in \"{}\" or set", CONFIG_FILE);
-						LOGGER.info("{} to {} or", CoapConfig.DEDUPLICATOR, CoapConfig.NO_DEDUPLICATOR);
-						LOGGER.info("{} in that file.", CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES);
-					}
-					long gcCount = 0;
-					for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
-						long count = gcMXBean.getCollectionCount();
-						if (0 < count) {
-							gcCount += count;
+					if (management.useWarningMemoryUsage()) {
+						long used = runtime.totalMemory() - runtime.freeMemory();
+						int fill = (int) ((used * 100L) / max);
+						if (fill > 80) {
+							LOGGER.info("Maxium heap size: {}M  {}% used.", max / MEGA, fill);
+							LOGGER.info("Heap may exceed! Enlarge the maxium heap size.");
+							LOGGER.info("Or consider to reduce the value of " + CoapConfig.EXCHANGE_LIFETIME);
+							LOGGER.info("in \"{}\" or set", CONFIG_FILE);
+							LOGGER.info("{} to {} or", CoapConfig.DEDUPLICATOR, CoapConfig.NO_DEDUPLICATOR);
+							LOGGER.info("{} in that file.", CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES);
 						}
 					}
+					long gcCount = management.getCollectionCount();
 					if (lastGcCount < gcCount) {
-						printManagamentStatistic();
+						management.printManagementStatistic();
 						lastGcCount = gcCount;
 						long clones = DatagramWriter.COPIES.get();
 						long takes = DatagramWriter.TAKES.get();
@@ -645,74 +635,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 			e.printStackTrace(System.err);
 			System.err.println("Exiting");
 			System.exit(PlugtestServer.ERR_INIT_FAILED);
-		}
-	}
-
-	private static void startManagamentStatistic() {
-		ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
-		if (mxBean.isThreadCpuTimeSupported() && !mxBean.isThreadCpuTimeEnabled()) {
-			mxBean.setThreadCpuTimeEnabled(true);
-		}
-	}
-
-	private static void printManagamentStatistic() {
-		OperatingSystemMXBean osMxBean = ManagementFactory.getOperatingSystemMXBean();
-		int processors = osMxBean.getAvailableProcessors();
-		Logger logger = STATISTIC_LOGGER;
-		logger.info("{} processors", processors);
-		ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
-		if (threadMxBean.isThreadCpuTimeSupported() && threadMxBean.isThreadCpuTimeEnabled()) {
-			long alltime = 0;
-			long[] ids = threadMxBean.getAllThreadIds();
-			for (long id : ids) {
-				long time = threadMxBean.getThreadCpuTime(id);
-				if (0 < time) {
-					alltime += time;
-				}
-			}
-			long pTime = alltime / processors;
-			logger.info("cpu-time: {} ms (per-processor: {} ms)", TimeUnit.NANOSECONDS.toMillis(alltime),
-					TimeUnit.NANOSECONDS.toMillis(pTime));
-		}
-		long gcCount = 0;
-		long gcTime = 0;
-		for (GarbageCollectorMXBean gcMxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
-			long count = gcMxBean.getCollectionCount();
-			if (0 < count) {
-				gcCount += count;
-			}
-			long time = gcMxBean.getCollectionTime();
-			if (0 < time) {
-				gcTime += time;
-			}
-		}
-		logger.info("gc: {} ms, {} calls", gcTime, gcCount);
-		MemoryMXBean memoryMxBean = ManagementFactory.getMemoryMXBean();
-		printMemoryUsage(logger, "heap", memoryMxBean.getHeapMemoryUsage());
-		printMemoryUsage(logger, "non-heap", memoryMxBean.getNonHeapMemoryUsage());
-		double loadAverage = osMxBean.getSystemLoadAverage();
-		if (!(loadAverage < 0.0d)) {
-			logger.info("average load: {}", String.format("%.2f", loadAverage));
-		}
-	}
-
-	private static void printMemoryUsage(Logger logger, String title, MemoryUsage memoryUsage) {
-		long max = memoryUsage.getMax();
-		if (max > 0) {
-			if (max > MEGA) {
-				logger.info("{}: {} m-bytes used of {}/{}.", title, memoryUsage.getUsed() / MEGA,
-						memoryUsage.getCommitted() / MEGA, max / MEGA);
-			} else {
-				logger.info("{}: {} bytes used of {}/{}.", title, memoryUsage.getUsed(), memoryUsage.getCommitted(),
-						max);
-			}
-			return;
-		}
-		max = memoryUsage.getCommitted();
-		if (max > MEGA) {
-			logger.info("{}: {} m-bytes used of {}.", title, memoryUsage.getUsed() / MEGA, max / MEGA);
-		} else {
-			logger.info("{}: {} bytes used of {}.", title, memoryUsage.getUsed(), max);
 		}
 	}
 
