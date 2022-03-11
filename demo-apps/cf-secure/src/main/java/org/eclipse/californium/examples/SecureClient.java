@@ -133,6 +133,8 @@ public class SecureClient {
 			builder.setAdvancedPskStore(new AdvancedSinglePskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
 		}
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.CLIENT_NAME, modes);
+		// uncomment next line to load pem file for the example
+		// CredentialsUtil.loadCredentials(builder, "client.pem");
 		DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
 		SecureClient client = new SecureClient(dtlsConnector, configuration);
