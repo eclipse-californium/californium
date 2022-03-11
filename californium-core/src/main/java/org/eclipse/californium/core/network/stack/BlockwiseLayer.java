@@ -644,9 +644,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private void sendBlock1ErrorResponse(Block1BlockwiseStatus status, Exchange exchange, Request request,
 			ResponseCode errorCode, String message) {
 
-		BlockOption block1 = request.getOptions().getBlock1();
 		Response error = Response.createResponse(request, errorCode);
-		error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
 		error.setPayload(message);
 		clearBlock1Status(status);
 		lower().sendResponse(exchange, error);
