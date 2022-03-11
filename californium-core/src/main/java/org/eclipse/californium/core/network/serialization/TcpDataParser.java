@@ -33,9 +33,29 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 /**
  * A parser for messages encoded following the encoding defined by the
- * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-03" target="_blank">CoAP-over-TCP draft</a>.
+ * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-03" target=
+ * "_blank">CoAP-over-TCP draft</a>.
  */
 public final class TcpDataParser extends DataParser {
+
+	/**
+	 * Create TCP data parser without checking for critical custom options.
+	 */
+	public TcpDataParser() {
+		super();
+	}
+
+	/**
+	 * Create TCP data parser with support for critical custom options.
+	 * 
+	 * @param criticalCustomOptions Array of critical custom options.
+	 *            {@code null}, to not check for critical custom options, empty
+	 *            to fail on custom critical options.
+	 * @since 3.4
+	 */
+	public TcpDataParser(int[] criticalCustomOptions) {
+		super(criticalCustomOptions);
+	}
 
 	@Override
 	protected MessageHeader parseHeader(final DatagramReader reader) {
@@ -61,8 +81,8 @@ public final class TcpDataParser extends DataParser {
 		}
 		int size = lengthSize + 1 + tokenLength;
 		if (!reader.bytesAvailable(size)) {
-			throw new MessageFormatException(
-					"TCP Message too short! " + (reader.bitsLeft() / Byte.SIZE) + " must be at least " + size + " bytes!");
+			throw new MessageFormatException("TCP Message too short! " + (reader.bitsLeft() / Byte.SIZE)
+					+ " must be at least " + size + " bytes!");
 		}
 		reader.readBytes(lengthSize);
 		int code = reader.read(CODE_BITS);

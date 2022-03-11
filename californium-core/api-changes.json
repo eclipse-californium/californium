@@ -11,5 +11,24 @@
 				}
 			]
 		}
-	}
+	},
+	"3.4.0": [
+		{
+			"extension": "revapi.differences",
+			"configuration": {
+				"ignore": true,
+				"differences": [
+					{
+						"code": "java.method.visibilityReduced",
+						"old": "method void org.eclipse.californium.core.network.serialization.DataParser::<init>()",
+						"new": "method void org.eclipse.californium.core.network.serialization.DataParser::<init>()",
+						"oldVisibility": "public",
+						"newVisibility": "protected",
+						"justification": "abstract class, init is only intended to be called from subclasses"
+					}
+				]
+			}
+		}
+	]
+	
 }

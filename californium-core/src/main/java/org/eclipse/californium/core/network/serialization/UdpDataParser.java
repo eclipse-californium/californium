@@ -38,6 +38,25 @@ import org.eclipse.californium.core.coap.BlockOption;
  */
 public final class UdpDataParser extends DataParser {
 
+	/**
+	 * Create UDP data parser without checking for critical custom options.
+	 */
+	public UdpDataParser() {
+		super();
+	}
+
+	/**
+	 * Create UDP data parser with support for critical custom options.
+	 * 
+	 * @param criticalCustomOptions Array of critical custom options.
+	 *            {@code null}, to not check for critical custom options, empty
+	 *            to fail on custom critical options.
+	 * @since 3.4
+	 */
+	public UdpDataParser(int[] criticalCustomOptions) {
+		super(criticalCustomOptions);
+	}
+
 	@Override
 	protected MessageHeader parseHeader(final DatagramReader reader) {
 		if (!reader.bytesAvailable(4)) {
