@@ -29,6 +29,7 @@ import javax.net.ssl.X509KeyManager;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -36,6 +37,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
@@ -136,10 +138,10 @@ public class CredentialsUtil {
 	/**
 	 * Setup connection id configuration.
 	 * 
-	 * Supports "CID:length" for using CID after the handshake, "CID+:length" to sue
-	 * a CID even during the handshake.
+	 * Supports "CID:length" for using CID after the handshake, "CID+:length" to
+	 * use a CID even during the handshake.
 	 * 
-	 * @param args    command line arguments
+	 * @param args command line arguments
 	 * @param builder dtls configuration builder.
 	 */
 	public static void setupCid(String[] args, DtlsConnectorConfig.Builder builder) {
@@ -170,9 +172,9 @@ public class CredentialsUtil {
 	/**
 	 * Parse arguments to modes.
 	 * 
-	 * @param args      arguments
-	 * @param defaults  default modes to use, if argument is empty or only contains
-	 *                  {@link Mode#NO_AUTH}.
+	 * @param args arguments
+	 * @param defaults default modes to use, if argument is empty or only
+	 *            contains {@link Mode#NO_AUTH}.
 	 * @param supported supported modes
 	 * @return array of modes.
 	 */
@@ -214,17 +216,17 @@ public class CredentialsUtil {
 	 * Setup credentials for DTLS connector.
 	 * 
 	 * If PSK is provided and no PskStore is already set for the builder, a
-	 * {@link AdvancedMultiPskStore} containing {@link #PSK_IDENTITY} assigned with
-	 * {@link #PSK_SECRET}, and {@link #OPEN_PSK_IDENTITY} assigned with
+	 * {@link AdvancedMultiPskStore} containing {@link #PSK_IDENTITY} assigned
+	 * with {@link #PSK_SECRET}, and {@link #OPEN_PSK_IDENTITY} assigned with
 	 * {@link #OPEN_PSK_SECRET} set. If PSK is provided with other mode(s) and
 	 * loading the certificates failed, this is just treated as warning and the
 	 * configuration is setup to use PSK only.
 	 * 
-	 * If RPK is provided, the certificates loaded for the provided alias and this
-	 * certificate is used as identity.
+	 * If RPK is provided, the certificates loaded for the provided alias and
+	 * this certificate is used as identity.
 	 * 
-	 * If X509 is provided, the trusts are also loaded an set additionally to the
-	 * credentials for the alias.
+	 * If X509 is provided, the trusts are also loaded an set additionally to
+	 * the credentials for the alias.
 	 * 
 	 * The Modes can be mixed. If RPK is before X509 in the list, RPK is set as
 	 * preferred.
@@ -237,14 +239,14 @@ public class CredentialsUtil {
 	 * PSK, X509, RPK setup for PSK, RPK and X509, prefer X509
 	 * </pre>
 	 * 
-	 * @param config           DTLS configuration builder. May be already
-	 *                         initialized with PskStore.
+	 * @param config DTLS configuration builder. May be already initialized with
+	 *            PskStore.
 	 * @param certificateAlias alias for certificate to load as credentials.
-	 * @param modes            list of supported mode. If a RPK is in the list
-	 *                         before X509, or RPK is provided but not X509, then
-	 *                         the RPK is setup as preferred.
-	 * @throws IllegalArgumentException if loading the certificates fails for some
-	 *                                  reason
+	 * @param modes list of supported mode. If a RPK is in the list before X509,
+	 *            or RPK is provided but not X509, then the RPK is setup as
+	 *            preferred.
+	 * @throws IllegalArgumentException if loading the certificates fails for
+	 *             some reason
 	 */
 	public static void setupCredentials(DtlsConnectorConfig.Builder config, String certificateAlias, List<Mode> modes) {
 
@@ -265,7 +267,6 @@ public class CredentialsUtil {
 		int x509 = modes.indexOf(Mode.X509);
 		int rpk = modes.indexOf(Mode.RPK);
 		boolean certificate = false;
-		;
 
 		if (noAuth) {
 			if (x509Trust) {
@@ -365,5 +366,29 @@ public class CredentialsUtil {
 			}
 		}
 		configuration.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, selectedCiphers);
+	}
+
+	/**
+	 * Load credentials from pem file.
+	 * 
+	 * Example to load x509 credentials from a pem file.
+	 * 
+	 * @param config dtls configuration to set the identity from the file
+	 * @param certificate file name
+	 * @since 3.4
+	 */
+	public static void loadCredentials(DtlsConnectorConfig.Builder config, String certificate) {
+		try {
+			Credentials credentials = SslContextUtil.loadCredentials(certificate);
+			SingleCertificateProvider identity = new SingleCertificateProvider(credentials.getPrivateKey(),
+					credentials.getCertificateChain(), CertificateType.X_509);
+			config.setCertificateIdentityProvider(identity);
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+			throw new IllegalArgumentException(e.getMessage());
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new IllegalArgumentException(e.getMessage());
+		}
 	}
 }
