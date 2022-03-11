@@ -568,12 +568,28 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private void sendBlock1ErrorResponse(KeyUri key, Block1BlockwiseStatus status, Exchange exchange, Request request,
+	/**
+	 * Send block1 error response.
+	 * 
+	 * Note: before version 2.7.1 a block1 option was used in the response.
+	 * According <a href="https://github.com/core-wg/corrclar/issues/21" target=
+	 * "_blank">CorrClar - RFC7959 - Block1 Option in Error Response 4.08
+	 * (Request Entity Incomplete)</a>, it seems to be not intended. If your
+	 * device requires that, you may override this method and respond with an
+	 * block1 option.
+	 * 
+	 * @param key URI key
+	 * @param status blockwise status
+	 * @param exchange exchange
+	 * @param request current request
+	 * @param errorCode error code for the error response
+	 * @param message textual message for the error response
+	 * @since 2.7.1 no block1 option is used in the response
+	 */
+	protected void sendBlock1ErrorResponse(KeyUri key, Block1BlockwiseStatus status, Exchange exchange, Request request,
 			ResponseCode errorCode, String message) {
 
-		BlockOption block1 = request.getOptions().getBlock1();
 		Response error = Response.createResponse(request, errorCode);
-		error.getOptions().setBlock1(block1.getSzx(), block1.isM(), block1.getNum());
 		error.setPayload(message);
 		clearBlock1Status(key, status);
 		exchange.setCurrentResponse(error);

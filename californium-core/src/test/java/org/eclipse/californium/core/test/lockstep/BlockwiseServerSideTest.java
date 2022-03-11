@@ -909,7 +909,7 @@ public class BlockwiseServerSideTest {
 		Token tok = generateNextToken();
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, true, 64).payload(reqtPayload.substring(2*64, 3*64)).go();
-		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).block1(2, true, 64).go();
+		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).go();
 	}
 
 	@Test
