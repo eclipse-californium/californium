@@ -372,10 +372,10 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
 	@SuppressWarnings("deprecation")
-	protected CoapEndpoint(Connector connector, Configuration config,
-			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
-			EndpointContextMatcher endpointContextMatcher, DataSerializer serializer, DataParser parser,
-			String loggingTag, CoapStackFactory coapStackFactory, Object customStackArgument) {
+	protected CoapEndpoint(Connector connector, Configuration config, TokenGenerator tokenGenerator,
+			ObservationStore store, MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher,
+			DataSerializer serializer, DataParser parser, String loggingTag, CoapStackFactory coapStackFactory,
+			Object customStackArgument) {
 		if (LOGGER_BAN.isInfoEnabled() && LOGGER_BAN_STARTED.compareAndSet(false, true)) {
 			LOGGER_BAN.info("Started.");
 		}
@@ -1403,6 +1403,17 @@ public class CoapEndpoint implements Endpoint, Executor {
 		 */
 		private DataParser parser;
 		/**
+		 * Array of critical custom options.
+		 * 
+		 * Only used, if {@link #parser} is not set with
+		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)}.
+		 * {@code null}, to not check for critical custom options, empty to fail
+		 * on critical custom options. Default empty.
+		 * 
+		 * @since 3.4
+		 */
+		private int[] criticalCustomOptions = new int[0];
+		/**
 		 * Logging tag.
 		 */
 		private String tag;
@@ -1605,6 +1616,8 @@ public class CoapEndpoint implements Endpoint, Executor {
 		/**
 		 * Set custom data serializer and parser.
 		 * 
+		 * Doesn't consider {@link #setCriticalCustomOptions(int[])}.
+		 * 
 		 * @param serializer custom data serializer
 		 * @param parser custom data parser
 		 * @return this
@@ -1613,6 +1626,27 @@ public class CoapEndpoint implements Endpoint, Executor {
 		public Builder setDataSerializerAndParser(DataSerializer serializer, DataParser parser) {
 			this.serializer = serializer;
 			this.parser = parser;
+			return this;
+		}
+
+		/**
+		 * Set critical custom options.
+		 * 
+		 * Only used, if {@link CoapEndpoint#parser} is not set with
+		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)}.
+		 * 
+		 * @param criticalCustomOptions Array of critical custom options.
+		 *            {@code null}, to not check for critical custom options,
+		 *            empty to fail on custom critical options. Default empty.
+		 * @return this
+		 * @since 3.4
+		 */
+		public Builder setCriticalCustomOptions(int[] criticalCustomOptions) {
+			if (criticalCustomOptions != null) {
+				this.criticalCustomOptions = criticalCustomOptions.clone();
+			} else {
+				this.criticalCustomOptions = null;
+			}
 			return this;
 		}
 
@@ -1676,9 +1710,15 @@ public class CoapEndpoint implements Endpoint, Executor {
 			if (coapStackFactory == null) {
 				coapStackFactory = getDefaultCoapStackFactory();
 			}
-			return new CoapEndpoint(connector, config, tokenGenerator, observationStore,
-					exchangeStore, endpointContextMatcher, serializer, parser, tag, coapStackFactory,
-					customStackArgument);
+			if (parser == null) {
+				if (CoAP.isTcpProtocol(connector.getProtocol())) {
+					parser = parser != null ? parser : new TcpDataParser(criticalCustomOptions);
+				} else {
+					parser = parser != null ? parser : new UdpDataParser(criticalCustomOptions);
+				}
+			}
+			return new CoapEndpoint(connector, config, tokenGenerator, observationStore, exchangeStore,
+					endpointContextMatcher, serializer, parser, tag, coapStackFactory, customStackArgument);
 		}
 	}
 

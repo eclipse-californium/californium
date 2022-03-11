@@ -26,18 +26,59 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
-import org.eclipse.californium.core.coap.*;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
+
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAPMessageFormatException;
+import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
-
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
 
 /**
  * A base class for parsing CoAP messages from a byte array.
  */
 public abstract class DataParser {
+
+	/**
+	 * Array of critical custom options.
+	 * 
+	 * {@code null}, to not check for critical custom options, empty to fail on
+	 * critical custom options.
+	 * 
+	 * @since 3.4
+	 */
+	private final int[] criticalCustomOptions;
+
+	/**
+	 * Create data parser without checking for critical custom options.
+	 */
+	protected DataParser() {
+		criticalCustomOptions = null;
+	}
+
+	/**
+	 * Create data parser with support for critical custom options.
+	 * 
+	 * @param criticalCustomOptions Array of critical custom options.
+	 *            {@code null}, to not check for critical custom options, empty
+	 *            to fail on custom critical options.
+	 * @since 3.4
+	 */
+	protected DataParser(int[] criticalCustomOptions) {
+		if (criticalCustomOptions != null) {
+			this.criticalCustomOptions = criticalCustomOptions.clone();
+		} else {
+			this.criticalCustomOptions = null;
+		}
+	}
 
 	/**
 	 * Parses and converts a incoming raw message into CoAP Message.
@@ -72,7 +113,8 @@ public abstract class DataParser {
 	 * 
 	 * @param msg the byte array to parse.
 	 * @return the message.
-	 * @throws MessageFormatException if the array cannot be parsed into a message.
+	 * @throws MessageFormatException if the array cannot be parsed into a
+	 *             message.
 	 */
 	public final Message parseMessage(final byte[] msg) {
 
@@ -100,7 +142,8 @@ public abstract class DataParser {
 			/** use message to add CoAP message specific information */
 			errorMsg = e.getMessage();
 		}
-		throw new CoAPMessageFormatException(errorMsg, header.getToken(), header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
+		throw new CoAPMessageFormatException(errorMsg, header.getToken(), header.getMID(), header.getCode(),
+				CoAP.Type.CON == header.getType());
 	}
 
 	/**
@@ -125,8 +168,8 @@ public abstract class DataParser {
 	/**
 	 * Parses a byte array into a CoAP message header.
 	 * <p>
-	 * Subclasses need to override this method according to the concrete type of message
-	 * encoding to support.
+	 * Subclasses need to override this method according to the concrete type of
+	 * message encoding to support.
 	 * 
 	 * @param reader for reading the byte array to parse.
 	 * @return the message header the array has been parsed into.
@@ -147,6 +190,23 @@ public abstract class DataParser {
 	}
 
 	/**
+	 * Check, if option number is a (supported) critical custom option.
+	 * 
+	 * @param optionNumber option number to check
+	 * @return {@code true}, if option number is a critical custom option,
+	 *         {@code false}, if not.
+	 * @since 3.4
+	 */
+	protected boolean isCiriticalCustomOption(int optionNumber) {
+		for (int index = 0; index < criticalCustomOptions.length; ++index) {
+			if (criticalCustomOptions[index] == optionNumber) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Parse options and payload from reader.
 	 * 
 	 * @param reader reader that contains the bytes to parse
@@ -164,8 +224,10 @@ public abstract class DataParser {
 		if (message == null) {
 			throw new NullPointerException("message must not be null!");
 		}
+		int customOptions = 0;
 		int currentOptionNumber = 0;
 		byte nextByte = 0;
+		OptionSet optionSet = message.getOptions();
 
 		while (reader.bytesAvailable()) {
 			nextByte = reader.readNextByte();
@@ -185,19 +247,17 @@ public abstract class DataParser {
 				if (reader.bytesAvailable(optionLength)) {
 					Option option = new Option(currentOptionNumber);
 					option.setValue(reader.readBytes(optionLength));
-
-					if (currentOptionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
-						// OptionSet.setContentFormat(int) API weird => cleanup
-						// on 3.0
-						int format = option.getIntegerValue();
-						message.getOptions().setContentFormat(format);
-						if (!message.getOptions().hasContentFormat()) {
-							throw new IllegalArgumentException("Content Format option must be between 0 and "
-									+ MediaTypeRegistry.MAX_TYPE + " (2 bytes) inclusive");
+					optionSet.addOption(option);
+					if (criticalCustomOptions != null) {
+						int custom = optionSet.getOthers().size();
+						if (customOptions < custom) {
+							customOptions = custom;
+							if (option.isCritical() && !isCiriticalCustomOption(currentOptionNumber)) {
+								throw new CoAPMessageFormatException("Unknown critical option " + currentOptionNumber,
+										message.getToken(), message.getMID(), message.getRawCode(),
+										message.isConfirmable(), ResponseCode.BAD_OPTION);
+							}
 						}
-					} else {
-						// add option to message
-						message.getOptions().addOption(option);
 					}
 				} else {
 					String msg = String.format(

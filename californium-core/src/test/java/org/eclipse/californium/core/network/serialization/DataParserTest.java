@@ -65,6 +65,8 @@ public class DataParserTest {
 
 	private static final EndpointContext ENDPOINT_CONTEXT = new AddressEndpointContext(InetAddress.getLoopbackAddress(), 1000);
 
+	private static final int[] CRITICAL_CUSTOM_OPTIONS = {57453, 19205};
+
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
@@ -82,8 +84,8 @@ public class DataParserTest {
 
 	@Parameterized.Parameters public static List<Object[]> parameters() {
 		List<Object[]> parameters = new ArrayList<>();
-		parameters.add(new Object[] { new UdpDataSerializer(), new UdpDataParser(), false });
-		parameters.add(new Object[] { new TcpDataSerializer(), new TcpDataParser(), true });
+		parameters.add(new Object[] { new UdpDataSerializer(), new UdpDataParser(CRITICAL_CUSTOM_OPTIONS), false });
+		parameters.add(new Object[] { new TcpDataSerializer(), new TcpDataParser(CRITICAL_CUSTOM_OPTIONS), true });
 		return parameters;
 	}
 
@@ -151,8 +153,11 @@ public class DataParserTest {
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				0x24, // option number 2, length: 4
-				0x01, 0x02, 0x03 // token value is one byte short
+				0x01, 0x02, 0x03 // option value is one byte too short
 		};
+		if (tcp) {
+			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token 
+		}
 
 		// WHEN parsing the request
 		try {
@@ -162,6 +167,32 @@ public class DataParserTest {
 			// THEN an exception is thrown by the parser
 			assertEquals(0b00000001, e.getCode());
 			assertEquals(true, e.isConfirmable());
+		}
+	}
+
+	@Test public void testParseMessageDetectsUnknownCriticalOption() {
+
+		// GIVEN a request with an option value shorter than specified
+		byte[] malformedGetRequest = new byte[] { 
+				0b01000000, // ver 1, CON, token length: 0
+				0b00000001, // code: 0.01 (GET request)
+				0x00, 0x10, // message ID
+				(byte) 0xd1, 0x0c, // option number 25, length: 1
+				0x64 // option value
+		};
+		if (tcp) {
+			malformedGetRequest[0] = 0x32;  // cheat, mid => 2 bytes token
+		}
+
+		// WHEN parsing the request
+		try {
+			parser.parseMessage(malformedGetRequest);
+			fail("Parser should have detected malformed options");
+		} catch (CoAPMessageFormatException e) {
+			// THEN an exception is thrown by the parser
+			assertEquals(0b00000001, e.getCode());
+			assertEquals(true, e.isConfirmable());
+			assertEquals(ResponseCode.BAD_OPTION, e.getErrorCode());
 		}
 	}
 
