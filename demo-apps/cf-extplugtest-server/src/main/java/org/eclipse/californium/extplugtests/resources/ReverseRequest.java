@@ -170,9 +170,7 @@ public class ReverseRequest extends CoapResource {
 				resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE);
 			}
 		} catch (IllegalArgumentException ex) {
-			Response response = Response.createResponse(request, BAD_OPTION);
-			response.setPayload(ex.getMessage());
-			exchange.respond(response);
+			exchange.respond(BAD_OPTION, ex.getMessage());
 			return;
 		}
 

@@ -127,14 +127,12 @@ public class DataSerializerTest {
 	 */
 	@Test
 	public void testSerializeResponseWithEndpointContext() {
-		Request request = Request.newGet();
-		request.setSourceContext(ENDPOINT_CONTEXT);
-		request.setToken(new byte[] { 0x00 });
-		request.setMID(1);
-		Response response = Response.createResponse(request, ResponseCode.CONTENT);
+
+		Response response = new Response(ResponseCode.CONTENT);
+		response.setDestinationContext(ENDPOINT_CONTEXT);
 		response.setType(Type.ACK);
-		response.setMID(request.getMID());
-		response.setToken(request.getToken());
+		response.setMID(1);
+		response.setToken(new byte[] { 0x00 });
 		RawData data = serializer.serializeResponse(response, null);
 
 		assertThat(data.getEndpointContext(), is(equalTo(ENDPOINT_CONTEXT)));

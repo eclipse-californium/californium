@@ -238,8 +238,9 @@ public class ObjectSecurityLayer extends AbstractLayer {
 						requestSequenceNumber);
 
 				if (outgoingExceedsMaxUnfragSize(preparedResponse, outerBlockwise, ctx.getMaxUnfragmentedSize())) {
-					super.sendResponse(exchange,
-							Response.createResponse(exchange.getCurrentRequest(), ResponseCode.INTERNAL_SERVER_ERROR));
+					Response error = new Response(ResponseCode.INTERNAL_SERVER_ERROR, true);
+					error.setDestinationContext(exchange.getCurrentRequest().getSourceContext());
+					super.sendResponse(exchange, error);
 					throw new IllegalStateException("outgoing response is exceeding the MAX_UNFRAGMENTED_SIZE!");
 				}
 

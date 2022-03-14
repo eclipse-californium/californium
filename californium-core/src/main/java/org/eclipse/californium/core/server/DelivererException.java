@@ -31,6 +31,12 @@ public class DelivererException extends Exception {
 	 * Error response code of delivering.
 	 */
 	private final ResponseCode response;
+	/**
+	 * Internal created error.
+	 * 
+	 * @since 3.4
+	 */
+	private final boolean internal;
 
 	/**
 	 * Create a deliverer error response.
@@ -40,12 +46,26 @@ public class DelivererException extends Exception {
 	 * @throws IllegalArgumentException if response code is no error.
 	 */
 	public DelivererException(ResponseCode response, String message) {
+		this(response, message, false);
+	}
+
+	/**
+	 * Create a deliverer error response.
+	 * 
+	 * @param response error response code
+	 * @param message diagnostic message
+	 * @param internal internal created error
+	 * @throws IllegalArgumentException if response code is no error.
+	 * @since 3.4
+	 */
+	public DelivererException(ResponseCode response, String message, boolean internal) {
 		super(message);
 		if (response.isClientError() || response.isServerError()) {
 			this.response = response;
 		} else {
 			throw new IllegalArgumentException("response code " + response + " must be an error-code!");
 		}
+		this.internal = internal;
 	}
 
 	/**
@@ -55,5 +75,15 @@ public class DelivererException extends Exception {
 	 */
 	public ResponseCode getErrorResponseCode() {
 		return response;
+	}
+
+	/**
+	 * Checks, if this error is created internal.
+	 * 
+	 * @return {@code true}, for internal created error, {@code false}, otherwise.
+	 * @since 3.4
+	 */
+	public boolean isInternal() {
+		return internal;
 	}
 }

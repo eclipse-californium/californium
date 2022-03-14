@@ -212,9 +212,7 @@ public class RequestStatistic extends CoapResource {
 			}
 		}
 		if (error != null) {
-			Response response = Response.createResponse(request, BAD_OPTION);
-			response.setPayload(error);
-			exchange.respond(response);
+			exchange.respond(BAD_OPTION, error);
 			return;
 		}
 

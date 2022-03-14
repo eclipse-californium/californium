@@ -34,6 +34,12 @@ public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor imple
 	 */
 	public ReceiveRequestHandler handler;
 
+	private Response lastSentResponse;
+
+	public synchronized Response getLastSentResponse() {
+		return lastSentResponse;
+	}
+
 	@Override
 	public synchronized void sendRequest(final Request request) {
 		logNewLine();
@@ -42,6 +48,7 @@ public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor imple
 
 	@Override
 	public synchronized void sendResponse(final Response response) {
+		lastSentResponse = response;
 		if (errorInjector != null) {
 			logNewLine("(should be dropped by error)   ");
 			appendResponseDetails(response);

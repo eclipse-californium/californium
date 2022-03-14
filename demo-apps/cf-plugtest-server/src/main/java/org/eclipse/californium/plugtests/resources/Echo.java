@@ -39,7 +39,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -203,9 +202,7 @@ public class Echo extends CoapResource {
 			delay = helper.getArgumentAsInteger(URI_QUERY_OPTION_DELAY, 0, 0, (int) TimeUnit.SECONDS.toMillis(3600));
 			keep = helper.hasParameter(URI_QUERY_OPTION_KEEP);
 		} catch (IllegalArgumentException ex) {
-			Response response = Response.createResponse(request, BAD_OPTION);
-			response.setPayload(ex.getMessage());
-			exchange.respond(response);
+			exchange.respond(BAD_OPTION, ex.getMessage());
 			return;
 		}
 
