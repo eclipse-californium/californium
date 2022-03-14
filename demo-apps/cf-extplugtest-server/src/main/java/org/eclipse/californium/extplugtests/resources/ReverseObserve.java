@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -295,9 +296,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE);
 				}
 			} catch (IllegalArgumentException ex) {
-				Response response = Response.createResponse(request, BAD_OPTION);
-				response.setPayload(ex.getMessage());
-				respond(response);
+				respond(BAD_OPTION, ex.getMessage(), MediaTypeRegistry.UNDEFINED);
 			}
 
 			this.resource = resource;
@@ -324,12 +323,6 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		private void respond(ResponseCode code, String payload, int contentFormat) {
 			if (processed.compareAndSet(false, true)) {
 				incomingExchange.respond(code, payload, contentFormat);
-			}
-		}
-
-		private void respond(Response response) {
-			if (processed.compareAndSet(false, true)) {
-				incomingExchange.respond(response);
 			}
 		}
 

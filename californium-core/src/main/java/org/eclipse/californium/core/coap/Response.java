@@ -45,6 +45,12 @@ public class Response extends Message {
 
 	/** The response code. */
 	private final CoAP.ResponseCode code;
+	/**
+	 * Indicates, if the response is created internal.
+	 * 
+	 * @since 3.4
+	 */
+	private final boolean internal;
 
 	/**
 	 * Application RTT (round trip time) in nanoseconds.
@@ -102,10 +108,23 @@ public class Response extends Message {
 	 *             that this was thrown delayed, when accessing the code)
 	 */
 	public Response(ResponseCode code) {
+		this(code, false);
+	}
+
+	/**
+	 * Instantiates a new response with the specified response code.
+	 *
+	 * @param code the response code
+	 * @param internal internal created response
+	 * @throws NullPointerException if code is {@code null}
+	 * @since 3.4
+	 */
+	public Response(ResponseCode code, boolean internal) {
 		if (code == null) {
 			throw new NullPointerException("ResponseCode must not be null!");
 		}
 		this.code = code;
+		this.internal = internal;
 	}
 
 	/**
@@ -133,6 +152,18 @@ public class Response extends Message {
 	@Override
 	public String toString() {
 		return toTracingString(code.toString());
+	}
+
+	/**
+	 * Checks, if this response is internally created.
+	 * 
+	 * e.g 4.08 {@link ResponseCode#REQUEST_ENTITY_INCOMPLETE}.
+	 *
+	 * @return {@code true}, for internal response, {@code false}, otherwise.
+	 * @since 3.4
+	 */
+	public boolean isInternal() {
+		return internal;
 	}
 
 	/**

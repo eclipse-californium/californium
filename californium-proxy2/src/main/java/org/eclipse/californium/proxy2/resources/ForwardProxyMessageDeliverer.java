@@ -325,7 +325,7 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 					scheme = scheme.toLowerCase();
 					resource = scheme2resource.get(scheme);
 					if (resource == null) {
-						throw new DelivererException(ResponseCode.PROXY_NOT_SUPPORTED, scheme + "not supported!");
+						throw new DelivererException(ResponseCode.PROXY_NOT_SUPPORTED, scheme + "not supported!", true);
 					}
 					if (options.getUriHost() == null) {
 						// no URI-host

@@ -49,6 +49,7 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.cr
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -61,11 +62,11 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.UdpMatcher;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
@@ -668,6 +669,9 @@ public class BlockwiseServerSideTest {
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
 		client.expectResponse(ACK, REQUEST_ENTITY_TOO_LARGE, tok, mid).size1(MAX_RESOURCE_BODY_SIZE).go();
+		Response response = serverInterceptor.getLastSentResponse();
+		assertThat(response, is(notNullValue()));
+		assertThat(response.isInternal(), is(true));
 	}
 
 	/**
@@ -686,6 +690,9 @@ public class BlockwiseServerSideTest {
 		// now send last block without having sent middle block altogether
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, false, 128).payload(reqtPayload, 256, 300).go();
 		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).go();
+		Response response = serverInterceptor.getLastSentResponse();
+		assertThat(response, is(notNullValue()));
+		assertThat(response.isInternal(), is(true));
 	}
 
 	/**
@@ -719,6 +726,9 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128).payload(reqtPayload, 128, 256)
 				.go();
 		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).go();
+		Response response = serverInterceptor.getLastSentResponse();
+		assertThat(response, is(notNullValue()));
+		assertThat(response.isInternal(), is(true));
 	}
 
 	/**
@@ -931,6 +941,9 @@ public class BlockwiseServerSideTest {
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, true, 64).payload(reqtPayload.substring(2*64, 3*64)).go();
 		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).go();
+		Response response = serverInterceptor.getLastSentResponse();
+		assertThat(response, is(notNullValue()));
+		assertThat(response.isInternal(), is(true));
 	}
 
 	@Test
@@ -1065,9 +1078,7 @@ public class BlockwiseServerSideTest {
 		}
 
 		public void handleGET(final CoapExchange exchange) {
-			Response resp = Response.createResponse(exchange.advanced().getRequest(), ResponseCode.CONTENT);
-			resp.setPayload(respPayload);
-			respond(exchange, resp);
+			respond(exchange, ResponseCode.CONTENT, respPayload);
 		}
 
 		public void handlePUT(final CoapExchange exchange) {
@@ -1078,24 +1089,21 @@ public class BlockwiseServerSideTest {
 			if (expectedToken != null) {
 				assertThat("request did not contain expected token", exchange.advanced().getRequest().getToken(), is(expectedToken));
 			}
-			Response resp = Response.createResponse(exchange.advanced().getRequest(), ResponseCode.CHANGED);
-			resp.setPayload(respPayload);
-			respond(exchange, resp);
+			respond(exchange, ResponseCode.CHANGED, respPayload);
 		}
 
 		public void handlePOST(final CoapExchange exchange) {
 			assertThat("server did not receive expected request payload", exchange.getRequestText(), is(reqtPayload));
-			Response resp = Response.createResponse(exchange.advanced().getRequest(), ResponseCode.CHANGED);
-			resp.setPayload(respPayload);
-			respond(exchange, resp);
+			respond(exchange, ResponseCode.CHANGED, respPayload);
 		}
 
-		private void respond (final CoapExchange exchange, final Response response) {
+		private void respond (final CoapExchange exchange, final ResponseCode code, final String payload) {
 			calls.incrementAndGet();
+			
 			if (etag != null) {
-				response.getOptions().addETag(etag);
+				exchange.setETag(etag);
 			}
-			exchange.respond(response);
+			exchange.respond(code, payload);
 		}
 	}
 }

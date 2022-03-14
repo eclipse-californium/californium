@@ -564,7 +564,8 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		if (requestExceedsMaxBodySize(request)) {
 			int maxResourceBodySize = getMaxResourceBodySize(request);
-			Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_TOO_LARGE);
+			Response error = new Response(ResponseCode.REQUEST_ENTITY_TOO_LARGE, true);
+			error.setDestinationContext(request.getSourceContext());
 			error.setPayload(String.format("body too large, max. %d bytes", maxResourceBodySize));
 			error.getOptions().setSize1(maxResourceBodySize);
 			lower().sendResponse(exchange, error);
@@ -594,7 +595,8 @@ public class BlockwiseLayer extends AbstractLayer {
 					LOGGER.debug("{}acknowledging incoming block1 [num={}], expecting more blocks to come", tag,
 							block1.getNum());
 
-					Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
+					Response piggybacked = new Response(ResponseCode.CONTINUE);
+					piggybacked.setDestinationContext(request.getSourceContext());
 					block1 = getLimitedBlockOption(block1);
 					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
 
@@ -644,7 +646,8 @@ public class BlockwiseLayer extends AbstractLayer {
 	private void sendBlock1ErrorResponse(Block1BlockwiseStatus status, Exchange exchange, Request request,
 			ResponseCode errorCode, String message) {
 
-		Response error = Response.createResponse(request, errorCode);
+		Response error = new Response(errorCode, true);
+		error.setDestinationContext(request.getSourceContext());
 		error.setPayload(message);
 		clearBlock1Status(status);
 		lower().sendResponse(exchange, error);
@@ -697,8 +700,8 @@ public class BlockwiseLayer extends AbstractLayer {
 								"{}resource [{}] implementation error, peer requested block offset {} but resource returned block offest {}",
 								tag, exchange.getRequest().getURI(), requestBlock2.getOffset(),
 								responseBlock2.getOffset());
-						responseToSend = Response.createResponse(exchange.getRequest(),
-								ResponseCode.INTERNAL_SERVER_ERROR);
+						responseToSend = new Response(ResponseCode.INTERNAL_SERVER_ERROR, true);
+						responseToSend.setDestinationContext(exchange.getRequest().getSourceContext());
 						responseToSend.setType(response.getType());
 						responseToSend.setMID(response.getMID());
 						responseToSend.addMessageObservers(response.getMessageObservers());
@@ -712,7 +715,8 @@ public class BlockwiseLayer extends AbstractLayer {
 					Block2BlockwiseStatus.crop(responseToSend, block2, maxTcpBertBulkBlocks);
 				} else if (!response.isError()) {
 					// peer has requested a non existing block
-					responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.BAD_OPTION);
+					responseToSend = new Response(ResponseCode.BAD_OPTION, true);
+					responseToSend.setDestinationContext(exchange.getRequest().getSourceContext());
 					responseToSend.setType(response.getType());
 					responseToSend.setMID(response.getMID());
 					responseToSend.addMessageObservers(response.getMessageObservers());

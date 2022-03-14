@@ -112,10 +112,10 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 								request.getOptions().getUriPathString(),
 								StringUtil.toLog(request.getSourceContext().getPeerAddress()));
 					}
-					exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
+					exchange.sendResponse(new Response(ResponseCode.NOT_FOUND, true));
 				}
 			} catch (DelivererException ex) {
-				Response response = new Response(ex.getErrorResponseCode());
+				Response response = new Response(ex.getErrorResponseCode(), ex.isInternal());
 				response.setPayload(ex.getMessage());
 				exchange.sendResponse(response);
 			}

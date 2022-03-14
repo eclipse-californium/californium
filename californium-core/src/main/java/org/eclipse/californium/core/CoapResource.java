@@ -261,7 +261,7 @@ public class CoapResource implements Resource {
 			handleIPATCH(new CoapExchange(exchange, this));
 			break;
 		default:
-			exchange.sendResponse(new Response(ResponseCode.METHOD_NOT_ALLOWED));
+			exchange.sendResponse(new Response(ResponseCode.METHOD_NOT_ALLOWED, true));
 			break;
 		}
 	}
@@ -559,7 +559,7 @@ public class CoapResource implements Resource {
 					ObserveRelation relation = exchange.getRelation();
 					if (relation != null && relation.isEstablished()) {
 						if (code != null && (null == filter || filter.accept(relation))) {
-							Response response = new Response(code);
+							Response response = new Response(code, true);
 							response.setType(Type.CON);
 							exchange.sendResponse(response);
 						} else {

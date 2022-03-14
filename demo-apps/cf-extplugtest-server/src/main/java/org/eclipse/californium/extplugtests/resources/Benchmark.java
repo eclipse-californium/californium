@@ -27,7 +27,6 @@ import java.util.List;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
@@ -105,9 +104,7 @@ public class Benchmark extends CoapResource {
 			ack = helper.hasParameter(URI_QUERY_OPTION_ACK);
 			length = helper.getArgumentAsInteger(URI_QUERY_OPTION_RESPONSE_LENGTH, 0, 0, maxResourceSize);
 		} catch (IllegalArgumentException ex) {
-			Response response = Response.createResponse(request, BAD_OPTION);
-			response.setPayload(ex.getMessage());
-			exchange.respond(response);
+			exchange.respond(BAD_OPTION, ex.getMessage());
 			return;
 		}
 
