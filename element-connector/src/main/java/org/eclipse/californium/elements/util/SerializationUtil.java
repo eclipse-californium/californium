@@ -468,8 +468,14 @@ public class SerializationUtil {
 	/**
 	 * Read nanotime synchronization mark.
 	 * 
+	 * The delta considers different uptimes of hosts, e.g. because the one host
+	 * runs for a week, the other for a day. It also uses the
+	 * {@link System#currentTimeMillis()} in order to include the past calendar
+	 * time between writing and reading.
+	 * 
 	 * @param reader reader to read
-	 * @return delta in nanoseconds for nanotime synchronization.
+	 * @return delta in nanoseconds for nanotime synchronization. Considers
+	 *         different uptimes and past calendar time.
 	 * @throws IllegalArgumentException if version doesn't match or the read
 	 *             length exceeds the available bytes.
 	 * @see SerializationUtil#writeNanotimeSynchronizationMark(DatagramWriter)
@@ -504,7 +510,7 @@ public class SerializationUtil {
 	}
 
 	/**
-	 * Skip items until "no item" is read.
+	 * Skip items until "no item" is read and return the number.
 	 * 
 	 * @param reader stream reader to skip items.
 	 * @param numBits number of bits of the item length.

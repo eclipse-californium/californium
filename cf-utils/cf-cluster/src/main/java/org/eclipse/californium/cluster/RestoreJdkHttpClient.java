@@ -25,8 +25,8 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
 
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.server.ServersSerializationUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.PersistentComponentUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,8 +119,12 @@ public class RestoreJdkHttpClient implements Readiness {
 			long time = ClockUtil.nanoRealtime();
 			InputStream in = downloadRestore(hostName, restoreHostName, port, sslContext);
 			if (in != null) {
+				PersistentComponentUtil util = new PersistentComponentUtil();
+				for (CoapServer server : servers) {
+					util.addProvider(server);
+				}
 				try {
-					count = ServersSerializationUtil.loadServers(in, servers);
+					count = util.loadComponents(in);
 					time = ClockUtil.nanoRealtime() - time;
 					LOGGER.info("restored {} connections from {} in {} ms", count, restoreHostName,
 							TimeUnit.NANOSECONDS.toMillis(time));

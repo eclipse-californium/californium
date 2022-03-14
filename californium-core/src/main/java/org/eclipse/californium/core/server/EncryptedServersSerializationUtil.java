@@ -22,23 +22,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
-import java.security.spec.AlgorithmParameterSpec;
 
-import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.CipherOutputStream;
-import javax.crypto.Mac;
 import javax.crypto.SecretKey;
-import javax.crypto.ShortBufferException;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.elements.util.DataStreamReader;
-import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.EncryptedPersistentComponentUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,8 +39,11 @@ import org.slf4j.LoggerFactory;
  * {@link #add(CoapServer)} all {@link CoapServer} and call
  * {@link #loadAndRegisterShutdown(String, char[], long)} before starting them.
  * 
+ * @deprecated after migration of old persistence format, use
+ *             {@link EncryptedPersistentComponentUtil} instead
  * @since 3.3
  */
+@Deprecated
 public class EncryptedServersSerializationUtil extends ServersSerializationUtil {
 
 	/**
@@ -67,30 +60,14 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(EncryptedServersSerializationUtil.class);
 
-	/**
-	 * Hmac algorithm to generate AES key out of the password.
-	 */
-	private static final String HMAC_ALGORITHM = "HmacSHA256";
-	/**
-	 * Label to generate AES key out of the password.
-	 */
-	private static final byte[] EXPANSION_LABEL = "key expansion".getBytes();
-
-	/**
-	 * Cipher algorithm.
-	 */
-	private String cipherAlgorithm;
-	/**
-	 * Key size in bits.
-	 */
-	private int keySizeBits;
+	private EncryptedPersistentComponentUtil encryptedPersistentUtil = new EncryptedPersistentComponentUtil();
 
 	/**
 	 * Create encrypted serialization utility with
 	 * {@link #DEFAULT_CIPHER_ALGORITHM} and {@link #DEFAULT_KEY_SIZE_BITS}.
 	 */
 	public EncryptedServersSerializationUtil() {
-		this(DEFAULT_CIPHER_ALGORITHM, DEFAULT_KEY_SIZE_BITS);
+		this(DEFAULT_CIPHER_ALGORITHM, DEFAULT_KEY_SIZE_BITS, false);
 	}
 
 	/**
@@ -101,7 +78,35 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 	 * @param keySizeBits key size in bits
 	 */
 	public EncryptedServersSerializationUtil(String cipherAlgorithm, int keySizeBits) {
+		this(cipherAlgorithm, keySizeBits, false);
+	}
+
+	/**
+	 * Create servers serialization utility.
+	 * 
+	 * @param useDeprecatedSerialization {@code true}, save using the deprecated
+	 *            format. Used for test only.
+	 * @since 3.4
+	 */
+	public EncryptedServersSerializationUtil(boolean useDeprecatedSerialization) {
+		this(DEFAULT_CIPHER_ALGORITHM, DEFAULT_KEY_SIZE_BITS, useDeprecatedSerialization);
+	}
+
+	/**
+	 * Create encrypted serialization utility with provided algorithm and key
+	 * size.
+	 * 
+	 * @param cipherAlgorithm cipher algorithm
+	 * @param keySizeBits key size in bits
+	 * @param useDeprecatedSerialization {@code true}, save using the deprecated
+	 *            format. Used for test only.
+	 * @since 3.4
+	 */
+	public EncryptedServersSerializationUtil(String cipherAlgorithm, int keySizeBits,
+			boolean useDeprecatedSerialization) {
+		super(useDeprecatedSerialization);
 		setCipher(cipherAlgorithm, keySizeBits);
+		persistentUtil = encryptedPersistentUtil;
 	}
 
 	/**
@@ -111,38 +116,7 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 	 * @param keySizeBits key size in bits
 	 */
 	public void setCipher(String cipherAlgorithm, int keySizeBits) {
-		this.cipherAlgorithm = cipherAlgorithm;
-		this.keySizeBits = keySizeBits;
-	}
-
-	/**
-	 * Initialize cipher.
-	 * 
-	 * @param mode mode for
-	 *            {@link Cipher#init(int, java.security.Key, AlgorithmParameterSpec)}.
-	 *            {@link Cipher#DECRYPT_MODE} or {@link Cipher#ENCRYPT_MODE}
-	 * @param password password
-	 * @param seed seed. Either randomly generated when saving, or read from
-	 *            persistence, when loading.
-	 * @return initialized cipher
-	 */
-	private Cipher init(int mode, SecretKey password, byte[] seed) {
-		try {
-			Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
-			hmac.init(password);
-			int ivSize = 16;
-			int keySizeBytes = (keySizeBits + Byte.SIZE - 1) / Byte.SIZE;
-			byte[] data = doExpansion(hmac, EXPANSION_LABEL, seed, keySizeBytes + ivSize);
-			SecretKey key = new SecretKeySpec(data, 0, keySizeBytes, "AES");
-			AlgorithmParameterSpec parameterSpec = new IvParameterSpec(data, keySizeBytes, ivSize);
-			Bytes.clear(data);
-			Cipher cipher = Cipher.getInstance(cipherAlgorithm);
-			cipher.init(mode, key, parameterSpec);
-			return cipher;
-		} catch (GeneralSecurityException ex) {
-			LOGGER.warn("encryption error:", ex);
-			return null;
-		}
+		encryptedPersistentUtil.setCipher(cipherAlgorithm, keySizeBits);
 	}
 
 	/**
@@ -155,20 +129,7 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 	 *            stream must not be encrypted.
 	 */
 	public void loadServers(InputStream in, SecretKey password) {
-		DataStreamReader reader = new DataStreamReader(in);
-		byte[] seed = reader.readVarBytes(Byte.SIZE);
-		if (seed != null && seed.length > 0) {
-			if (password == null) {
-				LOGGER.warn("missing password!");
-				return;
-			}
-			Cipher cipher = init(Cipher.DECRYPT_MODE, password, seed);
-			if (cipher == null) {
-				LOGGER.warn("crypto error!");
-				return;
-			}
-			in = new CipherInputStream(in, cipher);
-		}
+		in = encryptedPersistentUtil.prepare(in, password);
 		super.loadServers(in);
 	}
 
@@ -189,25 +150,7 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 	 * @throws IOException if an i/o-error occurred
 	 */
 	public void saveServers(OutputStream out, SecretKey password, long maxQuietPeriodInSeconds) throws IOException {
-		OutputStream serversOut = out;
-		DatagramWriter writer = new DatagramWriter();
-		if (password != null) {
-			byte[] seed = new byte[16];
-			new SecureRandom().nextBytes(seed);
-			Cipher cipher = init(Cipher.ENCRYPT_MODE, password, seed);
-			if (cipher != null) {
-				writer.writeVarBytes(seed, Byte.SIZE);
-				writer.writeTo(out);
-				serversOut = new CipherOutputStream(out, cipher);
-			} else {
-				LOGGER.warn("crypto error!");
-				password = null;
-			}
-		}
-		if (password == null) {
-			writer.writeVarBytes(Bytes.EMPTY, Byte.SIZE);
-			writer.writeTo(out);
-		}
+		OutputStream serversOut = encryptedPersistentUtil.prepare(out, password);
 		saveServers(serversOut, maxQuietPeriodInSeconds);
 		if (serversOut != out) {
 			// close CipherOutputStream to append padding
@@ -277,75 +220,6 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 				LOGGER.info("Shutdown.");
 			}
 		});
-	}
-
-	/**
-	 * Performs the secret expansion as described in
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
-	 * "_blank">RFC 5246</a>.
-	 * 
-	 * Note: This function is copied from Scandium / PseudoRandomFunction,
-	 * otherwise this would either create a dependency or a important crypto
-	 * function must be moved outside Scandium.
-	 * 
-	 * @param hmac the cryptographic hash function to use for expansion.
-	 * @param label the label to use for creating the original data
-	 * @param seed the seed to use for creating the original data
-	 * @param length the number of bytes to expand the data to.
-	 * @return the expanded data.
-	 */
-	private static final byte[] doExpansion(Mac hmac, byte[] label, byte[] seed, int length) {
-		/*
-		 * RFC 5246, chapter 5, page 15
-		 * 
-		 * P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
-		 * HMAC_hash(secret, A(2) + seed) + HMAC_hash(secret, A(3) + seed) + ...
-		 * where + indicates concatenation.
-		 * 
-		 * A() is defined as: A(0) = seed, A(i) = HMAC_hash(secret, A(i-1))
-		 */
-
-		int offset = 0;
-		final int macLength = hmac.getMacLength();
-		final byte[] aAndSeed = new byte[macLength + label.length + seed.length];
-		final byte[] expansion = new byte[length];
-		try {
-			// copy appended seed to buffer end
-			System.arraycopy(label, 0, aAndSeed, macLength, label.length);
-			System.arraycopy(seed, 0, aAndSeed, macLength + label.length, seed.length);
-			// calculate A(n) from A(0)
-			hmac.update(label);
-			hmac.update(seed);
-			while (true) {
-				// write result to "A(n) + seed"
-				hmac.doFinal(aAndSeed, 0);
-				// calculate HMAC_hash from "A(n) + seed"
-				hmac.update(aAndSeed);
-				final int nextOffset = offset + macLength;
-				if (nextOffset > length) {
-					// too large for expansion!
-					// write HMAC_hash result temporary to "A(n) + seed"
-					hmac.doFinal(aAndSeed, 0);
-					// write head of result from temporary "A(n) + seed" to
-					// expansion
-					System.arraycopy(aAndSeed, 0, expansion, offset, length - offset);
-					break;
-				} else {
-					// write HMAC_hash result to expansion
-					hmac.doFinal(expansion, offset);
-					if (nextOffset == length) {
-						break;
-					}
-				}
-				offset = nextOffset;
-				// calculate A(n+1) from "A(n) + seed" head ("A(n)")
-				hmac.update(aAndSeed, 0, macLength);
-			}
-		} catch (ShortBufferException e) {
-			e.printStackTrace();
-		}
-		Bytes.clear(aAndSeed);
-		return expansion;
 	}
 
 }
