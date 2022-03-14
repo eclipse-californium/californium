@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.PersistentComponent;
 import org.eclipse.californium.elements.config.BasicDefinition;
 import org.eclipse.californium.elements.config.BasicListDefinition;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
@@ -226,6 +227,14 @@ public final class DtlsConnectorConfig {
 	 * instance.
 	 */
 	private String loggingTag;
+
+	/**
+	 * Serialization label.
+	 * 
+	 * @see PersistentComponent#getLabel()
+	 * @since 3.4
+	 */
+	private String serializationLabel;
 
 	/**
 	 * Connection id generator. {@code null}, if connection id is not supported.
@@ -1345,6 +1354,28 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Get serialization label.
+	 * 
+	 * Note: when {@link #clone()} is used, ensure, that the label is actually
+	 * used only once!
+	 * 
+	 * If no value is provided (or {@code null}), the textual value of the
+	 * configured local address will be used for serialization. If the
+	 * connections are considered to be loaded on a different host, or in a
+	 * different network environment, using specific local addresses fails, if
+	 * these local addresses are changing. One way to overcome that, is using a
+	 * wildcard address, or logical labels (e.g.: "dtls://ipv4-external").
+	 * 
+	 * @return serialization label. Or {@code null}, if not available.
+	 * @see PersistentComponent#getLabel()
+	 * @see Builder#setSerializationLabel(String)
+	 * @since 3.4
+	 */
+	public String getSerializationLabel() {
+		return serializationLabel;
+	}
+
+	/**
 	 * Gets health status interval.
 	 * 
 	 * @return health status interval in milliseconds. {@code 0} for disabled.
@@ -1422,6 +1453,7 @@ public final class DtlsConnectorConfig {
 		cloned.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 		cloned.supportedGroups = supportedGroups;
 		cloned.loggingTag = loggingTag;
+		cloned.serializationLabel = serializationLabel;
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		cloned.connectionListener = connectionListener;
@@ -1824,6 +1856,20 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setLoggingTag(String tag) {
 			config.loggingTag = tag;
+			return this;
+		}
+
+		/**
+		 * Set serialization label.
+		 * 
+		 * @param label serialization label
+		 * @return this builder for command chaining.
+		 * @see PersistentComponent#getLabel()
+		 * @see DtlsConnectorConfig#getSerializationLabel()
+		 * @since 3.4
+		 */
+		public Builder setSerializationLabel(String label) {
+			config.serializationLabel = label;
 			return this;
 		}
 

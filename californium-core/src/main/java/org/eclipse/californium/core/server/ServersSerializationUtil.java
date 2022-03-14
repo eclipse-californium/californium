@@ -28,9 +28,12 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.PersistentComponent;
+import org.eclipse.californium.elements.PersistentComponentProvider;
 import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.PersistentComponentUtil;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,12 +54,15 @@ import org.slf4j.LoggerFactory;
  * connectors on each network interface in order to overcome some IPv6 issues of
  * ambiguous outgoing addresses (see
  * <a href="https://github.com/eclipse/californium/issues/315" target=
- * "_blank">Source IP address for response returned by a COAP server created with
- * wildcard IP address</a>). If the server runs on a virtualized environment,
- * that fails. Currently you need to use the wildcard address as local address.
+ * "_blank">Source IP address for response returned by a COAP server created
+ * with wildcard IP address</a>). If the server runs on a virtualized
+ * environment, that fails. Currently you need to use the wildcard address as
+ * local address.
  * 
+ * @deprecated use {@link PersistentComponentUtil} instead
  * @since 3.0
  */
+@Deprecated
 public class ServersSerializationUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServersSerializationUtil.class);
@@ -68,13 +74,28 @@ public class ServersSerializationUtil {
 	 */
 	private List<CoapServer> servers = new CopyOnWriteArrayList<>();
 
+	private boolean useDeprecatedSerialization;
+
+	protected PersistentComponentUtil persistentUtil = new PersistentComponentUtil();
+
 	/**
 	 * Create servers serialization utility.
 	 * 
 	 * @since 3.3
 	 */
 	public ServersSerializationUtil() {
+		this(false);
+	}
 
+	/**
+	 * Create servers serialization utility.
+	 * 
+	 * @param useDeprecatedSerialization {@code true}, save using the deprecated
+	 *            format. Used for test only.
+	 * @since 3.4
+	 */
+	protected ServersSerializationUtil(boolean useDeprecatedSerialization) {
+		this.useDeprecatedSerialization = useDeprecatedSerialization;
 	}
 
 	/**
@@ -87,6 +108,19 @@ public class ServersSerializationUtil {
 	 */
 	public void add(CoapServer server) {
 		servers.add(server);
+		persistentUtil.addProvider(server);
+	}
+
+	/**
+	 * Update all {@link PersistentComponentProvider}s.
+	 * 
+	 * @return {@code true}, if at least one {@link PersistentComponent} is
+	 *         available, {@code false}, if not.
+	 * @since 3.4
+	 */
+	private boolean updateUtil() {
+		persistentUtil.updateProvidersComponents();
+		return !persistentUtil.isEmpty();
 	}
 
 	/**
@@ -99,7 +133,14 @@ public class ServersSerializationUtil {
 	 * @since 3.3
 	 */
 	public void loadServers(InputStream in) {
-		loadServers(in, servers);
+		int count = -1;
+		if (updateUtil()) {
+			count = persistentUtil.loadComponents(in);
+		}
+		if (count < 0) {
+			// no items/connections loaded, retry the old deprecated format.
+			loadServers(in, servers);
+		}
 	}
 
 	/**
@@ -119,7 +160,15 @@ public class ServersSerializationUtil {
 	 * @since 3.3
 	 */
 	public void saveServers(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
-		saveServers(out, maxQuietPeriodInSeconds, servers);
+		if (useDeprecatedSerialization || !updateUtil()) {
+			// either test or no PersistentComponent found, use the old deprecated format.
+			saveServers(out, maxQuietPeriodInSeconds, servers);
+		} else {
+			for (CoapServer server : servers) {
+				server.stop();
+			}
+			persistentUtil.saveComponents(out, maxQuietPeriodInSeconds);
+		}
 	}
 
 	/**
@@ -254,8 +303,7 @@ public class ServersSerializationUtil {
 					if (endpoint instanceof CoapEndpoint) {
 						Connector connector = ((CoapEndpoint) endpoint).getConnector();
 						if (connector instanceof PersistentConnector) {
-							LOGGER.warn("[SRV {}] {}{}", index2, server.getTag(),
-									endpoint.getUri().toASCIIString());
+							LOGGER.warn("[SRV {}] {}{}", index2, server.getTag(), endpoint.getUri().toASCIIString());
 							++index2;
 						}
 					}

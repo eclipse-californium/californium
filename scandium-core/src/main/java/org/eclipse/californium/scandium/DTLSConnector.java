@@ -130,6 +130,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.PortUnreachableException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.Principal;
@@ -162,8 +164,9 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
-import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.PersistentComponent;
 import org.eclipse.californium.elements.PersistentConnector;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
@@ -241,7 +244,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * side and a separate Connector is created for each address to receive incoming
  * traffic.
  */
-public class DTLSConnector implements Connector, PersistentConnector, RecordLayer {
+public class DTLSConnector implements Connector, PersistentConnector, PersistentComponent, RecordLayer {
 
 	/**
 	 * The {@code EndpointContext} key used to store the host name indicated by a
@@ -286,6 +289,14 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 	/** all the configuration options for the DTLS connector */ 
 	protected final DtlsConnectorConfig config;
+
+	/**
+	 * Label for serialization.
+	 * 
+	 * @see PersistentComponent#getLabel()
+	 * @since 3.4
+	 */
+	private final String serializationLabel;
 
 	private final ResumptionSupportingConnectionStore connectionStore;
 
@@ -528,7 +539,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			if (certificateVerifier != null) {
 				certificateVerifier.setResultHandler(handler);
 			}
-			resumptionVerifier = config.useServerSessionId() ? config.getResumptionVerifier() : null;
+			this.resumptionVerifier = config.useServerSessionId() ? config.getResumptionVerifier() : null;
 			if (resumptionVerifier != null) {
 				resumptionVerifier.setResultHandler(handler);
 				if (resumptionVerifier instanceof ConnectionStoreResumptionVerifier) {
@@ -538,6 +549,19 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					}
 				}
 			}
+			String label = config.getSerializationLabel();
+			if (label == null) {
+				try {
+					InetSocketAddress address = config.getAddress();
+					String hostname = StringUtil.getUriHostname(address.getAddress());
+					URI uri = new URI("dtls", null, hostname, address.getPort(), null, null, null);
+					label = uri.toASCIIString();
+				} catch (URISyntaxException e) {
+					label = null;
+				}
+			}
+			this.serializationLabel = label;
+
 			DtlsHealth healthHandler = config.getHealthHandler();
 			// this is a useful health metric
 			// that could later be exported to some kind of monitoring interface
@@ -1253,16 +1277,31 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	}
 
 	@Override
-	public int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
+	public String getLabel() {
+		return serializationLabel;
+	}
+
+	@Override
+	public int save(OutputStream out, long staleThresholdInSeconds) throws IOException {
 		if (isRunning()) {
 			throw new IllegalStateException("Connector is running, save not possible!");
 		}
-		return connectionStore.saveConnections(out, maxQuietPeriodInSeconds);
+		return connectionStore.saveConnections(out, staleThresholdInSeconds);
+	}
+
+	@Override
+	public int load(InputStream in, long deltaNanos) throws IOException {
+		return connectionStore.loadConnections(in, deltaNanos);
+	}
+
+	@Override
+	public int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
+		return save(out, maxQuietPeriodInSeconds);
 	}
 
 	@Override
 	public int loadConnections(InputStream in, long delta) throws IOException {
-		return connectionStore.loadConnections(in, delta);
+		return load(in, delta);
 	}
 
 	public boolean restoreConnection(Connection connection) {

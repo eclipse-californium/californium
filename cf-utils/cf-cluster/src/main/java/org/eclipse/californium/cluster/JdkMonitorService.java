@@ -27,8 +27,8 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
 
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.server.ServersSerializationUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.PersistentComponentUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -229,11 +229,14 @@ public class JdkMonitorService {
 	 */
 	private final List<Readiness> components = new ArrayList<>();
 	/**
-	 * Maximum quiet period in seconds to save the dtls context.
+	 * Stale threshold in seconds.
 	 * 
-	 * @since 3.0
+	 * e.g. Connections without traffic for that time are skipped during
+	 * serialization.
+	 * 
+	 * @since 3.4 (was maxQuietPeriodInSeconds)
 	 */
-	private final long maxQuietPeriodInSeconds;
+	private final long staleThresholdInSeconds;
 	/**
 	 * Executor for http server.
 	 */
@@ -252,17 +255,18 @@ public class JdkMonitorService {
 	 * 
 	 * @param localAddress local address for non secure endpoint (http).
 	 * @param localSecureAddress local address for secure endpoint (https).
-	 * @param maxQuietPeriodInSeconds maxium quiet period of connection to be
-	 *            saved
+	 * @param staleThresholdInSeconds stale threshold in seconds. e.g.
+	 *            Connections without traffic for that time are skipped during
+	 *            serialization.
 	 * @param context server ssl context
 	 * @since 3.4 (added maxQuietPeriodInSeconds)
 	 */
 	public JdkMonitorService(InetSocketAddress localAddress, InetSocketAddress localSecureAddress,
-			long maxQuietPeriodInSeconds, SSLContext context) {
+			long staleThresholdInSeconds, SSLContext context) {
 		this.localAddress = localAddress;
 		this.localSecureAddress = localSecureAddress;
 		this.context = context;
-		this.maxQuietPeriodInSeconds = maxQuietPeriodInSeconds;
+		this.staleThresholdInSeconds = staleThresholdInSeconds;
 		this.stateAlive.set(true, 0, TimeUnit.SECONDS);
 	}
 
@@ -452,7 +456,11 @@ public class JdkMonitorService {
 				if (ready) {
 					stateReady.set(ready, 0, TimeUnit.SECONDS);
 				}
-				int count = ServersSerializationUtil.saveServers(out, maxQuietPeriodInSeconds, coapServers);
+				PersistentComponentUtil util = new PersistentComponentUtil();
+				for (CoapServer server : coapServers) {
+					util.addProvider(server);
+				}
+				int count = util.saveComponents(out, staleThresholdInSeconds);
 				LOGGER.info("response: {} connections", count);
 			} catch (IOException e) {
 				LOGGER.warn("write response to {} failed!", exchange.getRemoteAddress(), e);

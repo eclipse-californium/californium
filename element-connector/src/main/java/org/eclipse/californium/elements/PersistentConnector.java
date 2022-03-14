@@ -33,8 +33,10 @@ import org.eclipse.californium.elements.util.SerializationUtil;
  * fields and must be finished with a
  * {@link SerializationUtil#writeNoItem(org.eclipse.californium.elements.util.DatagramWriter)}.
  * 
+ * @deprecated use {@link PersistentComponent} instead
  * @since 3.0
  */
+@Deprecated
 public interface PersistentConnector {
 
 	/**

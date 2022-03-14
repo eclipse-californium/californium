@@ -102,6 +102,7 @@ import picocli.CommandLine.ParseResult;
  * The class PlugtestServer implements the test specification for the ETSI IoT
  * CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
+@SuppressWarnings("deprecation")
 public class PlugtestServer extends AbstractTestServer {
 
 	static {

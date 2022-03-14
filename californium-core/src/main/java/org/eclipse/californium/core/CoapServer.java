@@ -32,6 +32,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
@@ -49,6 +51,8 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.PersistentComponent;
+import org.eclipse.californium.elements.PersistentComponentProvider;
 import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.CounterStatisticManager;
@@ -111,7 +115,7 @@ import org.slf4j.LoggerFactory;
  * @see MessageDeliverer
  * @see Endpoint
  **/
-public class CoapServer implements ServerInterface {
+public class CoapServer implements ServerInterface, PersistentComponentProvider {
 
 	/**
 	 * Start mark for connections in stream.
@@ -476,6 +480,20 @@ public class CoapServer implements ServerInterface {
 		return endpoint;
 	}
 
+	@Override
+	public Collection<PersistentComponent> getComponents() {
+		List<PersistentComponent> components = new ArrayList<>();
+		for (Endpoint endpoint : endpoints) {
+			if (endpoint instanceof CoapEndpoint) {
+				Connector connector = ((CoapEndpoint) endpoint).getConnector();
+				if (connector instanceof PersistentComponent) {
+					components.add((PersistentComponent) connector);
+				}
+			}
+		}
+		return components;
+	}
+
 	/**
 	 * Add a resource to the server.
 	 * 
@@ -769,6 +787,8 @@ public class CoapServer implements ServerInterface {
 		public final URI uri;
 		/**
 		 * IPv4/IPv6 wildcard address.
+		 * 
+		 * @since 3.4
 		 */
 		public final String wildcard;
 
