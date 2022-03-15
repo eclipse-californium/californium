@@ -793,7 +793,7 @@ public class Asn1DerDecoder {
 				}
 				KeySpec privateKeySpec = new ECPrivateKeySpec(new BigInteger(1, privateKeyValue), ecParameterSpec);
 				keys = new Keys();
-				keys.privateKey = KeyFactory.getInstance(EC).generatePrivate(privateKeySpec);
+				keys.privateKey = KeyFactory.getInstance(JceNames.EC).generatePrivate(privateKeySpec);
 				// BIT_STRING
 				DatagramReader value = CONTEXT_SPECIFIC_1.createRangeReader(reader, false);
 				value = BIT_STRING.createRangeReader(value, false);
@@ -841,7 +841,7 @@ public class Asn1DerDecoder {
 				BigInteger x = new BigInteger(1, reader.readBytes(left));
 				BigInteger y = new BigInteger(1, reader.readBytes(left));
 				KeySpec publicKeySpec = new ECPublicKeySpec(new ECPoint(x, y), ecParameterSpec);
-				return (ECPublicKey) KeyFactory.getInstance(EC).generatePublic(publicKeySpec);
+				return (ECPublicKey) KeyFactory.getInstance(JceNames.EC).generatePublic(publicKeySpec);
 			}
 		}
 		return null;
