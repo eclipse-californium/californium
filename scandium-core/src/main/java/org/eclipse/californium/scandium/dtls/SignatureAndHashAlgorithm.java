@@ -422,11 +422,7 @@ public final class SignatureAndHashAlgorithm {
 			}
 		} else {
 			hashAlgorithm = HashAlgorithm.INTRINSIC;
-			try {
-				signatureAlgorithm = SignatureAlgorithm.intrinsicValueOf(jcaName);
-			} catch (IllegalArgumentException ex) {
-				throw new IllegalArgumentException(jcaName + " is unknown!");
-			}
+			signatureAlgorithm = SignatureAlgorithm.intrinsicValueOf(jcaName);
 		}
 		return new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 	}
