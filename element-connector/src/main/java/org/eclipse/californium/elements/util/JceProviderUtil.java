@@ -254,6 +254,8 @@ public class JceProviderUtil {
 			method.invoke(null);
 			method = clz.getMethod("install");
 			method.invoke(null);
+		} catch (ClassNotFoundException e) {
+			LOGGER.warn("Setup BC logging failed, missing logging bridge 'jul-to-slf4j'!");
 		} catch (Throwable e) {
 			LOGGER.warn("Setup BC logging failed!", e);
 		}
