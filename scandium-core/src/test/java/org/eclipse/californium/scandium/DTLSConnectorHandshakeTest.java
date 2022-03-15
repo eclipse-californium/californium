@@ -80,6 +80,7 @@ import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetups;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
+import org.eclipse.californium.scandium.ConnectorHelper.TestContext;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -163,6 +164,7 @@ public class DTLSConnectorHandshakeTest {
 
 	DtlsConnectorConfig.Builder clientBuilder;
 	DTLSConnector client;
+	TestContext clientTestContext;
 	AlertCatcher clientAlertCatcher;
 	ApplicationLevelInfoSupplier clientInfoSupplier;
 	ApplicationLevelInfoSupplier serverInfoSupplier;
@@ -500,7 +502,7 @@ public class DTLSConnectorHandshakeTest {
 		client.setAlertHandler(clientAlertCatcher);
 		RawData raw = RawData.outbound("Hello World".getBytes(),
 				new AddressEndpointContext(serverHelper.serverEndpoint, hostname, null), null, false);
-		serverHelper.givenAnEstablishedSession(client, raw, true);
+		clientTestContext = serverHelper.givenAnEstablishedSession(client, raw, true);
 		final DTLSSession session = client.getSessionByAddress(serverHelper.serverEndpoint);
 		assertThat(session, is(notNullValue()));
 		ConnectorHelper.assertPrincipalHasAdditionalInfo(session.getPeerIdentity(), KEY_SERVER_NAME,
@@ -545,8 +547,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 	}
 
 	@Test
@@ -1444,8 +1445,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 		startClientPsk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256));
 	}
 
 	@Test
@@ -1455,8 +1455,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
 		startClientPsk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256));
 	}
 
 	@Test
@@ -1465,7 +1464,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		startClientPsk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 	}
 
 	@Test
@@ -1475,7 +1474,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_256_CCM_8);
 		startClientPsk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_256_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_256_CCM_8));
 	}
 
 	@Test
@@ -1484,7 +1483,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM);
 		startClientPsk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM));
 	}
 
 	@Test
@@ -1494,7 +1493,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_256_CCM);
 		startClientPsk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_256_CCM));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_256_CCM));
 	}
 
 	@Test
@@ -1504,8 +1503,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256);
 		startClientPsk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256));
 	}
 
 	@Test
@@ -1516,8 +1514,7 @@ public class DTLSConnectorHandshakeTest {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256));
 	}
 
 	@Test
@@ -1527,8 +1524,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 	}
 
 	@Test
@@ -1539,8 +1535,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8));
 	}
 
 	@Test
@@ -1550,8 +1545,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM));
 	}
 
 	@Test
@@ -1562,8 +1556,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM));
 	}
 
 	@Test
@@ -1575,8 +1568,7 @@ public class DTLSConnectorHandshakeTest {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA));
 	}
 
 	@Test
@@ -1588,8 +1580,7 @@ public class DTLSConnectorHandshakeTest {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384));
 	}
 
 	@Test
@@ -1600,8 +1591,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256));
 	}
 
 	@Test
@@ -1618,8 +1608,7 @@ public class DTLSConnectorHandshakeTest {
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 	}
 
 	@Test
@@ -1636,8 +1625,7 @@ public class DTLSConnectorHandshakeTest {
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 	}
 
 	@Test
@@ -1658,8 +1646,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 	}
 
 	@Test
@@ -1680,8 +1667,7 @@ public class DTLSConnectorHandshakeTest {
 		clientBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 	}
 
 	@Test
@@ -1714,8 +1700,7 @@ public class DTLSConnectorHandshakeTest {
 		setupClientCertificateIdentity(CertificateType.X_509);
 
 		DTLSSession session = startClient(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 		assertThat(session.getPeerIdentity().getName(),
 				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-eddsa"));
 	}
@@ -1753,7 +1738,7 @@ public class DTLSConnectorHandshakeTest {
 		setupClientCertificateIdentity(CertificateType.X_509);
 
 		DTLSSession session = startClient(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(cipherSuite));
+		assertThat(clientTestContext.getCipherSuite(), is(cipherSuite));
 		assertThat(session.getPeerIdentity().getName(),
 				is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa"));
 	}
@@ -1772,9 +1757,8 @@ public class DTLSConnectorHandshakeTest {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		startClient(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
-		assertThat(serverHelper.establishedServerSession.getSignatureAndHashAlgorithm(),
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getEstablishedServerSession().getSignatureAndHashAlgorithm(),
 				is(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
 	}
 
@@ -1798,9 +1782,8 @@ public class DTLSConnectorHandshakeTest {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		startClient(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
-		assertThat(serverHelper.establishedServerSession.getSignatureAndHashAlgorithm(),
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getEstablishedServerSession().getSignatureAndHashAlgorithm(),
 				is(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA));
 	}
 
@@ -1858,9 +1841,8 @@ public class DTLSConnectorHandshakeTest {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		startClient(null);
-		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
-				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
-		assertThat(serverHelper.establishedServerSession.getSignatureAndHashAlgorithm(),
+		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(clientTestContext.getEstablishedServerSession().getSignatureAndHashAlgorithm(),
 				is(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA));
 	}
 
@@ -2057,6 +2039,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		setupClientCertificateIdentity(CertificateType.X_509);
 		startClientX509(null);
+		int remainingCapacityBefore = serverHelper.serverConnectionStore.remainingCapacity();
 		clientBuilder = DtlsConnectorConfig.builder(network.createClientTestConfig());
 		startClientPsk(null);
 		clientBuilder = DtlsConnectorConfig.builder(network.createClientTestConfig());
@@ -2065,10 +2048,9 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		int remainingCapacity = serverHelper.serverConnectionStore.remainingCapacity();
 		Future<Void> future = serverHelper.server.startDropConnectionsForPrincipal(principal);
 		future.get();
-		assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remainingCapacity + 2));
+		assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remainingCapacityBefore));
 	}
 
 	@Test

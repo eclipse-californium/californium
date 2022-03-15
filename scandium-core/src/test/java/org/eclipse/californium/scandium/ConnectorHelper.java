@@ -93,6 +93,7 @@ import org.eclipse.californium.scandium.dtls.TestInMemorySessionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
+import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -109,6 +110,8 @@ import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
  * Encapsulates a server side {@code DTLSConnector}.
  */
 public class ConnectorHelper {
+
+	public static final InetSocketAddress LOCAL = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 
 	static final String SERVERNAME = "my.test.server";
 	static final String SERVERNAME2 = "my.test.server2";
@@ -130,8 +133,6 @@ public class ConnectorHelper {
 	SimpleRawDataChannel serverRawDataChannel;
 	RawDataProcessor serverRawDataProcessor;
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
-	DTLSContext establishedServerContext;
-	DTLSSession establishedServerSession;
 	AlertCatcher serverAlertCatcher;
 	AdvancedMultiPskStore serverPskStore;
 
@@ -308,40 +309,53 @@ public class ConnectorHelper {
 				.setAdvancedCertificateVerifier(clientCertificateVerifier);
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, boolean releaseSocket)
+	public DTLSSession getEstablishedServerDtlsSession(InetSocketAddress address) {
+		DTLSSession establishedServerSession = getEstablishedServerDtlsContext(address).getSession();
+		assertNotNull(establishedServerSession);
+		return establishedServerSession;
+	}
+
+	public DTLSContext getEstablishedServerDtlsContext(InetSocketAddress address) {
+		Connection con = serverConnectionStore.get(address);
+		assertNotNull(con);
+		DTLSContext establishedServerContext = con.getEstablishedDtlsContext();
+		assertNotNull(establishedServerContext);
+		return establishedServerContext;
+	}
+
+	public TestContext givenAnEstablishedSession(DTLSConnector client, boolean releaseSocket)
 			throws Exception {
 		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverEndpoint), null,
 				false);
 		return givenAnEstablishedSession(client, raw, releaseSocket);
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, RawData msgToSend,
+	public TestContext givenAnEstablishedSession(DTLSConnector client, RawData msgToSend,
 			boolean releaseSocket) throws Exception {
 
 		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientChannel);
 		client.start();
-		clientChannel.setAddress(client.getAddress());
+		InetSocketAddress clientAddress = client.getAddress();
 		client.send(msgToSend);
 		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds",
 				clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
-		establishedServerContext = con.getDtlsContext();
+		DTLSContext establishedServerContext = con.getDtlsContext();
 		assertNotNull(establishedServerContext);
-		establishedServerSession = con.getEstablishedSession();
+		DTLSSession establishedServerSession = con.getEstablishedSession();
 		assertNotNull(establishedServerSession);
 		if (releaseSocket) {
 			synchronized (client) {
 				client.stop();
 				// in order to prevent sporadic BindExceptions during test
-				// execution
-				// give OS some time before allowing test cases to re-bind to
-				// same port
+				// execution, give OS some time before allowing test cases
+				// to re-bind to same port
 				client.wait(200);
 			}
 		}
-		return clientChannel;
+		return new TestContext(clientChannel, clientAddress, establishedServerContext);
 	}
 
 	static void assertPrincipalHasAdditionalInfo(Principal peerIdentity, String key, String expectedValue) {
@@ -372,9 +386,54 @@ public class ConnectorHelper {
 		}
 	}
 
-	static class LatchDecrementingRawDataChannel implements RawDataChannel {
+	public static class TestContext {
 
-		private InetSocketAddress address;
+		private LatchDecrementingRawDataChannel channel;
+		private InetSocketAddress clientAddress;
+		private DTLSContext establishedServerContext;
+
+		public TestContext(LatchDecrementingRawDataChannel channel, InetSocketAddress clientAddress,
+				DTLSContext establishedServerContext) {
+			this.channel = channel;
+			this.clientAddress = clientAddress;
+			this.establishedServerContext = establishedServerContext;
+		}
+
+		public void setLatchCount(int count) {
+			channel.setLatchCount(count);
+		}
+
+		public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+			return channel.await(timeout, unit);
+		}
+
+		public LatchDecrementingRawDataChannel getChannel() {
+			return channel;
+		}
+
+		public InetSocketAddress getClientAddress() {
+			return clientAddress;
+		}
+
+		public DTLSContext getEstablishedServerContext() {
+			return establishedServerContext;
+		}
+
+		public DTLSSession getEstablishedServerSession() {
+			return establishedServerContext.getSession();
+		}
+
+		public CipherSuite getCipherSuite() {
+			return establishedServerContext.getSession().getCipherSuite();
+		}
+
+		public SessionId getSessionIdentifier() {
+			return establishedServerContext.getSession().getSessionIdentifier();
+		}
+	}
+
+	public static class LatchDecrementingRawDataChannel implements RawDataChannel {
+
 		private CountDownLatch latch;
 
 		public LatchDecrementingRawDataChannel() {
@@ -382,14 +441,6 @@ public class ConnectorHelper {
 
 		public LatchDecrementingRawDataChannel(int count) {
 			setLatchCount(count);
-		}
-
-		public synchronized InetSocketAddress getAddress() {
-			return address;
-		}
-
-		public synchronized void setAddress(InetSocketAddress address) {
-			this.address = address;
 		}
 
 		public synchronized void setLatchCount(int count) {
@@ -452,8 +503,6 @@ public class ConnectorHelper {
 			if (processor != null) {
 				RawData response = processor.process(raw);
 				if (response != null && connector != null) {
-					InetSocketAddress socketAddress = connector.getAddress();
-					setAddress(socketAddress);
 					connector.send(response);
 				}
 			}
@@ -690,8 +739,8 @@ public class ConnectorHelper {
 		final Thread receiver;
 		volatile DatagramSocket socket;
 
-		public UdpConnector(final int port, final DataHandler dataHandler) {
-			this.address = new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
+		public UdpConnector(InetSocketAddress address, DataHandler dataHandler) {
+			this.address = address;
 			this.handler = dataHandler;
 			Runnable rec = new Runnable() {
 

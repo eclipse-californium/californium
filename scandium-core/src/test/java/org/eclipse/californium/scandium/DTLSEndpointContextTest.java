@@ -43,6 +43,7 @@ import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
+import org.eclipse.californium.scandium.ConnectorHelper.TestContext;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
@@ -186,7 +187,7 @@ public class DTLSEndpointContextTest {
 		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(3);
 		client.setEndpointContextMatcher(endpointMatcher);
 		// GIVEN a established session
-		LatchDecrementingRawDataChannel channel = serverHelper.givenAnEstablishedSession(client, false);
+		TestContext clientTestContext = serverHelper.givenAnEstablishedSession(client, false);
 
 		EndpointContext endpointContext = endpointMatcher.getConnectionEndpointContext(1);
 
@@ -194,7 +195,7 @@ public class DTLSEndpointContextTest {
 		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, endpointContext, null, false);
 
 		// prepare waiting for response
-		channel.setLatchCount(1);
+		clientTestContext.setLatchCount(1);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
@@ -204,7 +205,7 @@ public class DTLSEndpointContextTest {
 
 		// THEN wait for response from server before shutdown client
 		assertTrue("DTLS client timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds waiting for response!",
-				channel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+				clientTestContext.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 	}
 
 	/**
@@ -218,7 +219,7 @@ public class DTLSEndpointContextTest {
 		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(3);
 		client.setEndpointContextMatcher(endpointMatcher);
 		// GIVEN a established session
-		LatchDecrementingRawDataChannel channel = serverHelper.givenAnEstablishedSession(client, false);
+		TestContext clientTestContext = serverHelper.givenAnEstablishedSession(client, false);
 
 		client.forceResumeAllSessions();
 
@@ -227,7 +228,7 @@ public class DTLSEndpointContextTest {
 				new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 
 		// prepare waiting for response
-		channel.setLatchCount(1);
+		clientTestContext.setLatchCount(1);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
@@ -238,7 +239,7 @@ public class DTLSEndpointContextTest {
 
 		// THEN wait for response from server before shutdown client
 		assertTrue("DTLS client timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds waiting for response!",
-				channel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+				clientTestContext.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 	}
 
 	@Test
