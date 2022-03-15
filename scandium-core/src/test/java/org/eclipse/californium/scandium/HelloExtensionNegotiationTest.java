@@ -40,6 +40,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.scandium.ConnectorHelper.TestContext;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
@@ -142,12 +143,12 @@ public class HelloExtensionNegotiationTest {
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 
 		// when the client negotiates a session with the server
-		serverHelper.givenAnEstablishedSession(client, false);
+		TestContext clientTestContext = serverHelper.givenAnEstablishedSession(client, false);
 
 		// then any message sent by either the client or server contains at most
 		// 512 bytes of payload data
 		assertThat(client.getMaximumFragmentLength(serverHelper.serverEndpoint), is(512));
-		assertThat(serverHelper.server.getMaximumFragmentLength(client.getAddress()), is(512));
+		assertThat(serverHelper.server.getMaximumFragmentLength(clientTestContext.getClientAddress()), is(512));
 	}
 
 	/**
@@ -173,9 +174,9 @@ public class HelloExtensionNegotiationTest {
 				new AddressEndpointContext(serverHelper.serverEndpoint, "iot.eclipse.org", null),
 				null,
 				false);
-		serverHelper.givenAnEstablishedSession(client, msg, false);
+		TestContext clientTestContext = serverHelper.givenAnEstablishedSession(client, msg, false);
 
 		// then the session on the server has received the SNI extension
-		assertTrue(serverHelper.establishedServerSession.isSniSupported());
+		assertTrue(clientTestContext.getEstablishedServerSession().isSniSupported());
 	}
 }
