@@ -17,7 +17,7 @@ For more details, please look at https://www.eclipse.org/security/.
 | 3.2.0   | :question: |
 | 3.1.0   | :question: |
 | 3.0.0   | :question: |
-| 2.7.0   | :question: |
+| 2.7.1   | :question: |
 | 2.6.6   | :question: |
 | 2.5.0   | :question: |
 | 2.4.1   | :question: |
