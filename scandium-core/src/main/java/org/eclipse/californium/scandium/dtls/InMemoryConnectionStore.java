@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Timestamped;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -102,7 +103,9 @@ import org.slf4j.LoggerFactory;
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryConnectionStore.class);
-	 // extra cid bytes additionally to required bytes for small capacity.
+	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
+
+	// extra cid bytes additionally to required bytes for small capacity.
 	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2;
 	 // extra cid bytes additionally to required bytes for large capacity.
 	private static final int DEFAULT_LARGE_EXTRA_CID_LENGTH = 3;
@@ -311,7 +314,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					}
 					success = true;
 				} else {
-					LOGGER.warn("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
+					WARN_FILTER.debug("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
 				}
 			}
 			if (success && sessionStore != null && session != null) {
@@ -445,7 +448,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		for (Connection connection : connections.values()) {
 			if (connection.getPeerAddress() != null && !connection.isResumptionRequired()) {
 				connection.setResumptionRequired(true);
-				LOGGER.debug("{}connection: mark for resumption {}!", tag, connection);
+				LOGGER.trace("{}connection: mark for resumption {}!", tag, connection);
 			}
 		}
 	}
@@ -461,7 +464,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized Connection get(final InetSocketAddress peerAddress) {
 		Connection connection = connectionsByAddress.get(peerAddress);
 		if (connection == null) {
-			LOGGER.debug("{}connection: missing connection for {}!", tag, StringUtil.toLog(peerAddress));
+			LOGGER.trace("{}connection: missing connection for {}!", tag, StringUtil.toLog(peerAddress));
 		} else {
 			InetSocketAddress address = connection.getPeerAddress();
 			if (address == null) {
@@ -476,8 +479,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	}
 
 	@Override
-	public synchronized Connection get(final ConnectionId cid) {
-		Connection connection = connections.get(cid);
+	public Connection get(ConnectionId cid) {
+		Connection connection;
+		synchronized (this) {
+			connection = connections.get(cid);
+		}
 		if (connection == null) {
 			LOGGER.debug("{}connection: missing connection for {}!", tag, cid);
 		} else {
@@ -517,6 +523,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 						LOGGER.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
 					}
 				}
+				connection.startByClientHello(null);
 				removeByAddressConnections(connection);
 				removeByEstablishedSessions(sessionId, connection);
 				ConnectionListener listener = connectionListener;
@@ -637,11 +644,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * @see LeastRecentlyUsedCache#valuesIterator()
+	 * @see LeastRecentlyUsedCache#valuesIterator(boolean)
 	 */
 	@Override
 	public Iterator<Connection> iterator() {
-		return connections.valuesIterator();
+		return connections.valuesIterator(false);
 	}
 
 	@Override
@@ -702,7 +709,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			while ((connection = Connection.fromReader(reader, delta)) != null) {
 				long lastUpdate = connection.getLastMessageNanos();
 				if (lastUpdate - startNanos > 0) {
-					LOGGER.warn("{}read {} ts is after {} (future)", tag, lastUpdate, startNanos);
+					WARN_FILTER.warn("{}read {} ts is after {} (future)", tag, lastUpdate, startNanos);
 				}
 				LOGGER.trace("{}read {} ts, {}s", tag, lastUpdate,
 						TimeUnit.NANOSECONDS.toSeconds(startNanos - lastUpdate));

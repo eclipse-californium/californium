@@ -603,6 +603,7 @@ public final class Connection {
 		SecretUtil.destroy(establishedDtlsContext);
 		establishedDtlsContext = null;
 		resumptionRequired = false;
+		startByClientHello(null);
 		updateConnectionState();
 	}
 

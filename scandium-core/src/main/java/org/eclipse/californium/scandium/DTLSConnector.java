@@ -301,6 +301,13 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	private final ResumptionSupportingConnectionStore connectionStore;
 
 	/**
+	 * Maximum number of connections.
+	 * 
+	 * @since 3.4
+	 */
+	private final int maxConnections;
+
+	/**
 	 * Resumption verifier.
 	 * 
 	 * @since 3.0
@@ -313,6 +320,12 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @since 3.0
 	 */
 	private final Queue<Connection> recentHandshakes = new ConcurrentLinkedQueue<>();
+	/**
+	 * Use extra counter to replace {@link Queue#size()}.
+	 * 
+	 * @since 3.4
+	 */
+	private final AtomicInteger recentHandshakesCounter = new AtomicInteger();
 
 	/**
 	 * General auto resumption timeout in milliseconds. {@code null}, if auto
@@ -484,7 +497,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		return new InMemoryConnectionStore(configuration.getMaxConnections(),
 				configuration.getStaleConnectionThresholdSeconds(), configuration.getSessionStore())
 						.setTag(configuration.getLoggingTag());
-
 	}
 
 	/**
@@ -521,6 +533,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			this.useExtendedWindowFilter = config.useDisabledWindowFilter();
 			this.useFilter = config.useAntiReplayFilter();
 			this.useCidUpdateAddressOnNewerRecordFilter = config.useUpdateAddressUsingCidOnNewerRecords();
+			this.maxConnections = config.getMaxConnections();
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
@@ -593,6 +606,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					final Connection connection = handshaker.getConnection();
 					if (connection.getStartNanos() != null) {
 						recentHandshakes.add(connection);
+						recentHandshakesCounter.incrementAndGet();
 					}
 				}
 
@@ -643,7 +657,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					}
 				}
 			};
-			int maxConnections = config.getMaxConnections();
 			// calculate absolute threshold from relative.
 			long thresholdInPercent = config.getVerifyPeersOnResumptionThreshold();
 			long threshold = (((long) maxConnections * thresholdInPercent) + 50L) / 100L;
@@ -775,29 +788,50 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * 
 	 * Remove starting hello client, if expired.
 	 * 
-	 * @since 3.0
+	 * @param calls number of calls
+	 * @since 3.4 (added parameter calls)
 	 */
-	private void cleanupRecentHandshakes() {
+	private void cleanupRecentHandshakes(int calls) {
+		boolean started = false;
+		long time = ClockUtil.nanoRealtime();
+		int loop = 0;
 		int count = 0;
-		int size = 0;
-		long expires = calculateRecentHandshakeExpires();
-		while (true) {
-			size = recentHandshakes.size();
-			Connection connection = recentHandshakes.peek();
-			if (connection == null) {
-				break;
+		int size = recentHandshakesCounter.get();
+		int log = Math.max(10000, size / 5);
+		boolean full = (calls % 6) == 0;
+		String qualifier = full ? " (full)" : "";
+		try {
+			long expires = calculateRecentHandshakeExpires();
+			Iterator<Connection> iterator = recentHandshakes.iterator();
+			while (running.get()) {
+				if (!iterator.hasNext()) {
+					break;
+				}
+				Connection connection = iterator.next();
+				if ((loop++ % log) == 0) {
+					started = true;
+					LOGGER.trace("{} recent handshakes, cleaning up {} - {}", size, count,
+							connection.getConnectionId());
+				}
+				Long startNanos = connection.getStartNanos();
+				if (startNanos == null || (expires - startNanos) >= 0) {
+					connection.startByClientHello(null);
+					size = recentHandshakesCounter.decrementAndGet();
+					iterator.remove();
+					++count;
+				} else if (!full) {
+					break;
+				}
 			}
-			Long startNanos = connection.getStartNanos();
-			if (startNanos == null || (expires - startNanos) >= 0) {
-				connection.startByClientHello(null);
-				recentHandshakes.poll();
-				++count;
-			} else {
-				break;
+			if (started) {
+				time = ClockUtil.nanoRealtime() - time;
+				LOGGER.debug("{} left recent handshakes, {} removed in {}ms{}!", size, count,
+						TimeUnit.NANOSECONDS.toMillis(time), qualifier);
 			}
-		}
-		if (count > 0 || size > 0) {
-			LOGGER.debug("Cleanup {} recent handshakes, left {}!", count, size);
+		} catch (Throwable ex) {
+			time = ClockUtil.nanoRealtime() - time;
+			LOGGER.error("{} recent handshakes, cleanup failed after {} in {}ms{}!", size, count,
+					TimeUnit.NANOSECONDS.toMillis(time), qualifier, ex);
 		}
 	}
 
@@ -1029,7 +1063,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		}
 		// prepare restored connections.
 		long expires = calculateRecentHandshakeExpires();
-		int recentCounter = 0;
 		List<Connection> recent = new ArrayList<>();
 		Iterator<Connection> iterator = connectionStore.iterator();
 		while (iterator.hasNext()) {
@@ -1040,7 +1073,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				}
 				Long start = connection.getStartNanos();
 				if (start != null) {
-					++recentCounter;
 					if ((expires - start) < 0) {
 						recent.add(connection);
 					} else {
@@ -1049,33 +1081,31 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				}
 			}
 		}
-		if (recentCounter > 0) {
+		if (!recent.isEmpty()) {
 			LOGGER.info("Restore {} recent handshakes!", recent.size());
-			if (!recent.isEmpty()) {
-				Collections.sort(recent, new Comparator<Connection>() {
+			Collections.sort(recent, new Comparator<Connection>() {
 
-					@Override
-					public int compare(Connection o1, Connection o2) {
-						Long time1 = o1.getStartNanos();
-						Long time2 = o2.getStartNanos();
-						if (time1 != null && time2 != null) {
-							long diff = time1 - time2;
-							if (diff > 0) {
-								return 1;
-							} else if (diff < 0) {
-								return -1;
-							}
-						} else if (time1 == null) {
-							return -1;
-						} else if (time2 == null) {
+				@Override
+				public int compare(Connection o1, Connection o2) {
+					Long time1 = o1.getStartNanos();
+					Long time2 = o2.getStartNanos();
+					if (time1 != null && time2 != null) {
+						long diff = time1 - time2;
+						if (diff > 0) {
 							return 1;
+						} else if (diff < 0) {
+							return -1;
 						}
-						return 0;
+					} else if (time1 == null) {
+						return -1;
+					} else if (time2 == null) {
+						return 1;
 					}
-				});
-				recentHandshakes.addAll(recent);
-				cleanupRecentHandshakes();
-			}
+					return 0;
+				}
+			});
+			recentHandshakes.addAll(recent);
+			recentHandshakesCounter.set(recent.size());
 		}
 		running.set(true);
 
@@ -1143,13 +1173,16 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 
 		recentHandshakeCleaner = timer.scheduleWithFixedDelay(new Runnable() {
 
+			private int calls = 0;
+
 			@Override
 			public void run() {
 				try {
-					cleanupRecentHandshakes();
+					cleanupRecentHandshakes(calls);
 				} catch (Throwable t) {
-					LOGGER.warn("Cleanup recent handshakes failed!", t);
+					LOGGER.warn("Cleanup recent handshakes failed (loop {})!", calls, t);
 				}
+				++calls;
 			}
 
 		}, 5000, 5000, TimeUnit.MILLISECONDS);
@@ -1222,6 +1255,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				}
 				// recent handshakes will be restored from connection store,
 				recentHandshakes.clear();
+				recentHandshakesCounter.set(0);
 				for (Thread t : receiverThreads) {
 					t.interrupt();
 				}
@@ -2183,6 +2217,13 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 						}
 					}
 					if (connection == null) {
+						int max = Math.max(maxConnections, 50);
+						if (recentHandshakesCounter.get() > max) {
+							// the number of established session in the
+							// past CLIENT_HELLO_TIMEOUT_NANOS
+							LOGGER.error("Too many recent handshakes! {} max. allowed.", max);
+							return;
+						}
 						connection = new Connection(peerAddress);
 						connection.setConnectorContext(executor, connectionListener);
 						connection.startByClientHello(clientHello);
