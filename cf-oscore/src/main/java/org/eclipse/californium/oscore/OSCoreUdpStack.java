@@ -29,13 +29,15 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 
 /**
+ * UDP CoAP stack supporting OSCORE.
  * 
  * Extends the BaseCoapStack and adds the ObjectSecurityLayer.
  *
  */
-public class OSCoreStack extends BaseCoapStack {
+public class OSCoreUdpStack extends BaseCoapStack {
+	
 	/**
-	 * Creates a new stack for UDP as the transport.
+	 * Creates a new OSCORE-enabled stack using UDP as the transport.
 	 * 
 	 * @param tag logging tag
 	 * @param config The configuration values to use.
@@ -46,7 +48,7 @@ public class OSCoreStack extends BaseCoapStack {
 	 * @param ctxDb context DB.
 	 * @since 3.1
 	 */
-	public OSCoreStack(String tag, Configuration config, EndpointContextMatcher matchingStrategy, Outbox outbox, OSCoreCtxDB ctxDb) {
+	public OSCoreUdpStack(String tag, Configuration config, EndpointContextMatcher matchingStrategy, Outbox outbox, OSCoreCtxDB ctxDb) {
 		super(outbox);
 
 		Layer layers[] = new Layer[] {
@@ -57,22 +59,5 @@ public class OSCoreStack extends BaseCoapStack {
 				CongestionControlLayer.newImplementation(tag, config),
 				new ObjectSecurityLayer(ctxDb)};
 		setLayers(layers);
-	}
-
-	/**
-	 * Creates a new stack for UDP as the transport.
-	 * 
-	 * @param tag logging tag
-	 * @param config The configuration values to use.
-	 * @param outbox The adapter for submitting outbound messages to the
-	 *            transport.
-	 * @param ctxDb context DB.
-	 * @deprecated use
-	 *             {@link #OSCoreStack(String, Configuration, EndpointContextMatcher, Outbox, OSCoreCtxDB)}
-	 *             instead
-	 * @since 3.0 (logging tag added and changed parameter to Configuration)
-	 */
-	public OSCoreStack(String tag, Configuration config, Outbox outbox, OSCoreCtxDB ctxDb) {
-		this(tag, config, null, outbox, ctxDb);
 	}
 }

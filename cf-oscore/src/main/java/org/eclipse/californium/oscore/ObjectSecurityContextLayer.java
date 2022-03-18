@@ -138,7 +138,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 					// and then send the original request using this new context
 					final Request startRederivation = Request.newGet();
 					startRederivation.setScheme(request.getScheme());
-					startRederivation.setDestinationContext(request.getDestinationContext());
+					startRederivation.setURI((request.getURI()));
 					startRederivation.getOptions().setOscore(Bytes.EMPTY);
 					startRederivation.getOptions().setUriPath("/rederivation/blackhole");
 					startRederivation.addMessageObserver(new MessageObserverAdapter() {

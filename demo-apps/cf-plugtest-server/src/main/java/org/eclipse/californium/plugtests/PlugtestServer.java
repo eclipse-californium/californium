@@ -18,6 +18,7 @@
  *                                                    AbstractTestServer.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use special properties file
  *                                                    for configuration
+ *    Rikard Höglund (RISE)                         - OSCORE support                                                    
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
@@ -45,6 +46,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.server.EncryptedServersSerializationUtil;
 import org.eclipse.californium.core.server.resources.MyIpResource;
+import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -55,6 +57,10 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
 import org.eclipse.californium.plugtests.resources.Echo;
@@ -76,6 +82,8 @@ import org.eclipse.californium.plugtests.resources.ObserveLarge;
 import org.eclipse.californium.plugtests.resources.ObserveNon;
 import org.eclipse.californium.plugtests.resources.ObservePumping;
 import org.eclipse.californium.plugtests.resources.ObserveReset;
+import org.eclipse.californium.plugtests.resources.Oscore;
+import org.eclipse.californium.plugtests.resources.OscoreInfo;
 import org.eclipse.californium.plugtests.resources.Path;
 import org.eclipse.californium.plugtests.resources.Query;
 import org.eclipse.californium.plugtests.resources.Separate;
@@ -186,6 +194,9 @@ public class PlugtestServer extends AbstractTestServer {
 		@Option(names = "--echo-delay", negatable = true, description = "enable delay option for echo resource.")
 		public boolean echoDelay;
 
+		@Option(names = "--no-oscore", negatable = true, description = "use OSCORE.")
+		public boolean oscore = true;
+
 		@ArgGroup(exclusive = false)
 		public Store store;
 
@@ -269,7 +280,7 @@ public class PlugtestServer extends AbstractTestServer {
 	}
 
 	public static void main(String[] args) {
-
+		
 		CommandLine cmd = new CommandLine(config);
 		try {
 			ParseResult result = cmd.parseArgs(args);
@@ -360,11 +371,19 @@ public class PlugtestServer extends AbstractTestServer {
 
 		// create server
 		try {
+			HashMapCtxDB oscoreCtxDb = null;
+			byte[] oscoreServerRid = null;
+			if (config.oscore) {
+				oscoreCtxDb = new HashMapCtxDB();
+				OSCoreCoapStackFactory.useAsDefault(oscoreCtxDb);
+				oscoreServerRid = initOscore(oscoreCtxDb);
+			}
+
 			List<Protocol> protocols = config.getProtocols();
 
 			List<InterfaceType> types = config.getInterfaceTypes();
 
-			server = new PlugtestServer(configuration, protocolConfig);
+			server = new PlugtestServer(configuration, protocolConfig, oscoreCtxDb, oscoreServerRid);
 			server.setVersion(CALIFORNIUM_BUILD_VERSION);
 			server.setTag("PLUG-TEST");
 			add(server);
@@ -523,6 +542,40 @@ public class PlugtestServer extends AbstractTestServer {
 		return false;
 	}
 
+	/**
+	 * Initializes an OSCORE context for the server built on a pre-defined
+	 * configuration and adds it to the OSCORE context database. The created
+	 * context will support the Appendix B.2. context rederivation procedure.
+	 * 
+	 * @param db the OSCORE context database
+	 * 
+	 * @return the RID of the server for the generated context
+	 */
+	public static byte[] initOscore(HashMapCtxDB db) {
+		AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+		AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
+
+		byte[] master_secret = StringUtil.hex2ByteArray("0102030405060708090a0b0c0d0e0f10");
+		byte[] master_salt = StringUtil.hex2ByteArray("9e7ca92223786340");
+		byte[] sid = StringUtil.hex2ByteArray("02");
+		byte[] rid = StringUtil.hex2ByteArray("01");
+		byte[] id_context = StringUtil.hex2ByteArray("37cbf3210017a2d3");
+		int MAX_UNFRAGMENTED_SIZE = Configuration.getStandard().get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
+
+		OSCoreCtx ctx = null;
+		try {
+			ctx = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, id_context,
+					MAX_UNFRAGMENTED_SIZE);
+			ctx.setContextRederivationEnabled(true);
+		} catch (OSException e) {
+			LOGGER.error("Failed to derive OSCORE context");
+			e.printStackTrace();
+		}
+		db.addContext(ctx);
+
+		return rid;
+	}
+
 	public static class ActiveInputReader {
 
 		BufferedReader in;
@@ -566,7 +619,8 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 	}
 
-	public PlugtestServer(Configuration config, Map<Select, Configuration> protocolConfig) throws SocketException {
+	public PlugtestServer(Configuration config, Map<Select, Configuration> protocolConfig, HashMapCtxDB oscoreCtxDb,
+			byte[] oscoreServerRid) throws SocketException {
 		super(config, protocolConfig);
 
 		// add resources to the server
@@ -598,5 +652,10 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, false));
 		add(new MyContext(MyContext.RESOURCE_NAME, CALIFORNIUM_BUILD_VERSION, false));
+
+		if (oscoreCtxDb != null && oscoreServerRid != null) {
+			add(new Oscore());
+			add(new OscoreInfo(oscoreCtxDb, oscoreServerRid));
+		}
 	}
 }
