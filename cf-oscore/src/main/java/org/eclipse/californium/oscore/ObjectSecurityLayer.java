@@ -339,7 +339,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				LOGGER.warn("Incoming response is NOT OSCORE protected!");
 			} else if (isProtected(response) && expectProtectedResponse) {
 				LOGGER.info("Incoming response is OSCORE protected");
-			} else {
+			} else if (isProtected(response)) {
 				LOGGER.warn("Incoming response is OSCORE protected but it should not be");
 			}
 

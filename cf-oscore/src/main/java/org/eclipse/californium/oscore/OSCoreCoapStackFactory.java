@@ -12,6 +12,7 @@
 + * 
 + * Contributors:
 + *    Bosch Software Innovations GmbH - initial implementation. 
++ *    Rikard Höglund (RISE)           - OSCORE TCP stack creation
 + ******************************************************************************/
 package org.eclipse.californium.oscore;
 
@@ -19,7 +20,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.CoapStackFactory;
 import org.eclipse.californium.core.network.ExtendedCoapStackFactory;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.CoapStack;
@@ -27,8 +27,8 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 
 /**
- * Coap stack factory creating a {@link OSCoreStack} including a
- * {@link ObjectSecurityLayer}.
+ * Coap stack factory creating a {@link OSCoreUdpStack} or
+ * {@link OSCoreTcpStack} including a {@link ObjectSecurityLayer}.
  */
 public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 
@@ -38,9 +38,7 @@ public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 	@Override
 	public CoapStack createCoapStack(String protocol, String tag, Configuration config,
 			EndpointContextMatcher matchingStrategy, Outbox outbox, Object customStackArgument) {
-		if (CoAP.isTcpProtocol(protocol)) {
-			throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
-		}
+
 		OSCoreCtxDB ctxDb = defaultCtxDb;
 		if (customStackArgument != null) {
 			if (!(customStackArgument instanceof OSCoreCtxDB)) {
@@ -49,7 +47,12 @@ public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 			}
 			ctxDb = (OSCoreCtxDB) customStackArgument;
 		}
-		return new OSCoreStack(tag, config, matchingStrategy, outbox, ctxDb);
+
+		if (CoAP.isTcpProtocol(protocol)) {
+			return new OSCoreTcpStack(tag, config, matchingStrategy, outbox, ctxDb);
+		} else {
+			return new OSCoreUdpStack(tag, config, matchingStrategy, outbox, ctxDb);
+		}
 	}
 
 	@Override
@@ -59,12 +62,14 @@ public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 	}
 
 	/**
-	 * Use {@link OSCoreStack} as default for {@link CoapEndpoint}.
+	 * Use {@link OSCoreUdpStack} or {@link OSCoreTcpStack} as default for
+	 * {@link CoapEndpoint}.
 	 * 
 	 * Note: the factory is only applied once with the first call, the
 	 * {@link #defaultCtxDb} is update on every call.
 	 * 
-	 * @param defaultCtxDb default context DB. Passed in as default argument for {@link OSCoreStack}
+	 * @param defaultCtxDb default context DB. Passed in as default argument for
+	 *            {@link OSCoreUdpStack} and {@link OSCoreTcpStack}
 	 * 
 	 * @see CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)
 	 */

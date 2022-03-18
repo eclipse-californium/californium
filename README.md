@@ -180,6 +180,17 @@ A test server is running at <a href="coap://californium.eclipseprojects.io:5683/
 It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar) from the demo-apps.
 The root resource responds with its current version.
 
+The server has a resource (in preparation) only accessible using OSCORE under "/oscore". It is configured with the following security material:
+```
+Master Secret: 0x0102030405060708090a0b0c0d0e0f10 (16 bytes)
+Master Salt:   0x9e7ca92223786340 (8 bytes)
+Sender ID:     0x01 (1 byte)
+Recipient ID:  0x02 (1 byte)
+ID Context:    0x37cbf3210017a2d3 (8 bytes)
+(See up to date parameters in "/oscoreInfo" resource)
+```
+Note that the server supports running the Appendix B.2 context rederivation procedure. This is necessary as requests from new clients would otherwise be considered replays (as the server's replay window is filled up from earlier clients). To access this resource without using the Appendix B.2 procedure, an appropriate Sender Sequence Number to use and the current ID Context can be retrieved from the resource "/oscoreInfo" using plain CoAP.
+
 More information can be found at [http://www.eclipse.org/californium](http://www.eclipse.org/californium) and technical details at [https://projects.eclipse.org/projects/iot.californium](https://projects.eclipse.org/projects/iot.californium).
 
 Another interop server with a different implementation can be found at
