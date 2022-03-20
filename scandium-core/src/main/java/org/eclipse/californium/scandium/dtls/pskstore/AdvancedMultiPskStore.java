@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls.pskstore;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
@@ -50,14 +51,15 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * with the non-compliant encoded bytes and the intended string.
  * </p>
  * <p>
- * To be used only for testing and evaluation. 
- * You are supposed to store your key in a secure way:
- * keeping them in-memory is not a good idea.
+ * To be used only for testing and evaluation. You are supposed to store your
+ * key in a secure way: keeping them in-memory is not a good idea.
  * </p>
  * 
  * @since 2.5
  */
 public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
+
+	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
 	@Override
 	public boolean hasEcdhePskSupported() {
@@ -66,24 +68,28 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 
 	@Override
 	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverNames,
-			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
+			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
+			boolean useExtendedMasterSecret) {
 
 		PskCredentials credentials = null;
 
 		if (identity == null) {
 			throw new NullPointerException("identity must not be null");
-		} else if (serverNames == null) {
-			synchronized (scopedKeys) {
-				credentials = getPskCredentials(identity, scopedKeys.get(GLOBAL_SCOPE));
-			}
 		} else {
-			synchronized (scopedKeys) {
-				for (ServerName serverName : serverNames) {
-					credentials = getPskCredentials(identity, scopedKeys.get(serverName));
-					if (credentials != null) {
-						break;
+			try {
+				lock.readLock().lock();
+				if (serverNames == null) {
+					credentials = getPskCredentials(identity, scopedKeys.get(GLOBAL_SCOPE));
+				} else {
+					for (ServerName serverName : serverNames) {
+						credentials = getPskCredentials(identity, scopedKeys.get(serverName));
+						if (credentials != null) {
+							break;
+						}
 					}
 				}
+			} finally {
+				lock.readLock().unlock();
 			}
 		}
 		if (credentials != null) {
@@ -97,18 +103,22 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 	public PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
 		if (peerAddress == null) {
 			throw new NullPointerException("address must not be null");
-		} else if (virtualHost == null) {
-			synchronized (scopedIdentities) {
-				return getIdentityFromMap(GLOBAL_SCOPE, scopedIdentities.get(peerAddress));
-			}
 		} else {
-			synchronized (scopedIdentities) {
-				for (ServerName serverName : virtualHost) {
-					PskPublicInformation identity = getIdentityFromMap(serverName, scopedIdentities.get(peerAddress));
-					if (identity != null) {
-						return identity;
+			try {
+				lock.readLock().lock();
+				if (virtualHost == null) {
+					return getIdentityFromMap(GLOBAL_SCOPE, scopedIdentities.get(peerAddress));
+				} else {
+					for (ServerName serverName : virtualHost) {
+						PskPublicInformation identity = getIdentityFromMap(serverName,
+								scopedIdentities.get(peerAddress));
+						if (identity != null) {
+							return identity;
+						}
 					}
 				}
+			} finally {
+				lock.readLock().unlock();
 			}
 		}
 		return null;
@@ -121,7 +131,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 
 	@Override
 	public void destroy() throws DestroyFailedException {
-		synchronized (scopedKeys) {
+		try {
+			lock.writeLock().lock();
 			destroyed = true;
 			scopedIdentities.clear();
 			for (Map<PskPublicInformation, PskCredentials> keys : scopedKeys.values()) {
@@ -130,6 +141,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 				}
 			}
 			scopedKeys.clear();
+		} finally {
+			lock.writeLock().unlock();
 		}
 	}
 
@@ -267,13 +280,16 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 		} else if (virtualHost == null) {
 			throw new NullPointerException("serverName must not be null");
 		} else {
-			synchronized (scopedKeys) {
+			try {
+				lock.writeLock().lock();
 				Map<PskPublicInformation, PskCredentials> keysForServerName = scopedKeys.get(virtualHost);
 				if (keysForServerName == null) {
 					keysForServerName = new ConcurrentHashMap<>();
 					scopedKeys.put(virtualHost, keysForServerName);
 				}
 				keysForServerName.put(identity, new PskCredentials(identity, key));
+			} finally {
+				lock.writeLock().unlock();
 			}
 		}
 	}
@@ -308,7 +324,6 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 	 */
 	public void addKnownPeer(final InetSocketAddress peerAddress, final PskPublicInformation identity,
 			final byte[] key) {
-
 		addKnownPeer(peerAddress, GLOBAL_SCOPE, identity, key);
 	}
 
@@ -346,7 +361,6 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 	 */
 	public void addKnownPeer(final InetSocketAddress peerAddress, final String virtualHost,
 			final PskPublicInformation identity, final byte[] key) {
-
 		addKnownPeer(peerAddress, ServerName.fromHostName(virtualHost), identity, key);
 	}
 
@@ -362,7 +376,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 		} else if (key == null) {
 			throw new NullPointerException("key must not be null");
 		} else {
-			synchronized (scopedKeys) {
+			try {
+				lock.writeLock().lock();
 				Map<ServerName, PskPublicInformation> identities = scopedIdentities.get(peerAddress);
 				if (identities == null) {
 					identities = new ConcurrentHashMap<>();
@@ -370,6 +385,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 				}
 				identities.put(virtualHost, identity);
 				setKey(identity, key, virtualHost);
+			} finally {
+				lock.writeLock().unlock();
 			}
 		}
 	}
@@ -442,11 +459,14 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 		} else if (virtualHost == null) {
 			throw new NullPointerException("serverName must not be null");
 		} else {
-			synchronized (scopedKeys) {
+			try {
+				lock.writeLock().lock();
 				Map<PskPublicInformation, PskCredentials> keysForServerName = scopedKeys.get(virtualHost);
 				if (keysForServerName != null) {
 					keysForServerName.remove(identity);
 				}
+			} finally {
+				lock.writeLock().unlock();
 			}
 		}
 	}
