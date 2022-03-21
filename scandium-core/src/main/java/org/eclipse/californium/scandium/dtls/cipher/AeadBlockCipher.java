@@ -74,11 +74,11 @@ public final class AeadBlockCipher {
 		} catch (NoSuchAlgorithmException ex) {
 		}
 		if (maxKeyLengthBits == 0) {
-			LOGGER.info("{} is not supported!", transformation);
+			LOGGER.debug("{} is not supported!", transformation);
 		} else if (maxKeyLengthBits == Integer.MAX_VALUE) {
-			LOGGER.info("{} is not restricted!", transformation, maxKeyLengthBits);
+			LOGGER.debug("{} is not restricted!", transformation);
 		} else {
-			LOGGER.info("Max. allowed key length for {} is {} bits", transformation, maxKeyLengthBits);
+			LOGGER.debug("{} is restricted to {} bits.", transformation, maxKeyLengthBits);
 		}
 		return keyLength * Byte.SIZE <= maxKeyLengthBits;
 	}
