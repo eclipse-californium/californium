@@ -170,6 +170,20 @@ public final class CoapConfig {
 	public static final int DEFAULT_BLOCKWISE_STATUS_INTERVAL_IN_SECONDS = 5;
 
 	/**
+	 * The default mode used for error-responds for send blockwise payload.
+	 * <p>
+	 * The default value is {@code false}, which indicate that the server will
+	 * not include the Block1 option in error responses.
+	 * 
+	 * @see <a href="https://github.com/eclipse/californium/issues/1937" target=
+	 *      "_blank"> RFC7959 - Block1 Option in Error Response 4.08 (Request
+	 *      Entity Incomplete)</a>
+	 * 
+	 * @since 3.4
+	 */
+	public static final boolean DEFAULT_BLOCKWISE_STRICT_BLOCK1_OPTION = false;
+
+	/**
 	 * The default mode used to respond for early blockwise negotiation, when
 	 * response can be sent on one packet.
 	 * <p>
@@ -532,6 +546,24 @@ public final class CoapConfig {
 	 */
 	public static final IntegerDefinition TCP_NUMBER_OF_BULK_BLOCKS = new IntegerDefinition(
 			MODULE + "TCP_NUMBER_OF_BULK_BLOCKS", "Number of block per TCP-blockwise bulk transfer.", 1, 1);
+
+	/**
+	 * Property to indicate if the error-response should include the Block1
+	 * option.
+	 * <p>
+	 * The default value of this property is
+	 * {@link #DEFAULT_BLOCKWISE_STRICT_BLOCK1_OPTION}.
+	 * </p>
+	 * 
+	 * @see <a href="https://github.com/eclipse/californium/issues/1937" target=
+	 *      "_blank"> RFC7959 - Block1 Option in Error Response 4.08 (Request
+	 *      Entity Incomplete)</a>
+	 * 
+	 * @since 3.4
+	 */
+	public static final BooleanDefinition BLOCKWISE_STRICT_BLOCK1_OPTION = new BooleanDefinition(
+			MODULE + "BLOCKWISE_STRICT_BLOCK1_OPTION", "Use block1 option strictly, even for error-responses.",
+			DEFAULT_BLOCKWISE_STRICT_BLOCK1_OPTION);
 
 	/**
 	 * Property to indicate if the response should always include the Block2

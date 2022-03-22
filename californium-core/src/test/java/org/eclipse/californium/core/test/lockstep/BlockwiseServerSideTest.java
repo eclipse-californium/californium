@@ -61,6 +61,7 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -153,6 +154,10 @@ public class BlockwiseServerSideTest {
 		expectedToken = null;
 		testResource = new TestResource(RESOURCE_PATH);
 		testResource.setObservable(true);
+		setupServerAndClient();
+	}
+
+	public void setupServerAndClient() throws Exception {
 		// bind to loopback address using an ephemeral port
 		serverEndpoint = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config);
 		serverEndpoint.addInterceptor(serverInterceptor);
@@ -940,7 +945,24 @@ public class BlockwiseServerSideTest {
 		Token tok = generateNextToken();
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, true, 64).payload(reqtPayload.substring(2*64, 3*64)).go();
-		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).go();
+		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).noOption(OptionNumberRegistry.BLOCK1).go();
+		Response response = serverInterceptor.getLastSentResponse();
+		assertThat(response, is(notNullValue()));
+		assertThat(response.isInternal(), is(true));
+	}
+
+	@Test
+	public void testRandomAccessPUTAttempStrict() throws Exception {
+		respPayload = generateRandomPayload(50);
+		reqtPayload = generateRandomPayload(300);
+		Token tok = generateNextToken();
+		server.destroy();
+		client.destroy();
+		config.set(CoapConfig.BLOCKWISE_STRICT_BLOCK1_OPTION, true);
+		setupServerAndClient();
+
+		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, true, 64).payload(reqtPayload.substring(2*64, 3*64)).go();
+		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).block1(2, true, 64).go();
 		Response response = serverInterceptor.getLastSentResponse();
 		assertThat(response, is(notNullValue()));
 		assertThat(response.isInternal(), is(true));

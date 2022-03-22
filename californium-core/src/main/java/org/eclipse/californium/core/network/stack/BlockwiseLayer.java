@@ -230,6 +230,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private final int blockTimeout;
 	private final int blockInterval;
 	private final int maxResourceBodySize;
+	private final boolean strictBlock1Option;
 	private final boolean strictBlock2Option;
 	private final long healthStatusInterval;
 	/* @since 2.4 */
@@ -375,6 +376,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				}
 			}
 		});
+		strictBlock1Option = config.get(CoapConfig.BLOCKWISE_STRICT_BLOCK1_OPTION);
 		strictBlock2Option = config.get(CoapConfig.BLOCKWISE_STRICT_BLOCK2_OPTION);
 
 		healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
@@ -647,6 +649,9 @@ public class BlockwiseLayer extends AbstractLayer {
 			ResponseCode errorCode, String message) {
 
 		Response error = new Response(errorCode, true);
+		if (strictBlock1Option) {
+			error.getOptions().setBlock1(request.getOptions().getBlock1());
+		}
 		error.setDestinationContext(request.getSourceContext());
 		error.setPayload(message);
 		clearBlock1Status(status);
