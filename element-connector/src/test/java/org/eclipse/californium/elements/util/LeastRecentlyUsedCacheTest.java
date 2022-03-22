@@ -57,9 +57,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testGetFailsWhenExpired() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 1;
+		int numberOfEntries = 1;
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(true);
 		String eldest = cache.getEldest();
 		Integer key = Integer.valueOf(eldest);
@@ -71,9 +71,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testGetSucceedsEvenExpired() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 1;
+		int numberOfEntries = 1;
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(false);
 		String eldest = cache.getEldest();
 		Integer key = Integer.valueOf(eldest);
@@ -86,10 +86,10 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testUpdate() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 1;
+		int numberOfEntries = 1;
 		TimeAssume assume = new TimeAssume(time);
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(true);
 		cache.setUpdatingOnReadAccess(false);
 		String eldest = cache.getEldest();
@@ -114,10 +114,10 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testRemoveExpiredEntriesWithLimit() throws InterruptedException {
 		int capacity = 10;
-		int numberOfSessions = 10;
+		int numberOfEntries = 10;
 		TimeAssume assume = new TimeAssume(time);
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(false);
 		cache.setUpdatingOnReadAccess(true);
 		time.setFixedTestTime(true);
@@ -146,10 +146,10 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testRemoveExpiredEntriesWithoutLimit() throws InterruptedException {
 		int capacity = 10;
-		int numberOfSessions = 10;
+		int numberOfEntries = 10;
 		TimeAssume assume = new TimeAssume(time);
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(false);
 		cache.setUpdatingOnReadAccess(true);
 		time.setFixedTestTime(true);
@@ -176,10 +176,10 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testIteratorWhenExpired() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 5;
+		int numberOfEntries = 5;
 		TimeAssume assume = new TimeAssume(time);
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(true);
 		time.setFixedTestTime(true);
 		assume.sleep(THRESHOLD_MILLIS / 2);
@@ -206,9 +206,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testIteratorOnRemove() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 5;
+		int numberOfEntries = 5;
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(false);
 		Iterator<String> valuesIterator = cache.valuesIterator();
 		cache.remove(2);
@@ -227,15 +227,15 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testIteratorTimestamped() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 5;
+		int numberOfEntries = 5;
 
 		LeastRecentlyUsedCache<Integer, String> clone = new LeastRecentlyUsedCache<>(3, 0);
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(false);
 		cache.remove(2);
 
-		assertOrder(cache, false);
+		assertOrder(cache, true);
 
 		Iterator<LeastRecentlyUsedCache.Timestamped<String>> valuesIterator = cache.timestampedIterator();
 		LeastRecentlyUsedCache.Timestamped<String> timestamped = valuesIterator.next();
@@ -271,9 +271,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testPutNewTimestamped() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 5;
+		int numberOfEntries = 5;
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(false);
 		cache.setUpdatingOnReadAccess(false);
 		time.addTestTimeShift(THRESHOLD_MILLIS * 2, TimeUnit.MILLISECONDS);
@@ -325,9 +325,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testPutUpdatedTimestamped() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 5;
+		int numberOfEntries = 5;
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(false);
 		cache.setUpdatingOnReadAccess(false);
 		time.addTestTimeShift(THRESHOLD_MILLIS * 2, TimeUnit.MILLISECONDS);
@@ -370,9 +370,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testFindUniqueFailsWhenExpired() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 3;
+		int numberOfEntries = 3;
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(true);
 		final String eldest = cache.getEldest();
 		Predicate<String> predicate = new Predicate<String>() {
@@ -391,9 +391,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testFindUniqueSucceedsEvenExpired() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 3;
+		int numberOfEntries = 3;
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(false);
 		final String eldest = cache.getEldest();
 		Predicate<String> predicate = new Predicate<String>() {
@@ -412,10 +412,10 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testFindNoneUniqueSucceedsEvenFirstEvicted() throws InterruptedException {
 		int capacity = 5;
-		int numberOfSessions = 3;
+		int numberOfEntries = 3;
 		TimeAssume assume = new TimeAssume(time);
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
 		cache.setEvictingOnReadAccess(true);
 		time.setFixedTestTime(true);
 
@@ -440,8 +440,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testStoreAddsNewValueIfCapacityNotReached() {
 		int capacity = 10;
+		int numberOfEntries = 9;
 
-		givenACacheWithEntries(capacity, 0L, capacity - 1);
+		givenACacheWithEntries(capacity, 0L, numberOfEntries);
 		assertThat(cache.remainingCapacity(), is(1));
 		String eldest = cache.getEldest();
 
@@ -454,8 +455,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testStoreEvictsEldestStaleEntry() {
 		int capacity = 10;
+		int numberOfEntries = 10;
 
-		givenACacheWithEntries(capacity, 0L, capacity);
+		givenACacheWithEntries(capacity, 0L, numberOfEntries);
 		assertThat(cache.remainingCapacity(), is(0));
 		String eldest = cache.getEldest();
 
@@ -467,9 +469,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testStoreFailsIfCapacityReached() {
 		int capacity = 10;
-		int numberOfSessions = 10;
+		int numberOfEntries = 10;
 
-		givenACacheWithEntries(capacity, THRESHOLD_MILLIS * 100, numberOfSessions);
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS * 100, numberOfEntries);
 		assertThat(cache.remainingCapacity(), is(0));
 		String eldest = cache.getEldest();
 
@@ -483,8 +485,9 @@ public class LeastRecentlyUsedCacheTest {
 	@Test
 	public void testContinuousEviction() {
 		int capacity = 10;
+		int numberOfEntries = 0;
 
-		givenACacheWithEntries(capacity, 0L, 0);
+		givenACacheWithEntries(capacity, 0L, numberOfEntries);
 		assertThat(cache.remainingCapacity(), is(capacity));
 		final AtomicInteger evicted = new AtomicInteger(0);
 
@@ -496,19 +499,19 @@ public class LeastRecentlyUsedCacheTest {
 			}
 		});
 
-		int noOfSessions = 1000;
-		for (int i = 0; i < noOfSessions; i++) {
+		numberOfEntries = 1000;
+		for (int i = 0; i < numberOfEntries; i++) {
 			Integer key = i + 1000;
 			String value = String.valueOf(key);
 			assertTrue(cache.put(key, value));
 		}
-		assertThat(evicted.get(), is(noOfSessions - capacity));
+		assertThat(evicted.get(), is(numberOfEntries - capacity));
 		assertThat(cache.remainingCapacity(), is(0));
 	}
 
-	private void assertOrder(LeastRecentlyUsedCache<Integer, String> cache, boolean print) {
+	private static void assertOrder(LeastRecentlyUsedCache<Integer, String> cache, boolean print) {
 		int index = 0;
-		Iterator<LeastRecentlyUsedCache.Timestamped<String>> valuesIterator = cache.timestampedIterator();
+		Iterator<Timestamped<String>> valuesIterator = cache.timestampedIterator();
 		Long time = null;
 		long last = 0;
 		while (valuesIterator.hasNext()) {
@@ -520,14 +523,14 @@ public class LeastRecentlyUsedCacheTest {
 					System.out.println("start: " + time);
 				}
 			} else {
+				if (print) {
+					long diff = entry.getLastUpdate() - time;
+					System.out.println(entry.getValue() + ": " + diff);
+				}
 				long now = entry.getLastUpdate();
 				assertThat("order violation position " + index + " , value " + entry.getValue(), now,
 						is(greaterThanOrEqualTo(last)));
 				last = now;
-			}
-			if (print) {
-				long diff = entry.getLastUpdate() - time;
-				System.out.println(entry.getValue() + ": " + diff);
 			}
 			++index;
 		}
@@ -537,11 +540,11 @@ public class LeastRecentlyUsedCacheTest {
 	 * 
 	 * @param capacity
 	 * @param expirationThresholdMillis
-	 * @param noOfEntries
+	 * @param numberOfEntries
 	 */
-	private void givenACacheWithEntries(int capacity, long expirationThresholdMillis, int noOfEntries) {
+	private void givenACacheWithEntries(int capacity, long expirationThresholdMillis, int numberOfEntries) {
 		cache = new LeastRecentlyUsedCache<>(capacity, capacity, expirationThresholdMillis, TimeUnit.MILLISECONDS);
-		for (int i = 0; i < noOfEntries; i++) {
+		for (int i = 0; i < numberOfEntries; i++) {
 			cache.put(i, Integer.toString(i));
 		}
 	}
