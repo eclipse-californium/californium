@@ -76,8 +76,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 		if (identity == null) {
 			throw new NullPointerException("identity must not be null");
 		} else {
+			lock.readLock().lock();
 			try {
-				lock.readLock().lock();
 				if (serverNames == null) {
 					credentials = getPskCredentials(identity, scopedKeys.get(GLOBAL_SCOPE));
 				} else {
@@ -104,8 +104,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 		if (peerAddress == null) {
 			throw new NullPointerException("address must not be null");
 		} else {
+			lock.readLock().lock();
 			try {
-				lock.readLock().lock();
 				if (virtualHost == null) {
 					return getIdentityFromMap(GLOBAL_SCOPE, scopedIdentities.get(peerAddress));
 				} else {
@@ -131,8 +131,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 
 	@Override
 	public void destroy() throws DestroyFailedException {
+		lock.writeLock().lock();
 		try {
-			lock.writeLock().lock();
 			destroyed = true;
 			scopedIdentities.clear();
 			for (Map<PskPublicInformation, PskCredentials> keys : scopedKeys.values()) {
@@ -280,8 +280,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 		} else if (virtualHost == null) {
 			throw new NullPointerException("serverName must not be null");
 		} else {
+			lock.writeLock().lock();
 			try {
-				lock.writeLock().lock();
 				Map<PskPublicInformation, PskCredentials> keysForServerName = scopedKeys.get(virtualHost);
 				if (keysForServerName == null) {
 					keysForServerName = new ConcurrentHashMap<>();
@@ -376,8 +376,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 		} else if (key == null) {
 			throw new NullPointerException("key must not be null");
 		} else {
+			lock.writeLock().lock();
 			try {
-				lock.writeLock().lock();
 				Map<ServerName, PskPublicInformation> identities = scopedIdentities.get(peerAddress);
 				if (identities == null) {
 					identities = new ConcurrentHashMap<>();
@@ -459,8 +459,8 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 		} else if (virtualHost == null) {
 			throw new NullPointerException("serverName must not be null");
 		} else {
+			lock.writeLock().lock();
 			try {
-				lock.writeLock().lock();
 				Map<PskPublicInformation, PskCredentials> keysForServerName = scopedKeys.get(virtualHost);
 				if (keysForServerName != null) {
 					keysForServerName.remove(identity);
