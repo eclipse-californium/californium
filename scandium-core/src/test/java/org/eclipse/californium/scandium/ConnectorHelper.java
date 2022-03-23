@@ -68,7 +68,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.PersistentConnector;
+import org.eclipse.californium.elements.PersistentComponent;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
@@ -259,6 +259,9 @@ public class ConnectorHelper {
 		if (serverRawDataChannel != null) {
 			serverRawDataChannel.setProcessor(serverRawDataProcessor);
 		}
+		if (server != null) {
+			server.clearRecentHandshakes();
+		}
 		if (serverAlertCatcher != null) {
 			serverAlertCatcher.resetAlert();
 			if (server != null) {
@@ -365,15 +368,15 @@ public class ConnectorHelper {
 		assertThat(p.getExtendedInfo().get(key, String.class), is(expectedValue));
 	}
 
-	public static void assertReloadConnections(String tag, PersistentConnector connector) {
+	public static void assertReloadConnections(String tag, PersistentComponent component) {
 		try {
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			int saveCount = connector.saveConnections(out, 1000);
+			int saveCount = component.save(out, 1000);
 			byte[] data1 = out.toByteArray();
-			int readCount = connector.loadConnections(new ByteArrayInputStream(data1), 0);
+			int readCount = component.load(new ByteArrayInputStream(data1), 0);
 			assertEquals(tag + " read mismatch", saveCount, readCount);
 			out = new ByteArrayOutputStream();
-			int saveCount2 = connector.saveConnections(out, 1000);
+			int saveCount2 = component.save(out, 1000);
 			byte[] data2 = out.toByteArray();
 			assertEquals(tag + " 2. save mismatch", saveCount, saveCount2);
 			assertTrue(tag + " data mismatch", Arrays.equals(data1, data2));
