@@ -32,3 +32,10 @@ For more details, please look at https://www.eclipse.org/security/.
 :question: the previous (bugfix-)releases - update to the current release is recommended. On exceptions, specific bugfixes may be applied on request. (Create a vulnerability report with the requested vulnerability fix and the (bugfix-)version.)
 
 :x: old releases, milestone releases - usually no bugfixes are applied there.
+
+## Known Vulnerabilities Of Dependencies
+
+| Californium Version | Dependency | Affected Version | Vulnerability
+| ------------------- | ---------- | ---------------- | -------------
+| < 3.3 <br/> < 2.7.2 | com.upokecenter.cbor | 4.0 - 4.5.0 | [GHSA-fj2w-wfgv-mwq6](https://github.com/peteroupc/CBOR-Java/security/advisories/GHSA-fj2w-wfgv-mwq6)
+| < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | [CVE-2021-42550](https://cve.report/CVE-2021-42550)
