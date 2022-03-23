@@ -836,6 +836,16 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	}
 
 	/**
+	 * Clear recent handshakes.
+	 * 
+	 * @since 3.4
+	 */
+	protected void clearRecentHandshakes() {
+		recentHandshakes.clear();
+		recentHandshakesCounter.set(0);
+	}
+
+	/**
 	 * Sets the executor to be used for processing records.
 	 * <p>
 	 * If this property is not set before invoking the {@link #start() start
@@ -1254,8 +1264,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					recentHandshakeCleaner = null;
 				}
 				// recent handshakes will be restored from connection store,
-				recentHandshakes.clear();
-				recentHandshakesCounter.set(0);
+				clearRecentHandshakes();
 				for (Thread t : receiverThreads) {
 					t.interrupt();
 				}
