@@ -14,17 +14,9 @@ For more details, please look at https://www.eclipse.org/security/.
 | ------- | ------------------ |
 | 3.4.0-SNAPSHOT (master) | :heavy_check_mark: |
 | 3.3.1   | :heavy_check_mark: |
-| 3.2.0   | :question: |
-| 3.1.0   | :question: |
-| 3.0.0   | :question: |
+| 3.2.0, 3.1.0, 3.0.0 | :question: |
 | 2.7.1   | :question: |
-| 2.6.6   | :question: |
-| 2.5.0   | :question: |
-| 2.4.1   | :question: |
-| 2.3.1   | :question: |
-| 2.2.3   | :question: |
-| 2.1.0   | :question: |
-| 2.0.0   | :question: |
+| 2.6.6, 2.5.0, 2.4.1, <br/> 2.3.1, 2.2.3, 2.1.0, <br/> 2.0.0 | :question: |
 | before 2.0.0   | :x: |
 
 :heavy_check_mark: development version / current release - all bugfixes will be applied
@@ -35,7 +27,7 @@ For more details, please look at https://www.eclipse.org/security/.
 
 ## Known Vulnerabilities Of Dependencies
 
-| Californium Version | Dependency | Affected Version | Vulnerability
-| ------------------- | ---------- | ---------------- | -------------
-| < 3.3 <br/> < 2.7.2 | com.upokecenter.cbor | 4.0 - 4.5.0 | [GHSA-fj2w-wfgv-mwq6](https://github.com/peteroupc/CBOR-Java/security/advisories/GHSA-fj2w-wfgv-mwq6)
-| < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | [CVE-2021-42550](https://cve.report/CVE-2021-42550)
+| Californium Version | Dependency | Affected Version | Usage | Vulnerability
+| ------------------- | ---------- | ---------------- | ----- | -------------
+| < 3.3 <br/> < 2.7.2 | com.upokecenter.cbor | 4.0 - 4.5.0 | cf-oscore <br/> demo-apps | [GHSA-fj2w-wfgv-mwq6](https://github.com/peteroupc/CBOR-Java/security/advisories/GHSA-fj2w-wfgv-mwq6)
+| < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | demo-apps | [CVE-2021-42550](https://cve.report/CVE-2021-42550)
