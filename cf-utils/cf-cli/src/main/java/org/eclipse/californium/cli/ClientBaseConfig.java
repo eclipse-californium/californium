@@ -91,6 +91,14 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public Boolean noCertificatesSubjectVerification;
 
 	/**
+	 * Enable verification of the server's certificate subject.
+	 * 
+	 * @since 3.4
+	 */
+	@Option(names = "--no-sni", negatable = true, description = "enable/disable server-name indication.")
+	public Boolean noServerNameIndication;
+
+	/**
 	 * Destination URI.
 	 */
 	@Parameters(index = "0", paramLabel = LABEL_URI, arity = "0..1", description = "destination URI. Default ${DEFAULT-VALUE}")
