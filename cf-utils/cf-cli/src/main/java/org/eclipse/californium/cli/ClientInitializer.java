@@ -308,6 +308,8 @@ public class ClientInitializer {
 				clientConfig.mtu = clientConfig.recordSizeLimit + extra;
 			}
 
+			//			config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
+
 			if (clientConfig.mtu != null) {
 				config.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, clientConfig.mtu);
 			}
@@ -324,6 +326,9 @@ public class ClientInitializer {
 			}
 			if (clientConfig.noCertificatesSubjectVerification != null) {
 				config.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, !clientConfig.noCertificatesSubjectVerification);
+			}
+			if (clientConfig.noServerNameIndication != null) {
+				config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, !clientConfig.noServerNameIndication);
 			}
 
 			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);

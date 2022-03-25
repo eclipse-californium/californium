@@ -175,6 +175,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverNames,
 			InetSocketAddress remotePeer, boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath,
 			CertificateMessage message) {
+		LOGGER.debug("Verify for SNI: {}, IP: {}", serverNames, StringUtil.toLog(remotePeer));
 		try {
 			CertPath certChain = message.getCertificateChain();
 			if (certChain == null) {
