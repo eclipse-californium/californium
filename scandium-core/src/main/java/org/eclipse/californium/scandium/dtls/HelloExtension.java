@@ -335,9 +335,9 @@ public abstract class HelloExtension {
 		SESSION_TICKET_TLS(35, "SessionTicket TLS"),
 
 		/**
-		 * See <a href=
-		 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-		 * target="_blank">Draft dtls-connection-id</a> See <a href=
+		 * See <a href= "https://www.rfc-editor.org/rfc/rfc9146.html" target
+		 * ="_blank">RFC 9146, Connection Identifier for DTLS 1.2</a> and
+		 * <a href=
 		 * "https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-1"
 		 * target="_blank">IANA TLS ExtensionType Values</a>
 		 * 
@@ -346,9 +346,9 @@ public abstract class HelloExtension {
 		CONNECTION_ID(54, "Connection ID"),
 
 		/**
-		 * See <a href=
-		 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-		 * target="_blank">Draft dtls-connection-id</a> See <a href=
+		 * See <a href= "https://www.rfc-editor.org/rfc/rfc9146.html" target
+		 * ="_blank">RFC 9146, Connection Identifier for DTLS 1.2</a> and
+		 * <a href=
 		 * "https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY"
 		 * target="_blank">IANA code point assignment</a>
 		 * 

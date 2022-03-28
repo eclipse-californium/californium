@@ -241,9 +241,8 @@ public final class DtlsConfig {
 	/**
 	 * DTLS connection id length.
 	 * 
-	 * <a href=
-	 * "https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-06" target
-	 * ="_blank"> draft-ietf-tls-dtls-connection-id-06</a>
+	 * <a href= "https://www.rfc-editor.org/rfc/rfc9146.html" target
+	 * ="_blank">RFC 9146, Connection Identifier for DTLS 1.2</a>
 	 * 
 	 * <ul>
 	 * <li>{@code ""} disabled support for connection id.</li>
@@ -688,10 +687,9 @@ public final class DtlsConfig {
 	 * Update the ip-address from DTLS 1.2 CID records only for newer records
 	 * based on epoch/sequence_number.
 	 * 
-	 * @see <a href=
-	 *      "https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id#section-6"
-	 *      target= "_blank">Draft Connection Identifiers for DTLS 1.2, 6. Peer
-	 *      Address Update</a>
+	 * @see <a href= "https://www.rfc-editor.org/rfc/rfc9146.html#section-6"
+	 *      target= "_blank">RFC 9146, Connection Identifiers for DTLS 1.2, 6.
+	 *      Peer Address Update</a>
 	 */
 	public static final BooleanDefinition DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS = new BooleanDefinition(
 			MODULE + "UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS", "DTLS update address using CID on newer records.",

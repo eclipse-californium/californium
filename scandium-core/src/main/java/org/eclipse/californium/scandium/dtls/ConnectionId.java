@@ -20,8 +20,8 @@ import org.eclipse.californium.elements.util.Bytes;
 /**
  * Implementation of DTLS connection id.
  * 
- * <a href=
- * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id">draft-ietf-tls-dtls-connection-id</a>
+ * @see <a href= "https://www.rfc-editor.org/rfc/rfc9146.html" target
+ *      ="_blank">RFC 9146, Connection Identifier for DTLS 1.2</a>
  */
 public class ConnectionId extends Bytes {
 

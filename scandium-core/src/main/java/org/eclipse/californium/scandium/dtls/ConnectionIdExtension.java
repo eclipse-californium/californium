@@ -24,9 +24,9 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 /**
  * Conveys information specified by the <em>connection id</em> DTLS extension.
  * <p>
- * See <a href=
- * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id">draft-ietf-tls-dtls-connection-id</a>
- * for additional details.
+ * See
+ * <a href= "https://www.rfc-editor.org/rfc/rfc9146.html" target ="_blank">RFC
+ * 9146, Connection Identifier for DTLS 1.2</a> for additional details.
  *
  * <b>Note:</b> Before version 9 of the specification, the value {@code 53} was
  * used as extension ID along with a different calculated MAC.
@@ -72,12 +72,12 @@ public final class ConnectionIdExtension extends HelloExtension {
 	/**
 	 * Usage of deprecated definitions.
 	 * 
-	 * During the specification of <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id">draft-ietf-tls-dtls-connection-id</a>
-	 * a deprecated MAC calculation was used along with a also deprecated IANA
-	 * code point (53) was used before version 09. To support the deprecated
-	 * version as well, the return value indicates, which MAC variant must be
-	 * used.
+	 * During the specification of
+	 * <a href= "https://www.rfc-editor.org/rfc/rfc9146.html" target
+	 * ="_blank">RFC 9146, Connection Identifier for DTLS 1.2</a> a deprecated
+	 * MAC calculation was used along with a also deprecated IANA code point
+	 * (53) was used before version 09. To support the deprecated version as
+	 * well, the return value indicates, which MAC variant must be used.
 	 * 
 	 * @return {@code true}, if not the current extension ID {@code 54} along
 	 *         with the new MAC calculation is used, {@code false}, otherwise.

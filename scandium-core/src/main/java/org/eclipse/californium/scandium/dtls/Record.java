@@ -513,13 +513,15 @@ public class Record {
 	}
 
 	/**
-	 * Generate the additional authentication data according <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-	 * target="_blank">draft dtls-connection-id</a>
+	 * Generate the additional authentication data according
+	 * <a href= "https://www.rfc-editor.org/rfc/rfc9146.html#section-5" target
+	 * ="_blank">RFC 9146, Connection Identifier for DTLS 1.2, 5. Record Payload
+	 * Protection</a>
 	 * 
 	 * <pre>
-	 * additional_data = seq_num_placeholder + tls_cid + connection_id_length + tls_cid + TLSCompressed.version + epoch
-	 * 		+ sequence_number + connection_id + TLSCompressed.length;
+	 * additional_data = seq_num_placeholder + tls_cid + connection_id_length
+	 * 		+ tls_cid + TLSCompressed.version + epoch + sequence_number +
+	 * 		+ connection_id + TLSCompressed.length;
 	 * </pre>
 	 * 
 	 * where "+" denotes concatenation and the connection_id_length is encoded
@@ -553,7 +555,7 @@ public class Record {
 	 * Payload Protection</a>:
 	 * 
 	 * <pre>
-	 * additional_data = seq_num + tls_cid + TLSCompressed.version + connection_id + connection_id_length
+	 * additional_data = epoch + seq_num + tls_cid + TLSCompressed.version + connection_id + connection_id_length
 	 * 		+ TLSCompressed.length;
 	 * </pre>
 	 * 
