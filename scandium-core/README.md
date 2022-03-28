@@ -200,8 +200,8 @@ Supported extensions:
      - [RFC 6066 - Server Name Indication](https://tools.ietf.org/html/rfc6066#section-3)
      - [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4)
      - [RFC 7627 - Extended Master Secret Extension](https://tools.ietf.org/html/rfc7627)
-     - [RFC 8449 - Record Size Limit Extension ](https://tools.ietf.org/html/rfc8449)
-- [Upcoming RFC 9146 - Connection Identifiers for DTLS 1.2](https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id)
+     - [RFC 8449 - Record Size Limit Extension](https://tools.ietf.org/html/rfc8449)
+- [RFC 9146 - Connection Identifiers for DTLS 1.2](https://www.rfc-editor.org/rfc/rfc9146.html)
 - [RFC 7250 - Raw Public Keys](https://tools.ietf.org/html/rfc7250)
 - [RFC 7748 - Elliptic Curves for Security](https://tools.ietf.org/html/rfc7748)
 
