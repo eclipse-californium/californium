@@ -159,9 +159,9 @@ public class Bytes {
 	}
 
 	/**
-	 * Check, if connection id is empty.
+	 * Check, if byte array is empty.
 	 * 
-	 * @return {@code true}, if connection id is empty, {@code false}, otherwise
+	 * @return {@code true}, if byte array is empty, {@code false}, otherwise
 	 */
 	public final boolean isEmpty() {
 		return bytes.length == 0;
