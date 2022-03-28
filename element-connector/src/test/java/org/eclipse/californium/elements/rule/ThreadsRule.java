@@ -35,7 +35,7 @@ public class ThreadsRule implements TestRule {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(ThreadsRule.class);
 
-	public static final String[] SYSTEM = { "Libgraal MBean Registration" };
+	public static final String[] SYSTEM = { "Libgraal MBean Registration", "BC-ENTROPY-GATHERER" };
 
 	/**
 	 * Description of current test.
@@ -203,7 +203,9 @@ public class ThreadsRule implements TestRule {
 			}
 		}
 		if (alive == 1) {
-			// bouncy castle hack - 1.69 uses a daemon thread for secure random ;-(.
+			// bouncy castle hack:
+			// - 1.69 uses a daemon thread for secure random.
+			// - 1.71 will have that daemon thread name as "BC-ENTROPY-GATHERER".
 			if (JceProviderUtil.usesBouncyCastle()) {
 				alive = 0;
 			}
