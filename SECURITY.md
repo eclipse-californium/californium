@@ -12,9 +12,9 @@ For more details, please look at https://www.eclipse.org/security/.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 3.4.0-SNAPSHOT (master) | :heavy_check_mark: |
-| 3.3.1   | :heavy_check_mark: |
-| 3.2.0, 3.1.0, 3.0.0 | :question: |
+| 3.5.0-SNAPSHOT (master) | :heavy_check_mark: |
+| 3.4.0   | :heavy_check_mark: |
+| 3.3.1, 3.2.0, 3.1.0, 3.0.0 | :question: |
 | 2.7.1   | :question: |
 | 2.6.6, 2.5.0, 2.4.1, <br/> 2.3.1, 2.2.3, 2.1.0, <br/> 2.0.0 | :question: |
 | before 2.0.0   | :x: |
