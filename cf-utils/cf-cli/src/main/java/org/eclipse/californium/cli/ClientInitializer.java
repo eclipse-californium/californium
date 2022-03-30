@@ -330,6 +330,9 @@ public class ClientInitializer {
 			if (clientConfig.noServerNameIndication != null) {
 				config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, !clientConfig.noServerNameIndication);
 			}
+			if (clientConfig.extendedMasterSecretMode != null) {
+				config.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, clientConfig.extendedMasterSecretMode);
+			}
 
 			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
 			boolean psk = false;
