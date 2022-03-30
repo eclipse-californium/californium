@@ -36,6 +36,7 @@ import org.eclipse.californium.elements.util.SslContextUtil.IncompleteCredential
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
+import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -147,6 +148,14 @@ public class ConnectorConfig implements Cloneable {
 	 */
 	@Option(names = "--mtu", description = "MTU.")
 	public Integer mtu;
+
+	/**
+	 * Specify extended master secret mode.
+	 * 
+	 * @since 3.5
+	 */
+	@Option(names = "--extended-master-secret", description = "Specify usage of extended master secret.")
+	public ExtendedMasterSecretMode extendedMasterSecretMode;
 
 	/**
 	 * Use CID .
