@@ -47,6 +47,7 @@ import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.scandium.AlertHandler;
+import org.eclipse.californium.scandium.ConnectorHelper;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterHealthLogger;
@@ -243,9 +244,7 @@ public class NatTestHelper {
 					.setConnectionIdGenerator(generator)
 					.setAdvancedPskStore(pskStore).build();
 
-			DebugConnectionStore serverConnectionStore = new DebugConnectionStore(dtlsConfig.getMaxConnections(),
-					dtlsConfig.getStaleConnectionThresholdSeconds(), null);
-			serverConnectionStore.setTag(dtlsConfig.getLoggingTag());
+			DebugConnectionStore serverConnectionStore = ConnectorHelper.createDebugConnectionStore(dtlsConfig);
 			this.serverConnections.add(serverConnectionStore);
 
 			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -304,11 +303,9 @@ public class NatTestHelper {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setAdvancedPskStore(new AdvancedSinglePskStore(IDENITITY + "." + size, KEY.getBytes())).build();
 
-		DebugConnectionStore connections = new DebugConnectionStore(clientDtlsConfig.getMaxConnections(),
-				clientDtlsConfig.getStaleConnectionThresholdSeconds(), null);
-		connections.setTag(clientDtlsConfig.getLoggingTag());
+		DebugConnectionStore clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientDtlsConfig);
 
-		DTLSConnector clientConnector = new MyDtlsConnector(clientDtlsConfig, connections);
+		DTLSConnector clientConnector = new MyDtlsConnector(clientDtlsConfig, clientConnectionStore);
 		clientConnector.setAlertHandler(new MyAlertHandler(clientDtlsConfig.getLoggingTag()));
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
@@ -318,7 +315,7 @@ public class NatTestHelper {
 		clientCoapStatistics.add(healthLogger);
 		clientEndpoint.addPostProcessInterceptor(healthLogger);
 		clientEndpoint.start();
-		clientConnections.add(connections);
+		clientConnections.add(clientConnectionStore);
 		clientEndpoints.add(clientEndpoint);
 		return clientEndpoint;
 	}

@@ -118,6 +118,7 @@ import org.eclipse.californium.scandium.dtls.PSKClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
@@ -173,7 +174,7 @@ public class DTLSConnectorTest {
 	DTLSConnector client;
 	TestContext clientTestContext;
 	DTLSContext establishedClientContext;
-	InMemoryConnectionStore clientConnectionStore;
+	ResumptionSupportingConnectionStore clientConnectionStore;
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
@@ -214,9 +215,8 @@ public class DTLSConnectorTest {
 
 	@Before
 	public void setUp() throws Exception {
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore.setTag("client");
 		clientConfig = newClientConfigBuilder().setAddress(LOCAL).build();
+		clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
 		client = serverHelper.createClient(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 	}
@@ -233,7 +233,10 @@ public class DTLSConnectorTest {
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
 		return DtlsConnectorConfig.builder(network.createClientTestConfig())
-				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1).set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
+				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 60, TimeUnit.SECONDS)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1)
+				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
 				.setLoggingTag("client")
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY,
@@ -577,8 +580,7 @@ public class DTLSConnectorTest {
 
 		// WHEN starting a new handshake (epoch 0) reusing the same client IP
 		DtlsConnectorConfig clientConfig = newClientConfigBuilder().setAddress(LOCAL).build();
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore.setTag("client");
+		clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 
 		// THEN assert that the handshake succeeds and a session is established
@@ -687,7 +689,8 @@ public class DTLSConnectorTest {
 		// same IP address and port again
 		clientTestContext.setLatchCount(1);
 		DtlsConnectorConfig clientConfig = newClientConfigBuilder().setAddress(clientTestContext.getClientAddress()).build();
-		client = new DTLSConnector(clientConfig);
+		ResumptionSupportingConnectionStore clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setRawDataReceiver(clientTestContext.getChannel());
 		client.setExecutor(executor);
 		client.start();

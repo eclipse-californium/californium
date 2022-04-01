@@ -49,8 +49,8 @@ import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
-import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -118,7 +118,7 @@ public class DtlsManagedClusterConnectorTest {
 	private DtlsClusterHealthLogger health2;
 
 	private DTLSConnector clientConnector;
-	private InMemoryConnectionStore clientConnections;
+	private ResumptionSupportingConnectionStore clientConnections;
 	private LatchDecrementingRawDataChannel clientChannel;
 	private DtlsHealthLogger clientHealth;
 
@@ -201,10 +201,12 @@ public class DtlsManagedClusterConnectorTest {
 				ConnectorHelper.CLIENT_IDENTITY_SECRET.getBytes());
 		DtlsConnectorConfig config = DtlsConnectorConfig.builder(configuration)
 				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
+				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 6000, TimeUnit.SECONDS)
 				.setAdvancedPskStore(testPskStore)
 				.setHealthHandler(clientHealth)
 				.build();
-		clientConnections = new InMemoryConnectionStore(10, 6000);
+		clientConnections = ConnectorHelper.createDebugConnectionStore(config);
 		clientConnector = new DTLSConnector(config, clientConnections);
 
 		clientChannel = new LatchDecrementingRawDataChannel();

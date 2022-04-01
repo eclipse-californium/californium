@@ -106,13 +106,13 @@ import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
-import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.ResumptionVerificationResult;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionId;
@@ -205,7 +205,7 @@ public class DTLSConnectorAdvancedTest {
 	AsyncNewAdvancedCertificateVerifier clientCertificateVerifier;
 	DtlsConnectorConfig.Builder clientConfigBuilder;
 	DTLSConnector client;
-	InMemoryConnectionStore clientConnectionStore;
+	ResumptionSupportingConnectionStore clientConnectionStore;
 	List<Record> lastReceivedFlight;
 	List<Record> lastSentFlight;
 
@@ -416,21 +416,21 @@ public class DTLSConnectorAdvancedTest {
 		verifyHandshakeResponses = 1;
 		resumeHandshakeResponses = 1;
 
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore.setTag("client");
 		clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier)AsyncNewAdvancedCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
 				.setTrustAllRPKs()
 				.build();
 		clientCertificateVerifier.setDelay(0);
-		clientConfigBuilder = serverHelper.newClientConfigBuilder(network)
+		clientConfigBuilder = ConnectorHelper.newClientConfigBuilder(network)
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 60, TimeUnit.SECONDS)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS)
 				.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024)
 				.setConnectionIdGenerator(clientCidGenerator)
 				.setAdvancedCertificateVerifier(clientCertificateVerifier)
 				.setHealthHandler(clientHealth);
+		clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfigBuilder.build());
 		clientHealth.reset();
 		serverPskStore.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
 		serverCertificateProvider.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
@@ -2157,7 +2157,7 @@ public class DTLSConnectorAdvancedTest {
 			boolean expectedCid = ConnectionId.useConnectionId(serverCidGenerator) && ConnectionId.supportsConnectionId(clientCidGenerator);
 			assertThat(serverSideConnection.expectCid(), is(expectedCid));
 
-			if (!serverHelper.useSessionStore || expectedCid) {
+			if (serverHelper.serverSessionStore == null || expectedCid) {
 				// with cid, the connection is still accessible and therefore not removed.
 				// without session store, a session-connection map is used and so the
 				// connection is still accessible and therefore not removed.
@@ -3093,7 +3093,7 @@ public class DTLSConnectorAdvancedTest {
 			boolean expectedCid = ConnectionId.useConnectionId(serverCidGenerator) && ConnectionId.supportsConnectionId(clientCidGenerator);
 			assertThat(serverSideConnection.expectCid(), is(expectedCid));
 
-			if (!serverHelper.useSessionStore || expectedCid) {
+			if (serverHelper.serverSessionStore == null || expectedCid) {
 				// with cid, the connection is still accessible and therefore not removed.
 				// without session store, a session-connection map is used and so the
 				// connection is still accessible and therefore not removed.

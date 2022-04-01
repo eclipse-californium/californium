@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
@@ -44,8 +45,8 @@ import org.eclipse.californium.scandium.ConnectorHelper.TestContext;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
-import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -74,7 +75,7 @@ public class HelloExtensionNegotiationTest {
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
 	InetSocketAddress clientEndpoint;
-	InMemoryConnectionStore clientConnectionStore;
+	ResumptionSupportingConnectionStore clientConnectionStore;
 
 	/**
 	 * Configures and starts a server side connector for running the tests against.
@@ -111,8 +112,12 @@ public class HelloExtensionNegotiationTest {
 	 */
 	@Before
 	public void setUpClient() throws IOException, GeneralSecurityException {
+		DtlsConnectorConfig config = ConnectorHelper.newClientConfigBuilder(network)
+				.setLoggingTag("client")
+				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 60, TimeUnit.SECONDS).build();
 
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientConnectionStore = ConnectorHelper.createDebugConnectionStore(config);
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 	}
 
@@ -136,7 +141,7 @@ public class HelloExtensionNegotiationTest {
 	@Test
 	public void testConnectorNegotiatesMaxFragmentLength() throws Exception {
 		// given a constrained client that can only handle fragments of max. 512 bytes
-		Builder builder = serverHelper.newClientConfigBuilder(network)
+		Builder builder = ConnectorHelper.newClientConfigBuilder(network)
 				.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024)
 				.set(DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH, Length.BYTES_512);
 		clientConfig = builder.build();
@@ -162,7 +167,7 @@ public class HelloExtensionNegotiationTest {
 	public void testConnectorIncludesServerNameIndication() throws Exception {
 
 		// given a client that indicates a virtual host to connect to using SNI
-		clientConfig = serverHelper.newClientConfigBuilder(network)
+		clientConfig = ConnectorHelper.newClientConfigBuilder(network)
 				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
 				.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);

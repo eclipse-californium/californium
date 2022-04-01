@@ -73,6 +73,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -86,6 +87,7 @@ import org.eclipse.californium.scandium.dtls.DTLSConnectionState;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
+import org.eclipse.californium.scandium.dtls.DebugSynchronizedConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -94,6 +96,7 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionId;
+import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -125,11 +128,11 @@ public class ConnectorHelper {
 
 	static final ThreadFactory TEST_UDP_THREAD_FACTORY = new TestThreadFactory("TEST-UDP-");
 
-	boolean useSessionStore;
 	DTLSConnector server;
 	InetSocketAddress serverEndpoint;
 	DebugConnectionStore serverConnectionStore;
-	TestInMemorySessionStore serverSessionStore;
+	SessionStore serverSessionStore;
+	TestInMemorySessionStore serverTestSessionStore;
 	SimpleRawDataChannel serverRawDataChannel;
 	RawDataProcessor serverRawDataProcessor;
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
@@ -189,13 +192,13 @@ public class ConnectorHelper {
 		ensureTrusts(serverBuilder);
 
 		serverConfig = serverBuilder.build();
-
-		if (useSessionStore) {
-			serverSessionStore = new TestInMemorySessionStore(false);
+		serverSessionStore = serverConfig.getSessionStore();
+		if (serverSessionStore instanceof TestInMemorySessionStore) {
+			serverTestSessionStore = (TestInMemorySessionStore) serverSessionStore;
+		} else {
+			serverTestSessionStore = null;
 		}
-		serverConnectionStore = new DebugConnectionStore(serverConfig.getMaxConnections(),
-				serverConfig.getStaleConnectionThresholdSeconds(), serverSessionStore);
-		serverConnectionStore.setTag("server");
+		serverConnectionStore = createDebugConnectionStore(serverConfig);
 
 		serverAlertCatcher = new AlertCatcher();
 
@@ -250,8 +253,8 @@ public class ConnectorHelper {
 		if (serverConnectionStore != null) {
 			serverConnectionStore.clear();
 		}
-		if (serverSessionStore != null) {
-			serverSessionStore.clear();
+		if (serverTestSessionStore != null) {
+			serverTestSessionStore.clear();
 		}
 		if (serverRawDataProcessor != null) {
 			serverRawDataProcessor.clear();
@@ -296,7 +299,7 @@ public class ConnectorHelper {
 		return new DtlsTestConnector(configuration, connectionStore);
 	}
 
-	public DtlsConnectorConfig.Builder newClientConfigBuilder(DtlsNetworkRule network) throws IOException, GeneralSecurityException {
+	public static DtlsConnectorConfig.Builder newClientConfigBuilder(DtlsNetworkRule network) throws IOException, GeneralSecurityException {
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		NewAdvancedCertificateVerifier clientCertificateVerifier = StaticNewAdvancedCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
@@ -387,6 +390,19 @@ public class ConnectorHelper {
 			e.printStackTrace();
 			fail(tag + " io-error: " + e.getMessage());
 		}
+	}
+
+	public static DebugConnectionStore createDebugConnectionStore(DtlsConnectorConfig configuration) {
+		DebugConnectionStore store = createDebugConnectionStore(configuration.getConfiguration(),
+				configuration.getSessionStore());
+		store.setTag(configuration.getLoggingTag());
+		return store;
+	}
+
+	public static DebugConnectionStore createDebugConnectionStore(Configuration configuration,
+			SessionStore sessionStore) {
+		return new DebugSynchronizedConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
+					configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS), sessionStore);
 	}
 
 	public static class TestContext {

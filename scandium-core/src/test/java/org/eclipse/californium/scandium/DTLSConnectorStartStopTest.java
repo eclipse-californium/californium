@@ -44,6 +44,7 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
+import org.eclipse.californium.scandium.dtls.TestInMemorySessionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -109,10 +110,10 @@ public class DTLSConnectorStartStopTest {
 			testLogTagHead = StringUtil.byteArray2HexString(logid, StringUtil.NO_SEPARATOR, 0) + "-";
 		}
 		serverHelper = new ConnectorHelper(network);
-		serverHelper.useSessionStore = true;
 		serverHelper.serverBuilder
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1000)
-				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 10, TimeUnit.SECONDS);
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 10, TimeUnit.SECONDS)
+				.setSessionStore(new TestInMemorySessionStore(false));
 
 		serverHelper.startServer();
 	}
@@ -131,11 +132,11 @@ public class DTLSConnectorStartStopTest {
 	@Before
 	public void setUp() throws IOException, GeneralSecurityException {
 		testLogTag = testLogTagHead + testLogTagCounter++;
-		clientConnectionStore = new DebugConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, null);
-		clientConnectionStore.setTag(testLogTag + "-client");
-		DtlsConnectorConfig clientConfig = serverHelper.newClientConfigBuilder(network)
+		DtlsConnectorConfig clientConfig = ConnectorHelper.newClientConfigBuilder(network)
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 60, TimeUnit.SECONDS)
 				.setLoggingTag(testLogTag + "-client").build();
+		clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
@@ -219,7 +220,7 @@ public class DTLSConnectorStartStopTest {
 					clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 			if (lastServerSession > -1) {
 				assertThat(testLogTag + " number of server sessions changed!", 
-						serverHelper.serverSessionStore.size(), is(lastServerSession));
+						serverHelper.serverTestSessionStore.size(), is(lastServerSession));
 			}
 
 			for (int index = 1; index < pending; ++index) {
@@ -244,7 +245,7 @@ public class DTLSConnectorStartStopTest {
 				}
 			}
 			assertThat(testLogTag + " loop: " + loop + ", missing callbacks " + callback, complete, is(true));
-			lastServerSession = serverHelper.serverSessionStore.size();
+			lastServerSession = serverHelper.serverTestSessionStore.size();
 			if (restart) {
 				restoreClientConnection = clientConnectionStore.get(serverHelper.serverEndpoint);
 				restoreClientConnection.setResumptionRequired(true);

@@ -32,35 +32,47 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestScope;
+import org.eclipse.californium.scandium.ConnectorHelper;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Medium.class)
 public class InMemoryConnectionStoreTest {
+	@ClassRule
+	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
+			DtlsNetworkRule.Mode.NATIVE);
 	@Rule
 	public ThreadsRule cleanup = new ThreadsRule();
 	@Rule 
 	public LoggingRule logging = new LoggingRule();
 
 	private static final int INITIAL_CAPACITY = 10;
-	InMemoryConnectionStore store;
+	ResumptionSupportingConnectionStore store;
 	Connection con;
 	SessionId sessionId;
 
 	@Before
 	public void setUp() throws Exception {
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000);
+		Configuration config = network.createTestConfig()
+				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, INITIAL_CAPACITY)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 1000, TimeUnit.SECONDS);
+		store = ConnectorHelper.createDebugConnectionStore(config, null);
 		store.attach(null);
 		con = newConnection(50L);
 		sessionId = con.getEstablishedSession().getSessionIdentifier();
