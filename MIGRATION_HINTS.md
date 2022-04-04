@@ -19,6 +19,43 @@ If a 2.0.0 or newer is used, it's recommended to update first to 2.7.0 and clean
 
 The version 3.0.0-M4 is the last one with the old `NetworkConfig` and `DtlsConnectorConfig.Builder`. Depending on the usage of these classes, it may be easier to first migrate to that 3.0.0-M4 and then in a final step migrate to the 3.0 adapting for these changes in the configuration.
 
+The file-format has also changed and old property files are not longer read!.
+
+Old format:
+
+```
+ACK_TIMEOUT=2000
+UDP_CONNECTOR_SEND_BUFFER=0
+...
+NETWORK_STAGE_RECEIVER_THREAD_COUNT=1
+```
+
+The order of the entries is random and the values don't provide some explanation.
+
+```
+# Initial CoAP acknowledge timeout.
+# Default: 2[s]
+COAP.ACK_TIMEOUT=2[s]
+...
+# Number of DTLS receiver threads.
+# Default: 1
+DTLS.RECEIVER_THREAD_COUNT=2
+...
+# DTLS send-buffer size.
+DTLS.SEND_BUFFER_SIZE=
+...
+# Number of UDP receiver threads.
+# Default: 1
+UDP.RECEIVER_THREAD_COUNT=2
+...
+# UDP send-buffer size.
+UDP.SEND_BUFFER_SIZE=
+```
+
+Grouped and alphabetic order of entries with some explanation.
+
+It's recommended, that different values are checked and revalidated, if that difference still provides a benefit. If it still has a benefit for you, you may consider to add also a note into the resulting properties file. You may also consider to use an application specific defaults approach, see `Configuration` using a `DefinitionsProvider`.
+
 ## First Experience
 
 Migrating [Eclipse/Hono](https://github.com/eclipse/hono) and [Eclipse/Leshan](https://github.com/eclipse/leshan) the major changes, which requires adaption, are the changes in the DTLS configuration and the related callbacks. Reading the section below should help all to overcome issues caused by these changes.
@@ -31,9 +68,7 @@ In order to use newer crypto function with java 7 and java 8 (e.g. on Android) f
 
 That uncovered a couple of differences just in order to make the unit test running. It is assumed, that more will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but they may be not processed.
 
-One issue seems to be the `SecureRandom` generator, which shows in some environments strange CPU/time consumption.
-
-With that, it gets very time consuming to test all combinations. Therefore, if you need a specific one, please test it on your own. If you consider, that some adaption is required, let us know by creating an issue.
+Please see [Scandium - Support for Bouncy Castle](scandium-core#support-for-bouncy-castle) for more details.
 
 ### Element-Connector:
 

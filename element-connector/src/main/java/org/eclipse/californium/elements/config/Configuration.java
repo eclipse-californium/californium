@@ -129,6 +129,27 @@ import org.slf4j.LoggerFactory;
  * {@link Configuration#Configuration(ModuleDefinitionsProvider...)} may be used
  * to provide the set of modules the {@link Configuration} is based of.
  * <p>
+ * In some case an application may adapt the default definitions by providing an
+ * {@link DefinitionsProvider} to
+ * {@link #createFromStream(InputStream, DefinitionsProvider)} or
+ * {@link #createWithFile(File, String, DefinitionsProvider)}.
+ * 
+ * <pre>
+ * <code>
+ * private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
+ * 
+ * 		&#064;Override
+ * 		public void applyDefinitions(Configuration config) {
+ * 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 100);
+ * 			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);
+ * 			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
+ * 		}
+ * };
+ * 
+ * Configuration config = Configuration.createWithFile(new File("My3.properties"), "My properties", DEFAULTS);
+ * </code>
+ * </pre>
+ * <p>
  * Especially if Californium is used with a set of applications instead of a
  * single one, ensure, that it's either clear, which file is used by which
  * application, or use the same modules for all files, regardless, if a specific
@@ -190,6 +211,22 @@ public final class Configuration {
 
 		/**
 		 * Apply definitions.
+		 * 
+		 * <pre>
+		 * <code>
+		 * private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
+		 * 
+		 * 		&#064;Override
+		 * 		public void applyDefinitions(Configuration config) {
+		 * 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 100);
+		 * 			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);
+		 * 			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
+		 * 		}
+		 * };
+		 * 
+		 * Configuration config = Configuration.createWithFile(new File("My3.properties"), "My properties", DEFAULTS);
+		 * </code>
+		 * </pre>
 		 * 
 		 * Use {@link Configuration#set(BasicDefinition, Object)},
 		 * {@link Configuration#set(TimeDefinition, int, TimeUnit)} or
