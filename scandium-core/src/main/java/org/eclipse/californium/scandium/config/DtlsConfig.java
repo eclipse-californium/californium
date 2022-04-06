@@ -543,16 +543,18 @@ public final class DtlsConfig {
 			MODULE + "CONNECTOR_THREAD_COUNT", "Number of DTLS connector threads.", 1, 0);
 	/**
 	 * Specify the DTLS receive buffer size used for
-	 * {@link DatagramSocket#setReceiveBufferSize(int)}.
+	 * {@link DatagramSocket#setReceiveBufferSize(int)}. {@code null} or
+	 * {@code 0} to use the OS default.
 	 */
 	public static final IntegerDefinition DTLS_RECEIVE_BUFFER_SIZE = new IntegerDefinition(
-			MODULE + "RECEIVE_BUFFER_SIZE", "DTLS receive-buffer size.", null, 64);
+			MODULE + "RECEIVE_BUFFER_SIZE", "DTLS receive-buffer size. Empty or 0 to use the OS default.", null, 64);
 	/**
 	 * Specify the DTLS send buffer size used for
-	 * {@link DatagramSocket#setSendBufferSize(int)}.
+	 * {@link DatagramSocket#setSendBufferSize(int)}. {@code null} or {@code 0}
+	 * to use the OS default.
 	 */
 	public static final IntegerDefinition DTLS_SEND_BUFFER_SIZE = new IntegerDefinition(MODULE + "SEND_BUFFER_SIZE",
-			"DTLS send-buffer size.", null, 64);
+			"DTLS send-buffer size. Empty or 0 to use the OS default.", null, 64);
 
 	/**
 	 * Specify the usage and support of "server name indication".
