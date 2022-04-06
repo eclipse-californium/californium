@@ -48,16 +48,18 @@ public final class UdpConfig {
 
 	/**
 	 * UDP receive buffer size used for
-	 * {@link DatagramSocket#setReceiveBufferSize(int)}.
+	 * {@link DatagramSocket#setReceiveBufferSize(int)}. {@code null} or
+	 * {@code 0} to use the OS default.
 	 */
 	public static final IntegerDefinition UDP_RECEIVE_BUFFER_SIZE = new IntegerDefinition(
-			MODULE + "RECEIVE_BUFFER_SIZE", "UDP receive-buffer size.", null, 64);
+			MODULE + "RECEIVE_BUFFER_SIZE", "UDP receive-buffer size. Empty or 0 to use the OS default.", null, 64);
 	/**
 	 * UDP send buffer size used for
-	 * {@link DatagramSocket#setSendBufferSize(int)}.
+	 * {@link DatagramSocket#setSendBufferSize(int)}. {@code null} or {@code 0}
+	 * to use the OS default.
 	 */
 	public static final IntegerDefinition UDP_SEND_BUFFER_SIZE = new IntegerDefinition(MODULE + "SEND_BUFFER_SIZE",
-			"UDP send-buffer size.", null, 64);
+			"UDP send-buffer size. Empty or 0 to use the OS default.", null, 64);
 	/**
 	 * Maximum number of pending outbound messages.
 	 */
