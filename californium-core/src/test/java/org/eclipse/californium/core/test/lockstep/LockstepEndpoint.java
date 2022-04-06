@@ -212,6 +212,10 @@ public class LockstepEndpoint {
 				Object[] items = (Object[]) item;
 				return (Integer) items[0];
 			}
+			if (item instanceof MidUsage) {
+				// newMID
+				return ((MidUsage) item).currentMID;
+			}
 			throw new NoSuchElementException("Variable '" + var + "' is no MID (" + item.getClass() + ")");
 		}
 		throw new NoSuchElementException("No variable '" + var + "'");
@@ -393,6 +397,17 @@ public class LockstepEndpoint {
 		return null;
 	}
 
+	private static class MidUsage {
+
+		Set<Integer> usedMIDs = new HashSet<Integer>();
+		int currentMID;
+
+		private void add(int mid) {
+			usedMIDs.add(mid);
+			currentMID = mid;
+		}
+	}
+
 	public abstract class MessageExpectation implements Action {
 
 		/**
@@ -426,8 +441,8 @@ public class LockstepEndpoint {
 
 		/**
 		 * Check, if the MID stored under var is the same as the MID of the
-		 * message. The MID may be stored either by {@link #storeMID(String)} or
-		 * {@link #storeBoth(String)}.
+		 * message. The MID may be stored either by {@link #storeMID(String)},
+		 * {@link #storeBoth(String)}, or {@link #newMID(String)}.
 		 * 
 		 * Provides a fluent API to chain expectations.
 		 * 
@@ -476,16 +491,15 @@ public class LockstepEndpoint {
 				@Override
 				public void check(final Message response) {
 					final int mid = response.getMID();
-					@SuppressWarnings("unchecked")
-					Set<Integer> usedMIDs = (Set<Integer>) storage.get(var);
-					if (usedMIDs != null && !usedMIDs.isEmpty()) {
-						assertFalse("MID: " + mid + " is not new! " + usedMIDs, usedMIDs.contains(mid));
+					MidUsage usage = (MidUsage) storage.get(var);
+					if (usage == null) {
+						usage = new MidUsage();
 					}
-					if (usedMIDs == null) {
-						usedMIDs = new HashSet<Integer>();
+					if (!usage.usedMIDs.isEmpty()) {
+						assertFalse("MID: " + mid + " is not new! " + usage.usedMIDs, usage.usedMIDs.contains(mid));
 					}
-					usedMIDs.add(mid);
-					storage.put(var, usedMIDs);
+					usage.add(mid);
+					storage.put(var, usage);
 				}
 
 				@Override
