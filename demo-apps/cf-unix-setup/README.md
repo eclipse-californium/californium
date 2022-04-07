@@ -9,7 +9,7 @@ Yes, there are more modern service types out, but I still prefer the plain syste
 ### Requirements
 
 As mention above, one of my reasons for using a unix systemd service is, it requires nearly nothing else.
-Though Californium is implemented in java without own UI, you need a Java Runtime Environment, headless. The Java Development Kit will do it naturally as well and none headless also. The minimum required version is "1.7". I mainly use "java 11". The installation of that Java depends on your unix distribution. Some came with an already installed java. Therefore first check, if it's already install executing 
+Though Californium is implemented in java without own UI, you need a Java Runtime Environment, headless. The Java Development Kit will do it naturally as well and none headless also. The minimum required version is "1.7". I mainly use "java 11" and "java 17". The installation of that Java depends on your unix distribution. Some came with an already installed java. Therefore first check, if it's already install executing 
 
 ```
 java -version
@@ -83,6 +83,8 @@ Depending on the number of connectors, the value of `TasksMax` in the service de
 **Note:** the number of connectors is not the number of connections. A connector can run many connections and doesn't require to use a high number of tasks.  
 
 **Note:** `-XX:MaxRAMPercentage=75` is supported from java 11 on. For older java versions please adjust the size  of the java heap according your needs using `-Xmx`, e.g. `-Xmx1000m`.
+
+**Note:** `-XX:UseZGC` from java 17 on lowers slightly the peek performance, but also has no "GC coffee breaks" :-).
 
 Copy the "cali.service" file into the "/etc/systemd/system" folder. Use 
 
@@ -366,3 +368,62 @@ Status for the jail: cali-udp
 ```
 
 (If fail2ban is started before the "ban.log" is available, it fails. Just restart it with `sudo systemctl restart fail2ban` should fix it.)
+
+## UDP Fine-Tuning
+
+The most linux images are not "out-of-the-box" tuned for a UDP server. Mostly a small receive buffer is configured. That works not that bad, but especially if the work-load goes up, packages my get dropped because the receive buffer is full. You may check the dropped messages with:
+
+```
+> netstat -u -s
+...
+Udp:
+    71938370 packets received
+    63 packets to unknown port received
+    103853 packet receive errors
+    70954198 packets sent
+    103843 receive buffer errors
+    16 send buffer errors
+    InCsumErrors: 10
+    IgnoredMulti: 15
+...
+```
+
+The value `receive buffer errors` reports the dropped messages. 
+
+With
+ 
+```
+> netstat -u -a -n
+
+...
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+udp        0      0 0.0.0.0:631             0.0.0.0:*                          
+udp        0      0 0.0.0.0:33678           0.0.0.0:*                          
+udp6       0      0 :::5353                 :::*                               
+udp6       0      0 :::40923                :::*        
+...
+```
+you may check the current usage of the buffers.
+
+Information about the settings for UDP on Linux can be found in [UDP Linux Manual](https://man7.org/linux/man-pages/man7/udp.7.html) and [Socket Linux Manual](https://man7.org/linux/man-pages/man7/socket.7.html). The most relevant setting in my experience is `net.core.rmem_max`.
+
+```
+> sysctl net.core.rmem_max
+net.core.rmem_max = 212992
+```
+
+Depending on the amount of RAM and number of receiving `CoapEndpoint`s, this value could be enlarged with
+
+```
+> sudo sysctl -w net.core.rmem_max=1000000
+net.core.rmem_max = 1000000
+```
+
+In order to use that larger value, either adjust  `net.core.rmem_default` as well, or set
+
+```
+DTLS.RECEIVE_BUFFER_SIZE=1000000
+```
+
+In the according "Californium3.properties" (or "Californium???3.properties").
+
