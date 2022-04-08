@@ -273,13 +273,13 @@ public class ClientHandshaker extends Handshaker {
 		super(0, 0, recordLayer, timer, connection, config);
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 		this.supportedGroups = config.getSupportedGroups();
-		this.maxFragmentLength = config.getMaxFragmentLength();
-		this.truncateCertificatePath = config.useTruncatedCertificatePathForClientsCertificateMessage();
+		this.maxFragmentLength = config.get(DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH);
+		this.truncateCertificatePath = config.get(DtlsConfig.DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH);
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAlgorithms = config.getSupportedSignatureAlgorithms();
-		this.useDeprecatedCid = config.useDeprecatedCid();
-		this.verifyServerCertificatesSubject = config.verifyServerCertificatesSubject();
+		this.useDeprecatedCid = config.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
+		this.verifyServerCertificatesSubject = config.get(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
 		this.probe = probe;
 		getSession().setHostName(hostname);
 	}
@@ -898,8 +898,8 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	/**
-	 * Add record size limit extension, if configured in
-	 * {@link DtlsConnectorConfig#getRecordSizeLimit()}.
+	 * Add record size limit extension, if configured with
+	 * {@link DtlsConfig#DTLS_RECORD_SIZE_LIMIT}.
 	 * 
 	 * @param helloMessage client hello to add {@link RecordSizeLimitExtension}.
 	 * @since 2.4

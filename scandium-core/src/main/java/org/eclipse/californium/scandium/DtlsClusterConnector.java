@@ -30,6 +30,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ContentType;
@@ -262,7 +263,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * {@link DatagramSocket#receive(DatagramPacket)}.
 	 */
 	protected void startReceiver() {
-		int receiverThreadCount = config.getReceiverThreadCount();
+		int receiverThreadCount = config.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
 		for (int i = 0; i < receiverThreadCount; i++) {
 			Worker receiver = new Worker(
 					"DTLS-Cluster-" + getNodeID() + "-Receiver-" + i + "-" + clusterInternalSocketAddress) {

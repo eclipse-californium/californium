@@ -69,6 +69,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.util.NoPublicAPI;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -249,17 +250,17 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 		this.supportedGroups = config.getSupportedGroups();
 
-		this.clientAuthenticationMode = config.getCertificateAuthenticationMode();
-		this.useSessionId = config.useServerSessionId();
-		this.useHelloVerifyRequest = config.useHelloVerifyRequest();
-		this.useHelloVerifyRequestForPsk = this.useHelloVerifyRequest && config.useHelloVerifyRequestForPsk();
+		this.clientAuthenticationMode = config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE);
+		this.useSessionId = config.get(DtlsConfig.DTLS_SERVER_USE_SESSION_ID);
+		this.useHelloVerifyRequest = config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST);
+		this.useHelloVerifyRequestForPsk = this.useHelloVerifyRequest && config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK);
 
 		// the server handshake uses the config with exchanged roles!
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAndHashAlgorithms = config.getSupportedSignatureAlgorithms();
 		this.supportedCertificateKeyAlgorithms = config.getSupportedCertificateKeyAlgorithm();
-		this.supportDeprecatedCid = config.supportsDeprecatedCid();
+		this.supportDeprecatedCid = config.get(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID);
 		setExpectedStates(CLIENT_HELLO);
 	}
 

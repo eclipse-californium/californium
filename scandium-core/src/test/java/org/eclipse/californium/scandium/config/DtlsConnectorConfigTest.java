@@ -554,8 +554,8 @@ public class DtlsConnectorConfigTest {
 		DtlsConnectorConfig config = builder.build();
 
 		// THEN
-		assertThat(config.useAntiReplayFilter(), is(true));
-		assertThat(config.useDisabledWindowFilter(), is(0));
+		assertThat(config.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER), is(true));
+		assertThat(config.get(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER), is(0));
 	}
 
 	@Test
@@ -567,8 +567,8 @@ public class DtlsConnectorConfigTest {
 		DtlsConnectorConfig config = builder.build();
 
 		// THEN
-		assertThat(config.useAntiReplayFilter(), is(true));
-		assertThat(config.useDisabledWindowFilter(), is(-1));
+		assertThat(config.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER), is(true));
+		assertThat(config.get(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER), is(-1));
 	}
 
 	@Test

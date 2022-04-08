@@ -47,6 +47,7 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -661,7 +662,7 @@ public class DTLSFlight {
 
 	/**
 	 * Signal, that the first handshake message of the response is received. If
-	 * {@link DtlsConnectorConfig#useEarlyStopRetransmission()} is configured,
+	 * {@link DtlsConfig#DTLS_USE_EARLY_STOP_RETRANSMISSION} is configured,
 	 * this stops sending retransmissions but keep a scheduled timeout task.
 	 */
 	public void setResponseStarted() {

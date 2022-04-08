@@ -490,7 +490,7 @@ public class DTLSConnectorTest {
 
 			// Ensure there is no retransmission
 			assertNull(clientCollector.waitForRecords(
-					(long) (serverHelper.serverConfig.getRetransmissionTimeout() * 1.1), TimeUnit.MILLISECONDS));
+				(long) (serverHelper.serverConfig.getTimeAsInt(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS) * 1.1), TimeUnit.MILLISECONDS));
 		} finally {
 			rawClient.stop();
 		}
