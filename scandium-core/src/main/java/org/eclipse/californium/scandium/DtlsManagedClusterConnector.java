@@ -133,8 +133,8 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 			DtlsClusterConnectorConfig clusterConfiguration, ResumptionSupportingConnectionStore connectionStore) {
 		super(configuration, clusterConfiguration, connectionStore, false);
 		String identity = clusterConfiguration.getSecureIdentity();
-		Integer mgmtReceiveBuffer = addConditionally(config.getSocketReceiveBufferSize(), MAX_DATAGRAM_OFFSET);
-		Integer mgmtSendBuffer = addConditionally(config.getSocketSendBufferSize(), MAX_DATAGRAM_OFFSET);
+		Integer mgmtReceiveBuffer = addConditionally(config.get(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE), MAX_DATAGRAM_OFFSET);
+		Integer mgmtSendBuffer = addConditionally(config.get(DtlsConfig.DTLS_SEND_BUFFER_SIZE), MAX_DATAGRAM_OFFSET);
 		if (identity != null) {
 			SecretKey secretkey = clusterConfiguration.getSecretKey();
 			String tag = configuration.getLoggingTag();
@@ -490,7 +490,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 			if (isRunning()) {
 				return;
 			}
-			super.init(bindAddress, clusterInternalSocket, config.getMaxTransmissionUnit());
+			super.init(bindAddress, clusterInternalSocket, null);
 		}
 
 		@Override

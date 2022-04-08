@@ -214,7 +214,7 @@ public class ConnectorHelper {
 	public NewAdvancedCertificateVerifier ensureTrusts(DtlsConnectorConfig.Builder builder) {
 		NewAdvancedCertificateVerifier result = null;
 		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
-		if (incompleteConfig.getCertificateAuthenticationMode() != CertificateAuthenticationMode.NONE) {
+		if (incompleteConfig.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NONE) {
 			if (incompleteConfig.getAdvancedCertificateVerifier() == null) {
 				Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
 				X509Certificate[] trustedCertificates = DtlsTestTools.getTrustedCertificates();

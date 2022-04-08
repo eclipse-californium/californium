@@ -307,6 +307,18 @@ public final class DtlsConnectorConfig {
 		return configuration;
 	}
 
+	public <T> T get(BasicDefinition<T> definition) {
+		return configuration.get(definition);
+	}
+
+	public Long get(TimeDefinition definition, TimeUnit unit) {
+		return configuration.get(definition, unit);
+	}
+
+	public int getTimeAsInt(TimeDefinition definition, TimeUnit unit) {
+		return configuration.getTimeAsInt(definition, unit);
+	}
+
 	/**
 	 * Get protocol version for hello verify requests to send.
 	 * 
@@ -345,7 +357,10 @@ public final class DtlsConnectorConfig {
 	 * @return record size limit, or {@code null}, if not used.
 	 * @see DtlsConfig#DTLS_RECORD_SIZE_LIMIT
 	 * @since 2.4
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_RECORD_SIZE_LIMIT} instead
 	 */
+	@Deprecated
 	public Integer getRecordSizeLimit() {
 		return configuration.get(DtlsConfig.DTLS_RECORD_SIZE_LIMIT);
 	}
@@ -365,7 +380,10 @@ public final class DtlsConnectorConfig {
 	 * @return the code indicating the maximum payload length, or {@code null}.
 	 * @see DtlsConfig#DTLS_MAX_FRAGMENT_LENGTH
 	 * @since 3.0 (changed name and return type)
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH} instead
 	 */
+	@Deprecated
 	public Length getMaxFragmentLength() {
 		return configuration.get(DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH);
 	}
@@ -376,7 +394,10 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return maximum length, or {@code null}.
 	 * @see DtlsConfig#DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH} instead
 	 */
+	@Deprecated
 	public Integer getMaxFragmentedHandshakeMessageLength() {
 		return configuration.get(DtlsConfig.DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH);
 	}
@@ -391,7 +412,10 @@ public final class DtlsConnectorConfig {
 	 *         for default behavior.
 	 * @see DtlsConfig#DTLS_USE_MULTI_RECORD_MESSAGES
 	 * @since 2.4
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES} instead
 	 */
+	@Deprecated
 	public Boolean useMultiRecordMessages() {
 		return configuration.get(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES);
 	}
@@ -407,7 +431,10 @@ public final class DtlsConnectorConfig {
 	 *         for default behavior.
 	 * @see DtlsConfig#DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS
 	 * @since 2.4
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS} instead
 	 */
+	@Deprecated
 	public Boolean useMultiHandshakeMessageRecords() {
 		return configuration.get(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS);
 	}
@@ -422,7 +449,10 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the (initial) time to wait in milliseconds
 	 * @see DtlsConfig#DTLS_RETRANSMISSION_TIMEOUT
+	 * @deprecated use {@link #getTimeAsInt(TimeDefinition, TimeUnit)} with
+	 *             {@code DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT} instead
 	 */
+	@Deprecated
 	public int getRetransmissionTimeout() {
 		return configuration.getTimeAsInt(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS);
 	}
@@ -434,7 +464,10 @@ public final class DtlsConnectorConfig {
 	 * @return the maximum time to wait in milliseconds
 	 * @see DtlsConfig#DTLS_MAX_RETRANSMISSION_TIMEOUT
 	 * @since 3.0
+	 * @deprecated use {@link #getTimeAsInt(TimeDefinition, TimeUnit)} with
+	 *             {@code DtlsConfig.DTLS_MAX_RETRANSMISSION_TIMEOUT} instead
 	 */
+	@Deprecated
 	public Integer getMaxRetransmissionTimeout() {
 		return configuration.getTimeAsInt(DtlsConfig.DTLS_MAX_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS);
 	}
@@ -446,7 +479,10 @@ public final class DtlsConnectorConfig {
 	 *         range [1.0 - 2.0]
 	 * @see DtlsConfig#DTLS_RETRANSMISSION_INIT_RANDOM
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM} instead
 	 */
+	@Deprecated
 	public Float getRetransmissionRandomFactor() {
 		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM);
 	}
@@ -458,7 +494,10 @@ public final class DtlsConnectorConfig {
 	 *         2.0]
 	 * @see DtlsConfig#DTLS_RETRANSMISSION_TIMEOUT_SCALE
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE} instead
 	 */
+	@Deprecated
 	public Float getRetransmissionTimeoutScale() {
 		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE);
 	}
@@ -481,7 +520,10 @@ public final class DtlsConnectorConfig {
 	 *         {@link DtlsConfig#DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_IN_MILLISECONDS}.
 	 * @see DtlsConfig#DTLS_ADDITIONAL_ECC_TIMEOUT
 	 * @since 3.0
+	 * @deprecated use {@link #getTimeAsInt(TimeDefinition, TimeUnit)} with
+	 *             {@code DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT} instead
 	 */
+	@Deprecated
 	public int getAdditionalTimeoutForEcc() {
 		return configuration.getTimeAsInt(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, TimeUnit.MILLISECONDS);
 	}
@@ -500,12 +542,12 @@ public final class DtlsConnectorConfig {
 	 * records, which send together in one UDP datagram, all other records are
 	 * send in separate datagrams.
 	 * 
-	 * The {@link #useMultiHandshakeMessageRecords()} and
-	 * {@link #useMultiRecordMessages()} has precedence over the back-off
-	 * definition.
+	 * The {@link DtlsConfig#DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS} and
+	 * {@link DtlsConfig#DTLS_USE_MULTI_RECORD_MESSAGES} has precedence over the
+	 * back-off definition.
 	 * 
 	 * Value {@code 0}, to disable it, default is value
-	 * {@link #getMaxRetransmissions()} / 2.
+	 * {@link DtlsConfig#DTLS_MAX_RETRANSMISSIONS} / 2.
 	 * 
 	 * @return the number of re-transmissions to use the back-off mode
 	 * @see DtlsConfig#DTLS_RETRANSMISSION_BACKOFF
@@ -514,7 +556,7 @@ public final class DtlsConnectorConfig {
 	public Integer getBackOffRetransmission() {
 		Integer backoff = configuration.get(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF);
 		if (backoff == null) {
-			backoff = getMaxRetransmissions() / 2;
+			backoff = configuration.get(DtlsConfig.DTLS_MAX_RETRANSMISSIONS) / 2;
 		}
 		return backoff;
 	}
@@ -525,7 +567,10 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the maximum number of re-transmissions
 	 * @see DtlsConfig#DTLS_MAX_RETRANSMISSIONS
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_MAX_RETRANSMISSIONS} instead
 	 */
+	@Deprecated
 	public Integer getMaxRetransmissions() {
 		return configuration.get(DtlsConfig.DTLS_MAX_RETRANSMISSIONS);
 	}
@@ -537,7 +582,10 @@ public final class DtlsConnectorConfig {
 	 * @return the maximum number of deferred processed outgoing application
 	 *         data messages
 	 * @see DtlsConfig#DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES} instead
 	 */
+	@Deprecated
 	public Integer getMaxDeferredProcessedOutgoingApplicationDataMessages() {
 		return configuration.get(DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES);
 	}
@@ -547,7 +595,10 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the maximum size of all deferred processed incoming records
 	 * @see DtlsConfig#DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE} instead
 	 */
+	@Deprecated
 	public Integer getMaxDeferredProcessedIncomingRecordsSize() {
 		return configuration.get(DtlsConfig.DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE);
 	}
@@ -559,7 +610,10 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return maximum transmission unit
 	 * @see DtlsConfig#DTLS_MAX_TRANSMISSION_UNIT
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT} instead
 	 */
+	@Deprecated
 	public Integer getMaxTransmissionUnit() {
 		return configuration.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT);
 	}
@@ -573,7 +627,10 @@ public final class DtlsConnectorConfig {
 	 *         {@link DtlsConfig#DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}.
 	 * @see DtlsConfig#DTLS_MAX_TRANSMISSION_UNIT_LIMIT
 	 * @since 2.3
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT} instead
 	 */
+	@Deprecated
 	public Integer getMaxTransmissionUnitLimit() {
 		return configuration.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT);
 	}
@@ -585,7 +642,10 @@ public final class DtlsConnectorConfig {
 	 *         receive handshake message
 	 * @see DtlsConfig#DTLS_USE_EARLY_STOP_RETRANSMISSION
 	 * @since 3.0 (renamed, was isEarlyStopRetransmission)
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION} instead
 	 */
+	@Deprecated
 	public Boolean useEarlyStopRetransmission() {
 		return configuration.get(DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION);
 	}
@@ -624,7 +684,10 @@ public final class DtlsConnectorConfig {
 	 * @return {@code true}, if SNI should be used.
 	 * @see DtlsConfig#DTLS_USE_SERVER_NAME_INDICATION
 	 * @since 3.0 (renamed, was isSniEnabled)
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION} instead
 	 */
+	@Deprecated
 	public Boolean useServerNameIndication() {
 		return configuration.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION);
 	}
@@ -641,14 +704,17 @@ public final class DtlsConnectorConfig {
 	 * @return the extended master secret mode.
 	 * @see DtlsConfig#DTLS_EXTENDED_MASTER_SECRET_MODE
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE} instead
 	 */
+	@Deprecated
 	public ExtendedMasterSecretMode getExtendedMasterSecretMode() {
 		return configuration.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
 	}
 
 	/**
 	 * Threshold to use a HELLO_VERIFY_REQUEST also for session resumption in
-	 * percent of {@link #getMaxConnections()}. Though a CLIENT_HELLO with an
+	 * percent of {@link DtlsConfig#DTLS_MAX_CONNECTIONS}. Though a CLIENT_HELLO with an
 	 * session id is used in session resumption, that session ID could be used
 	 * as weaker verification, that the peer controls the source address.
 	 * 
@@ -690,7 +756,10 @@ public final class DtlsConnectorConfig {
 	 *         {@link #getMaxConnections()}.
 	 * @see HelloVerifyRequest
 	 * @see DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} instead
 	 */
+	@Deprecated
 	public Integer getVerifyPeersOnResumptionThreshold() {
 		return configuration.get(DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD);
 	}
@@ -710,10 +779,13 @@ public final class DtlsConnectorConfig {
 	 * @return {@code true}, if a HELLO_VERIFY_REQUEST should be send to the
 	 *         client, {@code false}, if no HELLO_VERIFY_REQUEST is used.
 	 * @see HelloVerifyRequest
-	 * @see #useHelloVerifyRequest()
+	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST
 	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK} instead
 	 */
+	@Deprecated
 	public Boolean useHelloVerifyRequestForPsk() {
 		return configuration.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK);
 	}
@@ -731,10 +803,13 @@ public final class DtlsConnectorConfig {
 	 * @return {@code true}, if a HELLO_VERIFY_REQUEST should be send to the
 	 *         client, {@code false}, if no HELLO_VERIFY_REQUEST is used.
 	 * @see HelloVerifyRequest
-	 * @see #useHelloVerifyRequestForPsk()
+	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK
 	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST} instead
 	 */
+	@Deprecated
 	public Boolean useHelloVerifyRequest() {
 		return configuration.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST);
 	}
@@ -775,7 +850,10 @@ public final class DtlsConnectorConfig {
 	 * @see ConnectionIdExtension
 	 * @see DtlsConfig#DTLS_USE_DEPRECATED_CID
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_DEPRECATED_CID} instead
 	 */
+	@Deprecated
 	public Integer useDeprecatedCid() {
 		return configuration.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
 	}
@@ -794,7 +872,10 @@ public final class DtlsConnectorConfig {
 	 * @see ConnectionIdExtension
 	 * @see DtlsConfig#DTLS_SUPPORT_DEPRECATED_CID
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID} instead
 	 */
+	@Deprecated
 	public Boolean supportsDeprecatedCid() {
 		return configuration.get(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID);
 	}
@@ -805,7 +886,10 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the number of messages
 	 * @see DtlsConfig#DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE} instead
 	 */
+	@Deprecated
 	public Integer getOutboundMessageBufferSize() {
 		return configuration.get(DtlsConfig.DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE);
 	}
@@ -863,7 +947,10 @@ public final class DtlsConnectorConfig {
 	 * @see Builder#setAsList(BasicListDefinition, Object...)
 	 * @see DtlsConfig#DTLS_PRESELECTED_CIPHER_SUITES
 	 * @since 2.5
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES} instead
 	 */
+	@Deprecated
 	public List<CipherSuite> getPreselectedCipherSuites() {
 		return configuration.get(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES);
 	}
@@ -1000,7 +1087,10 @@ public final class DtlsConnectorConfig {
 	 * @return client authentication mode
 	 * @see DtlsConfig#DTLS_CLIENT_AUTHENTICATION_MODE
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE} instead
 	 */
+	@Deprecated
 	public CertificateAuthenticationMode getCertificateAuthenticationMode() {
 		return configuration.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE);
 	}
@@ -1012,7 +1102,10 @@ public final class DtlsConnectorConfig {
 	 *         to not verify it
 	 * @see DtlsConfig#DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT} instead
 	 */
+	@Deprecated
 	public Boolean verifyServerCertificatesSubject() {
 		return configuration.get(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
 	}
@@ -1023,7 +1116,10 @@ public final class DtlsConnectorConfig {
 	 * @return role the connector acts as
 	 * @see DtlsConfig#DTLS_ROLE
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_ROLE} instead
 	 */
+	@Deprecated
 	public DtlsRole getDtlsRole() {
 		return configuration.get(DtlsConfig.DTLS_ROLE);
 	}
@@ -1046,7 +1142,7 @@ public final class DtlsConnectorConfig {
 	 * @since 2.1
 	 */
 	public String getDefaultHandshakeMode() {
-		if (getDtlsRole() == DtlsRole.SERVER_ONLY) {
+		if (configuration.get(DtlsConfig.DTLS_ROLE) == DtlsRole.SERVER_ONLY) {
 			return DtlsEndpointContext.HANDSHAKE_MODE_NONE;
 		} else {
 			return configuration.get(DtlsConfig.DTLS_DEFAULT_HANDSHAKE_MODE);
@@ -1097,8 +1193,11 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return The maximum number of active connections supported.
 	 * @see DtlsConfig#DTLS_MAX_CONNECTIONS
-	 * @see #getStaleConnectionThresholdSeconds()
+	 * @see DtlsConfig#DTLS_STALE_CONNECTION_THRESHOLD
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_MAX_CONNECTIONS} instead
 	 */
+	@Deprecated
 	public Integer getMaxConnections() {
 		return configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
 	}
@@ -1111,9 +1210,12 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return The number of seconds.
 	 * @see DtlsConfig#DTLS_STALE_CONNECTION_THRESHOLD
-	 * @see #getMaxConnections()
+	 * @see DtlsConfig#DTLS_MAX_CONNECTIONS
 	 * @since 3.0 (renamed, was getStaleConnectionThreshold)
+	 * @deprecated use {@link #get(TimeDefinition, TimeUnit)} with
+	 *             {@code DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD} instead
 	 */
+	@Deprecated
 	public Long getStaleConnectionThresholdSeconds() {
 		return configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS);
 	}
@@ -1124,7 +1226,10 @@ public final class DtlsConnectorConfig {
 	 * @return the number of threads.
 	 * @see DtlsConfig#DTLS_CONNECTOR_THREAD_COUNT
 	 * @since 3.0 (renamed, was getConnectionThreadCount)
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT} instead
 	 */
+	@Deprecated
 	public Integer getConnectorThreadCount() {
 		return configuration.get(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT);
 	}
@@ -1135,7 +1240,10 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the number of threads.
 	 * @see DtlsConfig#DTLS_RECEIVER_THREAD_COUNT
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_RECEIVER_THREAD_COUNT} instead
 	 */
+	@Deprecated
 	public Integer getReceiverThreadCount() {
 		return configuration.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
 	}
@@ -1146,7 +1254,10 @@ public final class DtlsConnectorConfig {
 	 * @return the socket receive buffer in bytes, or {@code null}, to use the
 	 *         OS default.
 	 * @see DtlsConfig#DTLS_RECEIVE_BUFFER_SIZE
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE} instead
 	 */
+	@Deprecated
 	public Integer getSocketReceiveBufferSize() {
 		return configuration.get(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE);
 	}
@@ -1157,7 +1268,10 @@ public final class DtlsConnectorConfig {
 	 * @return the socket send buffer in bytes, or {@code null}, to use the OS
 	 *         default.
 	 * @see DtlsConfig#DTLS_SEND_BUFFER_SIZE
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_SEND_BUFFER_SIZE} instead
 	 */
+	@Deprecated
 	public Integer getSocketSendBufferSize() {
 		return configuration.get(DtlsConfig.DTLS_SEND_BUFFER_SIZE);
 	}
@@ -1193,7 +1307,10 @@ public final class DtlsConnectorConfig {
 	 *         therefore the session can not be resumed. Default {@code true}.
 	 * @see DtlsConfig#DTLS_SERVER_USE_SESSION_ID
 	 * @since 3.0 (was useNoServerSessionId with inverse logic)
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_SERVER_USE_SESSION_ID} instead
 	 */
+	@Deprecated
 	public Boolean useServerSessionId() {
 		return configuration.get(DtlsConfig.DTLS_SERVER_USE_SESSION_ID);
 	}
@@ -1205,7 +1322,10 @@ public final class DtlsConnectorConfig {
 	 * @see <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6"
 	 *      target= "_blank">RFC6347 4.1.2.6. Anti-Replay</a>
 	 * @see DtlsConfig#DTLS_USE_ANTI_REPLAY_FILTER
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER} instead
 	 */
+	@Deprecated
 	public Boolean useAntiReplayFilter() {
 		return configuration.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
 	}
@@ -1234,7 +1354,10 @@ public final class DtlsConnectorConfig {
 	 *      target= "_blank">RFC6347 4.1.2.6. Anti-Replay</a>
 	 * @see DtlsConfig#DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER
 	 * @since 2.4
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER} instead
 	 */
+	@Deprecated
 	public Integer useDisabledWindowFilter() {
 		return configuration.get(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER);
 	}
@@ -1250,7 +1373,10 @@ public final class DtlsConnectorConfig {
 	 *         anti-replay-filter.
 	 * @see DtlsConfig#DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS
 	 * @since 3.0 (renamed, was useCidUpdateAddressOnNewerRecordFilter)
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS} instead
 	 */
+	@Deprecated
 	public Boolean useUpdateAddressUsingCidOnNewerRecords() {
 		return configuration.get(DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS);
 	}
@@ -1266,7 +1392,10 @@ public final class DtlsConnectorConfig {
 	 *         certificate message.
 	 * @see DtlsConfig#DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH
 	 * @since 2.1
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH} instead
 	 */
+	@Deprecated
 	public Boolean useTruncatedCertificatePathForClientsCertificateMessage() {
 		return configuration.get(DtlsConfig.DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH);
 	}
@@ -1281,7 +1410,10 @@ public final class DtlsConnectorConfig {
 	 *         anchors for validation
 	 * @see DtlsConfig#DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION
 	 * @since 2.1
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION} instead
 	 */
+	@Deprecated
 	public Boolean useTruncatedCertificatePathForValidation() {
 		return configuration.get(DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION);
 	}
@@ -1334,7 +1466,7 @@ public final class DtlsConnectorConfig {
 	 * {@link ResumptionSupportingConnectionStore}.
 	 * 
 	 * @return resumption verifier. May be {@code null}, if
-	 *         {@link #useServerSessionId()} is {@code false} and session
+	 *         {@link DtlsConfig#DTLS_SERVER_USE_SESSION_ID} is {@code false} and session
 	 *         resumption is not supported.
 	 * @see Builder#setResumptionVerifier(ResumptionVerifier)
 	 * @since 3.0
@@ -1385,6 +1517,7 @@ public final class DtlsConnectorConfig {
 	 * @deprecated pass in {@link DtlsHealth} and call
 	 *             {@link CounterStatisticManager#dump()} externally.
 	 */
+	@Deprecated
 	public int getHealthStatusIntervalMilliseconds() {
 		return configuration.getTimeAsInt(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 	}
@@ -1405,7 +1538,10 @@ public final class DtlsConnectorConfig {
 	 * @return {@code true}, if only recommended cipher suites are used.
 	 * @see DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY
 	 * @since 3.0 (renamed, was isRecommendedCipherSuitesOnly)
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY} instead
 	 */
+	@Deprecated
 	public Boolean useRecommendedCipherSuitesOnly() {
 		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY);
 	}
@@ -1417,7 +1553,10 @@ public final class DtlsConnectorConfig {
 	 *         used.
 	 * @see DtlsConfig#DTLS_RECOMMENDED_CURVES_ONLY
 	 * @since 3.0 (renamed, was isRecommendedSupportedGroupsOnly)
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY} instead
 	 */
+	@Deprecated
 	public Boolean useRecommendedSupportedGroupsOnly() {
 		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY);
 	}
@@ -1429,7 +1568,10 @@ public final class DtlsConnectorConfig {
 	 *         are used.
 	 * @see DtlsConfig#DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY
 	 * @since 3.0
+	 * @deprecated use {@link #get(BasicDefinition)} with
+	 *             {@code DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY} instead
 	 */
+	@Deprecated
 	public Boolean useRecommendedSignatureAndHashAlgorithmsOnly() {
 		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY);
 	}
@@ -1981,58 +2123,61 @@ public final class DtlsConnectorConfig {
 			if (config.useReuseAddress == null) {
 				config.useReuseAddress = Boolean.FALSE;
 			}
+			int maxRetransmission = config.get(DtlsConfig.DTLS_MAX_RETRANSMISSIONS);
+			if (maxRetransmission < 1) {
+				throw new IllegalStateException(
+						"Maximum retransmissions " + maxRetransmission + " must not be less than 1!");
+			}
 			Integer backoff = config.configuration.get(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF);
-			if (backoff != null && backoff >= config.getMaxRetransmissions()) {
+			if (backoff != null && backoff >= maxRetransmission) {
 				throw new IllegalStateException("Backoff for handshake retransmissions (" + backoff
-						+ ") must be less than the maximum retransmissions (" + config.getMaxRetransmissions() + ")!");
+						+ ") must be less than the maximum retransmissions (" + maxRetransmission + ")!");
+			}
+			int retransmissionTimeout = config.getTimeAsInt(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT,
+					TimeUnit.MILLISECONDS);
+			int maxRetransmissionTimeout = config.getTimeAsInt(DtlsConfig.DTLS_MAX_RETRANSMISSION_TIMEOUT,
+					TimeUnit.MILLISECONDS);
+			if (retransmissionTimeout > maxRetransmissionTimeout) {
+				throw new IllegalStateException("Retransmission timeout " + retransmissionTimeout
+						+ " is more than the maximum " + maxRetransmissionTimeout + "!");
 			}
 
-			if (config.getRetransmissionTimeout() > config.getMaxRetransmissionTimeout()) {
-				throw new IllegalStateException("Retransmission timeout " + config.getRetransmissionTimeout()
-						+ " is more than the maximum " + config.getMaxRetransmissionTimeout() + "!");
-			}
-
-			if (config.getRetransmissionTimeout() <= 0) {
+			if (retransmissionTimeout <= 0) {
 				throw new IllegalStateException(
-						"Retransmission timeout " + config.getRetransmissionTimeout() + " must not be 0 or less!");
+						"Retransmission timeout " + retransmissionTimeout + " must not be 0 or less!");
 			}
 
-			if (config.getMaxRetransmissionTimeout() <= 0) {
-				throw new IllegalStateException("Maximum retransmission timeout " + config.getMaxRetransmissionTimeout()
-						+ " must not be 0 or less!");
-			}
-
-			if (config.getMaxRetransmissions() < 1) {
+			if (maxRetransmissionTimeout <= 0) {
 				throw new IllegalStateException(
-						"Maximum retransmissions " + config.getMaxRetransmissions() + " must not be less than 1!");
+						"Maximum retransmission timeout " + maxRetransmissionTimeout + " must not be 0 or less!");
 			}
 
-			if (config.getRetransmissionRandomFactor() < 1.0F) {
+			if (config.get(DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM) < 1.0F) {
 				throw new IllegalStateException("Retransmission timeout random factor "
-						+ config.getRetransmissionRandomFactor() + " must not be less than 1.0!");
+						+ config.get(DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM) + " must not be less than 1.0!");
 			}
 
-			if (config.getRetransmissionTimeoutScale() < 1.0F) {
+			if (config.get(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE) < 1.0F) {
 				throw new IllegalStateException("Retransmission timeout scale factor "
-						+ config.getRetransmissionTimeoutScale() + " must not be less than 1.0!");
+						+ config.get(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE) + " must not be less than 1.0!");
 			}
 
-			if (config.getMaxTransmissionUnit() != null && config.getMaxTransmissionUnitLimit() != null) {
-				int mtu = config.getMaxTransmissionUnit();
-				int limit = config.getMaxTransmissionUnitLimit();
-				if (mtu > limit) {
+			Integer mtu = config.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT);
+			Integer mtuLimit = config.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT);
+			if (mtu != null && mtuLimit != null) {
+				if (mtu > mtuLimit) {
 					throw new IllegalStateException(
-							"MTU (" + mtu + " bytes) is larger than the limit (" + limit + " bytes)!");
+							"MTU (" + mtu + " bytes) is larger than the limit (" + mtuLimit + " bytes)!");
 				}
 			}
 
-			if (config.getRecordSizeLimit() != null
-					&& config.getRecordSizeLimit() > Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH) {
-				throw new IllegalStateException("Record size limit " + config.getRecordSizeLimit()
-						+ " must be less than " + Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH + "!");
+			Integer limit = config.get(DtlsConfig.DTLS_RECORD_SIZE_LIMIT);
+			if (limit != null && limit > Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH) {
+				throw new IllegalStateException("Record size limit " + limit + " must be less than "
+						+ Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH + "!");
 			}
-
-			if (config.getDtlsRole() == DtlsRole.SERVER_ONLY) {
+			DtlsRole dtlsRole = config.get(DtlsConfig.DTLS_ROLE);
+			if (dtlsRole == DtlsRole.SERVER_ONLY) {
 				if (config.getCertificateAuthenticationMode() == CertificateAuthenticationMode.NONE
 						&& config.advancedCertificateVerifier != null) {
 					throw new IllegalStateException(
@@ -2071,11 +2216,11 @@ public final class DtlsConnectorConfig {
 				config.supportedCertificatekeyAlgorithms = Collections.emptyList();
 			}
 
-			if (config.cipherSuiteSelector == null && config.getDtlsRole() != DtlsRole.CLIENT_ONLY) {
+			if (config.cipherSuiteSelector == null && dtlsRole != DtlsRole.CLIENT_ONLY) {
 				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
 			}
-			if (config.resumptionVerifier == null && config.useServerSessionId()
-					&& config.getDtlsRole() != DtlsRole.CLIENT_ONLY) {
+			if (config.resumptionVerifier == null && config.get(DtlsConfig.DTLS_SERVER_USE_SESSION_ID)
+					&& dtlsRole != DtlsRole.CLIENT_ONLY) {
 				config.resumptionVerifier = new ConnectionStoreResumptionVerifier();
 			}
 
@@ -2194,11 +2339,11 @@ public final class DtlsConnectorConfig {
 						.verifySignatureAndHashAlgorithmsConfiguration(config.supportedSignatureAlgorithms);
 				config.certificateConfigurationHelper.verifySupportedGroupsConfiguration(config.supportedGroups);
 				if (provider != null && provider.getSupportedCertificateTypes().contains(CertificateType.X_509)) {
-					if (config.getDtlsRole() == DtlsRole.CLIENT_ONLY) {
+					if (dtlsRole == DtlsRole.CLIENT_ONLY) {
 						if (!config.certificateConfigurationHelper.canBeUsedForAuthentication(true)) {
 							throw new IllegalStateException("certificate has no proper key usage for clients!");
 						}
-					} else if (config.getDtlsRole() == DtlsRole.SERVER_ONLY) {
+					} else if (dtlsRole == DtlsRole.SERVER_ONLY) {
 						if (!config.certificateConfigurationHelper.canBeUsedForAuthentication(false)) {
 							throw new IllegalStateException("certificate has no proper key usage for servers!");
 						}
@@ -2212,7 +2357,7 @@ public final class DtlsConnectorConfig {
 					}
 				}
 			}
-			if (config.useHelloVerifyRequest() && !config.useHelloVerifyRequestForPsk()
+			if (config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST) && !config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK)
 					&& !CipherSuite.containsPskBasedCipherSuite(config.supportedCipherSuites)) {
 				throw new IllegalStateException(
 						"HELLO_VERIFY_REQUEST disabled for PSK, requires at least one PSK cipher suite!");
@@ -2249,7 +2394,7 @@ public final class DtlsConnectorConfig {
 		}
 
 		private void verifyCertificateBasedCipherConfig(CipherSuite suite) {
-			if (config.getDtlsRole() == DtlsRole.CLIENT_ONLY) {
+			if (config.get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
 				if (config.advancedCertificateVerifier == null) {
 					throw new IllegalStateException(
 							"certificate verifier must be set on client for configured " + suite.name());

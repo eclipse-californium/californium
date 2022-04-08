@@ -430,11 +430,11 @@ public class DTLSConnectorHandshakeTest {
 
 		DtlsConnectorConfig incompleteConfig = serverBuilder.getIncompleteConfig();
 
-		if (incompleteConfig.useServerNameIndication()) {
+		if (incompleteConfig.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION)) {
 			serverBuilder.setCertificateIdentityProvider(new KeyManagerCertificateProvider(DtlsTestTools.SERVER_NAME,
 					DtlsTestTools.getDtlsServerKeyManager(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
 		}
-		if (incompleteConfig.getCertificateAuthenticationMode() != CertificateAuthenticationMode.NONE) {
+		if (incompleteConfig.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NONE) {
 			if (incompleteConfig.getAdvancedCertificateVerifier() == null) {
 				serverVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier.builder()
 						.setTrustAllCertificates().setTrustAllRPKs().build();
@@ -476,7 +476,7 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	private void setupClientCertificateIdentity(CertificateType type) {
-		if (clientBuilder.getIncompleteConfig().useServerNameIndication()) {
+		if (clientBuilder.getIncompleteConfig().get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION)) {
 			clientBuilder.setCertificateIdentityProvider(
 					new KeyManagerCertificateProvider(DtlsTestTools.getClientKeyManager(), type));
 		} else if (type == CertificateType.RAW_PUBLIC_KEY) {

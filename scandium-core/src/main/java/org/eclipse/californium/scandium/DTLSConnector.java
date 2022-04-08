@@ -185,6 +185,7 @@ import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -405,7 +406,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	private final int outboundMessageBufferSize;
 	/**
 	 * (Down-)counter for pending outbound messages. Initialized with
-	 * {@link DtlsConnectorConfig#getOutboundMessageBufferSize()}.
+	 * {@link DtlsConfig#DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE}.
 	 */
 	private final AtomicInteger pendingOutboundMessagesCountdown = new AtomicInteger();
 
@@ -494,8 +495,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @since 3.0 (moved SessionCache from parameter to configuration)
 	 */
 	protected static ResumptionSupportingConnectionStore createConnectionStore(DtlsConnectorConfig configuration) {
-		return new InMemoryConnectionStore(configuration.getMaxConnections(),
-				configuration.getStaleConnectionThresholdSeconds(), configuration.getSessionStore())
+		return new InMemoryConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
+				configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS),
+				configuration.getSessionStore())
 						.setTag(configuration.getLoggingTag());
 	}
 
@@ -525,15 +527,15 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			this.config = configuration;
 			this.connectionIdGenerator = config.getConnectionIdGenerator();
 			this.protocolVersionForHelloVerifyRequests = config.getProtocolVersionForHelloVerifyRequests();
-			this.outboundMessageBufferSize = config.getOutboundMessageBufferSize();
+			this.outboundMessageBufferSize = config.get(DtlsConfig.DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE);
 			this.pendingOutboundMessagesCountdown.set(outboundMessageBufferSize);
 			this.autoResumptionTimeoutMillis = config.getAutoHandshakeTimeoutMillis();
-			this.dtlsRole = config.getDtlsRole();
+			this.dtlsRole = config.get(DtlsConfig.DTLS_ROLE);
 			this.defaultHandshakeMode = config.getDefaultHandshakeMode();
-			this.useExtendedWindowFilter = config.useDisabledWindowFilter();
-			this.useFilter = config.useAntiReplayFilter();
-			this.useCidUpdateAddressOnNewerRecordFilter = config.useUpdateAddressUsingCidOnNewerRecords();
-			this.maxConnections = config.getMaxConnections();
+			this.useExtendedWindowFilter = config.get(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER);
+			this.useFilter = config.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
+			this.useCidUpdateAddressOnNewerRecordFilter = config.get(DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS);
+			this.maxConnections = config.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
@@ -558,7 +560,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			if (certificateVerifier != null) {
 				certificateVerifier.setResultHandler(handler);
 			}
-			this.resumptionVerifier = config.useServerSessionId() ? config.getResumptionVerifier() : null;
+			this.resumptionVerifier = config.get(DtlsConfig.DTLS_SERVER_USE_SESSION_ID) ? config.getResumptionVerifier() : null;
 			if (resumptionVerifier != null) {
 				resumptionVerifier.setResultHandler(handler);
 				if (resumptionVerifier instanceof ConnectionStoreResumptionVerifier) {
@@ -658,14 +660,14 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				}
 			};
 			// calculate absolute threshold from relative.
-			long thresholdInPercent = config.getVerifyPeersOnResumptionThreshold();
+			long thresholdInPercent = config.get(DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD);
 			long threshold = (((long) maxConnections * thresholdInPercent) + 50L) / 100L;
 			if (threshold == 0 && thresholdInPercent > 0) {
 				threshold = 1;
 			}
 			this.thresholdHandshakesWithoutVerifiedPeer = (int) threshold;
-			this.useHelloVerifyRequest = config.useHelloVerifyRequest();
-			this.useHelloVerifyRequestForPsk = this.useHelloVerifyRequest && config.useHelloVerifyRequestForPsk();
+			this.useHelloVerifyRequest = config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST);
+			this.useHelloVerifyRequestForPsk = this.useHelloVerifyRequest && config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK);
 		}
 	}
 
@@ -935,7 +937,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		if (running.get()) {
 			return;
 		}
-		init(bindAddress, new DatagramSocket(null), config.getMaxTransmissionUnit());
+		init(bindAddress, new DatagramSocket(null), null);
 	}
 
 	/**
@@ -962,7 +964,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			}
 		}
 
-		Integer size = config.getSocketReceiveBufferSize();
+		Integer size = config.get(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE);
 		if (size != null && size > 0) {
 			try {
 				socket.setReceiveBufferSize(size);
@@ -970,7 +972,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				LOGGER.error("failed to apply receive buffer size {}", size, ex);
 			}
 		}
-		size = config.getSocketSendBufferSize();
+		size = config.get(DtlsConfig.DTLS_SEND_BUFFER_SIZE);
 		if (size != null && size > 0) {
 			try {
 				socket.setSendBufferSize(size);
@@ -991,16 +993,16 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			connectionStore.markAllAsResumptionRequired();
 		}
 
-		if (config.getMaxFragmentLength() != null) {
-			MaxFragmentLengthExtension.Length lengthCode = config.getMaxFragmentLength();
+		MaxFragmentLengthExtension.Length lengthCode = config.get(DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH);
+		if (lengthCode != null) {
 			// reduce inbound buffer size accordingly
 			inboundDatagramBufferSize = lengthCode.length() + MAX_CIPHERTEXT_EXPANSION
 					// 12 bytes DTLS handshake message headers, 13 bytes DTLS record headers
 					+ Record.DTLS_HANDSHAKE_HEADER_LENGTH;
 		}
 
-		if (config.getMaxTransmissionUnit() != null) {
-			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
+		this.maximumTransmissionUnit = config.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT);
+		if (this.maximumTransmissionUnit != null) {
 			LOGGER.info("Configured MTU [{}]", this.maximumTransmissionUnit);
 		} else if (mtu != null) {
 			this.maximumTransmissionUnit = mtu;
@@ -1030,7 +1032,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 							ipv4Mtu);
 				}
 			}
-			Integer limit = config.getMaxTransmissionUnitLimit();
+			Integer limit = config.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT);
 			if (limit != null && limit < inboundDatagramBufferSize) {
 				if (ipv4Mtu > limit) {
 					ipv4Mtu = limit;
@@ -1062,7 +1064,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		}
 
 		if (executorService == null) {
-			int threadCount = config.getConnectorThreadCount();
+			int threadCount = config.get(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT);
 			if (threadCount > 1) {
 				executorService = ExecutorsUtil.newFixedThreadPool(threadCount - 1, new DaemonThreadFactory(
 						"DTLS-Worker-" + lastBindAddress + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
@@ -1119,7 +1121,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		}
 		running.set(true);
 
-		int receiverThreadCount = config.getReceiverThreadCount();
+		int receiverThreadCount = config.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
 		for (int i = 0; i < receiverThreadCount; i++) {
 			Worker receiver = new Worker("DTLS-Receiver-" + i + "-" + lastBindAddress) {
 
@@ -1168,12 +1170,12 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 						long now = ClockUtil.nanoRealtime();
 						if (healthStatusIntervalMillis > 0
 								&& TimeUnit.NANOSECONDS.toMillis(now - lastNanos) > healthStatusIntervalMillis) {
-							health.dump(config.getLoggingTag(), config.getMaxConnections(),
+							health.dump(config.getLoggingTag(), maxConnections,
 									connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
 							lastNanos = now;
 						} else if (health instanceof DtlsHealthExtended) {
 							((DtlsHealthExtended) health)
-									.setConnections(config.getMaxConnections() - connectionStore.remainingCapacity());
+									.setConnections(maxConnections - connectionStore.remainingCapacity());
 						}
 					}
 
@@ -2881,7 +2883,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				if (!full) {
 					resume = context.getSession();
 					full = resume.getSessionIdentifier().isEmpty();
-					if (!full && config.getExtendedMasterSecretMode().is(ExtendedMasterSecretMode.ENABLED)) {
+					if (!full && config.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE).is(ExtendedMasterSecretMode.ENABLED)) {
 						// https://tools.ietf.org/html/rfc7627#section-5.3
 						// The client SHOULD NOT offer an abbreviated handshake
 						// to resume a session that does not use an extended
