@@ -303,19 +303,17 @@ public class EncryptedPersistentComponentUtil extends PersistentComponentUtil {
 				if (hook != null) {
 					hook.run();
 				}
-				if (store != null) {
-					store.delete();
+				store.delete();
+				try {
+					FileOutputStream out = new FileOutputStream(store);
 					try {
-						FileOutputStream out = new FileOutputStream(store);
-						try {
-							saveComponents(out, key, staleThresholdInSeconds);
-						} finally {
-							out.close();
-						}
-					} catch (IOException ex) {
-						LOGGER.warn("Saving server state failed!", ex);
-						store.delete();
+						saveComponents(out, key, staleThresholdInSeconds);
+					} finally {
+						out.close();
 					}
+				} catch (IOException ex) {
+					LOGGER.warn("Saving server state failed!", ex);
+					store.delete();
 				}
 				LOGGER.info("Shutdown.");
 			}
