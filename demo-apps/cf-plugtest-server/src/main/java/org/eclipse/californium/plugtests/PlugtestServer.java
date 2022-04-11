@@ -376,7 +376,7 @@ public class PlugtestServer extends AbstractTestServer {
 			if (config.oscore) {
 				oscoreCtxDb = new HashMapCtxDB();
 				OSCoreCoapStackFactory.useAsDefault(oscoreCtxDb);
-				oscoreServerRid = initOscore(oscoreCtxDb);
+				oscoreServerRid = initOscore(configuration, oscoreCtxDb);
 			}
 
 			List<Protocol> protocols = config.getProtocols();
@@ -547,11 +547,12 @@ public class PlugtestServer extends AbstractTestServer {
 	 * configuration and adds it to the OSCORE context database. The created
 	 * context will support the Appendix B.2. context rederivation procedure.
 	 * 
+	 * @param config the Configuration
 	 * @param db the OSCORE context database
 	 * 
 	 * @return the RID of the server for the generated context
 	 */
-	public static byte[] initOscore(HashMapCtxDB db) {
+	public static byte[] initOscore(Configuration config, HashMapCtxDB db) {
 		AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 		AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
@@ -560,7 +561,7 @@ public class PlugtestServer extends AbstractTestServer {
 		byte[] sid = StringUtil.hex2ByteArray("02");
 		byte[] rid = StringUtil.hex2ByteArray("01");
 		byte[] id_context = StringUtil.hex2ByteArray("37cbf3210017a2d3");
-		int MAX_UNFRAGMENTED_SIZE = Configuration.getStandard().get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
+		int MAX_UNFRAGMENTED_SIZE = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 
 		OSCoreCtx ctx = null;
 		try {
