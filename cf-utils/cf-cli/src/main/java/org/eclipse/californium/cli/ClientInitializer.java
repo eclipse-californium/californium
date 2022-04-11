@@ -204,38 +204,51 @@ public class ClientInitializer {
 		}
 
 		if (createEndpoint) {
-			CoapEndpoint coapEndpoint = createEndpoint(config, null);
-			coapEndpoint.start();
-			LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
-			EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);
+			registerEndpoint(config, null);
 		}
 	}
 
 	/**
-	 * Create endpoint from client's configarguments.
+	 * Create and register a {@link CoapEndpoint} at the
+	 * {@link EndpointManager}.
 	 * 
-	 * @param clientConfig client's config
+	 * @param config client's config
+	 * @param executor executor service. {@code null}, if no external executor
+	 *            should be used.
+	 * @throws IOException if an i/o error occurs
+	 */
+	public static void registerEndpoint(ClientBaseConfig config, ExecutorService executor) throws IOException {
+		CoapEndpoint coapEndpoint = createEndpoint(config, null);
+		coapEndpoint.start();
+		LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
+		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);
+	}
+
+	/**
+	 * Create endpoint from client's config-arguments.
+	 * 
+	 * @param config client's config
 	 * @param executor executor service. {@code null}, if no external executor
 	 *            should be used.
 	 * @return created endpoint.
 	 * @throws IllegalArgumentException if scheme is not provided or not
 	 *             supported
 	 */
-	public static CoapEndpoint createEndpoint(ClientBaseConfig clientConfig, ExecutorService executor) {
+	public static CoapEndpoint createEndpoint(ClientBaseConfig config, ExecutorService executor) {
 
-		String scheme = CoAP.getSchemeFromUri(clientConfig.uri);
+		String scheme = CoAP.getSchemeFromUri(config.uri);
 		if (scheme != null) {
 			String protocol = CoAP.getProtocolForScheme(scheme);
 			if (protocol != null) {
 				CliConnectorFactory factory = connectorFactories.get(protocol);
 				if (factory != null) {
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-					builder.setLoggingTag(clientConfig.tag);
-					Connector connector = factory.create(clientConfig, executor);
+					builder.setLoggingTag(config.tag);
+					Connector connector = factory.create(config, executor);
 					builder.setConnector(connector);
-					builder.setConfiguration(clientConfig.configuration);
+					builder.setConfiguration(config.configuration);
 					CoapEndpoint endpoint = builder.build();
-					if (clientConfig.verbose) {
+					if (config.verbose) {
 						endpoint.addInterceptor(new MessageTracer());
 					}
 					return endpoint;
@@ -251,7 +264,7 @@ public class ClientInitializer {
 				throw new IllegalArgumentException("Scheme '" + scheme + "' is unknown!");
 			}
 		} else {
-			throw new IllegalArgumentException("Missing scheme in " + clientConfig.uri);
+			throw new IllegalArgumentException("Missing scheme in " + config.uri);
 		}
 	}
 
