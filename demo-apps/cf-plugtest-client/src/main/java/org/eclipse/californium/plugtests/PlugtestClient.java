@@ -164,7 +164,7 @@ public class PlugtestClient {
 			testCL(clientConfig.uri, context);
 
 			if (clientConfig.oscore) {
-				initOscore(clientConfig.uri, db);
+				initOscore(clientConfig, db);
 				testOscore(clientConfig.uri, context);
 			}
 		} catch (IOException ex) {
@@ -795,10 +795,10 @@ public class PlugtestClient {
 	 * rederivation procedure. This is to avoid message replay errors that would
 	 * otherwise arise for clients.
 	 * 
-	 * @param uri the URI of the OSCORE resource at the server
+	 * @param config configuration with the URI of the OSCORE resource at the server
 	 * @param db the OSCORE context database
 	 */
-	public static void initOscore(String uri, HashMapCtxDB db) {
+	public static void initOscore(ClientBaseConfig config, HashMapCtxDB db) {
 		AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 		AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
@@ -807,7 +807,7 @@ public class PlugtestClient {
 		byte[] sid = StringUtil.hex2ByteArray("01");
 		byte[] rid = StringUtil.hex2ByteArray("02");
 		byte[] id_context = StringUtil.hex2ByteArray("37cbf3210017a2d3");
-		int MAX_UNFRAGMENTED_SIZE = Configuration.getStandard().get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
+		int MAX_UNFRAGMENTED_SIZE = config.configuration.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 
 		OSCoreCtx ctx = null;
 		try {
@@ -815,7 +815,7 @@ public class PlugtestClient {
 					MAX_UNFRAGMENTED_SIZE);
 			ctx.setContextRederivationEnabled(true);
 			ctx.setContextRederivationPhase(PHASE.CLIENT_INITIATE);
-			db.addContext(uri, ctx);
+			db.addContext(config.uri, ctx);
 		} catch (OSException e) {
 			e.printStackTrace();
 		}
