@@ -80,6 +80,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -366,12 +367,18 @@ public class Exchange {
 
 	@Override
 	public String toString() {
-		char originMarker = origin == Origin.LOCAL ? 'L' : 'R';
-		if (complete.get()) {
-			return "Exchange[" + originMarker + id + ", complete]";
+		StringBuilder result = new StringBuilder("Exchange[");
+		result.append(origin == Origin.LOCAL ? 'L' : 'R').append(id).append(", ");
+		if (peersIdentity instanceof InetSocketAddress) {
+			result.append(StringUtil.toString((InetSocketAddress) peersIdentity));
 		} else {
-			return "Exchange[" + originMarker + id + "]";
+			result.append(peersIdentity);
 		}
+		if (complete.get()) {
+			result.append(", complete");
+		}
+		result.append(']');
+		return result.toString();
 	}
 
 	/**
