@@ -203,19 +203,17 @@ public class EncryptedServersSerializationUtil extends ServersSerializationUtil 
 			@Override
 			public void run() {
 				LOGGER.info("Shutdown ...");
-				if (store != null) {
-					store.delete();
+				store.delete();
+				try {
+					FileOutputStream out = new FileOutputStream(store);
 					try {
-						FileOutputStream out = new FileOutputStream(store);
-						try {
-							saveServers(out, key, maxQuietPeriodInSeconds);
-						} finally {
-							out.close();
-						}
-					} catch (IOException ex) {
-						LOGGER.warn("Saving server state failed!", ex);
-						store.delete();
+						saveServers(out, key, maxQuietPeriodInSeconds);
+					} finally {
+						out.close();
 					}
+				} catch (IOException ex) {
+					LOGGER.warn("Saving server state failed!", ex);
+					store.delete();
 				}
 				LOGGER.info("Shutdown.");
 			}
