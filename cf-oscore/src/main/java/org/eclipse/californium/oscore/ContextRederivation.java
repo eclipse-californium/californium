@@ -287,7 +287,7 @@ public class ContextRederivation {
 
 		// Check if context re-derivation is enabled for this context
 		if (ctx.getContextRederivationEnabled() == false) {
-			LOGGER.debug("Context re-derivation not initiated due to it being disabled for this context");
+			LOGGER.debug("Context re-derivation not considered due to it being disabled for this context");
 			return ctx;
 		 }
 
@@ -537,6 +537,11 @@ public class ContextRederivation {
 	 * @param ctx the OSCORE context in use
 	 */
 	private static void printStateLogging(OSCoreCtx ctx) {
+
+		if (!LOGGER.isDebugEnabled()) {
+			return;
+		}
+
 		PHASE currentPhase = ctx.getContextRederivationPhase();
 
 		String supplemental = "";
@@ -573,11 +578,10 @@ public class ContextRederivation {
 			break;
 		}
 
-		String output = "Context re-derivation phase: " + currentPhase + " (" + supplemental + ")";
 		if (currentPhase == PHASE.INACTIVE) {
-			LOGGER.debug(output);
+			LOGGER.trace("Context re-derivation phase: {} ({})", currentPhase, supplemental);
 		} else {
-			LOGGER.info(output);
+			LOGGER.debug("Context re-derivation phase: {} ({})", currentPhase, supplemental);
 		}
 	}
 

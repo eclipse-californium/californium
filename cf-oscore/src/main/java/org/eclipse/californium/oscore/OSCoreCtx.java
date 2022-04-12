@@ -304,7 +304,7 @@ public class OSCoreCtx {
 		case HKDF_HMAC_AES_128:
 		case HKDF_HMAC_AES_256:
 		default:
-			LOGGER.error("Requested HKDF algorithm is not supported: " + this.kdf.toString());
+			LOGGER.error("Requested HKDF algorithm is not supported: {}", this.kdf);
 			throw new OSException("HKDF algorithm not supported");
 		}
 
@@ -320,8 +320,9 @@ public class OSCoreCtx {
 			this.sender_key = deriveKey(this.common_master_secret, this.common_master_salt, this.key_length, digest,
 					info.EncodeToBytes());
 		} catch (CoseException e) {
-			LOGGER.error(e.getMessage());
-			throw new OSException(e.getMessage());
+			String details = e.getMessage();
+			LOGGER.error(details);
+			throw new OSException(details);
 		}
 
 		// Derive recipient_key
@@ -336,8 +337,9 @@ public class OSCoreCtx {
 			this.recipient_key = deriveKey(this.common_master_secret, this.common_master_salt, this.key_length, digest,
 					info.EncodeToBytes());
 		} catch (CoseException e) {
-			LOGGER.error(e.getMessage());
-			throw new OSException(e.getMessage());
+			String details = e.getMessage();
+			LOGGER.error(details);
+			throw new OSException(details);
 		}
 
 		// Derive common_iv
@@ -352,8 +354,9 @@ public class OSCoreCtx {
 			this.common_iv = deriveKey(this.common_master_secret, this.common_master_salt, this.iv_length, digest,
 					info.EncodeToBytes());
 		} catch (CoseException e) {
-			LOGGER.error(e.getMessage());
-			throw new OSException(e.getMessage());
+			String details = e.getMessage();
+			LOGGER.error(details);
+			throw new OSException(details);
 		}
 
 		// Initialize cipher object
