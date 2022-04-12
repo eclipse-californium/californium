@@ -126,9 +126,9 @@ public class PlugtestClient {
 		if (clientConfig.helpRequested) {
 			System.exit(0);
 		}
-		HashMapCtxDB db = null;
 		if (clientConfig.oscore) {
-			db = new HashMapCtxDB();
+			HashMapCtxDB db = new HashMapCtxDB();
+			initOscore(clientConfig, db);
 			OSCoreCoapStackFactory.useAsDefault(db);
 		}
 		ClientInitializer.registerEndpoint(clientConfig, null);
@@ -164,7 +164,6 @@ public class PlugtestClient {
 			testCL(clientConfig.uri, context);
 
 			if (clientConfig.oscore) {
-				initOscore(clientConfig, db);
 				testOscore(clientConfig.uri, context);
 			}
 		} catch (IOException ex) {
