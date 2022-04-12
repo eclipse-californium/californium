@@ -170,11 +170,15 @@ public class EndpointContextInfoTest {
 		// Send second request
 		// This makes sure the server did not fail any of its checks on the
 		// first request.
-		request.send();
+
+		Request request2 = new Request(CoAP.Code.GET);
+		request2.getOptions().setOscore(request.getOptions().getOscore());
+		request2.setURI(serverUri);
+		request2.send();
 		System.out.println("client sent second request");
 
 		// Receive response
-		response = request.waitForResponse(1000);
+		response = request2.waitForResponse(1000);
 		assertNotNull("Client received no response", response);
 		System.out.println("client received response");
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
@@ -348,26 +352,26 @@ public class EndpointContextInfoTest {
 			@Override
 			public void deliverRequest(Exchange exchange) {
 				System.out.println("server received request");
-
-				// Check request source context after reception
-				assertNull(exchange.getRequest().getDestinationContext());
-				EndpointContext requestSourceContext = exchange.getRequest().getSourceContext();
-
-				System.out.println("Server: Request source context type: " + requestSourceContext.getClass());
-				assertNotNull(requestSourceContext);
-
-				assertEquals(sidServerString, requestSourceContext.get(OSCORE_SENDER_ID));
-				assertEquals(ridServerString, requestSourceContext.get(OSCORE_RECIPIENT_ID));
-				assertEquals(contextIdString, requestSourceContext.get(OSCORE_CONTEXT_ID));
-				assertEquals(ctxUri, requestSourceContext.get(OSCORE_URI));
-
-				// Prepare and send response
-				Response response = new Response(ResponseCode.CONTENT);
-				response.setPayload(SERVER_RESPONSE);
-				exchange.sendResponse(response);
-
-				// Check response destination context after transmission
 				try {
+
+					// Check request source context after reception
+					assertNull(exchange.getRequest().getDestinationContext());
+					EndpointContext requestSourceContext = exchange.getRequest().getSourceContext();
+	
+					System.out.println("Server: Request source context type: " + requestSourceContext.getClass());
+					assertNotNull(requestSourceContext);
+	
+					assertEquals(sidServerString, requestSourceContext.get(OSCORE_SENDER_ID));
+					assertEquals(ridServerString, requestSourceContext.get(OSCORE_RECIPIENT_ID));
+					assertEquals(contextIdString, requestSourceContext.get(OSCORE_CONTEXT_ID));
+					assertEquals(ctxUri, requestSourceContext.get(OSCORE_URI));
+	
+					// Prepare and send response
+					Response response = new Response(ResponseCode.CONTENT);
+					response.setPayload(SERVER_RESPONSE);
+					exchange.sendResponse(response);
+	
+					// Check response destination context after transmission
 					assertNull(response.getSourceContext());
 					EndpointContext responseDestinationContext = response.getDestinationContext();
 

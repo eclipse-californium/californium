@@ -21,22 +21,18 @@ package org.eclipse.californium.oscore;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.elements.EndpointContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.Message;
 
 /**
  * 
@@ -254,27 +250,10 @@ public class OptionJuggle {
 	 * @return request with new code.
 	 */
 	private static Request requestWithNewCode(Request request, Code code) {
-		OptionSet options = request.getOptions();
-		byte[] payload = request.getPayload();
-		Token token = request.getToken();
-		EndpointContext destinationContext = request.getDestinationContext();
-		EndpointContext sourceContext = request.getSourceContext();
-		List<MessageObserver> messageObservers = request.getMessageObservers();
-		int mid = request.getMID();
-		Type type = request.getType();
-		Map<String, String> userContext = request.getUserContext();
 
 		Request newRequest = new Request(code);
-
-		newRequest.setOptions(options);
-		newRequest.setPayload(payload);
-		newRequest.setToken(token);
-		newRequest.setDestinationContext(destinationContext);
-		newRequest.setSourceContext(sourceContext);
-		newRequest.addMessageObservers(messageObservers);
-		newRequest.setMID(mid);
-		newRequest.setType(type);
-		newRequest.setUserContext(userContext);
+		copy(newRequest, request);
+		newRequest.setUserContext(request.getUserContext());
 
 		return newRequest;
 	}
@@ -287,26 +266,10 @@ public class OptionJuggle {
 	 * @return response with new code.
 	 */
 	private static Response responseWithNewCode(Response response, ResponseCode code) {
-		OptionSet options = response.getOptions();
-		byte[] payload = response.getPayload();
-		Token token = response.getToken();
-		EndpointContext destinationContext = response.getDestinationContext();
-		EndpointContext sourceContext = response.getSourceContext();
-		List<MessageObserver> messageObservers = response.getMessageObservers();
-		int mid = response.getMID();
-		Type type = response.getType();
 		Long rtt = response.getApplicationRttNanos();
 
 		Response newResponse = new Response(code);
-
-		newResponse.setOptions(options);
-		newResponse.setPayload(payload);
-		newResponse.setToken(token);
-		newResponse.setDestinationContext(destinationContext);
-		newResponse.setSourceContext(sourceContext);
-		newResponse.addMessageObservers(messageObservers);
-		newResponse.setMID(mid);
-		newResponse.setType(type);
+		copy(newResponse, response);
 		if (rtt != null) {
 			newResponse.setApplicationRttNanos(rtt);
 		}
@@ -314,6 +277,19 @@ public class OptionJuggle {
 		return newResponse;
 	}
 
+	private static void copy(Message newMessage, Message oldMessage) {
+		newMessage.setOptions(oldMessage.getOptions());
+		newMessage.setPayload(oldMessage.getPayload());
+		newMessage.setToken(oldMessage.getToken());
+		newMessage.setDestinationContext(oldMessage.getDestinationContext());
+		newMessage.setSourceContext(oldMessage.getSourceContext());
+		newMessage.addMessageObservers(oldMessage.getMessageObservers());
+		newMessage.setMID(oldMessage.getMID());
+		newMessage.setType(oldMessage.getType());
+		newMessage.setDuplicate(oldMessage.isDuplicate());
+		newMessage.setNanoTimestamp(oldMessage.getNanoTimestamp());
+	}
+	
 	/**
 	 * Merges two optionSets and returns the merge. Priority is eOptions
 	 * 

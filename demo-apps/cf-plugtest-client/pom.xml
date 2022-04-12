@@ -24,14 +24,14 @@
 	</properties>
 
 	<dependencies>
-		<dependency>
+		<!-- dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-core</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
-		</dependency>
+		</dependency-->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>cf-cli</artifactId>
@@ -40,14 +40,14 @@
 			<groupId>${project.groupId}</groupId>
 			<artifactId>cf-oscore</artifactId>
 		</dependency>
-		<dependency>
+		<!-- dependency>
 			<groupId>com.upokecenter</groupId>
 			<artifactId>cbor</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-		</dependency>
+		</dependency-->
 
 		<!-- runtime dependencies -->
 		<dependency>

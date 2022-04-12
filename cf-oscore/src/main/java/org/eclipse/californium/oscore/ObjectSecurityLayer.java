@@ -186,6 +186,10 @@ public class ObjectSecurityLayer extends AbstractLayer {
 							request.setToken(token);
 						}
 
+						if (!request.hasMID() && preparedRequest.hasMID()) {
+							request.setMID(preparedRequest.getMID());
+						}
+
 						ctxDb.addContext(token, finalCtx);
 					}
 				});
@@ -228,7 +232,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 			try {
 				// Retrieve the context
 				OSCoreCtx ctx = ctxDb.getContextByToken(exchange.getCurrentRequest().getToken());
-				addPartialIV = ctx.getResponsesIncludePartialIV() || exchange.getRequest().getOptions().hasObserve();
+				addPartialIV = (ctx !=null && ctx.getResponsesIncludePartialIV()) || exchange.getRequest().getOptions().hasObserve();
 
 				// Parse the OSCORE option from the corresponding request
 				OscoreOptionDecoder optionDecoder = new OscoreOptionDecoder(exchange.getCryptographicContextID());

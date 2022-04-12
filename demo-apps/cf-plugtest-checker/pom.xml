@@ -33,6 +33,10 @@
 			<artifactId>cf-cli</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>cf-oscore</artifactId>
+		</dependency>
 		
 		<!-- runtime dependencies -->
 		<dependency>

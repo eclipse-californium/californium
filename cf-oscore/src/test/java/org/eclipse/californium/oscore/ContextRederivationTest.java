@@ -148,12 +148,12 @@ public class ContextRederivationTest {
 
 		dbClient.addContext(serverUri, ctx);
 
-		CoapClient c = new CoapClient(serverUri + hello1);
-		Request r = new Request(Code.GET);
-		r.getOptions().setOscore(Bytes.EMPTY);
+		CoapClient client = new CoapClient(serverUri + hello1);
+		Request request = new Request(Code.GET);
+		request.getOptions().setOscore(Bytes.EMPTY);
 		RequestTestObserver requestTestObserver = new RequestTestObserver();
-		r.addMessageObserver(requestTestObserver);
-		CoapResponse resp = c.advanced(r);
+		request.addMessageObserver(requestTestObserver);
+		CoapResponse resp = client.advanced(request);
 		System.out.println((Utils.prettyPrint(resp)));
 
 		OSCoreCtx currCtx = dbClient.getContext(serverUri);
@@ -183,18 +183,20 @@ public class ContextRederivationTest {
 		assertEquals(SERVER_RESPONSE, resp.getResponseText());
 
 		// 2nd request for testing
-		r = new Request(Code.GET);
-		r.getOptions().setOscore(Bytes.EMPTY);
-		resp = c.advanced(r);
+		request = new Request(Code.GET);
+		request.getOptions().setOscore(Bytes.EMPTY);
+		resp = client.advanced(request);
 		System.out.println((Utils.prettyPrint(resp)));
 
 		assertEquals(ResponseCode.CONTENT, resp.getCode());
 		assertEquals(SERVER_RESPONSE, resp.getResponseText());
 
-		resp = c.advanced(r);
+		request = new Request(Code.GET);
+		request.getOptions().setOscore(Bytes.EMPTY);
+		resp = client.advanced(request);
 		System.out.println((Utils.prettyPrint(resp)));
 
-		c.shutdown();
+		client.shutdown();
 	}
 
 	/**
@@ -232,12 +234,12 @@ public class ContextRederivationTest {
 		dbClient.addContext(serverUri, ctx);
 
 		// Create first request (for request #1 and response #1 exchange)
-		CoapClient c = new CoapClient(serverUri + hello1);
-		Request r = new Request(Code.GET);
-		r.getOptions().setOscore(Bytes.EMPTY);
+		CoapClient client = new CoapClient(serverUri + hello1);
+		Request request = new Request(Code.GET);
+		request.getOptions().setOscore(Bytes.EMPTY);
 		RequestTestObserver requestTestObserver = new RequestTestObserver();
-		r.addMessageObserver(requestTestObserver);
-		CoapResponse resp = c.advanced(r);
+		request.addMessageObserver(requestTestObserver);
+		CoapResponse resp = client.advanced(request);
 		System.out.println((Utils.prettyPrint(resp)));
 
 		OSCoreCtx currCtx = dbClient.getContext(serverUri);
@@ -277,11 +279,11 @@ public class ContextRederivationTest {
 		assertEquals(SERVER_RESPONSE, resp.getResponseText());
 
 		// 2nd request (for request #2 and response #2 exchange)
-		r = new Request(Code.GET);
-		r.getOptions().setOscore(Bytes.EMPTY);
+		request = new Request(Code.GET);
+		request.getOptions().setOscore(Bytes.EMPTY);
 		requestTestObserver = new RequestTestObserver();
-		r.addMessageObserver(requestTestObserver);
-		resp = c.advanced(r);
+		request.addMessageObserver(requestTestObserver);
+		resp = client.advanced(request);
 		System.out.println((Utils.prettyPrint(resp)));
 
 		currCtx = dbClient.getContext(serverUri);
@@ -310,7 +312,7 @@ public class ContextRederivationTest {
 		assertEquals(ResponseCode.CONTENT, resp.getCode());
 		assertEquals(SERVER_RESPONSE, resp.getResponseText());
 
-		c.shutdown();
+		client.shutdown();
 	}
 
 	/**
