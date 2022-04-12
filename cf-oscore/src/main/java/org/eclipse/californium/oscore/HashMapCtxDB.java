@@ -285,7 +285,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 				}
 
 			} catch (URISyntaxException e2) {
-				LOGGER.error("Error in the request URI: " + uri + " message: " + e.getMessage());
+				LOGGER.error("Error in the request URI: {} message: {}", uri, e.getMessage());
 				throw new OSException(e.getMessage());
 			}
 		}
@@ -296,7 +296,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		try {
 			ipv6Addr = InetAddress.getByName(normalized);
 		} catch (UnknownHostException e) {
-			LOGGER.error("Error finding host of request URI: " + uri + " message: " + e.getMessage());
+			LOGGER.error("Error finding host of request URI: {} message: {}", uri, e.getMessage());
 		}
 		if (ipv6Addr instanceof Inet6Address) {
 			normalized = "[" + ipv6Addr.getHostAddress() + "]";

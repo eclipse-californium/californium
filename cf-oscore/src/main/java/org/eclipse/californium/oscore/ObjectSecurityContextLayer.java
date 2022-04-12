@@ -80,7 +80,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 
 				ctx = ctxDb.getContext(rid, IDContext);
 			} catch (CoapOSException e) {
-				LOGGER.error("Error while receiving OSCore request: " + e.getMessage());
+				LOGGER.error("Error while receiving OSCore request: {}", e.getMessage());
 				Response error;
 				error = CoapOSExceptionHandler.manageError(e, request);
 				if (error != null) {
@@ -96,7 +96,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 				request.getOptions().setOscore(Bytes.EMPTY);
 				exchange.setRequest(request);
 			} catch (CoapOSException e) {
-				LOGGER.error("Error while receiving OSCore request: " + e.getMessage());
+				LOGGER.error("Error while receiving OSCore request: {}", e.getMessage());
 				Response error;
 				error = CoapOSExceptionHandler.manageError(e, request);
 				if (error != null) {
@@ -159,7 +159,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 
 								@Override
 								public void run() {
-									LOGGER.info("Original Request: " + exchange.getRequest().toString());
+									LOGGER.debug("Original Request: {}", exchange.getRequest());
 									ObjectSecurityContextLayer.super.sendRequest(exchange, request);
 								}
 							});
@@ -203,7 +203,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 
 					});
 					// send start rederivation request
-					LOGGER.info("Auxiliary Request: " + exchange.getRequest().toString());
+					LOGGER.debug("Auxiliary Request: {}", exchange.getRequest());
 					final Exchange newExchange = new Exchange(startRederivation, exchange.getPeersIdentity(), Origin.LOCAL, executor);
 					newExchange.execute(new Runnable() {
 
@@ -216,14 +216,14 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 				}
 
 			} catch (OSException e) {
-				LOGGER.error("Error sending request: " + e.getMessage());
+				LOGGER.error("Error sending request: {}", e.getMessage());
 				return;
 			} catch (IllegalArgumentException e) {
-				LOGGER.error("Unable to send request because of illegal argument: " + e.getMessage());
+				LOGGER.error("Unable to send request because of illegal argument: {}", e.getMessage());
 				return;
 			}
 		}
-		LOGGER.info("Request: " + exchange.getRequest().toString());
+		LOGGER.trace("Request: {}", exchange.getRequest());
 		super.sendRequest(exchange, request);
 	}
 
@@ -257,7 +257,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 							requestSequenceNumber);
 				}
 			} catch (OSException e) {
-				LOGGER.error("Error while receiving OSCore response: " + e.getMessage());
+				LOGGER.error("Error while receiving OSCore response: {}", e.getMessage());
 				EmptyMessage error = CoapOSExceptionHandler.manageError(e, response);
 				if (error != null) {
 					sendEmptyMessage(exchange, error);

@@ -140,8 +140,9 @@ public abstract class Decryptor {
 			plaintext = enc.decrypt(key);
 
 		} catch (CoseException e) {
-			LOGGER.error(ErrorDescriptions.DECRYPTION_FAILED + " " + e.getMessage());
-			throw new OSException(ErrorDescriptions.DECRYPTION_FAILED + " " + e.getMessage());
+			String details = ErrorDescriptions.DECRYPTION_FAILED + " " + e.getMessage();
+			LOGGER.error(details);
+			throw new OSException(details);
 		}
 
 		return plaintext;
@@ -155,7 +156,7 @@ public abstract class Decryptor {
 	 */
 	private static byte[] expandToIntSize(byte[] partialIV) throws OSException {
 		if (partialIV.length > INTEGER_BYTES) {
-			LOGGER.error("The partial IV is: " + partialIV.length + " long, " + INTEGER_BYTES + " was expected");
+			LOGGER.error("The partial IV is: {} long, {} was expected", partialIV.length, INTEGER_BYTES);
 			throw new OSException("Partial IV too long");
 		} else if (partialIV.length == INTEGER_BYTES) {
 			return partialIV;
