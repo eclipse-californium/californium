@@ -20,7 +20,7 @@ import org.eclipse.californium.elements.util.PublicAPIExtension;
 /**
  * Health extended interface for {@link DTLSConnector}.
  * 
- * Adds counter for messages dropped by OS.
+ * Adds counter for connections.
  * 
  * @since 3.1
  */
