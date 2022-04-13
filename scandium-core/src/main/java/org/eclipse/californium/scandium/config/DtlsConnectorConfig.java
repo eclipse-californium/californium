@@ -307,14 +307,52 @@ public final class DtlsConnectorConfig {
 		return configuration;
 	}
 
+	/**
+	 * Gets the associated value of the DTLS configuration.
+	 * 
+	 * @param <T> value type
+	 * @param definition the value definition
+	 * @return the value
+	 * @throws NullPointerException if the definition is {@code null}
+	 * @throws IllegalArgumentException if a different definition is already
+	 *             available for the key of the provided definition.
+	 * @since 3.5
+	 */
 	public <T> T get(BasicDefinition<T> definition) {
 		return configuration.get(definition);
 	}
 
+	/**
+	 * Gets the associated time value of the DTLS configuration.
+	 * 
+	 * @param definition the value definition
+	 * @param unit the wanted unit
+	 * @return the value in the provided units
+	 * @throws NullPointerException if the definition or unit is {@code null}
+	 * @throws IllegalArgumentException if a different definition is already
+	 *             available for the key of the provided definition.
+	 * @since 3.5
+	 */
 	public Long get(TimeDefinition definition, TimeUnit unit) {
 		return configuration.get(definition, unit);
 	}
 
+	/**
+	 * Gets the associated time value of the DTLS configuration as {@code int}.
+	 * 
+	 * <b>Note:</b> Please provide a {@code null}-value to the
+	 * {@link TimeDefinition} using
+	 * {@link TimeDefinition#TimeDefinition(String, String, long, TimeUnit)}.
+	 * 
+	 * @param definition the value definition
+	 * @param unit the wanted unit
+	 * @return the value in the provided units as {@code int}
+	 * @throws NullPointerException if the definition or unit is {@code null}
+	 * @throws IllegalArgumentException if a different definition is already
+	 *             available for the key of the provided definition. Or the
+	 *             resulting value exceeds the {@code int} range.
+	 * @since 3.5
+	 */
 	public int getTimeAsInt(TimeDefinition definition, TimeUnit unit) {
 		return configuration.getTimeAsInt(definition, unit);
 	}
