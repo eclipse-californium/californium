@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.ValueException;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.DtlsDatagramFilter;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
@@ -851,6 +852,15 @@ public final class DtlsConfig {
 	public static final BooleanDefinition DTLS_SUPPORT_DEPRECATED_CID = new BooleanDefinition(
 			MODULE + "SUPPORT_DEPRECATED_CID", "DTLS support deprecated CID for server (before version 9).", false);
 
+	/**
+	 * Use default DTLS record filter.
+	 * 
+	 * @see DtlsDatagramFilter
+	 * @since 3.5
+	 */
+	public static final BooleanDefinition DTLS_USE_DEFAULT_RECORD_FILTER = new BooleanDefinition(
+			MODULE + "USE_DEFAULT_RECORD_FILTER", "Use default DTLS record filter.", true);
+
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
 		@Override
@@ -924,6 +934,7 @@ public final class DtlsConfig {
 			config.set(DTLS_CERTIFICATE_KEY_ALGORITHMS, null);
 			config.set(DTLS_USE_DEPRECATED_CID, null);
 			config.set(DTLS_SUPPORT_DEPRECATED_CID, false);
+			config.set(DTLS_USE_DEFAULT_RECORD_FILTER, true);
 		}
 	};
 
