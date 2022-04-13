@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 
+import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
@@ -154,7 +155,11 @@ public final class AeadBlockCipher {
 		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
 		cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(additionalData);
-		return cipher.doFinal(crypted, cryptedOffset, cryptedLength);
+		try {
+			return cipher.doFinal(crypted, cryptedOffset, cryptedLength);
+		} catch (AEADBadTagException ex) {
+			throw new InvalidMacException(ex.getMessage());
+		}
 	}
 
 	/**

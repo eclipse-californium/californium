@@ -30,7 +30,8 @@ import org.slf4j.LoggerFactory;
  * Health implementation using counter and logging for results.
  */
 @NoPublicAPI
-public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHealth, DtlsHealthExtended {
+public class DtlsHealthLogger extends CounterStatisticManager
+		implements DtlsHealth, DtlsHealthExtended, DtlsHealthExtended2 {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName() + ".health");
@@ -52,10 +53,16 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	private final SimpleCounterStatistic receivedRecords = new SimpleCounterStatistic("received records", align);
 	private final SimpleCounterStatistic droppedReceivedRecords = new SimpleCounterStatistic("dropped received records",
 			align);
+	private final SimpleCounterStatistic droppedReceivedMacErrors = new SimpleCounterStatistic(
+			"dropped received mac-errors", align);
 	private final SimpleCounterStatistic sentRecords = new SimpleCounterStatistic("sending records", align);
 	private final SimpleCounterStatistic droppedSentRecords = new SimpleCounterStatistic("dropped sending records",
 			align);
 	private final SimpleCounterStatistic droppedMessages = new SimpleCounterStatistic(DROPPED_UDP_MESSAGES, align);
+	private final SimpleCounterStatistic pendingIncoming = new SimpleCounterStatistic("pending in jobs", align);
+	private final SimpleCounterStatistic pendingOutgoing = new SimpleCounterStatistic("pending out jobs", align);
+	private final SimpleCounterStatistic pendingHandshakeJobs = new SimpleCounterStatistic("pending handshake jobs",
+			align);
 
 	/**
 	 * Create passive dtls health logger.
@@ -84,8 +91,8 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	 * @param executor executor to schedule active calls of {@link #dump()}.
 	 * @throws NullPointerException if executor is {@code null}
 	 * @since 3.0 (added unit)
-	 * @deprecated use {@link DtlsHealthLogger#DtlsHealthLogger(String)}
-	 *             instead and call {@link #dump()} externally.
+	 * @deprecated use {@link DtlsHealthLogger#DtlsHealthLogger(String)} instead
+	 *             and call {@link #dump()} externally.
 	 */
 	public DtlsHealthLogger(String tag, int interval, TimeUnit unit, ScheduledExecutorService executor) {
 		super(tag, interval, unit, executor);
@@ -98,9 +105,13 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 		add(failedHandshakes);
 		add(receivedRecords);
 		add(droppedReceivedRecords);
+		add(droppedReceivedMacErrors);
 		add(sentRecords);
 		add(droppedSentRecords);
 		add(droppedMessages);
+		add(pendingIncoming);
+		add(pendingOutgoing);
+		add(pendingHandshakeJobs);
 	}
 
 	@Override
@@ -118,10 +129,14 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 					log.append(head).append(sentRecords).append(eol);
 					log.append(head).append(droppedSentRecords).append(eol);
 					log.append(head).append(receivedRecords).append(eol);
-					log.append(head).append(droppedReceivedRecords);
+					log.append(head).append(droppedReceivedRecords).append(eol);
+					log.append(head).append(droppedReceivedMacErrors);
 					if (droppedMessages.isStarted()) {
 						log.append(eol).append(head).append(droppedMessages);
 					}
+					log.append(eol).append(head).append(pendingIncoming);
+					log.append(eol).append(head).append(pendingOutgoing);
+					log.append(eol).append(head).append(pendingHandshakeJobs);
 					dump(head, log);
 					LOGGER.debug("{}", log);
 				}
@@ -158,10 +173,14 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 					log.append(head).append(sentRecords).append(eol);
 					log.append(head).append(droppedSentRecords).append(eol);
 					log.append(head).append(receivedRecords).append(eol);
-					log.append(head).append(droppedReceivedRecords);
+					log.append(head).append(droppedReceivedRecords).append(eol);
+					log.append(head).append(droppedReceivedMacErrors);
 					if (droppedMessages.isStarted()) {
 						log.append(eol).append(head).append(droppedMessages);
 					}
+					log.append(eol).append(head).append(pendingIncoming);
+					log.append(eol).append(head).append(pendingOutgoing);
+					log.append(eol).append(head).append(pendingHandshakeJobs);
 					dump(head, log);
 					LOGGER.debug("{}", log);
 				}
@@ -235,8 +254,28 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	}
 
 	@Override
+	public void receivingMacError() {
+		droppedReceivedMacErrors.increment();
+	}
+
+	@Override
 	public void setConnections(int count) {
 		connections.set(count);
+	}
+
+	@Override
+	public void setPendingIncomingJobs(int count) {
+		pendingIncoming.set(count);
+	}
+
+	@Override
+	public void setPendingOutgoingJobs(int count) {
+		pendingOutgoing.set(count);
+	}
+
+	@Override
+	public void setPendingHandshakeJobs(int count) {
+		pendingHandshakeJobs.set(count);
 	}
 
 }

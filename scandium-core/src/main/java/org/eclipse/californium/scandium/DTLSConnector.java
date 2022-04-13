@@ -227,6 +227,7 @@ import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
@@ -522,6 +523,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	private final SessionListener sessionListener;
 	private final SessionListener customSessionListener;
 	private final ConnectionListener connectionListener;
+	private final DatagramFilter datagramFilter;
 	private volatile ExecutorService executorService;
 	private boolean hasInternalExecutor;
 
@@ -593,11 +595,12 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			this.useFilter = config.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
 			this.useCidUpdateAddressOnNewerRecordFilter = config.get(DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS);
 			this.maxConnections = config.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
+			this.datagramFilter = config.getDatagramFilter();
+			this.connectionListener = config.getConnectionListener();
+			this.customSessionListener = config.getSessionListener();
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
-			this.connectionStore.setConnectionListener(config.getConnectionListener());
-			this.customSessionListener = config.getSessionListener();
-			this.connectionListener = config.getConnectionListener();
+			this.connectionStore.setConnectionListener(this.connectionListener);
 			HandshakeResultHandler handler = new HandshakeResultHandler() {
 
 				@Override
@@ -1698,6 +1701,16 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			}
 			return;
 		}
+		if (datagramFilter != null) {
+			if (!datagramFilter.onReceiving(packet)) {
+				DROP_LOGGER.trace("Filter out record with {} bytes from [{}]", packet.getLength(),
+						StringUtil.toLog(peerAddress));
+				if (health != null) {
+					health.receivingRecord(true);
+				}
+				return;
+			}
+		}
 		DatagramReader reader = new DatagramReader(packet.getData(), packet.getOffset(), packet.getLength());
 		List<Record> records = Record.fromReader(reader, connectionIdGenerator, timestamp);
 		LOGGER.trace("Received {} DTLS records from {} using a {} byte datagram buffer", records.size(),
@@ -1811,9 +1824,13 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	protected boolean executeInbound(Executor executor, InetSocketAddress peer, Runnable job) {
 		boolean pending = false;
 		try {
-			if (pendingInboundJobsCountdown.decrementAndGet() >= 0) {
+			int count = pendingInboundJobsCountdown.decrementAndGet();
+			if (count >= 0) {
 				executor.execute(job);
 				pending = true;
+				if (health instanceof DtlsHealthExtended2) {
+					((DtlsHealthExtended2) health).setPendingIncomingJobs(maxPendingInboundJobs - count);
+				}
 			} else {
 				DROP_LOGGER_IN_FILTERED.info("Inbound jobs overflow! Dropping inbound message from peer [{}]",
 						StringUtil.toLog(peer));
@@ -1978,7 +1995,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			LOGGER.warn("Unexpected error occurred while processing record from peer [{}]",
 					StringUtil.toLog(record.getPeerAddress()), e);
 			terminateConnectionWithInternalError(connection);
-		} catch (GeneralSecurityException e) {
+		} catch (InvalidMacException e) {
 			DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
 			if (dtlsContext != null) {
 				dtlsContext.incrementMacErrors();
@@ -1988,6 +2005,16 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					}
 				}
 			}
+			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}", record.getType(),
+					StringUtil.toLog(record.getPeerAddress()), e.getMessage());
+			if (health != null) {
+				if (health instanceof DtlsHealthExtended2) {
+					((DtlsHealthExtended2) health).receivingMacError();
+				} else {
+					health.receivingRecord(true);
+				}
+			}
+		} catch (GeneralSecurityException e) {
 			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}", record.getType(),
 					StringUtil.toLog(record.getPeerAddress()), e.getMessage());
 			if (health != null) {
@@ -2825,9 +2852,13 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	protected boolean executeOutbound(Executor executor, InetSocketAddress peer, Runnable job) {
 		boolean pending = false;
 		try {
-			if (pendingOutboundJobsCountdown.decrementAndGet() >= 0) {
+			int count = pendingOutboundJobsCountdown.decrementAndGet();
+			if (count >= 0) {
 				executor.execute(job);
 				pending = true;
+				if (health instanceof DtlsHealthExtended2) {
+					((DtlsHealthExtended2) health).setPendingOutgoingJobs(maxPendingOutboundJobs - count);
+				}
 			} else {
 				DROP_LOGGER_OUT_FILTERED.info("Outbound jobs overflow! Dropping outbound message to peer [{}]",
 						StringUtil.toLog(peer));
@@ -3283,7 +3314,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * Execute handshake result job.
 	 * 
 	 * @param executor executor to use
-	 * @param connection connection of hanshake
+	 * @param connection connection of handshake
 	 * @param job job to be executed.
 	 * @return {@code true}, if execution was accepted, {@code false}, if
 	 *         execution was denied
@@ -3292,9 +3323,13 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	protected boolean executeHandshakeResult(Executor executor, Connection connection, Runnable job) {
 		boolean pending = false;
 		try {
-			if (pendingHandshakeResultJobsCountdown.decrementAndGet() >= 0) {
+			int count = pendingHandshakeResultJobsCountdown.decrementAndGet();
+			if (count >= 0) {
 				executor.execute(job);
 				pending = true;
+				if (health instanceof DtlsHealthExtended2) {
+					((DtlsHealthExtended2) health).setPendingHandshakeJobs(maxPendingHandshakeResultJobs - count);
+				}
 			} else {
 				DROP_LOGGER_HANDSHAKE_RESULTS_FILTERED
 						.info("Handshake result jobs overflow! Dropping handshake result [{}]", connection);

@@ -54,6 +54,8 @@ import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.DatagramFilter;
+import org.eclipse.californium.scandium.DtlsDatagramFilter;
 import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
@@ -257,6 +259,13 @@ public final class DtlsConnectorConfig {
 	 * @since 3.2
 	 */
 	private SessionListener sessionListener;
+
+	/**
+	 * Filter for incoming datagrams.
+	 * 
+	 * @since 3.5
+	 */
+	private DatagramFilter datagramFilter;
 
 	/**
 	 * Session store for {@link InMemoryConnectionStore}.
@@ -1457,9 +1466,9 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets connection listener.
+	 * Gets the connection listener.
 	 * 
-	 * @return connection listener
+	 * @return the connection listener
 	 * @see Builder#setConnectionListener(ConnectionListener)
 	 */
 	public ConnectionListener getConnectionListener() {
@@ -1467,14 +1476,25 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets session listener.
+	 * Gets the session listener.
 	 * 
-	 * @return session listener
+	 * @return the session listener
 	 * @see Builder#setSessionListener(SessionListener)
 	 * @since 3.2
 	 */
 	public SessionListener getSessionListener() {
 		return sessionListener;
+	}
+
+	/**
+	 * Gets the datagram filter.
+	 * 
+	 * @return the datagram filter
+	 * @see Builder#setDatagramFilter(DatagramFilter)
+	 * @since 3.5
+	 */
+	public DatagramFilter getDatagramFilter() {
+		return datagramFilter;
 	}
 
 	/**
@@ -1638,6 +1658,7 @@ public final class DtlsConnectorConfig {
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		cloned.connectionListener = connectionListener;
 		cloned.sessionListener = sessionListener;
+		cloned.datagramFilter = datagramFilter;
 		cloned.sessionStore = sessionStore;
 		cloned.resumptionVerifier = resumptionVerifier;
 		cloned.healthHandler = healthHandler;
@@ -2054,7 +2075,7 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Set connection listener.
+		 * Set the connection listener.
 		 * 
 		 * @param connectionListener connection listener
 		 * @return this builder for command chaining.
@@ -2066,7 +2087,7 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Set session listener.
+		 * Set the session listener.
 		 * 
 		 * @param sessionListener session listener
 		 * @return this builder for command chaining.
@@ -2075,6 +2096,19 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setSessionListener(SessionListener sessionListener) {
 			config.sessionListener = sessionListener;
+			return this;
+		}
+
+		/**
+		 * Set the datagram filter.
+		 * 
+		 * @param datagramFilter datagram filter
+		 * @return this builder for command chaining.
+		 * @see DtlsConnectorConfig#getDatagramFilter()
+		 * @since 3.5
+		 */
+		public Builder setDatagramFilter(DatagramFilter datagramFilter) {
+			config.datagramFilter = datagramFilter;
 			return this;
 		}
 
@@ -2224,6 +2258,10 @@ public final class DtlsConnectorConfig {
 				if (config.getAutoHandshakeTimeoutMillis() != null) {
 					throw new IllegalStateException("DTLS_AUTO_HANDSHAKE_TIMEOUT must not be used with SERVER_ONLY!");
 				}
+			}
+
+			if (config.datagramFilter == null && config.get(DtlsConfig.DTLS_USE_DEFAULT_RECORD_FILTER)) {
+				config.datagramFilter = new DtlsDatagramFilter();
 			}
 
 			Integer cidCodePoint = config.useDeprecatedCid();
