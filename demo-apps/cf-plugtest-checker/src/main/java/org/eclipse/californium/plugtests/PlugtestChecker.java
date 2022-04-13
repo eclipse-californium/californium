@@ -114,6 +114,7 @@ public class PlugtestChecker {
 	 * implemented.
 	 * 
 	 * @param testNames the test names
+	 * @param oscore {@code true} support OSCORE, {@code false}, otherwise.
 	 */
 	public void instantiateTests(List<String> testNames, boolean oscore) {
 
