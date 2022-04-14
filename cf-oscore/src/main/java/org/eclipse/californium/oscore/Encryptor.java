@@ -34,6 +34,7 @@ import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.cose.Attribute;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.HeaderKeys;
+import org.eclipse.californium.oscore.ContextRederivation.PHASE;
 
 /**
  * 
@@ -96,6 +97,13 @@ public abstract class Encryptor {
 
 				aad = OSSerializer.serializeAAD(CoAP.VERSION, ctx.getAlg(), requestSequenceNr, ctx.getRecipientId(),
 						message.getOptions());
+			}
+
+			if (ctx.getContextRederivationPhase() == PHASE.SERVER_PHASE_2 && ctx.getNonceHandover() != null) {
+				nonce = ctx.getNonceHandover();
+			} else if (ctx.getContextRederivationPhase() == PHASE.CLIENT_PHASE_1
+					|| ctx.getContextRederivationPhase() == PHASE.INACTIVE) {
+				ctx.setNonceHandover(nonce);
 			}
 
 			enc.setExternal(aad);

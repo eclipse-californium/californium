@@ -923,4 +923,29 @@ public class OSCoreCtx {
 	private static byte[] createByteArray(byte... values) {
 		return values;
 	}
+
+	/**
+	 * Holds nonce to hand over between different Security Contexts during
+	 * execution of Appendix B.2
+	 */
+	private byte[] nonceHandover;
+
+	/**
+	 * Set nonce to hand over during execution of Appendix B.2
+	 * 
+	 * @param nonce the nonce value to hand over
+	 */
+	protected void setNonceHandover(byte[] nonce) {
+		this.nonceHandover = nonce;
+	}
+
+	/**
+	 * Get nonce for hand over during execution of Appendix B.2
+	 * 
+	 * @return the retrieved nonce value
+	 */
+	protected byte[] getNonceHandover() {
+		return nonceHandover;
+	}
+
 }

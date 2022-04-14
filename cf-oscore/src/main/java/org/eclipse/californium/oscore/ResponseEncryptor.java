@@ -24,7 +24,9 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.cose.Encrypt0Message;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * 
@@ -53,7 +55,7 @@ public class ResponseEncryptor extends Encryptor {
 	 * 
 	 * @throws OSException when encryption fails
 	 */
-	public static Response encrypt(OSCoreCtxDB db, Response response, OSCoreCtx ctx, final boolean newPartialIV,
+	public static Response encrypt(OSCoreCtxDB db, Response response, OSCoreCtx ctx, boolean newPartialIV,
 			boolean outerBlockwise, int requestSequenceNr) throws OSException {
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CTX_NULL);
@@ -63,6 +65,13 @@ public class ResponseEncryptor extends Encryptor {
 		// Perform context re-derivation procedure if ongoing
 		try {
 			ctx = ContextRederivation.outgoingResponse(db, ctx);
+			newPartialIV |= ctx.getResponsesIncludePartialIV();
+
+			// Ensure that the first response in the procedure is a 4.01
+			if (ctx.getContextRederivationPhase() == ContextRederivation.PHASE.SERVER_PHASE_2) {
+				response = OptionJuggle.setRealCodeResponse(response, ResponseCode.UNAUTHORIZED);
+				response.setPayload(Bytes.EMPTY);
+			}
 		} catch (OSException e) {
 			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 			throw new OSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);

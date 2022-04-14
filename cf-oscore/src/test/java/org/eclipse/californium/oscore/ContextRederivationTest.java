@@ -275,8 +275,8 @@ public class ContextRederivationTest {
 		assertArrayEquals(contextR2, oscoreOptionR2);
 		assertArrayEquals(hmacOutput, messageHmacValue);
 
-		assertEquals(ResponseCode.CONTENT, resp.getCode());
-		assertEquals(SERVER_RESPONSE, resp.getResponseText());
+		// The response should be a 4.01
+		assertEquals(ResponseCode.UNAUTHORIZED, resp.getCode());
 
 		// 2nd request (for request #2 and response #2 exchange)
 		request = new Request(Code.GET);

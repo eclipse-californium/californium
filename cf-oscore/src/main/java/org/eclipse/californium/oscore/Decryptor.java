@@ -34,6 +34,7 @@ import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.cose.Attribute;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.HeaderKeys;
+import org.eclipse.californium.oscore.ContextRederivation.PHASE;
 
 /**
  * 
@@ -126,6 +127,12 @@ public abstract class Decryptor {
 			//Nonce calculation uses partial IV in response (if present).
 			//AAD calculation always uses partial IV (seq. nr.) of original request.  
 			aad = OSSerializer.serializeAAD(CoAP.VERSION, ctx.getAlg(), seq, ctx.getSenderId(), message.getOptions());
+		}
+
+		if (ctx.getContextRederivationPhase() == PHASE.SERVER_PHASE_1) {
+			ctx.setNonceHandover(nonce);
+		} else if (ctx.getContextRederivationPhase() == PHASE.CLIENT_PHASE_2 && ctx.getNonceHandover() != null) {
+			nonce = ctx.getNonceHandover();
 		}
 
 		byte[] plaintext = null;
