@@ -286,6 +286,12 @@ public final class Configuration {
 	 * The transient property names.
 	 */
 	private final Set<String> transientValues = new HashSet<>();
+	/**
+	 * The deprecated property names.
+	 * 
+	 * @since 3.5
+	 */
+	private final Map<String, String> deprecatedValues = new HashMap<>();
 
 	/**
 	 * Add definitions provider for module.
@@ -651,9 +657,7 @@ public final class Configuration {
 				DocumentedDefinition<?> definition = definitions.get(key);
 				if (definition == null) {
 					LOGGER.warn("Ignore {}, no configuration definition available!", key);
-				} else if (transientValues.contains(key)) {
-					LOGGER.info("Ignore {}, definition set transient!", key);
-				} else {
+				} else if (useLoad(key)) {
 					String text = properties.getProperty(key);
 					Object value = loadValue(definition, text);
 					values.put(key, value);
@@ -695,9 +699,7 @@ public final class Configuration {
 			DocumentedDefinition<?> definition = definitions.get(key);
 			if (definition == null) {
 				LOGGER.warn("Ignore {}, no configuration definition available!", key);
-			} else if (transientValues.contains(key)) {
-				LOGGER.info("Ignore {}, definition set transient!", key);
-			} else {
+			} else if (useLoad(key)) {
 				if (value instanceof String) {
 					String text = (String) value;
 					value = loadValue(definition, text);
@@ -714,6 +716,37 @@ public final class Configuration {
 				}
 				values.put(key, value);
 			}
+		}
+	}
+
+	/**
+	 * Check, if value is to be loaded.
+	 * 
+	 * Transient values are not loaded. For both, transient and deprecated
+	 * values, a warning message is written to the logging.
+	 * 
+	 * @param key key to check
+	 * @return {@code true}, to load the value, {@code false}, to ignore it.
+	 * @see #setTransient(DocumentedDefinition)
+	 * @see #setDeprecated(DocumentedDefinition, DocumentedDefinition)
+	 * @since 3.5
+	 */
+	private boolean useLoad(String key) {
+		if (transientValues.contains(key)) {
+			LOGGER.warn("Ignore {}, definition set transient!", key);
+			return false;
+		} else {
+			if (deprecatedValues.containsKey(key)) {
+				String replace = deprecatedValues.get(key);
+				if (replace != null) {
+					LOGGER.warn("Deprecated {}, please replace it by {}!", key, replace);
+				} else {
+					LOGGER.warn("Deprecated {}, please remove it!", key);
+				}
+			} else {
+				LOGGER.debug("Load {}", key);
+			}
+			return true;
 		}
 	}
 
@@ -798,7 +831,7 @@ public final class Configuration {
 			List<String> generalKeys = new ArrayList<>();
 			List<String> moduleKeys = new ArrayList<>();
 			for (String key : values.keySet()) {
-				if (transientValues.contains(key)) {
+				if (transientValues.contains(key) || deprecatedValues.containsKey(key)) {
 					continue;
 				}
 				boolean add = true;
@@ -909,6 +942,30 @@ public final class Configuration {
 			throw new NullPointerException("Definition must not be null!");
 		}
 		transientValues.add(definition.getKey());
+		return this;
+	}
+
+	/**
+	 * Set definition deprecated.
+	 * 
+	 * Deprecate definitions are continued to be loaded, but are not longer
+	 * saved. Clears already set values in order to check, if the value is still
+	 * loaded from file or stream.
+	 * 
+	 * @param <T> value type of definition
+	 * @param deprecatedDefinition definition to set deprecated
+	 * @param newDefinition definition which replace the deprecated defintion. May be {@code null}.
+	 * @return the configuration for chaining
+	 * @throws NullPointerException if the definition is {@code null}
+	 * @since 3.5
+	 */
+	public <T> Configuration setDeprecated(DocumentedDefinition<T> deprecatedDefinition, DocumentedDefinition<T> newDefinition) {
+		if (deprecatedDefinition == null) {
+			throw new NullPointerException("Deprecated definition must not be null!");
+		}
+		String replace = newDefinition == null ? null : newDefinition.getKey();
+		deprecatedValues.put(deprecatedDefinition.getKey(), replace);
+		setInternal(deprecatedDefinition, null, null);
 		return this;
 	}
 

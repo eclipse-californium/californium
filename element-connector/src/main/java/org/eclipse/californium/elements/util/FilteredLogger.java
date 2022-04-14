@@ -16,6 +16,7 @@
 package org.eclipse.californium.elements.util;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
@@ -64,9 +65,22 @@ public class FilteredLogger {
 	 * @param nanosPerPeriod nanoseconds per period.
 	 */
 	public FilteredLogger(Logger logger, long maxPerPeriod, long nanosPerPeriod) {
+		this(logger, maxPerPeriod, nanosPerPeriod, TimeUnit.NANOSECONDS);
+	}
+
+	/**
+	 * Create logging filter.
+	 * 
+	 * @param logger logger to log
+	 * @param maxPerPeriod maximum logging messages per period.
+	 * @param period period in units
+	 * @param unit time unit of the period
+	 * @since 3.5
+	 */
+	public FilteredLogger(Logger logger, long maxPerPeriod, long period, TimeUnit unit) {
 		this.logger = logger;
 		this.maxPerPeriod = maxPerPeriod;
-		this.nanosPerPeriod = nanosPerPeriod;
+		this.nanosPerPeriod = unit.toNanos(period);
 		this.startNanos = ClockUtil.nanoRealtime();
 	}
 
