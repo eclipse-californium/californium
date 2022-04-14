@@ -144,6 +144,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -177,6 +178,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
@@ -256,6 +258,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class);
 	private static final Logger DROP_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".drops");
+	private static final FilteredLogger DROP_LOGGER_IN_FILTERED = new FilteredLogger(DROP_LOGGER, 3, 30, TimeUnit.SECONDS);
+	private static final FilteredLogger DROP_LOGGER_OUT_FILTERED = new FilteredLogger(DROP_LOGGER, 3, 30, TimeUnit.SECONDS);
+	private static final FilteredLogger DROP_LOGGER_HANDSHAKE_RESULTS_FILTERED = new FilteredLogger(DROP_LOGGER, 3, 30, TimeUnit.SECONDS);
 	private static final int MAX_CIPHERTEXT_EXPANSION = CipherSuite.getOverallMaxCiphertextExpansion();
 	private static final int MAX_DATAGRAM_BUFFER_SIZE = Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH
 			+ Record.DTLS_HANDSHAKE_HEADER_LENGTH + MAX_CIPHERTEXT_EXPANSION;
@@ -403,12 +408,56 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 */
 	private final boolean useCidUpdateAddressOnNewerRecordFilter;
 
-	private final int outboundMessageBufferSize;
 	/**
-	 * (Down-)counter for pending outbound messages. Initialized with
-	 * {@link DtlsConfig#DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE}.
+	 * Maximum pending jobs for outbound messages.
+	 * 
+	 * If exceeded, application messages will be rejected.
+	 * 
+	 * @since 3.5 (was outboundMessageBufferSize)
 	 */
-	private final AtomicInteger pendingOutboundMessagesCountdown = new AtomicInteger();
+	private final int maxPendingOutboundJobs;
+	/**
+	 * (Down-)counter for pending jobs of outbound messages.
+	 * 
+	 * Initialized with {@link DtlsConfig#DTLS_MAX_PENDING_OUTBOUND_JOBS}.
+	 * 
+	 * @since 3.5 (was pendingOutboundMessagesCountdown)
+	 */
+	private final AtomicInteger pendingOutboundJobsCountdown = new AtomicInteger();
+
+	/**
+	 * Maximum pending jobs for inbound messages.
+	 * 
+	 * If exceeded, received messages will be dropped.
+	 * 
+	 * @since 3.5
+	 */
+	private final int maxPendingInboundJobs;
+	/**
+	 * (Down-)counter for pending jobs of inbound messages.
+	 * 
+	 * Initialized with {@link DtlsConfig#DTLS_MAX_PENDING_INBOUND_JOBS}.
+	 * 
+	 * @since 3.5
+	 */
+	private final AtomicInteger pendingInboundJobsCountdown = new AtomicInteger();
+
+	/**
+	 * Maximum pending jobs for handshake results.
+	 * 
+	 * If exceeded, handshake results will be dropped.
+	 * 
+	 * @since 3.5
+	 */
+	private final int maxPendingHandshakeResultJobs;
+	/**
+	 * (Down-)counter for pending handshake results.
+	 * 
+	 * Initialized with {@link DtlsConfig#DTLS_MAX_PENDING_HANDSHAKE_RESULT_JOBS}.
+	 * 
+	 * @since 3.5
+	 */
+	private final AtomicInteger pendingHandshakeResultJobsCountdown = new AtomicInteger();
 
 	private final List<Thread> receiverThreads = new LinkedList<Thread>();
 
@@ -527,8 +576,16 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			this.config = configuration;
 			this.connectionIdGenerator = config.getConnectionIdGenerator();
 			this.protocolVersionForHelloVerifyRequests = config.getProtocolVersionForHelloVerifyRequests();
-			this.outboundMessageBufferSize = config.get(DtlsConfig.DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE);
-			this.pendingOutboundMessagesCountdown.set(outboundMessageBufferSize);
+			Integer maxPendingJobs = config.get(DtlsConfig.DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE);
+			if (maxPendingJobs == null) {
+				maxPendingJobs = config.get(DtlsConfig.DTLS_MAX_PENDING_OUTBOUND_JOBS);
+			}
+			this.maxPendingOutboundJobs = maxPendingJobs;
+			this.maxPendingInboundJobs = config.get(DtlsConfig.DTLS_MAX_PENDING_INBOUND_JOBS);
+			this.maxPendingHandshakeResultJobs = config.get(DtlsConfig.DTLS_MAX_PENDING_HANDSHAKE_RESULT_JOBS);
+			this.pendingOutboundJobsCountdown.set(maxPendingOutboundJobs);
+			this.pendingInboundJobsCountdown.set(maxPendingInboundJobs);
+			this.pendingHandshakeResultJobsCountdown.set(maxPendingHandshakeResultJobs);
 			this.autoResumptionTimeoutMillis = config.getAutoHandshakeTimeoutMillis();
 			this.dtlsRole = config.get(DtlsConfig.DTLS_ROLE);
 			this.defaultHandshakeMode = config.getDefaultHandshakeMode();
@@ -952,7 +1009,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 */
 	protected void init(InetSocketAddress bindAddress, DatagramSocket socket, Integer mtu) throws IOException {
 		this.socket = socket;
-		pendingOutboundMessagesCountdown.set(outboundMessageBufferSize);
+		pendingOutboundJobsCountdown.set(maxPendingOutboundJobs);
+		pendingInboundJobsCountdown.set(maxPendingInboundJobs);
+		pendingHandshakeResultJobsCountdown.set(maxPendingHandshakeResultJobs);
 
 		if (bindAddress.getPort() != 0 && config.useReuseAddress()) {
 			// make it easier to stop/start a server consecutively without
@@ -1672,11 +1731,11 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				DROP_LOGGER.trace("client-only, discarding {} CLIENT_HELLO from [{}]!", records.size(),
 						StringUtil.toLog(peerAddress));
 				if (health != null) {
-					health.sendingRecord(true);
+					health.receivingRecord(true);
 				}
 				return;
 			}
-			getExecutorService().execute(new Runnable() {
+			executeInbound(getExecutorService(), peerAddress, new Runnable() {
 
 				@Override
 				public void run() {
@@ -1687,6 +1746,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					if (MDC_SUPPORT) {
 						MDC.clear();
 					}
+					pendingInboundJobsCountdown.incrementAndGet();
 				}
 			});
 			return;
@@ -1712,22 +1772,23 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		SerialExecutor serialExecutor = connection.getExecutor();
 
 		for (final Record record : records) {
+			record.setAddress(peerAddress, router);
 			try {
-				record.setAddress(peerAddress, router);
-				serialExecutor.execute(new Runnable() {
+				if (!executeInbound(serialExecutor, peerAddress, new Runnable() {
 
 					@Override
 					public void run() {
-						if (running.get()) {
-							processRecord(record, connection);
+						try {
+							if (running.get()) {
+								processRecord(record, connection);
+							}
+						} finally {
+							pendingInboundJobsCountdown.incrementAndGet();
 						}
 					}
-				});
-			} catch (RejectedExecutionException e) {
-				// dont't terminate connection on shutdown!
-				LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]", record.getType(),
-						StringUtil.toLog(peerAddress), e);
-				break;
+				})) {
+					break;
+				}
 			} catch (RuntimeException e) {
 				LOGGER.warn("Unexpected error occurred while processing record [type: {}, peer: {}]", record.getType(),
 						StringUtil.toLog(peerAddress), e);
@@ -1735,6 +1796,41 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				break;
 			}
 		}
+	}
+
+	/**
+	 * Execute inbound job.
+	 * 
+	 * @param executor executor to use
+	 * @param peer source peer
+	 * @param job job to be executed.
+	 * @return {@code true}, if execution was accepted, {@code false}, if
+	 *         execution was denied
+	 * @since 3.5
+	 */
+	protected boolean executeInbound(Executor executor, InetSocketAddress peer, Runnable job) {
+		boolean pending = false;
+		try {
+			if (pendingInboundJobsCountdown.decrementAndGet() >= 0) {
+				executor.execute(job);
+				pending = true;
+			} else {
+				DROP_LOGGER_IN_FILTERED.info("Inbound jobs overflow! Dropping inbound message from peer [{}]",
+						StringUtil.toLog(peer));
+			}
+		} catch (RejectedExecutionException e) {
+			// dont't terminate connection on shutdown!
+			LOGGER.debug("Execution rejected while processing record from peer [{}]",
+					StringUtil.toLog(peer), e);
+		} finally {
+			if (!pending) {
+				if (health != null) {
+					health.receivingRecord(true);
+				}
+				pendingInboundJobsCountdown.incrementAndGet();
+			}
+		}
+		return pending;
 	}
 
 	/**
@@ -2672,62 +2768,79 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		}
 
 		final long now = ClockUtil.nanoRealtime();
-		if (pendingOutboundMessagesCountdown.decrementAndGet() >= 0) {
-			try {
-				SerialExecutor executor = connection.getExecutor();
-				if (executor == null) {
-					throw new NullPointerException("missing executor for connection! " + connection.getPeerAddress());
-				}
-				executor.execute(new Runnable() {
+		try {
+			SerialExecutor executor = connection.getExecutor();
+			if (!executeOutbound(executor, message.getInetSocketAddress(), new Runnable() {
 
-					@Override
-					public void run() {
-						try {
-							if (running.get()) {
-								sendMessage(now, message, connection);
-							} else {
-								DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, connector not running!",
-										message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
-								message.onError(new InterruptedIOException("Connector is not running."));
-								if (health != null) {
-									health.sendingRecord(true);
-								}
-							}
-						} catch (Exception e) {
-							if (running.get()) {
-								LOGGER.warn("Exception thrown by executor thread [{}]",
-										Thread.currentThread().getName(), e);
-							}
-							DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {} {}", message.getSize(),
-									StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
+				@Override
+				public void run() {
+					try {
+						if (running.get()) {
+							sendMessage(now, message, connection);
+						} else {
+							DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, connector not running!",
+									message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
+							message.onError(new InterruptedIOException("Connector is not running."));
 							if (health != null) {
 								health.sendingRecord(true);
 							}
-							message.onError(e);
-						} finally {
-							pendingOutboundMessagesCountdown.incrementAndGet();
 						}
+					} catch (Exception e) {
+						if (running.get()) {
+							LOGGER.warn("Exception thrown by executor thread [{}]",
+									Thread.currentThread().getName(), e);
+						}
+						DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {} {}", message.getSize(),
+								StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
+						if (health != null) {
+							health.sendingRecord(true);
+						}
+						message.onError(e);
+					} finally {
+						pendingOutboundJobsCountdown.incrementAndGet();
 					}
-				});
-			} catch (RejectedExecutionException e) {
-				LOGGER.debug("Execution rejected while sending application record [peer: {}]",
-						StringUtil.toLog(message.getInetSocketAddress()), e);
-				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, {}", message.getSize(),
-						StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
-				message.onError(new InterruptedIOException("Connector is not running."));
+				}
+			})) {
+				message.onError(new IllegalStateException("Outbound message overflow!"));
+			}
+		} catch (RejectedExecutionException e) {
+			LOGGER.debug("Execution rejected while sending application record [peer: {}]",
+					StringUtil.toLog(message.getInetSocketAddress()), e);
+			DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, {}", message.getSize(),
+					StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
+			message.onError(new InterruptedIOException("Connector is not running."));
+		}
+	}
+
+	/**
+	 * Execute outbound job.
+	 * 
+	 * @param executor executor to use
+	 * @param peer source peer
+	 * @param job job to be executed.
+	 * @return {@code true}, if execution was accepted, {@code false}, if
+	 *         execution was denied
+	 * @since 3.5
+	 */
+	protected boolean executeOutbound(Executor executor, InetSocketAddress peer, Runnable job) {
+		boolean pending = false;
+		try {
+			if (pendingOutboundJobsCountdown.decrementAndGet() >= 0) {
+				executor.execute(job);
+				pending = true;
+			} else {
+				DROP_LOGGER_OUT_FILTERED.info("Outbound jobs overflow! Dropping outbound message to peer [{}]",
+						StringUtil.toLog(peer));
+			}
+		} finally {
+			if (!pending) {
 				if (health != null) {
 					health.sendingRecord(true);
 				}
-			}
-		} else {
-			pendingOutboundMessagesCountdown.incrementAndGet();
-			DROP_LOGGER.warn("Outbound message overflow! Dropping outbound message to peer [{}]",
-					StringUtil.toLog(message.getInetSocketAddress()));
-			message.onError(new IllegalStateException("Outbound message overflow!"));
-			if (health != null) {
-				health.sendingRecord(true);
+				pendingOutboundJobsCountdown.incrementAndGet();
 			}
 		}
+		return pending;
 	}
 
 	/**
@@ -3125,35 +3238,36 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		final Connection connection = connectionStore.get(handshakeResult.getConnectionId());
 		if (connection != null) {
 			if (connection.hasOngoingHandshake()) {
-				SerialExecutor serialExecutor = connection.getExecutor();
-
 				try {
-
-					serialExecutor.execute(new Runnable() {
+					SerialExecutor serialExecutor = connection.getExecutor();
+					executeHandshakeResult(serialExecutor, connection, new Runnable() {
 
 						@Override
 						public void run() {
-							if (running.get()) {
-								Handshaker handshaker = connection.getOngoingHandshake();
-								if (handshaker != null) {
-									try {
+							try {
+								if (running.get()) {
+									Handshaker handshaker = connection.getOngoingHandshake();
+									if (handshaker != null) {
 										handshaker.processAsyncHandshakeResult(handshakeResult);
-									} catch (HandshakeException e) {
-										processExceptionDuringHandshake(null, connection, e);
-									} catch (IllegalStateException e) {
-										LOGGER.warn("Exception while processing handshake result [{}]", connection, e);
+									} else {
+										LOGGER.debug("No ongoing handshake for result [{}]", connection);
 									}
 								} else {
-									LOGGER.debug("No ongoing handshake for result [{}]", connection);
+									LOGGER.debug("Execution stopped while processing handshake result [{}]",
+											connection);
 								}
-							} else {
-								LOGGER.debug("Execution stopped while processing handshake result [{}]", connection);
+							} catch (HandshakeException e) {
+								processExceptionDuringHandshake(null, connection, e);
+							} catch (IllegalStateException e) {
+								LOGGER.warn("Exception while processing handshake result [{}]", connection, e);
+							} finally {
+								pendingHandshakeResultJobsCountdown.incrementAndGet();
 							}
 						}
 					});
 				} catch (RejectedExecutionException e) {
 					// dont't terminate connection on shutdown!
-					LOGGER.debug("Execution rejected while processing handshake result [{}]", connection, e);
+					LOGGER.debug("Execution rejected while processing handshake result [{}]", connection);
 				} catch (RuntimeException e) {
 					LOGGER.warn("Unexpected error occurred while processing handshake result [{}]", connection, e);
 				}
@@ -3163,6 +3277,34 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		} else {
 			LOGGER.debug("No connection  for handshake result [{}]", connection);
 		}
+	}
+
+	/**
+	 * Execute handshake result job.
+	 * 
+	 * @param executor executor to use
+	 * @param connection connection of hanshake
+	 * @param job job to be executed.
+	 * @return {@code true}, if execution was accepted, {@code false}, if
+	 *         execution was denied
+	 * @since 3.5
+	 */
+	protected boolean executeHandshakeResult(Executor executor, Connection connection, Runnable job) {
+		boolean pending = false;
+		try {
+			if (pendingHandshakeResultJobsCountdown.decrementAndGet() >= 0) {
+				executor.execute(job);
+				pending = true;
+			} else {
+				DROP_LOGGER_HANDSHAKE_RESULTS_FILTERED
+						.info("Handshake result jobs overflow! Dropping handshake result [{}]", connection);
+			}
+		} finally {
+			if (!pending) {
+				pendingHandshakeResultJobsCountdown.incrementAndGet();
+			}
+		}
+		return pending;
 	}
 
 	/**

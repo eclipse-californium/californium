@@ -197,8 +197,32 @@ public final class DtlsConfig {
 	/**
 	 * The default value for the {@link #DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE}
 	 * property.
+	 * 
+	 * @deprecated use {@link #DEFAULT_MAX_PENDING_OUTBOUND_JOBS} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_MAX_PENDING_OUTBOUND_MESSAGES = 100000;
+	/**
+	 * The default value for the {@link #DTLS_MAX_PENDING_OUTBOUND_JOBS}
+	 * property.
+	 * 
+	 * @since 3.5
+	 */
+	public static final int DEFAULT_MAX_PENDING_OUTBOUND_JOBS = 50000;
+	/**
+	 * The default value for the {@link #DTLS_MAX_PENDING_INBOUND_JOBS}
+	 * property.
+	 * 
+	 * @since 3.5
+	 */
+	public static final int DEFAULT_MAX_PENDING_INBOUND_JOBS = 50000;
+	/**
+	 * The default value for the {@link #DTLS_MAX_PENDING_HANDSHAKE_RESULT_JOBS}
+	 * property.
+	 * 
+	 * @since 3.5
+	 */
+	public static final int DEFAULT_MAX_PENDING_HANDSHAKE_RESULT_JOBS = 5000;
 	/**
 	 * The default value for the
 	 * {@link #DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES} property.
@@ -493,10 +517,44 @@ public final class DtlsConfig {
 	/**
 	 * Specify the number of outbound messages that can be buffered in memory
 	 * before dropping messages.
+	 * 
+	 * @deprecated use {link {@link #DTLS_MAX_PENDING_OUTBOUND_JOBS} instead.
 	 */
+	@Deprecated
 	public static final IntegerDefinition DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE = new IntegerDefinition(
-			MODULE + "OUTBOUND_MESSAGE_BUFFER_SIZE", "DTLS buffer size for outbound messages.",
-			DEFAULT_MAX_PENDING_OUTBOUND_MESSAGES, 64);
+			MODULE + "OUTBOUND_MESSAGE_BUFFER_SIZE", "DTLS buffer size for outbound messages");
+
+	/**
+	 * Specify the number of pending outbound jobs that can be queued before
+	 * dropping new job.
+	 * 
+	 * @since 3.5
+	 */
+	public static final IntegerDefinition DTLS_MAX_PENDING_OUTBOUND_JOBS = new IntegerDefinition(
+			MODULE + "MAX_PENDING_OUTBOUND_JOBS",
+			"Maximum number of jobs for outbound DTLS messages.",
+			DEFAULT_MAX_PENDING_OUTBOUND_JOBS, 64);
+
+	/**
+	 * Specify the number of pending inbound jobs that can be queued before
+	 * dropping new job.
+	 * 
+	 * @since 3.5
+	 */
+	public static final IntegerDefinition DTLS_MAX_PENDING_INBOUND_JOBS = new IntegerDefinition(
+			MODULE + "MAX_PENDING_INBOUND_JOBS",
+			"Maximum number of jobs for inbound DTLS messages.",
+			DEFAULT_MAX_PENDING_INBOUND_JOBS, 64);
+	/**
+	 * Specify the number of pending handshake result jobs that can be queued
+	 * before dropping new job.
+	 * 
+	 * @since 3.5
+	 */
+	public static final IntegerDefinition DTLS_MAX_PENDING_HANDSHAKE_RESULT_JOBS = new IntegerDefinition(
+			MODULE + "MAX_PENDING_HANDSHAKE_RESULT_JOBS",
+			"Maximum number of jobs for DTLS handshake results.",
+			DEFAULT_MAX_PENDING_HANDSHAKE_RESULT_JOBS, 64);
 
 	/**
 	 * Specify maximum number of deferred processed outgoing application data
@@ -833,7 +891,10 @@ public final class DtlsConfig {
 			config.set(DTLS_DEFAULT_HANDSHAKE_MODE, null);
 			config.set(DTLS_MAX_CONNECTIONS, DEFAULT_MAX_CONNECTIONS);
 			config.set(DTLS_STALE_CONNECTION_THRESHOLD, DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS, TimeUnit.SECONDS);
-			config.set(DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE, DEFAULT_MAX_PENDING_OUTBOUND_MESSAGES);
+			config.setDeprecated(DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE, DTLS_MAX_PENDING_OUTBOUND_JOBS);
+			config.set(DTLS_MAX_PENDING_OUTBOUND_JOBS, DEFAULT_MAX_PENDING_OUTBOUND_JOBS);
+			config.set(DTLS_MAX_PENDING_INBOUND_JOBS, DEFAULT_MAX_PENDING_INBOUND_JOBS);
+			config.set(DTLS_MAX_PENDING_HANDSHAKE_RESULT_JOBS, DEFAULT_MAX_PENDING_HANDSHAKE_RESULT_JOBS);
 			config.set(DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES,
 					DEFAULT_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES);
 			config.set(DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE, DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE);
