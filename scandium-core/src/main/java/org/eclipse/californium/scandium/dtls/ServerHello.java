@@ -85,8 +85,8 @@ public final class ServerHello extends HelloHandshakeMessage {
 			throw new HandshakeException(
 					String.format("Server selected unknown cipher suite [%s]", Integer.toHexString(code)),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
-		} else if (cipherSuite == CipherSuite.TLS_NULL_WITH_NULL_NULL) {
-			throw new HandshakeException("Server tries to negotiate NULL cipher suite",
+		} else if (!cipherSuite.isValidForNegotiation()) {
+			throw new HandshakeException("Server tries to negotiate a cipher suite invalid for negotiation",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
 		compressionMethod = CompressionMethod.getMethodByCode(reader.read(CompressionMethod.COMPRESSION_METHOD_BITS));
@@ -115,8 +115,8 @@ public final class ServerHello extends HelloHandshakeMessage {
 	 * @return the object representation
 	 * @throws HandshakeException if the cipher suite code selected by the
 	 *             server is either unknown, i.e. not defined in
-	 *             {@link CipherSuite} at all, or
-	 *             {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+	 *             {@link CipherSuite} at all, or not 
+	 *             {@link CipherSuite#isValidForNegotiation()}
 	 */
 	public static HandshakeMessage fromReader(DatagramReader reader) throws HandshakeException {
 		return new ServerHello(reader);

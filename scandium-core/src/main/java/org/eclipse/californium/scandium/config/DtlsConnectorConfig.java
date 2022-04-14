@@ -1020,12 +1020,12 @@ public final class DtlsConnectorConfig {
 	 * <p>
 	 * The connector will use these cipher suites (in exactly the same order)
 	 * during the DTLS handshake when negotiating a cipher suite with a peer. if
-	 * the given list is empty, contains
-	 * {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, contains a cipher suite, not
-	 * supported by the JVM, violates the
-	 * {@link DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY} setting, or the
-	 * use of HELLO_VERIFY_REQUEST is disabled and no PSK cipher suite is
-	 * contained.
+	 * the given list is empty, it will be setup using only
+	 * <ul>
+	 * <li>cipher suites, which are {@link CipherSuite#isValidForNegotiation()}</li>
+	 * <li>cipher suites, supported by the JVM</li>
+	 * <li>cipher suites, not violating the {@link DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY} setting</li>
+	 * </ul>
 	 * 
 	 * @return the supported cipher suites (ordered by preference)
 	 * @see #getPreselectedCipherSuites()
