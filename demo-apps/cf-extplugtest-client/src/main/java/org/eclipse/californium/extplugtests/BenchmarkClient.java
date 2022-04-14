@@ -191,12 +191,12 @@ public class BenchmarkClient {
 			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
 			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
 			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 1);
-			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by
-																	// cli
-																	// option!
+			// enabled by cli option, see "--bertblocks".
+			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
 			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 12, TimeUnit.HOURS);
 			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
+			config.set(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
 			config.set(TcpConfig.TCP_WORKER_THREADS, 2);
 			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 1);
 			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 1);
@@ -206,12 +206,13 @@ public class BenchmarkClient {
 			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
 			config.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 2);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it,
-																	// but don't
-																	// use it
+			// support CID, but don't use for received records
+			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0);
 			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 8192);
 			config.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, 8192);
 			config.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
+			config.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
+			config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, false);
 			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS); // disabled
 		}
 

@@ -2260,6 +2260,12 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
+			if (config.get(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS)
+					&& !config.get(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE)) {
+				throw new IllegalStateException(
+						"Removing stale double principals requires the read-write-lock connection store!!");
+			}
+
 			if (config.datagramFilter == null && config.get(DtlsConfig.DTLS_USE_DEFAULT_RECORD_FILTER)) {
 				config.datagramFilter = new DtlsDatagramFilter();
 			}

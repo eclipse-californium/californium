@@ -214,7 +214,9 @@ import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
+import org.eclipse.californium.scandium.dtls.ReadWriteLockConnectionStore;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
@@ -249,6 +251,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * side and a separate Connector is created for each address to receive incoming
  * traffic.
  */
+@SuppressWarnings("deprecation")
 public class DTLSConnector implements Connector, PersistentConnector, PersistentComponent, RecordLayer {
 
 	/**
@@ -546,10 +549,20 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @since 3.0 (moved SessionCache from parameter to configuration)
 	 */
 	protected static ResumptionSupportingConnectionStore createConnectionStore(DtlsConnectorConfig configuration) {
-		return new InMemoryConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
-				configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS),
-				configuration.getSessionStore())
-						.setTag(configuration.getLoggingTag());
+		if (configuration.get(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE)) {
+			return new InMemoryReadWriteLockConnectionStore(
+					configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
+					configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS),
+					configuration.getSessionStore(),
+					configuration.get(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS))
+							.setTag(configuration.getLoggingTag());
+		} else {
+			return new InMemoryConnectionStore(
+					configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
+					configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS),
+					configuration.getSessionStore())
+							.setTag(configuration.getLoggingTag());
+		}
 	}
 
 	/**
@@ -600,7 +613,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			this.customSessionListener = config.getSessionListener();
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
-			this.connectionStore.setConnectionListener(this.connectionListener);
+			this.connectionStore.setConnectionListener(connectionListener);
 			HandshakeResultHandler handler = new HandshakeResultHandler() {
 
 				@Override
@@ -895,6 +908,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			LOGGER.error("{} recent handshakes, cleanup failed after {} in {}ms{}!", size, count,
 					TimeUnit.NANOSECONDS.toMillis(time), qualifier, ex);
 		}
+		if (running.get() && connectionStore instanceof ReadWriteLockConnectionStore) {
+			((ReadWriteLockConnectionStore) connectionStore).shrink(calls, running);
+		}
 	}
 
 	/**
@@ -925,13 +941,20 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @throws IllegalStateException if a new executor is set and this connector
 	 *             is already running.
 	 */
-	public final synchronized void setExecutor(ExecutorService executor) {
-		if (this.executorService != executor) {
-			if (running.get()) {
-				throw new IllegalStateException("cannot set new executor while connector is running");
-			} else {
-				this.executorService = executor;
+	public final void setExecutor(ExecutorService executor) {
+		boolean change;
+		synchronized (this) {
+			change = this.executorService != executor;
+			if (change) {
+				if (running.get()) {
+					throw new IllegalStateException("cannot set new executor while connector is running");
+				} else {
+					this.executorService = executor;
+				}
 			}
+		}
+		if (change && connectionStore instanceof ReadWriteLockConnectionStore) {
+			((ReadWriteLockConnectionStore) connectionStore).setExecutor(null);
 		}
 	}
 
@@ -1133,6 +1156,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			} else {
 				executorService = timer;
 			}
+			if (connectionStore instanceof ReadWriteLockConnectionStore) {
+				((ReadWriteLockConnectionStore)connectionStore).setExecutor(executorService);
+			}
 			this.hasInternalExecutor = true;
 		}
 		// prepare restored connections.
@@ -1141,10 +1167,10 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		Iterator<Connection> iterator = connectionStore.iterator();
 		while (iterator.hasNext()) {
 			Connection connection = iterator.next();
+			if (!connection.isExecuting()) {
+				connection.setConnectorContext(executorService, connectionListener);
+			}
 			if (connection.hasEstablishedDtlsContext()) {
-				if (!connection.isExecuting()) {
-					connection.setConnectorContext(executorService, connectionListener);
-				}
 				Long start = connection.getStartNanos();
 				if (start != null) {
 					if ((expires - start) < 0) {
@@ -1350,6 +1376,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					shutdown = executorService;
 					executorService = null;
 					hasInternalExecutor = false;
+					if (connectionStore instanceof ReadWriteLockConnectionStore) {
+						((ReadWriteLockConnectionStore)connectionStore).setExecutor(null);
+					}
 				}
 				for (Thread t : receiverThreads) {
 					t.interrupt();
@@ -1606,35 +1635,68 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 */
 	private final Connection getConnection(InetSocketAddress peerAddress, ConnectionId cid, boolean create) {
 		ExecutorService executor = getExecutorService();
-		synchronized (connectionStore) {
-			Connection connection;
+		Connection connection;
+		if (connectionStore instanceof ReadWriteLockConnectionStore) {
+			ReadWriteLockConnectionStore store = (ReadWriteLockConnectionStore) connectionStore;
 			if (cid != null) {
 				connection = connectionStore.get(cid);
 			} else {
 				connection = connectionStore.get(peerAddress);
-				if (connection == null && create) {
-					LOGGER.trace("create new connection for {}", peerAddress);
-					Connection newConnection = new Connection(peerAddress);
-					newConnection.setConnectorContext(executor, connectionListener);
-					if (running.get()) {
-						// only add, if connector is running!
-						if (!connectionStore.put(newConnection)) {
-							return null;
+			}
+			if (create && connection == null && cid == null) {
+				store.writeLock().lock();
+				try {
+					// check again, now with write-lock
+					connection = connectionStore.get(peerAddress);
+					if (connection == null) {
+						LOGGER.trace("create new connection for {}", peerAddress);
+						Connection newConnection = new Connection(peerAddress);
+						newConnection.setConnectorContext(executor, connectionListener);
+						if (running.get()) {
+							// only add, if connector is running!
+							if (!connectionStore.put(newConnection)) {
+								return null;
+							}
 						}
+						return newConnection;
 					}
-					return newConnection;
+				} finally {
+					store.writeLock().unlock();
 				}
 			}
-			if (connection == null) {
-				LOGGER.trace("no connection available for {},{}", peerAddress, cid);
-			} else if (!connection.isExecuting() && running.get()) {
-				LOGGER.trace("revive connection for {},{}", peerAddress, cid);
-				connection.setConnectorContext(executor, connectionListener);
-			} else {
-				LOGGER.trace("connection available for {},{}", peerAddress, cid);
+		} else {
+			synchronized (connectionStore) {
+				if (cid != null) {
+					connection = connectionStore.get(cid);
+				} else {
+					connection = connectionStore.get(peerAddress);
+					if (connection == null && create) {
+						LOGGER.trace("create new connection for {}", peerAddress);
+						Connection newConnection = new Connection(peerAddress);
+						newConnection.setConnectorContext(executor, connectionListener);
+						if (running.get()) {
+							// only add, if connector is running!
+							if (!connectionStore.put(newConnection)) {
+								return null;
+							}
+						}
+						return newConnection;
+					}
+				}
+				if (running.get() && connection != null && !connection.isExecuting()) {
+					// reviving is only required for none ShrinkingConnectionStore
+					connection.setConnectorContext(executor, connectionListener);
+					LOGGER.trace("revive connection for {},{}", peerAddress, cid);
+					return connection;
+				}
 			}
-			return connection;
 		}
+		if (connection == null) {
+			LOGGER.trace("no connection available for {},{}", peerAddress, cid);
+		} else {
+			LOGGER.trace("connection available for {},{}", peerAddress, cid);
+		}
+		return connection;
 	}
 
 	/**
@@ -2307,74 +2369,29 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			// the IP address indicated in the client hello message
 			boolean addressVerified = isClientInControlOfSourceIpAddress(peerAddress, clientHello, expectedCookie);
 			if (addressVerified) {
-				Connection connection;
+				final Connection connection;
 				ExecutorService executor = getExecutorService();
-				synchronized (connectionStore) {
-					connection = connectionStore.get(peerAddress);
-					if (connection != null && !connection.isStartedByClientHello(clientHello)) {
-						if (useHelloVerifyRequest && !clientHello.hasCookie() && clientHello.hasSessionId()) {
-							SessionId establishedSessionId = connection.getEstablishedSessionIdentifier();
-							boolean sameSession = Bytes.equals(establishedSessionId, clientHello.getSessionId());
-							if (!sameSession) {
-								// don't overwrite the current connection, first
-								// verify address
-								// protection for spoofed client_hello, with
-								// valid session id and spoofed ip-address of
-								// valid other peer.
-								addressVerified = false;
-							}
-						}
-						if (addressVerified) {
-							final Handshaker handshaker = connection.getOngoingHandshake();
-							if (handshaker != null) {
-								DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
-								if (dtlsContext == null || dtlsContext != handshaker.getDtlsContext()) {
-									final DtlsException cause = new DtlsException("Received new CLIENT_HELLO from "
-											+ StringUtil.toDisplayString(peerAddress));
-									try {
-										connection.getExecutor().execute(new Runnable() {
-
-											@Override
-											public void run() {
-												if (running.get()) {
-													handshaker.handshakeFailed(cause);
-												}
-											}
-										});
-									} catch (RejectedExecutionException ex) {
-										LOGGER.trace("Execution rejected, connection already shutdown [peer: {}]",
-												StringUtil.toLog(peerAddress));
-									}
-								}
-							}
-							connection = null;
-						}
+				if (connectionStore instanceof ReadWriteLockConnectionStore) {
+					ReadWriteLockConnectionStore store = (ReadWriteLockConnectionStore) connectionStore;
+					store.writeLock().lock();
+					try {
+						connection = getConnectionForNewClientHello(peerAddress, clientHello, executor);
+					} finally {
+						store.writeLock().unlock();
 					}
-					if (connection == null) {
-						int max = Math.max(maxConnections, 50);
-						if (recentHandshakesCounter.get() > max) {
-							// the number of established session in the
-							// past CLIENT_HELLO_TIMEOUT_NANOS
-							LOGGER.error("Too many recent handshakes! {} max. allowed.", max);
-							return;
-						}
-						connection = new Connection(peerAddress);
-						connection.setConnectorContext(executor, connectionListener);
-						connection.startByClientHello(clientHello);
-						if (!connectionStore.put(connection)) {
-							return;
-						}
+				} else {
+					synchronized (connectionStore) {
+						connection = getConnectionForNewClientHello(peerAddress, clientHello, executor);
 					}
 				}
-				if (addressVerified) {
+				if (connection != null) {
 					try {
-						final Connection clientConnection = connection;
 						connection.getExecutor().execute(new Runnable() {
 
 							@Override
 							public void run() {
 								if (running.get()) {
-									processClientHello(record, clientConnection);
+									processClientHello(record, connection);
 								}
 							}
 						});
@@ -2403,6 +2420,71 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			LOGGER.warn("Processing new CLIENT_HELLO from peer [{}] failed!", StringUtil.toLog(record.getPeerAddress()),
 					e);
 		}
+	}
+
+	/**
+	 * Get connection for new client hello.
+	 * 
+	 * @param peerAddress other peer's address
+	 * @param clientHello received new client hello
+	 * @param executor executor for the connection
+	 * @return connection to process the new client hello
+	 * @since 3.5
+	 */
+	private Connection getConnectionForNewClientHello(InetSocketAddress peerAddress, ClientHello clientHello,
+			ExecutorService executor) {
+		Connection connection = connectionStore.get(peerAddress);
+		if (connection != null && !connection.isStartedByClientHello(clientHello)) {
+			if (useHelloVerifyRequest && !clientHello.hasCookie() && clientHello.hasSessionId()) {
+				SessionId establishedSessionId = connection.getEstablishedSessionIdentifier();
+				boolean sameSession = Bytes.equals(establishedSessionId, clientHello.getSessionId());
+				if (!sameSession) {
+					// don't overwrite the current connection, first verify address!
+					// protection for spoofed client_hello, with valid session id and
+					// spoofed ip-address of valid other peer.
+					return null;
+				}
+			}
+			final Handshaker handshaker = connection.getOngoingHandshake();
+			if (handshaker != null) {
+				DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
+				if (dtlsContext == null || dtlsContext != handshaker.getDtlsContext()) {
+					final DtlsException cause = new DtlsException(
+							"Received new CLIENT_HELLO from " + StringUtil.toDisplayString(peerAddress));
+					try {
+						connection.getExecutor().execute(new Runnable() {
+
+							@Override
+							public void run() {
+								if (running.get()) {
+									handshaker.handshakeFailed(cause);
+								}
+							}
+						});
+					} catch (RejectedExecutionException ex) {
+						LOGGER.trace("Execution rejected, connection already shutdown [peer: {}]",
+								StringUtil.toLog(peerAddress));
+					}
+				}
+			}
+			connection = null;
+		}
+		if (connection == null) {
+			int max = Math.max(maxConnections, 50);
+			if (recentHandshakesCounter.get() > max) {
+				// the number of established session in the
+				// past CLIENT_HELLO_TIMEOUT_NANOS
+				LOGGER.error("Too many recent handshakes! {} max. allowed.", max);
+				return null;
+			}
+			connection = new Connection(peerAddress);
+			connection.setConnectorContext(executor, connectionListener);
+			connection.startByClientHello(clientHello);
+			if (!connectionStore.put(connection)) {
+				return null;
+			}
+		}
+		return connection;
 	}
 
 	/**
