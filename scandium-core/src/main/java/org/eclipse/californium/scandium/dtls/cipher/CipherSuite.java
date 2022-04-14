@@ -137,7 +137,9 @@ public enum CipherSuite {
 	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA(0xC014, CertificateKeyAlgorithm.RSA, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
 
 	// Null cipher suite
-	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL, false),
+	TLS_NULL_WITH_NULL_NULL(0x0000),
+	// Renegotiation cipher suite, not supported, just for logging.
+	TLS_EMPTY_RENEGOTIATION_INFO_SCSV(0x00ff)
 	;
 
 	// DTLS-specific constants ////////////////////////////////////////
@@ -174,6 +176,12 @@ public enum CipherSuite {
 	 * href="https://tools.ietf.org/html/rfc5246#appendix-A.5" target="_blank">RFC 5246</a>.
 	 */
 	private final int code;
+	/**
+	 * Indicates, that the cipher suite is valid to be negotiated.
+	 * 
+	 * @since 3.5
+	 */
+	private final boolean validForNegotiation;
 	private final CertificateKeyAlgorithm certificateKeyAlgorithm;
 	private final KeyExchangeAlgorithm keyExchange;
 	private final CipherSpec cipher;
@@ -183,6 +191,25 @@ public enum CipherSuite {
 	private final boolean recommendedCipherSuite;
 
 	// Constructor ////////////////////////////////////////////////////
+
+	/**
+	 * Creates a not negotiable cipher suit.
+	 * 
+	 * @param code IANA code.
+	 * @since 3.5
+	 */
+	private CipherSuite(int code) {
+		// CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL
+		this.code = code;
+		this.validForNegotiation = false;
+		this.certificateKeyAlgorithm = CertificateKeyAlgorithm.NONE;
+		this.keyExchange = KeyExchangeAlgorithm.NULL;
+		this.cipher = CipherSpec.NULL;
+		this.macAlgorithm = MACAlgorithm.NULL;
+		this.recommendedCipherSuite = false;
+		this.pseudoRandomFunction = PRFAlgorithm.TLS_PRF_SHA256;
+		this.maxCipherTextExpansion = 0;
+	}
 
 	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, boolean recommendedCipherSuite) {
 		this(code, certificate, keyExchange, cipher, MACAlgorithm.INTRINSIC, recommendedCipherSuite, PRFAlgorithm.TLS_PRF_SHA256);
@@ -198,6 +225,7 @@ public enum CipherSuite {
 
 	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, boolean recommendedCipherSuite, PRFAlgorithm prf) {
 		this.code = code;
+		this.validForNegotiation = true;
 		this.certificateKeyAlgorithm = certificate;
 		this.keyExchange = keyExchange;
 		this.cipher = cipher;
@@ -345,6 +373,20 @@ public enum CipherSuite {
 	 */
 	public boolean isRecommended() {
 		return recommendedCipherSuite;
+	}
+
+	/**
+	 * Check whether this cipher suite is valid for negotiation.
+	 * 
+	 * {@link #TLS_NULL_WITH_NULL_NULL} and
+	 * {@link #TLS_EMPTY_RENEGOTIATION_INFO_SCSV} are not intended to be
+	 * negotiated.
+	 * 
+	 * @return {@code true} if cipher suite is valid for negotiation
+	 * @since 3.5
+	 */
+	public boolean isValidForNegotiation() {
+		return validForNegotiation;
 	}
 
 	/**
@@ -566,7 +608,7 @@ public enum CipherSuite {
 			boolean supportedCipherSuitesOnly) {
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
-			if (suite != TLS_NULL_WITH_NULL_NULL) {
+			if (suite.isValidForNegotiation()) {
 				if (!supportedCipherSuitesOnly || suite.isSupported()) {
 					if (!recommendedCipherSuitesOnly || suite.isRecommended()) {
 						list.add(suite);

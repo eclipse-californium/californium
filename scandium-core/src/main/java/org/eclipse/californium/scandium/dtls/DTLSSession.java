@@ -429,12 +429,18 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * 
 	 * @param cipherSuite the cipher suite to be used
-	 * @throws IllegalArgumentException if the given cipher suite is
-	 *             {@code null} or {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+	 * @throws NullPointerException if the given cipher suite is {@code null}
+	 * @throws IllegalArgumentException if the given cipher suite is not
+	 *             {@link CipherSuite#isValidForNegotiation()}
+	 * @since 3.5 throws NullPointerException and uses
+	 *        {@link CipherSuite#isValidForNegotiation()}
 	 */
 	void setCipherSuite(CipherSuite cipherSuite) {
-		if (cipherSuite == null || CipherSuite.TLS_NULL_WITH_NULL_NULL == cipherSuite) {
-			throw new IllegalArgumentException("Negotiated cipher suite must not be null");
+		if (cipherSuite == null) {
+			throw new NullPointerException("Negotiated cipher suite must not be null!");
+		}
+		if (!cipherSuite.isValidForNegotiation()) {
+			throw new IllegalArgumentException("Negotiated cipher suite must be valid for negotiation!");
 		} else {
 			this.cipherSuite = cipherSuite;
 		}

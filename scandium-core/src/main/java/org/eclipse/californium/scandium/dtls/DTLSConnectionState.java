@@ -174,10 +174,10 @@ public abstract class DTLSConnectionState implements Destroyable {
 	/**
 	 * Checks whether the cipher suite is not the <em>NULL_CIPHER</em>.
 	 * 
-	 * @return {@code true} if the suite is not {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}.
+	 * @return {@code true} if the suite is {@link CipherSuite#isValidForNegotiation()}.
 	 */
 	public boolean hasValidCipherSuite() {
-		return !CipherSuite.TLS_NULL_WITH_NULL_NULL.equals(cipherSuite);
+		return cipherSuite.isValidForNegotiation();
 	}
 
 	/**

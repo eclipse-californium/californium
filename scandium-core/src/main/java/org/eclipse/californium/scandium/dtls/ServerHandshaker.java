@@ -1037,7 +1037,7 @@ public class ServerHandshaker extends Handshaker {
 	private List<CipherSuite> getCommonCipherSuites(ClientHello clientHello) {
 		List<CipherSuite> supported = supportedCipherSuites;
 		CipherSuite sessionCipherSuite = getSession().getCipherSuite();
-		if (!sessionCipherSuite.equals(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
+		if (sessionCipherSuite.isValidForNegotiation()) {
 			// resumption, limit handshake to use the same cipher suite
 			supported = Arrays.asList(sessionCipherSuite);
 		}
