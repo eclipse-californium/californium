@@ -357,7 +357,7 @@ public class InMemoryConnectionStoreTest {
 
 	@Test
 	public void testSaveAndLoadMaliciousConnections() throws Exception {
-		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class);
+		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class, InMemoryReadWriteLockConnectionStore.class);
 
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 		assertTrue(store.put(con));

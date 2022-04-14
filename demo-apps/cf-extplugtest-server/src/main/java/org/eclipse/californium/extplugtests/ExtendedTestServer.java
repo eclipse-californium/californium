@@ -130,6 +130,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		@Override
 		public void applyDefinitions(Configuration config) {
 			// start on alternative port, 5783 and 5784
+			int processors = Runtime.getRuntime().availableProcessors();
 			config.set(DTLS_HANDSHAKE_RESULT_DELAY, 0, TimeUnit.MILLISECONDS);
 			config.set(CoapConfig.COAP_PORT, CoapConfig.COAP_PORT.getDefaultValue() + 100);
 			config.set(CoapConfig.COAP_SECURE_PORT, CoapConfig.COAP_SECURE_PORT.getDefaultValue() + 100);
@@ -139,20 +140,24 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
 			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 1000000);
-			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 60, TimeUnit.SECONDS);
+			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 3, TimeUnit.MINUTES);
 			config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
 			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1000000);
+			config.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 3, TimeUnit.MINUTES);
 			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
 			config.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
 			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PlugtestServer.PRESELECTED_CIPHER_SUITES);
+			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 1000000);
+			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
+			config.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
+			config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, true);
 			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 1, TimeUnit.HOURS);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);
 			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
-			int processors = Runtime.getRuntime().availableProcessors();
 			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
-			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, processors);
+			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, processors > 3 ? processors : 2);
 			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
 			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
 			config.set(UDP_DROPS_READ_INTERVAL, 2000, TimeUnit.MILLISECONDS);

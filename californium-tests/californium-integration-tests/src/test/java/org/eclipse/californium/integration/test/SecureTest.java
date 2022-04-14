@@ -146,7 +146,7 @@ public class SecureTest {
 	 * @throws Exception if the test fails
 	 */
 	public void testSecureHandshakes(int loop) throws Exception {
-		CoapEndpoint serverEndpoint = createEndpoint("server", TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
+		CoapEndpoint serverEndpoint = createEndpoint("server", "dummy", TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
 				TEST_DTLS_TIMEOUT, TEST_DTLS_PSK_DELAY);
 		CoapServer server = new CoapServer(serverEndpoint.getConfig());
 		server.addEndpoint(serverEndpoint);
@@ -155,7 +155,7 @@ public class SecureTest {
 		List<CoapEndpoint> clientEndpoints = new ArrayList<>();
 		int clients = TestScope.enableIntensiveTests() ? TEST_CLIENTS : 10;
 		for (int i = 0; i < clients; ++i) {
-			CoapEndpoint clientEndpoint = createEndpoint("client-" + i, TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
+			CoapEndpoint clientEndpoint = createEndpoint("client-" + i, "client-" + i , TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
 					TEST_DTLS_FAST_TIMEOUT, 0);
 			clientEndpoint.start();
 			clientEndpoints.add(clientEndpoint);
@@ -243,7 +243,7 @@ public class SecureTest {
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapTestEndpoint);
 	}
 
-	private CoapEndpoint createEndpoint(String tag, int exchangeTimeout, int coapTimeout, int dtlsTimeout,
+	private CoapEndpoint createEndpoint(String tag, String pskIdentity, int exchangeTimeout, int coapTimeout, int dtlsTimeout,
 			int pskDelay) {
 		// setup CoAP config
 		Configuration config = network.createTestConfig()
@@ -254,7 +254,10 @@ public class SecureTest {
 				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
 				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
 		// setup DTLS Config
-		AsyncAdvancedPskStore pskStore = new AsyncAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
+		TestUtilPskStore singlePskStore = new TestUtilPskStore();
+		singlePskStore.set(pskIdentity, PSK_KEY.getBytes());
+		singlePskStore.setCatchAll(true);
+		AsyncAdvancedPskStore pskStore = new AsyncAdvancedPskStore(singlePskStore);
 		pskStore.setDelay(-pskDelay);
 		pskStores.add(pskStore);
 		Builder builder = new DtlsConnectorConfig.Builder(config)

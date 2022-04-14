@@ -123,7 +123,7 @@
 	<logger name="org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
-	<logger name="org.eclipse.californium.scandium.dtls.InMemoryConnectionStore" level="INFO" additivity="false">
+	<logger name="org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 	<logger name="org.eclipse.californium.cluster.DtlsClusterManager" level="INFO" additivity="false">

@@ -114,6 +114,7 @@ import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloRequest;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore;
 import org.eclipse.californium.scandium.dtls.PSKClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
@@ -132,6 +133,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -922,6 +924,7 @@ public class DTLSConnectorTest {
 	 * HELLO_VERIFY_REQUEST and then an SERVER_HELLO, both with version DTLS
 	 * 1.0.
 	 */
+	@Ignore
 	@Test
 	public void testConnectorSendsHelloVerifyRequestAlsoForTooLowVersion() throws Exception {
 
@@ -1028,7 +1031,7 @@ public class DTLSConnectorTest {
 
 	@Test
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
-		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class);
+		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class, InMemoryReadWriteLockConnectionStore.class);
 		serverHelper.serverConnectionStore.clear();
 		assertEquals(SERVER_CONNECTION_STORE_CAPACITY, serverHelper.serverConnectionStore.remainingCapacity());
 		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050))

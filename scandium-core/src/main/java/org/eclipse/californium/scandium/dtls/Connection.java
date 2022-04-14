@@ -40,6 +40,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.Principal;
 import java.util.ConcurrentModificationException;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -69,7 +70,7 @@ import org.slf4j.LoggerFactory;
  * <ul>
  * <li>a potentially ongoing handshake with the peer</li>
  * <li>an already established session with the peer</li>
- * </ul> 
+ * </ul>
  */
 public final class Connection {
 
@@ -82,8 +83,9 @@ public final class Connection {
 	private volatile ConnectionListener connectionListener;
 
 	/**
-	 * Identifier of the Client Hello used to start the handshake. Maybe
-	 * {@code null}, for client side connections.
+	 * Identifier of the Client Hello used to start the handshake.
+	 * 
+	 * Maybe {@code null}, for client side connections.
 	 * 
 	 * Note: used outside of the serial-execution!
 	 * 
@@ -91,10 +93,25 @@ public final class Connection {
 	 */
 	private volatile ClientHelloIdentifier startingHelloClient;
 
+	/**
+	 * Established {@link DTLSContext}.
+	 */
 	private volatile DTLSContext establishedDtlsContext;
 
-	// Used to know when an abbreviated handshake should be initiated
-	private volatile boolean resumptionRequired; 
+	/**
+	 * Mark connection to require an abbreviated handshake.
+	 * 
+	 * Used to know when an abbreviated handshake should be initiated.
+	 */
+	private volatile boolean resumptionRequired;
+
+	/**
+	 * Mark connection as double though the principal has already a newer
+	 * connection.
+	 * 
+	 * @since 3.5
+	 */
+	private volatile boolean doublePrincipal;
 
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
@@ -120,7 +137,8 @@ public final class Connection {
 	/**
 	 * Creates a new connection to a given peer.
 	 * 
-	 * @param peerAddress the IP address and port of the peer the connection exists with
+	 * @param peerAddress the IP address and port of the peer the connection
+	 *            exists with
 	 * @throws NullPointerException if the peer address is {@code null}
 	 */
 	public Connection(InetSocketAddress peerAddress) {
@@ -155,7 +173,7 @@ public final class Connection {
 	 * @param listener connection listener.
 	 * @return this connection
 	 * @throws IllegalStateException if the connection is already executing
-	 * @since 3.0 (combines previous setExecutor and setExecutionListener) 
+	 * @since 3.0 (combines previous setExecutor and setExecutionListener)
 	 */
 	public Connection setConnectorContext(Executor executor, ConnectionListener listener) {
 		if (isExecuting()) {
@@ -213,13 +231,14 @@ public final class Connection {
 	}
 
 	/**
-	 * Checks whether this connection is either in use on this node or can be resumed by peers interacting with
-	 * this node.
+	 * Checks whether this connection is either in use on this node or can be
+	 * resumed by peers interacting with this node.
 	 * <p>
-	 * A connection that is not active is currently being negotiated by means of the <em>ongoingHandshake</em>.
+	 * A connection that is not active is currently being negotiated by means of
+	 * the <em>ongoingHandshake</em>.
 	 * 
-	 * @return {@code true} if this connection either already has an established session or
-	 *         contains a session that it can be resumed from.
+	 * @return {@code true} if this connection either already has an established
+	 *         session or contains a session that it can be resumed from.
 	 */
 	public boolean isActive() {
 		return establishedDtlsContext != null;
@@ -250,7 +269,7 @@ public final class Connection {
 	 * 
 	 * @param cid the connection id
 	 */
-	public void  setConnectionId(ConnectionId cid) {
+	public void setConnectionId(ConnectionId cid) {
 		this.cid = cid;
 		updateConnectionState();
 	}
@@ -279,7 +298,8 @@ public final class Connection {
 	 * Update the address of this connection's peer.
 	 * 
 	 * If the new address is {@code null}, an ongoing handshake is failed. A
-	 * non-null address could only be applied, if the dtls context is established.
+	 * non-null address could only be applied, if the dtls context is
+	 * established.
 	 * 
 	 * Note: to keep track of the associated address in the connection store,
 	 * this method must not be called directly. It must be called by calling
@@ -376,6 +396,7 @@ public final class Connection {
 
 	/**
 	 * Get endpoint context for reading messages.
+	 * 
 	 * @param attributes initial attributes
 	 * @param recordsPeer peer address of record. Only used, if connection has
 	 *            no {@link #peerAddress}.
@@ -404,7 +425,8 @@ public final class Connection {
 	 * This is the session of the {@link #establishedDtlsContext}, if not
 	 * {@code null}, or the session negotiated in the {@link #ongoingHandshake}.
 	 * 
-	 * @return the <em>current</em> session, or {@code null}, if no session exists
+	 * @return the <em>current</em> session, or {@code null}, if no session
+	 *         exists
 	 */
 	public DTLSSession getSession() {
 		DTLSContext dtlsContext = getDtlsContext();
@@ -412,6 +434,18 @@ public final class Connection {
 			return dtlsContext.getSession();
 		}
 		return null;
+	}
+
+	/**
+	 * Gets the {@link Principal} of the established session.
+	 * 
+	 * @return the {@link Principal} of the established session, or
+	 *         {@code null}, if not available.
+	 * @since 3.5
+	 */
+	public Principal getEstablishedPeerIdentity() {
+		DTLSContext context = getEstablishedDtlsContext();
+		return context == null ? null : context.getSession().getPeerIdentity();
 	}
 
 	/**
@@ -428,9 +462,11 @@ public final class Connection {
 	}
 
 	/**
-	 * Gets the DTLS session of an already established DTLS context that exists with this connection's peer.
+	 * Gets the DTLS session of an already established DTLS context that exists
+	 * with this connection's peer.
 	 * 
-	 * @return the session, or {@code null}, if no DTLS context has been established (yet)
+	 * @return the session, or {@code null}, if no DTLS context has been
+	 *         established (yet)
 	 */
 	public DTLSSession getEstablishedSession() {
 		DTLSContext context = getEstablishedDtlsContext();
@@ -438,9 +474,11 @@ public final class Connection {
 	}
 
 	/**
-	 * Checks, whether a DTLS context has already been established with the peer.
+	 * Checks, whether a DTLS context has already been established with the
+	 * peer.
 	 * 
-	 * @return {@code true}, if a DTLS context has been established, {@code false}, otherwise.
+	 * @return {@code true}, if a DTLS context has been established,
+	 *         {@code false}, otherwise.
 	 * @since 3.0 (replaces hasEstablishedSession)
 	 */
 	public boolean hasEstablishedDtlsContext() {
@@ -448,16 +486,19 @@ public final class Connection {
 	}
 
 	/**
-	 * Gets the already established DTLS context that exists with this connection's peer.
+	 * Gets the already established DTLS context that exists with this
+	 * connection's peer.
 	 * 
-	 * @return the DTLS context, or {@code null}, if no DTLS context has been established (yet)
+	 * @return the DTLS context, or {@code null}, if no DTLS context has been
+	 *         established (yet)
 	 */
 	public DTLSContext getEstablishedDtlsContext() {
 		return establishedDtlsContext;
 	}
 
 	/**
-	 * Gets the handshaker managing the currently ongoing handshake with the peer.
+	 * Gets the handshaker managing the currently ongoing handshake with the
+	 * peer.
 	 * 
 	 * @return the handshaker, or {@code null}, if no handshake is going on
 	 */
@@ -468,10 +509,32 @@ public final class Connection {
 	/**
 	 * Checks whether there is a handshake going on with the peer.
 	 * 
-	 * @return {@code true}, if a handshake is going on, {@code false}, otherwise.
+	 * @return {@code true}, if a handshake is going on, {@code false},
+	 *         otherwise.
 	 */
 	public boolean hasOngoingHandshake() {
 		return ongoingHandshake.get() != null;
+	}
+
+	/**
+	 * Check, if this connection belongs to double principal.
+	 * 
+	 * @return {@code true}, if the principal has already a newer connection,
+	 *         {@code false}, if not.
+	 * @since 3.5
+	 */
+	public boolean isDouble() {
+		return doublePrincipal;
+	}
+
+	/**
+	 * Mark connection as double, if the principal has already a newer
+	 * connection.
+	 * 
+	 * @since 3.5
+	 */
+	public void setDouble() {
+		doublePrincipal = true;
 	}
 
 	/**
@@ -495,7 +558,8 @@ public final class Connection {
 	 * 
 	 * Use the random and message sequence number contained in the CLIENT_HELLO.
 	 * 
-	 * Note: called outside of serial-execution and so requires external synchronization!
+	 * Note: called outside of serial-execution and so requires external
+	 * synchronization!
 	 * 
 	 * @param clientHello the message to check.
 	 * @return {@code true} if the given client hello has initially started this
@@ -521,7 +585,8 @@ public final class Connection {
 	 * CLIENT_HELLO. Removed, if when the handshake fails or with configurable
 	 * timeout after handshake completion.
 	 * 
-	 * Note: called outside of serial-execution and so requires external synchronization!
+	 * Note: called outside of serial-execution and so requires external
+	 * synchronization!
 	 * 
 	 * @param clientHello message which starts the connection.
 	 * @see #isStartedByClientHello(ClientHello)
@@ -535,11 +600,11 @@ public final class Connection {
 	}
 
 	/**
-	 * Gets the DTLS context containing the connection's <em>current</em> state for
-	 * the provided epoch.
+	 * Gets the DTLS context containing the connection's <em>current</em> state
+	 * for the provided epoch.
 	 * 
-	 * This is the {@link #establishedDtlsContext}, if not {@code null} and the read
-	 * epoch is matching. Or the DTLS context negotiated in the
+	 * This is the {@link #establishedDtlsContext}, if not {@code null} and the
+	 * read epoch is matching. Or the DTLS context negotiated in the
 	 * {@link #ongoingHandshake}, if not {@code null} and the read epoch is
 	 * matching. If both are {@code null}, or the read epoch doesn't match,
 	 * {@code null} is returned.
@@ -690,8 +755,8 @@ public final class Connection {
 	/**
 	 * Check, if resumption is required.
 	 * 
-	 * @return {@code true}, if an abbreviated handshake should be done next time a data
-	 *         will be sent on this connection.
+	 * @return {@code true}, if an abbreviated handshake should be done next
+	 *         time a data will be sent on this connection.
 	 */
 	public boolean isResumptionRequired() {
 		return resumptionRequired;
@@ -966,6 +1031,7 @@ public final class Connection {
 		}
 		establishedDtlsContext.writeTo(writer);
 		writer.writeByte(cid != null && cid.equals(establishedDtlsContext.getReadConnectionId()) ? (byte) 1 : (byte) 0);
+		writer.writeByte(doublePrincipal ? (byte) 1 : (byte) 0);
 		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 		return true;
 	}
@@ -1015,6 +1081,9 @@ public final class Connection {
 		}
 		if (reader.readNextByte() == 1) {
 			establishedDtlsContext.setReadConnectionId(cid);
+		}
+		if (reader.bytesAvailable() && reader.readNextByte() == 1) {
+			doublePrincipal = true;
 		}
 		reader.assertFinished("connection");
 	}

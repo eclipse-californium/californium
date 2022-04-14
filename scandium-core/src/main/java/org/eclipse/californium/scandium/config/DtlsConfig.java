@@ -861,6 +861,29 @@ public final class DtlsConfig {
 	public static final BooleanDefinition DTLS_USE_DEFAULT_RECORD_FILTER = new BooleanDefinition(
 			MODULE + "USE_DEFAULT_RECORD_FILTER", "Use default DTLS record filter.", true);
 
+	/**
+	 * Enable removing of stale connections, if the principal has also a newer
+	 * connection. Intended to free heap earlier for dynamic shared systems,
+	 * mainly useful with newer GC, as ZGC of java 17. Requires to have unique
+	 * principals and enabled {@link #DTLS_READ_WRITE_LOCK_CONNECTION_STORE}.
+	 * 
+	 * @since 3.5
+	 */
+	public static final BooleanDefinition DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS = new BooleanDefinition(
+			MODULE + "REMOVE_STALE_DOUBLE_PRINCIPALS",
+			"Remove stale double principals.\n" + 
+			"Requires unique principals and a read-write-lock connection store.",
+			false);
+
+	/**
+	 * Use read-write-lock connection store.
+	 * 
+	 * @since 3.5
+	 */
+	public static final BooleanDefinition DTLS_READ_WRITE_LOCK_CONNECTION_STORE = new BooleanDefinition(
+			MODULE + "READ_WRITE_LOCK_CONNECTION_STORE", "Use read-write-lock connection store.", false);
+
+
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
 		@Override
@@ -935,6 +958,8 @@ public final class DtlsConfig {
 			config.set(DTLS_USE_DEPRECATED_CID, null);
 			config.set(DTLS_SUPPORT_DEPRECATED_CID, false);
 			config.set(DTLS_USE_DEFAULT_RECORD_FILTER, true);
+			config.set(DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, false);
+			config.set(DTLS_READ_WRITE_LOCK_CONNECTION_STORE, false);
 		}
 	};
 

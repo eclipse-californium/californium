@@ -87,6 +87,7 @@ import org.eclipse.californium.scandium.dtls.DTLSConnectionState;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
+import org.eclipse.californium.scandium.dtls.DebugReadWriteLockConnectionStore;
 import org.eclipse.californium.scandium.dtls.DebugSynchronizedConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
@@ -128,6 +129,7 @@ public class ConnectorHelper {
 
 	static final ThreadFactory TEST_UDP_THREAD_FACTORY = new TestThreadFactory("TEST-UDP-");
 
+	boolean useSessionStore;
 	DTLSConnector server;
 	InetSocketAddress serverEndpoint;
 	DebugConnectionStore serverConnectionStore;
@@ -401,8 +403,16 @@ public class ConnectorHelper {
 
 	public static DebugConnectionStore createDebugConnectionStore(Configuration configuration,
 			SessionStore sessionStore) {
-		return new DebugSynchronizedConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
+		DebugConnectionStore store;
+		if (configuration.get(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE)) {
+			store = new DebugReadWriteLockConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
+					configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS), sessionStore,
+					configuration.get(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS));
+		} else {
+			store = new DebugSynchronizedConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
 					configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS), sessionStore);
+		}
+		return store;
 	}
 
 	public static class TestContext {
