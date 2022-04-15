@@ -30,10 +30,10 @@
 		<module>cf-plugtest-server</module>
 		<module>cf-proxy2</module>
 		<module>cf-secure</module>
-		<module>cf-simplefile-server</module>
 		<module>cf-unix-setup</module>
 		<module>sc-dtls-example-client</module>
 		<module>sc-dtls-example-server</module>
+		<module>cf-simplefile-server</module>
 	</modules>
 
 	<properties>

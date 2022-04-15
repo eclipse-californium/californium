@@ -1,5 +1,8 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version='1.0' encoding='UTF-8'?>
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
@@ -9,7 +12,7 @@
 	</parent>
 
 	<artifactId>cf-oscore</artifactId>
-	<packaging>jar</packaging>
+	<packaging>bundle</packaging>
 
 	<name>Cf-OSCORE</name>
 	<description>Californium (Cf) OSCORE, Object Security for Constrained RESTful Environments</description>
@@ -61,6 +64,26 @@
 					<descriptorRefs>
 						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
 					</descriptorRefs>
+					<archive>
+						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+					</archive>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.cose,
+							org.eclipse.californium.oscore
+						</Export-Package>
+						<Import-Package>
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.groupId}.oscore</Bundle-SymbolicName>
+					</instructions>
 				</configuration>
 			</plugin>
 		</plugins>
