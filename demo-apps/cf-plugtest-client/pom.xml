@@ -11,6 +11,7 @@
 		<version>3.5.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>cf-plugtest-client</artifactId>
+	<packaging>jar</packaging>
 
 	<name>Cf-PlugtestClient</name>
 	<description>Californium (Cf) ETSI Plugtest client</description>
@@ -20,18 +21,13 @@
 			folder, if am additional project dependency to "cf-cli-tcp-netty" is added 
 			in order to execute the demo from the IDE with tcp-support -->
 		<maven.test.skip>true</maven.test.skip>
+		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
+		<skipStaging>false</skipStaging>
+		<maven.javadoc.skip>false</maven.javadoc.skip>
 		<assembly.mainClass>org.eclipse.californium.plugtests.PlugtestClient</assembly.mainClass>
 	</properties>
 
 	<dependencies>
-		<!-- dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>californium-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>scandium</artifactId>
-		</dependency-->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>cf-cli</artifactId>
@@ -40,14 +36,6 @@
 			<groupId>${project.groupId}</groupId>
 			<artifactId>cf-oscore</artifactId>
 		</dependency>
-		<!-- dependency>
-			<groupId>com.upokecenter</groupId>
-			<artifactId>cbor</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.google.code.gson</groupId>
-			<artifactId>gson</artifactId>
-		</dependency-->
 
 		<!-- runtime dependencies -->
 		<dependency>
