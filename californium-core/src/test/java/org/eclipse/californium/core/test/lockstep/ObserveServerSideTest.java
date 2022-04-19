@@ -403,6 +403,31 @@ public class ObserveServerSideTest {
 
 		Assert.assertEquals("Resource has not removed observe relation:", 0, waitForObservers(ACK_TIMEOUT + 100, 0));
 	}
+	@Test
+	public void testGetNONNotifyCON() throws Exception {
+
+		respPayload = generateRandomPayload(30);
+		Token tok = generateNextToken();
+
+		testObsResource.setObserveType(CON);
+
+		client.sendRequest(NON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
+		client.expectResponse().type(NON).code(CONTENT).token(tok).storeObserve("A").payload(respPayload).go();
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+		serverInterceptor.logNewLine("Observe relation established");
+
+		// First notification
+		testObsResource.change("First notification " + generateRandomPayload(10));
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").payload(respPayload).go();
+		client.sendEmpty(ACK).loadMID("MID").go();
+
+		// Second notification
+		testObsResource.change("Second notification " + generateRandomPayload(10));
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("B", "C").payload(respPayload).go();
+		client.sendEmpty(RST).loadMID("MID").go();
+
+		Assert.assertEquals("Resource has not removed observe relation:", 0, waitForObservers(ACK_TIMEOUT + 100, 0));
+	}
 
 	@Test
 	public void testRejectPreviousNON() throws Exception {
