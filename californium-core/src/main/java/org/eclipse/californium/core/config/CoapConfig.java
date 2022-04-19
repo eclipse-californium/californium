@@ -705,6 +705,27 @@ public final class CoapConfig {
 	public static final EnumDefinition<MatcherMode> RESPONSE_MATCHING = new EnumDefinition<>(
 			MODULE + "RESPONSE_MATCHING", "Response matching mode.", MatcherMode.STRICT, MatcherMode.values());
 
+	/**
+	 * Disable/enable strict empty message format processing.
+	 * 
+	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.1"
+	 * target="_blank">RFC7252, Section 4.1</a> defines:
+	 * 
+	 * <pre>
+	 * An Empty message has the Code field set to 0.00.  The Token Length
+	 * field MUST be set to 0 and bytes of data MUST NOT be present after
+	 * the Message ID field.  If there are any bytes, they MUST be processed
+	 * as a message format error.
+	 * </pre>
+	 * 
+	 * The behavior before 3.5 was ignoring such tokens, options or payload.
+	 * 
+	 * @since 3.5
+	 */
+	public static final BooleanDefinition STRICT_EMPTY_MESSAGE_FORMAT = new BooleanDefinition(
+			MODULE + "STRICT_EMPTY_MESSAGE_FORMAT", "Process empty messages strictly according RFC7252, 4.1 as format error. Disable to ignore additional data as tokens or options.", true);
+
+
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
 		@Override
@@ -767,6 +788,7 @@ public final class CoapConfig {
 			config.set(RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
 
 			config.set(MULTICAST_BASE_MID, DEFAULT_MULTICAST_BASE_MID);
+			config.set(STRICT_EMPTY_MESSAGE_FORMAT, true);
 		}
 	};
 

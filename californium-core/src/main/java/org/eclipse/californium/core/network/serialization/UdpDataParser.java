@@ -23,6 +23,7 @@
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -38,11 +39,13 @@ import org.eclipse.californium.core.coap.BlockOption;
  */
 public final class UdpDataParser extends DataParser {
 
+	private final boolean strictEmptyMessageFormat;
+	
 	/**
 	 * Create UDP data parser without checking for critical custom options.
 	 */
 	public UdpDataParser() {
-		super();
+		this(false, null);
 	}
 
 	/**
@@ -54,7 +57,34 @@ public final class UdpDataParser extends DataParser {
 	 * @since 3.4
 	 */
 	public UdpDataParser(int[] criticalCustomOptions) {
+		this(false, criticalCustomOptions);
+	}
+
+	/**
+	 * Create UDP data parser with support for critical custom options and
+	 * provided strictness for empty message format.
+	 * 
+	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.1"
+	 * target="_blank">RFC7252, Section 4.1</a> defines:
+	 * 
+	 * <pre>
+	 * An Empty message has the Code field set to 0.00.  The Token Length
+	 * field MUST be set to 0 and bytes of data MUST NOT be present after
+	 * the Message ID field.  If there are any bytes, they MUST be processed
+	 * as a message format error.
+	 * </pre>
+	 * 
+	 * @param strictEmptyMessageFormat {@code true}, to process messages with
+	 *            code {@code 0} strictly according RFC7252, 4.1.,
+	 *            {@code false}, to relax the MUST in a not compliant way!
+	 * @param criticalCustomOptions Array of critical custom options.
+	 *            {@code null}, to not check for critical custom options, empty
+	 *            to fail on custom critical options.
+	 * @since 3.5
+	 */
+	public UdpDataParser(boolean strictEmptyMessageFormat, int[] criticalCustomOptions) {
 		super(criticalCustomOptions);
+		this.strictEmptyMessageFormat = strictEmptyMessageFormat;
 	}
 
 	@Override
@@ -65,7 +95,9 @@ public final class UdpDataParser extends DataParser {
 		}
 		int version = reader.read(VERSION_BITS);
 		assertCorrectVersion(version);
-		int type = reader.read(TYPE_BITS);
+		int typeValue = reader.read(TYPE_BITS);
+		Type type = CoAP.Type.valueOf(typeValue);
+		boolean confirmable = type == CoAP.Type.CON;
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
 		if (tokenLength > 8) {
 			// must be treated as a message format error according to CoAP spec
@@ -74,13 +106,16 @@ public final class UdpDataParser extends DataParser {
 		}
 		int code = reader.read(CODE_BITS);
 		int mid = reader.read(MESSAGE_ID_BITS);
+		if (strictEmptyMessageFormat && code == 0 && reader.bytesAvailable()) {
+			throw new CoAPMessageFormatException("UDP malformed Empty Message!", null, mid, code, confirmable);
+		}
 		if (!reader.bytesAvailable(tokenLength)) {
 			throw new CoAPMessageFormatException("UDP Message too short for token! " + (reader.bitsLeft() / Byte.SIZE)
-					+ " must be at least " + tokenLength + " bytes!", null, mid, code, CoAP.Type.CON.value == type);
+					+ " must be at least " + tokenLength + " bytes!", null, mid, code, confirmable);
 		}
-		Token token = Token.fromProvider(reader.readBytes(tokenLength));
+ 		Token token = Token.fromProvider(reader.readBytes(tokenLength));
 
-		return new MessageHeader(version, CoAP.Type.valueOf(type), token, code, mid, 0);
+		return new MessageHeader(version, type, token, code, mid, 0);
 	}
 
 	@Override
