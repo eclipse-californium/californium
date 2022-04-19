@@ -1729,9 +1729,10 @@ public class CoapEndpoint implements Endpoint, Executor {
 			}
 			if (parser == null) {
 				if (CoAP.isTcpProtocol(connector.getProtocol())) {
-					parser = parser != null ? parser : new TcpDataParser(criticalCustomOptions);
+					parser = new TcpDataParser(criticalCustomOptions);
 				} else {
-					parser = parser != null ? parser : new UdpDataParser(criticalCustomOptions);
+					boolean strictEmptyMessageFormat = config.get(CoapConfig.STRICT_EMPTY_MESSAGE_FORMAT);
+					parser = new UdpDataParser(strictEmptyMessageFormat, criticalCustomOptions);
 				}
 			}
 			return new CoapEndpoint(connector, config, tokenGenerator, observationStore, exchangeStore,
