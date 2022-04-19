@@ -657,7 +657,11 @@ public class CoapEndpoint implements Endpoint, Executor {
 			request.setSendError(new IllegalArgumentException(addr + " is a unresolved address!"));
 			return;
 		}
-
+		if (request.isSent()) {
+			LOGGER.warn("{}request was already sent!", tag);
+			request.setSendError(new IllegalArgumentException("Request already sent!"));
+			return;
+		}
 		Object identity;
 		try {
 			identity = identityResolver.getEndpointIdentity(request.getDestinationContext());
@@ -685,6 +689,11 @@ public class CoapEndpoint implements Endpoint, Executor {
 			response.cancel();
 			return;
 		}
+		if (response.isSent()) {
+			LOGGER.warn("{}response was already sent!", tag);
+			response.setSendError(new IllegalArgumentException("Response already sent!"));
+			return;
+		}
 		if (exchange.checkOwner()) {
 			// send response while processing exchange.
 			coapstack.sendResponse(exchange, response);
@@ -703,6 +712,11 @@ public class CoapEndpoint implements Endpoint, Executor {
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 		if (!started) {
 			message.cancel();
+			return;
+		}
+		if (message.isSent()) {
+			LOGGER.warn("{}empty message was already sent!", tag);
+			message.setSendError(new IllegalArgumentException("Empty message already sent!"));
 			return;
 		}
 		if (exchange.checkOwner()) {

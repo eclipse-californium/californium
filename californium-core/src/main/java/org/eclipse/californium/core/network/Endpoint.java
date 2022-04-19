@@ -203,7 +203,9 @@ public interface Endpoint {
 	/**
 	 * Send the specified request.
 	 * 
-	 * Failures are reported with {@link Request#setSendError(Throwable)}
+	 * Failures are reported with {@link Request#setSendError(Throwable)}.
+	 * 
+	 * Note: since 3.5 sending a request instance twice causes a send error.
 	 *
 	 * @param request the request
 	 */
@@ -212,6 +214,8 @@ public interface Endpoint {
 	/**
 	 * Send the specified response.
 	 *
+	 * Note: since 3.5 sending a response instance twice causes a send error.
+	 * 
 	 * @param exchange the exchange
 	 * @param response the response
 	 */
@@ -220,6 +224,8 @@ public interface Endpoint {
 	/**
 	 * Send the specified empty message.
 	 *
+	 * Note: since 3.5 sending a empty message instance twice causes a send error.
+	 * 
 	 * @param exchange the exchange
 	 * @param message the message
 	 */
