@@ -658,8 +658,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 			return;
 		}
 		if (request.isSent()) {
-			LOGGER.warn("{}request was already sent!", tag);
-			request.setSendError(new IllegalArgumentException("Request already sent!"));
+			IllegalArgumentException exception = new IllegalArgumentException("Request already sent!");
+			LOGGER.error("{}request was already sent!", tag, exception);
+			request.setSendError(exception);
 			return;
 		}
 		Object identity;
@@ -690,8 +691,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 			return;
 		}
 		if (response.isSent()) {
-			LOGGER.warn("{}response was already sent!", tag);
-			response.setSendError(new IllegalArgumentException("Response already sent!"));
+			IllegalArgumentException exception = new IllegalArgumentException("Response already sent!");
+			LOGGER.error("{}response was already sent!", tag, exception);
+			response.setSendError(exception);
 			return;
 		}
 		if (exchange.checkOwner()) {
@@ -715,8 +717,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 			return;
 		}
 		if (message.isSent()) {
-			LOGGER.warn("{}empty message was already sent!", tag);
-			message.setSendError(new IllegalArgumentException("Empty message already sent!"));
+			IllegalArgumentException exception = new IllegalArgumentException("Empty message already sent!");
+			LOGGER.error("{}empty message was already sent!", tag, exception);
+			message.setSendError(exception);
 			return;
 		}
 		if (exchange.checkOwner()) {
