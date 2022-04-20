@@ -32,7 +32,7 @@ import org.eclipse.californium.proxy2.http.server.HttpServer;
 /**
  * Example HTTP server for proxy demonstration.
  * 
- * {@link http://localhost:8000/http-target}
+ * {@code http://localhost:8000/http-target}
  */
 public class ExampleHttpServer {
 

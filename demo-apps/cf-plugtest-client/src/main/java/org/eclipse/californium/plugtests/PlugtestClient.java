@@ -115,6 +115,8 @@ public class PlugtestClient {
 	 * Main entry point.
 	 * 
 	 * @param args the arguments
+	 * @throws IOException an i/o error occurred
+	 * @throws ConnectorException an issue specific to the connector occurred
 	 */
 	public static void main(String[] args) throws ConnectorException, IOException {
 

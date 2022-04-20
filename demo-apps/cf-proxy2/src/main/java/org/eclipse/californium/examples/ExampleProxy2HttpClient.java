@@ -32,14 +32,14 @@ import org.apache.hc.core5.http.message.StatusLine;
 import org.eclipse.californium.proxy2.http.server.ProxyHttpServer;
 
 /**
- * Class ExampleProxyHttpClient.<br/>
+ * Class ExampleProxyHttpClient.
  * 
  * Example proxy Http client which sends a request via {@link ProxyHttpServer}
- * to a coap-server.<br/>
+ * to a coap-server.
  * 
- * Http2Coap Uri:<br/>
- * <a href=
- * "http://localhost:8080/proxy/coap://localhost:5685/coap-target">http://localhost:8080/proxy/coap://localhost:5685/coap-target</a>.
+ * Http2Coap Uri:
+ * <a href="http://localhost:8080/proxy/coap://localhost:5685/coap-target">
+ * http://localhost:8080/proxy/coap://localhost:5685/coap-target</a>.
  */
 public class ExampleProxy2HttpClient {
 

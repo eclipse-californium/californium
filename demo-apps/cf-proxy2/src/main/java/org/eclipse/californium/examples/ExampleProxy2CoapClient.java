@@ -32,32 +32,42 @@ import org.eclipse.californium.examples.util.CoapResponsePrinter;
 import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
 
 /**
- * Class ExampleProxyCoapClient. <br/>
+ * Class ExampleProxyCoapClient.
+ * 
  * Example CoAP client which sends a request to Proxy Coap server with a
- * {@link ProxyHttpClientResource} to get the response from HttpServer. <br/>
+ * {@link ProxyHttpClientResource} to get the response from HttpServer.
  * 
- * For testing Coap2Http:<br/>
- * Destination: localhost:5683 (proxy's address)<br/>
- * Coap Uri: {@code coap://localhost:8000/http-target}<br/>
- * Proxy Scheme: {@code http}.
+ * For testing Coap2Http:
+ * <pre>
+ * Destination: localhost:5683 (proxy's address)
+ * Coap Uri: {@code coap://localhost:8000/http-target}
+ * Proxy Scheme: {@code http}
+ * </pre>
  * 
- * or <br/>
+ * or
  * 
- * Destination: localhost:5683 (proxy's address)<br/>
- * Proxy Uri: {@code http://user@localhost:8000/http-target}.<br/>
+ * <pre>
+ * Destination: localhost:5683 (proxy's address)
+ * Proxy Uri: {@code http://user@localhost:8000/http-target}
+ * </pre>
  * 
- * For testing Coap2coap: <br/>
- * Destination: localhost:5683 (proxy's address)<br/>
- * Coap Uri: {@code coap://localhost:5685/coap-target}.<br/>
+ * For testing Coap2coap:
+ * <pre>
+ * Destination: localhost:5683 (proxy's address)
+ * Coap Uri: {@code coap://localhost:5685/coap-target}
+ * </pre>
  * 
- * Deprecated modes:<br/>
- * Uri: {@code coap://localhost:8000/coap2http}. <br/>
- * Proxy Uri: {@code http://localhost:8000/http-target}.<br/>
+ * Deprecated modes:
+ * <pre>
+ * Uri: {@code coap://localhost:8000/coap2http}
+ * Proxy Uri: {@code http://localhost:8000/http-target}
+ * </pre>
  * 
- * For testing Coap2coap: <br/>
- * Uri: {@code coap://localhost:5683/coap2coap}. <br/>
- * Proxy Uri: {@code coap://localhost:5685/coap-target}.<br/>
- * 
+ * For testing Coap2coap:
+ * <pre>
+ * Uri: {@code coap://localhost:5683/coap2coap}
+ * Proxy Uri: {@code coap://localhost:5685/coap-target}
+ * </pre>
  */
 public class ExampleProxy2CoapClient {
 
