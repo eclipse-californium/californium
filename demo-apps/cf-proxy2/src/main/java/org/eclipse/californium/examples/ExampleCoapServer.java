@@ -38,7 +38,7 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
 /**
  * Example CoAP server for proxy demonstration.
  * 
- * {@link coap://localhost:5683/coap-target}
+ * {@code coap://localhost:5683/coap-target}
  */
 public class ExampleCoapServer {
 

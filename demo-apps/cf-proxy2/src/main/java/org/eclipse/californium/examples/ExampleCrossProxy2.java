@@ -70,14 +70,15 @@ import org.slf4j.LoggerFactory;
  * Demonstrates the examples for cross proxy functionality of CoAP.
  * 
  * Http2CoAP: Insert in browser: URI:
- * http://localhost:8080/proxy/coap://localhost:PORT/target
+ * {@code http://localhost:8080/proxy/coap://localhost:PORT/target}
  * 
  * Http2LocalCoAPResource: Insert in browser: URI:
- * http://localhost:8080/local/target
+ * {@code http://localhost:8080/local/target}
  * 
  * Http2CoAP: configure browser to use the proxy "localhost:8080". Insert in
  * browser: ("localhost" requests are not send to a proxy, so use the hostname
- * or none-local-ip-address) URI: http://<hostname>:5683/target/coap:
+ * or none-local-ip-address) URI:
+ * {@code http://<hostname>:5683/target/coap:}
  * 
  * CoAP2CoAP: Insert in Copper:
  * 

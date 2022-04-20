@@ -56,6 +56,7 @@ public class SecureEndpointPool extends EndpointPool {
 	 * @param config configuration to create endpoints.
 	 * @param mainExecutor main executor for endpoints
 	 * @param secondaryExecutor secondary executor for endpoints
+	 * @param dtlsConfig DTLS connector configuration
 	 */
 	public SecureEndpointPool(int size, int init, Configuration config, ScheduledExecutorService mainExecutor,
 			ScheduledExecutorService secondaryExecutor, DtlsConnectorConfig dtlsConfig) {
@@ -70,7 +71,7 @@ public class SecureEndpointPool extends EndpointPool {
 	 * Maybe overriden to create endpoints using other schemes and protocols.
 	 * 
 	 * @return new created secure endpoint.
-	 * @throws IOException
+	 * @throws IOException an i/o error occurred
 	 */
 	@Override
 	protected Endpoint createEndpoint() throws IOException {
