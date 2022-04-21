@@ -23,12 +23,23 @@ DO NOT USE IN PRODUCTION SYSTEMS!</description>
 	<build>
 		<resources>
 			<resource>
-				<directory>src/main/resources</directory>
+				<directory>scripts</directory>
 				<targetPath>unix-setup</targetPath>
-				<includes>
-					<include>*</include>
-				</includes>
+				<excludes>
+					<exclude>org/slf4j</exclude>
+					<exclude>ch/qos/logback</exclude>
+				</excludes>
 			</resource>
 		</resources>
+		<plugins>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
+					</descriptorRefs>
+				</configuration>
+			</plugin>
+		</plugins>
 	</build>
 </project>
