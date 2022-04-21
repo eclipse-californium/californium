@@ -52,6 +52,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
+import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -124,6 +125,8 @@ public class PlugtestServer extends AbstractTestServer {
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Plugtest Server";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 64;
+	private static final int DEFAULT_NOTIFY_INTERVAL_MILLIS = 5000;
+	private static final int MINIMUM_NOTIFY_INTERVAL_MILLIS = 5;
 
 	// exit codes for runtime errors
 	public static final int ERR_INIT_FAILED = 1;
@@ -198,6 +201,10 @@ public class PlugtestServer extends AbstractTestServer {
 
 		@Option(names = "--no-oscore", negatable = true, description = "use OSCORE.")
 		public boolean oscore = true;
+
+		@Option(names = "--notify-interval", description = "Interval for plugtest notifies. e.g. 5[s]. Minimum "
+				+ MINIMUM_NOTIFY_INTERVAL_MILLIS + "[ms], default " + DEFAULT_NOTIFY_INTERVAL_MILLIS + "[ms].")
+		public String notifyInterval;
 
 		@ArgGroup(exclusive = false)
 		public Store store;
@@ -381,11 +388,18 @@ public class PlugtestServer extends AbstractTestServer {
 				oscoreServerRid = initOscore(configuration, oscoreCtxDb);
 			}
 
+			long notifyIntervalMillis = DEFAULT_NOTIFY_INTERVAL_MILLIS;
+			if (config.notifyInterval != null) {
+				notifyIntervalMillis = TimeUnit.NANOSECONDS.toMillis(TimeDefinition.parse(config.notifyInterval));
+				if (notifyIntervalMillis < MINIMUM_NOTIFY_INTERVAL_MILLIS) {
+					notifyIntervalMillis = MINIMUM_NOTIFY_INTERVAL_MILLIS;
+				}
+			}
 			List<Protocol> protocols = config.getProtocols();
 
 			List<InterfaceType> types = config.getInterfaceTypes();
 
-			server = new PlugtestServer(configuration, protocolConfig, oscoreCtxDb, oscoreServerRid);
+			server = new PlugtestServer(configuration, protocolConfig, notifyIntervalMillis, oscoreCtxDb, oscoreServerRid);
 			server.setVersion(CALIFORNIUM_BUILD_VERSION);
 			server.setTag("PLUG-TEST");
 			add(server);
@@ -622,8 +636,8 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 	}
 
-	public PlugtestServer(Configuration config, Map<Select, Configuration> protocolConfig, HashMapCtxDB oscoreCtxDb,
-			byte[] oscoreServerRid) throws SocketException {
+	public PlugtestServer(Configuration config, Map<Select, Configuration> protocolConfig, long notifyIntervalMillis,
+			HashMapCtxDB oscoreCtxDb, byte[] oscoreServerRid) throws SocketException {
 		super(config, protocolConfig);
 
 		// add resources to the server
@@ -636,12 +650,12 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new LargeCreate());
 		add(new LargePost());
 		add(new LargeSeparate());
-		add(new Observe());
-		add(new ObserveNon());
+		add(new Observe(notifyIntervalMillis));
+		add(new ObserveNon(notifyIntervalMillis));
 		add(new ObserveReset());
-		add(new ObserveLarge());
-		add(new ObservePumping());
-		add(new ObservePumping(Type.NON));
+		add(new ObserveLarge(notifyIntervalMillis));
+		add(new ObservePumping(Type.CON, notifyIntervalMillis));
+		add(new ObservePumping(Type.NON, notifyIntervalMillis));
 		add(new LocationQuery());
 		add(new MultiFormat());
 		add(new Link1());

@@ -41,10 +41,12 @@ public class ObserveLarge extends CoapResource {
 	// The current time represented as string
 	private String time;
 
-	/*
-	 * Constructor for a new TimeResource
+	/**
+	 * Constructor for a new TimeResource.
+	 * 
+	 * @param notifyIntervalMillis notify interval in milliseconds
 	 */
-	public ObserveLarge() {
+	public ObserveLarge(long notifyIntervalMillis) {
 		super("obs-large");
 		setObservable(true);
 		getAttributes().setTitle("Observable resource which changes every 5 seconds");
@@ -54,7 +56,7 @@ public class ObserveLarge extends CoapResource {
 
 		// Set timer task scheduling
 		Timer timer = new Timer("OBSERVE-LARGE", true);
-		timer.schedule(new TimeTask(), 0, 5000);
+		timer.schedule(new TimeTask(), 0, notifyIntervalMillis);
 	}
 
 	/*

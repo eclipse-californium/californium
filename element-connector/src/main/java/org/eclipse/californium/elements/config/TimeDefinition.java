@@ -102,6 +102,22 @@ public class TimeDefinition extends DocumentedDefinition<Long> {
 
 	@Override
 	protected Long parseValue(String value) throws ValueException {
+		return parse(value);
+	}
+
+	/**
+	 * Parse textual time value.
+	 * 
+	 * @param value textual time value. e.g. {@code "100[s]"}. Supported time
+	 *            units: {@code "ns"} (nanoseconds), {@code "ys"}
+	 *            (microseconds), {@code "ms"} (milliseconds), {@code "s"}
+	 *            (seconds), {@code "min"} (minutes),{@code "h"} (hours), and
+	 *            {@code "d"} (days).
+	 * @return time value in {@link TimeUnit#NANOSECONDS}.
+	 * @throws ValueException if value is no valid time value.
+	 * @since 3.5
+	 */
+	public static Long parse(String value) throws ValueException {
 		TimeUnit valueUnit = TimeUnit.MILLISECONDS;
 		String num = value;
 		int pos = value.indexOf('[');

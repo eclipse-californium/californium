@@ -45,10 +45,12 @@ public class ObserveNon extends CoapResource {
 	// The current time represented as string
 	private String time;
 
-	/*
+	/**
 	 * Constructor for a new TimeResource
+	 * 
+	 * @param notifyIntervalMillis notify interval in milliseconds
 	 */
-	public ObserveNon() {
+	public ObserveNon(long notifyIntervalMillis) {
 		super("obs-non");
 		setObservable(true);
 		getAttributes().setTitle("Observable resource which changes every 5 seconds");
@@ -58,7 +60,7 @@ public class ObserveNon extends CoapResource {
 
 		// Set timer task scheduling
 		Timer timer = new Timer("OBSERVE-NON", true);
-		timer.schedule(new TimeTask(), 0, 5000);
+		timer.schedule(new TimeTask(), 0, notifyIntervalMillis);
 	}
 
 	/*
