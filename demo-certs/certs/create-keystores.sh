@@ -123,7 +123,7 @@ remove_keys() {
 
 remove_interop_keys() {
   echo "remove keys from californium-interoperability-tests"
-  DESTINATION_DIR=../../../../californium-tests/californium-interoperability-tests
+  DESTINATION_DIR=../../californium-tests/californium-interoperability-tests
   rm -f ${DESTINATION_DIR}/$TRUST_STORE_PEM
   rm -f ${DESTINATION_DIR}/$ROOT_TRUST_STORE_PEM
   rm -f ${DESTINATION_DIR}/$CA_TRUST_STORE_PEM
@@ -149,7 +149,7 @@ remove_interop_keys() {
 
 remove_extplugtest_keys() {
   echo "remove keys from cf-extplugtest-server"
-  DESTINATION_DIR=../../../../demo-apps/cf-extplugtest-server/service
+  DESTINATION_DIR=../../demo-apps/cf-extplugtest-server/service
   rm -f ${DESTINATION_DIR}/$CA_TRUST_STORE_PEM
   rm -f ${DESTINATION_DIR}/$CLIENT_KEY_STORE_PEM
   rm -f ${DESTINATION_DIR}/$SERVER_KEY_STORE_PEM
@@ -403,7 +403,7 @@ export_pem() {
 
 copy_pem() {
   echo "copy to californium-interoperability-tests"
-  DESTINATION_DIR=../../../../californium-tests/californium-interoperability-tests
+  DESTINATION_DIR=../../californium-tests/californium-interoperability-tests
   cp $TRUST_STORE_PEM $DESTINATION_DIR
   cp $ROOT_TRUST_STORE_PEM $DESTINATION_DIR
   cp $CA_TRUST_STORE_PEM $DESTINATION_DIR
@@ -424,7 +424,7 @@ copy_pem() {
   cp $SERVER_RSA_PRIVATE_KEY_PEM $DESTINATION_DIR
 
   echo "copy to cf-extplugtest-server"
-  DESTINATION_DIR=../../../../demo-apps/cf-extplugtest-server/service
+  DESTINATION_DIR=../../demo-apps/cf-extplugtest-server/service
   cp $CA_TRUST_STORE_PEM $DESTINATION_DIR
   cp $CLIENT_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_KEY_STORE_PEM $DESTINATION_DIR
