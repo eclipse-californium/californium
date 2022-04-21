@@ -893,6 +893,68 @@ public final class DtlsConfig {
 	public static final BooleanDefinition DTLS_READ_WRITE_LOCK_CONNECTION_STORE = new BooleanDefinition(
 			MODULE + "READ_WRITE_LOCK_CONNECTION_STORE", "Use read-write-lock connection store.", false);
 
+	/**
+	 * Quiet time for DTLS MAC error filter.
+	 * 
+	 * To decrypt a message and calculate the MAC requires CPU. If a peer sends
+	 * many messages with a broken MAC (maybe because the message is sent by an
+	 * other peer with a spoofed source address), that may lower the overall
+	 * performance. The MAC error filter counts therefore the MAC errors since
+	 * the last period of without MAC errors. This counter is reset to 0, if for
+	 * the quiet period no new MAC error occurs. If frequently new MAC errors
+	 * are detected and the the MAC error counter exceeds
+	 * {@link #DTLS_MAC_ERROR_FILTER_THRESHOLD}, all messages from that peer are
+	 * dropped before decryption in order to protect the CPU. This dropping last
+	 * for this quiet period and afterwards, the MAC error counter is reseted as
+	 * it is reseted, if no MAC error occurs for that time.
+	 * 
+	 * A value of {@code 0} disables the MAC error filter.
+	 * 
+	 * tn time n, c=n counter with value
+	 * 
+	 * <pre>
+	 * t1 ----- record MAC valid ---&gt; process
+	 *    ----- record MAC error ---&gt; drop after decryption, c=1
+	 *    ----- record MAC valid ---&gt; process
+	 *    ----- record MAC error ---&gt; drop after decryption, c=2
+	 *    ----- record MAC error ---&gt;drop after decryption, c=3
+	 * t2 ----- record MAC error ---&gt;drop after decryption, c=4 (&gt; threshold 3), activate MAC error filter
+	 *    ----- record MAC error ---&gt; drop by filter
+	 *    ----- record MAC error ---&gt; drop by filter
+	 *    ----- record MAC valid ---&gt; drop by filter
+	 *    ----- record MAC error ---&gt; drop by filter
+	 * t3 ----- record MAC error ---&gt; drop after decryption (t3 - t2 &gt; quiet time), c=0, deactivate MAC error filter
+	 *    ----- record MAC valid ---&gt; process
+	 *    ----- record MAC error ---&gt; drop after decryption, c=1
+	 * t4 ----- record MAC valid ---&gt; process
+	 *    ----- record MAC valid ---&gt; process
+	 *    ----- record MAC valid ---&gt; process
+	 *    ----- record MAC valid ---&gt; process
+	 * t5 ----- record MAC valid ---&gt; process, c=0, (t5 - t4 &gt; quiet time), reset counter
+	 * </pre>
+	 * 
+	 * @since 3.6
+	 */
+	public static final TimeDefinition DTLS_MAC_ERROR_FILTER_QUIET_TIME = new TimeDefinition(
+			MODULE + "MAC_ERROR_FILTER_QUIET_TIME",
+			"Quiet time to reset MAC error filter.\n"
+					+ "The MAC error filter blocks all traffic for an endpoint, if since the last quiet period the number of new MAC errors exceeds a threshold.\n"
+					+ "0 to disable the MAC error filter.",
+			0, TimeUnit.SECONDS);
+
+	/**
+	 * Threshold for DTLS MAC error filter.
+	 * 
+	 * Maximum number of MAC errors, before all messages are dropped for the
+	 * {@link #DTLS_MAC_ERROR_FILTER_QUIET_TIME}. A value of {@code 0} disables
+	 * the MAC error filter.
+	 * 
+	 * @since 3.6
+	 */
+	public static final IntegerDefinition DTLS_MAC_ERROR_FILTER_THRESHOLD = new IntegerDefinition(
+			MODULE + "MAC_ERROR_FILTER_THRESHOLD",
+			"Threshold of current MAC errors to block all traffic for an endpoint. 0 to disable the MAC error filter.",
+			0, 0);
 
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
@@ -970,6 +1032,8 @@ public final class DtlsConfig {
 			config.set(DTLS_USE_DEFAULT_RECORD_FILTER, true);
 			config.set(DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, false);
 			config.set(DTLS_READ_WRITE_LOCK_CONNECTION_STORE, false);
+			config.set(DTLS_MAC_ERROR_FILTER_QUIET_TIME, 0, TimeUnit.SECONDS);
+			config.set(DTLS_MAC_ERROR_FILTER_THRESHOLD, 0);
 		}
 	};
 

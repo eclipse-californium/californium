@@ -59,6 +59,7 @@ import org.eclipse.californium.elements.util.SerialExecutor.ExecutionListener;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.DatagramFilter;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,6 +123,12 @@ public final class Connection {
 	private InetSocketAddress peerAddress;
 	private InetSocketAddress router;
 	private ConnectionId cid;
+	/**
+	 * Data of this connection specific for the used {@link DatagramFilter}.
+	 * 
+	 * @since 3.6
+	 */
+	private Object filterData;
 
 	/**
 	 * Root cause of alert.
@@ -272,6 +279,32 @@ public final class Connection {
 	public void setConnectionId(ConnectionId cid) {
 		this.cid = cid;
 		updateConnectionState();
+	}
+
+	/**
+	 * Set filter data.
+	 * 
+	 * Intended to be used by {@link DatagramFilter} implementations. The filter
+	 * data is not persisted and considered to be short living.
+	 * 
+	 * @param filterData filter specific data
+	 * @since 3.6
+	 */
+	public void setFilterData(Object filterData) {
+		this.filterData = filterData;
+	}
+
+	/**
+	 * Get filter data.
+	 * 
+	 * Intended to be used by {@link DatagramFilter} implementations. The filter
+	 * data is not persisted and considered to be short living.
+	 * 
+	 * @return filter data. May be {@code null}.
+	 * @since 3.6
+	 */
+	public Object getFilterData() {
+		return filterData;
 	}
 
 	/**

@@ -87,7 +87,7 @@ public interface ConnectionListener {
 	 * Callback, when the record could not be decrypted caused by an error.
 	 * 
 	 * @param connection connection
-	 * @return {@code true}, when maximum number of records is reached and the
+	 * @return {@code true}, when maximum number of MAC errors is reached and the
 	 *         connection is to be closed, {@code false}, otherwise.
 	 * @since 3.0
 	 */
