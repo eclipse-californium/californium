@@ -39,7 +39,7 @@ For a systemd service it's a good practice, to run it as "no root, no login user
 sudo adduser --system --home /home/cali --disabled-login cali
 ```
  
-([Download template to copy lines from](src/main/resources/install.sh) )
+([Download template to copy lines from](scripts/install.sh) )
 
 Check, if "/home/cali" have been created successfully.
 Now move the californium.jar into the "/home/cali" folder using "cf-plugtest-server-update.jar" as destination
@@ -76,7 +76,7 @@ OOMPolicy=stop
 WantedBy=multi-user.target
 ```
 
-[Download "cali.service" file](src/main/resources/cali.service)
+[Download "cali.service" file](scripts/cali.service)
 
 Depending on the number of connectors, the value of `TasksMax` in the service description must be adapted. There may be also a limit of  `TasksMax` from the machine it runs on. Especially, if a container solution is used instead of VM.  Check, if  "/proc/user_beancounters" is available, and if so, check the number of "numproc". The required number depends also from the used configuration value in the "Californium???3.properties". Check the values for receiving and sending threads per connector.  
 
@@ -114,18 +114,18 @@ users:
    no_user_group: true
 
 runcmd:
- - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/src/main/resources/cali.service", -O, "/etc/systemd/system/cali.service" ]
+ - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/scripts/cali.service", -O, "/etc/systemd/system/cali.service" ]
  - [ wget, "https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar", -O, "/home/cali/cf-plugtest-server-update.jar" ]
  - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-plugtest-server/src/main/resources/logback.xml", -O, "/home/cali/logback.xml" ]
  - [ systemctl, start, cali ]
  - [ systemctl, enable, cali ]
- - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/src/main/resources/fail2ban/cali2fail.conf", -O, "/etc/fail2ban/jail.d/cali2fail.conf" ]
- - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/src/main/resources/fail2ban/cali.conf", -O, "/etc/fail2ban/filter.d/cali.conf" ]
+ - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/scripts/fail2ban/cali2fail.conf", -O, "/etc/fail2ban/jail.d/cali2fail.conf" ]
+ - [ wget, "https://github.com/eclipse/californium/raw/master/demo-apps/cf-unix-setup/scripts/fail2ban/cali.conf", -O, "/etc/fail2ban/filter.d/cali.conf" ]
  - [ sleep, 5 ]
  - [ systemctl, restart, fail2ban ]
 ```
 
-[cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml)
+[cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml)
 
 This updates all packages, installs a java runtime and [fail2ban](#fail2ban). It the follows the manual installation, copying files and configuring the systemd service. The used files are downloaded from this git repository and the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
 
@@ -133,9 +133,9 @@ This updates all packages, installs a java runtime and [fail2ban](#fail2ban). It
 
 [Exoscale - European cloud hosting](https://www.exoscale.com/)
 
-[deploy_exo.sh](src/main/resources/cloud-installs/deploy_exo.sh)
+[deploy_exo.sh](scripts/cloud-installs/deploy_exo.sh)
 
-This script uses the exoscale cli (exo) to create a compute instance and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
+This script uses the exoscale cli (exo) to create a compute instance and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
 
 Features: IPv4, IPv6, Firewall
 
@@ -145,9 +145,9 @@ For further instructions see the comments in that script.
 
 [DigitalOcean - The developer cloud](https://www.digitalocean.com/)
 
-[deploy_do.sh](src/main/resources/cloud-installs/deploy_do.sh)
+[deploy_do.sh](scripts/cloud-installs/deploy_do.sh)
 
-This script uses the digitalocean cli (doctl) to create a compute droplet and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
+This script uses the digitalocean cli (doctl) to create a compute droplet and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
 
 Features: IPv4, IPv6, Firewall
 
@@ -157,9 +157,9 @@ For further instructions see the comments in that script.
 
 [Google Cloud - Cloud-Computing-Service](https://cloud.google.com)
 
-[deploy_gcloud.sh](src/main/resources/cloud-installs/deploy_gcloud.sh)
+[deploy_gcloud.sh](scripts/cloud-installs/deploy_gcloud.sh)
 
-This script uses the google cloud API (gcloud) to create a compute instance and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
+This script uses the google cloud API (gcloud) to create a compute instance and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
 
 Features: IPv4, Firewall
 
@@ -169,9 +169,9 @@ For further instructions see the comments in that script.
 
 [Azure - Cloud-Computing-Service](https://azure.microsoft.com)
 
-[deploy_azure.sh](src/main/resources/cloud-installs/deploy_azure.sh)
+[deploy_azure.sh](scripts/cloud-installs/deploy_azure.sh)
 
-This script uses the azure cloud API (az) to create a vm and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
+This script uses the azure cloud API (az) to create a vm and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
 
 Features: IPv4, Firewall
 
@@ -181,9 +181,9 @@ For further instructions see the comments in that script.
 
 [Amazon Web Service](https://aws.amazon.com)
 
-[deploy_aws.sh](src/main/resources/cloud-installs/deploy_aws.sh)
+[deploy_aws.sh](scripts/cloud-installs/deploy_aws.sh)
 
-This script uses the aws API (aws) to create a vm and the [cloud-config.yaml](src/main/resources/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
+This script uses the aws API (aws) to create a vm and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.4.0/cf-plugtest-server-3.4.0.jar).
 
 Features: IPv4, Firewall
 
@@ -322,7 +322,7 @@ before = common.conf
 failregex = Ban:\s+<HOST>
 ```
 
-and copy [cali.conf](src/main/resources/fail2ban/cali.conf) into folder "/etc/fail2ban/filter.d". That selects the `<HOST>` after the tag "Ban:".
+and copy [cali.conf](scripts/fail2ban/cali.conf) into folder "/etc/fail2ban/filter.d". That selects the `<HOST>` after the tag "Ban:".
 
 Then create a jail:
 
@@ -349,7 +349,7 @@ logpath  = /home/cali/logs/ban.log
 maxretry = 3
 ```
 
-and copy [cali2fail.conf](src/main/resources/fail2ban/cali2fail.conf) into folder "/etc/fail2ban/jail.d". That applies the before defined filter to the "ban.log" and "jails" `<HOST>` on 3 failures within the last 5 (300s) minutes for 30 minutes (1800s).
+and copy [cali2fail.conf](scripts/fail2ban/cali2fail.conf) into folder "/etc/fail2ban/jail.d". That applies the before defined filter to the "ban.log" and "jails" `<HOST>` on 3 failures within the last 5 (300s) minutes for 30 minutes (1800s).
 
 To check the jail, use
 
