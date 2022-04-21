@@ -791,6 +791,174 @@ public class CoapClient {
 		asynchronous(request, handler);
 	}
 
+	// Synchronous PATCH
+
+	/**
+	 * Sends a PATCH request with the specified payload and the specified content
+	 * format option and blocks until the response is available.
+	 *
+	 * @param payload the payload
+	 * @param format the Content-Format
+	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
+	 *
+	 * @since 3.5
+	 */
+	public CoapResponse patch(String payload, int format) throws ConnectorException, IOException {
+		Request request = newPatch();
+		request.setPayload(payload);
+		request.getOptions().setContentFormat(format);
+		assignClientUriIfEmpty(request);
+		return synchronous(request);
+	}
+
+	/**
+	 * Sends a PATCH request with the specified payload and the specified content
+	 * format option and blocks until the response is available.
+	 *
+	 * @param payload the payload
+	 * @param format the Content-Format
+	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
+	 *
+	 * @since 3.5
+	 */
+	public CoapResponse patch(byte[] payload, int format) throws ConnectorException, IOException {
+		Request request = newPatch();
+		request.setPayload(payload);
+		request.getOptions().setContentFormat(format);
+		assignClientUriIfEmpty(request);
+		return synchronous(request);
+	}
+
+	/**
+	 * Sends a PATCH request with the specified payload, the specified content
+	 * format and the specified Accept option and blocks until the response is
+	 * available.
+	 *
+	 * @param payload the payload
+	 * @param format the Content-Format
+	 * @param accept the Accept option
+	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
+	 *
+	 * @since 3.5
+	 */
+	public CoapResponse patch(String payload, int format, int accept) throws ConnectorException, IOException {
+		Request request = newPatch();
+		request.setPayload(payload);
+		request.getOptions().setContentFormat(format);
+		request.getOptions().setAccept(accept);
+		assignClientUriIfEmpty(request);
+		return synchronous(request);
+	}
+
+	/**
+	 * Sends a PATCH request with the specified payload, the specified content
+	 * format and the specified Accept option and blocks until the response is
+	 * available.
+	 *
+	 * @param payload the payload
+	 * @param format the Content-Format
+	 * @param accept the Accept option
+	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
+	 *
+	 * @since 3.5
+	 */
+	public CoapResponse patch(byte[] payload, int format, int accept) throws ConnectorException, IOException {
+		Request request = newPatch();
+		request.setPayload(payload);
+		request.getOptions().setContentFormat(format);
+		request.getOptions().setAccept(accept);
+		assignClientUriIfEmpty(request);
+		return synchronous(request);
+	}
+
+	// Asynchronous PATCH
+
+	/**
+	 * Sends a PATCH request with the specified payload and the specified content
+	 * format and invokes the specified handler when a response arrives.
+	 *
+	 * @param handler the Response handler
+	 * @param payload the payload
+	 * @param format the Content-Format
+	 *
+	 * @since 3.5
+	 */
+	public void patch(CoapHandler handler, String payload, int format) {
+		Request request = newPatch();
+		request.setPayload(payload);
+		request.getOptions().setContentFormat(format);
+		assignClientUriIfEmpty(request);
+		asynchronous(request, handler);
+	}
+
+	/**
+	 * Sends a PATCH request with the specified payload and the specified content
+	 * format and invokes the specified handler when a response arrives.
+	 *
+	 * @param handler the Response handler
+	 * @param payload the payload
+	 * @param format the Content-Format
+	 *
+	 * @since 3.5
+	 */
+	public void patch(CoapHandler handler, byte[] payload, int format) {
+		Request request = newPatch();
+		request.setPayload(payload);
+		request.getOptions().setContentFormat(format);
+		assignClientUriIfEmpty(request);
+		asynchronous(request, handler);
+	}
+
+	/**
+	 * Sends a PATCH request with the specified payload, the specified content
+	 * format and accept and invokes the specified handler when a response
+	 * arrives.
+	 *
+	 * @param handler the Response handler
+	 * @param payload the payload
+	 * @param format the Content-Format
+	 * @param accept the Accept option
+	 *
+	 * @since 3.5
+	 */
+	public void patch(CoapHandler handler, String payload, int format, int accept) {
+		Request request = newPatch();
+		request.setPayload(payload);
+		request.getOptions().setContentFormat(format);
+		request.getOptions().setAccept(accept);
+		assignClientUriIfEmpty(request);
+		asynchronous(request, handler);
+	}
+
+	/**
+	 * Sends a PATCH request with the specified payload, the specified content
+	 * format and accept and invokes the specified handler when a response
+	 * arrives.
+	 *
+	 * @param handler the Response handler
+	 * @param payload the payload
+	 * @param format the Content-Format
+	 * @param accept the Accept option
+	 *
+	 * @since 3.5
+	 */
+	public void patch(CoapHandler handler, byte[] payload, int format, int accept) {
+		Request request = newPatch();
+		request.setPayload(payload);
+		request.getOptions().setContentFormat(format);
+		request.getOptions().setAccept(accept);
+		assignClientUriIfEmpty(request);
+		asynchronous(request, handler);
+	}
+
 	// Synchronous PUT
 
 	/**
@@ -1426,6 +1594,17 @@ public class CoapClient {
 	 */
 	private Request newPost() {
 		return applyRequestType(Request.newPost());
+	}
+
+	/*
+	 * Create a PATCH request with a type specified in the client
+	 *
+	 * @return the request
+	 *
+	 * @since 3.5
+	 */
+	private Request newPatch() {
+		return applyRequestType(Request.newPatch());
 	}
 
 	/*
