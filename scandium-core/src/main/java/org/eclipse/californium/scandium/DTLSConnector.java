@@ -1765,7 +1765,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		}
 		if (datagramFilter != null) {
 			if (!datagramFilter.onReceiving(packet)) {
-				DROP_LOGGER.trace("Filter out record with {} bytes from [{}]", packet.getLength(),
+				DROP_LOGGER.trace("Filter out packet with {} bytes from [{}]", packet.getLength(),
 						StringUtil.toLog(peerAddress));
 				if (health != null) {
 					health.receivingRecord(true);
@@ -2019,6 +2019,17 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			}
 
 			if (!record.isDecoded()) {
+				if (datagramFilter != null) {
+					if (!datagramFilter.onReceiving(record, connection)) {
+						DROP_LOGGER.trace("Filter out record with {} bytes from [{}]", record.size(),
+								StringUtil.toLog(record.getPeerAddress()));
+						if (health != null) {
+							health.receivingRecord(true);
+						}
+						return;
+					}
+				}
+
 				// application data may be deferred again until the session is
 				// really established
 				record.setDeprecatedMac(context.useDeprecatedCid());
@@ -2060,11 +2071,16 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		} catch (InvalidMacException e) {
 			DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
 			if (dtlsContext != null) {
+				boolean close = false;
 				dtlsContext.incrementMacErrors();
+				if (datagramFilter != null) {
+					close = datagramFilter.onMacError(record, connection);
+				}
 				if (connectionListener != null) {
-					if (connectionListener.onConnectionMacError(connection)) {
-						closeConnection(connection);
-					}
+					close = connectionListener.onConnectionMacError(connection) || close;
+				}
+				if (close) {
+					closeConnection(connection);
 				}
 			}
 			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}", record.getType(),

@@ -153,6 +153,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
 			config.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
 			config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, true);
+			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, 4, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD, 8);
 			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 1, TimeUnit.HOURS);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);
 			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);

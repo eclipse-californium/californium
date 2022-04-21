@@ -2266,8 +2266,17 @@ public final class DtlsConnectorConfig {
 						"Removing stale double principals requires the read-write-lock connection store!!");
 			}
 
+			long quietTime = config.get(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, TimeUnit.NANOSECONDS);
+			int threshold = config.get(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD);
+			if (quietTime == 0 ^ threshold == 0) {
+				throw new IllegalStateException(
+						"DTLS MAC error filter configuration ambig! Use 0 for both, or larger than 0 for both!");
+			}
 			if (config.datagramFilter == null && config.get(DtlsConfig.DTLS_USE_DEFAULT_RECORD_FILTER)) {
-				config.datagramFilter = new DtlsDatagramFilter();
+				config.datagramFilter = new DtlsDatagramFilter(config.configuration);
+			}
+			if (config.datagramFilter == null && threshold > 0) {
+				throw new IllegalStateException("Enabled DTLS MAC error filter requires a record-filter!");
 			}
 
 			Integer cidCodePoint = config.useDeprecatedCid();

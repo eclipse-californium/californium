@@ -17,6 +17,9 @@ package org.eclipse.californium.scandium;
 
 import java.net.DatagramPacket;
 
+import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.Record;
+
 /**
  * Filter for incoming datagrams.
  * 
@@ -32,4 +35,26 @@ public interface DatagramFilter {
 	 *         it.
 	 */
 	boolean onReceiving(DatagramPacket packet);
+
+	/**
+	 * Check and filter incoming record using the {@link Connection}'s state.
+	 * 
+	 * @param record incoming record
+	 * @param connection connection for incoming record
+	 * @return {@code true}, continue to process record, {@code false} to drop
+	 *         it.
+	 * @since 3.6
+	 */
+	boolean onReceiving(Record record, Connection connection);
+
+	/**
+	 * Report MAC error.
+	 * 
+	 * @param record incoming record
+	 * @param connection connection for incoming record
+	 * @return {@code true}, when the connection is to be closed, {@code false},
+	 *         otherwise.
+	 * @since 3.6
+	 */
+	boolean onMacError(Record record, Connection connection);
 }
