@@ -23,6 +23,8 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.cert.CertPathValidatorException;
+import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
@@ -34,6 +36,7 @@ import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * ASN.1 DER decoder for SEQUENCEs and OIDs.
@@ -365,6 +368,8 @@ public class Asn1DerDecoder {
 	private static final OidEntityDefinition OID = new OidEntityDefinition();
 	/**
 	 * ASN.1 entity definition for INTEGER.
+	 * 
+	 * Converts values up to 4 bytes into {@code int}.
 	 */
 	private static final IntegerEntityDefinition INTEGER = new IntegerEntityDefinition();
 	/**
@@ -915,6 +920,88 @@ public class Asn1DerDecoder {
 			}
 		}
 		return keys;
+	}
+
+	/**
+	 * Checks, if chain contains a vulnerable ECDSA signature.
+	 * 
+	 * @param chain certificate chain to check.
+	 * @param trust trusted certificate
+	 * @param last number of certificates to check in chain.
+	 * @throws CertPathValidatorException if signature contains INTEGER values
+	 *             not in range {@code [1, N-1]}.
+	 * @see #checkEcDsaSignature(byte[], PublicKey)
+	 * @since 3.5
+	 */
+	public static void checkCertificateChain(List<X509Certificate> chain, X509Certificate trust, int last)
+			throws CertPathValidatorException {
+		try {
+			for (int index = 0; index < last; ++index) {
+				X509Certificate certificate = chain.get(index);
+				String signatureAlgorithm = certificate.getSigAlgName();
+				if (signatureAlgorithm.endsWith("withECDSA") || signatureAlgorithm.endsWith("WITHECDSA")) {
+					X509Certificate issuerCertificate;
+					if (index + 1 < chain.size()) {
+						issuerCertificate = chain.get(index + 1);
+					} else {
+						issuerCertificate = trust;
+					}
+					Asn1DerDecoder.checkEcDsaSignature(certificate.getSignature(), issuerCertificate.getPublicKey());
+				}
+			}
+		} catch (GeneralSecurityException ex) {
+			throw new CertPathValidatorException(ex.getMessage());
+		}
+	}
+
+	/**
+	 * Check, if provided ECDSA signature is vulnerable.
+	 * 
+	 * Some java JCE versions 15 to 18 fail to check the signature for 0 and n.
+	 * This method adds that check.
+	 * 
+	 * @param signature received signature.
+	 * @param publicKey public key to read the order (N)
+	 * @throws GeneralSecurityException if signature contains INTEGER values not
+	 *             in range {@code [1, N-1]}.
+	 * @see JceProviderUtil#isEcdsaVulnerable()
+	 * @see <a href=
+	 *      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21449"
+	 *      target="_blank">CVE-2022-21449</a>
+	 * @since 3.5
+	 */
+	public static void checkEcDsaSignature(byte[] signature, PublicKey publicKey) throws GeneralSecurityException {
+		DatagramReader reader = new DatagramReader(signature, false);
+		reader = SEQUENCE.createRangeReader(reader, false);
+		byte[] valueR = INTEGER.read(reader, false);
+		byte[] valueS = INTEGER.read(reader, false);
+		BigInteger order = ((ECPublicKey) publicKey).getParams().getOrder();
+		checkSignatureInteger("R", valueR, order);
+		checkSignatureInteger("S", valueS, order);
+	}
+
+	/**
+	 * Checks, if the provided ASN.1 INTEGER is valid for a signature.
+	 * 
+	 * @param name name of signature parameter
+	 * @param value byte value of signature parameter
+	 * @param order order of the public key (N)
+	 * @throws GeneralSecurityException if the signature parameter is not in
+	 *             range {@code [1, N-1]}.
+	 * @since 3.5
+	 */
+	private static void checkSignatureInteger(String name, byte[] value, BigInteger order)
+			throws GeneralSecurityException {
+		if (value.length == 0) {
+			throw new GeneralSecurityException("ECDSA signature " + name + " is 0!");
+		}
+		BigInteger big = new BigInteger(value);
+		if (big.compareTo(BigInteger.ONE) < 0) {
+			throw new GeneralSecurityException("ECDSA signature " + name + " is less than 1!");
+		}
+		if (big.compareTo(order) >= 0) {
+			throw new GeneralSecurityException("ECDSA signature " + name + " is not less than N!");
+		}
 	}
 
 	/**

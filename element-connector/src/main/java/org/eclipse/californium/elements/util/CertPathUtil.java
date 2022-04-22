@@ -453,6 +453,9 @@ public class CertPathUtil {
 		// TODO: implement alternative means of revocation checking
 		params.setRevocationEnabled(false);
 		validator.validate(verifyCertPath, params);
+		if (JceProviderUtil.isEcdsaVulnerable()) {
+			Asn1DerDecoder.checkCertificateChain(chain, trust, last);
+		}
 		if (truncated || add) {
 			if (add) {
 				if (!truncated) {

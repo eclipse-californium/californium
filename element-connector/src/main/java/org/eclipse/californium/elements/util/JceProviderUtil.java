@@ -18,12 +18,19 @@ package org.eclipse.californium.elements.util;
 
 import java.lang.reflect.Method;
 import java.security.AccessController;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
 import java.security.Provider;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.Signature;
+import java.security.SignatureException;
+import java.security.spec.ECGenParameterSpec;
 
 import javax.crypto.Cipher;
 
@@ -145,6 +152,7 @@ public class JceProviderUtil {
 	private final boolean ed25519;
 	private final boolean ed448;
 	private final boolean strongEncryption;
+	private final boolean ecdsaVulnerable;
 	private final String providerVersion;
 
 	static {
@@ -408,6 +416,7 @@ public class JceProviderUtil {
 		}
 		boolean ec = false;
 		boolean rsa = false;
+		boolean ecdsaVulnerable = false;
 		String aesPermission = "not supported";
 		int aesMaxAllowedKeyLength = 0;
 		try {
@@ -432,6 +441,28 @@ public class JceProviderUtil {
 		} catch (NoSuchAlgorithmException e) {
 		}
 		LOGGER.debug("EC: {}", ec);
+		if (ec) {
+			String ecdsaFix = StringUtil.getConfiguration(JceNames.CALIFORNIUM_JCE_ECDSA_FIX);
+			if (ecdsaFix == null || !ecdsaFix.equalsIgnoreCase("false")) {
+				ecdsaVulnerable = true;
+				try {
+					Signature signature = Signature.getInstance("SHA256withECDSA");
+					KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+					keyPairGenerator.initialize(new ECGenParameterSpec("secp256r1"));
+					KeyPair keyPair = keyPairGenerator.generateKeyPair();
+					// malicious signature
+					byte[] ghost = StringUtil.hex2ByteArray("3006020100020100");
+					signature.initVerify(keyPair.getPublic());
+					signature.update(ghost);
+					ecdsaVulnerable = signature.verify(ghost);
+				} catch (NoSuchAlgorithmException e) {
+				} catch (InvalidAlgorithmParameterException e) {
+				} catch (InvalidKeyException e) {
+				} catch (SignatureException e) {
+				}
+				LOGGER.debug("ECDSA {}vulnerable.", ecdsaVulnerable ? "" : "not ");
+			}
+		}
 		if (!LOGGER.isDebugEnabled()) {
 			LOGGER.info("RSA: {}, EC: {}, AES: {}", rsa, ec, aesPermission);
 		}
@@ -463,7 +494,7 @@ public class JceProviderUtil {
 			LOGGER.info("EdDSA not supported!");
 		}
 		JceProviderUtil newSupport = new JceProviderUtil(isBouncyCastle(provider), rsa, ec, ed25519, ed448,
-				aesMaxAllowedKeyLength >= 256, version);
+				aesMaxAllowedKeyLength >= 256, ecdsaVulnerable, version);
 		if (!newSupport.equals(features)) {
 			features = newSupport;
 		}
@@ -505,6 +536,23 @@ public class JceProviderUtil {
 	 */
 	public static boolean hasStrongEncryption() {
 		return features.strongEncryption;
+	}
+
+	/**
+	 * Checks, if the JCE is affected by the ECDSA vulnerability.
+	 * 
+	 * Some java JCE versions 15 to 18 fail to check the signature for 0 and n.
+	 * 
+	 * @return {@code true}, if the JCE has the ECDSA vulnerability,
+	 *         {@code false}, otherwise. signature received signature.
+	 * @see <a href=
+	 *      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21449"
+	 *      target="_blank">CVE-2022-21449</a>
+	 * @see JceNames#CALIFORNIUM_JCE_ECDSA_FIX
+	 * @since 3.5
+	 */
+	public static boolean isEcdsaVulnerable() {
+		return features.ecdsaVulnerable;
 	}
 
 	/**
@@ -586,13 +634,14 @@ public class JceProviderUtil {
 	}
 
 	private JceProviderUtil(boolean useBc, boolean rsa, boolean ec, boolean ed25519, boolean ed448,
-			boolean strongEncryption, String providerVersion) {
+			boolean strongEncryption, boolean ecdsaVulnerable, String providerVersion) {
 		this.useBc = useBc;
 		this.rsa = rsa;
 		this.ec = ec;
 		this.ed25519 = ed25519;
 		this.ed448 = ed448;
 		this.strongEncryption = strongEncryption;
+		this.ecdsaVulnerable = ecdsaVulnerable;
 		this.providerVersion = providerVersion;
 	}
 

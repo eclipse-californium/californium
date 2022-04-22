@@ -473,11 +473,11 @@ public class TestCertificatesTools {
 			}
 			byte[] data = Bytes.createBytes(random, len);
 			signature.initSign(privateKey);
-			signature.update(data, 0, len);
+			signature.update(data);
 			byte[] sign = signature.sign();
 
 			signature.initVerify(pulbicKey);
-			signature.update(data, 0, len);
+			signature.update(data);
 			if (!signature.verify(sign)) {
 				fail(message + ":" + algorithm + " failed!");
 			}

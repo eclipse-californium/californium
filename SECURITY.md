@@ -31,3 +31,11 @@ For more details, please look at https://www.eclipse.org/security/.
 | ------------------- | ---------- | ---------------- | ----- | -------------
 | < 3.3 <br/> < 2.7.2 | com.upokecenter.cbor | 4.0 - 4.5.0 | cf-oscore <br/> demo-apps | [GHSA-fj2w-wfgv-mwq6](https://github.com/peteroupc/CBOR-Java/security/advisories/GHSA-fj2w-wfgv-mwq6)
 | < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | demo-apps | [CVE-2021-42550](https://cve.report/CVE-2021-42550)
+
+## Known Vulnerabilities Of Runtime Dependencies
+
+| Californium Version | Dependency | Affected Version | Usage | Vulnerability
+| ------------------- | ---------- | ---------------- | ----- | -------------
+| < 3.5 | JDK / JCE | <= 15.0.2? <br/> <= 16.0.2? <br/> < 17.0.3 <br/> < 18.0.1 | execution environment | ECDSA [CVE-2022-21449](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21449)
+
+

@@ -22,12 +22,15 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
@@ -184,7 +187,6 @@ public final class EcdhSignedServerKeyExchange extends ECDHServerKeyExchange {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
 			throw new HandshakeException(message, alert);
 		}
-		boolean verified = false;
 		try {
 			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
 			Signature signature = localSignature.currentWithCause();
@@ -192,16 +194,19 @@ public final class EcdhSignedServerKeyExchange extends ECDHServerKeyExchange {
 
 			updateSignature(signature, clientRandom, serverRandom);
 
-			verified = signature.verify(signatureEncoded);
-
+			if (signature.verify(signatureEncoded)) {
+				if (JceProviderUtil.isEcdsaVulnerable()
+						&& signatureAndHashAlgorithm.getSignature() == SignatureAlgorithm.ECDSA) {
+					Asn1DerDecoder.checkEcDsaSignature(signatureEncoded, serverPublicKey);
+				}
+				return;
+			}
 		} catch (GeneralSecurityException e) {
 			LOGGER.error("Could not verify the server's signature.", e);
 		}
-		if (!verified) {
-			String message = "The server's ECDHE key exchange message's signature could not be verified.";
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
-			throw new HandshakeException(message, alert);
-		}
+		String message = "The server's ECDHE key exchange message's signature could not be verified.";
+		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
+		throw new HandshakeException(message, alert);
 	}
 
 	/**

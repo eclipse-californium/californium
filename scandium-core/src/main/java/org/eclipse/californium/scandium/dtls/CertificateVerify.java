@@ -24,12 +24,15 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.slf4j.Logger;
@@ -196,9 +199,12 @@ public final class CertificateVerify extends HandshakeMessage {
 				++index;
 			}
 			if (signature.verify(signatureBytes)) {
+				if (JceProviderUtil.isEcdsaVulnerable()
+						&& signatureAndHashAlgorithm.getSignature() == SignatureAlgorithm.ECDSA) {
+					Asn1DerDecoder.checkEcDsaSignature(signatureBytes, clientPublicKey);
+				}
 				return;
 			}
-
 		} catch (GeneralSecurityException e) {
 			LOGGER.error("Could not verify the client's signature.", e);
 		}
