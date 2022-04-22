@@ -675,6 +675,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 			}
 		}
 		final Exchange exchange = new Exchange(request, identity, Origin.LOCAL, executor);
+		exchange.setEndpoint(this);
 		exchange.execute(new Runnable() {
 
 			@Override

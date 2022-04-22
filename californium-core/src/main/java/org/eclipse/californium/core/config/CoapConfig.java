@@ -226,6 +226,12 @@ public final class CoapConfig {
 	 * The default exchange lifetime (in seconds).
 	 */
 	public static final long DEFAULT_EXCHANGE_LIFETIME_IN_SECONDS = 247;
+	/**
+	 * The default NON lifetime (in seconds).
+	 * 
+	 * @since 3.5
+	 */
+	public static final long DEFAULT_NON_LIFETIME_IN_SECONDS = 145;
 
 	/**
 	 * Mark and sweep deduplicator.
@@ -388,7 +394,7 @@ public final class CoapConfig {
 	 * Parameters</a>.
 	 */
 	public static final TimeDefinition NON_LIFETIME = new TimeDefinition(MODULE + "NON_LIFETIME",
-			"CoAP maximum lifetime for NON requests.", 145, TimeUnit.SECONDS);
+			"CoAP maximum lifetime for NON requests.", DEFAULT_NON_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);
 	/**
 	 * The maximum latency assumed for message transmission. See
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
