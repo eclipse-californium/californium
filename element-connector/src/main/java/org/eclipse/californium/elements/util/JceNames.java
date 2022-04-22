@@ -108,7 +108,7 @@ public interface JceNames {
 	public String OID_X448 = "OID.1.3.101.111";
 
 	/**
-	 * Name of environment variable to specify JCE,.
+	 * Name of environment variable to specify the JCE.
 	 */
 	public String CALIFORNIUM_JCE_PROVIDER = "CALIFORNIUM_JCE_PROVIDER";
 	/**
@@ -140,5 +140,18 @@ public interface JceNames {
 	 * for EdDSA.
 	 */
 	public String JCE_PROVIDER_NET_I2P_CRYPTO = "I2P";
+	/**
+	 * Name of environment variable to specify, if the used JCE is tested for
+	 * the ECDSA vulnerability
+	 * <a href= "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21449"
+	 * target="_blank">ECDSA vulnerability, CVE-2022-21449</a>.
+	 * 
+	 * The default is to test it. If the value of this environment variable is
+	 * set to {@code false}, the test is suppressed and no additional checks for
+	 * such signatures are done.
+	 * 
+	 * @since 3.5
+	 */
+	public String CALIFORNIUM_JCE_ECDSA_FIX = "CALIFORNIUM_JCE_ECDSA_FIX";
 
 }

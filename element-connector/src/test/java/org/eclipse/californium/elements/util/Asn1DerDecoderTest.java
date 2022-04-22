@@ -23,10 +23,14 @@ import static org.junit.Assume.assumeNoException;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.Signature;
+import java.security.interfaces.ECPublicKey;
 import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder.Keys;
@@ -287,6 +291,85 @@ public class Asn1DerDecoderTest {
 		assertThat(keys.getPrivateKey(), is(notNullValue()));
 		assertThat(keys.getPublicKey(), is(notNullValue()));
 		TestCertificatesTools.assertSigning("asn.1", keys.getPrivateKey(), keys.getPublicKey(), "SHA256withECDSA");
+	}
+
+	@Test
+	public void testBrokenEcdsa() throws IOException, GeneralSecurityException {
+		String version = System.getProperty("java.version");
+		byte[] data = Base64.decode(EC_PRIVATE_KEY_V2_BASE64);
+		Keys keys = Asn1DerDecoder.readPrivateKey(data);
+		assertThat(keys, is(notNullValue()));
+		assertThat(keys.getPrivateKey(), is(notNullValue()));
+		assertThat(keys.getPublicKey(), is(notNullValue()));
+		try {
+			boolean broken = false;
+			SecureRandom random = new SecureRandom();
+			Signature signature = Signature.getInstance("SHA256withECDSA");
+			byte[] message = Bytes.createBytes(random, 1024);
+			signature.initSign(keys.getPrivateKey());
+			signature.update(message);
+			byte[] sign = signature.sign();
+
+			// verify the proper signature
+			signature.initVerify(keys.getPublicKey());
+			signature.update(message);
+			if (!signature.verify(sign)) {
+				fail("verify failed!");
+			}
+			Asn1DerDecoder.checkEcDsaSignature(sign, keys.getPublicKey());
+
+			// check the ghost signature with R := 0 and L := 0
+			byte[] ghost = StringUtil.hex2ByteArray("3006020100020100");
+			signature.initVerify(keys.getPublicKey());
+			signature.update(message);
+			boolean valid = signature.verify(ghost);
+			if (valid) {
+				broken = true;
+				System.err.println("Java JCE " + version + " is vulnerable for ECDSA R := 0, CVE-2022-21449!");
+			} else {
+				System.out.println("Java JCE " + version + " is not vulnerable for ECDSA R := 0, CVE-2022-21449!");
+			}
+			try {
+				Asn1DerDecoder.checkEcDsaSignature(ghost, keys.getPublicKey());
+				fail("Failed to detect R := 0 ECDSA signature!");
+			} catch (GeneralSecurityException ex) {
+				assertThat(ex.getMessage(), is("ECDSA signature R is less than 1!"));
+			}
+
+			// check the ghost signature with R := N and L := N
+			BigInteger order = ((ECPublicKey) keys.getPublicKey()).getParams().getOrder();
+			byte[] number = order.toByteArray();
+			if (number[0] < 0) {
+				number = Bytes.concatenate(new byte[] { 0 }, number);
+			}
+			number = Bytes.concatenate(new byte[] { 0x02, (byte) number.length }, number);
+
+			byte[] ghost2 = Bytes.concatenate(new byte[] { 0x30, (byte) (number.length * 2) }, number);
+			ghost2 = Bytes.concatenate(ghost2, number);
+
+			signature.initVerify(keys.getPublicKey());
+			signature.update(message);
+			valid = signature.verify(ghost2);
+			if (valid) {
+				broken = true;
+				System.err.println("Java JCE " + version + " is vulnerable for ECDSA R := N, CVE-2022-21449!");
+			} else {
+				System.out.println("Java JCE " + version + " is not vulnerable for ECDSA R := N, CVE-2022-21449!");
+			}
+			try {
+				Asn1DerDecoder.checkEcDsaSignature(ghost2, keys.getPublicKey());
+				fail("failed to detect R := N ECDSA signature!");
+			} catch (GeneralSecurityException ex) {
+				assertThat(ex.getMessage(), is("ECDSA signature R is not less than N!"));
+			}
+			assertThat("detect broken ECDSA failed!", JceProviderUtil.isEcdsaVulnerable(), is(broken));
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+			fail("Failed with " + e);
+		} catch (RuntimeException e) {
+			e.printStackTrace();
+			fail("Failed with " + e);
+		}
 	}
 
 	/**
