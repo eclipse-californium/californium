@@ -59,12 +59,14 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.NoResponseOption;
@@ -304,8 +306,21 @@ public class Exchange {
 	// The relation that the target resource has established with the source
 	private volatile ObserveRelation relation;
 
-	/** The notifications that have been sent, so they can be removed from the Matcher */
-	private volatile List<KeyMID> notifications;
+	/**
+	 * The NON notifications that have been sent, so they can be removed from
+	 * the Matcher.
+	 * 
+	 * @since 3.5 (changed item's type to include a timestamp)
+	 */
+	private volatile List<NotificationKeyMID> notifications;
+
+	/**
+	 * Lifetime of NON notifications in nanoseconds to limit the length of
+	 * {@link #notifications}.
+	 * 
+	 * @since 3.5
+	 */
+	private long nonLifetimeNanos;
 
 	private final AtomicReference<EndpointContext> endpointContext = new AtomicReference<EndpointContext>();
 
@@ -642,7 +657,32 @@ public class Exchange {
 					&& currentResponse.getType() == Type.NON && currentResponse.isNotification()) {
 				// keep NON notifies in KeyMID store.
 				LOGGER.info("{} store NON notification: {}", this, currentKeyMID);
-				notifications.add(currentKeyMID);
+				long now = ClockUtil.nanoRealtime();
+				RemoveHandler handler = this.removeHandler;
+				// remove expired NON-notifications.
+				while (!notifications.isEmpty()) {
+					NotificationKeyMID eldest = notifications.get(0);
+					if (eldest.isExpired(now)) {
+						notifications.remove(0);
+						if (handler != null) {
+							KeyMID keyMid = eldest.getMID();
+							LOGGER.info("{} removing expired NON notification: {}", this, keyMid);
+							// notifications are local MID namespace
+							handler.remove(this, null, keyMid);
+						}
+					} else {
+						break;
+					}
+				}
+				if (nonLifetimeNanos == 0) {
+					Endpoint endpoint = this.endpoint;
+					if (endpoint != null) {
+						nonLifetimeNanos = endpoint.getConfig().get(CoapConfig.NON_LIFETIME, TimeUnit.NANOSECONDS);
+					} else {
+						nonLifetimeNanos = TimeUnit.SECONDS.toNanos(CoapConfig.DEFAULT_NON_LIFETIME_IN_SECONDS);
+					}
+				}
+				notifications.add(new NotificationKeyMID(currentKeyMID, now + nonLifetimeNanos));
 				currentKeyMID = null;
 			}
 			currentResponse = newCurrentResponse;
@@ -1200,7 +1240,7 @@ public class Exchange {
 			throw new IllegalStateException("Observer relation already set!");
 		}
 		this.relation = relation;
-		notifications = new ArrayList<KeyMID>();
+		notifications = new ArrayList<NotificationKeyMID>();
 	}
 
 	/**
@@ -1215,12 +1255,13 @@ public class Exchange {
 	 */
 	public void removeNotifications() {
 		assertOwner();
-		RemoveHandler handler = this.removeHandler;
 		if (notifications != null && !notifications.isEmpty()) {
-			for (KeyMID keyMid : notifications) {
-				LOGGER.info("{} removing NON notification: {}", this, keyMid);
-				// notifications are local MID namespace
-				if (handler != null) {
+			RemoveHandler handler = this.removeHandler;
+			if (handler != null) {
+				for (NotificationKeyMID notification : notifications) {
+					KeyMID keyMid = notification.getMID();
+					LOGGER.info("{} removing NON notification: {}", this, keyMid);
+					// notifications are local MID namespace
 					handler.remove(this, null, keyMid);
 				}
 			}
@@ -1376,5 +1417,31 @@ public class Exchange {
 		 * @return resulting endpoint context.
 		 */
 		EndpointContext apply(EndpointContext context);
+	}
+
+	/**
+	 * Notification MID.
+	 * 
+	 * Keep usage time to expire MID even without CON notification.
+	 * 
+	 * @since 3.5
+	 */
+	private static class NotificationKeyMID {
+
+		private long expireNanoseconds;
+		private KeyMID keyMid;
+
+		private NotificationKeyMID(KeyMID keyMid, long expireNanoseconds) {
+			this.keyMid = keyMid;
+			this.expireNanoseconds = expireNanoseconds;
+		}
+
+		private boolean isExpired(long currentNanoseconds) {
+			return (currentNanoseconds - expireNanoseconds) > 0;
+		}
+
+		private KeyMID getMID() {
+			return keyMid;
+		}
 	}
 }
