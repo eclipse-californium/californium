@@ -925,7 +925,7 @@ public class CoapResource implements Resource {
 		notificationOrderer.getNextObserveNumber();
 		for (ObserveRelation relation : observeRelations) {
 			if (null == filter || filter.accept(relation)) {
-				relation.notifyObservers();
+				handleRequest(relation.getExchange());
 			}
 		}
 	}

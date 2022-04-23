@@ -180,7 +180,9 @@ public class ObserveRelation {
 	/**
 	 * Notifies the observing endpoint that the resource has been changed. This
 	 * method makes the resource process the same request again.
+	 * @deprecated obsolete
 	 */
+	@Deprecated
 	public void notifyObservers() {
 		resource.handleRequest(exchange);
 	}
