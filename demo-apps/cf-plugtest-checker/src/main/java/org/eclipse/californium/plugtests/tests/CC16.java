@@ -96,13 +96,9 @@ public class CC16 extends TestClientAbstract {
 			if (response!=null) {
 				success &= checkResponse(request, response);
 			}
-			
-			/*
-			 * FIXME
-			 * Cf does not ACK duplicates when the client is waiting.
-			 * May be a threading problem.
-			 */
-			
+			// resent, ONLY for testing!
+			request.setSent(false);
+			request.setAcknowledged(false);
 			request.send();
 			response = request.waitForResponse(5000);
 			
