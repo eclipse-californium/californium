@@ -30,6 +30,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.Signature;
+import java.security.SignatureException;
 import java.security.interfaces.ECPublicKey;
 import java.util.Arrays;
 
@@ -305,6 +306,8 @@ public class Asn1DerDecoderTest {
 			boolean broken = false;
 			SecureRandom random = new SecureRandom();
 			Signature signature = Signature.getInstance("SHA256withECDSA");
+			String provider = signature.getProvider().toString();
+			String info = "Java " + version + ", "+ provider;
 			byte[] message = Bytes.createBytes(random, 1024);
 			signature.initSign(keys.getPrivateKey());
 			signature.update(message);
@@ -314,7 +317,7 @@ public class Asn1DerDecoderTest {
 			signature.initVerify(keys.getPublicKey());
 			signature.update(message);
 			if (!signature.verify(sign)) {
-				fail("verify failed!");
+				fail(info + ": verify failed!");
 			}
 			Asn1DerDecoder.checkEcDsaSignature(sign, keys.getPublicKey());
 
@@ -325,9 +328,9 @@ public class Asn1DerDecoderTest {
 			boolean valid = signature.verify(ghost);
 			if (valid) {
 				broken = true;
-				System.err.println("Java JCE " + version + " is vulnerable for ECDSA R := 0, CVE-2022-21449!");
+				System.err.println(info + " is vulnerable for ECDSA R := 0, CVE-2022-21449!");
 			} else {
-				System.out.println("Java JCE " + version + " is not vulnerable for ECDSA R := 0, CVE-2022-21449!");
+				System.out.println(info + " is not vulnerable for ECDSA R := 0, CVE-2022-21449!");
 			}
 			try {
 				Asn1DerDecoder.checkEcDsaSignature(ghost, keys.getPublicKey());
@@ -349,12 +352,17 @@ public class Asn1DerDecoderTest {
 
 			signature.initVerify(keys.getPublicKey());
 			signature.update(message);
-			valid = signature.verify(ghost2);
+			try {
+				valid = signature.verify(ghost2);
+			} catch (SignatureException e) {
+				System.out.println(info + ", possible: " + e.getMessage());
+				valid = false;
+			}
 			if (valid) {
 				broken = true;
-				System.err.println("Java JCE " + version + " is vulnerable for ECDSA R := N, CVE-2022-21449!");
+				System.err.println(info + " is vulnerable for ECDSA R := N, CVE-2022-21449!");
 			} else {
-				System.out.println("Java JCE " + version + " is not vulnerable for ECDSA R := N, CVE-2022-21449!");
+				System.out.println(info + " is not vulnerable for ECDSA R := N, CVE-2022-21449!");
 			}
 			try {
 				Asn1DerDecoder.checkEcDsaSignature(ghost2, keys.getPublicKey());
