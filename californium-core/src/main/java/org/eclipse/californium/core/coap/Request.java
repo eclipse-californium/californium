@@ -976,6 +976,7 @@ public class Request extends Message {
 				}
 			}
 			Response r = this.response;
+			this.ready = false;
 			this.response = null;
 			return r;
 		}
