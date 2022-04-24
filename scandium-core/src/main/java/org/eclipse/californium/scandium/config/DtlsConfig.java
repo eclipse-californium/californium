@@ -448,9 +448,16 @@ public final class DtlsConfig {
 
 	/**
 	 * Specify the MTU (Maximum Transmission Unit).
+	 * 
+	 * Note: Californium is only able to detect the MTU of local network
+	 * interfaces. For the transmission, the PMTU (Path Maximum Transmission
+	 * Unit) is required. Especially, if ip-tunnels are used, this value must be
+	 * provided in order to consider a smaller PMTU.
+	 * 
+	 * @see #DTLS_MAX_TRANSMISSION_UNIT_LIMIT
 	 */
 	public static final IntegerDefinition DTLS_MAX_TRANSMISSION_UNIT = new IntegerDefinition(
-			MODULE + "MAX_TRANSMISSION_UNIT", "DTLS MTU (Maximum Transmission Unit).", null, 64);
+			MODULE + "MAX_TRANSMISSION_UNIT", "DTLS MTU (Maximum Transmission Unit).\nMust be used, if the MTU of the local network doesn't apply, e.g. if ip-tunnels are used.", null, 64);
 
 	/**
 	 * Specify a MTU (Maximum Transmission Unit) limit for (link local) auto
@@ -460,8 +467,11 @@ public final class DtlsConfig {
 	 *
 	 * Note: previous versions took the local link MTU without limits. That
 	 * results in possibly larger MTU, e.g. for localhost or some cloud nodes
-	 * using "jumbo frames". If a larger MTU is required, please adjust this
-	 * limit to the requires value or use {@link #DEFAULT_MAX_RETRANSMISSIONS}.
+	 * using "jumbo frames". If a larger MTU is required to be detectable,
+	 * please adjust this limit to the required value.
+	 * 
+	 * @see #DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT
+	 * @see #DTLS_MAX_TRANSMISSION_UNIT
 	 */
 	public static final IntegerDefinition DTLS_MAX_TRANSMISSION_UNIT_LIMIT = new IntegerDefinition(
 			MODULE + "MAX_TRANSMISSION_UNIT_LIMIT",

@@ -247,7 +247,7 @@ public class ConnectorConfig implements Cloneable {
 		 * {@link Authentication#credentials} with the data from this.
 		 */
 		@Option(names = { "-c",
-				"--cert" }, description = "certificate store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem")
+				"--cert" }, description = "certificate store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem. If the private key is not contained, use '--private-key' to add it from a separate file.")
 		public Credentials certificate;
 
 		/**
