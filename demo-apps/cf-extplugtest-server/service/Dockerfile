@@ -20,7 +20,7 @@ FROM eclipse-temurin:17.0.2_8-jre
 
 RUN mkdir /opt/app
 COPY ./service/build ./CaliforniumReceivetest3.properties /opt/app/
-COPY ./target/cf-extplugtest-server-3.5.0-SNAPSHOT.jar /opt/app/cf-extplugtest-server.jar
+COPY ./target/cf-extplugtest-server-3.6.0-SNAPSHOT.jar /opt/app/cf-extplugtest-server.jar
 
 #EXPOSE 5683/udp
 #EXPOSE 5683/tcp

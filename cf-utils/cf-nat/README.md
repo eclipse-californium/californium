@@ -6,7 +6,7 @@ In order to test NAT and LoadBalancer specific situations, this module contains 
 
 # Download
 
-[Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/3.4.0/cf-nat-3.4.0.jar)
+[Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/3.5.0/cf-nat-3.5.0.jar)
 
 #Usage
 

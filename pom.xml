@@ -110,6 +110,7 @@
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 		<javadoc.doclint>none</javadoc.doclint>
+		<revapi.previous.version>3.5.0</revapi.previous.version>
 	</properties>
 
 	<distributionManagement>
@@ -533,7 +534,7 @@
 				<groupId>org.revapi</groupId>
 				<artifactId>revapi-maven-plugin</artifactId>
 				<configuration>
-					<oldVersion>3.4.0</oldVersion>
+					<oldVersion>${revapi.previous.version}</oldVersion>
 					<analysisConfiguration>
 						<revapi.versions>
 							<enabled>true</enabled>
