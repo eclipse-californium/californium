@@ -701,7 +701,13 @@ public class ServerHandshaker extends Handshaker {
 					certificateRequest.addCerticiateAuthorities(certificateVerifier.getAcceptedIssuers());
 				}
 			} else if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
-				keys = Arrays.asList(CertificateKeyAlgorithm.EC);
+				CertificateKeyAlgorithm algorithm = CertificateKeyAlgorithm.getAlgorithm(publicKey);
+				if (keys.get(0) != algorithm && keys.contains(algorithm)) {
+					// move own certificate key algorithm to preferred position 
+					keys = new ArrayList<>(keys);
+					keys.remove(algorithm);
+					keys.add(0, algorithm);
+				}
 				signatures = SignatureAndHashAlgorithm.getCompatibleSignatureAlgorithms(signatures, keys);
 				certificateRequest.addSignatureAlgorithms(signatures);
 			}

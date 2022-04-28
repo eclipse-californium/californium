@@ -436,7 +436,9 @@ public class DtlsConnectorConfigTest {
 	public void testBuildDetectsErrorForSignatureAndHashAlgorithmsRpk() throws IOException, GeneralSecurityException {
 		SignatureAndHashAlgorithm algo = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.RSA);
 		exception.expect(IllegalStateException.class);
-		exception.expectMessage("supported signature and hash algorithms doesn't match the public key!");
+		exception.expectMessage("supported signature and hash algorithms");
+		exception.expectMessage("doesn't match the public");
+		exception.expectMessage("key!");
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
 				.setAdvancedCertificateVerifier(verifier)
@@ -447,7 +449,8 @@ public class DtlsConnectorConfigTest {
 	@Test
 	public void testBuildDetectsErrorForSignatureAndHashAlgorithmsX509() throws IOException, GeneralSecurityException {
 		exception.expect(IllegalStateException.class);
-		exception.expectMessage("supported signature and hash algorithms doesn't match the certificate chain!");
+		exception.expectMessage("supported signature and hash algorithms ");
+		exception.expectMessage(" doesn't match the certificate chain!");
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllCertificates().build();
 		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain()))
 				.setAdvancedCertificateVerifier(verifier)
