@@ -233,22 +233,21 @@ public class CertificateConfigurationHelper {
 	public void verifySignatureAndHashAlgorithmsConfiguration(List<SignatureAndHashAlgorithm> algorithms) {
 		for (PublicKey key : keys) {
 			if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(algorithms, key) == null) {
-				throw new IllegalStateException(
-						"supported signature and hash algorithms doesn't match the public key!");
+				throw new IllegalStateException("supported signature and hash algorithms " + algorithms
+						+ " doesn't match the public " + key.getAlgorithm() + " key!");
 			}
 		}
 		for (List<X509Certificate> chain : chains) {
 			if (!SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(algorithms, chain)) {
-				throw new IllegalStateException(
-						"supported signature and hash algorithms doesn't match the certificate chain!");
+				throw new IllegalStateException("supported signature and hash algorithms " + algorithms
+						+ " doesn't match the certificate chain!");
 			}
 		}
 		for (X509Certificate trust : trusts) {
 			PublicKey publicKey = trust.getPublicKey();
 			if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(algorithms, publicKey) == null) {
-				throw new IllegalStateException(
-						"supported signature and hash algorithms doesn't match the trust's public key "
-								+ publicKey.getAlgorithm() + "!");
+				throw new IllegalStateException("supported signature and hash algorithms " + algorithms
+						+ " doesn't match the trust's public key " + publicKey.getAlgorithm() + "!");
 			}
 		}
 	}

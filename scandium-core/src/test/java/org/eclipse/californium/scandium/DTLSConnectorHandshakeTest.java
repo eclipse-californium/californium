@@ -64,6 +64,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.rule.LoggingRule;
@@ -476,10 +477,7 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	private void setupClientCertificateIdentity(CertificateType type) {
-		if (clientBuilder.getIncompleteConfig().get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION)) {
-			clientBuilder.setCertificateIdentityProvider(
-					new KeyManagerCertificateProvider(DtlsTestTools.getClientKeyManager(), type));
-		} else if (type == CertificateType.RAW_PUBLIC_KEY) {
+		if (type == CertificateType.RAW_PUBLIC_KEY) {
 			clientBuilder
 					.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientPublicKey));
 		} else {
@@ -1668,6 +1666,161 @@ public class DTLSConnectorHandshakeTest {
 		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
 		startClientRpk(null);
 		assertThat(clientTestContext.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+	}
+
+	@Test
+	public void testRpkRsaHandshakeSingleProvider() throws Exception {
+		assumeTrue("RSA requires JCE support!", JceProviderUtil.isSupported(JceNames.RSA));
+		Credentials serverCredentials = TestCertificatesTools.getCredentials("serverrsa");
+		assumeNotNull("serverrsa credentials missing!", serverCredentials);
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+
+		serverBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(),serverCredentials.getPublicKey()))
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+		startServer();
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllRPKs().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.SHA256_WITH_RSA)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite);
+
+		Credentials clientCredentials = TestCertificatesTools.getCredentials("clientrsa");
+		clientPrivateKey = clientCredentials.getPrivateKey();
+		clientPublicKey = clientCredentials.getPublicKey();
+		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
+
+		String serverPrincipal = new RawPublicKeyIdentity(serverCredentials.getPublicKey()).getName();
+		DTLSSession session = startClient(null);
+		assertThat(clientTestContext.getCipherSuite(), is(cipherSuite));
+		assertThat(session.getPeerIdentity().getName(), is(serverPrincipal));
+
+		String clientPrincipal = new RawPublicKeyIdentity(clientPublicKey).getName();
+		DTLSSession serverSession = clientTestContext.getEstablishedServerSession();
+		assertThat(serverSession.getPeerIdentity().getName(), is(clientPrincipal));
+	}
+
+	@Test
+	public void testRpkRsaHandshakeKeyManagerProvider() throws Exception {
+		assumeTrue("RSA requires JCE support!", JceProviderUtil.isSupported(JceNames.RSA));
+		Credentials serverCredentials = TestCertificatesTools.getCredentials("serverrsa");
+		assumeNotNull("serverrsa credentials missing!", serverCredentials);
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+
+		serverBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
+				.setCertificateIdentityProvider(new KeyManagerCertificateProvider(DtlsTestTools.getDtlsServerKeyManager(),
+						CertificateType.RAW_PUBLIC_KEY))
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+		startServer();
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllRPKs().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.SHA256_WITH_RSA)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite);
+
+		Credentials clientCredentials = TestCertificatesTools.getCredentials("clientrsa");
+		clientPrivateKey = clientCredentials.getPrivateKey();
+		clientPublicKey = clientCredentials.getPublicKey();
+		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
+
+		String serverPrincipal = new RawPublicKeyIdentity(serverCredentials.getPublicKey()).getName();
+		DTLSSession session = startClient(null);
+		assertThat(clientTestContext.getCipherSuite(), is(cipherSuite));
+		assertThat(session.getPeerIdentity().getName(), is(serverPrincipal));
+
+		String clientPrincipal = new RawPublicKeyIdentity(clientPublicKey).getName();
+		DTLSSession serverSession = clientTestContext.getEstablishedServerSession();
+		assertThat(serverSession.getPeerIdentity().getName(), is(clientPrincipal));
+	}
+
+	@Test
+	public void testRpkRsaEcdsaMixedHandshakeKeyManagerProvider() throws Exception {
+		assumeTrue("RSA requires JCE support!", JceProviderUtil.isSupported(JceNames.RSA));
+		Credentials serverCredentials = TestCertificatesTools.getCredentials("serverrsa");
+		assumeNotNull("serverrsa credentials missing!", serverCredentials);
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+
+		serverBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
+				.setCertificateIdentityProvider(new KeyManagerCertificateProvider(DtlsTestTools.getDtlsServerKeyManager(),
+						CertificateType.RAW_PUBLIC_KEY))
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+		startServer();
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllRPKs().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite);
+
+		setupClientCertificateIdentity(CertificateType.RAW_PUBLIC_KEY);
+
+		String serverPrincipal = new RawPublicKeyIdentity(serverCredentials.getPublicKey()).getName();
+		DTLSSession session = startClient(null);
+		assertThat(clientTestContext.getCipherSuite(), is(cipherSuite));
+		assertThat(session.getPeerIdentity().getName(), is(serverPrincipal));
+
+		String clientPrincipal = new RawPublicKeyIdentity(clientPublicKey).getName();
+		DTLSSession serverSession = clientTestContext.getEstablishedServerSession();
+		assertThat(serverSession.getPeerIdentity().getName(), is(clientPrincipal));
+	}
+
+	@Test
+	public void testRpkRsaAnonymousHandshakeSingleProvider() throws Exception {
+		assumeTrue("RSA requires JCE support!", JceProviderUtil.isSupported(JceNames.RSA));
+		Credentials serverCredentials = TestCertificatesTools.getCredentials("serverrsa");
+		assumeNotNull("serverrsa credentials missing!", serverCredentials);
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
+				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
+
+		serverBuilder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
+				.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(),serverCredentials.getPublicKey()))
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+		startServer();
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllRPKs().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false)
+				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS,
+						SignatureAndHashAlgorithm.SHA256_WITH_RSA)
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, cipherSuite);
+
+		String serverPrincipal = new RawPublicKeyIdentity(serverCredentials.getPublicKey()).getName();
+		DTLSSession session = startClient(null);
+		assertThat(clientTestContext.getCipherSuite(), is(cipherSuite));
+		assertThat(session.getPeerIdentity().getName(), is(serverPrincipal));
+
+		DTLSSession serverSession = clientTestContext.getEstablishedServerSession();
+		assertThat(serverSession.getPeerIdentity(), is(nullValue()));
 	}
 
 	@Test

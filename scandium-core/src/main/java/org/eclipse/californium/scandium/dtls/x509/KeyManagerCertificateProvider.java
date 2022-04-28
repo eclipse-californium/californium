@@ -288,20 +288,26 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 		List<String> aliases = getAliases(client, keyTypes, principals);
 		if (!aliases.isEmpty()) {
 			List<String> matchingServerNames = new ArrayList<>();
-			List<String> matchingSignatures = new ArrayList<>();
+			List<String> matchingNodeSignatures = new ArrayList<>();
+			List<String> matchingChainSignatures = new ArrayList<>();
 			List<String> matchingCurves = new ArrayList<>();
 			// after issuers, check the servernames
 			int index = 1;
 			for (String alias : aliases) {
-				LOGGER.debug("[{}]: Apply select {} - {} of {}", id, alias, index, aliases.size());
+				LOGGER.debug("[{}]: {} apply select {} - {} of {}", id, role, alias, index, aliases.size());
 				X509Certificate[] certificateChain = keyManager.getCertificateChain(alias);
+				X509Certificate nodeCertificate = certificateChain[0];
 				List<X509Certificate> chain = Arrays.asList(certificateChain);
-				if (serverNames != null && matchServerNames(serverNames, certificateChain[0])) {
+				if (serverNames != null && matchServerNames(serverNames, nodeCertificate)) {
 					matchingServerNames.add(alias);
 				}
 				if (signatureAndHashAlgorithms != null
-						&& matchSignatureAndHashAlgorithms(signatureAndHashAlgorithms, chain)) {
-					matchingSignatures.add(alias);
+						&& matchNodeSignatureAndHashAlgorithms(signatureAndHashAlgorithms, nodeCertificate)) {
+					matchingNodeSignatures.add(alias);
+				}
+				if (signatureAndHashAlgorithms != null
+						&& matchChainSignatureAndHashAlgorithms(signatureAndHashAlgorithms, chain)) {
+					matchingChainSignatures.add(alias);
 				}
 				if (curves != null && matchCurves(curves, chain)) {
 					matchingCurves.add(alias);
@@ -309,15 +315,26 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				++index;
 			}
 			if (!matchingServerNames.isEmpty()) {
-				LOGGER.debug("[{}]: {} selected by {}", id, matchingServerNames.size(), serverNames);
+				LOGGER.debug("[{}]: {} selected {} by {}", id, role, matchingServerNames.size(), serverNames);
 				aliases.retainAll(matchingServerNames);
 			}
 			if (signatureAndHashAlgorithms != null) {
-				LOGGER.debug("[{}]: {} selected by signature and hash algorithms", id, matchingSignatures.size());
-				aliases.retainAll(matchingSignatures);
+				LOGGER.debug("[{}]: {} selected {} by the node's signature and hash algorithms", id, role, matchingNodeSignatures.size());
+				LOGGER.debug("[{}]: {} selected {} by the chain signature and hash algorithms", id, role, matchingChainSignatures.size());
+				aliases.retainAll(matchingNodeSignatures);
+				if (supportedCertificateTypes.contains(CertificateType.X_509)) {
+					List<String> temp = null;
+					if (supportedCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
+						temp = new ArrayList<>(aliases);
+					} 
+					aliases.retainAll(matchingChainSignatures);
+					if (aliases.isEmpty() && temp != null) {
+						aliases = temp;
+					}
+				}
 			}
 			if (curves != null) {
-				LOGGER.debug("[{}]: {} selected by curves", id, matchingCurves.size());
+				LOGGER.debug("[{}]: {} selected {} by curves", id, role, matchingCurves.size());
 				aliases.retainAll(matchingCurves);
 			}
 			if (aliases.size() > 0) {
@@ -334,6 +351,8 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				List<X509Certificate> chain = Arrays.asList(certificateChain);
 				PrivateKey privateKey = keyManager.getPrivateKey(id);
 				return new CertificateIdentityResult(cid, privateKey, chain, id);
+			} else {
+				LOGGER.debug("[{}]: {} no matching credentials left!", id, role);
 			}
 		} else {
 			LOGGER.debug("[{}]: no matching credentials", id);
@@ -379,10 +398,10 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				}
 			}
 			if (alias != null) {
-				LOGGER.debug("[{}]: found {} {} keys for {}", id, alias.length, keyType, client ? "client" : "server");
+				LOGGER.debug("[{}]: {} found {} {} keys", id, client ? "client" : "server", alias.length, keyType);
 				ListUtils.addIfAbsent(all, Arrays.asList(alias));
 			} else {
-				LOGGER.debug("[{}]: found no {} keys for {}", id, keyType, client ? "client" : "server");
+				LOGGER.debug("[{}]: {} found no {} keys", id, client ? "client" : "server", keyType);
 			}
 		}
 		return all;
@@ -413,18 +432,27 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * 
 	 * @param signatureAndHashAlgorithms list of signature and hash algorithms
 	 * @param chain the certificate chain to check
-	 * @return {@code true}, if matching, {@code true}, if not.
+	 * @return {@code true}, if matching, {@code false}, if not.
+	 * @since 3.6
 	 */
-	private boolean matchSignatureAndHashAlgorithms(List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms,
+	private boolean matchChainSignatureAndHashAlgorithms(List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms,
 			List<X509Certificate> chain) {
-		if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(signatureAndHashAlgorithms,
-				chain.get(0).getPublicKey()) == null) {
-			return false;
-		}
-		if (!SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(signatureAndHashAlgorithms, chain)) {
-			return false;
-		}
-		return true;
+		return SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(signatureAndHashAlgorithms, chain);
+	}
+
+	/**
+	 * Checks, if provided node certificate matches the signature and hash
+	 * algorithms.
+	 * 
+	 * @param signatureAndHashAlgorithms list of signature and hash algorithms
+	 * @param node the node's certificate to check
+	 * @return {@code true}, if matching, {@code false}, if not.
+	 * @since 3.6
+	 */
+	private boolean matchNodeSignatureAndHashAlgorithms(List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms,
+			X509Certificate node) {
+		return SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(signatureAndHashAlgorithms,
+				node.getPublicKey()) != null;
 	}
 
 	/**
@@ -432,7 +460,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * 
 	 * @param curves list of supported groups (curves)
 	 * @param chain the certificate chain to check
-	 * @return {@code true}, if matching, {@code true}, if not.
+	 * @return {@code true}, if matching, {@code false}, if not.
 	 */
 	private boolean matchCurves(List<SupportedGroup> curves, List<X509Certificate> chain) {
 		for (X509Certificate certificate : chain) {

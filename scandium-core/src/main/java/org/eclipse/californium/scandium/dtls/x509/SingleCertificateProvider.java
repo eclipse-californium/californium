@@ -130,9 +130,6 @@ public class SingleCertificateProvider implements CertificateProvider, Configura
 	 * @param privateKey private key of identity
 	 * @param publicKey public key of identity
 	 * @throws NullPointerException if the private or public key is {@code null}
-	 * @throws IllegalArgumentException if the public key doesn't use a
-	 *             supported group
-	 * @see SupportedGroup#fromPublicKey(PublicKey)
 	 */
 	public SingleCertificateProvider(PrivateKey privateKey, PublicKey publicKey) {
 		if (privateKey == null) {
@@ -140,10 +137,6 @@ public class SingleCertificateProvider implements CertificateProvider, Configura
 		}
 		if (publicKey == null) {
 			throw new NullPointerException("Public key must not be null!");
-		}
-		SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
-		if (group == null) {
-			throw new IllegalArgumentException("Public key's ec-group must be supported!");
 		}
 
 		this.privateKey = privateKey;
