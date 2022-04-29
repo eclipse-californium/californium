@@ -160,12 +160,14 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public void start() {
 		statistic = new CongestionStatisticLogger(tag, 5000, TimeUnit.MILLISECONDS, executor);
 		statistic.start();
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public void destroy() {
 		CongestionStatisticLogger statistic = this.statistic;
 		if (statistic != null) {
