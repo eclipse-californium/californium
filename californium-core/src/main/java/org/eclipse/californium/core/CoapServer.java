@@ -115,6 +115,7 @@ import org.slf4j.LoggerFactory;
  * @see MessageDeliverer
  * @see Endpoint
  **/
+@SuppressWarnings("deprecation")
 public class CoapServer implements ServerInterface, PersistentComponentProvider {
 
 	/**
