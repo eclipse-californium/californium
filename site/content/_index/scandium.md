@@ -18,6 +18,10 @@ title = "Scandium (Sc)"
   image = "logos/Sc_256.png"
 
 [[buttons]]
+  text = "Introduction"
+  url = "https://github.com/eclipse/californium/tree/master/scandium-core#scandium-sc---security-for-californium"
+
+[[buttons]]
   text = "Repository"
   url = "https://github.com/eclipse/californium/tree/master/scandium-core"
 +++
