@@ -333,8 +333,8 @@ public class CoapClient {
 		// - https://github.com/eclipse/californium/issues/1420
 		if (secondaryExecutor == null) {
 			secondaryExecutor = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("CoapClient(secondary)#"));
+			this.detachExecutor = false;
 		}
-		this.detachExecutor = false;
 
 		return secondaryExecutor;
 	}
