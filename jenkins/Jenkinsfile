@@ -13,6 +13,7 @@
  * Contributors:
  *    Bosch IO GmbH - initial implementation
  ******************************************************************************/
+
 pipeline {
 
 /*******************************************************************************
@@ -20,7 +21,7 @@ pipeline {
  * Create a pipeline job and configure the repo and branch
  * to be build in the SCM git definition of the pipeline
  ******************************************************************************/
- 
+
   agent {
     kubernetes {
       label 'hugo-agent'
@@ -51,17 +52,19 @@ spec:
 """
     }
   }
- 
+
   environment {
     PROJECT_NAME = "californium" // must be all lowercase.
     PROJECT_BOT_NAME = "Californium Bot" // Capitalize the name
+    BRANCH_NAME = "master"
   }
-  
+
   options {
     buildDiscarder(logRotator(numToKeepStr: '5'))
     checkoutToSubdirectory('hugo')
+    timeout(time: 15, unit: 'MINUTES')
   }
- 
+
   stages {
     stage('Checkout www repo') {
       steps {
@@ -76,9 +79,6 @@ spec:
       }
     }
     stage('Build website (master) with Hugo') {
-      when {
-        branch 'master'
-      }
       steps {
         container('hugo') {
             dir('hugo/site') {
@@ -87,25 +87,7 @@ spec:
         }
       }
     }
-    stage('Build website (staging) with Hugo') {
-      when {
-        branch 'staging'
-      }
-      steps {
-        container('hugo') {
-            dir('hugo/site') {
-                sh 'hugo -b https://staging.eclipse.org/${PROJECT_NAME}/'
-            }
-        }
-      }
-    }
     stage('Push to $env.BRANCH_NAME branch') {
-      when {
-        anyOf {
-          branch "master"
-          branch "staging"
-        }
-      }
       steps {
         sh 'rm -rf www/* && cp -Rvf hugo/site/public/* www/'
         dir('www') {
