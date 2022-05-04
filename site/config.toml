@@ -3,8 +3,8 @@ baseurl = "https://www.eclipse.org/californium/"
 languageCode = "en-us"
 title = "Eclipse Californium&trade;"
 theme = "syna"
-enableGitInfo = true
-version = "0.15.2"
+enableGitInfo = false
+version = "0.17.4"
 
 # Google Analytics tracking
 googleAnalytics = ""
