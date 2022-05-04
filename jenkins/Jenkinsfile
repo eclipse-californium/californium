@@ -87,7 +87,7 @@ spec:
         }
       }
     }
-    stage('Push to $BRANCH_NAME branch') {
+    stage('Push to website master branch') {
       steps {
         sh 'rm -rf www/* && cp -Rvf hugo/site/public/* www/'
         dir('www') {
