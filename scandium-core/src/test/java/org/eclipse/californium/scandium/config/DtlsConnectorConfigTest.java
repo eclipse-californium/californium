@@ -366,6 +366,14 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test
+	public void testBuildAllowsForServerWithoutTrust() {
+		builder.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY);
+		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain()))
+		.build();
+	}
+
+	@Test
 	public void testBuildDetectsErrorForAnonymousClientUsingPSKCiphersOnly() {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("PSK store must be set"));
