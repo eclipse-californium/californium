@@ -21,8 +21,10 @@ package org.eclipse.californium.core.network.stack;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.core.observe.ObserveRelation.State;
 import org.eclipse.californium.elements.config.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,20 +59,20 @@ public class TcpObserveLayer extends AbstractLayer {
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
+		// use dummy type for TCP
+		response.setType(Type.CON);
 		final ObserveRelation relation = exchange.getRelation();
-		if (relation != null && relation.isEstablished()) {
-			if (response.isSuccess() ^ response.isNotification()) {
-				if (response.isNotification()) {
-					LOGGER.warn("Error notification, remove observe-option {}", response);
-					response.getOptions().removeObserve();
-				} else {
-					LOGGER.warn("No-notification response with observe-relation {}, drop.", response);
-					response.setSendError(new IllegalArgumentException("Notification must have observe-option!"));
+		State state = ObserveRelation.onResponse(relation, response);
+		if (relation != null) {
+			if (state == State.CANCELED) {
+				if (exchange.isComplete()) {
+					LOGGER.debug("drop notification {}, relation was canceled!", response);
+					response.setCanceled(true);
 					return;
 				}
 			}
-			relation.send(response);
-		} // else no observe was requested or the resource does not allow it
+			relation.onSend(response);
+		}
 		lower().sendResponse(exchange, response);
 	}
 

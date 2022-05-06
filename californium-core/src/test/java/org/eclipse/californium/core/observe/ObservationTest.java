@@ -32,8 +32,6 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.category.Small;
-import org.eclipse.californium.rule.CoapThreadsRule;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -43,8 +41,6 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class ObservationTest {
-	@Rule
-	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	/**
 	 * Verifies that a request with its observe option set to a value != 0 is

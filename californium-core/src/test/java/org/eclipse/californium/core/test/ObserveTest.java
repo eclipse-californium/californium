@@ -298,7 +298,7 @@ public class ObserveTest {
 	}
 
 	@Test
-	public void testObserveDefaultMessageType() throws Exception {
+	public void testConObserveDefaultMessageType() throws Exception {
 
 		serverEndpoint.addInterceptor(new ServerMessageInterceptor());
 		resourceX.setObserveType(null);
@@ -316,6 +316,36 @@ public class ObserveTest {
 		assertNotNull("Response not received", rel.getCurrent());
 		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
 		assertEquals(Type.ACK, rel.getCurrent().advanced().getType());
+
+		resourceX.changed("new");
+
+		assertTrue(handler.waitOnLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says new for the 2 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.CON, rel.getCurrent().advanced().getType());
+	}
+
+	@Test
+	public void testNonObserveDefaultMessageType() throws Exception {
+
+		serverEndpoint.addInterceptor(new ServerMessageInterceptor());
+		resourceX.setObserveType(null);
+
+		CoapClient client = new CoapClient(uriX);
+		client.useNONs();
+		cleanup.add(client);
+		CountingCoapHandler handler = new CountingCoapHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		// onLoad is called asynchronous to returning the response
+		// therefore wait for one onLoad
+		assertTrue(handler.waitOnLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+
+		assertFalse("Relation canceled", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		assertEquals(Type.NON, rel.getCurrent().advanced().getType());
 
 		resourceX.changed("new");
 

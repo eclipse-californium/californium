@@ -43,6 +43,7 @@ import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointObserver;
+import org.eclipse.californium.core.observe.ObserveHealth;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
@@ -136,6 +137,12 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 
 	/** The message deliverer. */
 	private MessageDeliverer deliverer;
+	/**
+	 * Observe health status.
+	 * 
+	 * @since 3.6
+	 */
+	private ObserveHealth observeHealth;
 
 	/** The list of endpoints the server connects to the network. */
 	private final List<Endpoint> endpoints = new CopyOnWriteArrayList<>();
@@ -214,7 +221,7 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 		setTag(null);
 		// resources
 		this.root = createRoot();
-		this.deliverer = new ServerMessageDeliverer(root);
+		this.deliverer = new ServerMessageDeliverer(root, config);
 
 		CoapResource wellKnown = new CoapResource(".well-known");
 		wellKnown.setVisible(false);
@@ -331,9 +338,11 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	}
 
 	/**
-	 * Stops the server, i.e., unbinds it from all ports. Frees as much system
-	 * resources as possible to still be able to be re-started with the previous
-	 * binds. To free all system resources {@link #destroy()} must be called!
+	 * Stops the server.
+	 * 
+	 * I.e., unbinds it from all ports. Frees as much system resources as
+	 * possible to still be able to be re-started with the previous binds. To
+	 * free all system resources {@link #destroy()} must be called!
 	 */
 	@Override
 	public synchronized void stop() {
@@ -349,7 +358,9 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	}
 
 	/**
-	 * Destroys the server, i.e., unbinds from all ports and frees all system
+	 * Destroys the server.
+	 * 
+	 * I.e., unbinds from all ports and frees all system
 	 * resources.
 	 */
 	@Override
@@ -383,10 +394,14 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	 * @param deliverer the new message deliverer
 	 */
 	public void setMessageDeliverer(final MessageDeliverer deliverer) {
+		if (this.deliverer instanceof ServerMessageDeliverer && this.deliverer != deliverer) {
+			((ServerMessageDeliverer) this.deliverer).setObserveHealth(null);
+		}
 		this.deliverer = deliverer;
 		for (Endpoint endpoint : endpoints) {
 			endpoint.setMessageDeliverer(deliverer);
 		}
+		setObserveHealth(observeHealth);
 	}
 
 	/**
@@ -399,11 +414,25 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	}
 
 	/**
-	 * Adds an Endpoint to the server. WARNING: It automatically configures the
-	 * default executor of the server. Endpoints that should use their own
-	 * executor (e.g., to prioritize or balance request handling) either set it
-	 * afterwards before starting the server or override the setExecutor()
-	 * method of the special Endpoint.
+	 * Set observe health status.
+	 * 
+	 * @param observeHealth health status for observe.
+	 * @since 3.6
+	 */
+	public void setObserveHealth(ObserveHealth observeHealth) {
+		this.observeHealth = observeHealth;
+		if (deliverer instanceof ServerMessageDeliverer) {
+			((ServerMessageDeliverer) deliverer).setObserveHealth(observeHealth);
+		}
+	}
+
+	/**
+	 * Adds an Endpoint to the server.
+	 * 
+	 * WARNING: It automatically configures the default executor of the server.
+	 * Endpoints that should use their own executor (e.g., to prioritize or
+	 * balance request handling) either set it afterwards before starting the
+	 * server or override the setExecutor() method of the special Endpoint.
 	 * 
 	 * @param endpoint the endpoint to add
 	 */

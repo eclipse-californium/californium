@@ -96,7 +96,7 @@ public class Diagnose extends CoapResource {
 		getAttributes().addContentType(APPLICATION_CBOR);
 	}
 
-	public void update() {
+	public void update(List<CounterStatisticManager> serverHealth) {
 		if (server != null) {
 			endpointsHealth.clear();
 			for (Resource child : getChildren()) {
@@ -105,14 +105,14 @@ public class Diagnose extends CoapResource {
 			for (Endpoint ep : server.getEndpoints()) {
 				String scheme = ep.getUri().getScheme();
 				if (CoAP.isUdpScheme(scheme)) {
-					addHealth(ep);
+					addHealth(ep, serverHealth);
 				}
 			}
 		}
 	}
 
-	public void addHealth(Endpoint endpoint) {
-		List<CounterStatisticManager> health = new ArrayList<>();
+	public void addHealth(Endpoint endpoint, List<CounterStatisticManager> serverHealth) {
+		List<CounterStatisticManager> health = new ArrayList<>(serverHealth);
 		String protocol = CoAP.getProtocolForScheme(endpoint.getUri().getScheme());
 		InetSocketAddress local = endpoint.getAddress();
 		String key = protocol + ":" + StringUtil.toString(local);

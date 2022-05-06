@@ -144,25 +144,25 @@ public class ClientAsynchronousTest {
 		// Observe the resource
 		CoapObserveRelation obs1 = client.observe(handler);
 
-		assertTrue("missing notifications", handler.waitOnLoadCalls(1, 2000, TimeUnit.MILLISECONDS));
+		assertTrue("missing first notification", handler.waitOnLoadCalls(1, 2000, TimeUnit.MILLISECONDS));
 
 		LOGGER.info("changed 1");
 		resource.setContent(CONTENT_1 + " - 1");
 		resource.changed();
 
-		assertTrue("missing notifications", handler.waitOnLoadCalls(2, 2000, TimeUnit.MILLISECONDS));
+		assertTrue("missing second notification", handler.waitOnLoadCalls(2, 2000, TimeUnit.MILLISECONDS));
 
 		LOGGER.info("changed 2");
 		resource.setContent(CONTENT_1 + " - 2");
 		resource.changed();
 
-		assertTrue("missing notifications", handler.waitOnLoadCalls(3, 2000, TimeUnit.MILLISECONDS));
+		assertTrue("missing third notification", handler.waitOnLoadCalls(3, 2000, TimeUnit.MILLISECONDS));
 
 		LOGGER.info("changed 3");
 		resource.setContent(CONTENT_1 + " - 3");
 		resource.changed();
 
-		assertTrue("missing notifications", handler.waitOnLoadCalls(4, 2000, TimeUnit.MILLISECONDS));
+		assertTrue("missing fourth notification", handler.waitOnLoadCalls(4, 2000, TimeUnit.MILLISECONDS));
 		obs1.reactiveCancel();
 		resource.changed();
 		Thread.sleep(50);

@@ -196,7 +196,7 @@ public class ExampleCrossProxy2 {
 		coapProxyServer = new CoapServer(config, coapPort);
 		MessageDeliverer local = coapProxyServer.getMessageDeliverer();
 		ForwardProxyMessageDeliverer proxyMessageDeliverer = new ForwardProxyMessageDeliverer(coapProxyServer.getRoot(),
-				translater);
+				translater, config);
 		proxyMessageDeliverer.addProxyCoapResources(coap2coap, coap2http);
 		proxyMessageDeliverer.addExposedServiceAddresses(new InetSocketAddress(coapPort));
 		coapProxyServer.setMessageDeliverer(proxyMessageDeliverer);

@@ -52,6 +52,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
+import org.eclipse.californium.core.observe.ObserveStatisticLogger;
 import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.Connector;
@@ -527,9 +528,17 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			server.addLogger(!config.benchmark);
 
+			List<CounterStatisticManager> statistics = new ArrayList<>();
+			ObserveStatisticLogger obsStatLogger = new ObserveStatisticLogger(server.getTag());
+			if (obsStatLogger.isEnabled()) {
+				statistics.add(obsStatLogger);
+				server.add(obsStatLogger);
+				server.setObserveHealth(obsStatLogger);
+			}
+
 			Resource child = server.getRoot().getChild(Diagnose.RESOURCE_NAME);
 			if (child instanceof Diagnose) {
-				((Diagnose) child).update();
+				((Diagnose) child).update(statistics);
 			}
 
 			PlugtestServer.ActiveInputReader reader = new PlugtestServer.ActiveInputReader();

@@ -39,10 +39,12 @@ package org.eclipse.californium.core.network.stack;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.core.observe.ObserveRelation.State;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -67,36 +69,40 @@ public class ObserveLayer extends AbstractLayer {
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
-
 		final ObserveRelation relation = exchange.getRelation();
-
-		if (relation != null && relation.isEstablished()) {
-			if (response.isSuccess() ^ response.isNotification()) {
-				if (response.isNotification()) {
-					LOGGER.warn("Error notification, remove observe-option {}", response);
-					response.getOptions().removeObserve();
-				} else {
-					LOGGER.warn("No-notification response with observe-relation {}, drop.", response);
-					response.setSendError(new IllegalArgumentException("Notification must have observe-option!"));
-					return;
+		ObserveRelation.State state = ObserveRelation.onResponse(relation, response);
+		if (state == State.INIT || state == State.ESTABILSHED) {
+			Type type = response.getType();
+			if (type == null) {
+				if (state == State.INIT) {
+					// first response
+					Request currentRequest = exchange.getCurrentRequest();
+					if (currentRequest.acknowledge()) {
+						// send piggy-backed response
+						response.setType(Type.ACK);
+					} else if (currentRequest.isConfirmable()) {
+						// send separate CON or NON notify
+						// depending on the resource's observe-type
+						response.setType(relation.getObserveType());
+					} else {
+						// send separate NON notify
+						// depending on the request's type
+						response.setType(Type.NON);
+					}
+					LOGGER.trace("{} set initial notify type to {}", exchange, response.getType());
+				} else if (state == State.ESTABILSHED) {
+					Type observerType;
+					if (response.isSuccess()) {
+						// success either CON or NON
+						observerType = relation.getObserveType();
+					} else {
+						// error always CON
+						observerType = Type.CON;
+					}
+					response.setType(observerType);
+					LOGGER.trace("{} set notify type to {}", exchange, response.getType());
 				}
 			}
-			if (exchange.getRequest().isAcknowledged() || exchange.getRequest().getType() == Type.NON) {
-				// Transmit errors as CON
-				if (!response.isSuccess()) {
-					LOGGER.debug("response has error code {} and must be sent as CON", response.getCode());
-					response.setType(Type.CON);
-				} else if (relation.check()) {
-					// Make sure that every now and than a CON is mixed within
-					LOGGER.debug("observe relation check requires the notification to be sent as CON");
-					response.setType(Type.CON);
-				} else if (response.getType() == null) {
-					// By default use NON, but do not override resource decision
-					LOGGER.debug("observe relation sent the message as NON (default)");
-					response.setType(Type.NON);
-				}
-			}
-
 			/*
 			 * Only one confirmable message is allowed to be in transit. A CON
 			 * is in transit as long as it has not been acknowledged, rejected,
@@ -118,9 +124,18 @@ public class ObserveLayer extends AbstractLayer {
 				// do not send now
 				return;
 			}
-		} else if (response.isNotification()) {
-			LOGGER.warn("Notification without observe-relation, remove observe-option {}", response);
-			response.getOptions().removeObserve();
+		} else if (relation != null) {
+			if (exchange.isComplete()) {
+				LOGGER.debug("drop notification {}, relation was canceled!", response);
+				response.setCanceled(true);
+				return;
+			} else {
+				Type type = response.getType();
+				if (type == null || type == Type.CON) {
+					// if type is set later, add the cleanup preventive
+					response.addMessageObserver(new CleanupMessageObserver(exchange));
+				}
+			}
 		}
 		lower().sendResponse(exchange, response);
 	}
@@ -142,19 +157,14 @@ public class ObserveLayer extends AbstractLayer {
 
 	@Override
 	public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage message) {
-		// NOTE: We could also move this into the MessageObserverAdapter from
-		// sendResponse into the method rejected().
-		if (message.getType() == Type.RST && exchange.getOrigin() == Origin.REMOTE) {
-			// The response has been rejected
-			if (exchange.getCurrentResponse().isNotification()) {
-				ObserveRelation relation = exchange.getRelation();
-				if (relation != null) {
-					relation.cleanup();
+		ObserveRelation relation = exchange.getRelation();
+		if (relation != null) {
+			if (message.getType() == Type.RST && exchange.getOrigin() == Origin.REMOTE) {
+				// The response has been rejected
+				if (exchange.getCurrentResponse().isNotification()) {
+					relation.reject();
 				}
 			}
-			// else 
-			//    there was no observe relation ship
-			//    and this layer ignores the rst
 		}
 		upper().receiveEmptyMessage(exchange, message);
 	}
@@ -174,6 +184,11 @@ public class ObserveLayer extends AbstractLayer {
 		public NotificationController(Exchange exchange, Response response) {
 			this.exchange = exchange;
 			this.response = response;
+		}
+
+		@Override
+		public boolean isInternal() {
+			return true;
 		}
 
 		@Override
