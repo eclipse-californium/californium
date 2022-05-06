@@ -422,7 +422,7 @@ public class Exchange {
 	public void sendAccept(EndpointContext context) {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
-		if (current.getType() == Type.CON && current.hasMID() && current.acknowledge()) {
+		if (current.getType() == Type.CON && current.hasMID() && !current.isRejected() && current.acknowledge()) {
 			EmptyMessage ack = EmptyMessage.newACK(current, context);
 			endpoint.sendEmptyMessage(this, ack);
 		}
@@ -459,7 +459,7 @@ public class Exchange {
 	public void sendReject(EndpointContext context) {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
-		if (current.hasMID() && !current.isRejected()) {
+		if (current.hasMID() && !current.isRejected() && !current.isAcknowledged()) {
 			current.setRejected(true);
 			if (!current.isMulticast()) {
 				EmptyMessage rst = EmptyMessage.newRST(current, context);
