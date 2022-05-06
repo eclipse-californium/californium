@@ -54,6 +54,7 @@ import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.UdpConfig;
+import org.eclipse.californium.elements.config.ValueException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -260,6 +261,20 @@ public class PlugtestServer extends AbstractTestServer {
 			}
 			return types;
 		}
+
+		public long getNotifyIntervalMillis() {
+			long notifyIntervalMillis = DEFAULT_NOTIFY_INTERVAL_MILLIS;
+			if (notifyInterval != null) {
+				try {
+					notifyIntervalMillis = TimeUnit.NANOSECONDS.toMillis(TimeDefinition.parse(notifyInterval));
+					if (notifyIntervalMillis < MINIMUM_NOTIFY_INTERVAL_MILLIS) {
+						notifyIntervalMillis = MINIMUM_NOTIFY_INTERVAL_MILLIS;
+					}
+				} catch (ValueException e) {
+				}
+			}
+			return notifyIntervalMillis;
+		}
 	}
 
 	@Command(name = "PlugtestServer", version = "(c) 2014, Institute for Pervasive Computing, ETH Zurich.")
@@ -388,13 +403,7 @@ public class PlugtestServer extends AbstractTestServer {
 				oscoreServerRid = initOscore(configuration, oscoreCtxDb);
 			}
 
-			long notifyIntervalMillis = DEFAULT_NOTIFY_INTERVAL_MILLIS;
-			if (config.notifyInterval != null) {
-				notifyIntervalMillis = TimeUnit.NANOSECONDS.toMillis(TimeDefinition.parse(config.notifyInterval));
-				if (notifyIntervalMillis < MINIMUM_NOTIFY_INTERVAL_MILLIS) {
-					notifyIntervalMillis = MINIMUM_NOTIFY_INTERVAL_MILLIS;
-				}
-			}
+			long notifyIntervalMillis = config.getNotifyIntervalMillis();
 			List<Protocol> protocols = config.getProtocols();
 
 			List<InterfaceType> types = config.getInterfaceTypes();
@@ -430,7 +439,8 @@ public class PlugtestServer extends AbstractTestServer {
 	public static void load(BaseConfig config) {
 
 		if (config.store != null) {
-			serversSerialization.loadAndRegisterShutdown(config.store.file, config.store.password64.toCharArray(),
+			char[] password64 = config.store.password64 == null ? null : config.store.password64.toCharArray();
+			serversSerialization.loadAndRegisterShutdown(config.store.file, password64,
 					TimeUnit.HOURS.toSeconds(config.store.maxAge));
 		}
 	}

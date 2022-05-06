@@ -68,7 +68,7 @@ public class ClientObserveRelation {
 	private volatile Request request;
 
 	/** Indicates whether the relation has been canceled. */
-	private volatile boolean canceled = false;
+	private volatile AtomicBoolean canceled = new AtomicBoolean();
 	/** Indicates whether a proactive cancel request is pending. */
 	private volatile boolean proactiveCancel = false;
 
@@ -129,8 +129,8 @@ public class ClientObserveRelation {
 		this.request = request;
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
-		this.reregistrationBackoffMillis = endpoint.getConfig()
-				.get(CoapConfig.NOTIFICATION_REREGISTRATION_BACKOFF, TimeUnit.MILLISECONDS);
+		this.reregistrationBackoffMillis = endpoint.getConfig().get(CoapConfig.NOTIFICATION_REREGISTRATION_BACKOFF,
+				TimeUnit.MILLISECONDS);
 		this.scheduler = executor;
 		this.request.addMessageObserver(pendingRequestObserver);
 		this.request.setProtectFromOffload();
@@ -238,12 +238,25 @@ public class ClientObserveRelation {
 	}
 
 	/**
-	 * Cancel observation. Cancel pending request of this observation and stop
-	 * reregistrations.
+	 * Cancel observation.
+	 * 
+	 * Cancel pending request of this observation and stop reregistrations.
 	 */
 	private void cancel() {
 		endpoint.cancelObservation(request.getToken());
 		setCanceled(true);
+	}
+
+	/**
+	 * Marks this relation as canceled.
+	 *
+	 * @param canceled true if this relation has been canceled
+	 */
+	protected void setCanceled(boolean canceled) {
+		this.canceled.set(canceled);
+		if (canceled) {
+			setReregistrationHandle(null);
+		}
 	}
 
 	/**
@@ -252,10 +265,12 @@ public class ClientObserveRelation {
 	 */
 	public void proactiveCancel() {
 		// stop reregistration
-		cancel();
-		proactiveCancel = true;
-		if (requestPending.compareAndSet(false, true)) {
-			sendCancelObserve();
+		if (this.canceled.compareAndSet(false, true)) {
+			cancel();
+			proactiveCancel = true;
+			if (requestPending.compareAndSet(false, true)) {
+				sendCancelObserve();
+			}
 		}
 		// cancel observe relation
 	}
@@ -270,7 +285,7 @@ public class ClientObserveRelation {
 		if (CoAP.isTcpScheme(request.getScheme())) {
 			LOGGER.info("change to cancel the observe {} proactive over TCP.", request.getTokenString());
 			proactiveCancel();
-		} else {
+		} else if (this.canceled.compareAndSet(false, true)) {
 			// cancel old ongoing request
 			request.cancel();
 			cancel();
@@ -283,7 +298,7 @@ public class ClientObserveRelation {
 	 * @return true, if the relation has been canceled
 	 */
 	public boolean isCanceled() {
-		return canceled;
+		return canceled.get();
 	}
 
 	/**
@@ -293,19 +308,6 @@ public class ClientObserveRelation {
 	 */
 	public Response getCurrentResponse() {
 		return current;
-	}
-
-	/**
-	 * Marks this relation as canceled.
-	 *
-	 * @param canceled true if this relation has been canceled
-	 */
-	protected void setCanceled(boolean canceled) {
-		this.canceled = canceled;
-
-		if (this.canceled) {
-			setReregistrationHandle(null);
-		}
 	}
 
 	/**
