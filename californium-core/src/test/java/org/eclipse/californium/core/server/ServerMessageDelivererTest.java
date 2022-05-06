@@ -83,7 +83,7 @@ public class ServerMessageDelivererTest {
 
 		// GIVEN a message deliverer subclass which processes all incoming requests
 		// in its preDeliverRequest method
-		final ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource) {
+		final ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource, null) {
 			@Override
 			protected boolean preDeliverRequest(Exchange exchange) {
 				Response response = new Response(ResponseCode.CREATED);
@@ -116,7 +116,7 @@ public class ServerMessageDelivererTest {
 		// GIVEN a message deliverer subclass that adds a custom option to incoming
 		// requests
 		final Option customOption = new Option(200);
-		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource) {
+		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource, null) {
 			@Override
 			protected boolean preDeliverRequest(Exchange exchange) {
 				exchange.getRequest().getOptions().addOption(customOption);
@@ -142,7 +142,7 @@ public class ServerMessageDelivererTest {
 	public void testDeliverResponseYieldsToSubclass() {
 
 		// GIVEN a message deliverer subclass that processes all incoming responses
-		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource) {
+		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource, null) {
 
 			@Override
 			protected boolean preDeliverResponse(Exchange exchange, Response response) {
@@ -166,7 +166,7 @@ public class ServerMessageDelivererTest {
 
 		// GIVEN a message deliverer subclass that adds a custom option to incoming
 		// responses
-		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource) {
+		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource, null) {
 
 			@Override
 			protected boolean preDeliverResponse(Exchange exchange, Response response) {

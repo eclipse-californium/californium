@@ -1266,7 +1266,7 @@ public class Exchange {
 				}
 			}
 			notifications.clear();
-			LOGGER.debug("{} removing all remaining NON-notifications of observe relation with {}", this,
+			LOGGER.debug("{} removed all remaining NON-notifications of observe relation with {}", this,
 					relation.getSource());
 		}
 	}

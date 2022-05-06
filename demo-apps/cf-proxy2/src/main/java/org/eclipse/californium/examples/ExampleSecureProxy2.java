@@ -161,7 +161,7 @@ public class ExampleSecureProxy2 {
 		// Forwards requests Coap to Coap or Coap to Http server
 		coapProxyServer = new CoapServer(config, coapPort);
 		ForwardProxyMessageDeliverer proxyMessageDeliverer = new ForwardProxyMessageDeliverer(coapProxyServer.getRoot(),
-				translater);
+				translater, config);
 		proxyMessageDeliverer.addProxyCoapResources(coap2coap);
 		proxyMessageDeliverer.addExposedServiceAddresses(new InetSocketAddress(coapPort));
 		coapProxyServer.setMessageDeliverer(proxyMessageDeliverer);

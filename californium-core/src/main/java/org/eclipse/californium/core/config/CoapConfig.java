@@ -310,6 +310,14 @@ public final class CoapConfig {
 	 * The default token size.
 	 */
 	public static final int DEFAULT_TOKEN_SIZE_LIMIT = 8;
+	/**
+	 * The default number of maximum observes supported on the coap-server.
+	 * 
+	 * {@code 0} to disable the server side limitation of observers.
+	 * 
+	 * @since 3.6
+	 */
+	public static final int DEFAULT_MAX_SERVER_OBSERVES = 50000;
 
 	/**
 	 * The maximum number of active peers supported.
@@ -649,6 +657,15 @@ public final class CoapConfig {
 			MODULE + "NOTIFICATION_REREGISTRATION_BACKOFF",
 			"Additional time (backoff) to the max-age option\nfor waiting for the next notification before reregister.",
 			2000L, TimeUnit.MILLISECONDS);
+	/**
+	 * The maximum number of observes supported on the coap-server.
+	 * 
+	 * {@code 0} to disable the server side limitation of observers.
+	 * 
+	 * @since 3.6
+	 */
+	public static final IntegerDefinition MAX_SERVER_OBSERVES = new IntegerDefinition(MODULE + "MAX_SERVER_OBSERVES",
+			"Maximum number of observes on server-side. 0 to disable this limitation.", DEFAULT_MAX_SERVER_OBSERVES);
 
 	/**
 	 * Congestion control algorithm. Still experimental.
@@ -729,8 +746,9 @@ public final class CoapConfig {
 	 * @since 3.5
 	 */
 	public static final BooleanDefinition STRICT_EMPTY_MESSAGE_FORMAT = new BooleanDefinition(
-			MODULE + "STRICT_EMPTY_MESSAGE_FORMAT", "Process empty messages strictly according RFC7252, 4.1 as format error. Disable to ignore additional data as tokens or options.", true);
-
+			MODULE + "STRICT_EMPTY_MESSAGE_FORMAT",
+			"Process empty messages strictly according RFC7252, 4.1 as format error. Disable to ignore additional data as tokens or options.",
+			true);
 
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
@@ -795,6 +813,8 @@ public final class CoapConfig {
 
 			config.set(MULTICAST_BASE_MID, DEFAULT_MULTICAST_BASE_MID);
 			config.set(STRICT_EMPTY_MESSAGE_FORMAT, true);
+
+			config.set(MAX_SERVER_OBSERVES, DEFAULT_MAX_SERVER_OBSERVES);
 		}
 	};
 

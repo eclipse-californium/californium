@@ -53,6 +53,7 @@ import org.eclipse.californium.core.observe.ObserveRelationContainer;
 import org.eclipse.californium.core.observe.ObserveRelationFilter;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.server.resources.ObservableResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
@@ -132,7 +133,8 @@ import org.slf4j.LoggerFactory;
  * when a child resource is added or removed or when a CoAP observe relation is
  * added or canceled.
  */
-public class CoapResource implements Resource {
+@SuppressWarnings("deprecation")
+public class CoapResource implements Resource, ObservableResource {
 
 	/** The logger. */
 	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class);
@@ -168,13 +170,18 @@ public class CoapResource implements Resource {
 	private Type observeType = null;
 
 	/* The list of observers (not CoAP observer). */
-	private List<ResourceObserver> observers;
+	private final List<ResourceObserver> observers;
 
-	/* The the list of CoAP observe relations. */
-	private ObserveRelationContainer observeRelations;
+	/**
+	 * The the list of CoAP observe relations.
+	 * 
+	 * @since 3.6 adapted to a list of observe relations and obsoletes
+	 *        {@link ObserveRelationContainer}.
+	 */
+	private final List<ObserveRelation> observeRelations;
 
 	/* The notification orderer. */
-	private ObserveNotificationOrderer notificationOrderer;
+	private final ObserveNotificationOrderer notificationOrderer;
 
 	/**
 	 * Constructs a new resource with the specified name.
@@ -217,9 +224,9 @@ public class CoapResource implements Resource {
 		this.path = "";
 		this.visible = visible;
 		this.attributes = new ResourceAttributes();
-		this.children = new ConcurrentHashMap<String, Resource>();
-		this.observers = new CopyOnWriteArrayList<ResourceObserver>();
-		this.observeRelations = new ObserveRelationContainer();
+		this.children = new ConcurrentHashMap<>();
+		this.observers = new CopyOnWriteArrayList<>();
+		this.observeRelations = new CopyOnWriteArrayList<>();
 		this.notificationOrderer = new ObserveNotificationOrderer();
 	}
 
@@ -240,25 +247,25 @@ public class CoapResource implements Resource {
 		Code code = exchange.getRequest().getCode();
 		switch (code) {
 		case GET:
-			handleGET(new CoapExchange(exchange, this));
+			handleGET(new CoapExchange(exchange));
 			break;
 		case POST:
-			handlePOST(new CoapExchange(exchange, this));
+			handlePOST(new CoapExchange(exchange));
 			break;
 		case PUT:
-			handlePUT(new CoapExchange(exchange, this));
+			handlePUT(new CoapExchange(exchange));
 			break;
 		case DELETE:
-			handleDELETE(new CoapExchange(exchange, this));
+			handleDELETE(new CoapExchange(exchange));
 			break;
 		case FETCH:
-			handleFETCH(new CoapExchange(exchange, this));
+			handleFETCH(new CoapExchange(exchange));
 			break;
 		case PATCH:
-			handlePATCH(new CoapExchange(exchange, this));
+			handlePATCH(new CoapExchange(exchange));
 			break;
 		case IPATCH:
-			handleIPATCH(new CoapExchange(exchange, this));
+			handleIPATCH(new CoapExchange(exchange));
 			break;
 		default:
 			exchange.sendResponse(new Response(ResponseCode.METHOD_NOT_ALLOWED, true));
@@ -350,6 +357,16 @@ public class CoapResource implements Resource {
 		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
 	}
 
+	@Override
+	public Type getObserveType() {
+		return observeType;
+	}
+
+	@Override
+	public int getNotificationSequenceNumber() {
+		return notificationOrderer.getCurrent();
+	}
+
 	/**
 	 * This method is used to apply resource-specific knowledge on the exchange.
 	 * If the request was successful, it sets the Observe option for the
@@ -364,31 +381,11 @@ public class CoapResource implements Resource {
 	 * 
 	 * @param exchange the exchange
 	 * @param response the response
+	 * @deprecated moved to {@link ObserveRelation#onResponse(ObserveRelation, Response)}
 	 */
+	@Deprecated
 	public void checkObserveRelation(Exchange exchange, Response response) {
-		/*
-		 * If the request for the specified exchange tries to establish an
-		 * observer relation, then the ServerMessageDeliverer must have created
-		 * such a relation and added to the exchange. Otherwise, there is no
-		 * such relation. Remember that different paths might lead to this
-		 * resource.
-		 */
-
-		final ObserveRelation relation = exchange.getRelation();
-		if (relation == null || relation.isCanceled()) {
-			return; // because request did not try to establish a relation
-		}
-		if (response.isSuccess()) {
-
-			if (!relation.isEstablished()) {
-				relation.setEstablished();
-				addObserveRelation(relation);
-			} else if (observeType != null && response.getType() == null) {
-				// The resource can control the message type of the notification
-				response.setType(observeType);
-			}
-			response.getOptions().setObserve(notificationOrderer.getCurrent());
-		} // ObserveLayer takes care of the else case
+		ObserveRelation.onResponse(exchange.getRelation(), response);
 	}
 
 	/*
@@ -787,15 +784,18 @@ public class CoapResource implements Resource {
 	}
 
 	/**
-	 * Sets the type of the notifications that will be sent. If set to null
-	 * (default) the type matching the request will be used.
+	 * Sets the type of the notifications that will be sent.
+	 * 
+	 * If set to {@code null} (default) the type matching the request will be
+	 * used.
 	 *
-	 * @param type either CON, NON, or null for no changes by the framework
+	 * @param type either CON, NON, or {@code null} for no changes by the
+	 *            framework
 	 * @throws IllegalArgumentException if illegal types for notifications are
 	 *             passed
 	 */
 	public void setObserveType(Type type) {
-		if (type == Type.ACK || type == Type.RST) {
+		if (type !=null && type != Type.NON && type != Type.CON) {
 			throw new IllegalArgumentException(
 					"Only CON and NON notifications are allowed or null for no changes by the framework");
 		}
@@ -811,17 +811,9 @@ public class CoapResource implements Resource {
 	 */
 	@Override
 	public void addObserveRelation(ObserveRelation relation) {
-		ObserveRelation previous = observeRelations.addAndGetPrevious(relation);
-		if (previous != null) {
-			LOGGER.info("replacing observe relation between {} and resource {} (new {}, size {})", relation.getKey(),
-					getURI(), relation.getExchange(), observeRelations.getSize());
-			for (ResourceObserver obs : observers) {
-				obs.removedObserveRelation(previous);
-			}
-		} else {
-			LOGGER.info("successfully established observe relation between {} and resource {} ({}, size {})",
-					relation.getKey(), getURI(), relation.getExchange(), observeRelations.getSize());
-		}
+		observeRelations.add(relation);
+		LOGGER.info("successfully established observe relation between {} and resource {} ({}, size {})",
+				relation.getKeyToken(), getURI(), relation.getExchange(), observeRelations.size());
 		for (ResourceObserver obs : observers) {
 			obs.addedObserveRelation(relation);
 		}
@@ -837,22 +829,17 @@ public class CoapResource implements Resource {
 	@Override
 	public void removeObserveRelation(ObserveRelation relation) {
 		if (observeRelations.remove(relation)) {
-			LOGGER.info("remove observe relation between {} and resource {} ({}, size {})", relation.getKey(), getURI(),
-					relation.getExchange(), observeRelations.getSize());
+			LOGGER.info("remove observe relation between {} and resource {} ({}, size {})", relation.getKeyToken(),
+					getURI(), relation.getExchange(), observeRelations.size());
 			for (ResourceObserver obs : observers) {
 				obs.removedObserveRelation(relation);
 			}
 		}
 	}
 
-	/**
-	 * Returns the number of observe relations that this resource has to CoAP
-	 * clients.
-	 * 
-	 * @return the observer count
-	 */
+	@Override
 	public int getObserverCount() {
-		return observeRelations.getSize();
+		return observeRelations.size();
 	}
 
 	/**

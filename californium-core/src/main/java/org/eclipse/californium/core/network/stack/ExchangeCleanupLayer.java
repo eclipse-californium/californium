@@ -85,7 +85,7 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 	 */
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
-		if (!response.isNotification()) {
+		if (exchange.getRelation() == null) {
 			Type type = response.getType();
 			if (type == null || type == Type.CON) {
 				// if type is set later, add the cleanup preventive

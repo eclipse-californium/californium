@@ -34,6 +34,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.DelivererException;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.proxy2.CoapUriTranslator;
 import org.eclipse.californium.proxy2.TranslationException;
@@ -122,9 +123,33 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	 *            used to determine this destination scheme for forward-proxy
 	 *            implementations. The translator may return {@code null} to
 	 *            bypass the forward-proxy processing for a request.
+	 * @deprecated use
+	 *             {@link #ForwardProxyMessageDeliverer(Resource, CoapUriTranslator, Configuration)}
+	 *             instead
 	 */
+	@Deprecated
 	public ForwardProxyMessageDeliverer(Resource root, CoapUriTranslator translator) {
-		super(root);
+		this(root, translator, null);
+	}
+
+	/**
+	 * Create message deliverer with forward-proxy support.
+	 * 
+	 * @param root root resource of coap-proxy-server. Used for mixed proxies or
+	 *            coap servers, if requests are intended to be also delivered
+	 *            according their uri-path. May be {@code null}, if only used
+	 *            for a forward proxy and requests are no intended to be
+	 *            delivered using their uri path.
+	 * @param translator translator for destination-scheme.
+	 *            {@link CoapUriTranslator#getDestinationScheme(Request)} is
+	 *            used to determine this destination scheme for forward-proxy
+	 *            implementations. The translator may return {@code null} to
+	 *            bypass the forward-proxy processing for a request.
+	 * @param config configuration.
+	 * @since 3.6
+	 */
+	public ForwardProxyMessageDeliverer(Resource root, CoapUriTranslator translator, Configuration config) {
+		super(root, config);
 		this.translator = translator;
 		this.scheme2resource = new HashMap<String, Resource>();
 		this.exposedServices = new HashSet<>();
@@ -141,7 +166,7 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	 * @since 2.4
 	 */
 	public ForwardProxyMessageDeliverer(ProxyCoapResource proxyCoapResource) {
-		this(null, proxyCoapResource.getUriTranslater());
+		this(null, proxyCoapResource.getUriTranslater(), null);
 		addProxyCoapResources(proxyCoapResource);
 	}
 
@@ -346,7 +371,7 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 				LOGGER.debug("Bad proxy request", e);
 			}
 		}
-		if (resource == null && local) {
+		if (resource == null && local && getRootResource() != null) {
 			// try to find local resource
 			resource = super.findResource(exchange);
 		}

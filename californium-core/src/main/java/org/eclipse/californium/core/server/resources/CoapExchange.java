@@ -50,9 +50,6 @@ public class CoapExchange {
 	private final Exchange exchange;
 	private final Map<String, String> queryParameters;
 
-	/* The destination resource. */
-	private final CoapResource resource;
-
 	/* Response option values. */
 	private String locationPath = null;
 	private String locationQuery = null;
@@ -66,15 +63,27 @@ public class CoapExchange {
 	 * @param exchange The message exchange.
 	 * @param resource The resource.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
+	 * @deprecated use {@link #CoapExchange(Exchange)} instead
 	 */
+	@Deprecated
 	public CoapExchange(final Exchange exchange, final CoapResource resource) {
-		if (exchange == null) {
-			throw new NullPointerException("exchange must not be null");
-		} else if (resource == null) {
+		this(exchange);
+		if (resource == null) {
 			throw new NullPointerException("resource must not be null");
 		}
+	}
+
+	/**
+	 * Creates a new CoAP Exchange object for an exchange.
+	 * 
+	 * @param exchange The message exchange.
+	 * @throws NullPointerException if the message exchange is {@code null}.
+	 */
+	public CoapExchange(Exchange exchange) {
+		if (exchange == null) {
+			throw new NullPointerException("exchange must not be null");
+		}
 		this.exchange = exchange;
-		this.resource = resource;
 		if (getRequestOptions().getURIQueryCount() > 0) {
 			this.queryParameters = new HashMap<>();
 			for (String param : getRequestOptions().getUriQuery()) {
@@ -509,9 +518,9 @@ public class CoapExchange {
 	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void respond(Response response) {
-		if (response == null)
-			throw new NullPointerException();
-
+		if (response == null) {
+			throw new NullPointerException("Response must not be null!");
+		}
 		// set the response options configured through the CoapExchange API
 		if (locationPath != null)
 			response.getOptions().setLocationPath(locationPath);
@@ -524,7 +533,6 @@ public class CoapExchange {
 			response.getOptions().addETag(eTag);
 		}
 
-		resource.checkObserveRelation(exchange, response);
 		if (response.getDestinationContext() == null) {
 			response.setDestinationContext(applyHandshakeMode());
 		}

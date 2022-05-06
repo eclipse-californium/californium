@@ -31,10 +31,11 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.observe.ObserveHealth;
 import org.eclipse.californium.core.observe.ObserveManager;
-import org.eclipse.californium.core.observe.ObserveRelation;
-import org.eclipse.californium.core.observe.ObservingEndpoint;
+import org.eclipse.californium.core.server.resources.ObservableResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,16 +52,42 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	private final Resource root;
 
 	/* The manager of the observe mechanism for this server */
-	private final ObserveManager observeManager = new ObserveManager();
+	private final ObserveManager observeManager;
 
 	/**
 	 * Constructs a default message deliverer that delivers requests to the
 	 * resources rooted at the specified root.
 	 * 
 	 * @param root the root resource
+	 * @deprecated use {@link #ServerMessageDeliverer(Resource, Configuration)}
+	 *             instead
 	 */
-	public ServerMessageDeliverer(final Resource root) {
+	@Deprecated
+	public ServerMessageDeliverer(Resource root) {
+		this(root, null);
+	}
+
+	/**
+	 * Constructs a default message deliverer that delivers requests to the
+	 * resources rooted at the specified root.
+	 * 
+	 * @param root the root resource
+	 * @param config the configuration
+	 * @since 3.6
+	 */
+	public ServerMessageDeliverer(Resource root, Configuration config) {
 		this.root = root;
+		this.observeManager = new ObserveManager(config);
+	}
+
+	/**
+	 * Set observe health status.
+	 * 
+	 * @param observeHealth health status for observe.
+	 * @since 3.6
+	 */
+	public void setObserveHealth(ObserveHealth observeHealth) {
+		observeManager.setObserveHealth(observeHealth);
 	}
 
 	/**
@@ -153,28 +180,23 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	protected final void checkForObserveOption(final Exchange exchange, final Resource resource) {
 
 		Request request = exchange.getRequest();
-		if (CoAP.isObservable(request.getCode()) && request.getOptions().hasObserve() && resource.isObservable()) {
-
-			InetSocketAddress source = request.getSourceContext().getPeerAddress();
+		if (CoAP.isObservable(request.getCode()) && request.getOptions().hasObserve() && resource.isObservable()
+				&& resource instanceof ObservableResource) {
 
 			if (request.isObserve()) {
 				// Requests wants to observe and resource allows it :-)
+				InetSocketAddress source = request.getSourceContext().getPeerAddress();
 				LOGGER.debug("initiating an observe relation between {} and resource {}, {}", StringUtil.toLog(source),
 						resource.getURI(), exchange);
-				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
-				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
-				remote.addObserveRelation(relation);
-				exchange.setRelation(relation);
+				observeManager.addObserveRelation(exchange, (ObservableResource) resource);
 				request.setProtectFromOffload();
-				// all that's left is to add the relation to the resource which
-				// the resource must do itself if the response is successful
 
 			} else if (request.isObserveCancel()) {
 				// Observe defines 1 for canceling
-				ObserveRelation relation = observeManager.getRelation(source, request.getToken());
-				if (relation != null) {
-					relation.cancel();
-				}
+				InetSocketAddress source = request.getSourceContext().getPeerAddress();
+				LOGGER.debug("cancel an observe relation between {} and resource {}, {}", StringUtil.toLog(source),
+						resource.getURI(), exchange);
+				observeManager.cancelObserveRelation(exchange);
 			}
 		}
 	}

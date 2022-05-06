@@ -33,7 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * their observe relations. When a resource changes it will notify all relations
  * in the container. Each observe relation must only exist once. However, an
  * endpoint could establish more than one observe relation to the same resource.
+ * @deprecated obsolete
  */
+@Deprecated
 public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 
 	/** The set of observe relations */
