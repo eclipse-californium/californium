@@ -298,43 +298,51 @@ public class CoapEndpoint implements Endpoint, Executor {
 
 		@Override
 		public void receiveRequest(Exchange exchange, Request request) {
-			exchange.setEndpoint(CoapEndpoint.this);
-			coapstack.receiveRequest(exchange, request);
-			notifyReceive(postProcessInterceptors, request);
+			if (started) {
+				exchange.setEndpoint(CoapEndpoint.this);
+				coapstack.receiveRequest(exchange, request);
+				notifyReceive(postProcessInterceptors, request);
+			}
 		}
 
 		@Override
 		public void receiveResponse(Exchange exchange, Response response) {
-			if (exchange != null && !response.isCanceled()) {
-				exchange.setEndpoint(CoapEndpoint.this);
-				if (!exchange.isNotification()) {
-					response.setApplicationRttNanos(exchange.calculateApplicationRtt());
-					response.setTransmissionRttNanos(exchange.calculateTransmissionRtt());
+			if (started) {
+				if (exchange != null && !response.isCanceled()) {
+					exchange.setEndpoint(CoapEndpoint.this);
+					if (!exchange.isNotification()) {
+						response.setApplicationRttNanos(exchange.calculateApplicationRtt());
+						response.setTransmissionRttNanos(exchange.calculateTransmissionRtt());
+					}
+					coapstack.receiveResponse(exchange, response);
 				}
-				coapstack.receiveResponse(exchange, response);
+				notifyReceive(postProcessInterceptors, response);
 			}
-			notifyReceive(postProcessInterceptors, response);
 		}
 
 		@Override
 		public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
-			if (exchange != null && !message.isCanceled()) {
-				exchange.setEndpoint(CoapEndpoint.this);
-				if (!exchange.isOfLocalOrigin()) {
-					Response response = exchange.getCurrentResponse();
-					if (response != null && response.isConfirmable()) {
-						response.setTransmissionRttNanos(exchange.calculateTransmissionRtt());
+			if (started) {
+				if (exchange != null && !message.isCanceled()) {
+					exchange.setEndpoint(CoapEndpoint.this);
+					if (!exchange.isOfLocalOrigin()) {
+						Response response = exchange.getCurrentResponse();
+						if (response != null && response.isConfirmable()) {
+							response.setTransmissionRttNanos(exchange.calculateTransmissionRtt());
+						}
 					}
+					coapstack.receiveEmptyMessage(exchange, message);
 				}
-				coapstack.receiveEmptyMessage(exchange, message);
+				notifyReceive(postProcessInterceptors, message);
 			}
-			notifyReceive(postProcessInterceptors, message);
 		}
 
 		@Override
 		public void reject(final Message message) {
-			EmptyMessage rst = EmptyMessage.newRST(message);
-			coapstack.sendEmptyMessage(null, rst);
+			if (started) {
+				EmptyMessage rst = EmptyMessage.newRST(message);
+				coapstack.sendEmptyMessage(null, rst);
+			}
 		}
 	};
 
@@ -1010,7 +1018,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 				throw new IllegalArgumentException("received message that does not have a source address");
 			} else if (raw.getEndpointContext().getPeerAddress().getPort() == 0) {
 				throw new IllegalArgumentException("received message that does not have a source port");
-			} else {
+			} else if (started) {
 
 				// Create a new task to process this message
 				execute(new Runnable() {
