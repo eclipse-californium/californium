@@ -116,9 +116,13 @@ public class Feed extends CoapResource {
 	 */
 	private final int intervalMax;
 	/**
+	 * 
+	 */
+	private final CountDownLatch counterDone;
+	/**
 	 * Counter for finished gets/notifies.
 	 */
-	private final CountDownLatch counter;
+	private final AtomicLong counter;
 	/**
 	 * Counter for gets/notifies, which are not reported to complete nor fail.
 	 */
@@ -151,12 +155,13 @@ public class Feed extends CoapResource {
 	private final AtomicBoolean stop;
 
 	public Feed(CoAP.Type type, int id, int maxResourceSize, int intervalMin, int intervalMax,
-			ScheduledExecutorService executorService, CountDownLatch counter, AtomicLong timeouts, AtomicBoolean stop) {
+			ScheduledExecutorService executorService, CountDownLatch counterDone, AtomicLong counter, AtomicLong timeouts, AtomicBoolean stop) {
 		super(RESOURCE_NAME + "-" + type);
 		this.id = id;
 		this.maxResourceSize = maxResourceSize;
 		this.intervalMin = intervalMin;
 		this.intervalMax = intervalMax;
+		this.counterDone = counterDone;
 		this.counter = counter;
 		this.timeouts = timeouts;
 		this.executorService = executorService;
@@ -170,7 +175,7 @@ public class Feed extends CoapResource {
 
 	@Override
 	public void handleGET(CoapExchange exchange) {
-		if (stop.get() && counter.getCount() > 0) {
+		if (stop.get()) {
 			return;
 		}
 		// get request to read out details
@@ -250,7 +255,9 @@ public class Feed extends CoapResource {
 			response.addMessageObserver(new MessageCompletionObserver(timeout, interval));
 			response.addMessageObserver(new SendErrorObserver(response));
 			exchange.respond(response);
-			counter.countDown();
+			if (counter.decrementAndGet() <= 0) {
+				counterDone.countDown();
+			}
 		} catch (RejectedExecutionException ex) {
 			LOGGER.debug("client[{}] stopped execution.", id);
 			return;
@@ -311,7 +318,7 @@ public class Feed extends CoapResource {
 		@Override
 		public void run() {
 			// timeout
-			if (completed.compareAndSet(false, true) && !stop.get() && counter.getCount() > 0) {
+			if (completed.compareAndSet(false, true) && !stop.get() && counter.get() > 0) {
 				try {
 					if (interval < 0) {
 						LOGGER.info("client[{}] response didn't complete in time, next change in {} ms, {} observer.",
@@ -331,7 +338,7 @@ public class Feed extends CoapResource {
 			if (timeoutJob != null) {
 				timeoutJob.cancel(false);
 			}
-			if (!stop.get() && counter.getCount() > 0) {
+			if (!stop.get() && counter.get() > 0) {
 				try {
 					int time = failure ? Math.max(1000, -interval) : -interval;
 					if (0 < time) {

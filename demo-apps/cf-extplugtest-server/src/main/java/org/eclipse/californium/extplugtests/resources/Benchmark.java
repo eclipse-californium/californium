@@ -17,6 +17,7 @@ package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_IMPLEMENTED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
@@ -24,8 +25,11 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -56,7 +60,11 @@ public class Benchmark extends CoapResource {
 	/**
 	 * Default response.
 	 */
-	private final byte[] payload = "hello benchmark".getBytes();
+	private final byte[] responsePayload = "hello benchmark".getBytes();
+	/**
+	 * Default notification.
+	 */
+	private final byte[] notificationPayload = "hello observe 000".getBytes();
 	/**
 	 * Disabled. Response with NOT_IMPLEMENTED (5.01).
 	 */
@@ -66,7 +74,26 @@ public class Benchmark extends CoapResource {
 	 */
 	private final int maxResourceSize;
 
-	public Benchmark(boolean disable, int maxResourceSize) {
+	/*
+	 * Defines a new timer task to return the current time
+	 */
+	private class TimeTask extends TimerTask {
+
+		@Override
+		public void run() {
+			long millis = System.currentTimeMillis();
+			String time = String.format("%03d", millis % 1000);
+			int length = time.length();
+			int offset = notificationPayload.length - length;
+			for (int index = 0; index < length; ++index) {
+				notificationPayload[offset + index] = (byte) time.charAt(index);
+			}
+			// Call changed to notify subscribers
+			changed();
+		}
+	}
+
+	public Benchmark(boolean disable, int maxResourceSize, long notifyIntervalMillis) {
 		super(RESOURCE_NAME);
 		this.disable = disable;
 		this.maxResourceSize = maxResourceSize;
@@ -74,12 +101,24 @@ public class Benchmark extends CoapResource {
 			getAttributes().setTitle("Benchmark (disabled)");
 		} else {
 			getAttributes().setTitle("Benchmark");
+			setObservable(true);
+			Timer timer = new Timer("OBSERVE", true);
+			timer.schedule(new TimeTask(), 0, notifyIntervalMillis);
 		}
 		getAttributes().addContentType(TEXT_PLAIN);
 	}
 
 	@Override
+	public void handleGET(CoapExchange exchange) {
+		handleRequest(exchange, notificationPayload, CONTENT);
+	}
+
+	@Override
 	public void handlePOST(CoapExchange exchange) {
+		handleRequest(exchange, responsePayload, CHANGED);
+	}
+
+	public void handleRequest(CoapExchange exchange, byte[] payload, ResponseCode success) {
 
 		if (disable) {
 			// disabled => response with NOT_IMPLEMENTED
@@ -120,6 +159,6 @@ public class Benchmark extends CoapResource {
 			}
 		}
 
-		exchange.respond(CHANGED, responsePayload, TEXT_PLAIN);
+		exchange.respond(success, responsePayload, TEXT_PLAIN);
 	}
 }

@@ -378,7 +378,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 			ScheduledExecutorService secondaryExecutor = ExecutorsUtil
 					.newDefaultSecondaryScheduler("ExtCoapServer(secondary)#");
 
-			final ExtendedTestServer server = new ExtendedTestServer(configuration, protocolConfig, config.benchmark);
+			long notifyIntervalMillis = config.getNotifyIntervalMillis();
+
+			final ExtendedTestServer server = new ExtendedTestServer(configuration, protocolConfig, config.benchmark, notifyIntervalMillis);
 			server.setVersion(PlugtestServer.CALIFORNIUM_BUILD_VERSION);
 			server.setTag("EXTENDED-TEST");
 			server.setExecutors(executor, secondaryExecutor, false);
@@ -645,13 +647,13 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 	}
 
-	public ExtendedTestServer(Configuration config, Map<Select, Configuration> protocolConfig, boolean benchmark)
-			throws SocketException {
+	public ExtendedTestServer(Configuration config, Map<Select, Configuration> protocolConfig, boolean benchmark,
+			long notifyIntervalMillis) throws SocketException {
 		super(config, protocolConfig);
 		int maxResourceSize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());
-		add(new Benchmark(!benchmark, maxResourceSize));
+		add(new Benchmark(!benchmark, maxResourceSize, notifyIntervalMillis));
 		add(new Hono("telemetry"));
 		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));

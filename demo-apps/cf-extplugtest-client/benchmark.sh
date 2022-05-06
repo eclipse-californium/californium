@@ -27,7 +27,7 @@ echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 50% of the available
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may be used instead."
 echo
 echo "The required server may be started using:"
-echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.3.0.jar --no-external --no-plugtest"
+echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.5.0.jar --no-external --no-plugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 50% of the available RAM."
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may also be used instead."
 echo "If the benchmark is mainly used with the loopback interface (localhost), use the --no-external as above."
@@ -126,8 +126,9 @@ fi
 : "${USE_LARGE_BLOCK1:=1}"
 
 : "${USE_REQUEST:=1}"
-: "${USE_REVERSE:=1}"
 : "${USE_OBSERVE:=1}"
+: "${USE_REVERSE:=1}"
+: "${USE_REVERSE_OBSERVE:=1}"
 : "${USE_HANDSHAKES:=1}"
 : "${USE_PROXY:=0}"
 : "${USE_HTTP:=0}"
@@ -256,6 +257,12 @@ benchmark_all()
       fi
    fi
 
+   if [ ${USE_OBSERVE} -eq 1 ] ; then
+      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 
+      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 --cancel-proactive
+      benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75
+   fi
+
    if [ ${USE_REVERSE} -eq 1 ] ; then
 # reverse GET
       if [ ${USE_CON} -ne 0 ] ; then
@@ -267,16 +274,16 @@ benchmark_all()
       benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
    fi
 
-   if [ ${USE_OBSERVE} -eq 1 ] ; then
-# observe CON
+   if [ ${USE_REVERSE_OBSERVE} -eq 1 ] ; then
+# reverse observe CON
       if [ ${USE_CON} -ne 0 ] ; then
-          benchmark_udp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min -200 --max 200 --blocksize 64
+          benchmark_udp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${REV_NOTIFIES} --min -200 --max 200 --blocksize 64
       fi
-# observe NON
+# reverse observe NON
       if [ ${USE_CON} -ne 0 ] ; then
-         benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min -200 --max 200 --blocksize 64
+         benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${REV_NOTIFIES} --min -200 --max 200 --blocksize 64
       fi
-      benchmark_tcp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min -200 --max 200 --blocksize 64
+      benchmark_tcp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${REV_NOTIFIES} --min -200 --max 200 --blocksize 64
    fi
 }
 
