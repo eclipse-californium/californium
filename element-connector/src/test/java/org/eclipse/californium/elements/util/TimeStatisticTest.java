@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2021 Bosch IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -11,8 +11,9 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Bosch IO GmbH - initial implementation
  ******************************************************************************/
+
 package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;

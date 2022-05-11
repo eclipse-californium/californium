@@ -16,6 +16,19 @@ One good point to start with is reading the javadoc of [DtlsConnectorConfig](src
 
 The general idea is, that you provide the credentials, and the auto-configuration does the rest. If you need a more specific setup, you may consider to read [DtlsConfig](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java) in order see, which parameters may be configured.
 
+Example:
+
+```
+...
+DtlsConfig.register();
+CoapConfig.register();
+...
+Configuration configuration = Configuration.getStandard();
+DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
+builder.setAddress(new InetSocketAddress(5684));
+...
+```
+
 ## PSK
 
 PSK credentials are provided using a implementation of the [AdvancedPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedPskStore.java) interface.
@@ -23,6 +36,18 @@ PSK credentials are provided using a implementation of the [AdvancedPskStore](sr
 For demonstration, two implementations for server- and client-usage are available ([AdvancedMultiPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedMultiPskStore.java) and [AdvancedSinglePskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedSinglePskStore.java)).
 
 Using the interface enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible. Such a design with larger latency will still cause delays in the handshakes and limit the possible handshakes in a period of time, but has only slightly effects on the other ongoing traffic.
+
+Example:
+
+```
+...
+DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
+builder.setAddress(new InetSocketAddress(5684));
+AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("me", "secret".getBytes());
+builder.setAdvancedPskStore(pskStore);
+
+DTLSConnector connector = new DTLSConnector(builder.build());
+```
 
 ## RPK/X509
 
@@ -33,6 +58,28 @@ For demonstration, two implementations of the `CertificateProvider` are availabl
 Also for demonstration, one implementation of the `NewAdvancedCertificateVerifier` is available, the [StaticNewAdvancedCertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/StaticNewAdvancedCertificateVerifier.java).
 
 Using the interfaces enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible. Such a design with larger latency will still cause delays in the handshakes and limit the possible handshakes in a period of time, but has only slightly effects on the other ongoing traffic.
+
+If the keys and/or certificate are stored in a file or key-store, one way to load the is using the [SslContextUtil](../element-connector#sslcontextutil).
+
+Example:
+
+```
+// load credentials, see SslContextUtil
+Credentials serverCredentials = SslContextUtil.loadCredentials(...);
+Credentials serverTrusts = SslContextUtil.loadCredentials(...);
+...
+DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
+builder.setAddress(new InetSocketAddress(5684));
+
+SingleCertificateProvider certificate = new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain());
+builder.setCertificateIdentityProvider(certificate);
+
+NewAdvancedCertificateVerifier trust = StaticNewAdvancedCertificateVerifier.builder()
+   .setTrustedCertificates(serverTrusts.getTrustedCertificates).build();
+builder.setAdvancedCertificateVerifier(trust);
+
+DTLSConnector connector = new DTLSConnector(builder.build());
+```
 
 ## Additional Parameters
 
