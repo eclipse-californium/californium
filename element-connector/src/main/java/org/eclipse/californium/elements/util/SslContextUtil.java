@@ -93,12 +93,34 @@ import org.slf4j.LoggerFactory;
  * ".jks" to "JKS"
  * ".bks" to "BKS"
  * ".p12" to "PKCS12"
- * ".pem" to "PEM" (simple key store, experimental!)
+ * ".pem" to "CRT/PEM" (custom reader)
+ * ".crt" to "CRT/PEM" (custom reader)
  * "*" to system default
  * </pre>
  * 
- * PEM: Read private keys (PKCS8 and PKCS12 (EC only)), public key (x509), and
- * certificates (x509).
+ * CRT/PEM Custom Reader: Read private keys (PKCS8 and PKCS12 (EC only)), public
+ * key (x509), and certificates (x509). These credentials are stored in the PEM
+ * format, which is base64 encoded. The sections of the file contains a
+ * description of the encoded credential. If a general load function is used,
+ * {@link Credentials} are returned with the loaded data filled in.
+ * 
+ * Example:
+ * 
+ * <pre>
+ * -----BEGIN EC PRIVATE KEY-----
+ * MHcCAQEEIBw7lyMR21FDpCecT0bNr4oKBuYw1VdNnCB5xSS4dQrcoAoGCCqGSM49
+ * AwEHoUQDQgAETY8Y02TZuaRUQvXnguxg6EPN7wR5vzxthmDk+6vvf6oJgBylWIU2
+ * E3khCBkZM9Um7JCA9/kcbNezwJDzyQAnIw==
+ * -----END EC PRIVATE KEY-----
+ * </pre>
+ *
+ * You may use
+ * <a href="https://lapo.it/asn1js" target="_blank">lapo.it/asn1js</a> to decode
+ * the content. Please ensure, that you only provide test- or demo-credentials.
+ * 
+ * If that example file is loaded with {@link #loadCredentials(String)} the
+ * returned {@link Credentials} contains a private key, and here, also the
+ * corresponding public key.
  * 
  * The utility provides also a configurable input stream factory of URI schemes.
  * Currently only {@link #CLASSPATH_SCHEME} is pre-configured to load key stores
@@ -641,8 +663,9 @@ public class SslContextUtil {
 	 * Input stream factory: {@link #CLASSPATH_SCHEME} to classpath loader.
 	 * 
 	 * Clear previous configuration. Custom entry must be added again using
-	 * {@link #configure(String, InputStreamFactory)}, and
-	 * {@link #configure(String, KeyStoreType)}.
+	 * {@link #configure(String, InputStreamFactory)},
+	 * {@link #configure(String, KeyStoreType)}, and
+	 * {@link #configureAlias(String, String)}.
 	 */
 	public static void configureDefaults() {
 		KEY_STORE_TYPES.clear();
@@ -692,6 +715,44 @@ public class SslContextUtil {
 			throw new NullPointerException("key store type must not be null!");
 		}
 		return KEY_STORE_TYPES.put(ending.toLowerCase(), type);
+	}
+
+	/**
+	 * Add alias for ending.
+	 * 
+	 * Use the same {@link KeyStoreType} for the alias as for the ending.
+	 * 
+	 * @param alias new alias
+	 * @param ending already configured ending
+	 * @return previous key store type, or {@code null}, if no key store type
+	 *         was configured before
+	 * @throws NullPointerException if alias of ending is {@code null}.
+	 * @throws IllegalArgumentException if alias and ending are equal, or alias
+	 *             or ending doesn't start with "." and isn't
+	 *             {@link #DEFAULT_ENDING}.
+	 * @since 3.6
+	 */
+	public static KeyStoreType configureAlias(String alias, String ending) {
+		if (alias == null) {
+			throw new NullPointerException("alias must not be null!");
+		}
+		if (ending == null) {
+			throw new NullPointerException("ending must not be null!");
+		}
+		if (ending.equals(alias)) {
+			throw new IllegalArgumentException("alias must differ from ending!");
+		}
+		if (!ending.equals(DEFAULT_ENDING) && !ending.startsWith(".")) {
+			throw new IllegalArgumentException("ending must start with \".\"!");
+		}
+		if (!alias.equals(DEFAULT_ENDING) && !ending.startsWith(".")) {
+			throw new IllegalArgumentException("alias must start with \".\"!");
+		}
+		KeyStoreType type = KEY_STORE_TYPES.get(ending);
+		if (type == null) {
+			throw new IllegalArgumentException("ending must already be configured!");
+		}
+		return KEY_STORE_TYPES.put(alias, type);
 	}
 
 	/**

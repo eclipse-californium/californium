@@ -23,7 +23,37 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Statistic.
  * 
- * Implemented using a table of counters for slots.
+ * Implemented using a table of counters for sample value slots.
+ * 
+ * e.g.:
+ * 
+ * <pre>
+ * Statistic retransmission = new Statistic(5, 1):
+ * 
+ *   slot for 0 retransmissions, counter[0]
+ *   slot for 1 retransmissions, counter[1]
+ *   slot for 2 retransmissions, counter[2]
+ *   slot for 3 retransmissions, counter[3] 
+ *   slot for 4 retransmissions and more, counter[4]
+ * </pre>
+ * 
+ * <pre>
+ * Statistic payload = new Statistic(256, 64):
+ *   slot for 0-63 bytes payload, counter[0]
+ *   slot for 64-127 bytes payload, counter[1]
+ *   slot for 128-191 bytes payload, counter[2]
+ *   slot for 192-    bytes payload, counter[3]
+ * </pre>
+ * 
+ * A sample is processed by incrementing the counter of the related slot.
+ * 
+ * <pre>
+ * retransmission.add(2);
+ *   2 retransmissions, increment counter[2] of retransmission statistic.
+ * 
+ * payload.add(100):
+ *   100 bytes payload, increment counter[1] of payload statistic.
+ * </pre>
  * 
  * @since 3.0
  */
