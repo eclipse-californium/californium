@@ -88,14 +88,14 @@ encrypted versions, please use one of the `key store` formats, if encryption is 
 
 To load trusted certificates, either the same function `SslContextUtil.loadCredentials(String)`
 may be used and the trusted certificates will then be accessed with 
-`Credentials.getTrustedCertificates()`. Or `SslContextUtil.loadTrustedCertificates(String)`.
+`Credentials.getTrustedCertificates()`. Or use `SslContextUtil.loadTrustedCertificates(String)`.
 
 The supported `key store` formats above are organized using an "alias-name" to access the contained credentials. E.g. in the [Demo - KeyStore](../demo-certs/certs/keyStore.jks), the alias "server" is
 used to select the demo-server `private key` and `certificate-chain`. They usually use
 a two level authorization, the first level to access the file at all and protected that from
 unintended modifications, the second to access the `private key`s.
 
-To load a key store (JKS, BKS, or PKCS12) and access the node's credentials, use `SslContextUtil.loadCredentials(String keyStoreUri, String alias, char[] storePassword, char[] keyPassword)`. The returned `Credentials` for the alias "server" in the demo-key-store contains then a `private key` and the corresponding server `certificate chain`. to access the trusted certificates, use `SslContextUtil.loadTrustedCertificates(String keyStoreUri, String alias, char[] storePassword)`. Though no `private key` are involved, no `keyPassword` is required.
+To load a key store (JKS, BKS, or PKCS12) and access the node's credentials, use `SslContextUtil.loadCredentials(String keyStoreUri, String alias, char[] storePassword, char[] keyPassword)`. The returned `Credentials` for the alias "server" in the demo-key-store contains then a `private key` and the corresponding server `certificate chain`. To access the trusted certificates, use `SslContextUtil.loadTrustedCertificates(String keyStoreUri, String alias, char[] storePassword)`. Though no `private key` are involved, no `keyPassword` is required.
 
 For certificate based authentication, a peer requires:
 

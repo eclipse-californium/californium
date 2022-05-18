@@ -59,7 +59,7 @@ Also for demonstration, one implementation of the `NewAdvancedCertificateVerifie
 
 Using the interfaces enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible. Such a design with larger latency will still cause delays in the handshakes and limit the possible handshakes in a period of time, but has only slightly effects on the other ongoing traffic.
 
-If the keys and/or certificate are stored in a file or key-store, one way to load the is using the [SslContextUtil](../element-connector#sslcontextutil).
+If the keys and/or certificate are stored in a file or key-store, one way to load them is using the [SslContextUtil](../element-connector#sslcontextutil).
 
 Example:
 
