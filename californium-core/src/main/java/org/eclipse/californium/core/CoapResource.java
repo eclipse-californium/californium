@@ -850,6 +850,12 @@ public class CoapResource implements Resource, ObservableResource {
 	 * transitively ancestor. If no ancestor defines its own executor, the
 	 * thread that has called this method performs the notification.
 	 * 
+	 * Note: this implementation is not intended to be used as "history" or
+	 * "time sequence" function. If {@link #changed()} is called while an
+	 * execution is already pending, the outcome is undefined. It's only
+	 * ensured, that the last change will be transmitted. That will especially
+	 * occur, if resources are intended to change fast.
+	 * 
 	 * @throws IllegalStateException if method is called recursively from
 	 *             current thread (without executor).
 	 * 
@@ -867,6 +873,12 @@ public class CoapResource implements Resource, ObservableResource {
 	 * of its parent or transitively ancestor. If no ancestor defines its own
 	 * executor, the thread that has called this method performs the
 	 * notification.
+	 * 
+	 * Note: this implementation is not intended to be used as "history" or
+	 * "time sequence" function. If {@link #changed()} is called while an
+	 * execution is already pending, the outcome is undefined. It's only
+	 * ensured, that the last change will be transmitted. That will especially
+	 * occur, if resources are intended to change fast.
 	 * 
 	 * @param filter filter to select set of relations. {@code null}, if all
 	 *            clients should be notified.

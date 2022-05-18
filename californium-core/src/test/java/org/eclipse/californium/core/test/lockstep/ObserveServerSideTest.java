@@ -538,22 +538,23 @@ public class ObserveServerSideTest {
 				testObsResource.observer = null;
 			}
 		};
-		testObsResource.change("NON notification 3 " + generateRandomPayload(10));
+		String payload3 ="CON notification 3 " + generateRandomPayload(10);
+		testObsResource.change(payload3);
 		// server re-transmits unACKed CON notification but client does not reply
-		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(respPayload).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(payload3).go();
 		client.sendEmpty(ACK).loadMID("MID").go();
 		latch.await(ACK_TIMEOUT * 2, TimeUnit.MILLISECONDS);
+
 		testObsResource.setObserveType(CON);
 		String payload4 ="CON notification 4 " + generateRandomPayload(10);
 		testObsResource.change(payload4);
+		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(payload4).go();
 		testObsResource.change("CON notification 5 " + generateRandomPayload(10));
 		String payload6 ="CON notification 6 " + generateRandomPayload(10);
 		testObsResource.change(payload6);
-		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(payload4).go();
 		client.sendEmpty(ACK).loadMID("MID").go();
 		client.expectResponse().type(CON).code(CONTENT).token(tok).newMID("MID").checkObs("B", "B").payload(payload6).go();
 		client.sendEmpty(ACK).loadMID("MID").go();
-
 	}
 
 	@Test
