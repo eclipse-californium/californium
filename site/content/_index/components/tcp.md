@@ -7,6 +7,7 @@ weight = 15
   url = "https://github.com/eclipse/californium/tree/master/element-connector-tcp-netty"
 +++
 
-Experimental CoAP over TCP implementation using [netty.io](https://github.com/netty/netty).
-Currently/still not completed [RFC 8323](https://www.rfc-editor.org/rfc/rfc8323.html).
+Experimental CoAP over TCP implementation using netty.io.
+Currently/still not completed.
 
+[netty.io](https://github.com/netty/netty), [RFC 8323](https://www.rfc-editor.org/rfc/rfc8323.html).
