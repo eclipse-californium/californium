@@ -29,7 +29,7 @@ For more details, please look at https://www.eclipse.org/security/.
 
 | Californium Version | Dependency | Affected Version | Usage | Vulnerability
 | ------------------- | ---------- | ---------------- | ----- | -------------
-| < 3.6 <br/> < 2.7.3 | com.google.code.gson |  < 2.8.8 | demo-apps | [CVE 2022-25647](https://cve.report/CVE-2022-25647)
+| < 3.6 <br/> < 2.7.3 | com.google.code.gson |  < 2.8.9 | demo-apps | [CVE 2022-25647](https://cve.report/CVE-2022-25647)
 | < 3.3 <br/> < 2.7.2 | com.upokecenter.cbor | 4.0 - 4.5.0 | cf-oscore <br/> demo-apps | [GHSA-fj2w-wfgv-mwq6](https://github.com/peteroupc/CBOR-Java/security/advisories/GHSA-fj2w-wfgv-mwq6)
 | < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | demo-apps | [CVE-2021-42550](https://cve.report/CVE-2021-42550)
 
