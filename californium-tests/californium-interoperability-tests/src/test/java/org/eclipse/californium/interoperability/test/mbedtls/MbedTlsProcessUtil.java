@@ -106,7 +106,7 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 	public ProcessResult getMbedTlsVersion(long timeMillis) {
 		if (version == null) {
 			try {
-				execute("mbedtls3_ssl_client2", "version");
+				execute("mbedtls_ssl_client2", "version");
 				version = waitResult(timeMillis);
 			} catch (InterruptedException ex) {
 				return null;
@@ -130,7 +130,7 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 			String curves, String clientCert, CipherSuite cipherSuite) throws IOException, InterruptedException {
 		List<String> args = new ArrayList<String>();
 		String mbedTlsCiphers = MbedTlsUtil.getMbedTlsCipherSuites(cipherSuite);
-		args.addAll(Arrays.asList("mbedtls3_ssl_client2", "dtls=1", "debug_level=" + verboseLevel,
+		args.addAll(Arrays.asList("mbedtls_ssl_client2", "dtls=1", "debug_level=" + verboseLevel,
 				"server_addr=" + destination, "server_port=" + port, "force_ciphersuite=" + mbedTlsCiphers));
 		args.add("cid=1");
 		args.add("cid_val=1234");
@@ -158,7 +158,7 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 			String serverCertificate, String curves, CipherSuite cipherSuite) throws IOException, InterruptedException {
 		List<String> args = new ArrayList<String>();
 		String mbedTlsCiphers = MbedTlsUtil.getMbedTlsCipherSuites(cipherSuite);
-		args.addAll(Arrays.asList("mbedtls3_ssl_server2", "dtls=1", "debug_level=" + verboseLevel,
+		args.addAll(Arrays.asList("mbedtls_ssl_server2", "dtls=1", "debug_level=" + verboseLevel,
 				"server_addr=" + accept, "server_port=" + port, "force_ciphersuite=" + mbedTlsCiphers));
 		args.add("exchanges=2");
 		if (cipherSuite.isPskBased()) {
