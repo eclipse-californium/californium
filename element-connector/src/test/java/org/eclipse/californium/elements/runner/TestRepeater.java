@@ -137,7 +137,7 @@ public class TestRepeater {
 
 			@Override
 			public void testAssumptionFailure(Failure failure) {
-				failureCounter.incrementAndGet();
+				// ignore assumptions
 			}
 
 		});
