@@ -78,7 +78,7 @@ spec:
         }
       }
     }
-    stage('Build website (master) with Hugo') {
+    stage('Build website (main) with Hugo') {
       steps {
         container('hugo') {
             dir('hugo/site') {
