@@ -58,4 +58,4 @@ Further details read our [full documentation](https://syna.okkur.org/docs).
 
 ## First Steps
 
-Open index.md and type. The changes are visible almost immediately at http://localhost:1313/.
+Open index.md and type. The changes are visible almost immediately at http://localhost:1313/californium.
