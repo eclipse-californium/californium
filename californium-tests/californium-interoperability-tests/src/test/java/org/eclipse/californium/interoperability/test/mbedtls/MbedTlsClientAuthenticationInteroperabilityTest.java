@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.mbedtls;
 
+import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSHAKE_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.CLIENT_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.mbedtls.MbedTlsProcessUtil.AuthenticationMode.CHAIN;
@@ -241,7 +242,7 @@ public class MbedTlsClientAuthenticationInteroperabilityTest {
 	}
 
 	public void connect(String cipher, String... misc) throws Exception {
-		assertTrue("handshake failed!", processUtil.waitConsole("Ciphersuite is ", TIMEOUT_MILLIS));
+		assertTrue("handshake failed!", processUtil.waitConsole("Ciphersuite is ", HANDSHAKE_TIMEOUT_MILLIS));
 		assertTrue("wrong cipher suite!", processUtil.waitConsole("Ciphersuite is " + cipher, TIMEOUT_MILLIS));
 		if (misc != null) {
 			for (String check : misc) {

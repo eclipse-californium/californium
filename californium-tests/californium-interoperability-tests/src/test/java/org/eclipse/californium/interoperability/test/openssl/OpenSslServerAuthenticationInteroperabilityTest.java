@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.openssl;
 
+import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSHAKE_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CA_RSA_CERTIFICATE;
@@ -302,7 +303,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	public void connect(String cipher, String... misc) throws Exception {
 		String message = "Hello OpenSSL!";
-		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
+		scandiumUtil.send(message, DESTINATION, HANDSHAKE_TIMEOUT_MILLIS);
 
 		assertTrue("handshake failed!", processUtil.waitConsole("CIPHER is ", TIMEOUT_MILLIS));
 		assertTrue("wrong cipher suite!", processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS));

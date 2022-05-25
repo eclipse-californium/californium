@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.mbedtls;
 
+import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSHAKE_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
@@ -113,7 +114,7 @@ public class MbedTlsServerInteroperabilityTest {
 		scandiumUtil.start(BIND, builder, null, cipherSuite);
 
 		String message = "Hello MbedTLS!";
-		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
+		scandiumUtil.send(message, DESTINATION, HANDSHAKE_TIMEOUT_MILLIS);
 
 		assertTrue(processUtil.waitConsole("Ciphersuite is " + cipher, TIMEOUT_MILLIS));
 		assertTrue(processUtil.waitConsole(message, TIMEOUT_MILLIS));
@@ -138,7 +139,7 @@ public class MbedTlsServerInteroperabilityTest {
 		scandiumUtil.start(BIND, builder, null, cipherSuite);
 
 		String message = "Hello MbedTLS!";
-		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
+		scandiumUtil.send(message, DESTINATION, HANDSHAKE_TIMEOUT_MILLIS);
 
 		assertTrue(processUtil.waitConsole("Ciphersuite is " + cipher, TIMEOUT_MILLIS));
 		assertTrue(processUtil.waitConsole(message, TIMEOUT_MILLIS));

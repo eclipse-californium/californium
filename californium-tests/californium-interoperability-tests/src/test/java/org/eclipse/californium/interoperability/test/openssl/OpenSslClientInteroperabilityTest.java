@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.openssl;
 
+import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSHAKE_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.junit.Assert.assertTrue;
@@ -108,7 +109,7 @@ public class OpenSslClientInteroperabilityTest {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, cipherSuite);
-		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
+		assertTrue(processUtil.waitConsole("Cipher is " + cipher, HANDSHAKE_TIMEOUT_MILLIS));
 
 		String message = "Hello Scandium!";
 		processUtil.send(message);
@@ -136,7 +137,7 @@ public class OpenSslClientInteroperabilityTest {
 		scandiumUtil.start(BIND, builder, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, cipherSuite);
-		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
+		assertTrue(processUtil.waitConsole("Cipher is " + cipher, HANDSHAKE_TIMEOUT_MILLIS));
 
 		String message = "Hello Scandium!";
 		processUtil.send(message);

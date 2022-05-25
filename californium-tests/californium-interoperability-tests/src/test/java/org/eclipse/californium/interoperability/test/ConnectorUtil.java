@@ -55,6 +55,8 @@ public class ConnectorUtil {
 
 	public static final int PORT = 5684;
 
+	public static final long HANDSHAKE_TIMEOUT_MILLIS = 4000;
+
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
@@ -162,6 +164,7 @@ public class ConnectorUtil {
 			dtlsBuilder = DtlsConnectorConfig.builder(new Configuration());
 		}
 		dtlsBuilder.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 1000, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 1000, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
 				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)

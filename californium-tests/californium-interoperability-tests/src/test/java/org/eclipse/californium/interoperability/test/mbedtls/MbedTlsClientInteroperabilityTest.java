@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.mbedtls;
 
+import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSHAKE_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.mbedtls.MbedTlsProcessUtil.AuthenticationMode.CHAIN;
 import static org.junit.Assert.assertTrue;
@@ -107,7 +108,7 @@ public class MbedTlsClientInteroperabilityTest {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, ScandiumUtil.PORT, CHAIN, cipherSuite);
-		assertTrue(processUtil.waitConsole("Ciphersuite is " + cipher, TIMEOUT_MILLIS));
+		assertTrue(processUtil.waitConsole("Ciphersuite is " + cipher, HANDSHAKE_TIMEOUT_MILLIS));
 
 		String message = "Hello Scandium!";
 
@@ -135,7 +136,7 @@ public class MbedTlsClientInteroperabilityTest {
 		scandiumUtil.start(BIND, builder, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, ScandiumUtil.PORT, CHAIN, cipherSuite);
-		assertTrue(processUtil.waitConsole("Ciphersuite is " + cipher, TIMEOUT_MILLIS));
+		assertTrue(processUtil.waitConsole("Ciphersuite is " + cipher, HANDSHAKE_TIMEOUT_MILLIS));
 
 		String message = "Hello Scandium!";
 
