@@ -13,7 +13,7 @@
  * Contributors:
  *    Achim Kraus (Bosch.IO GmbH) - initial implementation.
  ******************************************************************************/
-package org.eclipse.californium.interoperability.test.libcoap;
+package org.eclipse.californium.interoperability.test.libcoap.gnutls;
 
 import static org.eclipse.californium.interoperability.test.ConnectorUtil.CLIENT_RSA_NAME;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_RSA_CERTIFICATE;
@@ -47,6 +47,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
+import org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
