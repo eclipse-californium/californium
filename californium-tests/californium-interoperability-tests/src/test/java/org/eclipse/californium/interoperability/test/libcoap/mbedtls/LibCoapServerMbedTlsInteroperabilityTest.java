@@ -13,7 +13,7 @@
  * Contributors:
  *    Achim Kraus (Bosch.IO GmbH) - initial implementation.
  ******************************************************************************/
-package org.eclipse.californium.interoperability.test.libcoap;
+package org.eclipse.californium.interoperability.test.libcoap.mbedtls;
 
 import static org.eclipse.californium.interoperability.test.ConnectorUtil.CLIENT_RSA_NAME;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CA_RSA_CERTIFICATE;
@@ -26,7 +26,6 @@ import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProce
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNotNull;
@@ -35,23 +34,19 @@ import static org.junit.Assume.assumeTrue;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
+import org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -65,16 +60,15 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Test for interoperability with libcoap server using openssl.
+ * Test for interoperability with libcoap server using mbedtls.
  * 
  * @see LibCoapProcessUtil
  */
-public class LibCoapServerOpensslInteroperabilityTest {
+public class LibCoapServerMbedTlsInteroperabilityTest {
 
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
@@ -90,10 +84,10 @@ public class LibCoapServerOpensslInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new LibCoapProcessUtil();
-		ProcessResult result = processUtil.prepareLibCoapServerOpenssl(TIMEOUT_MILLIS);
+		ProcessResult result = processUtil.prepareLibCoapServerMbedTls(TIMEOUT_MILLIS);
 		assumeNotNull(result);
-		processUtil.assumeMinVersion("4.2.1");
-		processUtil.assumeMinDtlsVersion("1.1.1");
+		processUtil.assumeMinVersion("4.3.0");
+		processUtil.assumeMinDtlsVersion("2.16.5");
 		californiumUtil = new CaliforniumUtil(true);
 	}
 
@@ -133,7 +127,6 @@ public class LibCoapServerOpensslInteroperabilityTest {
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
 	}
 
-	@Ignore
 	@Test
 	public void testLibCoapServerPsk2FullHandshake() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
@@ -157,36 +150,6 @@ public class LibCoapServerOpensslInteroperabilityTest {
 
 		connect(true);
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
-	}
-
-	@Test
-	public void testLibCoapServerPskNoResponse() throws Exception {
-		ScheduledExecutorService scheduledExecutor = ExecutorsUtil
-				.newSingleThreadScheduledExecutor(new DaemonThreadFactory("timeout", ExecutorsUtil.TIMER_THREAD_GROUP));
-		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
-
-		californiumUtil.start(BIND, null, cipherSuite);
-
-		Request request = Request.newPut();
-		request.setConfirmable(false);
-		request.setURI("coaps://" + StringUtil.toString(DESTINATION) + "/example_data");
-		request.setPayload("no response");
-		request.getOptions().setNoResponse(NoResponseOption.SUPPRESS_SUCCESS);
-		request.addMessageObserver(new ResponseTimeout(request, 2000, scheduledExecutor));
-		CoapResponse response = californiumUtil.send(request);
-		assertNull("received suppressed response", response);
-
-		request = Request.newGet();
-		request.setURI("coaps://" + StringUtil.toString(DESTINATION) + "/example_data");
-		request.addMessageObserver(new ResponseTimeout(request, 2000, scheduledExecutor));
-		response = californiumUtil.send(request);
-		assertNotNull(response);
-		assertEquals("no response", response.getResponseText());
-		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
-
-		ExecutorsUtil.shutdownExecutorGracefully(2000, scheduledExecutor);
-		processUtil.stop(TIMEOUT_MILLIS);
 	}
 
 	@Test
@@ -240,90 +203,87 @@ public class LibCoapServerOpensslInteroperabilityTest {
 
 	@Test
 	public void testLibCoapServerEcdsaTrust() throws Exception {
+		processUtil.setVerboseLevel("9");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		if (processUtil.compareVersion("4.3.0") >= 0) {
-			connect(true, "write certificate request", "'cf-client'");
-		} else {
-			connect(true);
-		}
+		connect(true, "parse certificate verify", "CN=cf-client,");
+
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
 	@Test
 	public void testLibCoapServerEcdsaCa() throws Exception {
+		processUtil.setVerboseLevel("9");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		connect(true, "write certificate request", "'cf-client'");
+		connect(true, "parse certificate verify", "CN=cf-client,");
 		californiumUtil.assertPrincipalType(X509CertPath.class);
-	}
-
-	@Test
-	public void testLibCoapServerEcdsaTrustFails() throws Exception {
-		processUtil.assumeMinVersion("4.3.0");
-		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
-		processUtil.setTrusts(SERVER_CA_RSA_CERTIFICATE);
-		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
-
-		californiumUtil.start(BIND, null, cipherSuite);
-		connect(false, "unable to get local issuer certificate");
-		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test
 	public void testLibCoapServerEcdsaCaFails() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		processUtil.setCa(SERVER_CA_RSA_CERTIFICATE);
+		// mbedtls uses -R also for accepted issuers list. Therefore only use -C
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		connect(false, "peer did not return a certificate");
+		connect(false, "No client certification received from the client");
 		californiumUtil.assertAlert(TIMEOUT_MILLIS,
-				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+				new AlertMessage(AlertLevel.FATAL, AlertDescription.NO_CERTIFICATE_RESERVED));
+	}
+
+	@Test
+	public void testLibCoapServerEcdsaTrustFails() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
+		processUtil.setTrusts(SERVER_CA_RSA_CERTIFICATE);
+		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
+
+		californiumUtil.start(BIND, null, cipherSuite);
+		connect(false, "The certificate is not correctly signed by the trusted CA");
+		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test
 	public void testLibCoapServerEcdsaRsaTrust() throws Exception {
+		processUtil.setVerboseLevel("9");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		if (processUtil.compareVersion("4.3.0") >= 0) {
-			connect(true, "write certificate request", "'cf-client'");
-		} else {
-			connect(true);
-		}
+		connect(true, "parse certificate verify", "CN=cf-client,");
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
 	@Test
 	public void testLibCoapServerEcdsaRsaCa() throws Exception {
+		processUtil.setVerboseLevel("9");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		processUtil.setCertificate(SERVER_CA_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		connect(true, "write certificate request", "'cf-client'");
+		connect(true, "parse certificate verify", "CN=cf-client,");
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
 	@Test
 	public void testLibCoapServerRsa() throws Exception {
+		processUtil.setVerboseLevel("9");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.isSupported()
 				? CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 				: CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
-		assumeTrue(cipherSuite.name() + " not support by JCE", cipherSuite.isSupported());
 		processUtil.setCertificate(SERVER_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
 		californiumUtil.loadCredentials(CLIENT_RSA_NAME);
 		californiumUtil.start(BIND, null, cipherSuite);
-		connect(true, "write certificate request", "'cf-client-rsa'");
+		connect(true, "parse certificate verify", "CN=cf-client-rsa,");
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
@@ -346,6 +306,7 @@ public class LibCoapServerOpensslInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		LibCoapProcessUtil clientProcessUtil = new LibCoapProcessUtil();
+		clientProcessUtil.prepareLibCoapClientMbedTls(TIMEOUT_MILLIS);
 		clientProcessUtil.startupClient("coaps://" + ACCEPT + "/time", TRUST, null, cipherSuite);
 		String check = "\\d+:\\d+:\\d+";
 		assertTrue(clientProcessUtil.waitConsole(check, REQUEST_TIMEOUT_MILLIS.get()));
