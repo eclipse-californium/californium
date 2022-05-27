@@ -781,6 +781,11 @@ public class CoapResource implements Resource, ObservableResource {
 	 */
 	public void setObservable(boolean observable) {
 		this.observable = observable;
+		if (observable) {
+			getAttributes().setObservable();
+		} else {
+			getAttributes().clearObservable();
+		}
 	}
 
 	/**

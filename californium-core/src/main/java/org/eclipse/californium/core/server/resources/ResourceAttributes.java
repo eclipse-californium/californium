@@ -199,6 +199,15 @@ public class ResourceAttributes {
 	}
 
 	/**
+	 * Marks the resource as not observable.
+	 * 
+	 * @since 3.6
+	 */
+	public void clearObservable() {
+		attributes.remove(LinkFormat.OBSERVABLE);
+	}
+
+	/**
 	 * Replaces the value for the specified attribute with the specified value.
 	 * If another value has been set for the attribute name, it will be removed.
 	 * 
