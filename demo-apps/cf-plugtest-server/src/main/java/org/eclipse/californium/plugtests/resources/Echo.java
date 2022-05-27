@@ -218,10 +218,15 @@ public class Echo extends CoapResource {
 			String principal = getPrincipalName(request);
 			if (principal != null) {
 				request.setProtectFromOffload();
-				Resource child = new Keep(principal, request);
-				child.setParent(this);
 				synchronized (keptPosts) {
-					keptPosts.put(principal, child);
+					Resource child = keptPosts.get(principal);
+					if (child instanceof Keep) {
+						((Keep) child).setPost(request);
+					} else {
+						child = new Keep(principal, request);
+						child.setParent(this);
+						keptPosts.put(principal, child);
+					}
 				}
 			}
 		}
@@ -263,24 +268,30 @@ public class Echo extends CoapResource {
 
 	private static class Keep extends CoapResource {
 
-		private final Request post;
+		private volatile Request post;
 
 		private Keep(String principal, Request post) {
 			super(principal);
+			setObservable(true);
+			setPost(post);
+		}
+
+		public void setPost(Request post) {
 			this.post = post;
+			getAttributes().clearContentType();
 			if (post.getOptions().hasContentFormat()) {
 				getAttributes().addContentType(post.getOptions().getContentFormat());
-			} else {
-				getAttributes().clearContentType();
 			}
-			getAttributes().addAttribute("time", DATE_FORMAT.format(new Date()));
+			getAttributes().setAttribute("time", DATE_FORMAT.format(new Date()));
+			changed();
 		}
 
 		@Override
 		public void handleGET(final CoapExchange exchange) {
+			Request devicePost = post;
 			// get request to read out details
 			Request request = exchange.advanced().getRequest();
-			int format = post.getOptions().getContentFormat();
+			int format = devicePost.getOptions().getContentFormat();
 			int accept = request.getOptions().getAccept();
 			if (accept == UNDEFINED) {
 				accept = format == UNDEFINED ? APPLICATION_OCTET_STREAM : format;
@@ -293,7 +304,7 @@ public class Echo extends CoapResource {
 				exchange.respond(NOT_ACCEPTABLE);
 				return;
 			}
-			exchange.respond(CHANGED, post.getPayload(), accept);
+			exchange.respond(CHANGED, devicePost.getPayload(), accept);
 		}
 
 	}
