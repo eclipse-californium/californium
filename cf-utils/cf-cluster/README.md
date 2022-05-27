@@ -2,14 +2,14 @@
 
 # Californium (Cf) - k8s Support
 
-[Californium/Scandium](https://github.com/eclipse/californium/tree/master/scandium-core) offers since 3.0 two extensions to be used with k8s.
+[Californium/Scandium](https://github.com/eclipse/californium/tree/main/scandium-core) offers since 3.0 two extensions to be used with k8s.
 
 - Built-in support for DTLS Connection ID cluster using basic UDP-load-balancers
 - DTLS graceful restart (with or without that cluster support)
 
 ## Californium (Cf) - k8s Built-in Support for DTLS Connection ID Cluster
 
-[Californium/Scandium](https://github.com/eclipse/californium/tree/master/scandium-core) offers starting with the 2.5.0 the feature to forward tls_cid records to the `DTLSConnector`, which has the security context (e.g. keys) for that.
+[Californium/Scandium](https://github.com/eclipse/californium/tree/main/scandium-core) offers starting with the 2.5.0 the feature to forward tls_cid records to the `DTLSConnector`, which has the security context (e.g. keys) for that.
 
 To keep the function in  _Scandium_  simple, only a basic forwarding and backwarding is implemented there. This function is based on a implementation of `DtlsClusterConnector.ClusterNodesProvider`. This cluster support module extends that basic function, by
 

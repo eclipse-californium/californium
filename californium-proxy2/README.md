@@ -155,16 +155,16 @@ GET http://destination:5683/coap-target/coap:
 
 Above it is described, that a proxy request contains just some more information about the destination service. But how is that processed with Californium?
 
-Each message is received by a specific [Connector](https://github.com/eclipse/californium/blob/master/element-connector/src/main/java/org/eclipse/californium/elements/Connector.java) implementation, e.g. for coaps by a [DTLSConnector](https://github.com/eclipse/californium/blob/master/scandium-core/src/main/java/org/eclipse/californium/scandium/DTLSConnector.java). The coap-specific encoding and processing is then applied by a [CoapEndpoint](https://github.com/eclipse/californium/blob/master/californium-core/src/main/java/org/eclipse/californium/core/network/CoapEndpoint.java). The outcome is a [Request](https://github.com/eclipse/californium/blob/master/californium-core/src/main/java/org/eclipse/californium/core/coap/Request.java), which is delivered by a [ServerMessageDeliverer](https://github.com/eclipse/californium/blob/master/californium-core/src/main/java/org/eclipse/californium/core/server/ServerMessageDeliverer.java) to the [CoapServer](https://github.com/eclipse/californium/blob/master/californium-core/src/main/java/org/eclipse/californium/core/CoapServer.java)'s [CoapResource](https://github.com/eclipse/californium/blob/master/californium-core/src/main/java/org/eclipse/californium/core/CoapResource.java).
+Each message is received by a specific [Connector](https://github.com/eclipse/californium/blob/main/element-connector/src/main/java/org/eclipse/californium/elements/Connector.java) implementation, e.g. for coaps by a [DTLSConnector](https://github.com/eclipse/californium/blob/main/scandium-core/src/main/java/org/eclipse/californium/scandium/DTLSConnector.java). The coap-specific encoding and processing is then applied by a [CoapEndpoint](https://github.com/eclipse/californium/blob/main/californium-core/src/main/java/org/eclipse/californium/core/network/CoapEndpoint.java). The outcome is a [Request](https://github.com/eclipse/californium/blob/main/californium-core/src/main/java/org/eclipse/californium/core/coap/Request.java), which is delivered by a [ServerMessageDeliverer](https://github.com/eclipse/californium/blob/main/californium-core/src/main/java/org/eclipse/californium/core/server/ServerMessageDeliverer.java) to the [CoapServer](https://github.com/eclipse/californium/blob/main/californium-core/src/main/java/org/eclipse/californium/core/CoapServer.java)'s [CoapResource](https://github.com/eclipse/californium/blob/main/californium-core/src/main/java/org/eclipse/californium/core/CoapResource.java).
 
 ## Implementing a Forwarding Proxy
 
-For a forwarding proxy that `CoapResource` is not defined by the included destination path, it's defined by the destination-scheme, so either the proxy-scheme or proxy-uri. The Proxy2 library therefore comes with a [ForwardProxyMessageDeliverer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ForwardProxyMessageDeliverer.java), which does exactly that.
+For a forwarding proxy that `CoapResource` is not defined by the included destination path, it's defined by the destination-scheme, so either the proxy-scheme or proxy-uri. The Proxy2 library therefore comes with a [ForwardProxyMessageDeliverer](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ForwardProxyMessageDeliverer.java), which does exactly that.
 
 To translate the incoming request in an outgoing request, the Proxy2 library comes with two resources 
 
--  the [ProxyCoapClientResource](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyCoapClientResource.java), for outgoing coap-requests and 
--  the [ProxyHttpClientResource](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyHttpClientResource.java) for outgoing http-requests.
+-  the [ProxyCoapClientResource](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyCoapClientResource.java), for outgoing coap-requests and 
+-  the [ProxyHttpClientResource](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyHttpClientResource.java) for outgoing http-requests.
 
 ### Implementing coap2http Forwarding Cross Proxy
 
@@ -179,15 +179,15 @@ A coap2http forward proxy could be implemented by
 -  replace the `MessageDeliverer` of the `CoapServer` by the `ForwardProxyMessageDeliverer`.
 -  start the `CoapServer`.
 
-That's it. See the [BasicForwardingProxy2](https://github.com/eclipse/californium/blob/master/demo-apps/cf-proxy2/src/main/java/org/eclipse/californium/examples/basic/BasicForwardingProxy2.java).
+That's it. See the [BasicForwardingProxy2](https://github.com/eclipse/californium/blob/main/demo-apps/cf-proxy2/src/main/java/org/eclipse/californium/examples/basic/BasicForwardingProxy2.java).
 
 ### Implementing coap2coap Forwarding proxy
 
-That's pretty much the same as for the coap2http-proxy. Instead of initializing the `HttpClientFactory` create a [ClientSingleEndpoint](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ClientSingleEndpoint.java) and use that for a `ProxyCoapClientResource` instead of a `ProxyHttpClientResource`.
+That's pretty much the same as for the coap2http-proxy. Instead of initializing the `HttpClientFactory` create a [ClientSingleEndpoint](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ClientSingleEndpoint.java) and use that for a `ProxyCoapClientResource` instead of a `ProxyHttpClientResource`.
 
 ## Implementing a Reverse Proxy
 
-Reverse proxies may come with very specific implementations. Simple ones use just a fixed outgoing request for a incoming one. For such simple reverse proxy, the proxy2 library offers a [ProxyCoapResource.createReverseProxy](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyCoapResource.java) function.
+Reverse proxies may come with very specific implementations. Simple ones use just a fixed outgoing request for a incoming one. For such simple reverse proxy, the proxy2 library offers a [ProxyCoapResource.createReverseProxy](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyCoapResource.java) function.
 
 To create a simple reverse proxy, 
 
@@ -200,12 +200,12 @@ To create a simple reverse proxy,
 -  add that resource to the `CoapServer`.
 -  start the `CoapServer`.
 
-That's it. See the [BasicReverseProxy2](https://github.com/eclipse/californium/blob/master/demo-apps/cf-proxy2/src/main/java/org/eclipse/californium/examples/basic/BasicReverseProxy2.java).
+That's it. See the [BasicReverseProxy2](https://github.com/eclipse/californium/blob/main/demo-apps/cf-proxy2/src/main/java/org/eclipse/californium/examples/basic/BasicReverseProxy2.java).
 
 ## Implementing a specialized Reverse Proxy
 
 Reverse proxies may vary a lot. Some reverse proxies may just implement their own `CoapResource` other may use some parts of the library. To better understand, which function may be used, see 
-That's it. See the e.g. [ProxyCoapClientResource.handleRequest()](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyCoapClientResource.java#L76)
+That's it. See the e.g. [ProxyCoapClientResource.handleRequest()](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyCoapClientResource.java#L76)
 
 1.  `InetSocketAddress exposedInterface = translator.getExposedInterface(incomingRequest);` identify the exposed interface this request is received. Assuming virtualization, Containers, and clusters, the exposed interface may be only available, if it's external configured. If it's not possible to determine it, just return `null`. 
 2.  `URI destination = translator.getDestinationURI(incomingRequest, exposedInterface);` get the destination. For the simple reverse proxies, this method is overridden and returns the fixed destination.
@@ -216,9 +216,9 @@ If the general processing in `ProxyCoapClientResource` works also for the specia
 
 ## Implementing a Http Forwarding Cross Proxy
 
-Naturally this requires a http-server, which is aware of proxy requests. The californium proxy2 comes with [ProxyHttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) implementation based on [org.apache.httpcomponents](https://hc.apache.org/). Currently the `httpcore5` in version 5.1.1 is used.
+Naturally this requires a http-server, which is aware of proxy requests. The californium proxy2 comes with [ProxyHttpServer](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) implementation based on [org.apache.httpcomponents](https://hc.apache.org/). Currently the `httpcore5` in version 5.1.1 is used.
 
-The [ProxyHttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) uses a [HttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/HttpServer.java) and the [HttpStack](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/HttpStack.java), which adds the required http-request-handlers to it. These http-request-handler are using a [Http2CoapTranslator](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/Http2CoapTranslator.java) to translate the http-requests into coap-requests, which is then processed by the californium coap-stack using a coap2coap proxy.
+The [ProxyHttpServer](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) uses a [HttpServer](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/HttpServer.java) and the [HttpStack](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/HttpStack.java), which adds the required http-request-handlers to it. These http-request-handler are using a [Http2CoapTranslator](https://github.com/eclipse/californium/blob/main/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/Http2CoapTranslator.java) to translate the http-requests into coap-requests, which is then processed by the californium coap-stack using a coap2coap proxy.
 
 The implementation supports:
 
@@ -246,7 +246,7 @@ A simple http2coap forward proxy could be implemented by
 -  set the `ForwardProxyMessageDeliverer` as `ProxyCoapDeliverer` to the `ProxyHttpServer`.
 -  start the `ProxyHttpServer`.
 
-See the [BasicHttpForwardingProxy2](https://github.com/eclipse/californium/blob/master/demo-apps/cf-proxy2/src/main/java/org/eclipse/californium/examples/basic/BasicHttpForwardingProxy2.java).
+See the [BasicHttpForwardingProxy2](https://github.com/eclipse/californium/blob/main/demo-apps/cf-proxy2/src/main/java/org/eclipse/californium/examples/basic/BasicHttpForwardingProxy2.java).
 
 # Implementing a CoAP server with co-located proxy-server
 

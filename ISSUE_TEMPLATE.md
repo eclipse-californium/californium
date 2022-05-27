@@ -18,7 +18,7 @@ Network environment, e.g. k8s, docker, NATs, firewalls, virtual machines. All th
     * (1.0 is a previous release, usually no bugfixes are applied)
     * (1.1 is the previous master, no plans to continue this)
     * 2.7.x is the last previous major release
-    * and master is the development branch include the current major release 3.x.y
+    * and main is the development branch include the current major release 3.x.y
 * If you use a SNAPSHOT, ensure your updated to the latest. Please provide the commit your using
 * If your issue is related to a combination with other implementations, please mention that implementation (including proprietary ones). And the sides your using it, client or server.
 * If your issue is related to your own snippet, please provide that

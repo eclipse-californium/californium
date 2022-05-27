@@ -464,7 +464,7 @@ java -jar target/cf-extplugtest-server-3.5.0.jar --dtls-cluster "---;localhost:1
 
 In that mode, the `address:cid` pairs of the other/foreign nodes are static.
 
-To use that setup, a basic udp-load-balancer may be used in front. The [Cf-NAT](https://github.com/eclipse/californium/tree/master/cf-utils/cf-nat) offers such a function:
+To use that setup, a basic udp-load-balancer may be used in front. The [Cf-NAT](https://github.com/eclipse/californium/tree/main/cf-utils/cf-nat) offers such a function:
 
 ```sh
 java -jar cf-nat-3.3.1.jar :5784 <host>:15784 <host>:25784
@@ -620,7 +620,7 @@ java -jar cf-client-3.5.0.jar --method GET coaps://<nat>:5784/mycontext
 
 ### Test the dtls-cid-cluster with Cf-NAT 
 
-To test, that the dtls-cid-cluster even works, if the client's address is changed, such a address change can be simulated using [Cf-NAT](https://github.com/eclipse/californium/tree/master/cf-utils/cf-nat) (download available in the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/3.5.0/cf-nat-3.5.0.jar)).
+To test, that the dtls-cid-cluster even works, if the client's address is changed, such a address change can be simulated using [Cf-NAT](https://github.com/eclipse/californium/tree/main/cf-utils/cf-nat) (download available in the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/3.5.0/cf-nat-3.5.0.jar)).
 
 ```sh
 java -jar cf-nat-3.5.0.jar :5784 <host>:30784

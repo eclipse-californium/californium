@@ -19,7 +19,7 @@ $ mvn clean install
 
 Executable JARs of the examples with all dependencies can be found in the `demo-apps/run` folder.
 
-The build-process in branch `master` is tested for jdk 7, jdk 8, jdk 11, jdk 15, jdk 16 and jdk 17. 
+The build-process in branch `main` is tested for jdk 7, jdk 8, jdk 11, jdk 15, jdk 16 and jdk 17. 
 For jdk 7 the revapi maven-plugin is disabled, it requires at least java 8.
 
 To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set the `JAVA_HOME`.
@@ -40,7 +40,7 @@ $ mvn clean install -DskipTests
 
 Earlier versions (3.0.0-Mx, 2.6.5 and before) may also fail to build with newer JDKs, especially, if java 16 or 17 is used! That is cause by the unit test dependency to a deprecated version of "mockito". If such a (re-)build is required, the unit tests must be skipped (which is in the meantime anyway required caused by the "non-existing.host").
 
-In combination with the "non-existing.host" now existing, the build with unit test only works for the current heads of the branches `2.6.x`, `2.7.x` and `master`!
+In combination with the "non-existing.host" now existing, the build with unit test only works for the current heads of the branches `2.6.x`, `2.7.x` and `main`!
 
 ## Build jdk7 compliant
 
@@ -139,7 +139,7 @@ to your `pom.xml` (without the dots):
 
 ##### Current Builds
 
-You can also be bold and try out the most recent build from `master`.
+You can also be bold and try out the most recent build from `main`.
 However, we are not publishing those to Maven Central but to Californium's project repository at Eclipse only.
 You will therefore need to add the Eclipse Repository to your `pom.xml` first:
 
