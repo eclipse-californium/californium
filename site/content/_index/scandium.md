@@ -19,11 +19,11 @@ title = "Scandium (Sc)"
 
 [[buttons]]
   text = "Introduction"
-  url = "https://github.com/eclipse/californium/tree/master/scandium-core#scandium-sc---security-for-californium"
+  url = "https://github.com/eclipse/californium/tree/main/scandium-core#scandium-sc---security-for-californium"
 
 [[buttons]]
   text = "Repository"
-  url = "https://github.com/eclipse/californium/tree/master/scandium-core"
+  url = "https://github.com/eclipse/californium/tree/main/scandium-core"
 +++
 
 The Scandium (Sc) sub-module provides security for Californium. It implements DTLS 1.2 to secure your application

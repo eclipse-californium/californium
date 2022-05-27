@@ -9,5 +9,5 @@ weight = 10
 
 This repository provides CoAP tools that also serve as examples. Use our cf-client to interact with your devices from the command line, or the cf-browser to benefit from the UI. Both share a rich set of CLI arguments, enable to prepare to exchange messages in many different ways.
 
-[cf-client](https://github.com/eclipse/californium.tools/tree/master/cf-client#cf-client),
-[cf-browser](https://github.com/eclipse/californium.tools/tree/master/cf-browser#cf-browser).
+[cf-client](https://github.com/eclipse/californium.tools/tree/main/cf-client#cf-client),
+[cf-browser](https://github.com/eclipse/californium.tools/tree/main/cf-browser#cf-browser).

@@ -4,7 +4,7 @@ weight = 15
 
 [asset]
   icon = "fas fa-pause"
-  url = "https://github.com/eclipse/californium/tree/master/element-connector-tcp-netty"
+  url = "https://github.com/eclipse/californium/tree/main/element-connector-tcp-netty"
 +++
 
 Experimental CoAP over TCP implementation using netty.io.

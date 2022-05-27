@@ -19,7 +19,7 @@ title = "Californium (Cf) Core"
 
 [[buttons]]
   text = "Introduction"
-  url = "https://github.com/eclipse/californium/tree/master/californium-core#californium-cf---coap-core"
+  url = "https://github.com/eclipse/californium/tree/main/californium-core#californium-cf---coap-core"
 [[buttons]]
   text = "Repository"
   url = "https://github.com/eclipse/californium"
