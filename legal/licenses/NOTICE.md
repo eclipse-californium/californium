@@ -73,12 +73,12 @@ project has been copied into the header along with additional information regard
 The java source files `EncryptCommon.java`, `Encrypt0Message.java` and `Message.java` have been copied with
 modifications. The header was added as for the other unmodified files.
 
-com.github.peteroupc.numbers (1.8.0)
+com.github.peteroupc.numbers (1.8.2)
 
 * License: CC0-1.0
 * Project & Source: https://github.com/peteroupc/Numbers-Java
 
-com.upokecenter.cbor (4.4.4)
+com.upokecenter.cbor (4.5.2)
 
 * License: CC-1.0
 * Project: https://github.com/peteroupc/CBOR-Java
@@ -88,7 +88,7 @@ Google Guava (30.0-android)
 
 * License: Apache License, 2.0
 
-gson (2.8.8)
+gson (2.8.9)
 
 * License: Apache-2.0 
 
@@ -96,7 +96,7 @@ javassist (3.22.0)
 
 * License: Apache-2.0
 
-Javax.annotation (1.2)
+Javax.annotation (1.3)
 
 * License: CDDL
 
@@ -108,11 +108,11 @@ javax.websocket API (1.0)
 
 * License: Common Development and Distribution License
 
-Logback Classic (1.2.8)
+Logback Classic (1.2.10)
 
 * License: EPL-1.0
 
-Logback Core (1.2.8)
+Logback Core (1.2.10)
 
 * License: EPL-1.0
 
@@ -122,7 +122,7 @@ logback-android (1.1.1)
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
-Netty (4.1.71)
+Netty (4.1.76)
 
 * License: Apache-2.0 AND BSD-3-Clause AND MIT
 * Project: https://netty.io/
@@ -138,15 +138,15 @@ OSGi Service Platform Core Companion Code (5.0)
 * License: Apache License, 2.0
 * Project: http://www.osgi.org
 
-slf4j-api (1.7.30)
+slf4j-api (1.7.36)
 
 * License: MIT
 
-slf4j-jdk14 (1.7.30)
+slf4j-jdk14 (1.7.36)
 
 * License: MIT
 
-picocli (4.6.1)
+picocli (4.6.2)
 
 * License: Apache License, 2.0
 * Project: https://picocli.info
