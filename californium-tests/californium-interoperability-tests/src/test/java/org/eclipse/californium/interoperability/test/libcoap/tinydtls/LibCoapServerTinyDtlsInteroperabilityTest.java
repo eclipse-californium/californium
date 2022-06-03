@@ -104,6 +104,16 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 	}
 
 	@Test
+	public void testLibCoapServerPskCCM() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM;
+		processUtil.startupServer(ACCEPT, PSK, cipherSuite);
+
+		californiumUtil.start(BIND, null, cipherSuite);
+		connect(true);
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
 	public void testLibCoapServerPsk2FullHandshake() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		processUtil.startupServer(ACCEPT, PSK, cipherSuite);
@@ -140,6 +150,20 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 		assertTrue(result.contains("certificate_request \\(13\\)"));
 		assertTrue(result.contains("certificate_verify \\(15\\)"));
 		assertTrue(result.contains("CN 'RPK' presented by client \\(Certificate\\)"));
+		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapServerRpkCCM() throws Exception {
+		processUtil.assumeMinVersion("4.3.0");
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM;
+		processUtil.startupServer(ACCEPT, RPK, cipherSuite);
+
+		californiumUtil.start(BIND, null, cipherSuite);
+		ProcessResult result = connect(true);
+		assertTrue(result.contains("certificate \\(11\\)"));
+		assertTrue(result.contains("certificate_request \\(13\\)"));
+		assertTrue(result.contains("certificate_verify \\(15\\)"));
 		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
 	}
 
