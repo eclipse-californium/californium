@@ -187,6 +187,7 @@ abstract public class CounterStatisticManager {
 	 * @param statistic statistic to be added.
 	 * @see #addByKey(String, SimpleCounterStatistic)
 	 * @see #getByKey(String)
+	 * @see #removeByKey(String)
 	 * @since 3.1
 	 */
 	protected void removeByKey(String key, SimpleCounterStatistic statistic) {
@@ -201,10 +202,14 @@ abstract public class CounterStatisticManager {
 	 * @param key the key for the map.
 	 * @see #addByKey(String, SimpleCounterStatistic)
 	 * @see #getByKey(String)
+	 * @see #removeByKey(String, SimpleCounterStatistic)
 	 * @since 3.1
 	 */
 	protected void removeByKey(String key) {
-		statistics.remove(key);
+		if (statistics.containsKey(key)) {
+			statistics.remove(key);
+			orderedKeys.remove(key);
+		}
 	}
 
 	/**
