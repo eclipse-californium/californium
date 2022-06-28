@@ -477,13 +477,14 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	private void setupClientCertificateIdentity(CertificateType type) {
+		SingleCertificateProvider provider;
 		if (type == CertificateType.RAW_PUBLIC_KEY) {
-			clientBuilder
-					.setCertificateIdentityProvider(new SingleCertificateProvider(clientPrivateKey, clientPublicKey));
+			provider = new SingleCertificateProvider(clientPrivateKey, clientPublicKey);
 		} else {
-			clientBuilder.setCertificateIdentityProvider(
-					new SingleCertificateProvider(clientPrivateKey, clientCertificateChain));
+			provider = new SingleCertificateProvider(clientPrivateKey, clientCertificateChain);
 		}
+		provider.setVerifyKeyPair(false);
+		clientBuilder.setCertificateIdentityProvider(provider);
 	}
 
 	private DTLSSession startClient(String hostname) throws Exception {
