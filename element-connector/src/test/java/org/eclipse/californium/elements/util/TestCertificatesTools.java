@@ -459,12 +459,12 @@ public class TestCertificatesTools {
 	 * 
 	 * @param message message for failure
 	 * @param privateKey private key to sign
-	 * @param pulbicKey public key to verify
+	 * @param publicKey public key to verify
 	 * @param signature signature variant.
 	 * @since 3.0
 	 * @param signature
 	 */
-	public static void assertSigning(String message, PrivateKey privateKey, PublicKey pulbicKey, Signature signature) {
+	public static void assertSigning(String message, PrivateKey privateKey, PublicKey publicKey, Signature signature) {
 		String algorithm = signature.getAlgorithm();
 		try {
 			int len = 256;
@@ -476,7 +476,7 @@ public class TestCertificatesTools {
 			signature.update(data);
 			byte[] sign = signature.sign();
 
-			signature.initVerify(pulbicKey);
+			signature.initVerify(publicKey);
 			signature.update(data);
 			if (!signature.verify(sign)) {
 				fail(message + ":" + algorithm + " failed!");
