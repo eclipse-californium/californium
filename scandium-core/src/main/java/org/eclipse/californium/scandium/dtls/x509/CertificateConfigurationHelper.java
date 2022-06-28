@@ -15,7 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.x509;
 
+import java.security.GeneralSecurityException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Signature;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +28,9 @@ import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ListUtils;
 
@@ -280,5 +286,56 @@ public class CertificateConfigurationHelper {
 	 */
 	public boolean canBeUsedForAuthentication(boolean client) {
 		return chains.isEmpty() || (client ? clientUsage : serverUsage);
+	}
+
+	/**
+	 * Verify the provided key pair.
+	 * 
+	 * @param privateKey private key
+	 * @param publicKey public key
+	 * @throws IllegalArgumentException if key pair is not valid or not
+	 *             supported by the JCE
+	 * @since 3.6
+	 */
+	public void verifyKeyPair(PrivateKey privateKey, PublicKey publicKey) {
+		String algorithm = publicKey.getAlgorithm();
+		for (SignatureAlgorithm signatureAlgorithm : SignatureAlgorithm.values()) {
+			if (signatureAlgorithm.isSupported(algorithm)) {
+				SignatureAndHashAlgorithm signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(
+						HashAlgorithm.INTRINSIC, signatureAlgorithm);
+				if (!signatureAlgorithm.isIntrinsic()) {
+					for (HashAlgorithm hashAlgorithm : HashAlgorithm.values()) {
+						if (HashAlgorithm.INTRINSIC != hashAlgorithm && HashAlgorithm.NONE != hashAlgorithm) {
+							signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(hashAlgorithm,
+									signatureAlgorithm);
+							if (signatureAndHashAlgorithm.isSupported()) {
+								break;
+							}
+						}
+					}
+				}
+				if (signatureAndHashAlgorithm.isSupported(publicKey)) {
+					ThreadLocalSignature threadLocalSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
+					Signature signature = threadLocalSignature.current();
+					byte[] data = "Just a signature test".getBytes();
+					try {
+						signature.initSign(privateKey);
+						signature.update(data);
+						byte[] sign = signature.sign();
+
+						signature.initVerify(publicKey);
+						signature.update(data);
+						if (signature.verify(sign)) {
+							// key pair verified
+							return;
+						}
+						throw new IllegalArgumentException(publicKey.getAlgorithm() + " key pair is not valid!");
+					} catch (GeneralSecurityException e) {
+					}
+					break;
+				}
+			}
+		}
+		throw new IllegalArgumentException(algorithm + " is not supported by the JCE!");
 	}
 }

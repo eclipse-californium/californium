@@ -76,8 +76,8 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	/**
 	 * Key types for credentials.
 	 */
-	private static final List<String> ALL_KEY_TYPES = Arrays.asList(JceNames.EC, JceNames.RSA,
-			JceNames.EDDSA, JceNames.ED25519, JceNames.ED448);
+	private static final List<String> ALL_KEY_TYPES = Arrays.asList(JceNames.EC, JceNames.RSA, JceNames.EDDSA,
+			JceNames.ED25519, JceNames.ED448);
 	/**
 	 * Default alias. May be {@code null}.
 	 */
@@ -87,7 +87,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 */
 	private final X509KeyManager keyManager;
 	/**
-	 * Instance ID for logging. 
+	 * Instance ID for logging.
 	 */
 	private final int id;
 	/**
@@ -98,6 +98,15 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * List of supported certificate key algorithms.
 	 */
 	private final List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms;
+	/**
+	 * Enable key pairs verification.
+	 * 
+	 * Check, if key-pairs are supported by JCE and the public keys are
+	 * corresponding to the private keys. Enabled by default.
+	 * 
+	 * @since 3.6
+	 */
+	private boolean verifyKeyPairs = true;
 
 	/**
 	 * Create certificate provider based on key manager.
@@ -190,6 +199,19 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 		this.supportedCertificateKeyAlgorithms = Collections.unmodifiableList(supportedCertificateKeyAlgorithms);
 	}
 
+	/**
+	 * Enable/Disable the verification of the provided key pairs.
+	 * 
+	 * @param enable {@code true} to enable verification (default),
+	 *            {@code false}, to disable it.
+	 * @return this certificate provider for command chaining.
+	 * @since 3.6
+	 */
+	public KeyManagerCertificateProvider setVerifyKeyPairs(boolean enable) {
+		this.verifyKeyPairs = enable;
+		return this;
+	}
+
 	private void setup(String alias, List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms) {
 		X509Certificate[] certificateChain = keyManager.getCertificateChain(alias);
 		if (certificateChain != null && certificateChain.length > 0) {
@@ -224,6 +246,15 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	private void setupConfigurationHelperForAlias(CertificateConfigurationHelper helper, String alias) {
 		X509Certificate[] certificateChain = keyManager.getCertificateChain(alias);
 		if (certificateChain != null && certificateChain.length > 0) {
+			try {
+				helper.verifyKeyPair(keyManager.getPrivateKey(alias), certificateChain[0].getPublicKey());
+			} catch (IllegalArgumentException ex) {
+				if (verifyKeyPairs) {
+					throw new IllegalStateException(ex.getMessage());
+				} else {
+					ex.printStackTrace();
+				}
+			}
 			if (supportedCertificateTypes.contains(CertificateType.X_509)) {
 				helper.addConfigurationDefaultsFor(Arrays.asList(certificateChain));
 			} else if (supportedCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
@@ -319,14 +350,16 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				aliases.retainAll(matchingServerNames);
 			}
 			if (signatureAndHashAlgorithms != null) {
-				LOGGER.debug("[{}]: {} selected {} by the node's signature and hash algorithms", id, role, matchingNodeSignatures.size());
-				LOGGER.debug("[{}]: {} selected {} by the chain signature and hash algorithms", id, role, matchingChainSignatures.size());
+				LOGGER.debug("[{}]: {} selected {} by the node's signature and hash algorithms", id, role,
+						matchingNodeSignatures.size());
+				LOGGER.debug("[{}]: {} selected {} by the chain signature and hash algorithms", id, role,
+						matchingChainSignatures.size());
 				aliases.retainAll(matchingNodeSignatures);
 				if (supportedCertificateTypes.contains(CertificateType.X_509)) {
 					List<String> temp = null;
 					if (supportedCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
 						temp = new ArrayList<>(aliases);
-					} 
+					}
 					aliases.retainAll(matchingChainSignatures);
 					if (aliases.isEmpty() && temp != null) {
 						aliases = temp;
@@ -386,7 +419,8 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				if (alias == null && JceProviderUtil.usesBouncyCastle()) {
 					// replace sun keyTypes as defined in
 					// https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#jssenames
-					// by the ones Bouncy Castle chose to use for the server-side
+					// by the ones Bouncy Castle chose to use for the
+					// server-side
 					// https://github.com/bcgit/bc-java/issues/1053
 					String bcKeyType = BC_SERVER_KEY_TYPES_MAP.get(keyType);
 					if (bcKeyType != null) {
