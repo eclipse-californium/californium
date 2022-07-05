@@ -232,6 +232,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
+import org.eclipse.californium.scandium.dtls.resumption.ExtendedResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
@@ -369,6 +370,19 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @since 3.0
 	 */
 	private final boolean useHelloVerifyRequest;
+	/**
+	 * Support Server Name Indication TLS extension.
+	 * 
+	 * @since 3.6
+	 */
+	protected final boolean sniEnabled;
+
+	/**
+	 * Send the extended master secret extension.
+	 * 
+	 * @since 3.6
+	 */
+	protected final ExtendedMasterSecretMode extendedMasterSecretMode;
 
 	private final int thresholdHandshakesWithoutVerifiedPeer;
 	/**
@@ -608,6 +622,8 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			this.useFilter = config.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
 			this.useCidUpdateAddressOnNewerRecordFilter = config.get(DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS);
 			this.maxConnections = config.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
+			this.sniEnabled = config.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION);
+			this.extendedMasterSecretMode = config.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
 			this.datagramFilter = config.getDatagramFilter();
 			this.connectionListener = config.getConnectionListener();
 			this.customSessionListener = config.getSessionListener();
@@ -2638,7 +2654,12 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				LOGGER.trace("pending fast resumptions [{}], threshold [{}]", pending,
 						thresholdHandshakesWithoutVerifiedPeer);
 				if (pending < thresholdHandshakesWithoutVerifiedPeer) {
-					return resumptionVerifier.skipRequestHelloVerify(clientHello.getSessionId());
+					if (resumptionVerifier instanceof ExtendedResumptionVerifier) {
+						return ((ExtendedResumptionVerifier) resumptionVerifier).skipRequestHelloVerify(clientHello,
+								sniEnabled, extendedMasterSecretMode);
+					} else {
+						return resumptionVerifier.skipRequestHelloVerify(clientHello.getSessionId());
+					}
 				}
 			}
 		}

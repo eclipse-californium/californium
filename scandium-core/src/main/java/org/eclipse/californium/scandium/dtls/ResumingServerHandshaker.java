@@ -42,6 +42,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The resuming server handshaker executes an abbreviated handshake when
@@ -82,6 +84,8 @@ import org.eclipse.californium.scandium.util.ServerNames;
  */
 @NoPublicAPI
 public class ResumingServerHandshaker extends ServerHandshaker {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingServerHandshaker.class);
+
 	private static final HandshakeState[] ABBREVIATED_HANDSHAKE = { 
 			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
 			new HandshakeState(HandshakeType.FINISHED) };
@@ -244,7 +248,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		ClientHello clientHello = pendingClientHello;
 		pendingClientHello = null;
 		DTLSSession session = resumptionResult.getDTLSSession();
-		fullHandshake = !validateResumption(session, clientHello);
+		fullHandshake = !validateResumption(session, clientHello, sniEnabled, extendedMasterSecretMode);
 		if (fullHandshake) {
 			LOGGER.debug("DTLS session {} not available, switch to full-handshake with peer [{}]!",
 					clientHello.getSessionId(), peerToLog);
@@ -256,81 +260,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			setCustomArgument(resumptionResult);
 			processResumingClientHello(clientHello);
 		}
-	}
-
-	/**
-	 * Checks, if the session and client hello valid for an resumption
-	 * handshake.
-	 * 
-	 * @param session the DTLS session to resume.
-	 * @param clientHello the client's hello message.
-	 * @return {@code true}, the session and client hello are valid for
-	 *         resumption, {@code false}, if not and a fall back to a
-	 *         full-handshake is required.
-	 * @since 3.0
-	 */
-	private boolean validateResumption(DTLSSession session, ClientHello clientHello) {
-		if (session == null) {
-			LOGGER.debug("DTLS session {} not available, switch to full-handshake with peer [{}]!",
-					clientHello.getSessionId(), peerToLog);
-			return false;
-		}
-		CipherSuite cipherSuite = session.getCipherSuite();
-		CompressionMethod compressionMethod = session.getCompressionMethod();
-		if (!clientHello.getCipherSuites().contains(cipherSuite)) {
-			LOGGER.debug("Cipher-suite {} changed by client hello, switch to full-handshake with peer [{}]!",
-					cipherSuite, peerToLog);
-			return false;
-		} else if (!session.getProtocolVersion().equals(clientHello.getProtocolVersion())) {
-			LOGGER.debug("Protocol version {} changed by client hello {}, switch to full-handshake with peer [{}]!",
-					session.getProtocolVersion(), clientHello.getProtocolVersion(), peerToLog);
-			return false;
-		} else if (!clientHello.getCompressionMethods().contains(compressionMethod)) {
-			LOGGER.debug("Compression method {} changed by client hello, switch to full-handshake with peer [{}]!",
-					session.getCompressionMethod(), peerToLog);
-			return false;
-		} else if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED)
-				&& !clientHello.hasExtendedMasterSecretExtension()) {
-			// https://tools.ietf.org/html/rfc7627#section-5.3
-			//
-			// If the original session used the
-			// "extended_master_secret" extension but the new
-			// ClientHello does not contain it, the server
-			// MUST abort the abbreviated handshake
-			//
-			// If neither the original session nor the new
-			// ClientHello uses the extension, the server SHOULD
-			// abort the handshake. If it continues with an
-			// abbreviated handshake in order to support legacy
-			// insecure resumption, the connection is no longer
-			// protected by the mechanisms in this document, and the
-			// server should follow the guidelines in Section 5.4.
-			LOGGER.debug(
-					"Missing extended master secret extension in client hello, switch to full-handshake with peer [{}]!",
-					peerToLog);
-			return false;
-		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.OPTIONAL && session.useExtendedMasterSecret()
-				&& !clientHello.hasExtendedMasterSecretExtension()) {
-			// https://tools.ietf.org/html/rfc7627#section-5.3
-			//
-			// If the original session used the
-			// "extended_master_secret" extension but the new
-			// ClientHello does not contain it, the server
-			// MUST abort the abbreviated handshake
-			LOGGER.debug(
-					"Disabled extended master secret extension in client hello, switch to full-handshake with peer [{}]!",
-					peerToLog);
-			return false;
-		} else if (sniEnabled) {
-			ServerNames serverNames = getServerNames();
-			ServerNames clientServerNames = clientHello.getServerNames();
-			if (!Objects.equals(serverNames, clientServerNames)) {
-				LOGGER.debug("SNI {} changed by client hello {}, switch to full-handshake with peer [{}]!", serverNames,
-						clientServerNames, peerToLog);
-				return false;
-			}
-		}
-		return true;
 	}
 
 	/**
@@ -382,4 +311,76 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		expectChangeCipherSpecMessage();
 	}
 
+	/**
+	 * Checks, if the session and client hello are valid for an resumption
+	 * handshake.
+	 * 
+	 * @param session the DTLS session to resume.
+	 * @param clientHello the client's hello message.
+	 * @param sniEnabled {@code true}, if SNI is enabled, {@code false},
+	 *            otherwise.
+	 * @param extendedMasterSecretMode the extended master secret mode.
+	 * @return {@code true}, the session and client hello are valid for
+	 *         resumption, {@code false}, if not and a fall back to a
+	 *         full-handshake is required.
+	 * @since 3.6
+	 */
+	public static boolean validateResumption(DTLSSession session, ClientHello clientHello, boolean sniEnabled,
+			ExtendedMasterSecretMode extendedMasterSecretMode) {
+		if (session == null) {
+			LOGGER.debug("DTLS session {} not available, switch to full-handshake!", clientHello.getSessionId());
+			return false;
+		}
+		CipherSuite cipherSuite = session.getCipherSuite();
+		CompressionMethod compressionMethod = session.getCompressionMethod();
+		if (!clientHello.getCipherSuites().contains(cipherSuite)) {
+			LOGGER.debug("Cipher-suite {} changed by client hello, switch to full-handshake!", cipherSuite);
+			return false;
+		} else if (!session.getProtocolVersion().equals(clientHello.getProtocolVersion())) {
+			LOGGER.debug("Protocol version {} changed by client hello {}, switch to full-handshake!",
+					session.getProtocolVersion(), clientHello.getProtocolVersion());
+			return false;
+		} else if (!clientHello.getCompressionMethods().contains(compressionMethod)) {
+			LOGGER.debug("Compression method {} changed by client hello, switch to full-handshake!",
+					session.getCompressionMethod());
+			return false;
+		} else if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED)
+				&& !clientHello.hasExtendedMasterSecretExtension()) {
+			// https://tools.ietf.org/html/rfc7627#section-5.3
+			//
+			// If the original session used the
+			// "extended_master_secret" extension but the new
+			// ClientHello does not contain it, the server
+			// MUST abort the abbreviated handshake
+			//
+			// If neither the original session nor the new
+			// ClientHello uses the extension, the server SHOULD
+			// abort the handshake. If it continues with an
+			// abbreviated handshake in order to support legacy
+			// insecure resumption, the connection is no longer
+			// protected by the mechanisms in this document, and the
+			// server should follow the guidelines in Section 5.4.
+			LOGGER.debug("Missing extended master secret extension in client hello, switch to full-handshake!");
+			return false;
+		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.OPTIONAL && session.useExtendedMasterSecret()
+				&& !clientHello.hasExtendedMasterSecretExtension()) {
+			// https://tools.ietf.org/html/rfc7627#section-5.3
+			//
+			// If the original session used the
+			// "extended_master_secret" extension but the new
+			// ClientHello does not contain it, the server
+			// MUST abort the abbreviated handshake
+			LOGGER.debug("Disabled extended master secret extension in client hello, switch to full-handshake!");
+			return false;
+		} else if (sniEnabled) {
+			ServerNames serverNames = session.getServerNames();
+			ServerNames clientServerNames = clientHello.getServerNames();
+			if (!Objects.equals(serverNames, clientServerNames)) {
+				LOGGER.debug("SNI {} changed by client hello {}, switch to full-handshake!", serverNames,
+						clientServerNames);
+				return false;
+			}
+		}
+		return true;
+	}
 }
