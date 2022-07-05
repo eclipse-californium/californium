@@ -1814,8 +1814,24 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			return;
 		}
 
-		final Record firstRecord = records.get(0);
+		processRecords(records, peerAddress, router);
+	}
 
+	/**
+	 * Process parsed records from the received datagram.
+	 *
+	 * Invoked internally by {@link DTLSConnector#processDatagram(DatagramPacket, InetSocketAddress)}
+	 * to continue processing.
+	 *
+	 * @param records records from the processed datagram.
+	 * @param peerAddress datagram's source address.
+	 * @param router router address, null, if no router is used.
+	 * @since 3.6
+	 */
+	protected void processRecords(final List<Record> records,
+								  final InetSocketAddress peerAddress,
+								  final InetSocketAddress router) {
+		final Record firstRecord = records.get(0);
 		if (records.size() == 1 && firstRecord.isNewClientHello()) {
 			firstRecord.setAddress(peerAddress, router);
 			if (dtlsRole == DtlsRole.CLIENT_ONLY) {
