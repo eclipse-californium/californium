@@ -2110,7 +2110,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 						connections.setConnectionBySessionId(sessionConnection);
 						if (sessionConnection != null) {
 							// found provided session.
-							return true;
+							SessionTicket ticket;
+							if (sessionConnection.hasEstablishedSession()) {
+								ticket = sessionConnection.getEstablishedSession().getSessionTicket();
+							} else {
+								ticket = sessionConnection.getSessionTicket();
+							}
+							if (verifySessionForResumption(clientHello, ticket)) {
+								return true;
+							}
 						}
 					}
 				}
@@ -2179,21 +2187,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			} else {
 				ticket = previousConnection.getSessionTicket();
 			}
-			boolean ok = true;
-			if (ticket != null && config.isSniEnabled()) {
-				ServerNames serverNames1 = ticket.getServerNames();
-				ServerNames serverNames2 = null;
-				ServerNameExtension extension = clientHello.getServerNameExtension();
-				if (extension != null) {
-					serverNames2 = extension.getServerNames();
-				}
-				if (serverNames1 != null) {
-					ok = serverNames1.equals(serverNames2);
-				} else if (serverNames2 != null) {
-					// invalidate ticket, server names mismatch
-					ok = false;
-				}
-			}
+			boolean ok = verifySessionForResumption(clientHello, ticket);
 			if (!ok && ticket != null) {
 				SecretUtil.destroy(ticket);
 				ticket = null;
@@ -2242,6 +2236,25 @@ public class DTLSConnector implements Connector, RecordLayer {
 					peerAddress, clientHello.getSessionId());
 			startNewHandshake(clientHello, record, connection);
 		}
+	}
+	
+	private boolean verifySessionForResumption(ClientHello clientHello, SessionTicket ticket) {
+		boolean ok = true;
+		if (ticket != null && config.isSniEnabled()) {
+			ServerNames serverNames1 = ticket.getServerNames();
+			ServerNames serverNames2 = null;
+			ServerNameExtension extension = clientHello.getServerNameExtension();
+			if (extension != null) {
+				serverNames2 = extension.getServerNames();
+			}
+			if (serverNames1 != null) {
+				ok = serverNames1.equals(serverNames2);
+			} else if (serverNames2 != null) {
+				// invalidate ticket, server names mismatch
+				ok = false;
+			}
+		}
+		return ok;
 	}
 
 	private void sendHelloVerify(ClientHello clientHello, Record record, byte[] expectedCookie) throws GeneralSecurityException {
