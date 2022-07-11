@@ -65,7 +65,7 @@ public class Diagnose extends CoapResource {
 
 	private static final long START_TIME = System.currentTimeMillis();
 
-	private final ServerInterface server;
+	private final List<ServerInterface> serverList = new ArrayList<>();
 	private final ConcurrentMap<InetSocketAddress, List<CounterStatisticManager>> endpointsHealth;
 	private final List<CounterStatisticManager> endpointHealth;
 
@@ -76,7 +76,9 @@ public class Diagnose extends CoapResource {
 	public Diagnose(String name, String title, ServerInterface server) {
 		super(name);
 		init(title);
-		this.server = server;
+		if (server != null) {
+			this.serverList.add(server);
+		}
 		this.endpointsHealth = new ConcurrentHashMap<>();
 		this.endpointHealth = null;
 	}
@@ -84,7 +86,6 @@ public class Diagnose extends CoapResource {
 	public Diagnose(String name, String title, List<CounterStatisticManager> endpointHealth) {
 		super(name);
 		init(title);
-		this.server = null;
 		this.endpointsHealth = null;
 		this.endpointHealth = endpointHealth;
 	}
@@ -96,16 +97,24 @@ public class Diagnose extends CoapResource {
 		getAttributes().addContentType(APPLICATION_CBOR);
 	}
 
-	public void update(List<CounterStatisticManager> serverHealth) {
+	public void add(ServerInterface server) {
 		if (server != null) {
+			serverList.add(server);
+		}
+	}
+
+	public void update(List<CounterStatisticManager> serverHealth) {
+		if (serverList != null) {
 			endpointsHealth.clear();
 			for (Resource child : getChildren()) {
 				delete(child);
 			}
-			for (Endpoint ep : server.getEndpoints()) {
-				String scheme = ep.getUri().getScheme();
-				if (CoAP.isUdpScheme(scheme)) {
-					addHealth(ep, serverHealth);
+			for (ServerInterface server : serverList) {
+				for (Endpoint ep : server.getEndpoints()) {
+					String scheme = ep.getUri().getScheme();
+					if (CoAP.isUdpScheme(scheme)) {
+						addHealth(ep, serverHealth);
+					}
 				}
 			}
 		}
