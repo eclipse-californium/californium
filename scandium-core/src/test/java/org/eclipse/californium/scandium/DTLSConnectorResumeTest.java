@@ -41,7 +41,6 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -60,6 +59,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
@@ -73,7 +73,6 @@ import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
-import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -138,8 +137,9 @@ public class DTLSConnectorResumeTest {
 	Class<?> clientPrincipalType;
 	DTLSConnector client;
 	InMemoryConnectionStore clientConnectionStore;
-	List<Record> lastReceivedFlight;
+	DtlsHealthLogger clientHealth;
 
+	
 	public static interface TypedBuilderSetup extends BuilderSetup {
 		Class<?> getPrincipalType();
 	}
@@ -448,10 +448,11 @@ public class DTLSConnectorResumeTest {
 	@Before
 	public void setUp() throws Exception {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientHealth = new DtlsHealthLogger("client");
 
 		DtlsConnectorConfig.Builder builder = createClientConfigBuilder("client", null);
+		builder.setHealthHandler(clientHealth);
 		DtlsConnectorConfig clientConfig = builder.build();
-
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 	}
@@ -461,7 +462,9 @@ public class DTLSConnectorResumeTest {
 		if (client != null) {
 			client.destroy();
 		}
-		lastReceivedFlight = null;
+		if (clientHealth != null) {
+			clientHealth.reset();
+		}
 		serverHelper.cleanUpServer();
 	}
 
@@ -924,6 +927,7 @@ public class DTLSConnectorResumeTest {
 		final String msg = "Hello Again";
 		clientRawDataChannel.setLatchCount(1);
 
+		clientHealth.reset();
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_ALT, null), null, false);
 		client.send(data);
@@ -933,6 +937,7 @@ public class DTLSConnectorResumeTest {
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), not(equalTo(sessionId)));
 		assertClientIdentity(clientPrincipalType);
+		TestConditionTools.assertStatisticCounter(clientHealth, "received records", is(4L));
 	}
 
 	@Test
