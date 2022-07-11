@@ -45,6 +45,7 @@ import org.eclipse.californium.cluster.K8sManagementJdkClient;
 import org.eclipse.californium.cluster.K8sRestoreJdkHttpClient;
 import org.eclipse.californium.cluster.Readiness;
 import org.eclipse.californium.cluster.config.DtlsClusterManagerConfig;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
@@ -525,7 +526,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			PlugtestServer.load(config);
 
 			// start standard plugtest server and shutdown
-			PlugtestServer.start(executor, secondaryExecutor, config, configuration, socketObserver, null);
+			CoapServer plugtestServer = PlugtestServer.start(executor, secondaryExecutor, config, configuration, socketObserver, null);
 			server.start();
 
 			server.addLogger(!config.benchmark);
@@ -537,10 +538,20 @@ public class ExtendedTestServer extends AbstractTestServer {
 				server.add(obsStatLogger);
 				server.setObserveHealth(obsStatLogger);
 			}
+			if (plugtestServer != null) {
+				obsStatLogger = new ObserveStatisticLogger(plugtestServer.getTag());
+				if (obsStatLogger.isEnabled()) {
+					statistics.add(obsStatLogger);
+					plugtestServer.add(obsStatLogger);
+					plugtestServer.setObserveHealth(obsStatLogger);
+				}
+			}
 
 			Resource child = server.getRoot().getChild(Diagnose.RESOURCE_NAME);
 			if (child instanceof Diagnose) {
-				((Diagnose) child).update(statistics);
+				Diagnose diagnose = (Diagnose) child;
+				diagnose.add(plugtestServer);
+				diagnose.update(statistics);
 			}
 
 			PlugtestServer.ActiveInputReader reader = new PlugtestServer.ActiveInputReader();

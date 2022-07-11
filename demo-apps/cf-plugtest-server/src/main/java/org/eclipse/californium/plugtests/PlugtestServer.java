@@ -467,7 +467,7 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 	}
 
-	public static void start(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor,
+	public static AbstractTestServer start(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor,
 			BaseConfig config, Configuration configuration, EndpointNetSocketObserver observer,
 			ActiveInputReader inputReader) {
 
@@ -508,6 +508,7 @@ public class PlugtestServer extends AbstractTestServer {
 				shutdown();
 			}
 		}
+		return server;
 	}
 
 	public static void shutdown() {
