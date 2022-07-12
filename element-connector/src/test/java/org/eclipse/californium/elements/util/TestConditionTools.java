@@ -151,7 +151,7 @@ public final class TestConditionTools {
 				}
 			});
 		}
-		assertThat(prepareMessaga(null, name, manager), manager.getCounter(name), matcher);
+		assertThat(prepareMessage(null, name, manager), manager.getCounter(name), matcher);
 	}
 
 	/**
@@ -181,7 +181,7 @@ public final class TestConditionTools {
 				}
 			});
 		}
-		assertThat(prepareMessaga(message, name, manager), manager.getCounter(name), matcher);
+		assertThat(prepareMessage(message, name, manager), manager.getCounter(name), matcher);
 	}
 
 	/**
@@ -193,7 +193,7 @@ public final class TestConditionTools {
 	 */
 	public static void assertStatisticCounter(CounterStatisticManager manager, String name,
 			Matcher<? super Long> matcher) {
-		assertThat(prepareMessaga(null, name, manager), manager.getCounter(name), matcher);
+		assertThat(prepareMessage(null, name, manager), manager.getCounter(name), matcher);
 	}
 
 	/**
@@ -207,7 +207,7 @@ public final class TestConditionTools {
 	 */
 	public static void assertStatisticCounter(String message, CounterStatisticManager manager, String name,
 			Matcher<? super Long> matcher) {
-		assertThat(prepareMessaga(message, name, manager), manager.getCounter(name), matcher);
+		assertThat(prepareMessage(message, name, manager), manager.getCounter(name), matcher);
 	}
 
 	/**
@@ -219,7 +219,7 @@ public final class TestConditionTools {
 	 * @return prepared message with format "[message-][tag-]name".
 	 * @since 2.5
 	 */
-	private static String prepareMessaga(String message, String name, CounterStatisticManager manager) {
+	private static String prepareMessage(String message, String name, CounterStatisticManager manager) {
 		StringBuilder builder = new StringBuilder();
 		if (message != null && !message.isEmpty()) {
 			builder.append(message).append("-");

@@ -923,11 +923,13 @@ public class DTLSConnectorResumeTest {
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		client.start();
 
+		long expectedForFullhandshake = clientHealth.getCounter("received records");
+		clientHealth.reset();
+
 		// Prepare message sending
 		final String msg = "Hello Again";
 		clientRawDataChannel.setLatchCount(1);
 
-		clientHealth.reset();
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_ALT, null), null, false);
 		client.send(data);
@@ -937,7 +939,7 @@ public class DTLSConnectorResumeTest {
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), not(equalTo(sessionId)));
 		assertClientIdentity(clientPrincipalType);
-		TestConditionTools.assertStatisticCounter(clientHealth, "received records", is(4L));
+		TestConditionTools.assertStatisticCounter(clientHealth, "received records", is(expectedForFullhandshake));
 	}
 
 	@Test
