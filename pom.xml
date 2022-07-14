@@ -110,7 +110,7 @@
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 		<javadoc.doclint>none</javadoc.doclint>
-		<revapi.previous.version>3.5.0</revapi.previous.version>
+		<revapi.previous.version>3.6.0</revapi.previous.version>
 	</properties>
 
 	<distributionManagement>
