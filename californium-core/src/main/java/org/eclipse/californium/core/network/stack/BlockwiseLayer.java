@@ -162,12 +162,6 @@ import org.slf4j.LoggerFactory;
  */
 public class BlockwiseLayer extends AbstractLayer {
 
-	// TODO: Random access for Cf servers: The draft still needs to specify a
-	// reaction to "overshoot"
-	// TODO: Blockwise with separate response or NONs. Not yet mentioned in
-	// draft.
-	// TODO: Forward cancellation and timeouts of a request to its blocks.
-
 	/*
 	 * What if a request contains a Block2 option with size 128 but the response
 	 * is only 10 bytes long? A configuration property allow the server between
@@ -609,8 +603,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					LOGGER.debug("{}peer has sent last block1 [num={}], delivering request to application layer", tag,
 							block1.getNum());
 
-					// Remember block to acknowledge. TODO: We might make this a
-					// boolean flag in status.
+					// Remember block to acknowledge.
 					exchange.setBlock1ToAck(block1);
 
 					// Assemble and deliver
