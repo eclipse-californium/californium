@@ -1412,11 +1412,12 @@ public class BlockwiseClientSideTest {
 		client.sendRequest(request);
 
 		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).payload(reqtPayload, 0, 128).go();
-		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(1, false, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, false, 128).go();
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
 		printServerLog(clientInterceptor);
-
 		request.cancel();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, false, 128).go();
+
 		assertAllExchangesAreCompleted(config, client.getExchangeStore(), time);
 	}
 
