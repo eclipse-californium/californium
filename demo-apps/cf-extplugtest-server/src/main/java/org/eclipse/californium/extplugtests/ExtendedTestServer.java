@@ -611,7 +611,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					if (PlugtestServer.console(reader, interval)) {
 						break;
 					}
-					server.dump();
+					PlugtestServer.dumpAll();
 				}
 			} else {
 				long inputTimeout = interval < 15000 ? interval : 15000;
@@ -647,7 +647,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					long now = ClockUtil.nanoRealtime();
 					if ((now - lastDumpNanos - TimeUnit.MILLISECONDS.toNanos(interval)) > 0) {
 						lastDumpNanos = now;
-						server.dump();
+						PlugtestServer.dumpAll();
 					}
 				}
 			}

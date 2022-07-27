@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -286,6 +287,7 @@ public class PlugtestServer extends AbstractTestServer {
 
 	private static PlugtestServer server;
 	private static EncryptedServersSerializationUtil serversSerialization = new EncryptedServersSerializationUtil();
+	private static List<CoapServer> servers = new CopyOnWriteArrayList<>();
 	private static byte[] state;
 
 	public static final String CALIFORNIUM_BUILD_VERSION;
@@ -433,6 +435,7 @@ public class PlugtestServer extends AbstractTestServer {
 	}
 
 	public static void add(CoapServer server) {
+		servers.add(server);
 		serversSerialization.add(server);
 	}
 
@@ -502,13 +505,19 @@ public class PlugtestServer extends AbstractTestServer {
 					if (console(inputReader, interval)) {
 						break;
 					}
-					server.dump();
+					dumpAll();
 				}
 				LOGGER.info("{} stopping ...", PlugtestServer.class.getSimpleName());
 				shutdown();
 			}
 		}
 		return server;
+	}
+
+	public static void dumpAll() {
+		for (CoapServer server : servers) {
+			server.dump();
+		}
 	}
 
 	public static void shutdown() {
