@@ -25,6 +25,16 @@ For more details, please look at https://www.eclipse.org/security/.
 
 :x: old releases, milestone releases - usually no bugfixes are applied there.
 
+## Known Vulnerabilities
+
+| Californium Version | Vulnerability
+| ------------------- | ----------
+| < 3.6 <br/> < 2.7.3 | DTLS resumption handshake [CVE-2022-2576](https://cve.report/CVE-2022-2576)
+| < 3.0-M3 <br/> < 2.6.5 | DTLS certificates verification bypass [CVE-2021-34433](https://cve.report/CVE-2021-34433)
+| < 2.6.0 | DTLS certificates verification fails sticky [CVE-2020-27222](https://cve.report/CVE-2020-27222)
+
+See also [NIST database of known Californium vulnerabilities](https://nvd.nist.gov/vuln/search/results?form_type=Basic&results_type=overview&query=Californium&search_type=all)
+
 ## Known Vulnerabilities Of Dependencies
 
 | Californium Version | Dependency | Affected Version | Usage | Vulnerability
