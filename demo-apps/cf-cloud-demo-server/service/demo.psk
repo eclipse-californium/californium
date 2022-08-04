@@ -1,0 +1,4 @@
+# PSK store for Cloud Demo
+# default openssl PSK credentials
+Client_identity=c2VjcmV0UFNL
+
