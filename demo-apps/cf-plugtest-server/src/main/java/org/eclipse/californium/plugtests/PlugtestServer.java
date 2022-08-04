@@ -311,8 +311,7 @@ public class PlugtestServer extends AbstractTestServer {
 		try {
 			ParseResult result = cmd.parseArgs(args);
 			if (result.isVersionHelpRequested()) {
-				String version = StringUtil.CALIFORNIUM_VERSION == null ? "" : StringUtil.CALIFORNIUM_VERSION;
-				System.out.println("\nCalifornium (Cf) " + cmd.getCommandName() + " " + version);
+				System.out.println("\nCalifornium (Cf) " + cmd.getCommandName() + " " + CALIFORNIUM_BUILD_VERSION);
 				cmd.printVersionHelp(System.out);
 				System.out.println();
 			}
