@@ -43,7 +43,6 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -65,6 +64,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
@@ -80,7 +80,6 @@ import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
-import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.TestInMemorySessionStore;
@@ -154,7 +153,7 @@ public class DTLSConnectorResumeTest {
 	Class<?> clientPrincipalType;
 	DTLSConnector client;
 	ResumptionSupportingConnectionStore clientConnectionStore;
-	List<Record> lastReceivedFlight;
+	DtlsHealthLogger clientHealth;
 
 	public static interface TypedBuilderSetup extends BuilderSetup {
 
@@ -532,7 +531,9 @@ public class DTLSConnectorResumeTest {
 			ConnectorHelper.assertReloadConnections("client", client);
 			client.destroy();
 		}
-		lastReceivedFlight = null;
+		if (clientHealth != null) {
+			clientHealth.reset();
+		}
 		serverHelper.cleanUpServer();
 	}
 
@@ -551,6 +552,7 @@ public class DTLSConnectorResumeTest {
 		if (clientEndpoint == null) {
 			clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		}
+		clientHealth = new DtlsHealthLogger("client");
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(network.createClientTestConfig())
 				.setLoggingTag(tag).setAddress(clientEndpoint)
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
@@ -561,6 +563,7 @@ public class DTLSConnectorResumeTest {
 		clientCertificateProvider.setResultHandler(null);
 		clientCertificateVerifier.setResultHandler(null);
 		clientPrincipalType = builderSetup.getPrincipalType();
+		builder.setHealthHandler(clientHealth);
 		builderSetup.setup(builder);
 		return builder;
 	}
@@ -1013,6 +1016,9 @@ public class DTLSConnectorResumeTest {
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		client.start();
 
+		long expectedForFullhandshake = clientHealth.getCounterByKey("received records");
+		clientHealth.reset();
+
 		// Prepare message sending
 		final String msg = "Hello Again";
 		clientTestContext.setLatchCount(1);
@@ -1027,6 +1033,7 @@ public class DTLSConnectorResumeTest {
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), not(equalTo(sessionId)));
 		assertClientIdentity(clientPrincipalType);
+		TestConditionTools.assertStatisticCounter(clientHealth, "received records", is(expectedForFullhandshake));
 	}
 
 	@Test
