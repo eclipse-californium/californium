@@ -36,7 +36,7 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
  * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-03" target=
  * "_blank">CoAP-over-TCP draft</a>.
  */
-public final class TcpDataParser extends DataParser {
+public class TcpDataParser extends DataParser {
 
 	/**
 	 * Create TCP data parser without checking for critical custom options.

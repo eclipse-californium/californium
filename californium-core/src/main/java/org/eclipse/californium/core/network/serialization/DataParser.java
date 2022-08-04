@@ -31,10 +31,12 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKE
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
+import org.eclipse.californium.core.coap.CoAPOptionException;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -224,7 +226,6 @@ public abstract class DataParser {
 		if (message == null) {
 			throw new NullPointerException("message must not be null!");
 		}
-		int customOptions = 0;
 		int currentOptionNumber = 0;
 		byte nextByte = 0;
 		OptionSet optionSet = message.getOptions();
@@ -245,19 +246,10 @@ public abstract class DataParser {
 
 				// read option
 				if (reader.bytesAvailable(optionLength)) {
-					Option option = new Option(currentOptionNumber);
-					option.setValue(reader.readBytes(optionLength));
-					optionSet.addOption(option);
-					if (criticalCustomOptions != null) {
-						int custom = optionSet.getOthers().size();
-						if (customOptions < custom) {
-							customOptions = custom;
-							if (option.isCritical() && !isCiriticalCustomOption(currentOptionNumber)) {
-								throw new CoAPMessageFormatException("Unknown critical option " + currentOptionNumber,
-										message.getToken(), message.getMID(), message.getRawCode(),
-										message.isConfirmable(), ResponseCode.BAD_OPTION);
-							}
-						}
+					byte[] value = reader.readBytes(optionLength);
+					Option option = createOption(currentOptionNumber, value);
+					if (option != null) {
+						optionSet.addOption(option);
 					}
 				} else {
 					String msg = String.format(
@@ -265,6 +257,9 @@ public abstract class DataParser {
 							optionLength);
 					throw new IllegalArgumentException(msg);
 				}
+			} catch (CoAPOptionException ex) {
+				throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(),
+						message.getRawCode(), message.isConfirmable(), ex.getErrorCode());
 			} catch (IllegalArgumentException ex) {
 				throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(),
 						message.getRawCode(), message.isConfirmable());
@@ -293,6 +288,40 @@ public abstract class DataParser {
 		} else {
 			message.setPayload(Bytes.EMPTY);
 		}
+	}
+
+	/**
+	 * Create option.
+	 * 
+	 * Enables custom implementation to override this method in order to ignore,
+	 * fix malformed options, or provide details for an custom error response.
+	 * 
+	 * Note: only malformed CON-requests are responded with an error message.
+	 * Malformed CON-responses are always rejected and malformed NON-messages
+	 * are always ignored.
+	 * 
+	 * @param optionNumber option number
+	 * @param value option value
+	 * @return create option, or {@code null}, to ignore this option. Please
+	 *         take care, if you ignore malformed critical options, the outcome
+	 *         will be undefined!
+	 * @throws CoAPOptionException details for a custom error response, if the
+	 *             option is malformed.
+	 * @throws IllegalArgumentException if the option is a critical custom
+	 *             option or the value doesn't match the option's specification.
+	 * @throws NullPointerException if provided value is {@code null}
+	 * @since 3.7
+	 */
+	public Option createOption(int optionNumber, byte[] value) {
+		if (criticalCustomOptions != null && OptionNumberRegistry.isCritical(optionNumber)
+				&& OptionNumberRegistry.isCustomOption(optionNumber)) {
+			if (!isCiriticalCustomOption(optionNumber)) {
+				throw new IllegalArgumentException("Unknown critical option " + optionNumber);
+			}
+		}
+		Option option = new Option(optionNumber);
+		option.setValue(value);
+		return option;
 	}
 
 	/**

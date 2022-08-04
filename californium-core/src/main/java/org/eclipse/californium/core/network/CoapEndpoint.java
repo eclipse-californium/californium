@@ -1094,7 +1094,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 						// respond with BAD OPTION erroneous reliably
 						// transmitted request as mandated by CoAP spec
 						// https://tools.ietf.org/html/rfc7252#section-4.2
-						responseBadOption(context, e);
+						responseToMalformedRequest(context, e);
 						LOGGER.debug("{}respond malformed request from [{}], reason: {}", tag, context, e.getMessage());
 					} else {
 						// reject erroneous reliably transmitted message as
@@ -1137,7 +1137,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 			}
 		}
 
-		private void responseBadOption(final EndpointContext destination, final CoAPMessageFormatException cause) {
+		private void responseToMalformedRequest(final EndpointContext destination, final CoAPMessageFormatException cause) {
 			Response response = new Response(cause.getErrorCode(), true);
 			response.setDestinationContext(destination);
 			response.setToken(cause.getToken());
