@@ -1,0 +1,66 @@
+#/*******************************************************************************
+# * Copyright (c) 2024 Contributors to the Eclipse Foundation.
+# * 
+# * See the NOTICE file(s) distributed with this work for additional
+# * information regarding copyright ownership.
+# * 
+# * This program and the accompanying materials
+# * are made available under the terms of the Eclipse Public License v2.0
+# * and Eclipse Distribution License v1.0 which accompany this distribution.
+# * 
+# * The Eclipse Public License is available at
+# *    http://www.eclipse.org/legal/epl-v20.html
+# * and the Eclipse Distribution License is available at
+# *    http://www.eclipse.org/org/documents/edl-v10.html.
+# * 
+# * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+# * 
+# ******************************************************************************/
+#
+# To install, cp <file> to /etc/systemd/system
+#
+# The value of "TasksMax" is increasing with the numbers of connectors 
+# according the used networkconfig.
+#
+# Use
+#   top -H
+#
+# to see the number of threads
+#
+# In order to update the service, cp the new .jar to
+# /home/cali/cf-cloud-demo-server-update.jar
+#
+# on 
+#  systemctl restart cali
+#
+# that file is copied to cf-cloud-demo-server.jar and executed.
+# If cf-cloud-demo-server.jar is updated inplace when running,
+# that my cause unintended exceptions, which prevents Californium 
+# from successfully gracefull-restart of the dtls state. 
+# 
+
+[Unit]
+Description=Californium Cloud Demo Server
+BindsTo=network-online.target
+After=network-online.target
+RequiresMountsFor=/home
+
+[Service]
+Type=simple
+TasksMax=256
+User=cali
+WorkingDirectory=/home/cali
+Environment="JAR=cf-cloud-demo-server.jar"
+Environment="OPTS=-XX:MaxRAMPercentage=75 -Dlogback.configurationFile=./logback.xml"
+Environment="ARGS1=--no-loopback --store-file=connections.bin --store-max-age=72 --store-password64=TDNLOmJTWi13JUs/YGdvNA=="
+Environment="ARGS2=--device-file=demo-devices.txt --coaps-credentials ."
+Environment="HTTPS_ARGS=--https-port=8080"
+Environment="HTTPS_CERT_ARGS=--https-credentials=/etc/letsencrypt/live/<domain>"
+ExecStartPre=/bin/cp -u cf-cloud-demo-server-update.jar ${JAR}
+ExecStart=/usr/bin/java $OPTS -jar ${JAR} $ARGS1 $ARGS2 $HTTPS_ARGS $HTTPS_CERT_ARGS
+RestartSec=10
+Restart=always
+OOMPolicy=stop
+
+[Install]
+WantedBy=multi-user.target
