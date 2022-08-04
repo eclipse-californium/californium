@@ -393,7 +393,7 @@ public class JdkMonitorService {
 				secureServer.setExecutor(executor);
 				secureServer.start();
 			} catch (IOException ex) {
-				LOGGER.warn("starting {} failed!", localAddress);
+				LOGGER.warn("starting {} failed!", localSecureAddress);
 			}
 		}
 	}
