@@ -709,7 +709,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 		// set node-id in dtls-config-builder's Configuration clone
 		dtlsConfigBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID, nodeId);
-		AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
+		PlugPskStore pskStore = new PlugPskStore();
+		if (cliConfig.pskFile != null) {
+			pskStore.loadPskCredentials(cliConfig.pskFile);
+		}
+		AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(pskStore);
 		asyncPskStore.setDelay(handshakeResultDelayMillis);
 		dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 		dtlsConfigBuilder.setAddress(dtlsInterface);

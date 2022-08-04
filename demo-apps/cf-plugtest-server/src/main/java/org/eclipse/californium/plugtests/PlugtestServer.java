@@ -225,15 +225,8 @@ public class PlugtestServer extends AbstractTestServer {
 			public Integer maxAge;
 		}
 
-		public InetAddressFilter getFilter(String tag) {
-			if (interfacePatterns == null || interfacePatterns.isEmpty()) {
-				return new SimpleInetAddressFilter(tag, external, loopback, ipv4, ipv6);
-			} else {
-				String[] patterns = new String[interfacePatterns.size()];
-				patterns = interfacePatterns.toArray(patterns);
-				return new SimpleInetAddressFilter(tag, external, loopback, ipv4, ipv6, patterns);
-			}
-		}
+		@Option(names = "--psk-file", description = "file with PSK credentials. id=secret-base64.")
+		public String pskFile;
 
 		public List<Protocol> getProtocols() {
 			List<Protocol> protocols = new ArrayList<>();
@@ -273,6 +266,16 @@ public class PlugtestServer extends AbstractTestServer {
 				System.err.println("Either --ipv4 or --ipv6 must be enabled!");
 			}
 			return types;
+		}
+
+		public InetAddressFilter getFilter(String tag) {
+			if (interfacePatterns == null || interfacePatterns.isEmpty()) {
+				return new SimpleInetAddressFilter(tag, external, loopback, ipv4, ipv6);
+			} else {
+				String[] patterns = new String[interfacePatterns.size()];
+				patterns = interfacePatterns.toArray(patterns);
+				return new SimpleInetAddressFilter(tag, external, loopback, ipv4, ipv6, patterns);
+			}
 		}
 
 		public long getNotifyIntervalMillis() {

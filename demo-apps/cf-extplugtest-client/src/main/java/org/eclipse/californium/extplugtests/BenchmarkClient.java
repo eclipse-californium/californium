@@ -49,6 +49,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.cli.ClientConfig;
 import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.cli.ConnectorConfig;
@@ -1416,19 +1418,19 @@ public class BenchmarkClient {
 		for (int index = 0; index < clients; ++index) {
 			final int currentIndex = index;
 			final String identity;
-			final byte[] secret;
+			final SecretKey secret;
 			if (secure && psk) {
 				if (config.pskStore != null) {
 					int pskIndex = (pskOffset + index) % config.pskStore.size();
 					identity = config.pskStore.getIdentity(pskIndex);
-					secret = config.pskStore.getSecrets(pskIndex);
+					secret = config.pskStore.getSecret(pskIndex);
 				} else if (index == 0) {
 					identity = config.identity;
-					secret = config.secretKey;
+					secret = config.getPskSecretKey();
 				} else {
 					random.nextBytes(id);
 					identity = ConnectorConfig.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
-					secret = config.secretKey;
+					secret = config.getPskSecretKey();
 				}
 			} else {
 				identity = null;
@@ -1508,7 +1510,7 @@ public class BenchmarkClient {
 					if (secret == null) {
 						System.out.println("ID: " + identity);
 					} else {
-						System.out.println("ID: " + identity + ", " + new String(secret));
+						System.out.println("ID: " + identity + ", " + new String(secret.getEncoded()));
 					}
 				}
 				run.run();

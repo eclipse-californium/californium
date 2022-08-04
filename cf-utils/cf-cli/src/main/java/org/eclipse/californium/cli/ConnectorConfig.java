@@ -37,7 +37,9 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.MultiPskFileStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -384,23 +386,38 @@ public class ConnectorConfig implements Cloneable {
 		public String base64;
 
 		/**
-		 * Byte encoded secret key.
+		 * PSK secret key in bytes.
 		 * 
-		 * @return secret key in bytes encoded
+		 * @see #toKey()
+		 * @since 3.7
+		 */
+		public SecretKey key;
+
+		/**
+		 * Get the secret key.
+		 * 
+		 * Initialize {@link #key} from other fields, if {@link #key} is
+		 * {@code null}.
+		 * 
+		 * @return secret key
 		 * @since 3.0
 		 */
-		public byte[] toKey() {
-			if (text != null && text.length() > 0) {
-				return text.getBytes();
-			} else if (hex != null && hex.length() > 0) {
-				return StringUtil.hex2ByteArray(hex);
-			} else if (base64 != null && base64.length() > 0) {
-				return StringUtil.base64ToByteArray(base64);
-			} else {
-				return null;
+		public SecretKey toKey() {
+			if (key == null) {
+				byte[] encoded = null;
+				if (text != null && text.length() > 0) {
+					encoded = text.getBytes();
+				} else if (hex != null && hex.length() > 0) {
+					encoded = StringUtil.hex2ByteArray(hex);
+				} else if (base64 != null && base64.length() > 0) {
+					encoded = StringUtil.base64ToByteArray(base64);
+				}
+				if (encoded != null) {
+					key = SecretUtil.create(encoded, PskSecretResult.ALGORITHM_PSK);
+				}
 			}
+			return key;
 		}
-
 	}
 
 	@Option(names = { "-v", "--verbose" }, negatable = true, description = "verbose")
@@ -419,9 +436,18 @@ public class ConnectorConfig implements Cloneable {
 	boolean versionInfoRequested;
 
 	/**
-	 * PSK secret key in bytes.
+	 * Get PSK secret key.
+	 * 
+	 * @return secret key. Provided by CLI or {@link #PSK_SECRET}
+	 * @since 3.7
 	 */
-	public byte[] secretKey;
+	public SecretKey getPskSecretKey() {
+		if (secret != null) {
+			return secret.toKey();
+		} else {
+			return PSK_SECRET;
+		}
+	}
 
 	/**
 	 * Register converter and providers.
@@ -445,13 +471,10 @@ public class ConnectorConfig implements Cloneable {
 				helpRequested = true;
 			}
 			if (pskIndex != null) {
-				secret = new Secret();
-				secret.hex = StringUtil.byteArray2Hex(pskStore.getSecrets(pskIndex));
 				identity = pskStore.getIdentity(pskIndex);
+				secret = new Secret();
+				secret.key = pskStore.getSecret(pskIndex);
 			}
-		}
-		if (secret != null && secretKey == null) {
-			secretKey = secret.toKey();
 		}
 		if (authenticationModes == null) {
 			authenticationModes = new ArrayList<ConnectorConfig.AuthenticationMode>();
@@ -491,7 +514,7 @@ public class ConnectorConfig implements Cloneable {
 	}
 
 	protected void defaultAuthenticationModes() {
-		if (identity != null || secretKey != null || pskStore != null) {
+		if (identity != null || pskStore != null) {
 			authenticationModes.add(AuthenticationMode.PSK);
 		}
 		if (authentication != null) {
@@ -594,27 +617,11 @@ public class ConnectorConfig implements Cloneable {
 	 * @return psk credentials store
 	 */
 	public static PskCredentialStore loadPskCredentials(String file) {
-		boolean error = false;
 		BufferedReader lineReader = null;
 		try (FileReader reader = new FileReader(file)) {
 			PskCredentialStore pskCredentials = new PskCredentialStore();
-			int lineNumber = 0;
-			String line;
-			lineReader = new BufferedReader(reader);
-			while ((line = lineReader.readLine()) != null) {
-				++lineNumber;
-				String[] entry = line.split("=", 2);
-				if (entry.length == 2) {
-					byte[] secretBytes = StringUtil.base64ToByteArray(entry[1]);
-					pskCredentials.add(entry[0], secretBytes);
-				} else {
-					error = true;
-					LOGGER.error("{}: '{}' invalid psk-line!", lineNumber, line);
-				}
-			}
-			if (!error) {
-				return pskCredentials;
-			}
+			pskCredentials.loadPskCredentials(reader);
+			return pskCredentials;
 		} catch (IOException e) {
 		} finally {
 			if (lineReader != null) {
@@ -630,55 +637,7 @@ public class ConnectorConfig implements Cloneable {
 	/**
 	 * PSK credentials store.
 	 */
-	public static class PskCredentialStore {
+	public static class PskCredentialStore extends MultiPskFileStore {
 
-		/**
-		 * Identities.
-		 */
-		private List<String> identities = new ArrayList<String>();
-		/**
-		 * secret keys.
-		 */
-		private List<byte[]> secrets = new ArrayList<byte[]>();
-
-		/**
-		 * Add entry.
-		 * 
-		 * @param identity identity
-		 * @param secret secret key
-		 */
-		private void add(String identity, byte[] secret) {
-			identities.add(identity);
-			secrets.add(secret);
-		}
-
-		/**
-		 * Get identity.
-		 * 
-		 * @param index index of identity.
-		 * @return identity at provided index
-		 */
-		public String getIdentity(int index) {
-			return identities.get(index);
-		}
-
-		/**
-		 * Get secret key.
-		 * 
-		 * @param index index of key
-		 * @return secret key at provided index
-		 */
-		public byte[] getSecrets(int index) {
-			return secrets.get(index);
-		}
-
-		/**
-		 * Size.
-		 * 
-		 * @return number of identity and key pairs.
-		 */
-		public int size() {
-			return secrets.size();
-		}
 	}
 }

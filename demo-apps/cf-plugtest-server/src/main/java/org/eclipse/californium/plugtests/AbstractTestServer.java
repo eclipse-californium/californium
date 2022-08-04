@@ -64,16 +64,17 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
-import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.MultiPskFileStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base for test servers.
@@ -89,6 +90,7 @@ public abstract class AbstractTestServer extends CoapServer {
 	}
 
 	public static class Select {
+
 		public final Protocol protocol;
 		public final InterfaceType interfaceType;
 
@@ -167,8 +169,8 @@ public abstract class AbstractTestServer extends CoapServer {
 			"Preferred blocksize for blockwise transfer with coap/UDP using an external network interface.", 64, 16);
 
 	/**
-	 * Maximum payload size before using blockwise when using coap/UDP on external
-	 * interface.
+	 * Maximum payload size before using blockwise when using coap/UDP on
+	 * external interface.
 	 * 
 	 * Small value to prevent amplification.
 	 */
@@ -271,7 +273,7 @@ public abstract class AbstractTestServer extends CoapServer {
 	/**
 	 * Add endpoints.
 	 * 
-	 * @param cliConfig      client cli-config.
+	 * @param cliConfig client cli-config.
 	 */
 	public void addEndpoints(BaseConfig cliConfig) {
 		int coapPort = config.get(CoapConfig.COAP_PORT);
@@ -323,7 +325,11 @@ public abstract class AbstractTestServer extends CoapServer {
 					}
 					String tag = "dtls:" + StringUtil.toString(bindToAddress);
 					dtlsConfigBuilder.setLoggingTag(tag);
-					AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
+					PlugPskStore pskStore = new PlugPskStore();
+					if (cliConfig.pskFile != null) {
+						pskStore.loadPskCredentials(cliConfig.pskFile);
+					}
+					AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(pskStore);
 					asyncPskStore.setDelay(handshakeResultDelayMillis);
 					dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 					dtlsConfigBuilder.setAddress(bindToAddress);
@@ -402,7 +408,8 @@ public abstract class AbstractTestServer extends CoapServer {
 			String scheme = uri.getScheme();
 			if (messageTracer) {
 				ep.addInterceptor(new MessageTracer());
-				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
+				// Anonymized IoT metrics for validation. On success, remove the
+				// OriginTracer.
 				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + scheme));
 			}
 			if (ep.getPostProcessInterceptors().isEmpty()) {
@@ -420,38 +427,42 @@ public abstract class AbstractTestServer extends CoapServer {
 		}
 	}
 
+	public static class PlugPskStore extends MultiPskFileStore {
 
-	public static class PlugPskStore implements AdvancedPskStore {
+		/** The logger. */
+		private static final Logger LOGGER = LoggerFactory.getLogger(PlugPskStore.class);
 
 		private final PskPublicInformation identity = new PskPublicInformation(PSK_IDENTITY_PREFIX + "sandbox");
 
-		private SecretKey getKey(String identity) {
-			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
-				return SecretUtil.create(PSK_SECRET);
-			}
-			if (identity.equals(ETSI_PSK_IDENTITY)) {
-				return SecretUtil.create(ETSI_PSK_SECRET);
-			}
-			if (identity.equals(OPENSSL_PSK_IDENTITY)) {
-				return SecretUtil.create(OPENSSL_PSK_SECRET);
-			}
-			if (HONO_IDENTITY_PATTERN.matcher(identity).matches()) {
-				return SecretUtil.create(HONO_PSK_SECRET);
-			}
-			return null;
+		public PlugPskStore() {
+			addKey(ETSI_PSK_IDENTITY, ETSI_PSK_SECRET);
+			addKey(OPENSSL_PSK_IDENTITY, OPENSSL_PSK_SECRET);
 		}
 
-		@Override
-		public boolean hasEcdhePskSupported() {
-			return true;
+		private SecretKey getWildcardKey(String identity) {
+			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
+				return PSK_SECRET;
+			}
+			if (HONO_IDENTITY_PATTERN.matcher(identity).matches()) {
+				return HONO_PSK_SECRET;
+			}
+			return null;
 		}
 
 		@Override
 		public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
 				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
 				boolean useExtendedMasterSecret) {
-			SecretKey key = getKey(identity.getPublicInfoAsString());
-			return new PskSecretResult(cid, identity, key);
+			PskSecretResult result = super.requestPskSecretResult(cid, serverName, identity, hmacAlgorithm, otherSecret,
+					seed, useExtendedMasterSecret);
+			if (result.getSecret() == null) {
+				SecretKey key = getWildcardKey(identity.getPublicInfoAsString());
+				LOGGER.trace("{}: {}", identity, key != null ? "found wildcard key" : "no wildcard key");
+				if (key != null) {
+					result = new PskSecretResult(cid, identity, SecretUtil.create(key));
+				}
+			}
+			return result;
 		}
 
 		@Override
@@ -459,9 +470,5 @@ public abstract class AbstractTestServer extends CoapServer {
 			return identity;
 		}
 
-		@Override
-		public void setResultHandler(HandshakeResultHandler resultHandler) {
-			//
-		}
 	}
 }
