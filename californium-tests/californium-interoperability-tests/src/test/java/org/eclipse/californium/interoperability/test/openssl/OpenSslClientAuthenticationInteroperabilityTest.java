@@ -259,6 +259,39 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		connect(cipher);
 	}
 
+	@Test
+	public void testOpenSslClientUnauthenticatedResumes() throws Exception {
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		processUtil.addExtraArgs("-sess_out", "sess.pem", "-no_ticket");
+		String cipher = processUtil.startupClient(DESTINATION, TRUST, cipherSuite);
+		connect(cipher);
+
+		processUtil.addExtraArgs("-sess_in", "sess.pem", "-no_ticket");
+		cipher = processUtil.startupClient(DESTINATION, TRUST, cipherSuite);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientUnauthenticatedFullhandshake() throws Exception {
+		CipherSuite cipherSuite2 =  CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM;
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite, cipherSuite2);
+
+		processUtil.addExtraArgs("-sess_out", "sess.pem", "-no_ticket");
+		String cipher = processUtil.startupClient(DESTINATION, TRUST, cipherSuite);
+		connect(cipher);
+
+		processUtil.addExtraArgs("-sess_in", "sess.pem", "-no_ticket");
+		cipher = processUtil.startupClient(DESTINATION, TRUST, cipherSuite2);
+		connect(cipher);
+	}
+
 	public void connect(String cipher, String... misc) throws Exception {
 		assertTrue("handshake failed!", processUtil.waitConsole("Cipher is ", HANDSHAKE_TIMEOUT_MILLIS));
 		assertTrue("wrong cipher suite!", processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));

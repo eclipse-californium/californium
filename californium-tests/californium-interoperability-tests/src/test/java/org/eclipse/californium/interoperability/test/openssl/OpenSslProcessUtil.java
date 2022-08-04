@@ -81,6 +81,8 @@ public class OpenSslProcessUtil extends ProcessUtil {
 
 	private ProcessResult version;
 
+	private List<String> extraArgs = new ArrayList<>();
+
 	/**
 	 * Create instance.
 	 */
@@ -134,6 +136,16 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		}
 	}
 
+	public void clearExtraArgs() {
+		extraArgs.clear();
+	}
+
+	public void addExtraArgs(String... args) {
+		for (String arg : args) {
+			extraArgs.add(arg);
+		}
+	}
+
 	public String startupClient(String destination, OpenSslProcessUtil.AuthenticationMode authMode,
 			CipherSuite... ciphers) throws IOException, InterruptedException {
 		return startupClient(destination, authMode, DEFAULT_CURVES, null, ciphers);
@@ -163,6 +175,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			add(args, authMode, CA_CERTIFICATES);
 		}
 		add(args, curves, sigAlgs);
+		args.addAll(extraArgs);
 		print(args);
 		execute(args);
 		return "(" + openSslCiphers.replace(":", "|") + ")";
@@ -197,6 +210,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			add(args, authMode, chain);
 		}
 		add(args, curves, sigAlgs);
+		args.addAll(extraArgs);
 		print(args);
 		execute(args);
 		// ensure, server is ready to ACCEPT messages
@@ -238,6 +252,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 
 	public ProcessResult stop(long timeoutMillis) throws InterruptedException, IOException {
 		sendln("Q");
+		clearExtraArgs();
 		return waitResult(timeoutMillis);
 	}
 
