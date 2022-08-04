@@ -24,6 +24,8 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Random;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -286,7 +288,7 @@ public class ClientConfig extends ClientBaseConfig {
 	}
 
 	@Override
-	public ClientConfig create(String id, byte[] secret) {
+	public ClientConfig create(String id, SecretKey secret) {
 		return (ClientConfig) super.create(id, secret);
 	}
 

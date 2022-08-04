@@ -19,9 +19,12 @@ import java.net.InetSocketAddress;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 import picocli.CommandLine;
 import picocli.CommandLine.IDefaultValueProvider;
@@ -164,14 +167,16 @@ public class ClientBaseConfig extends ConnectorConfig {
 		}
 		if (secure) {
 			if (!tcp) {
-				if (authenticationModes.isEmpty() || authenticationModes.contains(AuthenticationMode.PSK)
-						|| authenticationModes.contains(AuthenticationMode.ECDHE_PSK)) {
-					if (identity == null && secret == null) {
-						identity = defaultIdentity;
+				if (secret == null) {
+					if (authenticationModes.isEmpty()) {
+						authenticationModes.add(AuthenticationMode.PSK);
+					}
+					if (authenticationModes.contains(AuthenticationMode.PSK)
+							|| authenticationModes.contains(AuthenticationMode.ECDHE_PSK)) {
 						secret = new ConnectorConfig.Secret();
 						secret.text = defaultSecret;
-						if (authenticationModes.isEmpty()) {
-							authenticationModes.add(AuthenticationMode.PSK);
+						if (identity == null) {
+							identity = defaultIdentity;
 						}
 					}
 				}
@@ -224,12 +229,13 @@ public class ClientBaseConfig extends ConnectorConfig {
 	 *            {@link ConnectorConfig#PSK_SECRET}
 	 * @return created client configuration shallow clone.
 	 */
-	public ClientBaseConfig create(String id, byte[] secret) {
+	public ClientBaseConfig create(String id, SecretKey secret) {
 		ClientBaseConfig clone = null;
 		try {
 			clone = (ClientBaseConfig) clone();
 			clone.identity = id;
-			clone.secretKey = secret;
+			clone.secret = new Secret();
+			clone.secret.key = SecretUtil.create(secret);
 		} catch (CloneNotSupportedException e) {
 			e.printStackTrace();
 		}

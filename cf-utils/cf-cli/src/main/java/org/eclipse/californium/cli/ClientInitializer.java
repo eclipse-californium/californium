@@ -321,7 +321,7 @@ public class ClientInitializer {
 				clientConfig.mtu = clientConfig.recordSizeLimit + extra;
 			}
 
-			//			config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
+			// config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
 
 			if (clientConfig.mtu != null) {
 				config.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, clientConfig.mtu);
@@ -338,7 +338,8 @@ public class ClientInitializer {
 						config.getAsText(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT));
 			}
 			if (clientConfig.noCertificatesSubjectVerification != null) {
-				config.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, !clientConfig.noCertificatesSubjectVerification);
+				config.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT,
+						!clientConfig.noCertificatesSubjectVerification);
 			}
 			if (clientConfig.noServerNameIndication != null) {
 				config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, !clientConfig.noServerNameIndication);
@@ -391,7 +392,8 @@ public class ClientInitializer {
 
 			if (psk) {
 				if (clientConfig.identity != null) {
-					dtlsConfig.setAdvancedPskStore(new PlugPskStore(clientConfig.identity, clientConfig.secretKey));
+					dtlsConfig
+							.setAdvancedPskStore(new PlugPskStore(clientConfig.identity, clientConfig.getPskSecretKey()));
 				} else {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
@@ -437,7 +439,14 @@ public class ClientInitializer {
 
 		public PlugPskStore(String id, byte[] secret) {
 			this.identity = new PskPublicInformation(id);
-			this.secret = secret == null ? ConnectorConfig.PSK_SECRET : SecretUtil.create(secret, "PSK");
+			this.secret = secret == null ? ConnectorConfig.PSK_SECRET
+					: SecretUtil.create(secret, PskSecretResult.ALGORITHM_PSK);
+			LOGGER.trace("DTLS-PSK-Identity: {}", identity);
+		}
+
+		public PlugPskStore(String id, SecretKey secret) {
+			this.identity = new PskPublicInformation(id);
+			this.secret = secret == null ? ConnectorConfig.PSK_SECRET : SecretUtil.create(secret);
 			LOGGER.trace("DTLS-PSK-Identity: {}", identity);
 		}
 
