@@ -19,6 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.core.network.CoapEndpoint.Builder;
+
 /**
  * This class describes the CoAP Option Number Registry as defined in RFC 7252,
  * Section 12.2 and other CoAP extensions.
@@ -235,11 +237,52 @@ public final class OptionNumberRegistry {
 	}
 
 	/**
-	 * Checks if is single value.
+	 * Checks whether an option is a custom option.
+	 * 
+	 * CoAP may be extended by custom options. If critical custom option are
+	 * considered, such option numbers must be provided with
+	 * {@link Builder#setCriticalCustomOptions}.
 	 * 
 	 * @param optionNumber
 	 *            the option number
-	 * @return {@code true} if is single value
+	 * @return {@code true} if the option is a custom option
+	 * @since 3.7
+	 */
+	public static boolean isCustomOption(int optionNumber) {
+		switch (optionNumber) {
+		case CONTENT_FORMAT:
+		case MAX_AGE:
+		case PROXY_URI:
+		case PROXY_SCHEME:
+		case URI_HOST:
+		case URI_PORT:
+		case IF_NONE_MATCH:
+		case OBSERVE:
+		case ACCEPT:
+		case OSCORE:
+		case BLOCK1:
+		case BLOCK2:
+		case SIZE1:
+		case SIZE2:
+		case NO_RESPONSE:
+		case ETAG:
+		case IF_MATCH:
+		case URI_PATH:
+		case URI_QUERY:
+		case LOCATION_PATH:
+		case LOCATION_QUERY:
+			return false;
+		default:
+			return true;
+		}
+	}
+
+	/**
+	 * Checks whether an option has a single value.
+	 * 
+	 * @param optionNumber
+	 *            the option number
+	 * @return {@code true} if the option has a single value
 	 */
 	public static boolean isSingleValue(int optionNumber) {
 		switch (optionNumber) {

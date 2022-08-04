@@ -37,7 +37,7 @@ import org.eclipse.californium.core.coap.BlockOption;
 /**
  * A parser for messages encoded following the standard CoAP encoding.
  */
-public final class UdpDataParser extends DataParser {
+public class UdpDataParser extends DataParser {
 
 	private final boolean strictEmptyMessageFormat;
 	

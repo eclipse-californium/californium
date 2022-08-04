@@ -22,13 +22,14 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
  * message.
  * <p>
  * The <em>message</em> property contains a description of the problem
- * encountered. The other properties are parsed from the binary representation.
+ * encountered and the <em>error code</em> the intended error response. The
+ * other properties are parsed from the binary representation.
  * </p>
  */
 public class CoAPMessageFormatException extends MessageFormatException {
 
 	private static final long serialVersionUID = 1L;
-	private static final int NO_MID = -1;
+	private static final int NO_MID = Message.NONE;
 	private final int mid;
 	private final int code;
 	private final Token token;
@@ -62,8 +63,10 @@ public class CoAPMessageFormatException extends MessageFormatException {
 	 * @param mid the message ID.
 	 * @param code the message code.
 	 * @param confirmable whether the message has been transferred reliably.
-	 * @param errorCode error response code.
-	 * @since 3.0
+	 * @param errorCode error response code. {@code null} to reject the incoming
+	 *            message, if possible.
+	 * @since 3.0 (since 3.7 supports {@code null} for error code to reject the
+	 *        incoming message)
 	 */
 	public CoAPMessageFormatException(String description, Token token, int mid, int code, boolean confirmable,
 			ResponseCode errorCode) {
@@ -116,8 +119,14 @@ public class CoAPMessageFormatException extends MessageFormatException {
 	/**
 	 * Get the error code for a response.
 	 * 
-	 * @return the error code
-	 * @since 3.0
+	 * Note: only malformed CON-requests are responded with an error message.
+	 * Malformed CON-responses are always rejected and malformed NON-messages
+	 * are always ignored.
+	 * 
+	 * @return the error code, or {@code null}, if the incoming message should
+	 *         be rejected, if possible.
+	 * @since 3.0 (since 3.7 supports {@code null} to reject the incoming
+	 *        message)
 	 */
 	public final ResponseCode getErrorCode() {
 		return errorCode;

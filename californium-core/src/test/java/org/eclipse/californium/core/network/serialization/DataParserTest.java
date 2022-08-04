@@ -48,6 +48,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -81,11 +82,17 @@ public class DataParserTest {
 		this.tcp = tcp;
 		this.expectedMid = tcp ? Message.NONE : 13 ;
 	}
+	
+	@After
+	public void tearDown() {
+		((CustomDataParser)parser).setIgnoreOptionError(false);
+		((CustomDataParser)parser).setOptionException(null);
+	}
 
 	@Parameterized.Parameters public static List<Object[]> parameters() {
 		List<Object[]> parameters = new ArrayList<>();
-		parameters.add(new Object[] { new UdpDataSerializer(), new UdpDataParser(CRITICAL_CUSTOM_OPTIONS), false });
-		parameters.add(new Object[] { new TcpDataSerializer(), new TcpDataParser(CRITICAL_CUSTOM_OPTIONS), true });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, CRITICAL_CUSTOM_OPTIONS), false });
+		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(CRITICAL_CUSTOM_OPTIONS), true });
 		return parameters;
 	}
 
@@ -168,6 +175,49 @@ public class DataParserTest {
 			assertEquals(0b00000001, e.getCode());
 			assertEquals(true, e.isConfirmable());
 		}
+	}
+
+	@Test public void testParseMessageDetectsBadOption() {
+		// GIVEN a request with an option value shorter than specified
+		byte[] malformedGetRequest = new byte[] { 
+				0b01000000, // ver 1, CON, token length: 0
+				0b00000001, // code: 0.01 (GET request)
+				0x00, 0x10, // message ID
+				0x74, // option number 7 (uri port), length: 4
+				0x01, 0x02, 0x03, 0x04 // option value is too large
+		};
+		if (tcp) {
+			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token 
+		}
+
+		// WHEN parsing the request
+		try {
+			parser.parseMessage(malformedGetRequest);
+			fail("Parser should have detected malformed options");
+		} catch (CoAPMessageFormatException e) {
+			// THEN an exception is thrown by the parser
+			assertEquals(0b00000001, e.getCode());
+			assertEquals(true, e.isConfirmable());
+		}
+	}
+
+	@Test public void testParseMessageIgnoresBadOption() {
+		// GIVEN a request with an option value shorter than specified
+		byte[] malformedGetRequest = new byte[] { 
+				0b01000000, // ver 1, CON, token length: 0
+				0b00000001, // code: 0.01 (GET request)
+				0x00, 0x10, // message ID
+				0x74, // option number 7 (uri port), length: 4
+				0x01, 0x02, 0x03, 0x04 // option value is too large
+		};
+		if (tcp) {
+			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token 
+		}
+
+		// WHEN parsing the request
+		((CustomDataParser) parser).setIgnoreOptionError(true);
+		Message message = parser.parseMessage(malformedGetRequest);
+		assertFalse(message.getOptions().hasUriPort());
 	}
 
 	@Test public void testParseMessageDetectsUnknownCriticalOption() {
@@ -284,5 +334,73 @@ public class DataParserTest {
 	private static RawData receive(RawData data, InetSocketAddress connector) {
 		return RawData.inbound(data.getBytes(), data.getEndpointContext(), data.isMulticast(),
 				data.getReceiveNanoTimestamp(), connector);
+	}
+
+	public interface CustomDataParser {
+		void setIgnoreOptionError(boolean ignore);
+		void setOptionException(RuntimeException optionError);
+	}
+	public static class CustomUdpDataParser extends UdpDataParser implements CustomDataParser {
+		private boolean ignoreOptionError;
+		private RuntimeException optionError;
+		public CustomUdpDataParser(boolean strictEmptyMessageFormat, int[] criticalCustomOptions) {
+			super(strictEmptyMessageFormat, criticalCustomOptions);
+		}
+		@Override
+		public void setIgnoreOptionError(boolean ignore) {
+			this.ignoreOptionError = ignore;
+		}
+		@Override
+		public void setOptionException(RuntimeException optionError) {
+			this.optionError = optionError;
+		}
+		
+		@Override
+		public Option createOption(int optionNumber, byte[] value) {
+			if (optionError != null) {
+				throw optionError;
+			}
+			try {
+				return super.createOption(optionNumber, value);
+			} catch (RuntimeException ex) {
+				if (ignoreOptionError) {
+					return null;
+				} else {
+					throw ex;
+				}
+			}
+		}
+	}
+
+	private static class CustomTcpDataParser extends TcpDataParser implements CustomDataParser{
+		private boolean ignoreOptionError;
+		private RuntimeException optionError;
+		private CustomTcpDataParser(int[] criticalCustomOptions) {
+			super(criticalCustomOptions);
+		}
+		@Override
+		public void setIgnoreOptionError(boolean ignore) {
+			this.ignoreOptionError = ignore;
+		}
+
+		@Override
+		public void setOptionException(RuntimeException optionError) {
+			this.optionError = optionError;
+		}
+
+		public Option createOption(int optionNumber, byte[] value) {
+			if (optionError != null) {
+				throw optionError;
+			}
+			try {
+				return super.createOption(optionNumber, value);
+			} catch (RuntimeException ex) {
+				if (ignoreOptionError) {
+					return null;
+				} else {
+					throw ex;
+				}
+			}
+		}
 	}
 }
