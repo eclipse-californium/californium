@@ -1,0 +1,38 @@
+# Device store for Cloud Demo
+
+#/*******************************************************************************
+# * Copyright (c) 2024 Contributors to the Eclipse Foundation.
+# * 
+# * See the NOTICE file(s) distributed with this work for additional
+# * information regarding copyright ownership.
+# * 
+# * This program and the accompanying materials
+# * are made available under the terms of the Eclipse Public License v2.0
+# * and Eclipse Distribution License v1.0 which accompany this distribution.
+# * 
+# * The Eclipse Public License is available at
+# *    http://www.eclipse.org/legal/epl-v20.html
+# * and the Eclipse Distribution License is available at
+# *    http://www.eclipse.org/org/documents/edl-v10.html.
+# * 
+# * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+# * 
+# ******************************************************************************/
+#
+# # comments 
+# <name>[.group]=<group>
+# # base64
+# [[<name>].psk='<psk-identity>',<psk-secret-base64>]
+# # hexadecimal
+# [[<name>].psk='<psk-identity>',:0x<psk-secret-hex>]
+# # plain-text
+# [[<name>].psk='<psk-identity>','<psk-secret-plain-text>']
+# # base64
+# [[<name>].rpk=<public-key-base64>]
+# # hexadecimal
+# [[<name>].rpk=:0x<public-key-hex>]
+
+Demo1=Thing
+.psk='Client_identity',c2VjcmV0UFNL
+.rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQxYO5/M5ie6+3QPOaAy5MD6CkFILZwIb2rOBCX/EWPaocX1H+eynUnaEEbmqxeN6rnI/pH19j4PtsegfHLrzzQ==
+
