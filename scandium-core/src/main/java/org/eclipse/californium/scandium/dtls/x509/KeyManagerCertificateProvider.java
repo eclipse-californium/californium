@@ -252,7 +252,7 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				if (verifyKeyPairs) {
 					throw new IllegalStateException(ex.getMessage());
 				} else {
-					ex.printStackTrace();
+					LOGGER.warn("Mismatching key-pair, causing failure when used!", ex);
 				}
 			}
 			if (supportedCertificateTypes.contains(CertificateType.X_509)) {

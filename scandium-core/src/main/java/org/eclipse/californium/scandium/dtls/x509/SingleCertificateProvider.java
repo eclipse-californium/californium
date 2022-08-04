@@ -35,6 +35,8 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Certificate identity provider based on a single certificate identity.
@@ -42,6 +44,8 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * @since 3.0
  */
 public class SingleCertificateProvider implements CertificateProvider, ConfigurationHelperSetup {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(SingleCertificateProvider.class);
 
 	private final PrivateKey privateKey;
 	private final PublicKey publicKey;
@@ -197,7 +201,7 @@ public class SingleCertificateProvider implements CertificateProvider, Configura
 			if (verifyKeyPair) {
 				throw new IllegalStateException(ex.getMessage());
 			} else {
-				ex.printStackTrace();
+				LOGGER.warn("Mismatching key-pair, causing failure when used!", ex);
 			}
 		}
 		if (certificateChain != null) {
