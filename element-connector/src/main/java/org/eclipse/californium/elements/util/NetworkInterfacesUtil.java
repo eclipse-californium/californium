@@ -491,10 +491,12 @@ public class NetworkInterfacesUtil {
 			nets = new Filter(nets);
 			while (nets.hasMoreElements()) {
 				NetworkInterface networkInterface = nets.nextElement();
+				LOGGER.debug("NetIntf: {}", networkInterface.getDisplayName());
 				Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
 				while (inetAddresses.hasMoreElements()) {
 					InetAddress address = inetAddresses.nextElement();
 					interfaces.add(address);
+					LOGGER.debug("   Addr: {}", address);
 				}
 			}
 		} catch (SocketException e) {
