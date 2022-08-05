@@ -3551,12 +3551,13 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	@Override
 	public final InetSocketAddress getAddress() {
 		DatagramSocket socket = getSocket();
-		int localPort = socket == null ? -1 : socket.getLocalPort();
-		if (localPort < 0) {
-			return config.getAddress();
-		} else {
-			return new InetSocketAddress(socket.getLocalAddress(), localPort);
+		if (socket != null && socket.isBound()) {
+			int localPort = socket.getLocalPort();
+			if (localPort > 0) {
+				return new InetSocketAddress(socket.getLocalAddress(), localPort);
+			}
 		}
+		return config.getAddress();
 	}
 
 	/**
