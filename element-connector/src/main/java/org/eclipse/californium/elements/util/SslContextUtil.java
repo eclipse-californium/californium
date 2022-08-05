@@ -996,14 +996,30 @@ public class SslContextUtil {
 				}
 			}
 			if (keys.getPrivateKey() == null && keys.getPublicKey() == null) {
-				List<Certificate> unique = new ArrayList<>();
-				for (Certificate certificate : certificatesList) {
-					if (!unique.contains(certificate)) {
-						unique.add(certificate);
+				if (!certificatesList.isEmpty()) {
+					List<Certificate> unique = new ArrayList<>();
+					for (Certificate certificate : certificatesList) {
+						if (!unique.contains(certificate)) {
+							unique.add(certificate);
+						}
 					}
+					if (unique.size() == certificatesList.size()) {
+						// try, if certificates form a chain
+						try {
+							CertPath certPath = factory.generateCertPath(certificatesList);
+							List<? extends Certificate> path = certPath.getCertificates();
+							X509Certificate[] x509Certificates = path.toArray(new X509Certificate[path.size()]);
+							// OK, return certificate chain
+							return new Credentials(null, null, x509Certificates);
+						} catch (GeneralSecurityException ex) {
+						}
+					}
+					Certificate[] certificates = unique.toArray(new Certificate[unique.size()]);
+					return new Credentials(certificates);
+				} else {
+					// no certificates
+					return new Credentials(null);
 				}
-				Certificate[] certificates = unique.toArray(new Certificate[unique.size()]);
-				return new Credentials(certificates);
 			} else {
 				CertPath certPath = factory.generateCertPath(certificatesList);
 				List<? extends Certificate> path = certPath.getCertificates();
@@ -1333,8 +1349,10 @@ public class SslContextUtil {
 	}
 
 	/**
-	 * Credentials. Pair of private key and public key or certificate trust
-	 * chain. Or trusted certificates.
+	 * Credentials.
+	 * 
+	 * Pair of private key and public key or certificate chain. Or set of trusted
+	 * certificates.
 	 */
 	public static class Credentials {
 
@@ -1386,7 +1404,8 @@ public class SslContextUtil {
 		/**
 		 * Create credentials.
 		 * 
-		 * @param trusts certificate trusts
+		 * @param trusts certificate trusts, {@code null} for no trusted
+		 *            certificates.
 		 */
 		public Credentials(Certificate[] trusts) {
 			this.privateKey = null;
@@ -1398,7 +1417,7 @@ public class SslContextUtil {
 		/**
 		 * Get private key.
 		 * 
-		 * @return private key
+		 * @return private key. May be {@code null}, if not available.
 		 */
 		public PrivateKey getPrivateKey() {
 			return privateKey;
@@ -1407,7 +1426,7 @@ public class SslContextUtil {
 		/**
 		 * Get public key.
 		 * 
-		 * @return public key
+		 * @return public key. May be {@code null}, if not available.
 		 */
 		public PublicKey getPublicKey() {
 			return publicKey;
@@ -1416,7 +1435,8 @@ public class SslContextUtil {
 		/**
 		 * Get certificate trust chain.
 		 * 
-		 * @return certificate trust chain
+		 * @return certificate trust chain. May be {@code null}, if not
+		 *         available.
 		 */
 		public X509Certificate[] getCertificateChain() {
 			return chain;
@@ -1425,7 +1445,8 @@ public class SslContextUtil {
 		/**
 		 * Get certificate trust chain as list.
 		 * 
-		 * @return certificate trust chain as list
+		 * @return certificate trust chain as list. May be {@code null}, if not
+		 *         available.
 		 * @since 3.0
 		 */
 		public List<X509Certificate> getCertificateChainAsList() {
@@ -1435,7 +1456,7 @@ public class SslContextUtil {
 		/**
 		 * Get trusted certificates.
 		 * 
-		 * @return trusted certificates
+		 * @return trusted certificates. May be {@code null}, if not available.
 		 */
 		public Certificate[] getTrustedCertificates() {
 			return trusts;
