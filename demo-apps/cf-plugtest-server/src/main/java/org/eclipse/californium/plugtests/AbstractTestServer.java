@@ -18,19 +18,15 @@
 package org.eclipse.californium.plugtests;
 
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.crypto.SecretKey;
@@ -275,21 +271,12 @@ public abstract class AbstractTestServer extends CoapServer {
 	/**
 	 * Add endpoints.
 	 * 
-	 * @param selectAddress  list of regular expression to filter the endpoints by
-	 *                       {@link InetAddress#getHostAddress()}. May be
-	 *                       {@code null} or {@code empty}, if endpoints should not
-	 *                       be filtered by their host address.
-	 * @param interfaceTypes list of type to filter the endpoints. Maybe
-	 *                       {@code null} or empty, if endpoints should not be
-	 *                       filtered by type.
-	 * @param protocols      list of protocols to create endpoints for.
 	 * @param cliConfig      client cli-config.
 	 */
-	public void addEndpoints(List<String> selectAddress, List<InterfaceType> interfaceTypes, List<Protocol> protocols,
-			BaseConfig cliConfig) {
+	public void addEndpoints(BaseConfig cliConfig) {
 		int coapPort = config.get(CoapConfig.COAP_PORT);
 		int coapsPort = config.get(CoapConfig.COAP_SECURE_PORT);
-
+		List<Protocol> protocols = cliConfig.getProtocols();
 		if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
 			initCredentials();
 			serverSslContext = getServerSslContext(cliConfig.trustall, SslContextUtil.DEFAULT_SSL_PROTOCOL);
@@ -297,68 +284,7 @@ public abstract class AbstractTestServer extends CoapServer {
 				throw new IllegalArgumentException("TLS not supported, credentials missing!");
 			}
 		}
-		List<InetAddress> used = new ArrayList<>();
-		for (InetAddress addr : NetworkInterfacesUtil.getNetworkInterfaces()) {
-			if (used.contains(addr)) {
-				continue;
-			}
-			if (interfaceTypes != null && !interfaceTypes.isEmpty()) {
-				if (addr.isLoopbackAddress() || addr.isLinkLocalAddress()) {
-					if (!interfaceTypes.contains(InterfaceType.LOCAL)) {
-						String scope = "???";
-						if (addr.isLoopbackAddress()) {
-							scope = "lo";
-						} else if (addr.isLinkLocalAddress()) {
-							scope = "link";
-						}
-						LOGGER.info("{}skip local {} ({})", getTag(), addr, scope);
-						continue;
-					}
-				} else {
-					if (!interfaceTypes.contains(InterfaceType.EXTERNAL)) {
-						LOGGER.info("{}skip external {}", getTag(), addr);
-						continue;
-					}
-				}
-				if (addr instanceof Inet4Address) {
-					if (!interfaceTypes.contains(InterfaceType.IPV4)) {
-						LOGGER.info("{}skip ipv4 {}", getTag(), addr);
-						continue;
-					}
-				} else if (addr instanceof Inet6Address) {
-					if (!interfaceTypes.contains(InterfaceType.IPV6)) {
-						LOGGER.info("{}skip ipv6 {}", getTag(), addr);
-						continue;
-					}
-				}
-			}
-			if (selectAddress != null && !selectAddress.isEmpty()) {
-				boolean found = false;
-				String name = addr.getHostAddress();
-				for (String filter : selectAddress) {
-					if (name.matches(filter)) {
-						found = true;
-						break;
-					}
-				}
-				if (!found && addr instanceof Inet6Address) {
-					Matcher matcher = IPV6_SCOPE.matcher(name);
-					if (matcher.matches()) {
-						// apply filter also on interface name
-						name = matcher.group(1) + "%" + ((Inet6Address) addr).getScopedInterface().getName();
-						for (String filter : selectAddress) {
-							if (name.matches(filter)) {
-								found = true;
-								break;
-							}
-						}
-					}
-				}
-				if (!found) {
-					continue;
-				}
-			}
-			used.add(addr);
+		for (InetAddress addr : NetworkInterfacesUtil.getNetworkInterfaces(cliConfig.getFilter(getTag()))) {
 
 			InterfaceType interfaceType = addr.isLoopbackAddress() ? InterfaceType.LOCAL : InterfaceType.EXTERNAL;
 
