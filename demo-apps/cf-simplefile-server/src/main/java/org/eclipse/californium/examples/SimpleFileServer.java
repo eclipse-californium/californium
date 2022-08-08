@@ -22,7 +22,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -157,8 +156,7 @@ public class SimpleFileServer extends AbstractTestServer {
 			server.add(new MyContext(MyContext.RESOURCE_NAME, version, true));
 
 			// add endpoints on all IP addresses
-			server.addEndpoints(null, null, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS),
-					config);
+			server.addEndpoints(config);
 			server.start();
 
 		} catch (SocketException e) {

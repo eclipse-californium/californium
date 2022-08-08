@@ -28,6 +28,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -72,6 +73,8 @@ public class NetworkInterfacesUtil {
 	public static final String DEFAULT_COAP_NETWORK_INTERFACES_EXCLUDE = "(vxlan\\.calico|cali[0123456789abcdef]{10,}|cilium_\\w+|lxc[0123456789abcdef]{12,}|virbr\\d+|docker\\d+)";
 
 	private static final Pattern DEFAULT_EXCLUDE = Pattern.compile(DEFAULT_COAP_NETWORK_INTERFACES_EXCLUDE);
+
+	private static final Pattern IPV6_SCOPE = Pattern.compile("^([0-9a-fA-F:]+)(%\\w+)?$");
 
 	/**
 	 * MTU for any interface.
@@ -190,6 +193,116 @@ public class NetworkInterfacesUtil {
 				}
 				LOGGER.debug("skip {}", name);
 			}
+		}
+	}
+
+	/**
+	 * Filter inet-addresses.
+	 * 
+	 * @see {@link NetworkInterfacesUtil#getNetworkInterfaces(InetAddressFilter)}
+	 * @since 3.7
+	 */
+	public interface InetAddressFilter {
+
+		/**
+		 * Filter return inet-addresses.
+		 * 
+		 * @param addr inet-address to filter
+		 * @return {@code true}, to add inet-address, {@code false}, to skip.
+		 */
+		boolean matches(InetAddress addr);
+	}
+
+	/**
+	 * Simple inet address filter.
+	 * 
+	 * Filters inet addresses based on local and external addresses, on IPv4 and
+	 * IPv6, and on patterns.
+	 * 
+	 * @see {@link NetworkInterfacesUtil#getNetworkInterfaces(InetAddressFilter)}
+	 * @since 3.7
+	 */
+	public static class SimpleInetAddressFilter implements InetAddressFilter {
+
+		private final String tag;
+		private final boolean externalAddresses;
+		private final boolean loopbackAddresses;
+		private final boolean ipv4;
+		private final boolean ipv6;
+		private final String[] patterns;
+
+		public SimpleInetAddressFilter(String tag, boolean externalAddresses, boolean localAddresses, boolean ipv4,
+				boolean ipv6, String... patterns) {
+			if (!externalAddresses && !localAddresses) {
+				throw new IllegalArgumentException(tag + ": at least one of external or local addresses must be true");
+			}
+			if (!ipv4 && !ipv6) {
+				throw new IllegalArgumentException(tag + ": at least one of IPv4 or IPv6 must be true");
+			}
+			this.tag = tag;
+			this.externalAddresses = externalAddresses;
+			this.loopbackAddresses = localAddresses;
+			this.ipv4 = ipv4;
+			this.ipv6 = ipv6;
+			this.patterns = patterns;
+		}
+
+		@Override
+		public boolean matches(InetAddress addr) {
+			if (addr.isLoopbackAddress() || addr.isLinkLocalAddress()) {
+				if (!loopbackAddresses) {
+					String scope = "???";
+					if (addr.isLoopbackAddress()) {
+						scope = "lo";
+					} else if (addr.isLinkLocalAddress()) {
+						scope = "link";
+					}
+					LOGGER.info("{}skip local {} ({})", tag, addr, scope);
+					return false;
+				}
+			} else if (!externalAddresses) {
+				LOGGER.info("{}skip external {}", tag, addr);
+				return false;
+			}
+			if (addr instanceof Inet4Address) {
+				if (!ipv4) {
+					LOGGER.info("{}skip ipv4 {}", tag, addr);
+					return false;
+				}
+			} else if (addr instanceof Inet6Address) {
+				if (!ipv6) {
+					LOGGER.info("{}skip ipv6 {}", tag, addr);
+					return false;
+				}
+			}
+			if (patterns != null && patterns.length > 0) {
+				boolean found = false;
+				String name = addr.getHostAddress();
+				for (String filter : patterns) {
+					if (name.matches(filter)) {
+						found = true;
+						break;
+					}
+				}
+				if (!found && addr instanceof Inet6Address) {
+					Matcher matcher = IPV6_SCOPE.matcher(name);
+					if (matcher.matches()) {
+						// apply filter also on interface name
+						name = matcher.group(1) + "%" + ((Inet6Address) addr).getScopedInterface().getName();
+						for (String filter : patterns) {
+							if (name.matches(filter)) {
+								found = true;
+								break;
+							}
+						}
+					}
+				}
+				if (!found) {
+					return false;
+				}
+			}
+
+			return true;
 		}
 	}
 
@@ -482,6 +595,24 @@ public class NetworkInterfacesUtil {
 	 * @return collection of local inet addresses.
 	 */
 	public static Collection<InetAddress> getNetworkInterfaces() {
+		return getNetworkInterfaces(null);
+	}
+
+	/**
+	 * Get collection of available local inet addresses of network interfaces.
+	 * 
+	 * Applies environment "COAP_NETWORK_INTERFACES" to define a regular
+	 * expression for network interfaces to use, defaults to all. And
+	 * environment "COAP_NETWORK_INTERFACES_EXCLUDES" to define a regular
+	 * expression for network interfaces to exclude from usage, defaults to
+	 * common virtual networks.
+	 * 
+	 * @param filter custom filter for inet addresses
+	 * @return collection of local inet addresses.
+	 * @see SimpleInetAddressFilter
+	 * @since 3.7
+	 */
+	public static Collection<InetAddress> getNetworkInterfaces(InetAddressFilter filter) {
 		Collection<InetAddress> interfaces = new LinkedList<InetAddress>();
 		try {
 			Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
@@ -495,8 +626,12 @@ public class NetworkInterfacesUtil {
 				Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
 				while (inetAddresses.hasMoreElements()) {
 					InetAddress address = inetAddresses.nextElement();
-					interfaces.add(address);
-					LOGGER.debug("   Addr: {}", address);
+					if (filter == null || filter.matches(address)) {
+						interfaces.add(address);
+						LOGGER.debug("   Addr: {}", address);
+					} else {
+						LOGGER.debug("   Skip: {}", address);
+					}
 				}
 			}
 		} catch (SocketException e) {

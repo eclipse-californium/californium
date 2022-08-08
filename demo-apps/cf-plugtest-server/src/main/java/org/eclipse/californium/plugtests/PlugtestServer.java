@@ -59,6 +59,8 @@ import org.eclipse.californium.elements.config.ValueException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil.InetAddressFilter;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil.SimpleInetAddressFilter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
@@ -221,6 +223,16 @@ public class PlugtestServer extends AbstractTestServer {
 
 			@Option(names = "--store-max-age", required = true, description = "maximum age of connections in hours.")
 			public Integer maxAge;
+		}
+
+		public InetAddressFilter getFilter(String tag) {
+			if (interfacePatterns == null || interfacePatterns.isEmpty()) {
+				return new SimpleInetAddressFilter(tag, external, loopback, ipv4, ipv6);
+			} else {
+				String[] patterns = new String[interfacePatterns.size()];
+				patterns = interfacePatterns.toArray(patterns);
+				return new SimpleInetAddressFilter(tag, external, loopback, ipv4, ipv6, patterns);
+			}
 		}
 
 		public List<Protocol> getProtocols() {
@@ -405,9 +417,6 @@ public class PlugtestServer extends AbstractTestServer {
 			}
 
 			long notifyIntervalMillis = config.getNotifyIntervalMillis();
-			List<Protocol> protocols = config.getProtocols();
-
-			List<InterfaceType> types = config.getInterfaceTypes();
 
 			server = new PlugtestServer(configuration, protocolConfig, notifyIntervalMillis, oscoreCtxDb, oscoreServerRid);
 			server.setVersion(CALIFORNIUM_BUILD_VERSION);
@@ -418,7 +427,7 @@ public class PlugtestServer extends AbstractTestServer {
 			// server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));
 			// server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("2a01:c911:0:2010::10", port)));
 			// server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("10.200.1.2", port)));
-			server.addEndpoints(config.interfacePatterns, types, protocols, config);
+			server.addEndpoints(config);
 			if (server.getEndpoints().isEmpty()) {
 				System.err.println("no endpoint available!");
 				System.exit(ERR_INIT_FAILED);

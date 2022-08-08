@@ -370,9 +370,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 			protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfiguration);
 
 			// create server
-			List<Protocol> protocols = config.getProtocols();
-
-			List<InterfaceType> types = config.getInterfaceTypes();
 
 			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					configuration.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
@@ -481,7 +478,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				server.addDefaultEndpointObserver(internalSocketObserver);
 			}
 			// using cluster removes dtls from protocols
-			server.addEndpoints(config.interfacePatterns, types, protocols, config);
+			server.addEndpoints(config);
 			if (server.getEndpoints().isEmpty()) {
 				System.err.println("no endpoint available!");
 				System.exit(PlugtestServer.ERR_INIT_FAILED);
