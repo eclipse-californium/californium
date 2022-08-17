@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.config.CoapConfig;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyToken;
 import org.eclipse.californium.core.server.resources.ObservableResource;
@@ -147,7 +148,7 @@ public class ObserveRelation {
 	private Response recentControlNotification;
 	private Response nextControlNotification;
 
-	private volatile ObservingEndpoint endpoint;
+	private volatile ObservingEndpoint remoteEndpoint;
 	/*
 	 * This value is false at first and must be set to true by the resource if
 	 * it accepts the observe relation (the response code must be successful).
@@ -198,7 +199,14 @@ public class ObserveRelation {
 		this.resource = resource;
 		this.exchange = exchange;
 		this.requestType = exchange.getRequest().getType();
-		Configuration config = exchange.getEndpoint().getConfig();
+		Configuration config = manager.getConfiguration();
+		Endpoint coapEndpoint = exchange.getEndpoint();
+		if (coapEndpoint != null) {
+			config = coapEndpoint.getConfig();
+		}
+		if (config == null) {
+			throw new IllegalArgumentException("Either the ObserveManager or the Exchange must provide a Configuration!");
+		}
 		checkIntervalTime = config.get(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, TimeUnit.NANOSECONDS);
 		checkIntervalCount = config.get(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT);
 		Request request = exchange.getRequest();
@@ -217,8 +225,8 @@ public class ObserveRelation {
 		if (endpoint == null) {
 			throw new NullPointerException("Observing endpoint must not be null!");
 		}
-		this.endpoint = endpoint;
-		this.endpoint.addObserveRelation(this);
+		this.remoteEndpoint = endpoint;
+		this.remoteEndpoint.addObserveRelation(this);
 		this.exchange.setRelation(this);
 	}
 
@@ -305,7 +313,7 @@ public class ObserveRelation {
 	 * relation's endpoint.
 	 */
 	public void cancelAll() {
-		endpoint.cancelAll();
+		remoteEndpoint.cancelAll();
 	}
 
 	/**
@@ -364,7 +372,7 @@ public class ObserveRelation {
 	 * @return the source address
 	 */
 	public ObservingEndpoint getEndpoint() {
-		return endpoint;
+		return remoteEndpoint;
 	}
 
 	/**
@@ -615,7 +623,7 @@ public class ObserveRelation {
 			if (manager != null) {
 				manager.removeObserveRelation(this);
 			} else {
-				endpoint.removeObserveRelation(this);
+				remoteEndpoint.removeObserveRelation(this);
 			}
 			if (complete) {
 				exchange.executeComplete();

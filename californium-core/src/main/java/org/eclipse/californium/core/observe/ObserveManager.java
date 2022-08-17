@@ -63,6 +63,12 @@ public class ObserveManager {
 	 */
 	private final int maxObserves;
 	/**
+	 * Configuration.
+	 * 
+	 * @since 3.7
+	 */
+	private final Configuration config;
+	/**
 	 * Observe health status.
 	 * 
 	 * @since 3.6
@@ -82,12 +88,13 @@ public class ObserveManager {
 	/**
 	 * Constructs a new ObserveManager for this server.
 	 * 
-	 * @param config configuration
+	 * @param config configuration.  May be {@code null}.
 	 * @since 3.6
 	 */
 	public ObserveManager(Configuration config) {
 		this.endpoints = new ConcurrentHashMap<>();
 		this.relations = new ConcurrentHashMap<>();
+		this.config = config;
 		int maxObserves = 0;
 		if (config != null) {
 			maxObserves = config.get(CoapConfig.MAX_SERVER_OBSERVES);
@@ -136,13 +143,13 @@ public class ObserveManager {
 			previous = relations.get(relation.getKeyToken());
 			if (previous != null || maxObserves == 0 || relations.size() < maxObserves) {
 				relations.put(relation.getKeyToken(), relation);
-				ObservingEndpoint endpoint = endpoints.get(relation.getSource());
-				if (endpoint == null) {
-					endpoint = new ObservingEndpoint(relation.getSource());
-					relation.setEndpoint(endpoint);
-					endpoints.put(relation.getSource(), endpoint);
+				ObservingEndpoint remoteEndpoint = endpoints.get(relation.getSource());
+				if (remoteEndpoint == null) {
+					remoteEndpoint = new ObservingEndpoint(relation.getSource());
+					relation.setEndpoint(remoteEndpoint);
+					endpoints.put(relation.getSource(), remoteEndpoint);
 				} else {
-					relation.setEndpoint(endpoint);
+					relation.setEndpoint(remoteEndpoint);
 				}
 			}
 		}
@@ -231,6 +238,16 @@ public class ObserveManager {
 	 */
 	public int getNumberOfObserverRelations() {
 		return relations.size();
+	}
+
+	/**
+	 * Get configuration.
+	 * 
+	 * @return configuration, may be {@code null}.
+	 * @since 3.7
+	 */
+	public Configuration getConfiguration() {
+		return config;
 	}
 
 	/**
