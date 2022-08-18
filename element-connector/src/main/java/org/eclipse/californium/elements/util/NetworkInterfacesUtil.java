@@ -199,7 +199,7 @@ public class NetworkInterfacesUtil {
 	/**
 	 * Filter inet-addresses.
 	 * 
-	 * @see {@link NetworkInterfacesUtil#getNetworkInterfaces(InetAddressFilter)}
+	 * @see NetworkInterfacesUtil#getNetworkInterfaces(InetAddressFilter)
 	 * @since 3.7
 	 */
 	public interface InetAddressFilter {
@@ -219,7 +219,7 @@ public class NetworkInterfacesUtil {
 	 * Filters inet addresses based on local and external addresses, on IPv4 and
 	 * IPv6, and on patterns.
 	 * 
-	 * @see {@link NetworkInterfacesUtil#getNetworkInterfaces(InetAddressFilter)}
+	 * @see NetworkInterfacesUtil#getNetworkInterfaces(InetAddressFilter)
 	 * @since 3.7
 	 */
 	public static class SimpleInetAddressFilter implements InetAddressFilter {
