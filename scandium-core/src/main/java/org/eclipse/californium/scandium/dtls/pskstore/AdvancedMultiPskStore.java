@@ -71,6 +71,24 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
 			boolean useExtendedMasterSecret) {
 
+		PskCredentials credentials = getCredentials(serverNames, identity);
+		if (credentials != null) {
+			return new PskSecretResult(cid, credentials.getIdentity(), credentials.getKey());
+		} else {
+			return new PskSecretResult(cid, identity, null);
+		}
+	}
+
+	/**
+	 * Get credentials for server name and identity.
+	 * 
+	 * @param serverNames server name
+	 * @param identity identity
+	 * @return credentials, or {@code null}, if not available.
+	 * @since 3.7
+	 */
+	private PskCredentials getCredentials(ServerNames serverNames, PskPublicInformation identity) {
+
 		PskCredentials credentials = null;
 
 		if (identity == null) {
@@ -92,11 +110,7 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 				lock.readLock().unlock();
 			}
 		}
-		if (credentials != null) {
-			return new PskSecretResult(cid, credentials.identity, credentials.getKey());
-		} else {
-			return new PskSecretResult(cid, identity, null);
-		}
+		return credentials;
 	}
 
 	@Override
@@ -137,7 +151,7 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 			scopedIdentities.clear();
 			for (Map<PskPublicInformation, PskCredentials> keys : scopedKeys.values()) {
 				for (PskCredentials credentials : keys.values()) {
-					SecretUtil.destroy(credentials.key);
+					credentials.destroy();
 				}
 			}
 			scopedKeys.clear();
@@ -153,18 +167,32 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 
 	private static final ServerName GLOBAL_SCOPE = ServerName.from(NameType.UNDEFINED, Bytes.EMPTY);
 
-	private static class PskCredentials {
+	private static class PskCredentials implements Destroyable {
 
 		private final PskPublicInformation identity;
 		private final SecretKey key;
 
 		private PskCredentials(PskPublicInformation identity, byte[] key) {
 			this.identity = identity;
-			this.key = SecretUtil.create(key, "PSK");
+			this.key = SecretUtil.create(key, PskSecretResult.ALGORITHM_PSK);
 		}
 
-		private SecretKey getKey() {
+		public PskPublicInformation getIdentity() {
+			return identity;
+		}
+
+		public SecretKey getKey() {
 			return SecretUtil.create(key);
+		}
+
+		@Override
+		public void destroy() throws DestroyFailedException {
+			SecretUtil.destroy(key);
+		}
+
+		@Override
+		public boolean isDestroyed() {
+			return SecretUtil.isDestroyed(key);
 		}
 	}
 
