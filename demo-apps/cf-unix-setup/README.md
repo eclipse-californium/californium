@@ -427,3 +427,11 @@ DTLS.RECEIVE_BUFFER_SIZE=1000000
 
 In the according "Californium3.properties" (or "Californium???3.properties").
 
+You may also use vnstat to see, how much traffic your system is currently transferring.
+
+```
+> vnstat -l
+
+ rx:    40,77 Mbit/s 39375 p/s          tx:   102,85 Mbit/s 64257 p/s
+```
+ 
