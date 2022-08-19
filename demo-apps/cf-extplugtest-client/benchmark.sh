@@ -84,13 +84,13 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-3.6.0.jar
-CF_JAR_FIND='cf-extplugtest-client-*.jar'
+CF_JAR=cf-extplugtest-client-3.7.0.jar
+CF_JAR_FIND="cf-extplugtest-client-*.jar"
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 #CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
 CF_OPT="-XX:MaxRAMPercentage=50"
 
-export CALIFORNIUM_STATISTIC="3.6.0"
+export CALIFORNIUM_STATISTIC="3.7.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
@@ -115,6 +115,7 @@ fi
 
 : "${PLAIN_PORT:=5783}"
 : "${SECURE_PORT:=5784}"
+: "${RESOURCE_PATH:=benchmark}"
 
 # 0 := disable, 1 := enable
 : "${USE_TCP:=1}"
@@ -160,7 +161,8 @@ REV_REQS=$((2 * $REQS))
 
 : "${CALI_AUTH:=--psk-store cali.psk}"
 
-if [ ! -s ${CF_JAR} ] ; then
+if [ ! -s "${CF_JAR}" ] ; then
+   echo "search for ${CF_JAR}"
 # search for given version
    CF_JAR_TEST=`find -name ${CF_JAR} | head -n 1`
    if  [ -z "${CF_JAR_TEST}" ] ; then
@@ -168,15 +170,17 @@ if [ ! -s ${CF_JAR} ] ; then
    fi
    if  [ -n "${CF_JAR_TEST}" ] ; then
       CF_JAR=${CF_JAR_TEST}
-  fi
+   fi
 fi
 
-if [ ! -s ${CF_JAR} ] ; then
+if [ ! -s "${CF_JAR}" ] ; then
+   echo "search for ${CF_JAR_FIND}"
 # search for alternative available version
-   CF_JAR_TEST=`find -name ${CF_JAR_FIND} ! -name "*sources.jar" | head -n 1`
+   CF_JAR_TEST=`find -name "${CF_JAR_FIND}" ! -name "*sources.jar" | sort -r | head -n 1`
    if  [ -z "${CF_JAR_TEST}" ] ; then
-     CF_JAR_TEST=`find .. -name ${CF_JAR_FIND} ! -name "*sources.jar" | head -n 1`
+     CF_JAR_TEST=`find .. -name "${CF_JAR_FIND}" ! -name "*sources.jar" | sort -r | head -n 1`
    fi
+   echo "found ${CF_JAR_TEST}"
    if  [ -n "${CF_JAR_TEST}" ] ; then
       echo "Found different version."
       echo "Using   ${CF_JAR_TEST}"
@@ -185,7 +189,7 @@ if [ ! -s ${CF_JAR} ] ; then
   fi
 fi
 
-if [ ! -s ${CF_JAR} ] ; then
+if [ ! -s "${CF_JAR}" ] ; then
    echo "Missing ${CF_JAR}"
    exit -1
 fi
@@ -234,33 +238,33 @@ benchmark_all()
 # POST
       if [ ${USE_CON} -eq 1 ] || [ ${USE_CON} -eq 3 ] ; then
          if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
-            benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
+            benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
          fi
-         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART}
+         benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART} --payload-random ${PAYLOAD}
       fi
 
       if [ ${USE_NON} -ne 0 ] ; then
          if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
-            benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
+            benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
          fi
-         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART}
+         benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART} --payload-random ${PAYLOAD}
       fi
 
       if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
-         benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --bertblocks 4
+         benchmark_tcp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --bertblocks 4
       fi
-      benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+      benchmark_tcp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} --payload-random ${PAYLOAD}
 
       if [ ${USE_CON} -eq 2 ] || [ ${USE_CON} -eq 3 ] ; then
 # POST separate response
-         benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART}
+         benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART} --payload-random ${PAYLOAD}
       fi
    fi
 
    if [ ${USE_OBSERVE} -eq 1 ] ; then
-      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 
-      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 --cancel-proactive
-      benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75
+      benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 
+      benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 --cancel-proactive
+      benchmark_tcp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75
    fi
 
    if [ ${USE_REVERSE} -eq 1 ] ; then
@@ -295,7 +299,7 @@ benchmark_dtls_handshake()
       i=0
 
       while [ $i -lt $1 ] ; do
-         java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:${SECURE_PORT}/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 10 ${USE_NONESTOP}
+         java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:${SECURE_PORT}/${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 10 ${USE_NONESTOP}
          if [ ! $? -eq 0 ] ; then exit $?; fi
          sleep 2
          i=$(($i + 1))
@@ -351,12 +355,12 @@ proxy()
          if [ ! $? -eq 0 ] ; then exit $?; fi
          sleep 5
       fi
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:${PLAIN_PORT}/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:coap"
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:${PLAIN_PORT}/${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:coap"
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi 
    if [ ${USE_SECURE} -ne 0 ] ; then
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:${SECURE_PORT}/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:coaps"
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:${SECURE_PORT}/${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:coaps"
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi 
