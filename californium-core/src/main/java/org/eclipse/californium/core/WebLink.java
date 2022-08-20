@@ -39,6 +39,15 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class WebLink implements Comparable<WebLink> {
 
+	/**
+	 * List of standard attribute names. Defines order in [@link #toString()}.
+	 * 
+	 * @since 3.7
+	 */
+	private static final List<String> STANDARD_ATTRIBUTE_NAMES = Arrays.asList(LinkFormat.RESOURCE_TYPE,
+			LinkFormat.INTERFACE_DESCRIPTION, LinkFormat.CONTENT_TYPE, LinkFormat.MAX_SIZE_ESTIMATE,
+			LinkFormat.OBSERVABLE);
+
 	private String uri;
 	private final ResourceAttributes attributes;
 
@@ -67,17 +76,24 @@ public class WebLink implements Comparable<WebLink> {
 		builder.append('<');
 		builder.append(this.uri);
 		builder.append('>');
-		List<String> attributes = new ArrayList<>(this.attributes.getAttributeKeySet());
-		List<String> standard = Arrays.asList(LinkFormat.RESOURCE_TYPE, LinkFormat.INTERFACE_DESCRIPTION,
-				LinkFormat.CONTENT_TYPE, LinkFormat.MAX_SIZE_ESTIMATE, LinkFormat.OBSERVABLE);
+
+		/// list of other attribute names
+		List<String> allOtherAttributeNames = new ArrayList<>(this.attributes.getAttributeKeySet());
+		// remove standard ordered attribute names
+		allOtherAttributeNames.removeAll(STANDARD_ATTRIBUTE_NAMES);
+
+		// start with title
 		if (this.attributes.containsAttribute(LinkFormat.TITLE)) {
 			builder.append(' ').append(this.attributes.getTitle());
+			allOtherAttributeNames.remove(LinkFormat.TITLE);
 		}
-		append(builder, standard);
-		attributes.remove(LinkFormat.TITLE);
-		attributes.removeAll(standard);
-		Collections.sort(attributes);
-		append(builder, attributes);
+		// standard ordered attributes
+		append(builder, STANDARD_ATTRIBUTE_NAMES);
+
+		// other attributes sorted by name
+		Collections.sort(allOtherAttributeNames);
+		append(builder, allOtherAttributeNames);
+
 		return builder.toString();
 	}
 
@@ -88,12 +104,13 @@ public class WebLink implements Comparable<WebLink> {
 	}
 
 	private void append(StringBuilder builder, String attributeName) {
-		if (this.attributes.containsAttribute(attributeName)) {
+		List<String> values = this.attributes.getAttributeValues(attributeName);
+		int size = values.size();
+		if (size > 0) {
 			builder.append(StringUtil.lineSeparator()).append("\t").append(attributeName);
-			List<String> values = this.attributes.getAttributeValues(attributeName);
-			if (values.size() == 1) {
+			if (size == 1) {
 				builder.append(":\t").append(values.get(0));
-			} else if (values.size() > 1) {
+			} else {
 				builder.append(":\t").append(values);
 			}
 		}

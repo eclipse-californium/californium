@@ -20,11 +20,12 @@
 package org.eclipse.californium.core.server.resources;
 
 import java.util.Collections;
-import java.util.LinkedList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.eclipse.californium.core.coap.LinkFormat;
 
@@ -34,6 +35,20 @@ import org.eclipse.californium.core.coap.LinkFormat;
  * also be included in the link description of the resource they belong to. For
  * example, if a title was specified, the link description for a sensor resource
  * might look like this {@code </sensors>;title="Sensor Index"}.
+ * 
+ * Note: The synchronization before version 3.7 is unclear and the outcome of
+ * simultaneous use of read and write operations was undefined. In some case
+ * traversing a list of attribute values may have failed with a
+ * {@link ConcurrentModificationException}. With 3.7, the value lists are
+ * changed to use {@link CopyOnWriteArrayList} but using this collection of
+ * attributes may still be not "atomic". {@link Resource}s, which are intended
+ * to change their {@link ResourceAttributes} and requires that change to be
+ * "atomic", must clone the current {@link ResourceAttributes}, modify the clone
+ * and then replace the original {@link ResourceAttributes} by the modified
+ * {@link ResourceAttributes} and content.
+ * 
+ * @since 3.7 adapted value lists to unmodifiable lists based on a
+ *        {@link ConcurrentModificationException} in order traverse them safely.
  */
 public class ResourceAttributes {
 
@@ -45,6 +60,17 @@ public class ResourceAttributes {
 	 */
 	public ResourceAttributes() {
 		attributes = new ConcurrentHashMap<String, AttributeValues>();
+	}
+
+	/**
+	 * Instantiates a deep copy of the provided resource attributes.
+	 * 
+	 * @param attributes resource attributes to be copied.
+	 * @since 3.7
+	 */
+	public ResourceAttributes(ResourceAttributes attributes) {
+		this.attributes = new ConcurrentHashMap<String, AttributeValues>();
+		copy(attributes);
 	}
 
 	/**
@@ -62,11 +88,7 @@ public class ResourceAttributes {
 	 * @return the title. {@code null}, if not available.
 	 */
 	public String getTitle() {
-		if (containsAttribute(LinkFormat.TITLE)) {
-			return getAttributeValues(LinkFormat.TITLE).get(0);
-		} else {
-			return null;
-		}
+		return getFirstAttributeValue(LinkFormat.TITLE);
 	}
 
 	/**
@@ -127,7 +149,7 @@ public class ResourceAttributes {
 	 * @since 3.3
 	 */
 	public void clearInterfaceDescriptions() {
-		attributes.remove(LinkFormat.RESOURCE_TYPE);
+		attributes.remove(LinkFormat.INTERFACE_DESCRIPTION);
 	}
 
 	/**
@@ -154,7 +176,7 @@ public class ResourceAttributes {
 	 * @return the maximum size estimate
 	 */
 	public String getMaximumSizeEstimate() {
-		return findAttributeValues(LinkFormat.MAX_SIZE_ESTIMATE).getFirst();
+		return getFirstAttributeValue(LinkFormat.MAX_SIZE_ESTIMATE);
 	}
 
 	/**
@@ -233,9 +255,23 @@ public class ResourceAttributes {
 	 * 
 	 * @param attr the attribute
 	 * @param value the value
+	 * @see #addAttribute(String, List)
 	 */
 	public void addAttribute(String attr, String value) {
 		findAttributeValues(attr).add(value);
+	}
+
+	/**
+	 * Adds the specified values to the other values of the specified attribute
+	 * name.
+	 * 
+	 * @param attr the attribute
+	 * @param values the values
+	 * @see #addAttribute(String, String)
+	 * @since 3.7
+	 */
+	public void addAttribute(String attr, List<String> values) {
+		findAttributeValues(attr).addAll(values);
 	}
 
 	/**
@@ -278,8 +314,9 @@ public class ResourceAttributes {
 	 * Gets all values for the specified attribute.
 	 *
 	 * @param attr the attribute
-	 * @return the attribute values. If no values available, return a empty
-	 *         list.
+	 * @return the attribute values (unmodifiable list). If no values available,
+	 *         return a empty list.
+	 * @since 3.7 returns unmodifiable list
 	 */
 	public List<String> getAttributeValues(String attr) {
 		AttributeValues list = attributes.get(attr);
@@ -290,7 +327,29 @@ public class ResourceAttributes {
 	}
 
 	/**
+	 * Gets first value for the specified attribute.
+	 *
+	 * @param attr the attribute
+	 * @return the first attribute value. {@code null}, if no values available
+	 * @since 3.7
+	 */
+	public String getFirstAttributeValue(String attr) {
+		AttributeValues list = attributes.get(attr);
+		if (list != null)
+			return list.getFirst();
+		else
+			return null;
+	}
+
+	/**
 	 * Copy provided resource attributes.
+	 * 
+	 * Note: if the provided resource is changing during this copy, the outcome
+	 * is undefined. {@link Resource}s, which are intended to change their
+	 * {@link ResourceAttributes} should therefore clone the current
+	 * {@link ResourceAttributes}, modify the clone and then replace the
+	 * original {@link ResourceAttributes} by the modified
+	 * {@link ResourceAttributes} one.
 	 * 
 	 * @param other other resource attributes
 	 * @since 3.3
@@ -301,13 +360,9 @@ public class ResourceAttributes {
 		}
 		attributes.clear();
 		for (String attrName : other.getAttributeKeySet()) {
-			List<String> values = other.getAttributeValues(attrName);
-			if (values.isEmpty()) {
-				addAttribute(attrName);
-			} else {
-				for (String attrValue : values) {
-					addAttribute(attrName, attrValue);
-				}
+			AttributeValues attributeValues = other.attributes.get(attrName);
+			if (attributeValues != null) {
+				attributes.put(attrName, attributeValues.clone());
 			}
 		}
 	}
@@ -336,19 +391,23 @@ public class ResourceAttributes {
 	/**
 	 * The class AttributeValues contains a list of all values for a specific
 	 * attribute.
+	 * 
+	 * @since 3.7 uses a {@link CopyOnWriteArrayList} in order to have a defined
+	 *        behavior for {@link #getAll()}.
 	 */
 	private final static class AttributeValues {
 
 		/** The list. */
-		private final List<String> list = Collections.synchronizedList(new LinkedList<String>());
+		private final List<String> list = new CopyOnWriteArrayList<>();
 
 		/**
 		 * Gets all values.
 		 *
-		 * @return all values
+		 * @return all values (unmodifiable list)
+		 * @since 3.7 returns unmodifiable list
 		 */
 		private List<String> getAll() {
-			return list;
+			return Collections.unmodifiableList(list);
 		}
 
 		/**
@@ -356,8 +415,17 @@ public class ResourceAttributes {
 		 *
 		 * @param value the value
 		 */
-		private void add(String value) {
+		private synchronized void add(String value) {
 			list.add(value);
+		}
+
+		/**
+		 * Adds the specified values to the list.
+		 *
+		 * @param values the values
+		 */
+		private synchronized void addAll(List<String> values) {
+			list.addAll(values);
 		}
 
 		/**
@@ -381,6 +449,18 @@ public class ResourceAttributes {
 			list.clear();
 			if (value != null)
 				list.add(value);
+		}
+
+		/**
+		 * Clone values.
+		 * 
+		 * @return cloned values
+		 * @since 3.7
+		 */
+		protected synchronized AttributeValues clone() {
+			AttributeValues values = new AttributeValues();
+			values.addAll(getAll());
+			return values;
 		}
 	}
 }

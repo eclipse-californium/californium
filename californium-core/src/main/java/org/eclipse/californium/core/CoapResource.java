@@ -139,8 +139,16 @@ public class CoapResource implements Resource, ObservableResource {
 	/** The logger. */
 	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class);
 
-	/* The attributes of this resource. */
-	private final ResourceAttributes attributes;
+	/**
+	 * The attributes of this resource.
+	 * 
+	 * Note: if the attributes are intended to change and that change should be
+	 * "atomic", this must be done by creating a clone of current
+	 * {@link ResourceAttributes}, modify the clone and then replace this
+	 * original {@link ResourceAttributes} by the modified
+	 * {@link ResourceAttributes}.
+	 */
+	private volatile ResourceAttributes attributes;
 
 	private final ReentrantLock recursionProtection = new ReentrantLock();
 
@@ -381,7 +389,8 @@ public class CoapResource implements Resource, ObservableResource {
 	 * 
 	 * @param exchange the exchange
 	 * @param response the response
-	 * @deprecated moved to {@link ObserveRelation#onResponse(ObserveRelation, Response)}
+	 * @deprecated moved to
+	 *             {@link ObserveRelation#onResponse(ObserveRelation, Response)}
 	 */
 	@Deprecated
 	public void checkObserveRelation(Exchange exchange, Response response) {
@@ -640,6 +649,16 @@ public class CoapResource implements Resource, ObservableResource {
 		return attributes;
 	}
 
+	/**
+	 * Set resource attributes.
+	 * 
+	 * @param attributes resource attributes
+	 * @since 3.7
+	 */
+	public void setAttributes(ResourceAttributes attributes) {
+		this.attributes = attributes;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -800,7 +819,7 @@ public class CoapResource implements Resource, ObservableResource {
 	 *             passed
 	 */
 	public void setObserveType(Type type) {
-		if (type !=null && type != Type.NON && type != Type.CON) {
+		if (type != null && type != Type.NON && type != Type.CON) {
 			throw new IllegalArgumentException(
 					"Only CON and NON notifications are allowed or null for no changes by the framework");
 		}
