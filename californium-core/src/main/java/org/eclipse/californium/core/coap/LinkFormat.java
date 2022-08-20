@@ -91,6 +91,107 @@ public class LinkFormat {
 	}
 
 	/**
+	 * Get sub tree as {@link WebLink}.
+	 * 
+	 * The sub tree contains all child resources, but not the provided resource
+	 * itself.
+	 * 
+	 * @param resource to get the sub tree
+	 * @return the sub tree
+	 * @since 3.7
+	 */
+	public static Set<WebLink> getSubTree(Resource resource) {
+		return getSubTree(resource, null);
+	}
+
+	/**
+	 * Get sub tree as {@link WebLink}.
+	 * 
+	 * The sub tree contains all child resources, but not the provided resource
+	 * itself.
+	 * 
+	 * @param resource to get the sub tree
+	 * @param queries The list of queries to match the resource with. A empty
+	 *            list or {@code null} matches all resources.
+	 * @return the sub tree
+	 * @since 3.7
+	 */
+	public static Set<WebLink> getSubTree(Resource resource, List<String> queries) {
+		Set<WebLink> links = new ConcurrentSkipListSet<>();
+		addSubTree(resource, queries, links);
+		return links;
+	}
+
+	/**
+	 * Add sub tree as {@link WebLink}.
+	 * 
+	 * The sub tree contains all child resources, but not the provided resource
+	 * itself.
+	 * 
+	 * @param resource to get sub tree
+	 * @param queries The list of queries to match the resource with. A empty
+	 *            list or {@code null} matches all resources.
+	 * @param links set to add the sub tree
+	 * @since 3.7
+	 */
+	public static void addSubTree(Resource resource, List<String> queries, Set<WebLink> links) {
+		for (Resource child : sort(resource.getChildren())) {
+			addTree(child, queries, links);
+		}
+	}
+
+	/**
+	 * Get tree as {@link WebLink}.
+	 * 
+	 * The tree contains the provided resource itself and all child resources.
+	 * 
+	 * @param resource to get the tree
+	 * @return the tree
+	 * @since 3.7
+	 */
+	public static Set<WebLink> getTree(Resource resource) {
+		return getTree(resource, null);
+	}
+
+	/**
+	 * Get tree as {@link WebLink}.
+	 * 
+	 * The tree contains the provided resource itself and all child resources.
+	 * 
+	 * @param resource to get the tree
+	 * @param queries The list of queries to match the resource with. A empty
+	 *            list or {@code null} matches all resources.
+	 * @return the tree
+	 * @since 3.7
+	 */
+	public static Set<WebLink> getTree(Resource resource, List<String> queries) {
+		Set<WebLink> links = new ConcurrentSkipListSet<>();
+		addTree(resource, queries, links);
+		return links;
+	}
+
+	/**
+	 * Add tree as {@link WebLink}.
+	 * 
+	 * The tree contains the provided resource itself and all child resources.
+	 * 
+	 * @param resource to get sub tree
+	 * @param queries The list of queries to match the resource with. A empty
+	 *            list or {@code null} matches all resources.
+	 * @param links set to add the tree
+	 * @since 3.7
+	 */
+	public static void addTree(Resource resource, List<String> queries, Set<WebLink> links) {
+		// add the current resource to the buffer
+		if (resource.isVisible() && matches(resource, queries)) {
+			WebLink link = new WebLink(resource.getURI());
+			link.getAttributes().copy(resource.getAttributes());
+			links.add(link);
+		}
+		addSubTree(resource, queries, links);
+	}
+
+	/**
 	 * Serialize sub-tree of provided resource.
 	 * 
 	 * The provided resource itself is not serialized. The children are listed
