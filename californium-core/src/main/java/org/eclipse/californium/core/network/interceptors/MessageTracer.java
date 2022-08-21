@@ -30,9 +30,10 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 
 /**
- * The MessageTracer logs all incoming and outgoing messages. MessageInterceptor
- * are located between the serializer/parser and the matcher. Each message comes
- * or goes through a connector is logged.
+ * The MessageTracer logs all incoming and outgoing messages.
+ * 
+ * MessageInterceptor are located between the serializer/parser and the matcher.
+ * Each well-formed message comes or goes through a connector is logged.
  */
 public class MessageTracer implements MessageInterceptor {
 
