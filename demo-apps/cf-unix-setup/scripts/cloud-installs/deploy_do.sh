@@ -63,6 +63,8 @@ wait_cloud_init_ready() {
 if [ "$1" = "create" ]  ; then
    echo "create digitalocean firewall ${name}"
 
+   doctl compute tag create ${name}
+
    doctl compute firewall create \
      --name ${name} \
      --tag-names ${name} \
@@ -109,6 +111,8 @@ if [ "$1" = "delete" ]  ; then
       echo "delete digitalocean fw ${id}"
       doctl compute firewall delete ${id}
    fi
+   
+   doctl compute tag delete ${name}
 
    echo "Please verify the successful deletion via the Web UI."
 
