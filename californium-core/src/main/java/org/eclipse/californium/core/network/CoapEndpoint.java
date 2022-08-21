@@ -101,6 +101,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.interceptors.MalformedMessageInterceptor;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
@@ -288,6 +289,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 
 	/** The list of post process interceptors */
 	private List<MessageInterceptor> postProcessInterceptors = new CopyOnWriteArrayList<>();
+
+	/** The list of post process interceptors */
+	private List<MalformedMessageInterceptor> malformedMessageCounters = new CopyOnWriteArrayList<>();
 
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
@@ -609,11 +613,17 @@ public class CoapEndpoint implements Endpoint, Executor {
 	@Override
 	public void addPostProcessInterceptor(MessageInterceptor interceptor) {
 		postProcessInterceptors.add(interceptor);
+		if (interceptor instanceof MalformedMessageInterceptor) {
+			malformedMessageCounters.add((MalformedMessageInterceptor) interceptor);
+		}
 	}
 
 	@Override
 	public void removePostProcessInterceptor(MessageInterceptor interceptor) {
 		postProcessInterceptors.remove(interceptor);
+		if (interceptor instanceof MalformedMessageInterceptor) {
+			malformedMessageCounters.remove((MalformedMessageInterceptor) interceptor);
+		}
 	}
 
 	@Override
@@ -833,6 +843,12 @@ public class CoapEndpoint implements Endpoint, Executor {
 	private void notifyReceive(List<MessageInterceptor> list, EmptyMessage emptyMessage) {
 		for (MessageInterceptor interceptor : list) {
 			interceptor.receiveEmptyMessage(emptyMessage);
+		}
+	}
+
+	private void notifyReceiveMalformedMessage(RawData message) {
+		for (MalformedMessageInterceptor counter : malformedMessageCounters) {
+			counter.receivedMalformedMessage(message);
 		}
 	}
 
@@ -1074,7 +1090,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 			} catch (CoAPMessageFormatException e) {
 				ex = e;
 				if (e.isConfirmable() && e.hasMid() && !raw.isMulticast()) {
-					if (CoAP.isRequest(e.getCode()) && e.getToken() != null) {
+					if (CoAP.isRequest(e.getCode()) && e.getToken() != null && e.getErrorCode() != null) {
 						// respond with BAD OPTION erroneous reliably
 						// transmitted request as mandated by CoAP spec
 						// https://tools.ietf.org/html/rfc7252#section-4.2
@@ -1089,16 +1105,15 @@ public class CoapEndpoint implements Endpoint, Executor {
 								e.getMessage());
 					}
 				} else {
-					// ignore erroneous messages that are not transmitted
-					// reliably
+					// ignore erroneous messages that are not transmitted reliably
 					LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, context, e.getMessage());
 				}
 			} catch (MessageFormatException e) {
 				ex = e;
-
 				// ignore erroneous messages that are not transmitted reliably
 				LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, context, e.getMessage());
 			}
+			notifyReceiveMalformedMessage(raw);
 			if (LOGGER_BAN.isInfoEnabled()) {
 				String address = context.getPeerAddress().getAddress().getHostAddress();
 				String protocol = connector.getProtocol();
