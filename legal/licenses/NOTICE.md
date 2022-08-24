@@ -108,11 +108,11 @@ javax.websocket API (1.0)
 
 * License: Common Development and Distribution License
 
-Logback Classic (1.2.10)
+Logback Classic (1.2.11)
 
 * License: EPL-1.0
 
-Logback Core (1.2.10)
+Logback Core (1.2.11)
 
 * License: EPL-1.0
 
@@ -122,7 +122,7 @@ logback-android (1.1.1)
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
-Netty (4.1.76)
+Netty (4.1.79)
 
 * License: Apache-2.0 AND BSD-3-Clause AND MIT
 * Project: https://netty.io/
@@ -146,7 +146,7 @@ slf4j-jdk14 (1.7.36)
 
 * License: MIT
 
-picocli (4.6.2)
+picocli (4.6.3)
 
 * License: Apache License, 2.0
 * Project: https://picocli.info
