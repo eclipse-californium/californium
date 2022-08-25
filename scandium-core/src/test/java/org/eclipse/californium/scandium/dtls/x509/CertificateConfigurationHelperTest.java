@@ -20,12 +20,24 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assume.assumeNotNull;
 
+import java.math.BigInteger;
+import java.security.AlgorithmParameters;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPoint;
+import java.security.spec.ECPrivateKeySpec;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.KeySpec;
 import java.util.List;
 
 import javax.net.ssl.X509KeyManager;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
@@ -192,8 +204,7 @@ public class CertificateConfigurationHelperTest {
 	@Test
 	public void testWithKeyManagerEcdsaOnly() {
 		X509KeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverCredentials);
-		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager,
-				CertificateType.X_509);
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
 		provider.setupConfigurationHelper(helper);
 		// no key usage extension
 		assertThat(helper.canBeUsedForAuthentication(true), is(true));
@@ -210,8 +221,7 @@ public class CertificateConfigurationHelperTest {
 	@Test
 	public void testWithKeyManagerRsaOnly() {
 		X509KeyManager keyManager = DtlsTestTools.getKeyManager(TestCertificatesTools.serverRsaCredentials);
-		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager,
-				CertificateType.X_509);
+		KeyManagerCertificateProvider provider = new KeyManagerCertificateProvider(keyManager, CertificateType.X_509);
 		provider.setupConfigurationHelper(helper);
 		// no key usage extension
 		assertThat(helper.canBeUsedForAuthentication(true), is(true));
@@ -241,6 +251,42 @@ public class CertificateConfigurationHelperTest {
 				.getDefaultSignatureAndHashAlgorithms();
 		assertThat(defaultSignatureAndHashAlgorithms.size(), is(1));
 		assertThat(defaultSignatureAndHashAlgorithms, hasItem(SignatureAndHashAlgorithm.SHA256_WITH_RSA));
+	}
+
+	/**
+	 * The test verifies, that the demo ECDSA keys of Leshan could be verified.
+	 * 
+	 * Since java 15 the public keys must ensure, that the passed in value is a
+	 * positive number. Otherwise the key may not be applicable for signature
+	 * verification.
+	 * 
+	 * The key are copied from <a href=
+	 * "https://github.com/eclipse/leshan/blob/master/leshan-server-cf/src/test/java/org/eclipse/leshan/server/californium/bootstrap/LeshanBootstrapServerBuilderTest.java#L61-L85"
+	 * target="_blank"> LeshanBootstrapServerBuilderTest</a>.
+	 * 
+	 * @throws Exception if an error occurs.
+	 */
+	@Test
+	public void testWithLeshanDemoRPK() throws Exception {
+		// Get point values
+		byte[] publicX = StringUtil.hex2ByteArray("89c048261979208666f2bfb188be1968fc9021c416ce12828c06f4e314c167b5");
+		byte[] publicY = StringUtil.hex2ByteArray("cbf1eb7587f08e01688d9ada4be859137ca49f79394bad9179326b3090967b68");
+		byte[] privateS = StringUtil.hex2ByteArray("e67b68d2aaeb6550f19d98cade3ad62b39532e02e6b422e1f7ea189dabaea5d2");
+
+		// Get Elliptic Curve Parameter spec for secp256r1
+		AlgorithmParameters algoParameters = AlgorithmParameters.getInstance("EC");
+		algoParameters.init(new ECGenParameterSpec("secp256r1"));
+		ECParameterSpec parameterSpec = algoParameters.getParameterSpec(ECParameterSpec.class);
+
+		// Create key specs
+		KeySpec publicKeySpec = new ECPublicKeySpec(new ECPoint(new BigInteger(1, publicX), new BigInteger(1, publicY)),
+				parameterSpec);
+		KeySpec privateKeySpec = new ECPrivateKeySpec(new BigInteger(1, privateS), parameterSpec);
+
+		// Get keys
+		PublicKey publicKey = KeyFactory.getInstance("EC").generatePublic(publicKeySpec);
+		PrivateKey privateKey = KeyFactory.getInstance("EC").generatePrivate(privateKeySpec);
+		helper.verifyKeyPair(privateKey, publicKey);
 	}
 
 }
