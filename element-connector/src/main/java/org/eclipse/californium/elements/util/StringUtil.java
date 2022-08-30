@@ -454,6 +454,72 @@ public class StringUtil {
 	}
 
 	/**
+	 * Remove tail from builder's.
+	 * 
+	 * If provided tail doesn't match, the provided builder is unchanged.
+	 * 
+	 * @param builder builder to remove tail
+	 * @param tail tail to remove.
+	 * @return {@code true}, if the provided tail has been removed,
+	 *         {@code false}, if the build is left unchanged.
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
+	 * @since 3.7
+	 */
+	public static boolean truncateTail(StringBuilder builder, String tail) {
+		if (builder == null) {
+			throw new NullPointerException("Builder must not be null!");
+		}
+		if (tail == null) {
+			throw new NullPointerException("Tail must not be null!");
+		}
+		boolean truncated = false;
+		int tailLength = tail.length();
+		if (tailLength > 0) {
+			int end = builder.length() - tailLength;
+			if (end > 0) {
+				truncated = true;
+				for (int index = 0; index < tailLength; ++index) {
+					if (builder.charAt(index + end) != tail.charAt(index)) {
+						truncated = false;
+						break;
+					}
+				}
+				if (truncated) {
+					builder.setLength(end);
+				}
+			}
+		}
+		return truncated;
+	}
+
+	/**
+	 * Remove tail from text.
+	 * 
+	 * If provided tail doesn't match the tail of the text, the text is returned
+	 * unchanged.
+	 * 
+	 * @param text text to remove tail
+	 * @param tail tail to remove
+	 * @return text with tail removed, if matching. Otherwise the provided text.
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
+	 * @since 3.7
+	 */
+	public static String truncateTail(String text, String tail) {
+		if (text == null) {
+			throw new NullPointerException("Text must not be null!");
+		}
+		if (tail == null) {
+			throw new NullPointerException("Tail must not be null!");
+		}
+		if (tail.length() > 0 && text.endsWith(tail)) {
+			return text.substring(0, text.length() - tail.length());
+		}
+		return text;
+	}
+
+	/**
 	 * Convert UTF-8 data into display string.
 	 * 
 	 * If none-printable data is contained, the data is converted to a

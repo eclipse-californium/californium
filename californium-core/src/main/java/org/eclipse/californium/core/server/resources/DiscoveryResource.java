@@ -23,8 +23,10 @@
 package org.eclipse.californium.core.server.resources;
 
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -100,6 +102,7 @@ public class DiscoveryResource extends CoapResource {
 	 * @return the list of resources as string
 	 */
 	public String discoverTree(Resource root, List<String> queries) {
-		return LinkFormat.serializeTree(root, queries);
+		Set<WebLink> subTree = LinkFormat.getSubTree(root, queries);
+		return LinkFormat.serialize(subTree);
 	}
 }
