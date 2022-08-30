@@ -2041,6 +2041,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeFailingWrongClientCertificate() throws Exception {
+		logging.setLoggingLevel("ERROR", SingleCertificateProvider.class);
 		startServer();
 
 		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
