@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
@@ -36,7 +35,13 @@ import java.util.regex.Pattern;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
+import org.eclipse.californium.elements.util.StringUtil;
 
+/**
+ * Link format utility class.
+ *
+ * Serialize and parse web-links.
+ */
 public class LinkFormat {
 
 	public static final String RESOURCE_TYPE = "rt";
@@ -183,12 +188,67 @@ public class LinkFormat {
 	 */
 	public static void addTree(Resource resource, List<String> queries, Set<WebLink> links) {
 		// add the current resource to the buffer
-		if (resource.isVisible() && matches(resource, queries)) {
-			WebLink link = new WebLink(resource.getURI());
-			link.getAttributes().copy(resource.getAttributes());
-			links.add(link);
+		if (resource.isVisible()) {
+			WebLink link = createWebLink(resource);
+			if (matches(link, queries)) {
+				links.add(link);
+			}
 		}
 		addSubTree(resource, queries, links);
+	}
+
+	/**
+	 * Serialize set of web-links.
+	 * 
+	 * @param links set of web-links
+	 * @return serialized web-links
+	 * @since 3.7
+	 */
+	public static String serialize(Set<WebLink> links) {
+		StringBuilder builder = new StringBuilder();
+		serialize(links, builder);
+		return builder.toString();
+	}
+
+	/**
+	 * Serialize set of web-links.
+	 * 
+	 * @param links set of web-links
+	 * @param builder string builder to serialize web-links
+	 * @since 3.7
+	 */
+	public static void serialize(Set<WebLink> links, StringBuilder builder) {
+		for (WebLink link : links) {
+			serialize(link, builder);
+			builder.append(',');
+		}
+		// remove last comma ',' of the builder
+		StringUtil.truncateTail(builder, ",");
+	}
+
+	/**
+	 * Serialize web-link.
+	 * 
+	 * @param link web-link
+	 * @return serialized web-link
+	 * @since 3.7
+	 */
+	public static String serialize(WebLink link) {
+		StringBuilder builder = new StringBuilder();
+		serialize(link, builder);
+		return builder.toString();
+	}
+
+	/**
+	 * Serialize web-link.
+	 * 
+	 * @param link web-link
+	 * @param builder string builder to serialize web-link
+	 * @since 3.7
+	 */
+	public static void serialize(WebLink link, StringBuilder builder) {
+		builder.append("<").append(link.getURI()).append(">");
+		serializeAttributes(link.getAttributes(), builder);
 	}
 
 	/**
@@ -217,18 +277,8 @@ public class LinkFormat {
 	 * @since 3.3
 	 */
 	public static String serializeTree(Resource resource, List<String> queries) {
-		StringBuilder buffer = new StringBuilder();
-
-		// only include children, not the entry point itself
-		for (Resource child : sort(resource.getChildren())) {
-			serializeTree(child, queries, buffer);
-		}
-
-		// remove last comma ',' of the buffer
-		if (buffer.length() > 1) {
-			buffer.setLength(buffer.length() - 1);
-		}
-		return buffer.toString();
+		Set<WebLink> subTree = getSubTree(resource, queries);
+		return serialize(subTree);
 	}
 
 	/**
@@ -240,30 +290,36 @@ public class LinkFormat {
 	 * @param resource resource to serialize
 	 * @param queries The list of queries to match the resource with. A empty
 	 *            list or {@code null} matches all resources.
-	 * @param buffer buffer to serialize the (sub-)tree of the provided resource
+	 * @param buffer buffer to serialize the (sub-)tree of the provided
+	 *            resource. Ends with {@code ","}.
+	 * @deprecated use {@link #getSubTree(Resource, List)} and
+	 *             {@link #serialize(Set, StringBuilder)} instead. The
+	 *             {@code ","} at the end must be added, if required.
 	 */
+	@Deprecated
 	public static void serializeTree(Resource resource, List<String> queries, StringBuilder buffer) {
 		// add the current resource to the buffer
-		if (resource.isVisible() && matches(resource, queries)) {
-			buffer.append(serializeResource(resource));
-		}
-
-		for (Resource child : sort(resource.getChildren())) {
-			serializeTree(child, queries, buffer);
-		}
+		Set<WebLink> subTree = getSubTree(resource, queries);
+		serialize(subTree, buffer);
+		buffer.append(',');
 	}
 
 	/**
 	 * Serialize provided resource.
 	 * 
 	 * @param resource resource to serialize
-	 * @return serialized resource.
+	 * @return serialized resource. Ends with {@code ","}.
+	 * @deprecated use {@link #createWebLink(Resource)} and
+	 *             {@link #serialize(WebLink)} instead. The {@code ","} at the
+	 *             end must be added, if required.
 	 */
+	@Deprecated
 	public static StringBuilder serializeResource(Resource resource) {
-		StringBuilder buffer = new StringBuilder();
-		buffer.append("<").append(serializePath(resource)).append(">");
-		buffer.append(serializeAttributes(resource.getAttributes())).append(",");
-		return buffer;
+		WebLink webLink = createWebLink(resource);
+		StringBuilder builder = new StringBuilder();
+		serialize(webLink, builder);
+		builder.append(",");
+		return builder;
 	}
 
 	/**
@@ -276,8 +332,8 @@ public class LinkFormat {
 	 */
 	public static StringBuilder serializePath(Resource resource) {
 		StringBuilder builder = new StringBuilder();
-		serializePath(builder, resource);
-		builder.setLength(builder.length() - 1);
+		serializePath(resource, builder);
+		StringUtil.truncateTail(builder, "/");
 		return builder;
 	}
 
@@ -286,14 +342,14 @@ public class LinkFormat {
 	 * 
 	 * Apply URL encoding for the single elements.
 	 * 
-	 * @param builder builder to serialize the resource path
 	 * @param resource Resource to serialize the path
+	 * @param builder builder to serialize the resource path
 	 */
-	private static void serializePath(StringBuilder builder, Resource resource) {
+	private static void serializePath(Resource resource, StringBuilder builder) {
 		if (resource == null) {
 			return;
 		}
-		serializePath(builder, resource.getParent());
+		serializePath(resource.getParent(), builder);
 		String path = serializePathName(resource.getName());
 		builder.append(path).append("/");
 	}
@@ -325,7 +381,21 @@ public class LinkFormat {
 	 * @return serialized attributes
 	 */
 	public static StringBuilder serializeAttributes(ResourceAttributes attributes) {
-		StringBuilder buffer = new StringBuilder();
+		StringBuilder builder = new StringBuilder();
+		serializeAttributes(attributes, builder);
+		return builder;
+	}
+
+	/**
+	 * Serialize attributes.
+	 * 
+	 * The attributes are listed ordered by their name.
+	 * 
+	 * @param attributes attributes to serialize
+	 * @param builder string builder to serialize attributes.
+	 * @since 3.7
+	 */
+	public static void serializeAttributes(ResourceAttributes attributes, StringBuilder builder) {
 
 		List<String> attributesList = new ArrayList<String>(attributes.getAttributeKeySet());
 		Collections.sort(attributesList);
@@ -333,12 +403,10 @@ public class LinkFormat {
 			List<String> values = attributes.getAttributeValues(attr);
 			if (values.isEmpty())
 				continue;
-			buffer.append(";");
+			builder.append(";");
 
-			// Make a copy to not depend on thread-safety
-			buffer.append(serializeAttribute(attr, new LinkedList<String>(values)));
+			serializeAttribute(attr, values, builder);
 		}
-		return buffer;
 	}
 
 	/**
@@ -351,6 +419,19 @@ public class LinkFormat {
 	public static StringBuilder serializeAttribute(String key, List<String> values) {
 
 		StringBuilder linkFormat = new StringBuilder();
+		serializeAttribute(key, values, linkFormat);
+		return linkFormat;
+	}
+
+	/**
+	 * Serialize attribute.
+	 * 
+	 * @param key attribute name
+	 * @param values list of attribute values
+	 * @param linkFormat string builder to serialize attribute.
+	 * @since 3.7
+	 */
+	public static void serializeAttribute(String key, List<String> values, StringBuilder linkFormat) {
 		boolean quotes = false;
 
 		linkFormat.append(key);
@@ -360,7 +441,7 @@ public class LinkFormat {
 		}
 
 		if (values.isEmpty() || (values.size() == 1 && values.get(0).isEmpty())) {
-			return linkFormat;
+			return;
 		}
 
 		linkFormat.append('=');
@@ -382,8 +463,6 @@ public class LinkFormat {
 		if (quotes) {
 			linkFormat.append('"');
 		}
-
-		return linkFormat;
 	}
 
 	/**
@@ -406,17 +485,20 @@ public class LinkFormat {
 	 * @return {@code true}, if the resource matches all queries, {@code false}
 	 *         otherwise.
 	 * @see #matches(WebLink, List)
+	 * @deprecated use {@link #createWebLink(Resource)} and
+	 *             {@link #matches(WebLink, List)} instead.
 	 */
+	@Deprecated
 	public static boolean matches(Resource resource, List<String> queries) {
 
 		if (resource == null) {
 			return false;
 		}
+		if (queries == null || queries.isEmpty()) {
+			return true;
+		}
 
-		WebLink link = new WebLink(resource.getURI());
-		link.getAttributes().copy(resource.getAttributes());
-
-		return matches(link, queries);
+		return matches(createWebLink(resource), queries);
 	}
 
 	/**
@@ -511,6 +593,23 @@ public class LinkFormat {
 			return false;
 		}
 		return prefix || expected.length() == value.length();
+	}
+
+	/**
+	 * Create web-link from resource.
+	 * 
+	 * @param resource resource
+	 * @return created web-link
+	 * @throws NullPointerException if provided resource was {@code null}
+	 * @since 3.7
+	 */
+	public static WebLink createWebLink(Resource resource) {
+		if (resource == null) {
+			throw new NullPointerException("Resource must not be null!");
+		}
+		WebLink link = new WebLink(serializePath(resource).toString());
+		link.getAttributes().copy(resource.getAttributes());
+		return link;
 	}
 
 	/**

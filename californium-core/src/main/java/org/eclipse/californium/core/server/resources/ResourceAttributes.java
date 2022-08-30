@@ -189,6 +189,19 @@ public class ResourceAttributes {
 	}
 
 	/**
+	 * Adds a content types specified by an array of integers.
+	 *
+	 * @param types the array of types
+	 * @since 3.7
+	 */
+	public void addContentTypes(int... types) {
+		AttributeValues attributeValues = findAttributeValues(LinkFormat.CONTENT_TYPE);
+		for (int type : types) {
+			attributeValues.add(Integer.toString(type));
+		}
+	}
+
+	/**
 	 * Gets all content types as list.
 	 *
 	 * @return the content types
@@ -217,7 +230,7 @@ public class ResourceAttributes {
 	 * @return true, if observable
 	 */
 	public boolean hasObservable() {
-		return !getAttributeValues(LinkFormat.OBSERVABLE).isEmpty();
+		return hasAttribute(LinkFormat.OBSERVABLE);
 	}
 
 	/**
@@ -238,6 +251,17 @@ public class ResourceAttributes {
 	 */
 	public void setAttribute(String attr, String value) {
 		findAttributeValues(attr).setOnly(value);
+	}
+
+	/**
+	 * Checks if the resource has attribute.
+	 *
+	 * @param attr attribute name.
+	 * @return true, if resource has attribute
+	 * @since 3.7
+	 */
+	public boolean hasAttribute(String attr) {
+		return !getAttributeValues(attr).isEmpty();
 	}
 
 	/**

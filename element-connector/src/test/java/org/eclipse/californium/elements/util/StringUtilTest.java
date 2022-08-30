@@ -184,4 +184,42 @@ public class StringUtilTest {
 		assertThat(StringUtil.toHostString(address), is("8.8.8.8"));
 	}
 
+	@Test
+	public void testTrunc() {
+		String text = "message";
+		String result1 = StringUtil.trunc(text, 100);
+		String result2 = StringUtil.trunc(text, 4);
+		String result3 = StringUtil.trunc(text, 0);
+		assertThat(result1, is(text));
+		assertThat(result2, is("mess"));
+		assertThat(result3, is(text));
+	}
+
+	@Test
+	public void testTruncateTail() {
+		String text = "message";
+		String result1 = StringUtil.truncateTail(text, "agX");
+		String result2 = StringUtil.truncateTail(text, "age");
+		String result3 = StringUtil.truncateTail(text, "");
+		assertThat(result1, is(text));
+		assertThat(result2, is("mess"));
+		assertThat(result3, is(text));
+	}
+
+	@Test
+	public void testTruncateStringBuilderTail() {
+		StringBuilder text1 = new StringBuilder("message");
+		StringBuilder text2 = new StringBuilder("message");
+		StringBuilder text3 = new StringBuilder("message");
+		boolean result1 = StringUtil.truncateTail(text1, "agX");
+		boolean result2 = StringUtil.truncateTail(text2, "age");
+		boolean result3 = StringUtil.truncateTail(text3, "");
+		assertThat(result1, is(false));
+		assertThat(result2, is(true));
+		assertThat(result3, is(false));
+		assertThat(text1.toString(), is("message"));
+		assertThat(text2.toString(), is("mess"));
+		assertThat(text3.toString(), is("message"));
+	}
+
 }
