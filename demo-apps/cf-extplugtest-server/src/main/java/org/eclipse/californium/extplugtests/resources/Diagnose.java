@@ -104,17 +104,15 @@ public class Diagnose extends CoapResource {
 	}
 
 	public void update(List<CounterStatisticManager> serverHealth) {
-		if (serverList != null) {
-			endpointsHealth.clear();
-			for (Resource child : getChildren()) {
-				delete(child);
-			}
-			for (ServerInterface server : serverList) {
-				for (Endpoint ep : server.getEndpoints()) {
-					String scheme = ep.getUri().getScheme();
-					if (CoAP.isUdpScheme(scheme)) {
-						addHealth(ep, serverHealth);
-					}
+		endpointsHealth.clear();
+		for (Resource child : getChildren()) {
+			delete(child);
+		}
+		for (ServerInterface server : serverList) {
+			for (Endpoint ep : server.getEndpoints()) {
+				String scheme = ep.getUri().getScheme();
+				if (CoAP.isUdpScheme(scheme)) {
+					addHealth(ep, serverHealth);
 				}
 			}
 		}
