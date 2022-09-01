@@ -19,11 +19,17 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+
+import java.util.List;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -488,4 +494,62 @@ public class OptionTest {
 		options.setNoResponse(NoResponseOption.SUPPRESS_SERVER_ERROR | NoResponseOption.SUPPRESS_CLIENT_ERROR);
 		assertEquals("{\"No-Response\":\"NO CLIENT_ERROR,SERVER_ERROR\"}", options.toString());
 	}
+
+	@Test
+	public void testOther() {
+		OptionSet options = new OptionSet();
+		Option other1 = new Option(0xff1c, "other1");
+		options.addOtherOption(other1);
+		Option other2 = new Option(0xff9c, "other2");
+		options.addOtherOption(other2);
+		Option other3 = new Option(0xff9c, "other3");
+		options.addOtherOption(other3);
+		Option port = new Option(OptionNumberRegistry.URI_PORT, 5684);
+		options.addOption(port);
+
+		Option no = new Option(OptionNumberRegistry.OBSERVE, 0);
+
+		List<Option> list = options.asSortedList();
+		assertThat(list.size(), is(4));
+		assertThat(list, hasItem(other1));
+		assertThat(list, hasItem(other2));
+		assertThat(list, hasItem(other3));
+		assertThat(list, hasItem(port));
+		assertThat(list, not(hasItem(no)));
+
+		list = options.getOthers();
+		assertThat(list.size(), is(3));
+		assertThat(list, hasItem(other1));
+		assertThat(list, hasItem(other2));
+		assertThat(list, hasItem(other3));
+		assertThat(list, not(hasItem(port)));
+		assertThat(list, not(hasItem(no)));
+
+		list = options.getOther(0xff1c);
+		assertThat(list.size(), is(1));
+		assertThat(list, hasItem(other1));
+		assertThat(list, not(hasItem(other2)));
+		assertThat(list, not(hasItem(other3)));
+		assertThat(list, not(hasItem(port)));
+		assertThat(list, not(hasItem(no)));
+
+		options.addOtherOption(other2);
+		options.clearOtherOption(other2);
+
+		list = options.getOthers();
+		assertThat(list.size(), is(2));
+		assertThat(list, hasItem(other1));
+		assertThat(list, not(hasItem(other2)));
+		assertThat(list, hasItem(other3));
+
+		options.addOtherOption(other2);
+		options.clearOtherOption(other2.getNumber());
+
+		list = options.getOthers();
+		assertThat(list.size(), is(1));
+		assertThat(list, hasItem(other1));
+		assertThat(list, not(hasItem(other2)));
+		assertThat(list, not(hasItem(other3)));
+	}
+
 }
