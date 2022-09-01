@@ -27,6 +27,7 @@ package org.eclipse.californium.core.coap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -1527,6 +1528,33 @@ public final class OptionSet {
 	}
 
 	/**
+	 * Gets list of other option values.
+	 * 
+	 * @param number other option
+	 * @return an unmodifiable and unsorted list of other option values.
+	 * @since 3.7
+	 */
+	public List<Option> getOther(int number) {
+		List<Option> options = null;
+		List<Option> others = this.others;
+		if (others != null) {
+			for (Option option : others) {
+				if (option.getNumber() == number) {
+					if (options == null) {
+						options = new ArrayList<>();
+					}
+					options.add(option);
+				}
+			}
+		}
+		if (options == null) {
+			return Collections.emptyList();
+		} else {
+			return Collections.unmodifiableList(options);
+		}
+	}
+
+	/**
 	 * Gets all options in a list sorted according to their option number.
 	 * <p>
 	 * The list cannot be use to modify the OptionSet of the message, since it
@@ -1717,11 +1745,64 @@ public final class OptionSet {
 	 * 
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
+	 * @throws NullPointerException if option is {@code null}.
 	 * @see Option#setValueUnchecked(byte[])
-	 * @since 2.3
+	 * @since 3.7 (throws NullPointerException)
 	 */
 	public OptionSet addOtherOption(Option option) {
+		if (option == null) {
+			throw new NullPointerException("Option must not be null!");
+		}
 		getOthersInternal().add(option);
+		return this;
+	}
+
+	/**
+	 * Clear other option by value.
+	 * 
+	 * Note: the removing is based on {@link Option#equals(Object)}, which
+	 * includes the value as well. For repeatable options all are removed,
+	 * if the options are equal.
+	 * 
+	 * @param option other option
+	 * @return this OptionSet for a fluent API.
+	 * @throws NullPointerException if option is {@code null}.
+	 * @see #clearOtherOption(int)
+	 * @since 3.7
+	 */
+	public OptionSet clearOtherOption(Option option) {
+		if (option == null) {
+			throw new NullPointerException("Option must not be null!");
+		}
+		Iterator<Option> iterator = getOthersInternal().iterator();
+		while (iterator.hasNext()) {
+			Option currentOption = iterator.next();
+			if (currentOption.equals(option)) {
+				iterator.remove();
+			}
+		}
+		return this;
+	}
+
+	/**
+	 * Clear other option by number.
+	 * 
+	 * Note: the removing is based on {@link Option#getNumber()}. For repeatable
+	 * options all are removed, if the number is matching.
+	 * 
+	 * @param number other option number
+	 * @return this OptionSet for a fluent API.
+	 * @see #clearOtherOption(Option))
+	 * @since 3.7
+	 */
+	public OptionSet clearOtherOption(int number) {
+		Iterator<Option> iterator = getOthersInternal().iterator();
+		while (iterator.hasNext()) {
+			Option currentOption = iterator.next();
+			if (currentOption.getNumber() == number) {
+				iterator.remove();
+			}
+		}
 		return this;
 	}
 
