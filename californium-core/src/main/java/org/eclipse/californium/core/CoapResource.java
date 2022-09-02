@@ -409,8 +409,16 @@ public class CoapResource implements Resource, ObservableResource {
 		if (child.getName() == null) {
 			throw new NullPointerException("Child must have a name");
 		}
-		if (child.getParent() != null) {
-			child.getParent().delete(child);
+		Resource parent = child.getParent();
+		if (parent == this && parent.getChild(child.getName()) == child) {
+			return;
+		}
+		if (parent != null) {
+			parent.delete(child);
+		}
+		Resource previous = children.get(child.getName());
+		if (previous != null && previous != child) {
+			delete(previous);
 		}
 		children.put(child.getName(), child);
 		child.setParent(this);
