@@ -15,7 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.extplugtests.resources;
 
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
@@ -147,7 +147,7 @@ public class Diagnose extends CoapResource {
 
 	@Override
 	public void handleGET(CoapExchange exchange) {
-		Response response = new Response(CHANGED);
+		Response response = new Response(CONTENT);
 		Integer maxConnections = null;
 		Integer nodeId = null;
 		List<CounterStatisticManager> healths = endpointHealth;
