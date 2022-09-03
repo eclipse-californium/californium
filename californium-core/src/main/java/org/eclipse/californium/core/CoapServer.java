@@ -173,10 +173,12 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	 * Constructs a server with the default configuration
 	 * {@link Configuration#getStandard()}.
 	 * 
-	 * The server starts after the method {@link #start()} is called. If a
-	 * server starts and has no specific ports assigned, it will bind to CoAP's
-	 * port configured in the default configuration with
-	 * {@link CoapConfig#COAP_PORT}, default {@code 5683}.
+	 * The server starts after the method {@link #start()} is called. If the
+	 * server is started without assigned {@link Endpoint}s, a default coap
+	 * endpoint is created using the value of {@link CoapConfig#COAP_PORT} from
+	 * the {@link Configuration#getStandard()} as port, default {@code 5683}.
+	 * 
+	 * @see Configuration#getStandard()
 	 */
 	public CoapServer() {
 		this(Configuration.getStandard());
@@ -192,6 +194,7 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	 *            will bind to CoAP's port configured in the default
 	 *            configuration with {@link CoapConfig#COAP_PORT}, default
 	 *            {@code 5683}, on {@link #start()}.
+	 * @see Configuration#getStandard()
 	 */
 	public CoapServer(final int... ports) {
 		this(Configuration.getStandard(), ports);
@@ -209,6 +212,7 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	 *            configuration with {@link CoapConfig#COAP_PORT}, default
 	 *            {@code 5683}, on {@link #start()}.
 	 * @since 3.0 (changed parameter to Configuration)
+	 * @see Configuration#getStandard()
 	 */
 	public CoapServer(final Configuration config, final int... ports) {
 		// global configuration that is passed down (can be observed for
