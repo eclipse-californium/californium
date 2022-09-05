@@ -115,6 +115,10 @@ public class CrossProtocolTranslatorTest {
 				is(MediaTypeRegistry.APPLICATION_JSON));
 		assertThat(translator.getCoapMediaType(ContentType.APPLICATION_XML.getMimeType()),
 				is(MediaTypeRegistry.APPLICATION_XML));
+		assertThat(translator.getCoapMediaType("text/xml"), is(MediaTypeRegistry.APPLICATION_XML));
+		assertThat(translator.getCoapMediaType("text/html"), is(MediaTypeRegistry.TEXT_PLAIN));
+		assertThat(translator.getCoapMediaType("text/xyz"), is(MediaTypeRegistry.TEXT_PLAIN));
+		assertThat(translator.getCoapMediaType("text"), is(MediaTypeRegistry.TEXT_PLAIN));
 	}
 
 	@Test
@@ -125,10 +129,10 @@ public class CrossProtocolTranslatorTest {
 
 	@Test
 	public void testSpecialCoapMediaType() throws Exception {
-		assertThat(translator.getCoapMediaType(ContentType.TEXT_XML.getMimeType()),
-				is(MediaTypeRegistry.APPLICATION_OCTET_STREAM));
-		assertThat(translator.getCoapMediaType(ContentType.TEXT_XML.getMimeType(), MediaTypeRegistry.APPLICATION_XML),
+		assertThat(translator.getCoapMediaType("application/x+y+z"), is(MediaTypeRegistry.APPLICATION_OCTET_STREAM));
+		assertThat(translator.getCoapMediaType("application/x+y+z", MediaTypeRegistry.APPLICATION_XML),
 				is(MediaTypeRegistry.APPLICATION_XML));
+		assertThat(translator.getCoapMediaType("bin"), is(MediaTypeRegistry.APPLICATION_OCTET_STREAM));
 	}
 
 	@Test

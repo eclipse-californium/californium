@@ -20,14 +20,22 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hc.core5.http.HttpStatus;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.elements.config.PropertiesUtility;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.proxy2.InvalidMethodException;
@@ -510,9 +518,56 @@ public class MappingProperties extends Properties {
 	protected void store(String fileName) throws IOException {
 		OutputStream out = new FileOutputStream(fileName);
 		try {
-			store(out, HEADER);
+			store(out, HEADER, fileName);
 		} finally {
 			out.close();
+		}
+	}
+
+	/**
+	 * Stores the configuration to a stream using a given header.
+	 * 
+	 * @param out stream to store
+	 * @param header header to use
+	 * @param resourceName resource name of store for logging.
+	 * @throws NullPointerException if out stream or header is {@code null}
+	 */
+	public void store(OutputStream out, String header, String resourceName) {
+		if (out == null) {
+			throw new NullPointerException("output stream must not be null!");
+		}
+		if (header == null) {
+			throw new NullPointerException("header must not be null!");
+		}
+		LOGGER.info("writing mapping properties to {}", resourceName);
+		try {
+			Set<String> keys = stringPropertyNames();
+			List<String> sortedKeys = new ArrayList<>(keys);
+			Collections.sort(sortedKeys);
+			try (OutputStreamWriter fileWriter = new OutputStreamWriter(out)) {
+				String line = PropertiesUtility.normalizeComments(header);
+				fileWriter.write(line);
+				fileWriter.write(StringUtil.lineSeparator());
+				line = PropertiesUtility.normalizeComments(new Date().toString());
+				fileWriter.write(line);
+				fileWriter.write(StringUtil.lineSeparator());
+				fileWriter.write("#");
+				fileWriter.write(StringUtil.lineSeparator());
+				for (String key : sortedKeys) {
+					String value = getProperty(key);
+					if (value == null) {
+						throw new IllegalArgumentException("Definition for " + key + " not found!");
+					}
+					String encoded = PropertiesUtility.normalize(key, true);
+					fileWriter.write(encoded);
+					fileWriter.write('=');
+					encoded = PropertiesUtility.normalize(value, false);
+					fileWriter.write(encoded);
+					fileWriter.write(StringUtil.lineSeparator());
+				}
+			}
+		} catch (IOException e) {
+			LOGGER.warn("cannot write mapping properties to {}: {}", resourceName, e.getMessage());
 		}
 	}
 
@@ -661,9 +716,13 @@ public class MappingProperties extends Properties {
 
 		/* Media types */
 		set(KEY_HTTP_CONTENT_TYPE + "text/plain", MediaTypeRegistry.TEXT_PLAIN);
+		set(KEY_HTTP_CONTENT_TYPE + "text/html", MediaTypeRegistry.TEXT_PLAIN);
+		set(KEY_HTTP_CONTENT_TYPE + "text/xml", MediaTypeRegistry.APPLICATION_XML);
+		set(KEY_HTTP_CONTENT_TYPE + "text", MediaTypeRegistry.TEXT_PLAIN);
 		set(KEY_HTTP_CONTENT_TYPE + "application/link-format", MediaTypeRegistry.APPLICATION_LINK_FORMAT);
 		set(KEY_HTTP_CONTENT_TYPE + "application/xml", MediaTypeRegistry.APPLICATION_XML);
 		set(KEY_HTTP_CONTENT_TYPE + "application/json", MediaTypeRegistry.APPLICATION_JSON);
+		set(KEY_HTTP_CONTENT_TYPE + "application/cbor", MediaTypeRegistry.APPLICATION_CBOR);
 
 		set(KEY_COAP_MEDIA + MediaTypeRegistry.TEXT_PLAIN, "text/plain; charset=UTF-8");
 		set(KEY_COAP_MEDIA + MediaTypeRegistry.APPLICATION_LINK_FORMAT, "application/link-format");
