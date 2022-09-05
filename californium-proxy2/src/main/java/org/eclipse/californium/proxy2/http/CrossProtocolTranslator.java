@@ -205,7 +205,10 @@ public class CrossProtocolTranslator {
 
 		// retrieve the mapping from the property file
 		Integer coapType = translationMapping.getCoapMediaType(mimeType);
-
+		if (coapType == null) {
+			String mimeBaseType = mimeType.split("/")[0].trim();
+			coapType = translationMapping.getCoapMediaType(mimeBaseType);
+		}
 		if (coapType != null) {
 			coapContentType = coapType;
 		} else {
