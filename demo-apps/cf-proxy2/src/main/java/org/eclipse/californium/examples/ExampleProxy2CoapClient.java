@@ -162,7 +162,7 @@ public class ExampleProxy2CoapClient {
 		// using a proxy-destination and a literal-ip address
 		// (e.g. 127.0.0.1) as final destination is not recommended!
 		request.setURI("coap://localhost:5683/coap-target");
-		System.out.println("Proxy: " + request.getURI());
+		System.out.println("Proxy: " + request.getURI() + " => 4.04/NOT_FOUND");
 		request(client, request);
 
 		// RFC7252 reverse proxy request
