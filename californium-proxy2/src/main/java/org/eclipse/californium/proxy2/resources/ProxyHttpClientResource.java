@@ -31,6 +31,7 @@ import org.apache.hc.core5.http.message.StatusLine;
 import org.apache.hc.core5.http.nio.support.BasicResponseConsumer;
 import org.apache.hc.core5.http.protocol.BasicHttpContext;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -170,13 +171,22 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 							exchange.sendResponse(coapResponse);
 						} catch (InvalidFieldException e) {
 							LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
-							exchange.sendResponse(new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED));
+							Response response = new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED);
+							response.setPayload(e.getMessage());
+							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+							exchange.sendResponse(response);
 						} catch (TranslationException e) {
 							LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
-							exchange.sendResponse(new Response(Coap2CoapTranslator.STATUS_TRANSLATION_ERROR));
+							Response response = new Response(Coap2CoapTranslator.STATUS_TRANSLATION_ERROR);
+							response.setPayload(e.getMessage());
+							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+							exchange.sendResponse(response);
 						} catch (Throwable e) {
 							LOGGER.debug("Error during the http/coap translation: {}", e.getMessage(), e);
-							exchange.sendResponse(new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED));
+							Response response = new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED);
+							response.setPayload(e.getMessage());
+							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+							exchange.sendResponse(response);
 						}
 						LOGGER.debug("Incoming http response: {} processed!", status);
 					}
@@ -187,7 +197,10 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 						if (ex instanceof SocketTimeoutException) {
 							exchange.sendResponse(new Response(ResponseCode.GATEWAY_TIMEOUT));
 						} else {
-							exchange.sendResponse(new Response(ResponseCode.BAD_GATEWAY));
+							Response response = new Response(ResponseCode.BAD_GATEWAY);
+							response.setPayload(ex.getMessage());
+							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+							exchange.sendResponse(response);
 						}
 					}
 
