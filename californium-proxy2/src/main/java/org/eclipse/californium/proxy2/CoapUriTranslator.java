@@ -135,10 +135,7 @@ public class CoapUriTranslator {
 				}
 				Integer port = options.getUriPort();
 				if (port == null) {
-					if (exposed == null) {
-						throw new TranslationException("Destination port missing!");
-					}
-					port = exposed.getPort();
+					port = -1;
 				}
 				String path = "/" + options.getUriPathString();
 				String query = options.getURIQueryCount() > 0 ? options.getUriQueryString() : null;
