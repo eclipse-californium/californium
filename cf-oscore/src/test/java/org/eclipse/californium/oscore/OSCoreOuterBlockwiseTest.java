@@ -17,10 +17,11 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -472,9 +473,13 @@ public class OSCoreOuterBlockwiseTest {
 		client.setEndpoint(clientEndpoint);
 		cleanup.add(clientEndpoint);
 
-		CoapResponse response = client.advanced(request);
+		try { 
+			client.advanced(request);
+			fail("max buffer size exceeds not detected!");
+		}catch(IOException ex) {
+			assertThat(ex.getMessage(), containsString("exceeds max buffer size"));
+		}
 
-		assertNull(response);
 		assertEquals(1, resource.getCounter());
 		client.shutdown();
 	}

@@ -1378,12 +1378,15 @@ public class CoapClient {
 			if (response == null) {
 				// Cancel request so appropriate clean up can happen.
 				request.cancel();
-				Throwable sendError = request.getSendError();
-				if (sendError != null) {
-					if (sendError instanceof ConnectorException) {
-						throw (ConnectorException) sendError;
+				Throwable error = request.getSendError();
+				if (error == null) {
+					error = request.getOnResponseError();
+				}
+				if (error != null) {
+					if (error instanceof ConnectorException) {
+						throw (ConnectorException) error;
 					} else {
-						throw new IOException(sendError);
+						throw new IOException(error);
 					}
 				}
 				return null;
