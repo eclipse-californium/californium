@@ -1792,7 +1792,7 @@ public final class OptionSet {
 	 * 
 	 * @param number other option number
 	 * @return this OptionSet for a fluent API.
-	 * @see #clearOtherOption(Option))
+	 * @see #clearOtherOption(Option)
 	 * @since 3.7
 	 */
 	public OptionSet clearOtherOption(int number) {
