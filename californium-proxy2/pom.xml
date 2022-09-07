@@ -18,9 +18,9 @@
 	<description>Cross-proxy2 module</description>
 
 	<properties>
-		<httpclient5.version>5.1</httpclient5.version>
+		<httpclient5.version>5.1.3</httpclient5.version>
 		<httpclient5.version.spec>version="[${versionmask;==;${httpclient5.version}},${versionmask;+;${httpclient5.version}})"</httpclient5.version.spec>
-		<httpcore5.version>5.1.1</httpcore5.version>
+		<httpcore5.version>5.1.3</httpcore5.version>
 		<httpcore5.version.spec>version="[${versionmask;==;${httpcore5.version}},${versionmask;+;${httpcore5.version}})"</httpcore5.version.spec>
 	</properties>
 
