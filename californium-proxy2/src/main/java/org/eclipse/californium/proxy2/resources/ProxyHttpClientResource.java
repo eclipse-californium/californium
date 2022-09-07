@@ -156,13 +156,7 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 						try {
 							long timestamp = ClockUtil.nanoRealtime();
 							LOGGER.debug("Incoming http response: {}", status);
-							// the entity of the response, if non repeatable,
-							// could be
-							// consumed only one time, so do not debug it!
-							// System.out.println(EntityUtils.toString(httpResponse.getEntity()));
-
-							// translate the received http response in a coap
-							// response
+							// translate the received http response in a coap response
 							Response coapResponse = translator.getCoapResponse(result, incomingCoapRequest);
 							coapResponse.setNanoTimestamp(timestamp);
 							if (cache != null) {

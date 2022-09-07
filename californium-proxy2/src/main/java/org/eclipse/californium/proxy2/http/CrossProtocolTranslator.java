@@ -50,6 +50,7 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.InvalidMethodException;
@@ -407,7 +408,8 @@ public class CrossProtocolTranslator {
 			byte[] payload = httpBody.getContent();
 			if (payload != null) {
 				ContentType contentType = httpBody.getContentType();
-				int coapContentType = getCoapMediaType(contentType.getMimeType());
+				String mimeType = contentType.getMimeType();
+				int coapContentType = getCoapMediaType(mimeType);
 				coapMessage.getOptions().setContentFormat(coapContentType);
 				if (MediaTypeRegistry.isCharsetConvertible(coapContentType)) {
 					try {
@@ -424,6 +426,26 @@ public class CrossProtocolTranslator {
 					} catch (UnsupportedCharsetException e) {
 						LOGGER.debug("Cannot get the content of the http entity: " + e.getMessage());
 						throw new TranslationException("Cannot get the content of the http entity", e);
+					}
+				}
+				if (payload.length > 256) {
+					if (coapMessage instanceof Response) {
+						if (!((Response) coapMessage).isSuccess()) {
+							if (ContentType.TEXT_HTML.getMimeType().equals(mimeType)) {
+								// blockwise is not supported for error responses
+								// https://github.com/core-wg/corrclar/issues/25
+								// reduce payload size
+								String page = new String(payload, UTF_8);
+								int start = page.indexOf("<body>");
+								if (start >= 0) {
+									int end = page.indexOf("</body>", start);
+									if (end >= 0) {
+										page = page.substring(start + 6, end);
+										payload = page.getBytes(UTF_8);
+									}
+								}
+							}
+						}
 					}
 				}
 				coapMessage.setPayload(payload);
