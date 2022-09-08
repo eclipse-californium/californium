@@ -66,7 +66,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 		Block1BlockwiseStatus status = new Block1BlockwiseStatus(keyUri, removeHandler, exchange, request,
 				request.getPayloadSize(), maxTcpBertBulkBlocks);
 		try {
-			status.addBlock(request.getPayload());
+			status.addBlock(request.getPayload(), request.getMessageSize());
 			status.flipBlocksBuffer();
 		} catch (BlockwiseTransferException ex) {
 			LOGGER.warn("buffer overflow on start", ex);
@@ -124,7 +124,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 					"request block1 offset " + offset + " doesn't match the current position " + from + "!",
 					ResponseCode.REQUEST_ENTITY_INCOMPLETE);
 		}
-		addBlock(requestBlock.getPayload());
+		addBlock(requestBlock.getPayload(), requestBlock.getMessageSize());
 		if (block1.isM()) {
 			setCurrentSzx(block1.getSzx());
 			int size = block1.getSize();
