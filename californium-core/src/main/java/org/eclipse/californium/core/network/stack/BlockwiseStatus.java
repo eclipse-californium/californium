@@ -57,6 +57,8 @@ public abstract class BlockwiseStatus {
 	private Exchange exchange;
 	private EndpointContext followUpEndpointContext;
 
+	private int messageSize;
+
 	private int currentNum;
 	private int currentSzx;
 	private boolean complete;
@@ -256,6 +258,7 @@ public abstract class BlockwiseStatus {
 	 * @since 3.0
 	 */
 	public synchronized void restart() {
+		messageSize = 0;
 		((Buffer) buf).position(0);
 	}
 
@@ -301,13 +304,14 @@ public abstract class BlockwiseStatus {
 	 * @param block The block to add.
 	 * @throws BlockwiseTransferException if buffer overflows.
 	 */
-	protected final void addBlock(final byte[] block) throws BlockwiseTransferException {
+	protected final void addBlock(final byte[] block, int messageSize) throws BlockwiseTransferException {
 		if (block != null && block.length > 0) {
 			if (buf.remaining() < block.length) {
 				String msg = String.format("response %d exceeds the left buffer %d", block.length, buf.remaining());
 				throw new BlockwiseTransferException(msg, ResponseCode.REQUEST_ENTITY_TOO_LARGE);
 			}
 			buf.put(block);
+			this.messageSize += messageSize;
 		}
 	}
 
@@ -332,6 +336,7 @@ public abstract class BlockwiseStatus {
 		((Buffer) buf).flip();
 		byte[] body = new byte[buf.remaining()];
 		((Buffer) buf.get(body)).clear();
+		messageSize = 0;
 		return body;
 	}
 
@@ -397,6 +402,7 @@ public abstract class BlockwiseStatus {
 		message.setOptions(firstMessage.getOptions());
 		message.getOptions().removeBlock1();
 		message.getOptions().removeBlock2();
+		message.addMessageSize(messageSize);
 		if (buf.position() > 0) {
 			if (!message.isIntendedPayload()) {
 				message.setUnintendedPayload();

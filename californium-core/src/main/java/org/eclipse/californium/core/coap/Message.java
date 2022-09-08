@@ -209,8 +209,11 @@ public abstract class Message {
 	/** Indicates, if sending the message caused an error. */
 	private volatile Throwable sendError;
 
-	/** The serialized message as byte array. */
+	/** The serialized message as byte array. Not available for blockwise transfer! */
 	private volatile byte[] bytes;
+
+	/** The serialized message size */
+	private volatile int messageSize;
 
 	/** Offload message. remove payload, options and serialized bytes to reduce heap usage, when message is kept for deduplication. */
 	private volatile OffloadMode offload;
@@ -1155,6 +1158,33 @@ public abstract class Message {
 	 */
 	public void setBytes(byte[] bytes) {
 		this.bytes = bytes;
+		this.messageSize = bytes == null ? 0 : bytes.length;
+	}
+
+	/**
+	 * Add bytes to message size.
+	 * 
+	 * Not part of the fluent API.
+	 * 
+	 * @param bytes bytes to add
+	 * @since 3.7
+	 */
+	public void addMessageSize(int bytes) {
+		this.messageSize += bytes;
+	}
+
+	/**
+	 * Get message size.
+	 * 
+	 * For incoming blockwise transfer the accumulated message size is returned.
+	 * 
+	 * Not part of the fluent API.
+	 * 
+	 * @return message size
+	 * @since 3.7
+	 */
+	public int getMessageSize() {
+		return messageSize;
 	}
 
 	/**

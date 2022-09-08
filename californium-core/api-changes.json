@@ -29,6 +29,22 @@
 				]
 			}
 		}
+	],
+	"3.7.0": [
+		{
+			"extension": "revapi.differences",
+			"configuration": {
+				"ignore": true,
+				"differences": [
+					{
+						"code": "java.method.numberOfParametersChanged",
+						"old": "method void org.eclipse.californium.core.network.stack.BlockwiseStatus::addBlock(byte[]) throws org.eclipse.californium.core.network.stack.BlockwiseTransferException",
+						"new": "method void org.eclipse.californium.core.network.stack.BlockwiseStatus::addBlock(byte[], int) throws org.eclipse.californium.core.network.stack.BlockwiseTransferException",
+						"justification": "Internal API"
+					}
+				]
+			}
+		}
 	]
 	
 }

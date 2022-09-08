@@ -110,7 +110,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(keyUri, removeHandler, exchange, response, size, maxTcpBertBulkBlocks);
 		if (size > 0) {
 			try {
-				status.addBlock(response.getPayload());
+				status.addBlock(response.getPayload(), response.getMessageSize());
 				status.flipBlocksBuffer();
 			} catch (BlockwiseTransferException ex) {
 				LOGGER.warn("buffer overflow on start", ex);
@@ -220,7 +220,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 				throw new BlockwiseTransferException("response does not contain expected ETag");
 			}
 		}
-		addBlock(responseBlock.getPayload());
+		addBlock(responseBlock.getPayload(), responseBlock.getMessageSize());
 		setCurrentNum(getCurrentPosition() / getCurrentSize());
 	}
 
