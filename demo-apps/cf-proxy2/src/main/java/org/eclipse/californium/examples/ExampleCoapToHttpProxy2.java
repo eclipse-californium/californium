@@ -126,6 +126,7 @@ public class ExampleCoapToHttpProxy2 {
 		}
 		ProxyCoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP, false, accept, new Coap2HttpTranslator(),
 				"http", "https");
+		coap2http.setMaxResourceBodySize(config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE));
 		if (cache) {
 			coap2http.setCache(cacheResource);
 			coap2http.setStatsResource(statsResource);

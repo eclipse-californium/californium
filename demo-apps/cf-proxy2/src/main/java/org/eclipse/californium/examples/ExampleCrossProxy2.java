@@ -185,7 +185,9 @@ public class ExampleCrossProxy2 {
 			statsResource = new StatsResource(cacheResource);
 		}
 		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, accept, translater, endpoints);
+		coap2coap.setMaxResourceBodySize(config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE));
 		ProxyCoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP, false, accept, new Coap2HttpTranslator());
+		coap2http.setMaxResourceBodySize(config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE));
 		if (cache) {
 			coap2coap.setCache(cacheResource);
 			coap2coap.setStatsResource(statsResource);

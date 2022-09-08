@@ -107,6 +107,13 @@ public abstract class ProxyCoapResource extends CoapResource {
 	private volatile StatsResource statsResource;
 
 	/**
+	 * Max resource body size.
+	 * 
+	 * @since 3.7
+	 */
+	private volatile Integer maxResourceBodySize;
+
+	/**
 	 * Create proxy resource.
 	 * 
 	 * @param name name of the resource
@@ -157,6 +164,49 @@ public abstract class ProxyCoapResource extends CoapResource {
 	 */
 	public void setStatsResource(StatsResource statsResource) {
 		this.statsResource = statsResource;
+	}
+
+	/**
+	 * Get maximum resource body size.
+	 * 
+	 * @return maximum resource body size. {@code null}, if resource size is not
+	 *         limited.
+	 * @see #setMaxResourceBodySize(Integer)
+	 * @see #checkMaxResourceBodySize(int)
+	 * @since 3.7
+	 */
+	public Integer getMaxResourceBodySize() {
+		return maxResourceBodySize;
+	}
+
+	/**
+	 * Set maximum resource body size.
+	 * 
+	 * @param maxSize maximum resource body size. {@code null}, if resource size
+	 *            is not limited.
+	 * @see #getMaxResourceBodySize()
+	 * @see #checkMaxResourceBodySize(int)
+	 * @since 3.7
+	 */
+	public void setMaxResourceBodySize(Integer maxSize) {
+		maxResourceBodySize = maxSize;
+	}
+
+	/**
+	 * Check, if payload fits the maximum resource body size.
+	 * 
+	 * @param payloadSize payload size to check.
+	 * @return {@code true}, if the payload fits, {@code false}, if not
+	 * @see #setMaxResourceBodySize(Integer)
+	 * @see #getMaxResourceBodySize()
+	 * @since 3.7
+	 */
+	public boolean checkMaxResourceBodySize(int payloadSize) {
+		Integer maxSize = maxResourceBodySize;
+		if (maxSize != null) {
+			return payloadSize <= maxSize;
+		}
+		return true;
 	}
 
 	/**
