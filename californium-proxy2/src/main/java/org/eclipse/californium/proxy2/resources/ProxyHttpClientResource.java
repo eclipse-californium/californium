@@ -156,8 +156,17 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 						try {
 							long timestamp = ClockUtil.nanoRealtime();
 							LOGGER.debug("Incoming http response: {}", status);
-							// translate the received http response in a coap response
+							// translate the received http response in a coap
+							// response
 							Response coapResponse = translator.getCoapResponse(result, incomingCoapRequest);
+							int size = coapResponse.getPayloadSize();
+							if (!checkMaxResourceBodySize(size)) {
+								coapResponse = new Response(ResponseCode.BAD_GATEWAY);
+								coapResponse.setPayload(
+										"HTTP response of " + size + " bytes exceeds maximum support size of "
+												+ getMaxResourceBodySize() + " bytes!");
+								coapResponse.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+							}
 							coapResponse.setNanoTimestamp(timestamp);
 							if (cache != null) {
 								cache.cacheResponse(cacheKey, coapResponse);

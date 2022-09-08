@@ -157,6 +157,7 @@ public class ExampleSecureProxy2 {
 		pool = new SecureEndpointPool(config.get(MAX_CONNECTION_POOL_SIZE), config.get(INIT_CONNECTION_POOL_SIZE),
 				outgoingConfig, mainExecutor, secondaryExecutor, builder.build());
 		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, false, translater, pool);
+		coap2coap.setMaxResourceBodySize(config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE));
 
 		// Forwards requests Coap to Coap or Coap to Http server
 		coapProxyServer = new CoapServer(config, coapPort);
