@@ -477,6 +477,20 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 */
 	private final AtomicInteger pendingHandshakeResultJobsCountdown = new AtomicInteger();
 
+	public static abstract class RunnableWithFinalizer implements Runnable {
+		@Override
+		final public void run() {
+			try {
+				runBody();
+			} finally {
+				doOnFinishOrCancellation();
+			}
+		}
+
+		abstract public void runBody();
+		abstract public void doOnFinishOrCancellation();
+	}
+
 	private final List<Thread> receiverThreads = new LinkedList<Thread>();
 
 	/**
@@ -1853,7 +1867,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					if (MDC_SUPPORT) {
 						MDC.clear();
 					}
-					pendingInboundJobsCountdown.incrementAndGet();
 				}
 			});
 			return;
@@ -1885,12 +1898,8 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 
 					@Override
 					public void run() {
-						try {
-							if (running.get()) {
-								processRecord(record, connection);
-							}
-						} finally {
-							pendingInboundJobsCountdown.incrementAndGet();
+						if (running.get()) {
+							processRecord(record, connection);
 						}
 					}
 				})) {
@@ -1915,12 +1924,22 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 *         execution was denied
 	 * @since 3.5
 	 */
-	protected boolean executeInbound(Executor executor, InetSocketAddress peer, Runnable job) {
+	protected boolean executeInbound(Executor executor, InetSocketAddress peer, final Runnable job) {
 		boolean pending = false;
 		try {
 			int count = pendingInboundJobsCountdown.decrementAndGet();
 			if (count >= 0) {
-				executor.execute(job);
+				executor.execute(new RunnableWithFinalizer() {
+					@Override
+					public void runBody() {
+						job.run();
+					}
+
+					@Override
+					public void doOnFinishOrCancellation() {
+						pendingInboundJobsCountdown.incrementAndGet();
+					}
+				});
 				pending = true;
 				if (health instanceof DtlsHealthExtended2) {
 					((DtlsHealthExtended2) health).setPendingIncomingJobs(maxPendingInboundJobs - count);
@@ -2958,8 +2977,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 							health.sendingRecord(true);
 						}
 						message.onError(e);
-					} finally {
-						pendingOutboundJobsCountdown.incrementAndGet();
 					}
 				}
 			})) {
@@ -2984,12 +3001,22 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 *         execution was denied
 	 * @since 3.5
 	 */
-	protected boolean executeOutbound(Executor executor, InetSocketAddress peer, Runnable job) {
+	protected boolean executeOutbound(Executor executor, InetSocketAddress peer, final Runnable job) {
 		boolean pending = false;
 		try {
 			int count = pendingOutboundJobsCountdown.decrementAndGet();
 			if (count >= 0) {
-				executor.execute(job);
+				executor.execute(new RunnableWithFinalizer() {
+					@Override
+					public void runBody() {
+						job.run();
+					}
+
+					@Override
+					public void doOnFinishOrCancellation() {
+						pendingOutboundJobsCountdown.incrementAndGet();
+					}
+				});
 				pending = true;
 				if (health instanceof DtlsHealthExtended2) {
 					((DtlsHealthExtended2) health).setPendingOutgoingJobs(maxPendingOutboundJobs - count);
@@ -3426,8 +3453,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 								processExceptionDuringHandshake(null, connection, e);
 							} catch (IllegalStateException e) {
 								LOGGER.warn("Exception while processing handshake result [{}]", connection, e);
-							} finally {
-								pendingHandshakeResultJobsCountdown.incrementAndGet();
 							}
 						}
 					});
@@ -3455,12 +3480,22 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 *         execution was denied
 	 * @since 3.5
 	 */
-	protected boolean executeHandshakeResult(Executor executor, Connection connection, Runnable job) {
+	protected boolean executeHandshakeResult(Executor executor, Connection connection, final Runnable job) {
 		boolean pending = false;
 		try {
 			int count = pendingHandshakeResultJobsCountdown.decrementAndGet();
 			if (count >= 0) {
-				executor.execute(job);
+				executor.execute(new RunnableWithFinalizer() {
+					@Override
+					public void runBody() {
+						job.run();
+					}
+
+					@Override
+					public void doOnFinishOrCancellation() {
+						pendingHandshakeResultJobsCountdown.incrementAndGet();
+					}
+				});
 				pending = true;
 				if (health instanceof DtlsHealthExtended2) {
 					((DtlsHealthExtended2) health).setPendingHandshakeJobs(maxPendingHandshakeResultJobs - count);

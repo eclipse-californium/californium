@@ -54,6 +54,7 @@ import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -514,6 +515,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					} else {
 						LOGGER.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection,
 								connections.size(), pendings.size());
+					}
+					for (Runnable pending: pendings) {
+						if (pending instanceof DTLSConnector.RunnableWithFinalizer) {
+							((DTLSConnector.RunnableWithFinalizer) pending).doOnFinishOrCancellation();
+						}
 					}
 				} else {
 					if (LOGGER.isTraceEnabled()) {
