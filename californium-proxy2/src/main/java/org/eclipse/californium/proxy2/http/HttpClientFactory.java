@@ -192,10 +192,9 @@ public class HttpClientFactory {
 	 * 
 	 * Gets obsolete when moving to Apache http 5.2 and a newer java version.
 	 * 
-	 * @return client TLS strategy.
 	 * @see <a href=
-	 *      "https://github.com/apache/httpcomponents-client/blob/5.1.x/httpclient5/src/test/java/org/apache/hc/client5/http/examples/AsyncClientTlsAlpn.java
-	 *      ">Apache - examples - AsyncClientTlsAlpn.java</a>
+	 *      "https://github.com/apache/httpcomponents-client/blob/5.1.x/httpclient5/src/test/java/org/apache/hc/client5/http/examples/AsyncClientTlsAlpn.java"
+	 *      >Apache - examples - AsyncClientTlsAlpn.java</a>
 	 * @since 3.7
 	 */
 	private static class TlsDetailsFactory implements Factory<SSLEngine, TlsDetails> {
