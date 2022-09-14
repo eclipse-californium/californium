@@ -90,20 +90,42 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * 
 	 * @param executor target executor. If {@code null}, the executor is
 	 *            shutdown.
+	 * @throws IllegalArgumentException if the executor is also a
+	 *             {@link SerialExecutor}
 	 */
 	public SerialExecutor(final Executor executor) {
 		if (executor == null) {
 			shutdown = true;
+		} else if (executor instanceof SerialExecutor) {
+			throw new IllegalArgumentException("Sequences of SerialExecutors are not supported!");
 		}
 		this.executor = executor;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * The executer supports also a {@link QueueingListener} in order to control
+	 * the execution of the job. If the target executor is also shutdown, that
+	 * may result in not calling {@link QueueingListener#onDequeueing()} for a
+	 * pending {@link #currentlyExecutedJob}, which is already removed from the
+	 * queue but pending for the execution in the target executor.
+	 */
 	@Override
 	public void execute(final Runnable command) {
 		lock.lock();
 		try {
 			if (shutdown) {
 				throw new RejectedExecutionException("SerialExecutor already shutdown!");
+			}
+			if (command instanceof QueueingListener) {
+				try {
+					((QueueingListener) command).onQueueing();
+				} catch (RejectedExecutionException t) {
+					throw t;
+				} catch (Throwable t) {
+					LOGGER.error("unexpected error occurred on queueing:", t);
+				}
 			}
 			tasks.offer(command);
 			if (currentlyExecutedJob == null) {
@@ -211,18 +233,34 @@ public class SerialExecutor extends AbstractExecutorService {
 	}
 
 	/**
-	 * Shutdown this executor and add all pending task from {@link #tasks} to
+	 * Shutdown this executor and add all pending jobs from {@link #tasks} to
 	 * the provided collection.
+	 * 
+	 * Calls also {@link QueueingListener#onDequeueing()} for all pending jobs.
 	 * 
 	 * @param jobs collection to add pending jobs.
 	 * @return number of added jobs
 	 * @see #shutdownNow()
 	 */
 	public int shutdownNow(final Collection<Runnable> jobs) {
+
 		lock.lock();
 		try {
 			shutdown();
-			return tasks.drainTo(jobs);
+			int count = 0;
+			for (Runnable command : tasks) {
+				++count;
+				jobs.add(command);
+				if (command instanceof QueueingListener) {
+					try {
+						((QueueingListener) command).onDequeueing();
+					} catch (Throwable t) {
+						LOGGER.error("unexpected error occurred on dequeueing:", t);
+					}
+				}
+			}
+			tasks.clear();
+			return count;
 		} finally {
 			lock.unlock();
 		}
@@ -275,11 +313,11 @@ public class SerialExecutor extends AbstractExecutorService {
 			currentlyExecutedJob = tasks.poll();
 			if (currentlyExecutedJob != null) {
 				final Runnable command = currentlyExecutedJob;
-				executor.execute(new Runnable() {
+				try {
+					executor.execute(new Runnable() {
 
-					@Override
-					public void run() {
-						try {
+						@Override
+						public void run() {
 							try {
 								setOwner();
 								ExecutionListener current = listener.get();
@@ -296,18 +334,39 @@ public class SerialExecutor extends AbstractExecutorService {
 											current.afterExecution();
 										}
 									} catch (Throwable t) {
-										LOGGER.error("unexpected error occurred:", t);
+										LOGGER.error("unexpected error occurred after execution:", t);
+									}
+									if (command instanceof QueueingListener) {
+										try {
+											((QueueingListener) command).onDequeueing();
+										} catch (Throwable t) {
+											LOGGER.error("unexpected error occurred on dequeueing:", t);
+										}
 									}
 									clearOwner();
 								}
 							} finally {
-								scheduleNextJob();
+								try {
+									scheduleNextJob();
+								} catch (RejectedExecutionException ex) {
+									LOGGER.debug("shutdown?", ex);
+								}
 							}
-						} catch (RejectedExecutionException ex) {
-							LOGGER.debug("shutdown?", ex);
+						}
+					});
+				} catch (RejectedExecutionException ex) {
+					if (command instanceof QueueingListener) {
+						try {
+							((QueueingListener) command).onDequeueing();
+						} catch (Throwable t) {
+							LOGGER.error("unexpected error occurred on dequeueing:", t);
 						}
 					}
-				});
+					if (shutdown) {
+						
+					}
+					throw ex;
+				}
 			} else if (shutdown) {
 				terminated.signalAll();
 			}
@@ -332,7 +391,8 @@ public class SerialExecutor extends AbstractExecutorService {
 	/**
 	 * Execution listener.
 	 * 
-	 * Called before and after executing a task.
+	 * Called before and after executing a task. The calling thread is the same
+	 * as the the one executing the job.
 	 * 
 	 * @since 2.4
 	 */
@@ -341,5 +401,42 @@ public class SerialExecutor extends AbstractExecutorService {
 		void beforeExecution();
 
 		void afterExecution();
+	}
+
+	/**
+	 * Queueing listener for controlled job execution.
+	 * 
+	 * Note: the callbacks are executed while the {@link lock} is kept in
+	 * {@link ReentrantLock#lock()}. Therefore the callbacks MUST NOT call any
+	 * blocking API and MUST return immediately.
+	 * 
+	 * @since 3.7
+	 */
+	public interface QueueingListener extends Runnable {
+
+		/**
+		 * Callback before adding {@link Runnable} to the queue.
+		 * 
+		 * The calling thread is the one calling
+		 * {@link SerialExecutor#execute(Runnable)}.
+		 * 
+		 * @throws RejectedExecutionException if adding {@link Runnable} is
+		 *             rejected.
+		 */
+		void onQueueing();
+
+		/**
+		 * Callback after removing {@link Runnable} from the queue.
+		 * 
+		 * When the {@link SerialExecutor} is not shutdown, the callback is
+		 * called after {@link ExecutionListener#afterExecution()}. Otherwise
+		 * the callback is called on removing {@link Runnable} from the queue.
+		 * The calling thread should by assumed to be undetermined.
+		 * 
+		 * Note: when the target executor is shutdown, this may cause this
+		 * callback to be not executed!
+		 */
+		void onDequeueing();
+
 	}
 }

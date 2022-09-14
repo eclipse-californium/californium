@@ -184,6 +184,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.SerialExecutor.QueueingListener;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
@@ -771,6 +772,48 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	}
 
 	/**
+	 * Update health statistic.
+	 * 
+	 * Update {@link DtlsHealthExtended#setConnections(int)} and
+	 * {@link DtlsHealthExtended2#setPendingIncomingJobs(int)
+	 * {@link DtlsHealthExtended2#setPendingOutgoingJobs(int)
+	 * 
+	 * @return {@code true}, if some pending jobs left, {@code false}, if not.
+	 * @since 3.7
+	 */
+	public boolean updateHealth() {
+		boolean pending = false;
+		if (health instanceof DtlsHealthExtended) {
+			((DtlsHealthExtended) health).setConnections(maxConnections - connectionStore.remainingCapacity());
+		}
+		if (health instanceof DtlsHealthExtended2) {
+			DtlsHealthExtended2 health2 = (DtlsHealthExtended2) health;
+			int jobs = maxPendingOutboundJobs - pendingOutboundJobsCountdown.get();
+			health2.setPendingOutgoingJobs(jobs);
+			if (jobs > 0) {
+				LOGGER.warn("Pending out jobs {}", jobs);
+			}
+			pending = jobs > 0;
+			jobs = maxPendingInboundJobs - pendingInboundJobsCountdown.get();
+			health2.setPendingIncomingJobs(jobs);
+			if (jobs > 0) {
+				LOGGER.warn("Pending in jobs {}", jobs);
+			}
+			pending |= jobs > 0;
+			jobs = maxPendingHandshakeResultJobs - pendingHandshakeResultJobsCountdown.get();
+			health2.setPendingHandshakeJobs(jobs);
+			if (jobs > 0) {
+				LOGGER.warn("Pending handshake jobs {}", jobs);
+			}
+			pending |= jobs > 0;
+			if (pending) {
+				DebugPendingJob.dump();
+			}
+		}
+		return pending;
+	}
+
+	/**
 	 * Create default health handler.
 	 * 
 	 * @param configuration configuration
@@ -1277,14 +1320,14 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 							health.dump(config.getLoggingTag(), maxConnections,
 									connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
 							lastNanos = now;
-						} else if (health instanceof DtlsHealthExtended) {
-							((DtlsHealthExtended) health)
-									.setConnections(maxConnections - connectionStore.remainingCapacity());
+						} else {
+							updateHealth();
 						}
 					}
 
 				}, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
 			}
+			updateHealth();
 		}
 
 		recentHandshakeCleaner = timer.scheduleWithFixedDelay(new Runnable() {
@@ -1425,7 +1468,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		for (Runnable job : pending) {
 			try {
 				job.run();
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				LOGGER.warn("Shutdown DTLS connector:", e);
 			}
 		}
@@ -1846,14 +1889,15 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 
 				@Override
 				public void run() {
-					if (MDC_SUPPORT) {
-						MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
+					if (running.get()) {
+						if (MDC_SUPPORT) {
+							MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
+						}
+						processNewClientHello(firstRecord);
+						if (MDC_SUPPORT) {
+							MDC.clear();
+						}
 					}
-					processNewClientHello(firstRecord);
-					if (MDC_SUPPORT) {
-						MDC.clear();
-					}
-					pendingInboundJobsCountdown.incrementAndGet();
 				}
 			});
 			return;
@@ -1885,12 +1929,8 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 
 					@Override
 					public void run() {
-						try {
-							if (running.get()) {
-								processRecord(record, connection);
-							}
-						} finally {
-							pendingInboundJobsCountdown.incrementAndGet();
+						if (running.get()) {
+							processRecord(record, connection);
 						}
 					}
 				})) {
@@ -1915,33 +1955,24 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 *         execution was denied
 	 * @since 3.5
 	 */
-	protected boolean executeInbound(Executor executor, InetSocketAddress peer, Runnable job) {
-		boolean pending = false;
+	protected boolean executeInbound(Executor executor, final InetSocketAddress peer, final Runnable job) {
+		PendingJob pendingJob = createPendingJob(job, pendingInboundJobsCountdown);
 		try {
-			int count = pendingInboundJobsCountdown.decrementAndGet();
-			if (count >= 0) {
-				executor.execute(job);
-				pending = true;
-				if (health instanceof DtlsHealthExtended2) {
-					((DtlsHealthExtended2) health).setPendingIncomingJobs(maxPendingInboundJobs - count);
-				}
-			} else {
+			executor.execute(pendingJob);
+			return true;
+		} catch (RejectedExecutionException e) {
+			if (pendingJob.isOverflown()) {
 				DROP_LOGGER_IN_FILTERED.info("Inbound jobs overflow! Dropping inbound message from peer [{}]",
 						StringUtil.toLog(peer));
-			}
-		} catch (RejectedExecutionException e) {
-			// dont't terminate connection on shutdown!
-			LOGGER.debug("Execution rejected while processing record from peer [{}]",
-					StringUtil.toLog(peer), e);
-		} finally {
-			if (!pending) {
-				if (health != null) {
-					health.receivingRecord(true);
-				}
-				pendingInboundJobsCountdown.incrementAndGet();
+			} else {
+				// dont't terminate connection on shutdown!
+				LOGGER.debug("Execution rejected while processing record from peer [{}]", StringUtil.toLog(peer), e);
 			}
 		}
-		return pending;
+		if (health != null) {
+			health.receivingRecord(true);
+		}
+		return false;
 	}
 
 	/**
@@ -2930,47 +2961,36 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		}
 
 		final long now = ClockUtil.nanoRealtime();
-		try {
-			SerialExecutor executor = connection.getExecutor();
-			if (!executeOutbound(executor, message.getInetSocketAddress(), new Runnable() {
+		SerialExecutor executor = connection.getExecutor();
+		if (!executeOutbound(executor, message.getInetSocketAddress(), new Runnable() {
 
-				@Override
-				public void run() {
-					try {
-						if (running.get()) {
-							sendMessage(now, message, connection);
-						} else {
-							DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, connector not running!",
-									message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
-							message.onError(new InterruptedIOException("Connector is not running."));
-							if (health != null) {
-								health.sendingRecord(true);
-							}
-						}
-					} catch (Exception e) {
-						if (running.get()) {
-							LOGGER.warn("Exception thrown by executor thread [{}]",
-									Thread.currentThread().getName(), e);
-						}
-						DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {} {}", message.getSize(),
-								StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
+			@Override
+			public void run() {
+				try {
+					if (running.get()) {
+						sendMessage(now, message, connection);
+					} else {
+						DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, connector not running!",
+								message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
+						message.onError(new InterruptedIOException("Connector is not running."));
 						if (health != null) {
 							health.sendingRecord(true);
 						}
-						message.onError(e);
-					} finally {
-						pendingOutboundJobsCountdown.incrementAndGet();
 					}
+				} catch (Exception e) {
+					if (running.get()) {
+						LOGGER.warn("Exception thrown by executor thread [{}]", Thread.currentThread().getName(), e);
+					}
+					DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {} {}", message.getSize(),
+							StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
+					if (health != null) {
+						health.sendingRecord(true);
+					}
+					message.onError(e);
 				}
-			})) {
-				message.onError(new IllegalStateException("Outbound message overflow!"));
 			}
-		} catch (RejectedExecutionException e) {
-			LOGGER.debug("Execution rejected while sending application record [peer: {}]",
-					StringUtil.toLog(message.getInetSocketAddress()), e);
-			DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, {}", message.getSize(),
-					StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
-			message.onError(new InterruptedIOException("Connector is not running."));
+		})) {
+			message.onError(new IllegalStateException("Outbound message overflow!"));
 		}
 	}
 
@@ -2984,29 +3004,24 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 *         execution was denied
 	 * @since 3.5
 	 */
-	protected boolean executeOutbound(Executor executor, InetSocketAddress peer, Runnable job) {
-		boolean pending = false;
+	protected boolean executeOutbound(Executor executor, InetSocketAddress peer, final Runnable job) {
+		PendingJob pendingJob = createPendingJob(job, pendingOutboundJobsCountdown);
 		try {
-			int count = pendingOutboundJobsCountdown.decrementAndGet();
-			if (count >= 0) {
-				executor.execute(job);
-				pending = true;
-				if (health instanceof DtlsHealthExtended2) {
-					((DtlsHealthExtended2) health).setPendingOutgoingJobs(maxPendingOutboundJobs - count);
-				}
-			} else {
+			executor.execute(pendingJob);
+			return true;
+		} catch (RejectedExecutionException e) {
+			if (pendingJob.isOverflown()) {
 				DROP_LOGGER_OUT_FILTERED.info("Outbound jobs overflow! Dropping outbound message to peer [{}]",
 						StringUtil.toLog(peer));
-			}
-		} finally {
-			if (!pending) {
-				if (health != null) {
-					health.sendingRecord(true);
-				}
-				pendingOutboundJobsCountdown.incrementAndGet();
+			} else {
+				// dont't terminate connection on shutdown!
+				LOGGER.debug("Execution rejected while processing record to peer [{}]", StringUtil.toLog(peer), e);
 			}
 		}
-		return pending;
+		if (health != null) {
+			health.sendingRecord(true);
+		}
+		return false;
 	}
 
 	/**
@@ -3426,14 +3441,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 								processExceptionDuringHandshake(null, connection, e);
 							} catch (IllegalStateException e) {
 								LOGGER.warn("Exception while processing handshake result [{}]", connection, e);
-							} finally {
-								pendingHandshakeResultJobsCountdown.incrementAndGet();
 							}
 						}
 					});
-				} catch (RejectedExecutionException e) {
-					// dont't terminate connection on shutdown!
-					LOGGER.debug("Execution rejected while processing handshake result [{}]", connection);
 				} catch (RuntimeException e) {
 					LOGGER.warn("Unexpected error occurred while processing handshake result [{}]", connection, e);
 				}
@@ -3456,25 +3466,20 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @since 3.5
 	 */
 	protected boolean executeHandshakeResult(Executor executor, Connection connection, Runnable job) {
-		boolean pending = false;
+		PendingJob pendingJob = createPendingJob(job, pendingHandshakeResultJobsCountdown);
 		try {
-			int count = pendingHandshakeResultJobsCountdown.decrementAndGet();
-			if (count >= 0) {
-				executor.execute(job);
-				pending = true;
-				if (health instanceof DtlsHealthExtended2) {
-					((DtlsHealthExtended2) health).setPendingHandshakeJobs(maxPendingHandshakeResultJobs - count);
-				}
-			} else {
+			executor.execute(pendingJob);
+			return true;
+		} catch (RejectedExecutionException e) {
+			if (pendingJob.isOverflown()) {
 				DROP_LOGGER_HANDSHAKE_RESULTS_FILTERED
 						.info("Handshake result jobs overflow! Dropping handshake result [{}]", connection);
-			}
-		} finally {
-			if (!pending) {
-				pendingHandshakeResultJobsCountdown.incrementAndGet();
+			} else {
+				// dont't terminate connection on shutdown!
+				LOGGER.debug("Execution rejected while processing handshake result [{}]", connection, e);
 			}
 		}
-		return pending;
+		return false;
 	}
 
 	/**
@@ -3733,6 +3738,165 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 
 		public boolean isStopped() {
 			return done || cancel;
+		}
+	}
+
+	private PendingJob createPendingJob(Runnable job, AtomicInteger counter) {
+		return new PendingJob(job, counter);
+	}
+
+	/**
+	 * Queueing listener for pending jobs.
+	 *
+	 * Limits pending jobs based on counters.
+	 * 
+	 * Note: on shutdown of the target executor, the
+	 * {@link PendingJob#onDequeueing()} may not be called. Therefore the
+	 * counters must be reset on restart in
+	 * {@link DTLSConnector#init(InetSocketAddress, DatagramSocket, Integer)}.
+	 * 
+	 * @since 3.7
+	 */
+	private static class PendingJob implements QueueingListener {
+		/**
+		 * Pending job to be limited.
+		 */
+		private final Runnable job;
+		/**
+		 * Counter to limit pending jobs.
+		 */
+		private final AtomicInteger counter;
+		/**
+		 * Indicator for overflows. {@code true}, if the counter indicates an
+		 * overflow, {@code false}, otherwise.
+		 */
+		private volatile boolean overflow;
+
+		/**
+		 * Create pending job limited by the provided counter
+		 * 
+		 * @param job pending job
+		 * @param counter counter in count-down mode
+		 */
+		private PendingJob(Runnable job, AtomicInteger counter) {
+			this.job = job;
+			this.counter = counter;
+		}
+
+		@Override
+		public void run() {
+			job.run();
+		}
+
+		@Override
+		public void onQueueing() {
+			if (counter.decrementAndGet() < 0) {
+				overflow = true;
+				onDequeueing();
+				throw new RejectedExecutionException("queue overflow!");
+			}
+		}
+
+		@Override
+		public void onDequeueing() {
+			counter.incrementAndGet();
+		}
+
+		/**
+		 * Checks, if queueing this job causes an counter overflow.
+		 * 
+		 * @return {@code true}, if the counter indicates an overflow,
+		 *         {@code false}, otherwise.
+		 */
+		public boolean isOverflown() {
+			return overflow;
+		}
+	}
+
+	/**
+	 * Queueing listener for pending jobs.
+	 *
+	 * Limits pending jobs based on counters. Note: on shutdown of the target
+	 * executor, the {@link PendingJob#onDequeueing()} is not called. Therefore
+	 * the counters must be reset on restart.
+	 * 
+	 * @since 3.7
+	 */
+	private static class DebugPendingJob extends PendingJob {
+		private static final List<DebugPendingJob> pending = Collections.synchronizedList(new ArrayList<DebugPendingJob>());
+		private static final AtomicInteger ID = new AtomicInteger();
+
+		private final AtomicBoolean queued = new AtomicBoolean();
+		private final AtomicBoolean dequeued = new AtomicBoolean();
+		private volatile Throwable queueCall;
+		private volatile Throwable dequeueCall;
+		private volatile Throwable error;
+
+		private final int id;
+
+		/**
+		 * Create pending job limited by the provided counter
+		 * 
+		 * @param job pending job
+		 * @param counter counter in count-down mode
+		 */
+		private DebugPendingJob(Runnable job, AtomicInteger counter) {
+			super(job, counter);
+			this.id = ID.incrementAndGet();
+		}
+
+		@Override
+		public void run() {
+			LOGGER.trace("run {}", id);
+			try {
+				super.run();
+			} catch (Throwable t) {
+				error = t;
+				LOGGER.warn("failed {}", id, t);
+				throw t;
+			}
+		}
+
+		@Override
+		public void onQueueing() {
+			LOGGER.trace("queue {}", id);
+			Throwable stack = new Throwable();
+			if (!queued.compareAndSet(false, true)) {
+				LOGGER.warn("Double queued {}!", id, stack);
+				LOGGER.warn("Previous queue", queueCall);
+			}
+			pending.add(this);
+			queueCall = stack;
+			super.onQueueing();
+		}
+
+		@Override
+		public void onDequeueing() {
+			if (error != null) {
+				LOGGER.warn("dequeue {}", id);
+			} else {
+				LOGGER.trace("dequeue {}", id);
+			}
+			Throwable stack = new Throwable();
+			if (!dequeued.compareAndSet(false, true)) {
+				LOGGER.warn("Double dequeued {}!", id, stack);
+				LOGGER.warn("Previous dequeued", dequeueCall);
+			}
+			dequeueCall = stack;
+			super.onDequeueing();
+			pending.remove(this);
+		}
+
+		private static void dump() {
+			LOGGER.warn("dump pending jobs: {}", pending.size());
+			if (!pending.isEmpty()) {
+				try {
+					DebugPendingJob job = pending.get(0);
+					LOGGER.warn("pending {}", job.id, job.queueCall);
+				} catch (IndexOutOfBoundsException ex) {
+					LOGGER.warn("pending job disappeared!");
+				}
+			}
 		}
 	}
 
