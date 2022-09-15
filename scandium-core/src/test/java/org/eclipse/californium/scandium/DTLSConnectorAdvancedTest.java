@@ -3213,7 +3213,7 @@ public class DTLSConnectorAdvancedTest {
 	}
 
 	@Test
-	public void testDisableHelloVerifRequestForPsk() throws Exception {
+	public void testDisableHelloVerifyRequestForPsk() throws Exception {
 		alternativeServerHelper = new ConnectorHelper(network);
 
 		alternativeServerHelper.serverBuilder
@@ -3274,7 +3274,7 @@ public class DTLSConnectorAdvancedTest {
 	}
 
 	@Test
-	public void testDisabledHelloVerifRequestForPskWithCertificate() throws Exception {
+	public void testDisabledHelloVerifyRequestForPskWithCertificate() throws Exception {
 		alternativeServerHelper = new ConnectorHelper(network);
 
 		alternativeServerHelper.serverBuilder
@@ -3336,7 +3336,7 @@ public class DTLSConnectorAdvancedTest {
 	}
 
 	@Test
-	public void testDisabledHelloVerifRequestWithCertificate() throws Exception {
+	public void testDisabledHelloVerifyRequestWithCertificate() throws Exception {
 		alternativeServerHelper = new ConnectorHelper(network);
 
 		alternativeServerHelper.serverBuilder
@@ -3754,7 +3754,7 @@ public class DTLSConnectorAdvancedTest {
 			cid = new ConnectionId(cidBytes);
 		}
 		Connection connection = new Connection(peer);
-		connection.setConnectorContext(new SerialExecutor(executor), null);
+		connection.setConnectorContext(executor, null);
 		connection.setConnectionId(cid);
 		return connection;
 	}

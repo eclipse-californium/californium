@@ -582,24 +582,15 @@ public class InMemoryReadWriteLockConnectionStore implements ReadWriteLockConnec
 		try {
 			removed = connections.remove(connection.getConnectionId(), connection) == connection;
 			if (removed) {
-				if (connection.isExecuting()) {
-					List<Runnable> pendings = connection.getExecutor().shutdownNow();
-					if (LOGGER.isTraceEnabled()) {
-						LOGGER.trace("{}connection: remove {} (size {}, left jobs: {})", tag, connection,
-								connections.size(), pendings.size(), new Throwable("connection removed!"));
-					} else if (pendings.isEmpty()) {
-						LOGGER.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
-					} else {
-						LOGGER.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection,
-								connections.size(), pendings.size());
-					}
+				int pendings = connection.shutdown();
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("{}connection: remove {} (size {}, left jobs: {})", tag, connection,
+							connections.size(), pendings, new Throwable("connection removed!"));
+				} else if (pendings == 0) {
+					LOGGER.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
 				} else {
-					if (LOGGER.isTraceEnabled()) {
-						LOGGER.trace("{}connection: remove {} (size {})", tag, connection, connections.size(),
-								new Throwable("connection removed!"));
-					} else {
-						LOGGER.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
-					}
+					LOGGER.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection,
+							connections.size(), pendings);
 				}
 				connection.startByClientHello(null);
 				removeByAddressConnections(connection);

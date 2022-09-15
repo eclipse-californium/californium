@@ -235,6 +235,25 @@ public class ExecutorsUtil {
 	}
 
 	/**
+	 * Run all jobs.
+	 * 
+	 * On {@link Throwable} write only warning and continue to run the other
+	 * jobs.
+	 * 
+	 * @param jobs list of jobs to run.
+	 * @since 3.7
+	 */
+	public static void runAll(List<Runnable> jobs) {
+		for (Runnable job : jobs) {
+			try {
+				job.run();
+			} catch (Throwable e) {
+				LOGGER.warn("Ignoring error:", e);
+			}
+		}
+	}
+
+	/**
 	 * Set remove on cancel policy of provided executor.
 	 * 
 	 * Ignored, if not supported by java vm or executors implementation.
