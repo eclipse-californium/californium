@@ -83,7 +83,6 @@ import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
@@ -821,7 +820,7 @@ public class DTLSConnectorTest {
 		DatagramReader reader = new DatagramReader(writer.toByteArray());
 		Connection connection2 = Connection.fromReader(reader, 0);
 		clientConnectionStore.remove(connection, true);
-		connection2.setConnectorContext(new SerialExecutor(executor), null);
+		connection2.setConnectorContext(executor, null);
 		clientConnectionStore.put(connection2);
 
 		// Restart it
@@ -1035,11 +1034,11 @@ public class DTLSConnectorTest {
 		serverHelper.serverConnectionStore.clear();
 		assertEquals(SERVER_CONNECTION_STORE_CAPACITY, serverHelper.serverConnectionStore.remainingCapacity());
 		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050))
-				.setConnectorContext(new SerialExecutor(executor), null)));
+				.setConnectorContext(executor, null)));
 		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050))
-				.setConnectorContext(new SerialExecutor(executor), null)));
+				.setConnectorContext(executor, null)));
 		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.3", 5050))
-				.setConnectorContext(new SerialExecutor(executor), null)));
+				.setConnectorContext(executor, null)));
 
 		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientRawDataChannel);

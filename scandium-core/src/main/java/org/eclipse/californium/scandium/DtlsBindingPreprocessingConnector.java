@@ -82,7 +82,7 @@ public class DtlsBindingPreprocessingConnector extends DTLSConnector {
 	 * <p>
 	 * If created action is running on separate threads, consider limiting such pending jobs in order
 	 * to protect against DoS attack. Similar approach may be seen in
-	 * {@link DTLSConnector#executeInbound(Executor, InetSocketAddress, Runnable)}
+	 * {@link DTLSConnector#executeInbound(Executor, InetSocketAddress, org.eclipse.californium.scandium.DTLSConnector.LimitedRunnable)}
 	 * </p>
 	 */
 	public interface DtlsBindingActionWithCallback {

@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.ConcurrentModificationException;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +55,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerialExecutor.ExecutionListener;
 import org.eclipse.californium.elements.util.SerializationUtil;
@@ -119,7 +121,7 @@ public final class Connection {
 	 */
 	private long lastMessageNanos;
 	private long lastPeerAddressNanos;
-	private SerialExecutor serialExecutor;
+	private volatile SerialExecutor serialExecutor;
 	private InetSocketAddress peerAddress;
 	private InetSocketAddress router;
 	private ConnectionId cid;
@@ -226,6 +228,25 @@ public final class Connection {
 	 */
 	public boolean isExecuting() {
 		return serialExecutor != null && !serialExecutor.isShutdown();
+	}
+
+	/**
+	 * Shutdown executor and run all pending jobs.
+	 * 
+	 * The jobs are intended to check {@link #isExecuting()} in order to detect
+	 * the shutdown.
+	 * 
+	 * @return number of pending jobs.
+	 * @since 3.7
+	 */
+	public int shutdown() {
+		SerialExecutor executor = getExecutor();
+		if (executor != null) {
+			List<Runnable> pendings = executor.shutdownNow();
+			ExecutorsUtil.runAll(pendings);
+			return pendings.size();
+		}
+		return 0;
 	}
 
 	/**

@@ -90,10 +90,14 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * 
 	 * @param executor target executor. If {@code null}, the executor is
 	 *            shutdown.
+	 * @throws IllegalArgumentException if the executor is also a
+	 *             {@link SerialExecutor}
 	 */
 	public SerialExecutor(final Executor executor) {
 		if (executor == null) {
 			shutdown = true;
+		} else if (executor instanceof SerialExecutor) {
+			throw new IllegalArgumentException("Sequences of SerialExecutors are not supported!");
 		}
 		this.executor = executor;
 	}
@@ -211,7 +215,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	}
 
 	/**
-	 * Shutdown this executor and add all pending task from {@link #tasks} to
+	 * Shutdown this executor and add all pending jobs from {@link #tasks} to
 	 * the provided collection.
 	 * 
 	 * @param jobs collection to add pending jobs.
@@ -280,31 +284,31 @@ public class SerialExecutor extends AbstractExecutorService {
 					@Override
 					public void run() {
 						try {
+							setOwner();
+							ExecutionListener current = listener.get();
 							try {
-								setOwner();
-								ExecutionListener current = listener.get();
+								if (current != null) {
+									current.beforeExecution();
+								}
+								command.run();
+							} catch (Throwable t) {
+								LOGGER.error("unexpected error occurred:", t);
+							} finally {
 								try {
 									if (current != null) {
-										current.beforeExecution();
+										current.afterExecution();
 									}
-									command.run();
 								} catch (Throwable t) {
-									LOGGER.error("unexpected error occurred:", t);
-								} finally {
-									try {
-										if (current != null) {
-											current.afterExecution();
-										}
-									} catch (Throwable t) {
-										LOGGER.error("unexpected error occurred:", t);
-									}
-									clearOwner();
+									LOGGER.error("unexpected error occurred after execution:", t);
 								}
-							} finally {
-								scheduleNextJob();
+								clearOwner();
 							}
-						} catch (RejectedExecutionException ex) {
-							LOGGER.debug("shutdown?", ex);
+						} finally {
+							try {
+								scheduleNextJob();
+							} catch (RejectedExecutionException ex) {
+								LOGGER.debug("shutdown?", ex);
+							}
 						}
 					}
 				});
@@ -332,7 +336,8 @@ public class SerialExecutor extends AbstractExecutorService {
 	/**
 	 * Execution listener.
 	 * 
-	 * Called before and after executing a task.
+	 * Called before and after executing a task. The calling thread is the same
+	 * as the the one executing the job.
 	 * 
 	 * @since 2.4
 	 */
