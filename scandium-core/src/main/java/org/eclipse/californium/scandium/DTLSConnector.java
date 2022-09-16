@@ -1035,7 +1035,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		for (Runnable job : pending) {
 			try {
 				job.run();
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				LOGGER.warn("Shutdown DTLS connector:", e);
 			}
 		}
@@ -1401,7 +1401,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 					@Override
 					public void run() {
-						if (running.get()) {
+						if (running.get() && connection.isExecuting()) {
 							processRecord(record, connection);
 						}
 					}
@@ -1971,7 +1971,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 						connection.getExecutor().execute(new Runnable() {
 							@Override
 							public void run() {
-								if (running.get()) {
+								if (running.get() && connections.getConnectionByAddress().isExecuting()) {
 									processClientHello(clientHello, record, connections);
 								}
 							}
@@ -2399,7 +2399,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					@Override
 					public void run() {
 						try {
-							if (running.get()) {
+							if (running.get() && connection.isExecuting()) {
 								sendMessage(now, message, connection);
 							} else {
 								DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}:{}, connector not running!", message.getSize(), message.getAddress(), message.getPort());
@@ -2816,7 +2816,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 					@Override
 					public void run() {
-						if (running.get()) {
+						if (running.get() && connection.isExecuting()) {
 							Handshaker handshaker = connection.getOngoingHandshake();
 							if (handshaker != null) {
 								try {
