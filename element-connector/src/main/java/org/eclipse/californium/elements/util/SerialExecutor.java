@@ -146,7 +146,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	/**
 	 * Set current thread executing the {@link #currentlyExecutedJob}.
 	 * 
-	 * @throws ConcurrentModificationException, if thread is already set.
+	 * @throws ConcurrentModificationException if thread is already set.
 	 */
 	private void setOwner() {
 		final Thread thread = owner.get();
@@ -162,7 +162,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	/**
 	 * Remove current thread executing the {@link #currentlyExecutedJob}.
 	 * 
-	 * @throws ConcurrentModificationException, if the current thread is not
+	 * @throws ConcurrentModificationException if the current thread is not
 	 *             executing the {@link #currentlyExecutedJob}.
 	 */
 	private void clearOwner() {
@@ -211,7 +211,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	}
 
 	/**
-	 * Shutdown this executor and add all pending task from {@link #tasks} to
+	 * Shutdown this executor and add all pending jobs from {@link #tasks} to
 	 * the provided collection.
 	 * 
 	 * @param jobs collection to add pending jobs.
@@ -295,12 +295,16 @@ public class SerialExecutor extends AbstractExecutorService {
 										current.afterExecution();
 									}
 								} catch (Throwable t) {
-									LOGGER.error("unexpected error occurred:", t);
+									LOGGER.error("unexpected error occurred after execution:", t);
 								}
 								clearOwner();
 							}
 						} finally {
-							scheduleNextJob();
+							try {
+								scheduleNextJob();
+							} catch (RejectedExecutionException ex) {
+								LOGGER.debug("shutdown?", ex);
+							}
 						}
 					}
 				});
@@ -343,7 +347,8 @@ public class SerialExecutor extends AbstractExecutorService {
 	/**
 	 * Execution listener.
 	 * 
-	 * Called before and after executing a task.
+	 * Called before and after executing a task. The calling thread is the same
+	 * as the the one executing the job.
 	 * 
 	 * @since 2.4
 	 */
