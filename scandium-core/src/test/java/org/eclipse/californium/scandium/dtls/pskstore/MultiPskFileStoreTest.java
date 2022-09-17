@@ -133,6 +133,7 @@ public class MultiPskFileStoreTest {
 		MultiPskFileStore store2 = new MultiPskFileStore();
 		store2.loadPskCredentials(new ByteArrayInputStream(encrypted), key2);
 		assertThat(store2.size(), is(0));
+		assertThat(store2.isDestroyed(), is(true));
 
 		SecretUtil.destroy(key2);
 	}

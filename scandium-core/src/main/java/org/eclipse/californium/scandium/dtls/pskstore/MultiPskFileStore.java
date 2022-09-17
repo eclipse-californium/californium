@@ -24,6 +24,7 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -180,25 +181,36 @@ public class MultiPskFileStore implements AdvancedPskStore, Destroyable {
 			// what may be considered to be a weak practice.
 			while ((line = lineReader.readLine()) != null) {
 				++lineNumber;
-				if (!line.isEmpty() && !line.startsWith("#")) {
-					String[] entry = line.split("=", 2);
-					if (entry.length == 2) {
-						byte[] secretBytes = StringUtil.base64ToByteArray(entry[1]);
-						SecretKey key = SecretUtil.create(secretBytes, "PSK");
-						Bytes.clear(secretBytes);
-						PskPublicInformation id = new PskPublicInformation(entry[0]);
-						lock.writeLock().lock();
-						try {
-							if (keys.put(id, SecretUtil.create(key)) == null) {
-								identities.add(id);
+				try {
+					if (!line.isEmpty() && !line.startsWith("#")) {
+						String[] entry = line.split("=", 2);
+						if (entry.length == 2) {
+							byte[] secretBytes = StringUtil.base64ToByteArray(entry[1]);
+							SecretKey key = SecretUtil.create(secretBytes, "PSK");
+							Bytes.clear(secretBytes);
+							PskPublicInformation id = new PskPublicInformation(entry[0]);
+							lock.writeLock().lock();
+							try {
+								if (keys.put(id, SecretUtil.create(key)) == null) {
+									identities.add(id);
+								}
+							} finally {
+								lock.writeLock().unlock();
 							}
-						} finally {
-							lock.writeLock().unlock();
+						} else {
+							LOGGER.warn("{}: '{}' invalid psk-line!", lineNumber, line);
 						}
-					} else {
-						LOGGER.warn("{}: '{}' invalid psk-line!", lineNumber, line);
 					}
+				} catch (IllegalArgumentException ex) {
+					LOGGER.warn("{}: '{}' invalid psk-line!", lineNumber, line);
 				}
+			}
+		} catch (IOException e) {
+			if (e.getCause() instanceof GeneralSecurityException) {
+				LOGGER.warn("read psk-store, wrong password?:", e);
+				SecretUtil.destroy(this);
+			} else {
+				throw e;
 			}
 		} finally {
 			try {
