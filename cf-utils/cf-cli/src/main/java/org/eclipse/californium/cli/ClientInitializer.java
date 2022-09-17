@@ -200,6 +200,13 @@ public class ClientInitializer {
 			System.err.println(ex.getMessage());
 			System.err.println();
 			cmd.usage(System.err);
+			System.err.println();
+
+			StringBuilder line = new StringBuilder();
+			for (String arg : args) {
+				line.append(arg).append(" ");
+			}
+			System.err.println(line);
 			System.exit(-1);
 		}
 
