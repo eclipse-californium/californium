@@ -20,6 +20,8 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
+import org.eclipse.californium.core.network.serialization.TcpDataParser;
+import org.eclipse.californium.core.network.serialization.UdpDataParser;
 
 /**
  * This class describes the CoAP Option Number Registry as defined in RFC 7252,
@@ -118,6 +120,13 @@ public final class OptionNumberRegistry {
 	}
 
 	/**
+	 * Custom option number registry.
+	 * 
+	 * @since 3.7
+	 */
+	private static volatile CustomOptionNumberRegistry customRegistry;
+
+	/**
 	 * Returns the option format based on the option number.
 	 * 
 	 * @param optionNumber
@@ -152,6 +161,13 @@ public final class OptionNumberRegistry {
 		case OSCORE:
 			return OptionFormat.OPAQUE;
 		default:
+			CustomOptionNumberRegistry custom = customRegistry;
+			if (custom != null) {
+				OptionFormat format =  custom.getFormatByNr(optionNumber);
+				if (format != null) {
+					return format;
+				}
+			}
 			return OptionFormat.UNKNOWN;
 		}
 	}
@@ -301,7 +317,6 @@ public final class OptionNumberRegistry {
 		case SIZE1:
 		case SIZE2:
 		case NO_RESPONSE:
-		default:
 			return true;
 		case ETAG:
 		case IF_MATCH:
@@ -310,6 +325,13 @@ public final class OptionNumberRegistry {
 		case LOCATION_PATH:
 		case LOCATION_QUERY:
 			return false;
+		default:
+			CustomOptionNumberRegistry custom = customRegistry;
+			if (custom != null) {
+				return custom.isSingleValue(optionNumber);
+			} else {
+				return true;
+			}
 		}
 	}
 
@@ -325,6 +347,12 @@ public final class OptionNumberRegistry {
 	 * @since 3.0
 	 */
 	public static void assertValue(int optionNumber, long value) {
+		if (isCustomOption(optionNumber)) {
+			CustomOptionNumberRegistry custom = customRegistry;
+			if (custom != null) {
+				custom.assertValue(optionNumber, value);
+			}
+		}
 		try {
 			int length = (Long.SIZE - Long.numberOfLeadingZeros(value) + 7) / Byte.SIZE;
 			assertValueLength(optionNumber, length);
@@ -396,6 +424,19 @@ public final class OptionNumberRegistry {
 			max = 3;
 			break;
 		default:
+			CustomOptionNumberRegistry custom = customRegistry;
+			if (custom != null) {
+				int[] lengths = custom.getValueLengths(optionNumber);
+				if (lengths != null) {
+					if (lengths.length == 2) {
+						min = lengths[0];
+						max = lengths[1];
+					} else if (lengths.length == 1) {
+						min = lengths[0];
+						max = lengths[0];
+					}
+				}
+			}
 			// empty, already min/max already initialized.
 		}
 		if (valueLength < min || valueLength > max) {
@@ -485,10 +526,24 @@ public final class OptionNumberRegistry {
 		case NO_RESPONSE:
 			return Names.No_Response;
 		default:
+			CustomOptionNumberRegistry custom = customRegistry;
+			if (custom != null) {
+				String text = custom.toString(optionNumber);
+				if (text != null) {
+					return text;
+				}
+			}
 			return String.format("Unknown (%d)", optionNumber);
 		}
 	}
 
+	/**
+	 * Returns the option number of a string representation.
+	 * 
+	 * @param name string representation of the option number
+	 * @return the option number. {@link #UNKNOWN}, if string representation
+	 *         doesn't match a known option number.
+	 */
 	public static int toNumber(String name) {
 		if (Names.If_Match.equals(name))			return IF_MATCH;
 		else if (Names.Uri_Host.equals(name))		return URI_HOST;
@@ -511,9 +566,132 @@ public final class OptionNumberRegistry {
 		else if (Names.Size1.equals(name))			return SIZE1;
 		else if (Names.Object_Security.equals(name)) return OSCORE;
 		else if (Names.No_Response.equals(name))	return NO_RESPONSE;
-		else return UNKNOWN;
+		else {
+			CustomOptionNumberRegistry custom = customRegistry;
+			if (custom != null) {
+				return custom.toNumber(name);
+			} else {
+				return UNKNOWN;
+			}
+		}
+	}
+
+	/**
+	 * Get critical custom options.
+	 * 
+	 * @return Array of critical custom options. {@code null}, to not check for
+	 *         critical custom options (default), empty to fail on custom
+	 *         critical options.
+	 * @see CustomOptionNumberRegistry#getCriticalCustomOptions()
+	 * @see UdpDataParser#UdpDataParser(boolean, int[])
+	 * @see TcpDataParser#TcpDataParser(int[])
+	 * @since 3.7
+	 */
+	public static int[] getCriticalCustomOptions() {
+		CustomOptionNumberRegistry custom = customRegistry;
+		if (custom != null) {
+			return custom.getCriticalCustomOptions();
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Set custom option number registry.
+	 * 
+	 * @param custom custom option number registry. {@code null} to remove it.
+	 * @return previous custom option number registry, or {@code null}, if not
+	 *         available.
+	 * @since 3.7
+	 */
+	public static CustomOptionNumberRegistry setCustomOptionNumberRegistry(CustomOptionNumberRegistry custom) {
+		CustomOptionNumberRegistry previous = customRegistry;
+		customRegistry = custom;
+		return previous;
 	}
 
 	private OptionNumberRegistry() {
+	}
+
+	/**
+	 * API to support custom options.
+	 * 
+	 * @since 3.7
+	 */
+	public interface CustomOptionNumberRegistry {
+
+		/**
+		 * Get option format by option number.
+		 * 
+		 * @param optionNumber option number
+		 * @return option format, or {@code null}, to use the default.
+		 * @see OptionNumberRegistry#getFormatByNr(int)
+		 */
+		OptionFormat getFormatByNr(int optionNumber);
+
+		/**
+		 * Checks whether an custom option has a single value.
+		 * 
+		 * @param optionNumber option number
+		 * @return {@code true}, if the option has a single value,
+		 *         {@code false}, if the option is repeatable.
+		 * @see OptionNumberRegistry#isSingleValue(int)
+		 */
+		boolean isSingleValue(int optionNumber);
+
+		/**
+		 * Assert, that the value matches the custom options's definition.
+		 * 
+		 * If no {@link IllegalArgumentException} is thrown, the default checks
+		 * in {@link OptionNumberRegistry#assertValue(int, long)} are applied.
+		 * 
+		 * @param optionNumber option's number
+		 * @param value value to check
+		 * @throws IllegalArgumentException if value doesn't match the
+		 *             definition
+		 * @see OptionNumberRegistry#assertValue(int, long)
+		 */
+		void assertValue(int optionNumber, long value);
+
+		/**
+		 * Get value length of custom option.
+		 * 
+		 * @param optionNumber option's number
+		 * @return array with minimum and maximum length of values. If both are
+		 *         equal, the array may contain only one length. If {@code null}
+		 *         is returned, the default lengths of values is used.
+		 * @see OptionNumberRegistry#assertValueLength(int, int)
+		 */
+		int[] getValueLengths(int optionNumber);
+
+		/**
+		 * Returns a string representation of the custom option number.
+		 * 
+		 * @param optionNumber
+		 *            the option number to describe
+		 * @return a string describing the option number
+		 * @see OptionNumberRegistry#toString(int)
+		 */
+		String toString(int optionNumber);
+
+		/**
+		 * Returns the option number of a string representation.
+		 * 
+		 * @param name string representation of the option number
+		 * @return the option number. {@link #UNKNOWN}, if string representation
+		 *         doesn't match a known custom option number.
+		 * @see OptionNumberRegistry#toNumber(String)
+		 */
+		int toNumber(String name);
+
+		/**
+		 * Get critical custom options.
+		 * 
+		 * @return Array of critical custom options. {@code null}, to not check
+		 *         for critical custom options (default), empty to fail on
+		 *         custom critical options.
+		 * @see OptionNumberRegistry#getCriticalCustomOptions()
+		 */
+		int[] getCriticalCustomOptions();
 	}
 }

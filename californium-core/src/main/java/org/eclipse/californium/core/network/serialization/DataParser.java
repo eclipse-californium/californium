@@ -28,6 +28,8 @@ package org.eclipse.californium.core.network.serialization;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
 
+import java.util.Arrays;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
@@ -50,17 +52,24 @@ import org.eclipse.californium.elements.util.DatagramReader;
 public abstract class DataParser {
 
 	/**
-	 * Array of critical custom options.
+	 * Sorted array of critical custom options.
 	 * 
 	 * {@code null}, to not check for critical custom options, empty to fail on
 	 * critical custom options.
 	 * 
-	 * @since 3.4
+	 * @see OptionNumberRegistry#getCriticalCustomOptions()
+	 * @since 3.7 the array is sorted
 	 */
 	private final int[] criticalCustomOptions;
 
 	/**
-	 * Create data parser without checking for critical custom options.
+	 * Create data parser.
+	 * 
+	 * Use {@link OptionNumberRegistry#getCriticalCustomOptions()} as default to
+	 * check for critical custom options.
+	 * 
+	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *        default.
 	 */
 	protected DataParser() {
 		criticalCustomOptions = null;
@@ -69,14 +78,21 @@ public abstract class DataParser {
 	/**
 	 * Create data parser with support for critical custom options.
 	 * 
-	 * @param criticalCustomOptions Array of critical custom options.
-	 *            {@code null}, to not check for critical custom options, empty
-	 *            to fail on custom critical options.
-	 * @since 3.4
+	 * @param criticalCustomOptions Array of critical custom options. Empty to
+	 *            fail on custom critical options. {@code null} to use
+	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *            default to check for critical custom options.
+	 * @see OptionNumberRegistry#getCriticalCustomOptions()
+	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *        default.
 	 */
 	protected DataParser(int[] criticalCustomOptions) {
+		if (criticalCustomOptions == null) {
+			criticalCustomOptions = OptionNumberRegistry.getCriticalCustomOptions();
+		}
 		if (criticalCustomOptions != null) {
 			this.criticalCustomOptions = criticalCustomOptions.clone();
+			Arrays.sort(this.criticalCustomOptions);
 		} else {
 			this.criticalCustomOptions = null;
 		}
@@ -200,12 +216,7 @@ public abstract class DataParser {
 	 * @since 3.4
 	 */
 	protected boolean isCiriticalCustomOption(int optionNumber) {
-		for (int index = 0; index < criticalCustomOptions.length; ++index) {
-			if (criticalCustomOptions[index] == optionNumber) {
-				return true;
-			}
-		}
-		return false;
+		return Arrays.binarySearch(criticalCustomOptions, optionNumber) >= 0;
 	}
 
 	/**

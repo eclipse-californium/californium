@@ -26,6 +26,7 @@ package org.eclipse.californium.core.network.serialization;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.util.DatagramReader;
 
@@ -39,7 +40,13 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 public class TcpDataParser extends DataParser {
 
 	/**
-	 * Create TCP data parser without checking for critical custom options.
+	 * Create TCP data parser.
+	 * 
+	 * Use {@link OptionNumberRegistry#getCriticalCustomOptions()} as default to
+	 * check for critical custom options.
+	 * 
+	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *        default.
 	 */
 	public TcpDataParser() {
 		super();
@@ -48,10 +55,13 @@ public class TcpDataParser extends DataParser {
 	/**
 	 * Create TCP data parser with support for critical custom options.
 	 * 
-	 * @param criticalCustomOptions Array of critical custom options.
-	 *            {@code null}, to not check for critical custom options, empty
-	 *            to fail on custom critical options.
-	 * @since 3.4
+	 * @param criticalCustomOptions Array of critical custom options. Empty to
+	 *            fail on custom critical options. {@code null} to use
+	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *            default to check for critical custom options.
+	 * @see OptionNumberRegistry#getCriticalCustomOptions()
+	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *        default.
 	 */
 	public TcpDataParser(int[] criticalCustomOptions) {
 		super(criticalCustomOptions);

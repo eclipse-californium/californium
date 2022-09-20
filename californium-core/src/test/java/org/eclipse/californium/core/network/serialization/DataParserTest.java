@@ -40,6 +40,9 @@ import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
+import org.eclipse.californium.core.coap.OptionNumberRegistry.CustomOptionNumberRegistry;
+import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -66,7 +69,9 @@ public class DataParserTest {
 
 	private static final EndpointContext ENDPOINT_CONTEXT = new AddressEndpointContext(InetAddress.getLoopbackAddress(), 1000);
 
-	private static final int[] CRITICAL_CUSTOM_OPTIONS = {57453, 19205};
+	private static final int CUSTOM_OPTION_1 = 57453;
+	private static final int CUSTOM_OPTION_2 = 19205;
+	private static final int[] CRITICAL_CUSTOM_OPTIONS = { CUSTOM_OPTION_1, CUSTOM_OPTION_2 };
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -90,9 +95,70 @@ public class DataParserTest {
 	}
 
 	@Parameterized.Parameters public static List<Object[]> parameters() {
+		CustomOptionNumberRegistry custom = new CustomOptionNumberRegistry() {
+			
+			@Override
+			public String toString(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+					return "custom1";
+				case CUSTOM_OPTION_2 :
+					return "custom2";
+				}
+				return null;
+			}
+			
+			@Override
+			public int toNumber(String name) {
+				if ("custom1".equals(name)) {
+					return CUSTOM_OPTION_1;
+				} else if ("custom2".equals(name)) {
+					return CUSTOM_OPTION_2;
+				}
+				return OptionNumberRegistry.UNKNOWN;
+			}
+			
+			@Override
+			public boolean isSingleValue(int optionNumber) {
+				return optionNumber == CUSTOM_OPTION_1;
+			}
+			
+			@Override
+			public OptionFormat getFormatByNr(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+					return OptionFormat.INTEGER;
+				case CUSTOM_OPTION_2 :
+					return OptionFormat.STRING;
+				}
+				return null;
+			}
+			
+			@Override
+			public int[] getCriticalCustomOptions() {
+				return CRITICAL_CUSTOM_OPTIONS;
+			}
+			
+			@Override
+			public int[] getValueLengths(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+					return new int[] {0, 4};
+				case CUSTOM_OPTION_2 :
+					return new int[] {0, 64};
+				}
+				return null;
+			}
+			
+			@Override
+			public void assertValue(int optionNumber, long value) {
+			}
+		};
+		OptionNumberRegistry.setCustomOptionNumberRegistry(custom);
 		List<Object[]> parameters = new ArrayList<>();
 		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, CRITICAL_CUSTOM_OPTIONS), false });
 		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(CRITICAL_CUSTOM_OPTIONS), true });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, null), false });
 		return parameters;
 	}
 
@@ -231,7 +297,7 @@ public class DataParserTest {
 				0x64 // option value
 		};
 		if (tcp) {
-			malformedGetRequest[0] = 0x32;  // cheat, mid => 2 bytes token
+			malformedGetRequest[0] = 0x32;  // cheat, 2 bytes mid => 2 bytes token
 		}
 
 		// WHEN parsing the request

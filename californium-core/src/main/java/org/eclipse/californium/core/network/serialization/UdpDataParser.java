@@ -26,6 +26,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.util.DatagramReader;
@@ -42,7 +43,13 @@ public class UdpDataParser extends DataParser {
 	private final boolean strictEmptyMessageFormat;
 	
 	/**
-	 * Create UDP data parser without checking for critical custom options.
+	 * Create UDP data parser.
+	 * 
+	 * Use {@link OptionNumberRegistry#getCriticalCustomOptions()} as default to
+	 * check for critical custom options.
+	 * 
+	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *        default.
 	 */
 	public UdpDataParser() {
 		this(false, null);
@@ -51,10 +58,13 @@ public class UdpDataParser extends DataParser {
 	/**
 	 * Create UDP data parser with support for critical custom options.
 	 * 
-	 * @param criticalCustomOptions Array of critical custom options.
-	 *            {@code null}, to not check for critical custom options, empty
-	 *            to fail on custom critical options.
-	 * @since 3.4
+	 * @param criticalCustomOptions Array of critical custom options. Empty to
+	 *            fail on custom critical options. {@code null} to use
+	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *            default to check for critical custom options.
+	 * @see OptionNumberRegistry#getCriticalCustomOptions()
+	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *        default.
 	 */
 	public UdpDataParser(int[] criticalCustomOptions) {
 		this(false, criticalCustomOptions);
@@ -77,10 +87,13 @@ public class UdpDataParser extends DataParser {
 	 * @param strictEmptyMessageFormat {@code true}, to process messages with
 	 *            code {@code 0} strictly according RFC7252, 4.1.,
 	 *            {@code false}, to relax the MUST in a not compliant way!
-	 * @param criticalCustomOptions Array of critical custom options.
-	 *            {@code null}, to not check for critical custom options, empty
-	 *            to fail on custom critical options.
-	 * @since 3.5
+	 * @param criticalCustomOptions Array of critical custom options. Empty to
+	 *            fail on custom critical options. {@code null} to use
+	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *            default to check for critical custom options.
+	 * @see OptionNumberRegistry#getCriticalCustomOptions()
+	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
+	 *        default.
 	 */
 	public UdpDataParser(boolean strictEmptyMessageFormat, int[] criticalCustomOptions) {
 		super(criticalCustomOptions);
