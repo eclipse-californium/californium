@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.core.coap.OptionNumberRegistry.CustomOptionNumberRegistry;
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
@@ -1528,13 +1529,13 @@ public final class OptionSet {
 	}
 
 	/**
-	 * Gets list of other option values.
+	 * Gets list of other options.
 	 * 
 	 * @param number other option
-	 * @return an unmodifiable and unsorted list of other option values.
+	 * @return an unmodifiable and unsorted list of other options with the provided number.
 	 * @since 3.7
 	 */
-	public List<Option> getOther(int number) {
+	public List<Option> getOthers(int number) {
 		List<Option> options = null;
 		List<Option> others = this.others;
 		if (others != null) {
@@ -1552,6 +1553,27 @@ public final class OptionSet {
 		} else {
 			return Collections.unmodifiableList(options);
 		}
+	}
+
+	/**
+	 * Gets other option.
+	 * 
+	 * If the other option is contained more than once, return the first.
+	 * 
+	 * @param number other option
+	 * @return other option, or {@code null}, if not available.
+	 * @since 3.7
+	 */
+	public Option getOtherOption(int number) {
+		List<Option> others = this.others;
+		if (others != null) {
+			for (Option option : others) {
+				if (option.getNumber() == number) {
+					return option;
+				}
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -1743,6 +1765,9 @@ public final class OptionSet {
 	 * {@link #addOption(Option)} for all options, including others, which are
 	 * not intended for tests.
 	 * 
+	 * If custom options are added by this function, the additional validation
+	 * will be applied based on a {@link CustomOptionNumberRegistry}.
+	 * 
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
 	 * @throws NullPointerException if option is {@code null}.
@@ -1753,7 +1778,20 @@ public final class OptionSet {
 		if (option == null) {
 			throw new NullPointerException("Option must not be null!");
 		}
-		getOthersInternal().add(option);
+		int number = option.getNumber();
+		if (OptionNumberRegistry.isCustomOption(number)) {
+			OptionNumberRegistry.assertValueLength(number, option.getLength());
+		}
+		List<Option> others = getOthersInternal();
+		if (OptionNumberRegistry.isSingleValue(number)) {
+			for (int index=0; index < others.size(); ++index) {
+				if (others.get(index).getNumber() == number) {
+					others.remove(index);
+					break;
+				}
+			}
+		}
+		others.add(option);
 		return this;
 	}
 

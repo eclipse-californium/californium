@@ -496,7 +496,7 @@ public class OptionTest {
 	}
 
 	@Test
-	public void testOther() {
+	public void testOthers() {
 		OptionSet options = new OptionSet();
 		Option other1 = new Option(0xff1c, "other1");
 		options.addOtherOption(other1);
@@ -525,13 +525,16 @@ public class OptionTest {
 		assertThat(list, not(hasItem(port)));
 		assertThat(list, not(hasItem(no)));
 
-		list = options.getOther(0xff1c);
+		list = options.getOthers(0xff1c);
 		assertThat(list.size(), is(1));
 		assertThat(list, hasItem(other1));
 		assertThat(list, not(hasItem(other2)));
 		assertThat(list, not(hasItem(other3)));
 		assertThat(list, not(hasItem(port)));
 		assertThat(list, not(hasItem(no)));
+
+		assertThat(options.getOtherOption(0xff1c), is(other1));
+		assertThat(options.getOtherOption(0xff9c), is(other2));
 
 		options.addOtherOption(other2);
 		options.clearOtherOption(other2);
