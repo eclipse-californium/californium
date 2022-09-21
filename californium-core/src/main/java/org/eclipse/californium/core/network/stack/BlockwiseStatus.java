@@ -302,6 +302,7 @@ public abstract class BlockwiseStatus {
 	 * Adds a block to the buffer.
 	 *
 	 * @param block The block to add.
+	 * @param messageSize additional message size of this blockwise message.
 	 * @throws BlockwiseTransferException if buffer overflows.
 	 */
 	protected final void addBlock(final byte[] block, int messageSize) throws BlockwiseTransferException {
