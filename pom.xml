@@ -110,7 +110,7 @@
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 		<javadoc.doclint>none</javadoc.doclint>
-		<revapi.previous.version>3.6.0</revapi.previous.version>
+		<revapi.previous.version>3.7.0</revapi.previous.version>
 	</properties>
 
 	<distributionManagement>
@@ -564,6 +564,14 @@
 										Californium uses classes of slf4j in some case with scope protected.
 									</justification>
 								</item>
+								<item>
+									<regex>true</regex>
+									<code>java.class.externalClassExposedInAPI</code>
+									<package>io\.netty</package>
+									<justification>
+										Californium uses classes of io.netty in some case with scope protected.
+									</justification>
+								</item>
 							</differences>
 						</revapi.differences>
 						<revapi.filter>
@@ -821,14 +829,70 @@
 			</build>
 		</profile>
 		<profile>
+			<id>bc-tests-1-7</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+			<properties>
+				<bc.art>jdk15to18</bc.art>
+				<bc.version>1.71</bc.version>
+				<slf4j.version>1.7.36</slf4j.version>
+			</properties>
+			<dependencies>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcpkix-${bc.art}</artifactId>
+					<version>${bc.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcprov-${bc.art}</artifactId>
+					<version>${bc.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bctls-${bc.art}</artifactId>
+					<version>${bc.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcutil-${bc.art}</artifactId>
+					<version>${bc.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.slf4j</groupId>
+					<artifactId>jul-to-slf4j</artifactId>
+					<version>${slf4j.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<systemPropertyVariables>
+								<CALIFORNIUM_JCE_PROVIDER>BC_NON_BLOCKING_RANDOM</CALIFORNIUM_JCE_PROVIDER>
+							</systemPropertyVariables>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
 			<id>bc-tests</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.art>jdk15on</bc.art>
-				<bc.version>1.70</bc.version>
-				<slf4j.version>1.7.32</slf4j.version>
+				<bc.art>jdk18on</bc.art>
+				<bc.version>1.71</bc.version>
+				<slf4j.version>1.7.36</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>

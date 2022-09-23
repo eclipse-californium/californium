@@ -94,7 +94,7 @@ In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar
 
 ## Run unit tests using Bouncy Castle as alternative JCE provider
 
-With 3.0 a first, experimental support for using Bouncy Castle (version 1.69, bcprov-jdk15on, bcpkix-jdk15on, and, for tls, bctls-jdk15on) is implemented. With 3.3 the tests are using the updated version 1.70 (for tls also  bcutil-jdk15on is used additionally).
+With 3.0 a first, experimental support for using Bouncy Castle (version 1.69, bcprov-jdk15on, bcpkix-jdk15on, and, for tls, bctls-jdk15on) is implemented. With 3.3 the tests are using the updated version 1.70 (for tls also  bcutil-jdk15on is used additionally) and with 3.8 version 1.71.1 is used.
 
 To demonstrate the basic functions, run the unit-tests using the profile `bc-tests`
 
@@ -120,7 +120,7 @@ With that, it gets very time consuming to test all combinations. Therefore, if y
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.6.0).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.7.0).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots):
 
@@ -130,7 +130,7 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>3.6.0</version>
+            <version>3.7.0</version>
     </dependency>
     ...
   </dependencies>
@@ -154,7 +154,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `3.7.0-SNAPSHOT`.
+You can then simply depend on `3.8.0-SNAPSHOT`.
 
 # Eclipse
 
@@ -177,7 +177,7 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 
 A test server is running at <a href="coap://californium.eclipseprojects.io:5683/">coap://californium.eclipseprojects.io:5683/</a>
 
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.6.0/cf-plugtest-server-3.6.0.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.7.0/cf-plugtest-server-3.7.0.jar) from the demo-apps.
 The root resource responds with its current version.
 
 More information can be found at [http://www.eclipse.org/californium](http://www.eclipse.org/californium) and technical details at [https://projects.eclipse.org/projects/iot.californium](https://projects.eclipse.org/projects/iot.californium).
@@ -230,7 +230,7 @@ OSCORE Key Rederivation:
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.6.0.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.7.0.jar MulticastTestServer`
 
 # Contact
 
