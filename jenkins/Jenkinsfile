@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2022 Bosch IO GmbH and others.
+ * Copyright (c) 2022 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -24,88 +24,100 @@ pipeline {
 
   agent {
     kubernetes {
-      label 'hugo-agent'
       yaml """
-apiVersion: v1
-metadata:
-  labels:
-    run: hugo
-  name: hugo-pod
-spec:
-  containers:
-    - name: jnlp
-      volumeMounts:
-      - mountPath: /home/jenkins/.ssh
-        name: volume-known-hosts
-      env:
-      - name: "HOME"
-        value: "/home/jenkins"
-    - name: hugo
-      image: eclipsefdn/hugo-node:h0.99.1-n16.15.0
-      command:
-      - cat
-      tty: true
-  volumes:
-  - configMap:
-      name: known-hosts
-    name: volume-known-hosts
-"""
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+          - name: "jnlp"
+            volumeMounts:
+            - mountPath: /home/jenkins/.ssh
+              name: volume-known-hosts
+            env:
+            - name: "HOME"
+              value: "/home/jenkins"
+            resources:
+              limits:
+                memory: "512Mi"
+                cpu: "1"
+              requests:
+                memory: "512Mi"
+                cpu: "1"
+          - name: "hugo"
+            image: "cibuilds/hugo:0.102"
+            command:
+            - cat
+            tty: true
+            resources:
+              limits:
+                memory: "512Mi"
+                cpu: "1"
+              requests:
+                memory: "512Mi"
+                cpu: "1"
+          volumes:
+          - configMap:
+              name: known-hosts
+            name: volume-known-hosts
+        """
     }
   }
 
   environment {
     PROJECT_NAME = "californium" // must be all lowercase.
     PROJECT_BOT_NAME = "Californium Bot" // Capitalize the name
-    BRANCH_NAME = "master"
+    WEBSITE_REPO_BRANCH_NAME = "main"
+    WEBSITE_SRC_DIR="${WORKSPACE}/californium/site"
+    WEBSITE_REPO_DIR="${WORKSPACE}/www"
   }
 
   options {
     buildDiscarder(logRotator(numToKeepStr: '5'))
-    checkoutToSubdirectory('hugo')
+    checkoutToSubdirectory('californium')
     timeout(time: 15, unit: 'MINUTES')
   }
 
   stages {
-    stage('Checkout www repo') {
+    stage("Clone Californium web site repository") {
       steps {
-        dir('www') {
-            sshagent(['git.eclipse.org-bot-ssh']) {
-                sh '''
-                    git clone ssh://genie.${PROJECT_NAME}@git.eclipse.org:29418/www.eclipse.org/${PROJECT_NAME}.git .
-                    git checkout ${BRANCH_NAME}
-                '''
-            }
+        sshagent(credentials: [ "github-bot-ssh" ]) {
+          sh '''#!/bin/bash
+            git clone ssh://git@github.com/eclipse-californium/californium-website.git "${WEBSITE_REPO_DIR}"
+            echo "scrubbing web site directory..."
+            (cd "${WEBSITE_REPO_DIR}"; git rm -r --quiet -- ':!README.md'; cp "${WORKSPACE}/californium/LICENSE" .)
+          '''
         }
       }
     }
-    stage('Build website (main) with Hugo') {
+
+    stage("Build web site (main) using Hugo") {
       steps {
-        container('hugo') {
-            dir('hugo/site') {
-                sh 'hugo -b https://www.eclipse.org/${PROJECT_NAME}/'
-            }
+        container("hugo") {
+          dir("${WEBSITE_SRC_DIR}") {
+            sh '''#!/bin/bash
+              hugo -v -d "${WEBSITE_REPO_DIR}" -b "https://www.eclipse.org/${PROJECT_NAME}/"
+            '''
+          }
         }
       }
     }
-    stage('Push to website master branch') {
+
+    stage("Push to web site main branch") {
       steps {
-        sh 'rm -rf www/* && cp -Rvf hugo/site/public/* www/'
-        dir('www') {
-            sshagent(['git.eclipse.org-bot-ssh']) {
-                sh '''
-                git add -A
-                if ! git diff --cached --exit-code; then
-                  echo "Changes have been detected, publishing to repo 'www.eclipse.org/${PROJECT_NAME}'"
-                  git config user.email "${PROJECT_NAME}-bot@eclipse.org"
-                  git config user.name "${PROJECT_BOT_NAME}"
-                  git commit -m "Website build ${JOB_NAME}-${BUILD_NUMBER}"
-                  git log --graph --abbrev-commit --date=relative -n 5
-                  git push origin HEAD:${BRANCH_NAME}
-                else
-                  echo "No changes have been detected since last build, nothing to publish"
-                fi
-                '''
-            }
+        sshagent(credentials: [ "github-bot-ssh" ]) {
+          sh '''#!/bin/bash
+            cd "${WEBSITE_REPO_DIR}"
+            git add -A
+            if git diff --cached --quiet; then
+              echo "no changes have been detected since last build, nothing to publish"
+            else
+              echo "changes have been detected, publishing to Californium website repo on GitHub"
+              git config user.email "${PROJECT_NAME}-bot@eclipse.org"
+              git config user.name "${PROJECT_BOT_NAME}"
+              git commit -m "Website build ${JOB_NAME}-${BUILD_NUMBER}"
+              git push origin "HEAD:${WEBSITE_REPO_BRANCH_NAME}"
+            fi
+          '''
         }
       }
     }
