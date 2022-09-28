@@ -130,6 +130,27 @@ public class Definitions<T extends Definition<?>> implements Iterable<T> {
 		return definitions.get(key);
 	}
 
+	/**
+	 * Check, if definitions are available.
+	 * 
+	 * @return {@code true}, if no definitions are available, {@code false}, if
+	 *         definitions are available.
+	 * @since 3.8
+	 */
+	public boolean isEmpty() {
+		return definitions.isEmpty();
+	}
+
+	/**
+	 * Get number of available definitions.
+	 * 
+	 * @return number of available definitions.
+	 * @since 3.8
+	 */
+	public int size() {
+		return definitions.size();
+	}
+
 	@Override
 	public Iterator<T> iterator() {
 		return definitions.values().iterator();
