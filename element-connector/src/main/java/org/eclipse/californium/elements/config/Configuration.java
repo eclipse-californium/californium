@@ -498,6 +498,9 @@ public final class Configuration {
 		this.definitions = DEFAULT_DEFINITIONS;
 		this.modules = DEFAULT_MODULES;
 		applyModules();
+		if (modules.isEmpty() && definitions.isEmpty() && values.isEmpty()) {
+			LOGGER.warn("Configuration contains no modules, no definitions, and no values!", new Throwable("stacktrace"));
+		}
 	}
 
 	/**
@@ -513,6 +516,9 @@ public final class Configuration {
 				: new ConcurrentHashMap<String, Configuration.DefinitionsProvider>(config.modules);
 		this.transientValues.addAll(config.transientValues);
 		this.values.putAll(config.values);
+		if (modules.isEmpty() && definitions.isEmpty() && values.isEmpty()) {
+			LOGGER.warn("Configuration contains no modules, no definitions, and no values!", new Throwable("stacktrace"));
+		}
 	}
 
 	/**
@@ -530,6 +536,9 @@ public final class Configuration {
 			}
 		}
 		applyModules();
+		if (modules.isEmpty() && definitions.isEmpty() && values.isEmpty()) {
+			LOGGER.warn("Configuration contains no modules, no definitions, and no values!", new Throwable("stacktrace"));
+		}
 	}
 
 	/**
