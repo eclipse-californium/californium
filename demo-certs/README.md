@@ -80,7 +80,6 @@ The key stores containing the demo keys and certificates can be recreated by mea
 
 You can also use the script to create your own certificates for use with Scandium. Simply alter the script at the places where you want to use other values as the default, e.g. your own distinguished names for the certificates and/or different key store names.
 
-When running the script you will be prompted twice to trust the intermediary CA certificate so that it can be added to the key store. This is necessary because the `keytool` has no way to create a chain of trust from the *client* and *server* certificates to an already trusted root CA (because the demo root CA certificate is self-signed). Simply enter `yes` and press `enter` to trust the certificate and add it to the key store.
 
 If you want to re-create the key stores you need to remove the two `jks` files manually before running the `create-keystores.sh` script. Otherwise, the `keytool` will exit when trying to add the newly created certificates under already existing aliases to the key stores.
 
