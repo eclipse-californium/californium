@@ -65,8 +65,13 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * 
  * <pre>
  * ./configure --disable-shared --enable-dtls --with-openssl --disable-doxygen --disable-manpages
- * ./configure --disable-shared --enable-dtls --with-tinydtls --disable-doxygen --disable-manpages
  * ./configure --disable-shared --enable-dtls --with-gnutls --disable-doxygen --disable-manpages
+ * 
+ * With tinydtls:
+ * ./configure --disable-shared --enable-dtls --with-tinydtls --disable-doxygen --disable-manpages
+ * or
+ * ./configure --disable-shared --enable-dtls --with-tinydtls --with-submodule-tinydtls --disable-doxygen --disable-manpages
+ * 
  * With libcoap 4.3.0:
  * ./configure --disable-shared --enable-dtls --with-mbedtls --disable-doxygen --disable-manpages
  * </pre>
