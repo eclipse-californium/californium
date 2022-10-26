@@ -161,7 +161,7 @@ create_keys() {
         -ext BC=ca:true -validity $VALIDITY -keypass $TRUST_STORE_PWD -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -storetype $DEFAULT_STORE_TYPE
    keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -certreq -alias root | \
       keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias root -gencert -validity $VALIDITY -ext BC=ca:true -rfc > $ROOT_CER
-   keytool -alias root -importcert -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -file $ROOT_CER -storetype $DEFAULT_STORE_TYPE
+   keytool -alias root -noprompt -importcert -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -file $ROOT_CER -storetype $DEFAULT_STORE_TYPE
 
    echo "creating CA key and certificate..."
    keytool -genkeypair -alias ca -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-ca' \
@@ -184,7 +184,7 @@ create_keys() {
       keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -ext \
       'san=dns:my.test.server,dns:californium.eclipseprojects.io,ip:35.185.40.182,dns:localhost,ip:127.0.0.1,ip:::1' \
       -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_CER
-   keytool -alias server -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_CER -storetype $DEFAULT_STORE_TYPE
+   keytool -alias server -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_CER -storetype $DEFAULT_STORE_TYPE
 
    echo "creating server rsa-key and certificate..."
    keytool -genkeypair -alias serverrsa -keyalg RSA -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-rsa' \
@@ -193,14 +193,14 @@ create_keys() {
       keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig \
       -ext 'san=dns:localhost,ip:127.0.0.1,ip:::1,dns:californium.eclipseprojects.io,ip:35.185.40.182' \
       -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_RSA_CER
-   keytool -alias serverrsa -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_RSA_CER -storetype $DEFAULT_STORE_TYPE
+   keytool -alias serverrsa -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_RSA_CER -storetype $DEFAULT_STORE_TYPE
 
    echo "creating CA2 key and certificate..."
    keytool -genkeypair -alias ca2 -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-ca2' \
         -ext BC=0 -validity $VALIDITY -keypass $TRUST_STORE_PWD -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD
    keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -certreq -alias ca2 | \
       keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -validity $VALIDITY -ext BC=0 -ext KU=keyCertSign,cRLSign -sigalg SHA256withECDSA -rfc > $CA2_CER
-   keytool -alias ca2 -importcert -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -file $CA2_CER
+   keytool -alias ca2 -noprompt -importcert -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -file $CA2_CER
 
    echo "creating serverlarge key and certificate..."
    keytool -genkeypair -alias serverlarge -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-serverlarge' \
@@ -208,14 +208,14 @@ create_keys() {
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias serverlarge | \
       keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca2 -gencert -ext KU=dig -ext \
       'san=ip:127.0.0.1,ip:::1' -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $SERVER_LARGE_CER
-   keytool -alias serverlarge -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_LARGE_CER
+   keytool -alias serverlarge -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_LARGE_CER
 
    echo "creating CA RSA key and certificate..."
    keytool -genkeypair -alias carsa -keyalg RSA -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-ca-rsa' \
         -ext BC=0 -validity $VALIDITY -keypass $TRUST_STORE_PWD -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD
    keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -certreq -alias carsa | \
       keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias root -gencert -validity $VALIDITY -ext BC=0 -ext KU=keyCertSign,cRLSign -sigalg SHA256withECDSA -rfc > $CA_RSA_CER
-   keytool -alias carsa -importcert -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -file $CA_RSA_CER
+   keytool -alias carsa -noprompt -importcert -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -file $CA_RSA_CER
 
    echo "creating server key with ca-rsa and certificate..."
    keytool -genkeypair -alias servercarsa -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-server-ca-rsa' \
@@ -223,7 +223,7 @@ create_keys() {
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias servercarsa | \
       keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias carsa -gencert -ext KU=dig -ext \
       'san=dns:my.test.server2,dns:localhost,ip:127.0.0.1,ip:::1' -validity $VALIDITY -sigalg SHA256withRSA -rfc > $SERVER_CA_RSA_CER
-   keytool -alias servercarsa -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_CA_RSA_CER
+   keytool -alias servercarsa -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $SERVER_CA_RSA_CER
 
    echo "creating client key and certificate..."
    keytool -genkeypair -alias client -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client' \
@@ -231,7 +231,7 @@ create_keys() {
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias client | \
         keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig \
         -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $CLIENT_CER
-   keytool -alias client -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_CER
+   keytool -alias client -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_CER
 
    echo "creating client rsa-key and certificate..."
    keytool -genkeypair -alias clientrsa -keyalg RSA -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client-rsa' \
@@ -239,7 +239,7 @@ create_keys() {
    keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias clientrsa | \
         keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig \
        -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $CLIENT_RSA_CER
-   keytool -alias clientrsa -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_RSA_CER
+   keytool -alias clientrsa -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_RSA_CER
 
    echo "creating self-signed key and certificate..."
    keytool -genkeypair -alias self -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-self' \
@@ -262,7 +262,7 @@ create_keys() {
    # importing a single signed certificate amend also this top-level self-signed roo-tcertificate to that chain
    # to test the behaviour for certificate chains including the top-level self-signed root-certificate, amend it to the chain generated by gencert 
    cat $ROOT_CER >> $CLIENT_EXT_CER  
-   keytool -alias clientext -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_EXT_CER
+   keytool -alias clientext -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_EXT_CER
 
    # requires java 15!
    # sudo update-java-alternatives -s java-1.15.0-openjdk-amd64
@@ -271,10 +271,11 @@ create_keys() {
         -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -storetype $DEFAULT_STORE_TYPE
 
    if [ $? -eq 0 ] ; then 
+   
       keytool -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias clienteddsa | \
            keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig \
            -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $CLIENT_EDDSA_CER
-      keytool -alias clienteddsa -importcert -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts \
+      keytool -alias clienteddsa -noprompt -importcert -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts \
            -file $CLIENT_EDDSA_CER -storetype $DEFAULT_STORE_TYPE
 
       echo "import other key and certificate into eddsa trust ..."
@@ -296,12 +297,13 @@ create_keys() {
            keytool -keystore $EDDSA_TRUST_STORE -storepass $TRUST_STORE_PWD -alias caeddsa -gencert -ext KU=dig \
            -ext 'san=dns:localhost,ip:127.0.0.1,ip:::1,dns:californium.eclipseprojects.io,ip:35.185.40.182' \
            -validity $VALIDITY -sigalg Ed25519 -rfc > $SERVER_EDDSA_CER
-      keytool -alias servereddsa -importcert -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts \
+      keytool -alias servereddsa -noprompt -importcert -keystore $EDDSA_KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts \
            -file $SERVER_EDDSA_CER -storetype $DEFAULT_STORE_TYPE
 
       echo "import other key and certificate into eddsa store ..."
       keytool -importkeystore -destkeystore $EDDSA_KEY_STORE -deststorepass $KEY_STORE_PWD \
            -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD -storetype $DEFAULT_STORE_TYPE
+
    else
       echo "keytool doesn't support EdDSA! Use java 15 or newer."
       rm -f $EDDSA_KEY_STORE 
@@ -408,15 +410,21 @@ copy_pem() {
   cp $ROOT_TRUST_STORE_PEM $DESTINATION_DIR
   cp $CA_TRUST_STORE_PEM $DESTINATION_DIR
   cp $CA_RSA_TRUST_STORE_PEM $DESTINATION_DIR
-  cp $CA_EDDSA_TRUST_STORE_PEM $DESTINATION_DIR
+  if [ -s $CA_EDDSA_TRUST_STORE_PEM ] ; then 
+  	cp $CA_EDDSA_TRUST_STORE_PEM $DESTINATION_DIR
+  fi
   cp $CLIENT_KEY_STORE_PEM $DESTINATION_DIR
   cp $CLIENT_RSA_KEY_STORE_PEM $DESTINATION_DIR
-  cp $CLIENT_EDDSA_KEY_STORE_PEM $DESTINATION_DIR
+  if [ -s $CLIENT_EDDSA_KEY_STORE_PEM ] ; then 
+  	cp $CLIENT_EDDSA_KEY_STORE_PEM $DESTINATION_DIR
+  fi
   cp $SERVER_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_LARGE_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_RSA_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_CA_RSA_KEY_STORE_PEM $DESTINATION_DIR
-  cp $SERVER_EDDSA_KEY_STORE_PEM $DESTINATION_DIR
+  if [ -s $SERVER_EDDSA_KEY_STORE_PEM ] ; then 
+  	cp $SERVER_EDDSA_KEY_STORE_PEM $DESTINATION_DIR
+  fi
   cp $EC_PRIVATE_KEY_PEM $DESTINATION_DIR
   cp $CLIENT_PRIVATE_KEY_PEM $DESTINATION_DIR
   cp $CLIENT_RSA_PRIVATE_KEY_PEM $DESTINATION_DIR

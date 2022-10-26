@@ -90,8 +90,6 @@ The key stores containing the demo keys and certificates can be recreated by mea
 
 You can also use the script to create your own certificates for use with Scandium. Simply alter the script at the places where you want to use other values as the default, e.g. your own distinguished names for the certificates and/or different key store names.
 
-When running the script you will be prompted twice to trust the intermediary CA certificate so that it can be added to the key store. This is necessary because the `keytool` has no way to create a chain of trust from the *client* and *server* certificates to an already trusted root CA (because the demo root CA certificate is self-signed). Simply enter `yes` and press `enter` to trust the certificate and add it to the key store.
-
 The script supports a list of tasks as arguments. The supported tasks are:
 -  remove remove all created files
 -  create create keys an jks
@@ -102,9 +100,9 @@ If no argument is provided "remove create export copy" is used.
 
 Note: to create EdDSA certificates, it's required to use java 15 (or newer). If previous java version are used, this client certificate is missing and the corresponding interoperability test is skipped.
 
-#### Java 16 - Keytool
+#### Java 16 (or newer) - Keytool
 
-The keytools of java 16 uses a stronger encryption for the p12 (PKCS12) keystores. That stronger encryption can not be read by older java versions (7, 8, and 11). In order to support these older versions, the script uses
+The keytools of java 16 (or newer) uses a stronger encryption for the p12 (PKCS12) keystores. That stronger encryption can not be read by older java versions (7, 8, and 11). In order to support these older versions, the script uses
 
 ```
 LEGACY=-J-Dkeystore.pkcs12.legacy 
