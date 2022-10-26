@@ -510,7 +510,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		case RPK:
 			break;
 		case CHAIN:
-			if (version.startsWith("4.3.0")) {
+			if (compareVersion("4.3.0") >= 0) {
 				args.add("-n");
 			}
 			args.add("-R");
