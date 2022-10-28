@@ -161,14 +161,11 @@ public class ReverseRequest extends CoapResource {
 		Integer numberOfRequests = null;
 		String resource = null;
 		try {
-			List<String> uriQuery = request.getOptions().getUriQuery();
-			UriQueryParameter helper = new UriQueryParameter(uriQuery, SUPPORTED, requestUriQuery);
+			UriQueryParameter helper = request.getOptions().getUriQueryParameter(SUPPORTED, requestUriQuery);
 			if (helper.hasParameter(URI_QUERY_OPTION_REQUEST)) {
 				numberOfRequests = helper.getArgumentAsInteger(URI_QUERY_OPTION_REQUEST, 1, 1, MAX_REQUESTS);
 			}
-			if (helper.hasParameter(URI_QUERY_OPTION_RESOURCE)) {
-				resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE);
-			}
+			resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE, null);
 		} catch (IllegalArgumentException ex) {
 			exchange.respond(BAD_OPTION, ex.getMessage());
 			return;

@@ -186,8 +186,7 @@ public class RequestStatistic extends CoapResource {
 		Integer rlen = null;
 		boolean sourceEndpoint = false;
 		try {
-			List<String> uriQuery = request.getOptions().getUriQuery();
-			UriQueryParameter helper = new UriQueryParameter(uriQuery, SUPPORTED);
+			UriQueryParameter helper = request.getOptions().getUriQueryParameter(SUPPORTED);
 			sourceEndpoint = helper.hasParameter(URI_QUERY_OPTION_ENDPOINT);
 			rid = helper.getArgument(URI_QUERY_OPTION_REQUEST_ID, null);
 			dev = helper.getArgument(URI_QUERY_OPTION_DEV_ID, null);
