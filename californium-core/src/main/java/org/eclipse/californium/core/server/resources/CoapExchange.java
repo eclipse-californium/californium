@@ -22,8 +22,6 @@ package org.eclipse.californium.core.server.resources;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -32,6 +30,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
@@ -48,7 +47,6 @@ public class CoapExchange {
 
 	/* The internal (advanced) exchange. */
 	private final Exchange exchange;
-	private final Map<String, String> queryParameters;
 
 	/* Response option values. */
 	private String locationPath = null;
@@ -84,23 +82,6 @@ public class CoapExchange {
 			throw new NullPointerException("exchange must not be null");
 		}
 		this.exchange = exchange;
-		if (getRequestOptions().getURIQueryCount() > 0) {
-			this.queryParameters = new HashMap<>();
-			for (String param : getRequestOptions().getUriQuery()) {
-				addParameter(param);
-			}
-		} else {
-			this.queryParameters = null;
-		}
-	}
-
-	private void addParameter(final String param) {
-		int idx = param.indexOf("=");
-		if (idx > 0) {
-			queryParameters.put(param.substring(0, idx), param.substring(idx + 1));
-		} else {
-			queryParameters.put(param, Boolean.TRUE.toString());
-		}
 	}
 
 	/**
@@ -166,15 +147,15 @@ public class CoapExchange {
 	 * 
 	 * @param name The name of the query parameter.
 	 * @return The value of the parameter or {@code null} if the request did not
-	 *         include a query parameter with the given name.
+	 *         include a query parameter with the given name. If the parameter
+	 *         is available, but has no argument, {@code "true"} is returned.
 	 */
 	public String getQueryParameter(final String name) {
-
-		if (queryParameters != null) {
-			return queryParameters.get(name);
-		} else {
-			return null;
+		UriQueryParameter uriQueryParameter = getRequestOptions().getUriQueryParameter();
+		if (uriQueryParameter.hasParameter(name)) {
+			return uriQueryParameter.getArgument(name, Boolean.TRUE.toString());
 		}
+		return null;
 	}
 
 	/**

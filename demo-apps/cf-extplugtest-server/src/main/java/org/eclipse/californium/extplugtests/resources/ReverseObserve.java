@@ -286,14 +286,11 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			Integer observe = null;
 			String resource = null;
 			try {
-				List<String> uriQuery = request.getOptions().getUriQuery();
-				UriQueryParameter helper = new UriQueryParameter(uriQuery, SUPPORTED, observeUriQuery);
-				timeout = helper.getArgumentAsInteger(URI_QUERY_OPTION_TIMEOUT, 30, 0);
+				UriQueryParameter helper = request.getOptions().getUriQueryParameter(SUPPORTED, observeUriQuery);
+				resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE, null);
+				timeout = helper.getArgumentAsInteger(URI_QUERY_OPTION_TIMEOUT, timeout, 0);
 				if (helper.hasParameter(URI_QUERY_OPTION_OBSERVE)) {
 					observe = helper.getArgumentAsInteger(URI_QUERY_OPTION_OBSERVE, 0, 0, MAX_NOTIFIES);
-				}
-				if (helper.hasParameter(URI_QUERY_OPTION_RESOURCE)) {
-					resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE);
 				}
 			} catch (IllegalArgumentException ex) {
 				respond(BAD_OPTION, ex.getMessage(), MediaTypeRegistry.UNDEFINED);

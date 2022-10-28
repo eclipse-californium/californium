@@ -75,6 +75,7 @@ public final class OptionSet {
 	private Integer      content_format;
 	private Long         max_age; // (0-4 bytes)
 	private List<String> uri_query_list;
+	private UriQueryParameter uri_query_parameter;
 	private Integer      accept;
 	private List<String> location_query_list;
 	private String       proxy_uri;
@@ -107,6 +108,7 @@ public final class OptionSet {
 		content_format      = null;
 		max_age             = null;
 		uri_query_list      = null; // new LinkedList<String>();
+		uri_query_parameter = null;
 		accept              = null;
 		location_query_list = null; // new LinkedList<String>();
 		proxy_uri           = null;
@@ -141,6 +143,7 @@ public final class OptionSet {
 		content_format      = origin.content_format;
 		max_age             = origin.max_age;
 		uri_query_list      = copyList(origin.uri_query_list);
+		uri_query_parameter = origin.uri_query_parameter;
 		accept              = origin.accept;
 		location_query_list = copyList(origin.location_query_list);
 		proxy_uri           = origin.proxy_uri;
@@ -176,8 +179,10 @@ public final class OptionSet {
 			uri_path_list.clear();
 		content_format = null;
 		max_age = null;
-		if (uri_query_list != null)
+		if (uri_query_list != null) {
 			uri_query_list.clear();
+			uri_query_parameter = null;
+		}
 		accept = null;
 		if (location_query_list != null)
 			location_query_list.clear();
@@ -880,6 +885,7 @@ public final class OptionSet {
 	public OptionSet addUriQuery(String argument) {
 		checkOptionValue(OptionNumberRegistry.URI_QUERY, argument);
 		getUriQuery().add(argument);
+		uri_query_parameter = null;
 		return this;
 	}
 
@@ -890,7 +896,9 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet removeUriQuery(String argument) {
-		getUriQuery().remove(argument);
+		if (getUriQuery().remove(argument)) {
+			uri_query_parameter = null;
+		}
 		return this;
 	}
 
@@ -901,7 +909,70 @@ public final class OptionSet {
 	 */
 	public OptionSet clearUriQuery() {
 		getUriQuery().clear();
+		uri_query_parameter = null;
 		return this;
+	}
+
+	/**
+	 * Gets the Uri-Query parameter.
+	 * <p>
+	 * The OptionSet uses lazy initialization for this map.
+	 * 
+	 * @return the map of Uri-Query parameter
+	 * @see #getUriQueryParameter(List, List)
+	 * @since 3.8
+	 */
+	public UriQueryParameter getUriQueryParameter() {
+		if (uri_query_parameter == null) {
+			return getUriQueryParameter(null, null);
+		} else {
+			return uri_query_parameter;
+		}
+	}
+
+	/**
+	 * Gets the Uri-Query parameter.
+	 * <p>
+	 * 
+	 * @param supportedParameterNames list of supported parameter names. May be
+	 *            {@code null} or empty, if the parameter names should not be verified.
+	 * @return the map of Uri-Query parameter
+	 * @throws IllegalArgumentException if a provided query parameter could not
+	 *             be verified.
+	 * @see #getUriQueryParameter(List, List)
+	 * @since 3.8
+	 */
+	public UriQueryParameter getUriQueryParameter(List<String> supportedParameterNames) {
+		return getUriQueryParameter(supportedParameterNames, null);
+	}
+
+	/**
+	 * Gets the Uri-Query parameter.
+	 * <p>
+	 * 
+	 * @param supportedParameterNames list of supported parameter names. May be
+	 *            {@code null} or empty, if the parameter names should not be
+	 *            verified.
+	 * @param unsupportedParameter list to add the unsupported parameter. May be
+	 *            {@code null}, if unsupported parameter names should cause a
+	 *            {@link IllegalArgumentException}.
+	 * @return the map of Uri-Query parameter
+	 * @throws IllegalArgumentException if a provided query parameter could not
+	 *             be verified and no list for unsupported parameter is
+	 *             provided.
+	 * @see #getUriQueryParameter()
+	 * @see #getUriQueryParameter(List)
+	 * @see UriQueryParameter
+	 * @since 3.8
+	 */
+	public UriQueryParameter getUriQueryParameter(List<String> supportedParameterNames,
+			List<String> unsupportedParameter) {
+		if (uri_query_list != null && !uri_query_list.isEmpty()) {
+			uri_query_parameter = new UriQueryParameter(uri_query_list, supportedParameterNames, unsupportedParameter);
+		} else {
+			uri_query_parameter = UriQueryParameter.EMPTY;
+		}
+		return uri_query_parameter;
 	}
 
 	/**

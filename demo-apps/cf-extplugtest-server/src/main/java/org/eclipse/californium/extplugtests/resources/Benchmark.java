@@ -138,8 +138,7 @@ public class Benchmark extends CoapResource {
 		boolean ack = false;
 		int length = 0;
 		try {
-			List<String> uriQuery = request.getOptions().getUriQuery();
-			UriQueryParameter helper = new UriQueryParameter(uriQuery, SUPPORTED);
+			UriQueryParameter helper = request.getOptions().getUriQueryParameter(SUPPORTED);
 			ack = helper.hasParameter(URI_QUERY_OPTION_ACK);
 			length = helper.getArgumentAsInteger(URI_QUERY_OPTION_RESPONSE_LENGTH, 0, 0, maxResourceSize);
 		} catch (IllegalArgumentException ex) {

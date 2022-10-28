@@ -21,10 +21,47 @@ import java.util.Map;
 
 /**
  * Helper for processing URI-query parameters.
+ * <p>
+ * The API is intended to provide strict query-parameter checks for error
+ * responses.
+ * </p>
+ * 
+ * <pre>
+ * try {
+ * 	UriQueryParameter helper = request.getOptions().getUriQueryParameter(SUPPORTED);
+ * 	// mandatory
+ * 	resource = helper.getArgument(URI_QUERY_OPTION_RESOURCE);
+ * 	// optional
+ * 	language = helper.getArgument(URI_QUERY_OPTION_LANG, null);
+ * } catch (IllegalArgumentException ex) {
+ * 	respond(BAD_OPTION, ex.getMessage(), MediaTypeRegistry.UNDEFINED);
+ * }
+ * </pre>
+ * 
+ * <p>
+ * Using one of {@link #getArgument(String)},
+ * {@link #getArgumentAsInteger(String)} or {@link #getArgumentAsLong(String)}
+ * getters without default fails with a {@link IllegalArgumentException}, if the
+ * query parameter is not available or has no argument. These are used for
+ * mandatory parameters.
+ * </p>
+ * 
+ * <p>
+ * Using {@link #hasParameter(String)} or a getter with default value don't
+ * fail, if the parameter or value is missing, therefore these are used for
+ * optional parameters.
+ * </p>
  * 
  * @since 3.2
  */
 public class UriQueryParameter {
+
+	/**
+	 * Empty Uri query parameter
+	 * 
+	 * @since 3.8
+	 */
+	public static final UriQueryParameter EMPTY = new UriQueryParameter();
 
 	/**
 	 * Map of parameter names and arguments.
@@ -32,6 +69,16 @@ public class UriQueryParameter {
 	 * Parameter without arguments are stored with {@code null} as argument.
 	 */
 	private final Map<String, String> parameterMap = new HashMap<>();
+
+	/**
+	 * Empty parameter.
+	 * 
+	 * Use {@link #EMPTY}.
+	 * 
+	 * @since 3.8
+	 */
+	private UriQueryParameter() {
+	}
 
 	/**
 	 * Create query parameter using all provided query parameter.
@@ -48,7 +95,8 @@ public class UriQueryParameter {
 	 * 
 	 * @param queryParameter list of query parameter.
 	 * @param supportedParameterNames list of supported parameter names. May be
-	 *            {@code null} or empty, if no verification should be applied.
+	 *            {@code null} or empty, if the parameter names should not be
+	 *            verified.
 	 * @throws IllegalArgumentException if a provided query parameter could not
 	 *             be verified.
 	 */
@@ -64,9 +112,10 @@ public class UriQueryParameter {
 	 * 
 	 * @param queryParameter list of query parameter.
 	 * @param supportedParameterNames list of supported parameter names. May be
-	 *            {@code null} or empty, if no verification should be applied.
+	 *            {@code null} or empty, if the parameter names should not be
+	 *            verified.
 	 * @param unsupportedParameter list to add the unsupported parameter. May be
-	 *            {@code null}, if failing verification should cause a
+	 *            {@code null}, if unsupported parameter names should cause a
 	 *            {@link IllegalArgumentException}.
 	 * @throws IllegalArgumentException if a provided query parameter could not
 	 *             be verified and no list for unsupported parameter is
