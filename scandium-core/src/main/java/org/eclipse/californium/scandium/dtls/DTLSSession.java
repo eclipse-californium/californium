@@ -60,6 +60,8 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerializationUtil;
+import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersions;
+import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersionsMatcher;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -147,6 +149,18 @@ public final class DTLSSession implements Destroyable {
 	 * @since 3.0
 	 */
 	private boolean extendedMasterSecret;
+	/**
+	 * Use secure renegotiation.
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version of RFC 5746.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 * 5746</a> for additional details.
+	 * 
+	 * @since 3.8
+	 */
+	private boolean secureRenegotiation;
 
 	/**
 	 * The 48-byte master secret shared by client and server to derive key
@@ -220,6 +234,7 @@ public final class DTLSSession implements Destroyable {
 		signatureAndHashAlgorithm = session.getSignatureAndHashAlgorithm();
 		ecGroup = session.getEcGroup();
 		extendedMasterSecret = session.useExtendedMasterSecret();
+		secureRenegotiation = session.useSecureRengotiation();
 		sendCertificateType = session.sendCertificateType();
 		receiveCertificateType = session.receiveCertificateType();
 		recordSizeLimit = session.getRecordSizeLimit();
@@ -232,6 +247,7 @@ public final class DTLSSession implements Destroyable {
 		SecretUtil.destroy(masterSecret);
 		masterSecret = null;
 		extendedMasterSecret = false;
+		secureRenegotiation = false;
 		cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
 		compressionMethod = CompressionMethod.NULL;
 		signatureAndHashAlgorithm = null;
@@ -412,6 +428,9 @@ public final class DTLSSession implements Destroyable {
 		if (extendedMasterSecret) {
 			attributes.add(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET, Boolean.TRUE);
 		}
+		if (secureRenegotiation) {
+			attributes.add(DtlsEndpointContext.KEY_SECURE_RENEGOTIATION, Boolean.TRUE);
+		}
 	}
 
 	/**
@@ -509,6 +528,40 @@ public final class DTLSSession implements Destroyable {
 	 */
 	public boolean useExtendedMasterSecret() {
 		return extendedMasterSecret;
+	}
+
+	/**
+	 * Sets secure renegotiation usage.
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version of RFC 5746.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 * 5746</a> for additional details.
+	 * 
+	 * @param used {@code true}, if secure renegotiation is used, {@code false},
+	 *            otherwise.
+	 * @since 3.8
+	 */
+	public void setSecureRengotiation(boolean used) {
+		secureRenegotiation = used;
+	}
+
+	/**
+	 * Gets use secure renegotiation.
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version of RFC 5746.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 * 5746</a> for additional details.
+	 * 
+	 * @return {@code true}, if secure renegotiation is used,
+	 *         {@code false}, otherwise.
+	 * @since 3.8
+	 */
+	public boolean useSecureRengotiation() {
+		return secureRenegotiation;
 	}
 
 	/**
@@ -774,6 +827,9 @@ public final class DTLSSession implements Destroyable {
 		if (extendedMasterSecret != other.extendedMasterSecret) {
 			return false;
 		}
+		if (secureRenegotiation != other.secureRenegotiation) {
+			return false;
+		}
 		if (peerSupportsSni != other.peerSupportsSni) {
 			return false;
 		}
@@ -810,7 +866,23 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Version number for serialization.
 	 */
-	private static final int VERSION = 2;
+	private static final int VERSION = 3;
+
+	/**
+	 * Version number for serialization before introducing
+	 * {@link #secureRenegotiation}.
+	 * 
+	 * @since 3.8
+	 */
+	private static final int VERSION_DEPRECATED = 2;
+
+	/**
+	 * Supported versions for {@link #fromReader(DatagramReader)}.
+	 * 
+	 * @since 3.8
+	 */
+	private static final SupportedVersions VERSIONS = new SupportedVersions(VERSION,
+			VERSION_DEPRECATED);
 
 	/**
 	 * Write dtls session state.
@@ -841,6 +913,7 @@ public final class DTLSSession implements Destroyable {
 		writer.write(compressionMethod.getCode(), Byte.SIZE);
 		writer.write(sendCertificateType.getCode(), Byte.SIZE);
 		writer.write(receiveCertificateType.getCode(), Byte.SIZE);
+		writer.write(secureRenegotiation ? 1 : 0, Byte.SIZE);
 		writer.write(extendedMasterSecret ? 1 : 0, Byte.SIZE);
 		SecretSerializationUtil.write(writer, masterSecret);
 		if (signatureAndHashAlgorithm == null) {
@@ -875,10 +948,11 @@ public final class DTLSSession implements Destroyable {
 	 * @since 3.0
 	 */
 	public static DTLSSession fromReader(DatagramReader reader) {
-		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
+		SupportedVersionsMatcher matcher = VERSIONS.matcher();
+		int length = SerializationUtil.readStartItem(reader, matcher, Short.SIZE);
 		if (0 < length) {
 			DatagramReader rangeReader = reader.createRangeReader(length);
-			return new DTLSSession(rangeReader);
+			return new DTLSSession(matcher.getReadVersion(), rangeReader);
 		} else {
 			return null;
 		}
@@ -887,12 +961,13 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Create instance from reader.
 	 * 
+	 * @param version version of serialized data.
 	 * @param reader reader with dtls session state.
 	 * @throws IllegalArgumentException if version differs or the data is
 	 *             erroneous
-	 * @since 3.0
+	 * @since 3.8 (added version to support new field secure renegotiation)
 	 */
-	private DTLSSession(DatagramReader reader) {
+	private DTLSSession(int version, DatagramReader reader) {
 		creationTime = reader.readLong(Long.SIZE);
 		if (reader.readNextByte() == 1) {
 			serverNames = ServerNames.newInstance();
@@ -935,6 +1010,9 @@ public final class DTLSSession implements Destroyable {
 		receiveCertificateType = CertificateType.getTypeFromCode(code);
 		if (receiveCertificateType == null) {
 			throw new IllegalArgumentException("unknown send certificate type 0x" + Integer.toHexString(code) + "!");
+		}
+		if (version > VERSION_DEPRECATED) {
+			secureRenegotiation = (reader.read(Byte.SIZE) == 1);
 		}
 		extendedMasterSecret = (reader.read(Byte.SIZE) == 1);
 		masterSecret = SecretSerializationUtil.readSecretKey(reader);

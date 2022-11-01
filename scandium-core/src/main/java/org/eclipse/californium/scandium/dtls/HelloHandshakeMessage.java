@@ -260,4 +260,16 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 		return extensions.getExtension(ExtensionType.EXTENDED_MASTER_SECRET) != null;
 	}
 
+	/**
+	 * Checks whether <em>RenegotiationInfo</em> extension is present in this
+	 * message.
+	 * 
+	 * @return {@code true}, if the <em>RenegotiationInfo</em> extension is
+	 *         present, {@code false}, otherwise
+	 * @since 3.8
+	 */
+	public boolean hasRenegotiationInfoExtension() {
+		return extensions.getExtension(ExtensionType.RENEGOTIATION_INFO) != null;
+	}
+
 }

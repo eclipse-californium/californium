@@ -134,6 +134,17 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	public static final Definition<InetSocketAddress> KEY_PREVIOUS_ADDRESS = new Definition<>(
 			KEY_PREFIX_NONE_CRITICAL + "DTLS_PREVIOUS_ADDRESS", InetSocketAddress.class, ATTRIBUTE_DEFINITIONS);
 	/**
+	 * The name of the attribute that contains a marker for the secure renegotiationt 
+	 * (see <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC 5746</a>).
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version of RFC 5746.
+	 * 
+	 * @since 3.8
+	 */
+	public static final Definition<Boolean> KEY_SECURE_RENEGOTIATION = new Definition<>(
+			"DTLS_SECURE_RENEGOTIATION", Boolean.class, ATTRIBUTE_DEFINITIONS);
+	/**
 	 * Force full handshake before send this message. Doesn't start a handshake,
 	 * if the connector is configured to act as server only.
 	 */

@@ -48,6 +48,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -57,6 +58,7 @@ import javax.security.auth.x500.X500Principal;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsSecureRenegotiation;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -196,6 +198,19 @@ public class ClientHandshaker extends Handshaker {
 	private final List<CipherSuite> supportedCipherSuites;
 
 	/**
+	 * Secure renegotiation mode.
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 * 5746</a> for additional details.
+	 * 
+	 * @since 3.8
+	 */
+	private final DtlsSecureRenegotiation secureRenegotiation;
+
+	/**
 	 * the supported groups (curves) ordered by preference
 	 * 
 	 * @since 2.3
@@ -271,7 +286,19 @@ public class ClientHandshaker extends Handshaker {
 	public ClientHandshaker(String hostname, RecordLayer recordLayer, ScheduledExecutorService timer,
 			Connection connection, DtlsConnectorConfig config, boolean probe) {
 		super(0, 0, recordLayer, timer, connection, config);
-		this.supportedCipherSuites = config.getSupportedCipherSuites();
+
+		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
+		boolean scsv = cipherSuites.contains(CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV);
+		DtlsSecureRenegotiation secureRenegotiation = config.get(DtlsConfig.DTLS_SECURE_RENEGOTIATION);
+
+		if (scsv && secureRenegotiation == DtlsSecureRenegotiation.NONE) {
+			secureRenegotiation = DtlsSecureRenegotiation.WANTED;
+		} else if (!scsv && secureRenegotiation != DtlsSecureRenegotiation.NONE) {
+			cipherSuites = new ArrayList<>(cipherSuites);
+			cipherSuites.add(CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV);
+		}
+		this.secureRenegotiation = secureRenegotiation;
+		this.supportedCipherSuites = cipherSuites;
 		this.supportedGroups = config.getSupportedGroups();
 		this.maxFragmentLength = config.get(DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH);
 		this.truncateCertificatePath = config.get(DtlsConfig.DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH);
@@ -454,6 +481,7 @@ public class ClientHandshaker extends Handshaker {
 	 *             initiated by the client or not supported by the client.
 	 */
 	protected void verifyServerHelloExtensions(ServerHello message) throws HandshakeException {
+		boolean hasRenegotiationInfoExtension = false;
 		HelloExtensions serverExtensions = message.getExtensions();
 		if (serverExtensions != null && !serverExtensions.isEmpty()) {
 			HelloExtensions clientExtensions = clientHello.getExtensions();
@@ -463,6 +491,12 @@ public class ClientHandshaker extends Handshaker {
 			} else {
 				for (HelloExtension serverExtension : serverExtensions.getExtensions()) {
 					if (clientExtensions.getExtension(serverExtension.getType()) == null) {
+						if (serverExtension.getType() == HelloExtension.ExtensionType.RENEGOTIATION_INFO) {
+							hasRenegotiationInfoExtension = true;
+							if (secureRenegotiation != DtlsSecureRenegotiation.NONE) {
+								continue;
+							}
+						}
 						throw new HandshakeException(
 								"Server wants " + serverExtension.getType() + ", but client didn't propose it!",
 								new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION));
@@ -518,6 +552,12 @@ public class ClientHandshaker extends Handshaker {
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 			}
 			session.setSendCertificateType(clientCertificateType);
+		}
+		if (hasRenegotiationInfoExtension) {
+			session.setSecureRengotiation(true);
+		} else if (secureRenegotiation == DtlsSecureRenegotiation.NEEDED) {
+			throw new HandshakeException("Server doesn't support secure renegotiation!",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
 	}
 
