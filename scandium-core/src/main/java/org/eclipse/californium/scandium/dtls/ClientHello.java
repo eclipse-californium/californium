@@ -448,4 +448,22 @@ public final class ClientHello extends HelloHandshakeMessage {
 		return extensions.getExtension(ExtensionType.ELLIPTIC_CURVES);
 	}
 
+	/**
+	 * Checks, if either the {@link RenegotiationInfoExtension} or the
+	 * {@link CipherSuite#TLS_EMPTY_RENEGOTIATION_INFO_SCSV} is available.
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version of RFC 5746.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 * 5746</a> for additional details.
+	 * 
+	 * @return {@code true}, if available, {@code false}, if not.
+	 * @since 3.8
+	 */
+	public boolean hasRenegotiationInfo() {
+		return hasRenegotiationInfoExtension()
+				|| supportedCipherSuites.contains(CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV);
+	}
+
 }

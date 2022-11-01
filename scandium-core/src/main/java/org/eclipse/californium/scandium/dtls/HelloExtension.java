@@ -200,6 +200,9 @@ public abstract class HelloExtension {
 			case CONNECTION_ID:
 				extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, type);
 				break;
+			case RENEGOTIATION_INFO:
+				extension = RenegotiationInfoExtension.fromExtensionDataReader(extensionDataReader);
+				break;
 			default:
 				if (type.replacement == ExtensionType.CONNECTION_ID) {
 					extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, type);

@@ -78,6 +78,32 @@ public final class DtlsConfig {
 	}
 
 	/**
+	 * DTLS secure renegotiation.
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version of RFC 5746.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 * 5746</a> for additional details.
+	 * 
+	 * @since 3.8
+	 */
+	public enum DtlsSecureRenegotiation {
+		/**
+		 * Don't use secure renegotiation.
+		 */
+		NONE,
+		/**
+		 * Request secure renegotiation.
+		 */
+		WANTED,
+		/**
+		 * Reject missing secure renegotiation.
+		 */
+		NEEDED
+	}
+
+	/**
 	 * Definition for list of signature and hash algorithms.
 	 */
 	public static class SignatureAndHashAlgorithmsDefinition extends BasicListDefinition<SignatureAndHashAlgorithm> {
@@ -239,6 +265,12 @@ public final class DtlsConfig {
 	 * {@link #DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} property in percent.
 	 */
 	public static final int DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT = 30;
+	/**
+	 * The default value for the {@link #DTLS_SECURE_RENEGOTIATION}.
+	 * 
+	 * @since 3.8
+	 */
+	public static final DtlsSecureRenegotiation DEFAULT_SECURE_RENEGOTIATION = DtlsSecureRenegotiation.WANTED;
 
 	/**
 	 * DTLS session timeout. Currently not supported!
@@ -955,6 +987,23 @@ public final class DtlsConfig {
 			MODULE + "MAC_ERROR_FILTER_THRESHOLD",
 			"Threshold of current MAC errors to block all traffic for an endpoint. 0 to disable the MAC error filter.",
 			0, 0);
+
+	/**
+	 * Specify the secure renegotiation mode.
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version of RFC 5746.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 * 5746</a> for additional details.
+	 * 
+	 * @since 3.8
+	 */
+	public static final EnumDefinition<DtlsSecureRenegotiation> DTLS_SECURE_RENEGOTIATION = new EnumDefinition<>(
+			MODULE + "SECURE_RENEGOTIATION_MODE",
+			"Use minimal version of RFC5746 to indicate secure renegotiation on initial handshake.\n"
+					+ "Renegotation handshakes are always rejected by Californium.",
+			DEFAULT_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.values());
 
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 

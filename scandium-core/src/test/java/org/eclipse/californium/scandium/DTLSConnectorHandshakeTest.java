@@ -86,6 +86,7 @@ import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
 import org.eclipse.californium.scandium.ConnectorHelper.TestContext;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsSecureRenegotiation;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -1307,14 +1308,14 @@ public class DTLSConnectorHandshakeTest {
 	public void testPskHandshakeWithRequiredExtendedMasterSecret() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.REQUIRED);
 		startServer();
-		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.REQUIRED)
-				.setAdvancedPskStore(PSK_STORE);
-		startClient(null);
+		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.REQUIRED);
+		startClientPsk(null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET), is(Boolean.TRUE));
 		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
@@ -1322,9 +1323,8 @@ public class DTLSConnectorHandshakeTest {
 	public void testPskHandshakeWithoutExtendedMasterSecret() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE);
 		startServer();
-		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE)
-				.setAdvancedPskStore(PSK_STORE);
-		startClient(null);
+		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE);
+		startClientPsk(null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -1344,6 +1344,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
@@ -1358,6 +1359,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
@@ -1394,6 +1396,106 @@ public class DTLSConnectorHandshakeTest {
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.REQUIRED)
 				.setAdvancedPskStore(PSK_STORE);
+		startClientFailing();
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("server side alert", alert,
+				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("client side alert", alert,
+				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+	}
+
+	@Test
+	public void testPskHandshakeWithoutSecureRenegotiation() throws Exception {
+		serverBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NONE);
+		startServer();
+		clientBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NONE);
+		startClientPsk(null);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_SECURE_RENEGOTIATION), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeClientWithoutSecureRenegotiation() throws Exception {
+		startServer();
+		clientBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NONE);
+		startClientPsk(null);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_SECURE_RENEGOTIATION), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeWithNeededSecureRenegotiation() throws Exception {
+		serverBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NEEDED);
+		startServer();
+		clientBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NEEDED);
+		startClientPsk(null);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertThat(endpointContext.get(DtlsEndpointContext.KEY_SECURE_RENEGOTIATION), is(Boolean.TRUE));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeClientWithoutServerWithNeededSecureRenegotiation() throws Exception {
+		serverBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NEEDED);
+		startServer();
+		clientBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NONE)
+				.setAdvancedPskStore(PSK_STORE);
+
+		startClientFailing();
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("server side alert", alert,
+				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("client side alert", alert,
+				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+	}
+
+	@Test
+	public void testPskHandshakeClientWithNeededServerWithoutSecureRenegotiation() throws Exception {
+		serverBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NONE);
+		startServer();
+		clientBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NEEDED)
+				.setAdvancedPskStore(PSK_STORE);
+
 		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());

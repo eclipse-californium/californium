@@ -56,7 +56,7 @@ public final class ExtendedMasterSecretExtension extends HelloExtension {
 	 */
 	public static ExtendedMasterSecretExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
 		if (extensionDataReader == null) {
-			throw new NullPointerException("record size limit must not be null!");
+			throw new NullPointerException("extended master secret must not be null!");
 		}
 		return INSTANCE;
 	}

@@ -49,6 +49,7 @@ import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.PublicAPITypo;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsSecureRenegotiation;
 import org.eclipse.californium.scandium.util.ListUtils;
 
 
@@ -138,7 +139,18 @@ public enum CipherSuite {
 
 	// Null cipher suite
 	TLS_NULL_WITH_NULL_NULL(0x0000),
-	// Renegotiation cipher suite, not supported, just for logging.
+	/**
+	 * Cipher suite indicating client support for secure renegotiation.
+	 * 
+	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
+	 * update to a minimal version of RFC 5746.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 * 5746</a> for additional details.
+	 * 
+	 * @see DtlsSecureRenegotiation
+	 * @since 3.8 (before that only used for logging since 3.5)
+	 */
 	TLS_EMPTY_RENEGOTIATION_INFO_SCSV(0x00ff)
 	;
 

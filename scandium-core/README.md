@@ -241,16 +241,17 @@ Note: *SHA378* in the cipher suite names are typos. It must be *SHA384*. The str
 Supported extensions:
 - [RFC 4279 - Pre-Shared Key](https://tools.ietf.org/html/rfc4279) simple and light authentication.
 - [RFC 4492 - Elliptic Curve Cryptography (ECC)](https://tools.ietf.org/html/rfc4492)
-- [RFC 8422 - Elliptic Curve Cryptography (ECC) Update](https://tools.ietf.org/html/rfc8422)
 - [RFC 5489 - ECDHE_PSK Cipher Suites](https://tools.ietf.org/html/rfc5489)
+- [RFC 5746 - Transport Layer Security (TLS) Renegotiation Indication Extension](https://tools.ietf.org/html/rfc5746) only minimal version, renegotiation is not supported at all!
 - [RFC 6066 - TLS Extensions](https://tools.ietf.org/html/rfc6066)
      - [RFC 6066 - Server Name Indication](https://tools.ietf.org/html/rfc6066#section-3)
      - [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4)
-     - [RFC 7627 - Extended Master Secret Extension](https://tools.ietf.org/html/rfc7627)
-     - [RFC 8449 - Record Size Limit Extension](https://tools.ietf.org/html/rfc8449)
-- [RFC 9146 - Connection Identifiers for DTLS 1.2](https://www.rfc-editor.org/rfc/rfc9146.html)
 - [RFC 7250 - Raw Public Keys](https://tools.ietf.org/html/rfc7250)
+- [RFC 7627 - Extended Master Secret Extension](https://tools.ietf.org/html/rfc7627)
 - [RFC 7748 - Elliptic Curves for Security](https://tools.ietf.org/html/rfc7748)
+- [RFC 8422 - Elliptic Curve Cryptography (ECC) Update](https://tools.ietf.org/html/rfc8422)
+- [RFC 8449 - Record Size Limit Extension](https://tools.ietf.org/html/rfc8449)
+- [RFC 9146 - Connection Identifiers for DTLS 1.2](https://www.rfc-editor.org/rfc/rfc9146.html)
 
 ## Support for x25519 and ed25519
 
@@ -272,44 +273,40 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 
 ```
 <properties>
-	<bc.version>1.69</bc.version>
-	<slf4j.version>1.7.34</slf4j.version>
+	<bc.art>jdk18on</bc.art>
+	<bc.version>1.72</bc.version>
+	<slf4j.version>1.7.36</slf4j.version>
 </properties>
 <dependencies>
 	<dependency>
 		<groupId>org.bouncycastle</groupId>
-		<artifactId>bcpkix-jdk15on</artifactId>
+		<artifactId>bcpkix-${bc.art}</artifactId>
 		<version>${bc.version}</version>
-		<scope>test</scope>
 	</dependency>
 	<dependency>
 		<groupId>org.bouncycastle</groupId>
-		<artifactId>bcprov-jdk15on</artifactId>
+		<artifactId>bcprov-${bc.art}</artifactId>
 		<version>${bc.version}</version>
-		<scope>test</scope>
 	</dependency>
 	<dependency>
 		<groupId>org.bouncycastle</groupId>
-		<artifactId>bctls-jdk15on</artifactId>
+		<artifactId>bctls-${bc.art}</artifactId>
 		<version>${bc.version}</version>
-		<scope>test</scope>
 	</dependency>
 	<dependency>
 		<groupId>org.bouncycastle</groupId>
-		<artifactId>bcutil-jdk15on</artifactId>
+		<artifactId>bcutil-${bc.art}</artifactId>
 		<version>${bc.version}</version>
-		<scope>test</scope>
 	</dependency>
 	<dependency>
 		<groupId>org.slf4j</groupId>
 		<artifactId>jul-to-slf4j</artifactId>
 		<version>${slf4j.version}</version>
-		<scope>test</scope>
 	</dependency>
 </dependencies>
 ```
 
-(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.71.1).
+(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72).
 
 And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
 
@@ -433,4 +430,15 @@ Additional configuration values:
 
 - [DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L393)
 - [DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS](src/main/java/org/eclipse/californium/scandium/config/DtlsConfig.java#L398)
+
+## DTLS 1.2 - RFC 5746 - Transport Layer Security (TLS) Renegotiation Indication Extension
+
+Californium doesn't support renegotiation at all. Please always use full- or abbreviated-handshake.
+[RFC 5746](https://tools.ietf.org/html/rfc5746) requires even for implementations, which doesn't support renegotiation to implement a minimal version of RFC 5746. With version 3.8 Californium supports now such a minimal version of RFC 5746.
+
+The feature is configured with `DTLS.SECURE_RENEGOTIATION_MODE`. The supported values are `NONE`, `WANTED`, and `NEEDED`. The default is set to `WANTED`.
+
+Californium itself uses a different technique to protect from misaligned application data and security contexts. It provides a `EndpointContext` for each received or send record, which enables to access the security parameters, which are exactly valid for that record. That mitigates not only the vulnerability fixed by [RFC 5746](https://tools.ietf.org/html/rfc5746) for the peer itself, it mitigates that even for new handshakes on the same ip-address.
+
+Even with that protection, RFC 5746 is required to protect the other peers from being redirect to an other vulnerable server. If such a scenario is realistic, depends also on the used mutual authentication.
 
