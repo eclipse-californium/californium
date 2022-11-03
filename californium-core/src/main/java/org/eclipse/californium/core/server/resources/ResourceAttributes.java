@@ -101,6 +101,15 @@ public class ResourceAttributes {
 	}
 
 	/**
+	 * Clear the resource title.
+	 * 
+	 * @since 3.8
+	 */
+	public void clearTitle() {
+		attributes.remove(LinkFormat.TITLE);
+	}
+
+	/**
 	 * Adds a resource type.
 	 *
 	 * @param type the type
