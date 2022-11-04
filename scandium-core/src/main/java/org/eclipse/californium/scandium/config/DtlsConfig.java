@@ -553,7 +553,7 @@ public final class DtlsConfig {
 	 */
 	public static final TimeDefinition DTLS_STALE_CONNECTION_THRESHOLD = new TimeDefinition(
 			MODULE + "STALE_CONNECTION_THRESHOLD",
-			"DTLS threshold for state connections. Connections will only get removed for new ones, "+
+			"DTLS threshold for stale connections. Connections will only get removed for new ones, "+
 			"if at least for that threshold no messages are exchanged using that connection.",
 			DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS, TimeUnit.SECONDS);
 
