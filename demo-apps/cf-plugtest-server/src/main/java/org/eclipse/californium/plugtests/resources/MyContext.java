@@ -146,6 +146,10 @@ public class MyContext extends CoapResource {
 		if (via != null) {
 			formatter.add("via", via);
 		}
+		Boolean secureRenegotiation = context.get(DtlsEndpointContext.KEY_SECURE_RENEGOTIATION);
+		if (secureRenegotiation != null) {
+			formatter.add("secure-renegotiation", secureRenegotiation);
+		}
 		Boolean extendedMasterSecret = context.get(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET);
 		if (extendedMasterSecret != null) {
 			formatter.add("ext-master-secret", extendedMasterSecret);
