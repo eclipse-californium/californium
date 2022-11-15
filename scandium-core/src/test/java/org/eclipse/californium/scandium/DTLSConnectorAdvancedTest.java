@@ -1738,6 +1738,102 @@ public class DTLSConnectorAdvancedTest {
 	}
 
 	/**
+	 * Test processing reordered application records using a newer record filter.
+	 */
+	@Test
+	public void testServerWithNewerFilterDropsOlderRecords() throws Exception {
+		alternativeServerHelper = new ConnectorHelper(network);
+
+		alternativeServerHelper.serverBuilder
+				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS * 2, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS * 2)
+				.set(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES, false)
+				.set(DtlsConfig.DTLS_USE_NEWER_RECORD_FILTER, true)
+				.setHealthHandler(serverHealth)
+				.setConnectionIdGenerator(serverCidGenerator);
+
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(LOCAL, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
+		try {
+			// create limited server
+			alternativeServerHelper.startServer();
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			Connection clientConnection = createConnection(clientCidGenerator, alternativeServerHelper.serverEndpoint);
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(null,
+					clientRecordLayer, timer, clientConnection, clientConfigBuilder.build(), false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start handshake (Send CLIENT HELLO, flight 1)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response
+			// (HELLO VERIFY REQUEST, flight 2)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie, flight 3)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response
+			// (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE, flight 4)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED, flight 5)
+			processAll(clientHandshaker, rs);
+
+			// Wait to receive response from server
+			// (CHANGE CIPHER SPEC, FINISHED, flight 6)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			processAll(clientHandshaker, rs);
+
+			serverHealth.reset();
+
+			ApplicationMessage app = new ApplicationMessage("hi".getBytes());
+			send(clientConnection, clientRecordLayer, app);
+
+			// app response
+			rs = waitForFlightReceived("response", collector, 1);
+
+			assertTrue("client handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "sending records", is(1L), MAX_TIME_TO_WAIT_SECS,
+					TimeUnit.SECONDS);
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes succeeded", is(1L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes failed", is(0L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped sending records", is(0L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "received records", is(1L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
+
+			serverHealth.reset();
+
+			ApplicationMessage app1 = new ApplicationMessage("hi, too late".getBytes());
+			ApplicationMessage app2 = new ApplicationMessage("hi, again".getBytes());
+
+			clientRecordLayer.setReverse(true);
+			send(clientConnection, clientRecordLayer, app1, app2);
+
+			// response for app2
+			rs = waitForFlightReceived("response", collector, 1);
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(1L),
+					MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			TestConditionTools.assertStatisticCounter(serverHealth, "received records", is(2L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "sending records", is(1L));
+
+		} finally {
+			rawClient.stop();
+			alternativeServerHelper.destroyServer();
+			serverHealth.reset();
+		}
+	}
+
+	/**
 	 * Test retransmission of last flight of resuming handshake.
 	 * 
 	 * RFC6347, section 4.2.4, fig. 2

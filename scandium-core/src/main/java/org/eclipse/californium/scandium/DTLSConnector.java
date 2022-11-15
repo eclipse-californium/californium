@@ -418,14 +418,26 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 */
 	private final int useExtendedWindowFilter;
 	/**
-	 * Apply record filter.
+	 * Use record anti-replay-filter.
+	 * 
+	 * @see <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6"
+	 *      target= "_blank">RFC6347 4.1.2.6. Anti-Replay</a>
 	 */
-	private final boolean useFilter;
+	private final boolean useAntiReplayFilter;
 	/**
 	 * Apply address update only for newer records based on
 	 * epoch/sequence_number.
 	 */
 	private final boolean useCidUpdateAddressOnNewerRecordFilter;
+	/**
+	 * Filter newer records based on epoch/sequence_number.
+	 * 
+	 * Drop reorder records in order to protect from delay attacks, if no other
+	 * means, maybe on application level, are available.
+	 * 
+	 * @since 3.8
+	 */
+	private final boolean useNewerRecordFilter;
 
 	/**
 	 * Maximum pending jobs for outbound messages.
@@ -620,8 +632,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			this.dtlsRole = config.get(DtlsConfig.DTLS_ROLE);
 			this.defaultHandshakeMode = config.getDefaultHandshakeMode();
 			this.useExtendedWindowFilter = config.get(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER);
-			this.useFilter = config.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
+			this.useAntiReplayFilter = config.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
 			this.useCidUpdateAddressOnNewerRecordFilter = config.get(DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS);
+			this.useNewerRecordFilter = config.get(DtlsConfig.DTLS_USE_NEWER_RECORD_FILTER);
 			this.maxConnections = config.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
 			this.sniEnabled = config.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION);
 			this.extendedMasterSecretMode = config.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
@@ -2040,11 +2053,13 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				return;
 			}
 
+			// When a connection is closed, drop records newer than 
+			// the close notify base on the epoch/sequence number
+			boolean closed = connection.isClosed();
 			// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay
 			// detection before MAC validation based on the record's sequence numbers
 			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-			boolean closed = connection.isClosed();
-			boolean discard = (useFilter || closed)
+			boolean discard = (useAntiReplayFilter || closed)
 					&& !context.isRecordProcessable(epoch, record.getSequenceNumber(), useExtendedWindowFilter);
 			if (discard) {
 				if (closed) {
@@ -2212,7 +2227,14 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			ApplicationMessage message = (ApplicationMessage) record.getFragment();
 			InetSocketAddress previousAddress = connection.getPeerAddress();
 			boolean newest = updateConnectionAddress(record, connection);
-
+			if (useNewerRecordFilter && !newest) {
+				DROP_LOGGER.debug("Discarding reorderd {} record [epoch {}, rseqn {}] received from peer [{}]",
+						record.getType(), record.getEpoch(), record.getSequenceNumber(), StringUtil.toLog(record.getPeerAddress()));
+				if (health != null) {
+					health.receivingRecord(true);
+				}
+				return;
+			}
 			final RawDataChannel channel = messageHandler;
 			// finally, forward de-crypted message to application layer
 			if (channel != null) {
