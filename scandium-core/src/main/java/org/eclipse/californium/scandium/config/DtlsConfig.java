@@ -83,8 +83,7 @@ public final class DtlsConfig {
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
 	 * update to a minimal version of RFC 5746.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
-	 * 5746</a> for additional details.
+	 * @see <a href="https://tools.ietf.org/html/rfc5746" target="_blank" >RFC 5746</a>
 	 * 
 	 * @since 3.8
 	 */
@@ -428,8 +427,8 @@ public final class DtlsConfig {
 	/**
 	 * Specify the maximum fragment length.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc6066#section-4" target=
-	 * "_blank">RFC 6066, Section 4</a> for details.
+	 * @see <a href="https://tools.ietf.org/html/rfc6066#section-4" target=
+	 * "_blank">RFC 6066, Section 4</a>
 	 */
 	public static final EnumDefinition<Length> DTLS_MAX_FRAGMENT_LENGTH = new EnumDefinition<>(
 			MODULE + "MAX_FRAGMENT_SIZE", "DTLS maximum fragment length (RFC 6066).", Length.values());
@@ -664,7 +663,7 @@ public final class DtlsConfig {
 	 * PSK secret lookup and to forward the server name to the CoAP stack in the
 	 * {@link org.eclipse.californium.elements.EndpointContext}.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3" target=
+	 * @see <a href="https://tools.ietf.org/html/rfc6066#section-3" target=
 	 * "_blank">RFC 6066, Section 3</a>
 	 */
 	public static final BooleanDefinition DTLS_USE_SERVER_NAME_INDICATION = new BooleanDefinition(
@@ -673,7 +672,7 @@ public final class DtlsConfig {
 	/**
 	 * Defines the usage of the "extend master secret" extension.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC
+	 * @see <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC
 	 * 7627</a>
 	 */
 	public static final EnumDefinition<ExtendedMasterSecretMode> DTLS_EXTENDED_MASTER_SECRET_MODE = new EnumDefinition<>(
@@ -744,13 +743,13 @@ public final class DtlsConfig {
 	 * <p>
 	 * <b>Note:</b> it is strongly not recommended to disable the
 	 * HELLO_VERIFY_REQUEST if used with certificates! That creates a large
-	 * amplification! See
-	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
-	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
-	 * </p>
+	 * amplification!
+	 * 
+	 * @see <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
+	 *      "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>
 	 */
 	public static final BooleanDefinition DTLS_USE_HELLO_VERIFY_REQUEST = new BooleanDefinition(
-			MODULE + "USE_HELLO_VERIFY_REQUEST", "DTLS use a HELLO_VERIFY_REQUESt to protect against spoofing.", true);
+			MODULE + "USE_HELLO_VERIFY_REQUEST", "DTLS use a HELLO_VERIFY_REQUEST to protect against spoofing.", true);
 
 	/**
 	 * Use anti replay filter.
@@ -797,6 +796,21 @@ public final class DtlsConfig {
 	public static final BooleanDefinition DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS = new BooleanDefinition(
 			MODULE + "UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS", "DTLS update address using CID on newer records.",
 			true);
+
+	/**
+	 * Only process newer records based on epoch/sequence_number.
+	 * 
+	 * Drop reorder records in order to protect from delay attacks, if no other
+	 * means, maybe on application level, are available.
+	 * 
+	 * @since 3.8
+	 */
+	public static final BooleanDefinition DTLS_USE_NEWER_RECORD_FILTER = new BooleanDefinition(
+			MODULE + "USE_NEWER_FILTER",
+			"DTLS use newer record filter.\n" 
+					+ "Drop reordered records in order to protect from delay attacks,\n"
+					+ "if no other means, maybe on application level, are available.",
+			false);
 
 	/**
 	 * Use truncated certificate paths for client's certificate message.
@@ -994,8 +1008,7 @@ public final class DtlsConfig {
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
 	 * update to a minimal version of RFC 5746.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
-	 * 5746</a> for additional details.
+	 * @see <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC 5746</a>
 	 * 
 	 * @since 3.8
 	 */
@@ -1066,6 +1079,7 @@ public final class DtlsConfig {
 			config.set(DTLS_USE_ANTI_REPLAY_FILTER, true);
 			config.set(DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER, 0);
 			config.set(DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS, true);
+			config.set(DTLS_USE_NEWER_RECORD_FILTER, false);
 			config.set(DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH, true);
 			config.set(DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION, true);
 			config.set(DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, true);
