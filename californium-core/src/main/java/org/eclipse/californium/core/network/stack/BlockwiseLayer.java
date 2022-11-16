@@ -218,6 +218,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
 	private ScheduledFuture<?> cleanup;
+	private final long healthStatusInterval;
 	private final int maxTcpBertBulkBlocks;
 	private final int maxMessageSize;
 	private final int preferredBlockSzx;
@@ -226,12 +227,23 @@ public class BlockwiseLayer extends AbstractLayer {
 	private final int maxResourceBodySize;
 	private final boolean strictBlock1Option;
 	private final boolean strictBlock2Option;
-	private final long healthStatusInterval;
+	/**
+	 * Reuse tokens for follow-up requests.
+	 * <p>
+	 * <b>Note:</b> reusing tokens may introduce a vulnerability, if
+	 * requests/response are captured and sent later without protecting the
+	 * integrity of the payload by other means.
+	 * </p>
+	 * 
+	 * @see <a href="https://github.com/core-wg/attacks-on-coap" target="_blank">attacks-on-coap</a>
+	 * @since 3.8
+	 */
+	private final boolean reuseToken;
 	/* @since 2.4 */
 	private final boolean enableAutoFailoverOn413;
 
 	private final EndpointContextMatcher matchingStrategy;
-	
+
 	/**
 	 * Creates a new blockwise layer for a configuration.
 	 * <p>
@@ -372,7 +384,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		});
 		strictBlock1Option = config.get(CoapConfig.BLOCKWISE_STRICT_BLOCK1_OPTION);
 		strictBlock2Option = config.get(CoapConfig.BLOCKWISE_STRICT_BLOCK2_OPTION);
-
+		reuseToken = config.get(CoapConfig.BLOCKWISE_REUSE_TOKEN);
 		healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 
 		enableAutoFailoverOn413 = config.get(CoapConfig.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
@@ -761,6 +773,46 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	/**
+	 * Get outer response to pass to application.
+	 * 
+	 * The outer response matches to initial application request.
+	 * 
+	 * @param exchange exchange
+	 * @param response actual response
+	 * @return outer application response
+	 * @since 3.8
+	 */
+	private Response getOuterResponse(Exchange exchange, Response response) {
+		// check, if response is for original request
+		if (exchange.getRequest() != exchange.getCurrentRequest()) {
+			// prepare the response as response to the original request
+			Response outerResponse = new Response(response.getCode());
+			// adjust the token using the original request
+			outerResponse.setToken(exchange.getRequest().getToken());
+			if (exchange.getRequest().getType() == Type.CON) {
+				outerResponse.setType(Type.ACK);
+				// adjust MID also
+				outerResponse.setMID(exchange.getRequest().getMID());
+			} else {
+				outerResponse.setType(Type.NON);
+			}
+			outerResponse.setSourceContext(response.getSourceContext());
+			outerResponse.setPayload(response.getPayload());
+			outerResponse.setOptions(response.getOptions());
+			outerResponse.setApplicationRttNanos(exchange.calculateApplicationRtt());
+			Long rtt = response.getTransmissionRttNanos();
+			if (rtt != null) {
+				outerResponse.setTransmissionRttNanos(rtt);
+			}
+			exchange.setResponse(outerResponse);
+			return outerResponse;
+		} else {
+			exchange.setResponse(response);
+			return response;
+		}
+	}
+
+	/**
 	 * Invoked when a response has been received from a peer.
 	 * <p>
 	 * Checks whether the response
@@ -800,32 +852,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				default:
 				}
 
-				// check, if response is for original request
-				if (exchange.getRequest() != exchange.getCurrentRequest()) {
-					// prepare the response as response to the original request
-					Response resp = new Response(response.getCode());
-					// adjust the token using the original request
-					resp.setToken(exchange.getRequest().getToken());
-					if (exchange.getRequest().getType() == Type.CON) {
-						resp.setType(Type.ACK);
-						// adjust MID also
-						resp.setMID(exchange.getRequest().getMID());
-					} else {
-						resp.setType(Type.NON);
-					}
-					resp.setSourceContext(response.getSourceContext());
-					resp.setPayload(response.getPayload());
-					resp.setOptions(response.getOptions());
-					resp.setApplicationRttNanos(exchange.calculateApplicationRtt());
-					Long rtt = response.getTransmissionRttNanos();
-					if (rtt != null) {
-						resp.setTransmissionRttNanos(rtt);
-					}
-					exchange.setResponse(resp);
-					upper().receiveResponse(exchange, resp);
-				} else {
-					upper().receiveResponse(exchange, response);
-				}
+				upper().receiveResponse(exchange, getOuterResponse(exchange, response));
 				return;
 			}
 
@@ -1039,11 +1066,9 @@ public class BlockwiseLayer extends AbstractLayer {
 				LOGGER.debug("{}Block1 followed by Block2 transfer", tag);
 			} else {
 				// All request blocks have been acknowledged and we have
-				// received a
-				// response that does not need blockwise transfer. Thus, deliver
-				// it.
-				exchange.setResponse(response);
-				upper().receiveResponse(exchange, response);
+				// received a response that does not need blockwise transfer.
+				// Thus, deliver it.
+				upper().receiveResponse(exchange, getOuterResponse(exchange, response));
 			}
 		}
 	}
@@ -1058,8 +1083,10 @@ public class BlockwiseLayer extends AbstractLayer {
 				int blockSzx = Math.min(response.getOptions().getBlock1().getSzx(), preferredBlockSzx);
 				nextBlock = status.getNextRequestBlock(blockSzx);
 
-				// we use the same token to ease traceability
-				nextBlock.setToken(response.getToken());
+				if (reuseToken) {
+					// we use the same token to ease traceability
+					nextBlock.setToken(response.getToken());
+				}
 				nextBlock.setDestinationContext(status.getFollowUpEndpointContext(response.getSourceContext()));
 
 				LOGGER.debug("{}sending (next) Block1 [num={}]: {}", tag, nextBlock.getOptions().getBlock1().getNum(),
@@ -1152,8 +1179,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			if (response.isNotification()) {
 				// We have received a notification for an observed resource that
-				// the
-				// application layer is no longer interested in.
+				// the application layer is no longer interested in.
 				// Let upper layers decide what to do with the notification.
 				upper().receiveResponse(exchange, response);
 			}
@@ -1253,7 +1279,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			 * a different KeyToken in exchangesByToken, which is cleaned up
 			 * with the CleanupMessageObserver above.
 			 */
-			if (!response.isNotification()) {
+			if (reuseToken && !response.isNotification()) {
+				// we use the same token to ease traceability
 				block.setToken(response.getToken());
 			}
 

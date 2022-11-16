@@ -844,7 +844,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 128).go();
 
 		server.expectRequest(CON, PUT, path).storeBoth("B").block1(2, false, 128).payload(reqtPayload, 256, 300).go();
-		server.sendResponse(ACK, CHANGED).loadBoth("B").go();
+		server.sendResponse(ACK, CHANGED).loadBoth("B").block1(2, false, 128).go();
 
 		Response response = concurrentRequest.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertThat(response, is(notNullValue()));

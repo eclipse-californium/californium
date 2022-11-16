@@ -129,11 +129,19 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				// Handle outgoing requests for more data from a responder that
 				// is responding with outer block-wise. These requests should
 				// not be processed with OSCORE.
-				boolean outerBlockwise = request.getOptions().hasBlock2() && exchange.getCurrentResponse() != null
-						&& ctxDb.getContextByToken(exchange.getCurrentResponse().getToken()) != null;
-				if (outerBlockwise) {
-					super.sendRequest(exchange, req);
-					return;
+				if (request.getOptions().hasBlock2() && exchange.getCurrentResponse() != null) {
+					final OSCoreCtx ctx = ctxDb.getContextByToken(exchange.getCurrentResponse().getToken());
+					if (ctx != null) {
+						request.addMessageObserver(0, new MessageObserverAdapter() {
+
+							@Override
+							public void onReadyToSend() {
+								ctxDb.addContext(request.getToken(), ctx);
+							}
+						});
+						super.sendRequest(exchange, request);
+						return;
+					}
 				}
 
 				final String uri;
@@ -169,7 +177,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				final Request preparedRequest = prepareSend(ctxDb, request);
 				final OSCoreCtx finalCtx = ctxDb.getContext(uri);
 
-				if (outgoingExceedsMaxUnfragSize(preparedRequest, outerBlockwise, ctx.getMaxUnfragmentedSize())) {
+				if (outgoingExceedsMaxUnfragSize(preparedRequest, false, ctx.getMaxUnfragmentedSize())) {
 					throw new IllegalStateException("outgoing request is exceeding the MAX_UNFRAGMENTED_SIZE!");
 				}
 

@@ -233,9 +233,9 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 		// Handle incoming OSCORE responses that have been re-assembled by the
 		// block-wise layer (for outer block-wise). If a response was not
 		// processed by OSCORE in the ObjectSecurityLayer it will happen here.
-		boolean outerBlockwise = exchange.getCurrentResponse() != null
-				&& exchange.getCurrentResponse().getOptions().hasBlock2()
-				&& ctxDb.getContextByToken(exchange.getCurrentResponse().getToken()) != null;
+		Response rawResponse =  exchange.getCurrentResponse();
+		boolean outerBlockwise = rawResponse.getOptions().hasBlock2()
+				&& ctxDb.getContextByToken(rawResponse.getToken()) != null;
 		if (outerBlockwise) {
 
 			LOGGER.debug("Incoming OSCORE response uses outer block-wise");
@@ -270,8 +270,6 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 			if (exchange.getRequest().isObserveCancel()) {
 				ctxDb.removeToken(response.getToken());
 			}
-
-			super.receiveResponse(exchange, response);
 		}
 
 		super.receiveResponse(exchange, response);
