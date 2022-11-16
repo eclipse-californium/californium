@@ -611,12 +611,27 @@ public final class CoapConfig {
 	 * adapt the block size when receiving a 4.13 Entity too large response
 	 * code.
 	 * <p>
-	 * See https://tools.ietf.org/html/rfc7959#section-2.9.3 for more details.
+	 * @see <a href="https://tools.ietf.org/html/rfc7959#section-2.9.3" target="_blank">RFC7959, 2.9.3. - 4.13 Request Entity Too Large</a>
 	 */
 	public static final BooleanDefinition BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER = new BooleanDefinition(
 			MODULE + "BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER",
 			"Enable automatic failover on \"entity too large\" response.",
 			DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
+	/**
+	 * Property to indicate that blockwise follow-up requests are reusing the
+	 * same token for traceability.
+	 * <p>
+	 * <b>Note:</b> reusing tokens may introduce a vulnerability, if
+	 * requests/response are captured and sent later without protecting the
+	 * integrity of the payload by other means.
+	 * </p>
+	 * 
+	 * @see <a href="https://github.com/core-wg/attacks-on-coap" target="_blank">attacks-on-coap</a>
+	 * @since 3.8
+	 */
+	public static final BooleanDefinition BLOCKWISE_REUSE_TOKEN = new BooleanDefinition(
+			MODULE + "BLOCKWISE_REUSE_TOKEN",
+			"Reuse token for blockwise requests. Ease traceability but may introduce vulnerability.", false);
 
 	/**
 	 * Time interval for a coap-server to check the client's interest in further
@@ -794,6 +809,7 @@ public final class CoapConfig {
 			config.set(BLOCKWISE_STATUS_INTERVAL, DEFAULT_BLOCKWISE_STATUS_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
 			config.set(BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER, DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
+			config.set(BLOCKWISE_REUSE_TOKEN, false);
 			// BERT enabled, when > 1
 			config.set(TCP_NUMBER_OF_BULK_BLOCKS, 4);
 

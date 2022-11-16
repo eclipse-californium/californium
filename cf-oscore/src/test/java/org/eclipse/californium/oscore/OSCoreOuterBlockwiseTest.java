@@ -602,10 +602,22 @@ public class OSCoreOuterBlockwiseTest {
 	 */
 	private void createSimpleProxy(final boolean proxyRequestBlockwise, final boolean proxyResponseBlockwiseEnabled) {
 
+		final CoapClient proxyClient = new CoapClient();
+		proxyClient.setTimeout(1000L);
+
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setCoapStackFactory(CoapEndpoint.STANDARD_COAP_STACK_FACTORY);
+		if (proxyRequestBlockwise) {
+			builder.setConfiguration(blockwiseConfig);
+		}
+		CoapEndpoint proxyClientEndpoint = builder.build();
+		proxyClient.setEndpoint(proxyClientEndpoint);
+		cleanup.add(proxyClientEndpoint);
+
 		final Coap2CoapTranslator coapTranslator = new Coap2CoapTranslator();
 
 		// Create endpoint for proxy server side
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder = new CoapEndpoint.Builder();
 		builder.setCoapStackFactory(CoapEndpoint.STANDARD_COAP_STACK_FACTORY);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		if (proxyResponseBlockwiseEnabled) {
@@ -613,7 +625,7 @@ public class OSCoreOuterBlockwiseTest {
 		}
 
 		CoapEndpoint proxyServerEndpoint = builder.build();
-		
+
 		// Create proxy
 		CoapServer proxy = new CoapServer();
 		cleanup.add(proxy);
@@ -632,21 +644,13 @@ public class OSCoreOuterBlockwiseTest {
 							coapTranslator.getExposedInterface(incomingRequest));
 					Request outgoingRequest = coapTranslator.getRequest(finalDestinationUri, incomingRequest);
 
-					CoapClient proxyClient = new CoapClient();
-
-					// Create endpoint for proxy client side
-					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-					builder.setCoapStackFactory(CoapEndpoint.STANDARD_COAP_STACK_FACTORY);
-					if (proxyRequestBlockwise) {
-						builder.setConfiguration(blockwiseConfig);
-					}
-					CoapEndpoint proxyClientEndpoint = builder.build();
-					proxyClient.setEndpoint(proxyClientEndpoint);
-					cleanup.add(proxyClientEndpoint);
-
 					// Now receive the response from the server and prepare the
 					// final response to the client
 					CoapResponse incomingResponse = proxyClient.advanced(outgoingRequest);
+					if (incomingResponse == null) {
+						System.err.println("Missing response.");
+						fail();
+					}
 					outgoingResponse = coapTranslator.getResponse(incomingResponse.advanced());
 				} catch (org.eclipse.californium.proxy2.TranslationException | ConnectorException | IOException e) {
 					System.err.println("Processing on proxy failed.");
