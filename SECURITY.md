@@ -2,11 +2,11 @@
 
 ## Reporting a Vulnerability
 
-Currently, [GitHub security advisories](https://help.github.com/en/articles/managing-security-vulnerabilities-in-your-project) is not activated on [eclipse](https://www.eclipse.org/) projects.
+Californium supports the use of [GitHub security advisories](https://help.github.com/en/articles/managing-security-vulnerabilities-in-your-project) as pilot for [eclipse](https://www.eclipse.org/) projects. Please consider to use it for reporting vulnerabilities.
 
-To report a vulnerability, your need to open a [bugzilla ticket](https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Community&component=Vulnerability+Reports&keywords=security&groups=Security_Advisories).
+Alternatively may also report a vulnerability opening a [bugzilla ticket](https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Community&component=Vulnerability+Reports&keywords=security&groups=Security_Advisories).
 
-For more details, please look at https://www.eclipse.org/security/.
+For more details, please look at [https://www.eclipse.org/security](https://www.eclipse.org/security).
 
 ## Supported Versions
 
@@ -29,6 +29,7 @@ For more details, please look at https://www.eclipse.org/security/.
 
 | Californium Version | Vulnerability
 | ------------------- | ----------
+| < 3.7 <br/> < 2.7.4 | Failing DTLS handshake [CVE-2022-39368](https://cve.report/CVE-2022-39368)
 | < 3.6 <br/> < 2.7.3 | DTLS resumption handshake [CVE-2022-2576](https://cve.report/CVE-2022-2576)
 | < 3.0-M3 <br/> < 2.6.5 | DTLS certificates verification bypass [CVE-2021-34433](https://cve.report/CVE-2021-34433)
 | < 2.6.0 | DTLS certificates verification fails sticky [CVE-2020-27222](https://cve.report/CVE-2020-27222)
