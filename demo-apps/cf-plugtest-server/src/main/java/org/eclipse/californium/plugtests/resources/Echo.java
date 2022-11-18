@@ -17,6 +17,7 @@ package org.eclipse.californium.plugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.SERVICE_UNAVAILABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_LINK_FORMAT;
@@ -35,13 +36,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.core.server.resources.ResourceAttributes;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 
 /**
@@ -54,6 +58,7 @@ import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
  * "ack"     : use separate ACK and response.
  * "delay=n" : milliseconds to delay the response.
  * "keep"    : keep post to be read with GET.
+ * "id"      : identity to be used the keep the post, if the encryption based principal is missing.
  * </pre>
  * 
  * Supported content types:
@@ -88,10 +93,14 @@ public class Echo extends CoapResource {
 	 */
 	private static final String URI_QUERY_OPTION_KEEP = "keep";
 	/**
+	 * URI query parameter providing a id to keep the POST for later GET.
+	 */
+	private static final String URI_QUERY_OPTION_ID = "id";
+	/**
 	 * Supported query parameter.
 	 */
 	private static final List<String> SUPPORTED = Arrays.asList(URI_QUERY_OPTION_ACK, URI_QUERY_OPTION_DELAY,
-			URI_QUERY_OPTION_RESPONSE_LENGTH, URI_QUERY_OPTION_KEEP);
+			URI_QUERY_OPTION_RESPONSE_LENGTH, URI_QUERY_OPTION_KEEP, URI_QUERY_OPTION_ID);
 	/**
 	 * Maximum pending delayed responses.
 	 */
@@ -115,14 +124,14 @@ public class Echo extends CoapResource {
 	/**
 	 * Create echo resource.
 	 * 
-	 * @param maxResourceSize maximum resource size.
+	 * @param config Configuration for this resource.
 	 * @param executor scheduler for delayed responses. {@code null}, if delay
 	 *            is not supported.
 	 */
-	public Echo(int maxResourceSize, ScheduledExecutorService executor) {
+	public Echo(Configuration config, ScheduledExecutorService executor) {
 		super(RESOURCE_NAME);
 		this.executor = executor;
-		this.maxResourceSize = maxResourceSize;
+		this.maxResourceSize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 		getAttributes().setTitle("Resource, which echo's a POST. POSTs with URI-query 'keep' can later be read by GET");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
@@ -162,7 +171,10 @@ public class Echo extends CoapResource {
 		if (accept != UNDEFINED && accept != APPLICATION_LINK_FORMAT) {
 			exchange.respond(NOT_ACCEPTABLE);
 		} else {
-			exchange.respond(ResponseCode.CONTENT, LinkFormat.serializeTree(this), APPLICATION_LINK_FORMAT);
+			Response response = new Response(CONTENT);
+			response.setPayload(LinkFormat.serializeTree(this));
+			response.getOptions().setContentFormat(APPLICATION_LINK_FORMAT);
+			exchange.respond(response);
 		}
 	}
 
@@ -192,6 +204,7 @@ public class Echo extends CoapResource {
 
 		boolean ack = false;
 		boolean keep = false;
+		String id = null;
 		int length = 0;
 		int delay = 0;
 		try {
@@ -200,6 +213,7 @@ public class Echo extends CoapResource {
 			length = helper.getArgumentAsInteger(URI_QUERY_OPTION_RESPONSE_LENGTH, 0, 0, maxResourceSize);
 			delay = helper.getArgumentAsInteger(URI_QUERY_OPTION_DELAY, 0, 0, (int) TimeUnit.SECONDS.toMillis(3600));
 			keep = helper.hasParameter(URI_QUERY_OPTION_KEEP);
+			id = helper.getArgument(URI_QUERY_OPTION_ID, null);
 		} catch (IllegalArgumentException ex) {
 			exchange.respond(BAD_OPTION, ex.getMessage());
 			return;
@@ -215,14 +229,18 @@ public class Echo extends CoapResource {
 		}
 		if (keep) {
 			String principal = getPrincipalName(request);
+			if (principal == null) {
+				principal = id;
+			}
 			if (principal != null) {
 				request.setProtectFromOffload();
 				synchronized (keptPosts) {
 					Resource child = keptPosts.get(principal);
-					if (child instanceof Keep) {
-						((Keep) child).setPost(request);
-					} else {
-						child = new Keep(principal, request);
+					if (!(child instanceof Keep)) {
+						child = new Keep(principal);
+					}
+					((Keep) child).setPost(request);
+					if (child.getParent() == null) {
 						child.setParent(this);
 						keptPosts.put(principal, child);
 					}
@@ -230,6 +248,9 @@ public class Echo extends CoapResource {
 			}
 		}
 		final int responseFormat = accept;
+		final Response response = new Response(CHANGED);
+		response.setPayload(responsePayload);
+		response.getOptions().setContentFormat(responseFormat);
 		if (delay > 0 && executor != null) {
 			boolean schedule = false;
 			if (pendingResponses.get() < MAX_PENDING_RESPONSES - 1) {
@@ -240,20 +261,20 @@ public class Echo extends CoapResource {
 				}
 			}
 			if (schedule) {
-				Runnable response = new Runnable() {
+				Runnable respond = new Runnable() {
 
 					@Override
 					public void run() {
-						exchange.respond(CHANGED, responsePayload, responseFormat);
+						exchange.respond(response);
 						pendingResponses.decrementAndGet();
 					}
 				};
-				executor.schedule(response, delay, TimeUnit.MILLISECONDS);
+				executor.schedule(respond, delay, TimeUnit.MILLISECONDS);
 			} else {
 				exchange.respond(SERVICE_UNAVAILABLE, "Too many delayed responses pending!");
 			}
 		} else {
-			exchange.respond(CHANGED, responsePayload, responseFormat);
+			exchange.respond(response);
 		}
 	}
 
@@ -269,19 +290,20 @@ public class Echo extends CoapResource {
 
 		private volatile Request post;
 
-		private Keep(String principal, Request post) {
+		private Keep(String principal) {
 			super(principal);
 			setObservable(true);
-			setPost(post);
 		}
 
 		public void setPost(Request post) {
 			this.post = post;
-			getAttributes().clearContentType();
+			ResourceAttributes attributes = getAttributes();
+			attributes.clearContentType();
 			if (post.getOptions().hasContentFormat()) {
-				getAttributes().addContentType(post.getOptions().getContentFormat());
+				attributes.addContentType(post.getOptions().getContentFormat());
 			}
-			getAttributes().setAttribute("time", DATE_FORMAT.format(new Date()));
+			attributes.setAttribute("time", DATE_FORMAT.format(new Date()));
+			attributes.setAttribute("scheme", post.getScheme());
 			changed();
 		}
 
@@ -303,7 +325,10 @@ public class Echo extends CoapResource {
 				exchange.respond(NOT_ACCEPTABLE);
 				return;
 			}
-			exchange.respond(CHANGED, devicePost.getPayload(), accept);
+			Response response = new Response(CONTENT);
+			response.setPayload(devicePost.getPayload());
+			response.getOptions().setContentFormat(accept);
+			exchange.respond(response);
 		}
 
 	}
