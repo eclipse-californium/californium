@@ -113,6 +113,7 @@ import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.CoapTcpStack;
 import org.eclipse.californium.core.network.stack.CoapUdpStack;
+import org.eclipse.californium.core.network.stack.ConnectionOrientedCoapStack;
 import org.eclipse.californium.core.network.stack.ExchangeCleanupLayer;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
@@ -120,6 +121,8 @@ import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.ConnectionEventHandler;
+import org.eclipse.californium.elements.ConnectionOrientedConnector;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
@@ -394,6 +397,10 @@ public class CoapEndpoint implements Endpoint, Executor {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
+		if (this.connector instanceof ConnectionOrientedConnector) {
+			// TODO should we chack if coap stack if "connection oriented" stack and raise an IllegalStateException ? 
+			((ConnectionOrientedConnector) this.connector).setConnectionEventHandler(new ConnectionEventHandlerImpl());
+		}
 		this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
 		this.multicastBaseMid = config.get(CoapConfig.MULTICAST_BASE_MID);
 		this.tag = StringUtil.normalizeLoggingTag(loggingTag);
@@ -1014,6 +1021,45 @@ public class CoapEndpoint implements Endpoint, Executor {
 			if (message.getDestinationContext() == null) {
 				throw new IllegalArgumentException("Message has no endpoint context");
 			}
+		}
+	}
+
+	private class ConnectionEventHandlerImpl implements ConnectionEventHandler {
+
+		@Override
+		public void connected(final EndpointContext context) {
+			// Create a new task to process this event
+			execute(new Runnable() {
+				@Override
+				public void run() {
+					// TODO Should this event be added to interceptors ?
+					
+					
+					// Send Event to the stack
+					if (coapstack instanceof ConnectionOrientedCoapStack) {
+						((ConnectionOrientedCoapStack)coapstack).connected(context);
+					}
+					// TODO else should we warn if not Connection Oriented Stack ?
+				}
+			});
+			
+		}
+
+		@Override
+		public void disconnected(final EndpointContext context) {
+			// Create a new task to process this event
+			execute(new Runnable() {
+				@Override
+				public void run() {
+					// TODO Should this event be added to interceptors ?
+					
+					// Send Event to the stack
+					if (coapstack instanceof ConnectionOrientedCoapStack) {
+						((ConnectionOrientedCoapStack)coapstack).disconnected(context);
+					}
+					// TODO else should we warn if not Connection Oriented Stack ?
+				}
+			});
 		}
 	}
 

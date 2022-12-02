@@ -53,14 +53,22 @@ public abstract class BaseCoapStack implements CoapStack, ExtendedCoapStack {
 
 	private List<Layer> layers;
 	private final Outbox outbox;
-	private final StackTopAdapter top;
-	private final StackBottomAdapter bottom;
+	protected final StackTopAdapter top;
+	protected final StackBottomAdapter bottom;
 	private MessageDeliverer deliverer;
 
 	protected BaseCoapStack(final Outbox outbox) {
-		this.top = new StackTopAdapter();
-		this.bottom = new StackBottomAdapter();
+		this.top = createStackTopAdapter();
+		this.bottom = createStackBottomAdapter();
 		this.outbox = outbox;
+	}
+
+	protected StackTopAdapter createStackTopAdapter() {
+		return new StackTopAdapter();
+	}
+	
+	protected StackBottomAdapter createStackBottomAdapter() {
+		return new StackBottomAdapter();
 	}
 
 	/**
@@ -71,7 +79,7 @@ public abstract class BaseCoapStack implements CoapStack, ExtendedCoapStack {
 	 * 
 	 * @param specificLayers The layers constituting the stack in top-to-bottom order.
 	 */
-	protected final void setLayers(final Layer specificLayers[]) {
+	protected void setLayers(final Layer specificLayers[]) {
 		TopDownBuilder builder = new Layer.TopDownBuilder().add(top);
 		for (Layer layer : specificLayers) {
 			builder.add(layer);
@@ -180,7 +188,7 @@ public abstract class BaseCoapStack implements CoapStack, ExtendedCoapStack {
 		}
 	}
 
-	private class StackTopAdapter extends AbstractLayer {
+	protected class StackTopAdapter extends AbstractLayer {
 
 		@Override
 		public void sendRequest(final Exchange exchange, final Request request) {
@@ -224,7 +232,7 @@ public abstract class BaseCoapStack implements CoapStack, ExtendedCoapStack {
 		}
 	}
 
-	private class StackBottomAdapter extends AbstractLayer {
+	protected class StackBottomAdapter extends AbstractLayer {
 
 		@Override
 		public void sendRequest(Exchange exchange, Request request) {

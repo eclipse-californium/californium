@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 /**
  * TCP adaption layer. Set acknowledged on response receiving.
  */
-public class TcpAdaptionLayer extends AbstractLayer {
+public class TcpAdaptionLayer extends AbstractConnectionOrientedLayer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TcpAdaptionLayer.class);
 

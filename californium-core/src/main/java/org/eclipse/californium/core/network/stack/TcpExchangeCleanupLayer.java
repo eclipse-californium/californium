@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * A layer that reacts to user cancelled outgoing requests or messages which
  * failed to be send, and completes exchange, which causes state clean up.
  */
-public class TcpExchangeCleanupLayer extends AbstractLayer {
+public class TcpExchangeCleanupLayer extends AbstractConnectionOrientedLayer {
 
 	static final Logger LOGGER = LoggerFactory.getLogger(TcpExchangeCleanupLayer.class);
 

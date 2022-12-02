@@ -53,10 +53,10 @@ public abstract class AbstractLayer implements Layer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractLayer.class);
 
 	/** The upper layer. */
-	private Layer upperLayer = LogOnlyLayer.getInstance();
+	protected Layer upperLayer = LogOnlyLayer.getInstance();
 
 	/** The lower layer. */
-	private Layer lowerLayer = LogOnlyLayer.getInstance();
+	protected Layer lowerLayer = LogOnlyLayer.getInstance();
 
 	/** The main executor. */
 	protected ScheduledExecutorService executor;
@@ -95,7 +95,7 @@ public abstract class AbstractLayer implements Layer {
 	}
 
 	@Override
-	public final void setLowerLayer(final Layer layer) {
+	public void setLowerLayer(final Layer layer) {
 		if (lowerLayer != layer) {
 			if (lowerLayer != null) {
 				lowerLayer.setUpperLayer(null);
@@ -115,7 +115,7 @@ public abstract class AbstractLayer implements Layer {
 	}
 
 	@Override
-	public final void setUpperLayer(final Layer layer) {
+	public void setUpperLayer(final Layer layer) {
 		if (upperLayer != layer) {
 			if (upperLayer != null) {
 				upperLayer.setLowerLayer(null);

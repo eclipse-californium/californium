@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * TCP related observe/notify handling.
  * No CON/NON logic possible nor required.
  */
-public class TcpObserveLayer extends AbstractLayer {
+public class TcpObserveLayer extends AbstractConnectionOrientedLayer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TcpObserveLayer.class);
 

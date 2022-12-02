@@ -73,7 +73,7 @@ import org.eclipse.californium.elements.config.Configuration;
  * +--------------------------+
  * </pre></blockquote><hr>
  */
-public class CoapTcpStack extends BaseCoapStack {
+public class CoapTcpStack extends BaseConnectionOrientedCoapStack{
 
 	/**
 	 * Creates a new stack using TCP as the transport.
@@ -89,8 +89,8 @@ public class CoapTcpStack extends BaseCoapStack {
 	public CoapTcpStack(String tag, Configuration config, EndpointContextMatcher matchingStrategy, Outbox outbox) {
 		super(outbox);
 
-		Layer layers[] = new Layer[] { new TcpExchangeCleanupLayer(), new TcpObserveLayer(config),
-				new BlockwiseLayer(tag, true, config, matchingStrategy), new TcpAdaptionLayer() };
+		ConnectionOrientedLayer layers[] = new ConnectionOrientedLayer[] { new TcpExchangeCleanupLayer(), new TcpObserveLayer(config),
+				new TcpBlockwiseLayer(tag, config, matchingStrategy), new TcpAdaptionLayer() };
 
 		setLayers(layers);
 
