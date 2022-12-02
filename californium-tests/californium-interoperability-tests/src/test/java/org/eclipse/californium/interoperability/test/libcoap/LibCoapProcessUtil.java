@@ -144,6 +144,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	private boolean valgrindActive;
 
 	private String verboseLevel = DEFAULT_VERBOSE_LEVEL;
+	private boolean dtlsVerboseLevel;
 	private String certificate;
 	private String privateKey;
 	private String ca;
@@ -297,6 +298,8 @@ public class LibCoapProcessUtil extends ProcessUtil {
 			assumeNotNull(matcher);
 			dtlsVersion = matcher.group(1);
 
+			dtlsVerboseLevel = result.contains("\\[-V num\\]");
+
 			return result;
 		} catch (InterruptedException ex) {
 			return null;
@@ -418,8 +421,12 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		addValgrind(args);
 		args.add(client);
 		if (verboseLevel != null) {
-			args.add("-v");
+			args.add("-v"); // coap
 			args.add(verboseLevel);
+			if (dtlsVerboseLevel) {
+				args.add("-V"); // dtls
+				args.add(verboseLevel);
+			}
 		}
 		if (message != null) {
 			message = message.replace(" ", "%20");
@@ -474,8 +481,12 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		// provide coap port, coaps will be +1
 		args.addAll(Arrays.asList(server, "-p", "5683"));
 		if (verboseLevel != null) {
-			args.add("-v");
+			args.add("-v"); // coap
 			args.add(verboseLevel);
+			if (dtlsVerboseLevel) {
+				args.add("-V"); // dtls
+				args.add(verboseLevel);
+			}
 		}
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
 			args.add("-k");

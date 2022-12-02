@@ -133,7 +133,7 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		californiumUtil.start(BIND, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
-		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)", "certificate_verify \\(15\\)");
+		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)", "certificate_verify \\(15\\)", "CN 'RPK' presented by server \\(Certificate\\)");
 		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
 	}
 
@@ -147,7 +147,7 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		californiumUtil.start(BIND, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
-		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)");
+		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)", "CN 'RPK' presented by server \\(Certificate\\)");
 		assertNull(californiumUtil.getPrincipal());
 	}
 
