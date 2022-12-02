@@ -90,7 +90,7 @@ public class CoapTcpStack extends BaseConnectionOrientedCoapStack{
 		super(outbox);
 
 		ConnectionOrientedLayer layers[] = new ConnectionOrientedLayer[] { new TcpExchangeCleanupLayer(), new TcpObserveLayer(config),
-				new TcpBlockwiseLayer(tag, config, matchingStrategy), new TcpAdaptionLayer() };
+				new TcpBlockwiseLayer(tag, config, matchingStrategy), new TcpAdaptionLayer(), new CapabilitiesSettingsLayer()};
 
 		setLayers(layers);
 
