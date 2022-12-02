@@ -37,7 +37,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.GenericFutureListener;
 
-import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.ConnectionEventHandler;
+import org.eclipse.californium.elements.ConnectionOrientedConnector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
@@ -68,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * CoapServer. Per RFC the server can both send and receive messages, but cannot
  * initiated new outgoing connections.
  */
-public class TcpServerConnector implements Connector {
+public class TcpServerConnector implements ConnectionOrientedConnector {
 
 	private static final AtomicInteger THREAD_COUNTER = new AtomicInteger();
 	private static final ThreadGroup TCP_THREAD_GROUP = new ThreadGroup("Californium/TCP-Server"); //$NON-NLS-1$
@@ -97,6 +98,7 @@ public class TcpServerConnector implements Connector {
 	protected volatile boolean running;
 
 	private RawDataChannel rawDataChannel;
+	private ConnectionEventHandler eventHandler;
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
 
@@ -239,6 +241,15 @@ public class TcpServerConnector implements Connector {
 	}
 
 	@Override
+	public void setConnectionEventHandler(ConnectionEventHandler eventHandler) {
+		if (this.eventHandler != null) {
+			throw new IllegalStateException("ConnectionEventHandler already set");
+		}
+
+		this.eventHandler = eventHandler;
+	}
+
+	@Override
 	public void setEndpointContextMatcher(EndpointContextMatcher matcher) {
 		endpointContextMatcher = matcher;
 	}
@@ -286,11 +297,14 @@ public class TcpServerConnector implements Connector {
 			// 3. Stream-to-message decoder
 			// 4. Hand-off decoded messages to CoAP stack
 			// 5. Close connections on errors.
+			
+			// TODO add comment above 
+			ch.pipeline().addLast(new EndpointContextHandler(contextUtil));
 			ch.pipeline().addLast(new ChannelTracker());
 			ch.pipeline().addLast(new IdleStateHandler(0, 0, connectionIdleTimeoutSeconds));
 			ch.pipeline().addLast(new CloseOnIdleHandler());
 			ch.pipeline().addLast(new DatagramFramer(contextUtil));
-			ch.pipeline().addLast(new DispatchHandler(rawDataChannel));
+			ch.pipeline().addLast(new DispatchHandler(rawDataChannel,eventHandler));
 			ch.pipeline().addLast(new CloseOnErrorHandler());
 		}
 	}
@@ -304,11 +318,15 @@ public class TcpServerConnector implements Connector {
 		@Override
 		public void channelActive(ChannelHandlerContext ctx) throws Exception {
 			activeChannels.put(ctx.channel().remoteAddress(), ctx.channel());
+			// TODO was this a bug ?
+			super.channelActive(ctx);
 		}
 
 		@Override
 		public void channelInactive(ChannelHandlerContext ctx) throws Exception {
 			activeChannels.remove(ctx.channel().remoteAddress());
+			// TODO was this a bug ? 
+			super.channelInactive(ctx);
 		}
 	}
 }

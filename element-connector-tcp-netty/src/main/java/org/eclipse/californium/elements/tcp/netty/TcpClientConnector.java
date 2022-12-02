@@ -51,7 +51,8 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
-import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.ConnectionEventHandler;
+import org.eclipse.californium.elements.ConnectionOrientedConnector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
@@ -81,7 +82,7 @@ import org.slf4j.LoggerFactory;
  * CoapClient. Per RFC the client can both send and receive messages, but cannot
  * accept new incoming connections.
  */
-public class TcpClientConnector implements Connector {
+public class TcpClientConnector implements ConnectionOrientedConnector{
 
 	private static final AtomicInteger THREAD_COUNTER = new AtomicInteger();
 	private static final ThreadGroup TCP_THREAD_GROUP = new ThreadGroup("Californium/TCP-Client"); //$NON-NLS-1$
@@ -109,6 +110,7 @@ public class TcpClientConnector implements Connector {
 
 	private EventLoopGroup workerGroup;
 	private RawDataChannel rawDataChannel;
+	private ConnectionEventHandler eventHandler;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
 
 	protected final TcpContextUtil contextUtil;
@@ -333,6 +335,15 @@ public class TcpClientConnector implements Connector {
 
 		this.rawDataChannel = messageHandler;
 	}
+	
+	@Override
+	public void setConnectionEventHandler(ConnectionEventHandler eventHandler) {
+		if (this.eventHandler != null) {
+			throw new IllegalStateException("Connection event handler already set.");
+		}
+
+		this.eventHandler = eventHandler;
+	}
 
 	@Override
 	public void setEndpointContextMatcher(EndpointContextMatcher matcher) {
@@ -392,11 +403,14 @@ public class TcpClientConnector implements Connector {
 			// 4. Stream-to-message decoder
 			// 5. Hand-off decoded messages to CoAP stack
 			// 6. Close connections on errors
+			
+			// TODO add comment above 
+			ch.pipeline().addLast(new EndpointContextHandler(contextUtil));
 			ch.pipeline().addLast(new IdleStateHandler(0, 0, connectionIdleTimeoutSeconds));
 			ch.pipeline().addLast(new CloseOnIdleHandler());
 			ch.pipeline().addLast(new RemoveEmptyPoolHandler(poolMap, key));
 			ch.pipeline().addLast(new DatagramFramer(contextUtil));
-			ch.pipeline().addLast(new DispatchHandler(rawDataChannel));
+			ch.pipeline().addLast(new DispatchHandler(rawDataChannel,eventHandler));
 			ch.pipeline().addLast(new CloseOnErrorHandler());
 		}
 	}
@@ -416,6 +430,8 @@ public class TcpClientConnector implements Connector {
 			if (poolMap.remove(key)) {
 				LOGGER.trace("removed channel pool for {}", key);
 			}
+			// TODO was it a bug ? 
+			super.channelInactive(ctx);
 		}
 	}
 }
