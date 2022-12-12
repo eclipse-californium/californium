@@ -196,13 +196,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * @see #createRemoteEndpoint(InetSocketAddress)
 	 */
 	protected RemoteEndpoint getRemoteEndpoint(Exchange exchange) {
-		Message message;
-		if (exchange.isOfLocalOrigin()) {
-			message = exchange.getCurrentRequest();
-		} else {
-			message = exchange.getCurrentResponse();
-		}
-		InetSocketAddress remoteSocketAddress = message.getDestinationContext().getPeerAddress();
+		InetSocketAddress remoteSocketAddress = exchange.getRemoteSocketAddress();
 		synchronized (remoteEndpoints) {
 			RemoteEndpoint remoteEndpoint = remoteEndpoints.get(remoteSocketAddress);
 			if (remoteEndpoint == null) {
@@ -262,14 +256,16 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 *         response is postponed and put into a queue.
 	 */
 	private boolean processResponse(RemoteEndpoint endpoint, Exchange exchange, Response response) {
-		Type messageType = response.getType();
+
+		exchange.setCurrentResponse(response);
 		if (!response.isNotification()) {
-			if (messageType == Type.CON) {
+			if (response.isConfirmable()) {
 				return checkNSTART(endpoint, exchange);
 			} else {
 				return true;
 			}
 		}
+
 		// Check, if there's space in the notifies queue
 		int size;
 		boolean start = false;
@@ -306,16 +302,16 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	private boolean checkNSTART(RemoteEndpoint endpoint, Exchange exchange) {
 		boolean send = false;
 		boolean queued = false;
-		Type type;
+		Message message;
 		String messageType;
 		Queue<Exchange> queue;
 		if (exchange.isOfLocalOrigin()) {
 			messageType = "req.-";
-			type = exchange.getCurrentRequest().getType();
+			message = exchange.getCurrentRequest();
 			queue = endpoint.getRequestQueue();
 		} else {
 			messageType = "resp.-";
-			type = exchange.getCurrentResponse().getType();
+			message = exchange.getCurrentResponse();
 			queue = endpoint.getResponseQueue();
 		}
 		int size;
@@ -333,16 +329,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			}
 		}
 		if (send) {
-			Message message;
-			if (exchange.isOfLocalOrigin()) {
-				// it's a request
-				message = exchange.getCurrentRequest();
-			} else {
-				// it's a response
-				message = exchange.getCurrentResponse();
-			}
 			message.addMessageObserver(new TimeoutTask(endpoint, exchange));
-			LOGGER.trace("{}send {}{}", tag, messageType, type);
+			LOGGER.trace("{}send {}{}", tag, messageType, message.getType());
 			if (statistic != null) {
 				statistic.sendRequest();
 			}
@@ -352,7 +340,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 				statistic.queueRequest();
 			}
 		} else {
-			LOGGER.debug("{}drop {}{}, queue full {}", tag, messageType, type, size);
+			LOGGER.debug("{}drop {}{}, queue full {}", tag, messageType, message.getType(), size);
 		}
 		return false;
 	}
@@ -465,6 +453,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		// process ReliabilityLayer
 		prepareRequest(exchange, request);
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
+		exchange.setCurrentRequest(request);
 		if (checkNSTART(endpoint, exchange)) {
 			endpoint.checkAging();
 			LOGGER.debug("{}send request", tag);
