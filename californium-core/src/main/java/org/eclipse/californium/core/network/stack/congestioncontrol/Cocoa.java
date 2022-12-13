@@ -17,7 +17,6 @@
 
 package org.eclipse.californium.core.network.stack.congestioncontrol;
 
-import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
@@ -53,8 +52,8 @@ public class Cocoa extends CongestionControlLayer {
 	}
 
 	@Override
-	protected RemoteEndpoint createRemoteEndpoint(InetSocketAddress remoteSocketAddress) {
-		return new CocoaRemoteEndpoint(remoteSocketAddress, defaultReliabilityLayerParameters.getAckTimeout(),
+	protected RemoteEndpoint createRemoteEndpoint(Object peersIdentity) {
+		return new CocoaRemoteEndpoint(peersIdentity, defaultReliabilityLayerParameters.getAckTimeout(),
 				defaultReliabilityLayerParameters.getNstart(), strong);
 	}
 
@@ -82,8 +81,8 @@ public class Cocoa extends CongestionControlLayer {
 		private Rto strongRto;
 		private long nanoTimestamp;
 
-		private CocoaRemoteEndpoint(InetSocketAddress remoteAddress, int ackTimeout, int nstart, boolean strong) {
-			super(remoteAddress, ackTimeout, nstart, true);
+		private CocoaRemoteEndpoint(Object peersIdentity, int ackTimeout, int nstart, boolean strong) {
+			super(peersIdentity, ackTimeout, nstart, true);
 			this.onlyStrong = strong;
 			this.weakRto = new Rto(KWEAK, ackTimeout);
 			this.strongRto = new Rto(KSTRONG, ackTimeout);

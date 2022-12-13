@@ -79,6 +79,7 @@ import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -339,6 +340,7 @@ public class Exchange {
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 * @param executor executor to be used for exchanges.
 	 * @throws NullPointerException if request or executor is {@code null}
+	 * @see EndpointIdentityResolver
 	 * @since 3.0 (added peersIdentity, executor adapted to mandatory)
 	 */
 	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor) {
@@ -358,6 +360,7 @@ public class Exchange {
 	 * @param notification {@code true} for notification exchange, {@code false}
 	 *            otherwise
 	 * @throws NullPointerException if request or executor is {@code null}
+	 * @see EndpointIdentityResolver
 	 * @since 3.0 (added peersIdentity, executor adapted to mandatory)
 	 */
 	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
@@ -808,6 +811,7 @@ public class Exchange {
 	 * Returns the other peer's identity.
 	 * 
 	 * @return the other peer's identity
+	 * @see EndpointIdentityResolver
 	 * @since 3.0
 	 */
 	public Object getPeersIdentity() {
