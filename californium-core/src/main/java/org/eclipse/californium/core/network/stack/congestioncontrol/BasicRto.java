@@ -17,8 +17,6 @@
 
 package org.eclipse.californium.core.network.stack.congestioncontrol;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 import org.eclipse.californium.core.network.stack.RemoteEndpoint;
 import org.eclipse.californium.elements.config.Configuration;
@@ -29,8 +27,9 @@ public class BasicRto extends CongestionControlLayer {
 		super(tag, config);
 	}
 
-	protected RemoteEndpoint createRemoteEndpoint(InetSocketAddress remoteSocketAddress) {
-		return new RemoteEndpoint(remoteSocketAddress, defaultReliabilityLayerParameters.getAckTimeout(),
+	@Override
+	protected RemoteEndpoint createRemoteEndpoint(Object peersIdentity) {
+		return new RemoteEndpoint(peersIdentity, defaultReliabilityLayerParameters.getAckTimeout(),
 				defaultReliabilityLayerParameters.getNstart(), false) {
 
 			@Override

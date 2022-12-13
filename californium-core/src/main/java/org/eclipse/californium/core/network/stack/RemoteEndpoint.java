@@ -26,6 +26,7 @@ import java.util.Set;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer.PostponedExchange;
 import org.eclipse.californium.core.network.stack.congestioncontrol.Cocoa;
+import org.eclipse.californium.elements.EndpointIdentityResolver;
 
 /**
  * An abstract class representing the current transmissions and parameters for a
@@ -59,9 +60,11 @@ public abstract class RemoteEndpoint {
 	}
 
 	/**
-	 * Inet socket address of remote endpoint.
+	 * The identity of the remote endpoint.
+	 * @see 
+	 * @since 3.8
 	 */
-	private final InetSocketAddress remoteAddress;
+	private final Object peersIdentity;
 	/**
 	 * Maximum number of concurrent transmissions.
 	 */
@@ -105,8 +108,21 @@ public abstract class RemoteEndpoint {
 	 */
 	protected long meanOverallRTO;
 
-	public RemoteEndpoint(InetSocketAddress remoteAddress, int ackTimeout, int nstart, boolean usesBlindEstimator) {
-		this.remoteAddress = remoteAddress;
+	/**
+	 * Create a remote endpoint.
+	 * 
+	 * @param peersIdentity peer's identity. Usually that's the peer's
+	 *            {@link InetSocketAddress}.
+	 * @param ackTimeout ACK timeout
+	 * @param nstart NSTARt
+	 * @param usesBlindEstimator {@code true}, if blind estimator is used. A
+	 *            blind estimation is based on pending exchanges until these
+	 *            changes are completed.
+	 * @see EndpointIdentityResolver
+	 * @since 3.8 (exchanged InetSocketAddress to Object)
+	 */
+	public RemoteEndpoint(Object peersIdentity, int ackTimeout, int nstart, boolean usesBlindEstimator) {
+		this.peersIdentity = peersIdentity;
 		this.nstart = nstart;
 		this.usesBlindEstimator = usesBlindEstimator;
 		// Fill Array with initial values
@@ -132,8 +148,8 @@ public abstract class RemoteEndpoint {
 	 * 
 	 * @return address of remote endpoint
 	 */
-	public InetSocketAddress getRemoteAddress() {
-		return remoteAddress;
+	public Object getPeersIdentity() {
+		return peersIdentity;
 	}
 
 	/**
