@@ -72,7 +72,7 @@ public class Option implements Comparable<Option> {
 	private final int number;
 
 	/** The value as byte array. */
-	private byte[] value; // not null
+	protected byte[] value; // not null
 
 	/**
 	 * Instantiates a new empty option.
@@ -191,7 +191,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public byte[] getValue() {
 		if (value == null) {
-			String name = OptionNumberRegistry.toString(number);
+			String name = getName();
 			throw new IllegalStateException(name + " option value must be set before!");
 		}
 		return value;
@@ -252,11 +252,15 @@ public class Option implements Comparable<Option> {
 	 */
 	public void setValue(byte[] value) {
 		if (value == null) {
-			String name = OptionNumberRegistry.toString(number);
+			String name = getName();
 			throw new NullPointerException(name + " option value must not be null!");
 		}
-		OptionNumberRegistry.assertValueLength(number, value.length);
+		assertValueLength(number);
 		this.value = value;
+	}
+	
+	protected void assertValueLength(int length) {
+		OptionNumberRegistry.assertValueLength(number, length);
 	}
 
 	/**
@@ -372,10 +376,15 @@ public class Option implements Comparable<Option> {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(OptionNumberRegistry.toString(number));
+		sb.append(getName());
 		sb.append(": ");
 		sb.append(toValueString());
 		return sb.toString();
+	}
+	
+	
+	public String getName() {
+		return OptionNumberRegistry.toString(number);
 	}
 
 	/**

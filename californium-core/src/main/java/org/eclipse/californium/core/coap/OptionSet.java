@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.core.coap.CoAP.SignalingCode;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.CustomOptionNumberRegistry;
 import org.eclipse.californium.elements.util.Bytes;
 
@@ -1757,6 +1758,12 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet addOption(Option option) {
+		// TODO this is not so elegant ...
+		if (option instanceof SignalingOption) {
+			getOthersInternal().add(option);
+			return this;
+		}
+
 		switch (option.getNumber()) {
 		case OptionNumberRegistry.IF_MATCH:
 			addIfMatch(option.getValue());
@@ -1850,19 +1857,35 @@ public final class OptionSet {
 			throw new NullPointerException("Option must not be null!");
 		}
 		int number = option.getNumber();
-		if (OptionNumberRegistry.isCustomOption(number)) {
-			OptionNumberRegistry.assertValueLength(number, option.getLength());
-		}
-		List<Option> others = getOthersInternal();
-		if (OptionNumberRegistry.isSingleValue(number)) {
-			for (int index=0; index < others.size(); ++index) {
-				if (others.get(index).getNumber() == number) {
-					others.remove(index);
-					break;
+		// TODO this is not so elegant...
+		if (option instanceof SignalingOption) {
+			SignalingCode code = ((SignalingOption) option).getCode();
+			SignalingOptionNumberRegistry.assertValueLength(code, number, option.getLength());
+			List<Option> others = getOthersInternal();
+			if (SignalingOptionNumberRegistry.isSingleValue(code, number)) {
+				for (int index=0; index < others.size(); ++index) {
+					if (others.get(index).getNumber() == number) {
+						others.remove(index);
+						break;
+					}
 				}
 			}
+			others.add(option);
+		} else {
+			if (OptionNumberRegistry.isCustomOption(number)) {
+				OptionNumberRegistry.assertValueLength(number, option.getLength());
+			}
+			List<Option> others = getOthersInternal();
+			if (OptionNumberRegistry.isSingleValue(number)) {
+				for (int index=0; index < others.size(); ++index) {
+					if (others.get(index).getNumber() == number) {
+						others.remove(index);
+						break;
+					}
+				}
+			}
+			others.add(option);
 		}
-		others.add(option);
 		return this;
 	}
 
@@ -1935,7 +1958,7 @@ public final class OptionSet {
 				list = false;
 
 				sb.append('"');
-				sb.append(OptionNumberRegistry.toString(opt.getNumber()));
+				sb.append(opt.getName());
 				sb.append('"');
 				sb.append(':');
 			} else {
