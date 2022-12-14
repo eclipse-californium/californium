@@ -109,6 +109,7 @@ public final class CoAP {
 
 	private static final Map<String, Code> codeMap = new HashMap<>();
 	private static final Map<String, ResponseCode> responseCodeMap = new HashMap<>();
+	private static final Map<String, SignalingCode> signalingCodeMap = new HashMap<>();
 
 	private CoAP() {
 		// prevent instantiation
@@ -355,6 +356,17 @@ public final class CoAP {
 	}
 
 	/**
+	 * Checks if a given CoAP code is a <em>signaling message</em> code.
+	 * 
+	 * @param code the code to check.
+	 * @return {@code true} if the code's class is 7 and 0 &lt;= detail &lt;= 31.
+	 */
+	public static boolean isSignalingMessage(final int code) {
+		return code >= SIGNALING_MESSAGE_CODE_LOWER_BOUND &&
+				code <= SIGNALING_MESSAGE_CODE_UPPER_BOUND;
+	}
+
+	/**
 	 * Checks if a given CoAP code is a observable method.
 	 * 
 	 * @param code the code to check.
@@ -583,6 +595,75 @@ public final class CoAP {
 			return codeMap.get(value);
 		}
 
+	}
+	
+	/**
+	 * The enumeration of Signaling Message codes : https://datatracker.ietf.org/doc/html/rfc8323#section-11.1
+	 */
+	public enum SignalingCode {
+
+		/** The Capabilities and Settings Messages code. : https://datatracker.ietf.org/doc/html/rfc8323#section-5.3 */
+		CSM(1),
+
+		/** The Ping code : https://datatracker.ietf.org/doc/html/rfc8323#section-5.4 */
+		PING(2),
+
+		/** The Pong code : https://datatracker.ietf.org/doc/html/rfc8323#section-5.4 */
+		PONG(3),
+
+		/** The Release code: https://datatracker.ietf.org/doc/html/rfc8323#section-5.5 */
+		RELEASE(4),
+
+		/** The Abort code : https://datatracker.ietf.org/doc/html/rfc8323#section-5.6 */
+		ABORT(5);
+
+		/** The code value. */
+		public final int value;
+		public final int codeDetail;
+	
+		/**
+		 * The code value in textual format. "7.dd"
+		 */
+		public final String text;
+
+		/**
+		 * Instantiates a new code with the specified code detail.
+		 *
+		 * @param codeDetail the code detail 
+		 */
+		private SignalingCode(final int codeDetail) {
+			this.value = 0b111_00000 | codeDetail;
+			this.codeDetail = codeDetail;
+			this.text = formatCode(7, codeDetail);
+			signalingCodeMap.put(text, this);
+		}
+
+		/**
+		 * Converts the specified integer value to a Signaling code.
+		 *
+		 * @param value the integer value
+		 * @return the signaling code
+		 * @throws MessageFormatException if the integer value does not represent a valid signaling code.
+		 */
+		public static SignalingCode valueOf(final int value) {
+			int codeClass = getCodeClass(value);
+			int codeDetail = getCodeDetail(value);
+			if (codeClass != 7) {
+				throw new MessageFormatException(String.format("Not a Signaling Code: %s", formatCode(codeClass, codeDetail)));
+			}
+			switch (codeDetail) {
+				case 1: return CSM;
+				case 2: return PING;
+				case 3: return PONG;
+				case 4: return RELEASE;
+				case 5: return ABORT;
+				default: throw new MessageFormatException(String.format("Unknown CoAP Signaling Code: %s", formatCode(codeClass, codeDetail)));
+			}
+		}
+
+		public static SignalingCode valueOfText(String value) {
+			return signalingCodeMap.get(value);
+		}
 	}
 
 	/**
@@ -815,6 +896,13 @@ public final class CoAP {
 
 		/** The highest value of a response code. */
 		public static final int RESPONSE_CODE_UPPER_BOUND = 0b10111111; // 5.31
+
+		/** The lowest value of a signaling message code. */
+		public static final int SIGNALING_MESSAGE_CODE_LOWER_BOUND = 0b111_00000; // 7.00
+
+		/** The highest value of a signaling message code. */
+		public static final int SIGNALING_MESSAGE_CODE_UPPER_BOUND = 0b111_11111; // 7.31
+		
 
 		private MessageFormat() {
 			// prevent instantiation
