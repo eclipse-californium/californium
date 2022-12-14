@@ -185,7 +185,7 @@ public abstract class Message {
 	private volatile boolean sent;
 
 	/** Indicates, if the message has been acknowledged. */
-	private final AtomicBoolean acknowledged = new AtomicBoolean();
+	protected final AtomicBoolean acknowledged = new AtomicBoolean();
 
 	/** Indicates, if the message has been rejected. */
 	private volatile boolean rejected;

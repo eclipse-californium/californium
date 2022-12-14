@@ -24,6 +24,8 @@ package org.eclipse.californium.core.network.serialization;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
+import org.eclipse.californium.core.coap.SignalingMessage;
+import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
@@ -53,5 +55,16 @@ public final class TcpDataSerializer extends DataSerializer {
 
 		writer.write(header.getCode(), CODE_BITS);
 		writer.writeBytes(header.getToken().getBytes());
+	}
+
+	public RawData serializeSignalingMessage(SignalingMessage signalingMessage) {
+		if (signalingMessage == null) {
+			throw new NullPointerException("signalingMessage must not be null!");
+		}
+		if (signalingMessage.getBytes() == null) {
+			signalingMessage.setBytes(getByteArray(signalingMessage));
+		}
+		return RawData.outbound(signalingMessage.getBytes(), signalingMessage.getEffectiveDestinationContext(),
+				null, false);
 	}
 }

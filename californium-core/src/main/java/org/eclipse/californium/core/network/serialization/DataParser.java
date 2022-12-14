@@ -140,14 +140,7 @@ public abstract class DataParser {
 		DatagramReader reader = new DatagramReader(msg);
 		MessageHeader header = parseHeader(reader);
 		try {
-			Message message = null;
-			if (CoAP.isRequest(header.getCode())) {
-				message = parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
-			} else if (CoAP.isResponse(header.getCode())) {
-				message = parseMessage(reader, header, new Response(CoAP.ResponseCode.valueOf(header.getCode())));
-			} else if (CoAP.isEmptyMessage(header.getCode())) {
-				message = parseMessage(reader, header, new EmptyMessage(header.getType()));
-			}
+			Message message = parseMessage(reader, header);
 
 			// Set the message's bytes and return the message
 			if (message != null) {
@@ -162,6 +155,17 @@ public abstract class DataParser {
 		}
 		throw new CoAPMessageFormatException(errorMsg, header.getToken(), header.getMID(), header.getCode(),
 				CoAP.Type.CON == header.getType());
+	}
+
+	protected Message parseMessage(DatagramReader reader, MessageHeader header) {
+		if (CoAP.isRequest(header.getCode())) {
+			return parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
+		} else if (CoAP.isResponse(header.getCode())) {
+			return parseMessage(reader, header, new Response(CoAP.ResponseCode.valueOf(header.getCode())));
+		} else if (CoAP.isEmptyMessage(header.getCode())) {
+			return parseMessage(reader, header, new EmptyMessage(header.getType()));
+		} 
+		return null;
 	}
 
 	/**
@@ -258,7 +262,7 @@ public abstract class DataParser {
 				// read option
 				if (reader.bytesAvailable(optionLength)) {
 					byte[] value = reader.readBytes(optionLength);
-					Option option = createOption(currentOptionNumber, value);
+					Option option = createOption(message, currentOptionNumber, value);
 					if (option != null) {
 						optionSet.addOption(option);
 					}
@@ -323,7 +327,7 @@ public abstract class DataParser {
 	 * @throws NullPointerException if provided value is {@code null}
 	 * @since 3.7
 	 */
-	public Option createOption(int optionNumber, byte[] value) {
+	public Option createOption(Message message, int optionNumber, byte[] value) {
 		if (criticalCustomOptions != null && OptionNumberRegistry.isCritical(optionNumber)
 				&& OptionNumberRegistry.isCustomOption(optionNumber)) {
 			if (!isCiriticalCustomOption(optionNumber)) {

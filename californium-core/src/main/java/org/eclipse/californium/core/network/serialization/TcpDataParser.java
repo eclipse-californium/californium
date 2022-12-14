@@ -24,9 +24,13 @@
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.SignalingCode;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
+import org.eclipse.californium.core.coap.SignalingMessage;
+import org.eclipse.californium.core.coap.SignalingOption;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.util.DatagramReader;
 
@@ -65,6 +69,30 @@ public class TcpDataParser extends DataParser {
 	 */
 	public TcpDataParser(int[] criticalCustomOptions) {
 		super(criticalCustomOptions);
+	}
+
+	@Override
+	protected Message parseMessage(DatagramReader reader, MessageHeader header) {
+		if (CoAP.isSignalingMessage(header.getCode())) {
+			return parseMessage(reader, header, new SignalingMessage(CoAP.SignalingCode.valueOf(header.getCode())));
+		}else {
+			return super.parseMessage(reader, header);
+		}
+	}
+	
+	@Override
+	public Option createOption(Message message, int optionNumber, byte[] value) {
+		if (message instanceof SignalingMessage) {
+			if (OptionNumberRegistry.isCritical(optionNumber)) {
+				throw new IllegalArgumentException("Unknown critical option " + optionNumber);
+			}
+			SignalingCode code = ((SignalingMessage)message).getCode();
+			Option option = new SignalingOption(code, optionNumber);
+			option.setValue(value);
+			return option;
+		} else {
+			return super.createOption(message, optionNumber, value);
+		}
 	}
 
 	@Override

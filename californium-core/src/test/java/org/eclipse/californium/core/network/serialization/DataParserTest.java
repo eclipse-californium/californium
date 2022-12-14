@@ -422,12 +422,12 @@ public class DataParserTest {
 		}
 		
 		@Override
-		public Option createOption(int optionNumber, byte[] value) {
+		public Option createOption(Message message, int optionNumber, byte[] value) {
 			if (optionError != null) {
 				throw optionError;
 			}
 			try {
-				return super.createOption(optionNumber, value);
+				return super.createOption(message, optionNumber, value);
 			} catch (RuntimeException ex) {
 				if (ignoreOptionError) {
 					return null;
@@ -454,12 +454,12 @@ public class DataParserTest {
 			this.optionError = optionError;
 		}
 
-		public Option createOption(int optionNumber, byte[] value) {
+		public Option createOption(Message message, int optionNumber, byte[] value) {
 			if (optionError != null) {
 				throw optionError;
 			}
 			try {
-				return super.createOption(optionNumber, value);
+				return super.createOption(message, optionNumber, value);
 			} catch (RuntimeException ex) {
 				if (ignoreOptionError) {
 					return null;
