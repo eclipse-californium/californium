@@ -52,7 +52,7 @@ public abstract class BaseCoapStack implements CoapStack, ExtendedCoapStack {
 	private static final Logger LOGGER = LoggerFactory.getLogger(BaseCoapStack.class);
 
 	private List<Layer> layers;
-	private final Outbox outbox;
+	protected final Outbox outbox;
 	protected final StackTopAdapter top;
 	protected final StackBottomAdapter bottom;
 	private MessageDeliverer deliverer;

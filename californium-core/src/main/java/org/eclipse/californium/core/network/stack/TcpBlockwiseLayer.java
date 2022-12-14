@@ -14,6 +14,7 @@
 package org.eclipse.californium.core.network.stack;
 
 
+import org.eclipse.californium.core.coap.SignalingMessage;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
@@ -51,6 +52,20 @@ public class TcpBlockwiseLayer extends BlockwiseLayer implements ConnectionOrien
 	public void disconnected(EndpointContext context) {
 		if (upperLayer instanceof ConnectionOrientedLayer) {
 			((ConnectionOrientedLayer) upperLayer).disconnected(context);	
+		}
+	}
+
+	@Override
+	public void receivedSignalingMessage(SignalingMessage message) {
+		if (upperLayer instanceof ConnectionOrientedLayer) {
+			((ConnectionOrientedLayer) upperLayer).receivedSignalingMessage(message);;	
+		}			
+	}
+
+	@Override
+	public void sendSignalingMessage(SignalingMessage message) {
+		if (lowerLayer instanceof ConnectionOrientedLayer) {
+			((ConnectionOrientedLayer) lowerLayer).sendSignalingMessage(message);;	
 		}
 	}
 }

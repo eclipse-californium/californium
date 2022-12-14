@@ -1,6 +1,7 @@
 package org.eclipse.californium.core.network.stack;
 
 
+import org.eclipse.californium.core.coap.SignalingMessage;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.elements.EndpointContext;
 
@@ -29,6 +30,18 @@ public class BaseConnectionOrientedCoapStack extends BaseCoapStack implements Co
 		public void disconnected(EndpointContext context) {
 			// TODO should we raise this event out of the stack ?
 		}
+
+		@Override
+		public void sendSignalingMessage(SignalingMessage message) {
+			// TODO should we raise this event out of the stack ?
+		}
+
+		@Override
+		public void receivedSignalingMessage(SignalingMessage message) {
+			// TODO Auto-generated method stub
+		}
+
+
 	}
 
 	protected class ConnectionOrientedStackBottomAdapter extends StackBottomAdapter implements ConnectionOrientedLayer{
@@ -43,6 +56,18 @@ public class BaseConnectionOrientedCoapStack extends BaseCoapStack implements Co
 			if (upperLayer instanceof ConnectionOrientedLayer) {
 				((ConnectionOrientedLayer) upperLayer).disconnected(context);	
 			}
+		}
+		
+		@Override
+		public void receivedSignalingMessage(SignalingMessage message) {
+			if (upperLayer instanceof ConnectionOrientedLayer) {
+				((ConnectionOrientedLayer) upperLayer).receivedSignalingMessage(message);;	
+			}			
+		}
+
+		@Override
+		public void sendSignalingMessage(SignalingMessage message) {
+				outbox.sendSignalingMessage(message);;	
 		}
 	}
 
@@ -62,6 +87,17 @@ public class BaseConnectionOrientedCoapStack extends BaseCoapStack implements Co
 
 	@Override
 	public void disconnected(org.eclipse.californium.elements.EndpointContext context) {
-		((ConnectionOrientedLayer)bottom).disconnected(null);
+		((ConnectionOrientedLayer)bottom).disconnected(context);
+	}
+	
+	@Override
+	public void receivedSignalingMessage(SignalingMessage message) {
+		((ConnectionOrientedLayer)bottom).receivedSignalingMessage(message);
+		
+	}
+	
+	@Override
+	public void sendSignalingMessage(SignalingMessage message) {
+		((ConnectionOrientedLayer)top).sendSignalingMessage(message);		
 	}
 }

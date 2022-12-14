@@ -22,6 +22,7 @@ package org.eclipse.californium.core.network;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.SignalingMessage;
 
 public interface Outbox {
 
@@ -58,4 +59,6 @@ public interface Outbox {
 	 */
 	public void sendEmptyMessage(Exchange exchange, EmptyMessage emptyMessage);
 	
+	
+	public void sendSignalingMessage(SignalingMessage message);
 }

@@ -98,6 +98,7 @@ import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.SignalingMessage;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.Exchange.Origin;
@@ -1022,6 +1023,12 @@ public class CoapEndpoint implements Endpoint, Executor {
 				throw new IllegalArgumentException("Message has no endpoint context");
 			}
 		}
+
+		@Override
+		public void sendSignalingMessage(SignalingMessage message) {
+			if (serializer instanceof TcpDataSerializer)
+			connector.send(((TcpDataSerializer) serializer).serializeSignalingMessage(message));
+		}
 	}
 
 	private class ConnectionEventHandlerImpl implements ConnectionEventHandler {
@@ -1123,6 +1130,14 @@ public class CoapEndpoint implements Endpoint, Executor {
 								raw.getEndpointContext());
 					} else {
 						receiveEmptyMessage((EmptyMessage) msg);
+					}
+					return;
+				} else if (CoAP.isSignalingMessage(msg.getRawCode())) {
+					if (raw.isMulticast()) {
+						LOGGER.debug("{}multicast-receiver silently ignoring Signaling messages from {}", tag,
+								raw.getEndpointContext());
+					} else {
+						receiveSignalMessage((SignalingMessage) msg);
 					}
 					return;
 				} else {
@@ -1286,6 +1301,16 @@ public class CoapEndpoint implements Endpoint, Executor {
 						matcher.receiveEmptyMessage(message, endpointStackReceiver);
 					}
 				}
+			}
+		}
+		
+		private void receiveSignalMessage(SignalingMessage message) {
+			
+			// TODO should we add interceptor supports to this ?
+			
+			// handle signal
+			if (coapstack instanceof ConnectionOrientedCoapStack) {
+				((ConnectionOrientedCoapStack) coapstack).receivedSignalingMessage(message);
 			}
 		}
 	}
