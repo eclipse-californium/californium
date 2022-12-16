@@ -8,6 +8,8 @@ More information can be found at
 [http://www.eclipse.org/californium/](http://www.eclipse.org/californium/)
 and [http://coap.technology/](http://coap.technology/).
 
+Like to help improving Californium? Then consider to [contribute](#contributing).
+
 # Build using Maven
 
 You need to have a working maven installation to build Californium.
@@ -240,3 +242,5 @@ or create an issue here on GitHub.
 # Contributing
 
 Please check out our [contribution guidelines](CONTRIBUTING.md)
+
+There are a couple of [enhancement issues](https://github.com/eclipse-californium/californium/issues?q=is%3Aissue+label%3Ahibernate), which have been closed for longer inactivity. Maybe, if you like to help and spend some time, you will be welcome.
