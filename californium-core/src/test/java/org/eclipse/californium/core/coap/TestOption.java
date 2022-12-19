@@ -24,6 +24,7 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION_BITS;
 
 import java.util.Arrays;
 
+import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.MessageHeader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -41,11 +42,27 @@ public final class TestOption {
 	 * @param number option number
 	 * @param length value length
 	 * @return created option
+	 * @deprecated use {@link #newOption(OptionDefinition, int)} instead
 	 */
+	@Deprecated
 	public static Option newOption(int number, int length) {
 		byte[] value = new byte[length];
 		Arrays.fill(value, (byte) 'p');
 		return new Option(number).setValueUnchecked(value);
+	}
+
+	/**
+	 * Create option with unchecked value.
+	 * 
+	 * @param defintion option definition.
+	 * @param length value length
+	 * @return created option
+	 * @since 3.8
+	 */
+	public static Option newOption(OptionDefinition definition, int length) {
+		byte[] value = new byte[length];
+		Arrays.fill(value, (byte) 'p');
+		return new Option(definition).setValueUnchecked(value);
 	}
 
 	/**

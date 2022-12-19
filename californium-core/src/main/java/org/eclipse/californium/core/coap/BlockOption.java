@@ -22,6 +22,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
@@ -228,14 +229,19 @@ public final class BlockOption {
 	 * @throws IllegalArgumentException if number is neither
 	 *             {@link OptionNumberRegistry#BLOCK1} nor
 	 *             {@link OptionNumberRegistry#BLOCK2}.
+	 * @deprecated obsolete
 	 * @since 3.0
 	 */
+	@Deprecated
 	public Option toOption(int number) {
-		if (number != OptionNumberRegistry.BLOCK1 && number != OptionNumberRegistry.BLOCK2) {
-			throw new IllegalArgumentException("Block Option must be either block1(" + OptionNumberRegistry.BLOCK1
-					+ ") or block2(" + OptionNumberRegistry.BLOCK2 + "), not " + number + "!");
+		if (StandardOptionRegistry.BLOCK1.getNumber() == number) {
+			return StandardOptionRegistry.BLOCK1.create(getValue());
+		} else if (StandardOptionRegistry.BLOCK2.getNumber() == number) {
+			return StandardOptionRegistry.BLOCK2.create(getValue());
 		}
-		return new Option(number, getValue());
+		throw new IllegalArgumentException(
+				"Block Option must be either block1(" + StandardOptionRegistry.BLOCK1.getNumber() + ") or block2("
+						+ StandardOptionRegistry.BLOCK2.getNumber() + "), not " + number + "!");
 	}
 
 	@Override

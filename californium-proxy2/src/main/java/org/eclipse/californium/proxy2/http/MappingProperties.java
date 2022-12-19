@@ -38,6 +38,8 @@ import org.eclipse.californium.elements.config.PropertiesUtility;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.proxy2.InvalidMethodException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -410,6 +412,21 @@ public class MappingProperties extends Properties {
 	 */
 	public Integer getCoapOption(String httpHeader) {
 		return httpHeaders.get(httpHeader);
+	}
+
+	/**
+	 * Get CoAP option definition for http header name.
+	 * 
+	 * @param httpHeader http header name
+	 * @return CoAP option definition, or {@code null}, if not available.
+	 * @since 3.8
+	 */
+	public OptionDefinition getCoapOptionDefinition(String httpHeader) {
+		Integer number = getCoapOption(httpHeader);
+		if (number != null) {
+			return StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(number);
+		}
+		return null;
 	}
 
 	/**

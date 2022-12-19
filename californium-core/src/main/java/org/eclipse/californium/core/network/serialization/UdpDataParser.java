@@ -24,6 +24,8 @@ package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
@@ -41,18 +43,15 @@ import org.eclipse.californium.core.coap.BlockOption;
 public class UdpDataParser extends DataParser {
 
 	private final boolean strictEmptyMessageFormat;
-	
+
 	/**
 	 * Create UDP data parser.
 	 * 
-	 * Use {@link OptionNumberRegistry#getCriticalCustomOptions()} as default to
-	 * check for critical custom options.
-	 * 
-	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *        default.
+	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 *        as default option registry.
 	 */
 	public UdpDataParser() {
-		this(false, null);
+		this(false, StandardOptionRegistry.getDefaultOptionRegistry());
 	}
 
 	/**
@@ -63,9 +62,12 @@ public class UdpDataParser extends DataParser {
 	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
 	 *            default to check for critical custom options.
 	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *        default.
+	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 *        as default option registry.
+	 * @deprecated please use {@link OptionRegistry} with
+	 *             {@link #UdpDataParser(boolean, OptionRegistry)}.
 	 */
+	@Deprecated
 	public UdpDataParser(int[] criticalCustomOptions) {
 		this(false, criticalCustomOptions);
 	}
@@ -92,11 +94,40 @@ public class UdpDataParser extends DataParser {
 	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
 	 *            default to check for critical custom options.
 	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *        default.
+	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 *        as default option registry.
+	 * @deprecated please use {@link OptionRegistry} with
+	 *             {@link #UdpDataParser(boolean, OptionRegistry)}.
 	 */
+	@Deprecated
 	public UdpDataParser(boolean strictEmptyMessageFormat, int[] criticalCustomOptions) {
 		super(criticalCustomOptions);
+		this.strictEmptyMessageFormat = strictEmptyMessageFormat;
+	}
+
+	/**
+	 * Create UDP data parser with support for critical custom options and
+	 * provided strictness for empty message format.
+	 * 
+	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.1"
+	 * target="_blank">RFC7252, Section 4.1</a> defines:
+	 * 
+	 * <pre>
+	 * An Empty message has the Code field set to 0.00.  The Token Length
+	 * field MUST be set to 0 and bytes of data MUST NOT be present after
+	 * the Message ID field.  If there are any bytes, they MUST be processed
+	 * as a message format error.
+	 * </pre>
+	 * 
+	 * @param strictEmptyMessageFormat {@code true}, to process messages with
+	 *            code {@code 0} strictly according RFC7252, 4.1.,
+	 *            {@code false}, to relax the MUST in a not compliant way!
+	 * @param optionRegistry option registry. {@code null} to use
+	 *            {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 * @since 3.8
+	 */
+	public UdpDataParser(boolean strictEmptyMessageFormat, OptionRegistry optionRegistry) {
+		super(optionRegistry);
 		this.strictEmptyMessageFormat = strictEmptyMessageFormat;
 	}
 
@@ -126,7 +157,7 @@ public class UdpDataParser extends DataParser {
 			throw new CoAPMessageFormatException("UDP Message too short for token! " + (reader.bitsLeft() / Byte.SIZE)
 					+ " must be at least " + tokenLength + " bytes!", null, mid, code, confirmable);
 		}
- 		Token token = Token.fromProvider(reader.readBytes(tokenLength));
+		Token token = Token.fromProvider(reader.readBytes(tokenLength));
 
 		return new MessageHeader(version, type, token, code, mid, 0);
 	}
