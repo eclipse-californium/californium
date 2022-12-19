@@ -51,6 +51,8 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.InvalidMethodException;
@@ -256,24 +258,22 @@ public class CrossProtocolTranslator {
 				String headerName = header.getName().toLowerCase();
 
 				// get the mapping from the property file
-				Integer coapOption = translationMapping.getCoapOption(headerName);
+				OptionDefinition optionDefinition = translationMapping.getCoapOptionDefinition(headerName);
 				// ignore the header if not found in the properties file
-				if (coapOption == null) {
+				if (optionDefinition == null) {
 					continue;
 				}
-				int optionNumber = coapOption;
-				// ignore the content-type because it will be handled within the
-				// payload
-				if (optionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
+//				int optionNumber = coapOption;
+				// ignore the content-type, it will be handled within the payload
+				if (optionDefinition.equals(StandardOptionRegistry.CONTENT_FORMAT)) {
 					continue;
 				}
 
 				// get the value of the current header
 				String headerValue = header.getValue().trim();
 
-				// if the option is accept, it needs to translate the
-				// values
-				if (optionNumber == OptionNumberRegistry.ACCEPT) {
+				// if the option is accept, it needs to translate the values
+				if (optionDefinition.equals(StandardOptionRegistry.ACCEPT)) {
 					final ParserCursor cursor = new ParserCursor(0, headerValue.length());
 					HeaderElement[] headerElements = parser.parseElements(headerValue, cursor);
 					for (HeaderElement element : headerElements) {
@@ -298,12 +298,12 @@ public class CrossProtocolTranslator {
 								coapContentType = getCoapMediaType(headerFragment, MediaTypeRegistry.UNDEFINED);
 							}
 							if (coapContentType != MediaTypeRegistry.UNDEFINED) {
-								accept = new Option(optionNumber, coapContentType);
+								accept = new Option(StandardOptionRegistry.ACCEPT, coapContentType);
 								acceptQualifier = qualifier;
 							}
 						}
 					}
-				} else if (optionNumber == OptionNumberRegistry.MAX_AGE) {
+				} else if (optionDefinition.equals(StandardOptionRegistry.MAX_AGE)) {
 					int maxAge = -1;
 					final ParserCursor cursor = new ParserCursor(0, headerValue.length());
 					HeaderElement[] headerElements = parser.parseElements(headerValue, cursor);
@@ -323,25 +323,25 @@ public class CrossProtocolTranslator {
 					}
 					if (maxAge >= 0) {
 						// create the option
-						Option option = new Option(optionNumber, maxAge);
+						Option option = new Option(StandardOptionRegistry.MAX_AGE, maxAge);
 						optionList.add(option);
 					}
-				} else if (optionNumber == OptionNumberRegistry.ETAG) {
+				} else if (optionDefinition.equals(StandardOptionRegistry.ETAG)) {
 					byte[] etag = etagTranslator.getCoapEtag(headerValue);
-					Option option = new Option(optionNumber, etag);
+					Option option = new Option(StandardOptionRegistry.ETAG, etag);
 					optionList.add(option);
-				} else if (optionNumber == OptionNumberRegistry.IF_MATCH) {
+				} else if (optionDefinition.equals(StandardOptionRegistry.IF_MATCH)) {
 					byte[] etag = etagTranslator.getCoapEtag(headerValue);
-					Option option = new Option(optionNumber, etag);
+					Option option = new Option(StandardOptionRegistry.IF_MATCH, etag);
 					optionList.add(option);
-				} else if (optionNumber == OptionNumberRegistry.IF_NONE_MATCH) {
+				} else if (optionDefinition.equals(StandardOptionRegistry.IF_NONE_MATCH)) {
 					if (headerValue.equals("*")) {
-						Option option = new Option(optionNumber, Bytes.EMPTY);
+						Option option = new Option(StandardOptionRegistry.IF_NONE_MATCH, Bytes.EMPTY);
 						optionList.add(option);
 					} else {
 						LOGGER.debug("'if-none-match' with etag '{}' is not supported!", headerValue);
 					}
-				} else if (optionNumber == OptionNumberRegistry.LOCATION_PATH) {
+				} else if (optionDefinition.equals(StandardOptionRegistry.LOCATION_PATH)) {
 					try {
 						URI uri = new URI(headerValue);
 						OptionSet set = new OptionSet();
@@ -361,8 +361,8 @@ public class CrossProtocolTranslator {
 					}
 				} else {
 					// create the option
-					Option option = new Option(optionNumber);
-					switch (OptionNumberRegistry.getFormatByNr(optionNumber)) {
+					Option option = new Option(optionDefinition);
+					switch (optionDefinition.getFormat()) {
 					case INTEGER:
 						option.setIntegerValue(Integer.parseInt(headerValue));
 						break;
@@ -558,31 +558,31 @@ public class CrossProtocolTranslator {
 		for (Option option : optionList) {
 			// skip content-type because it should be translated while handling
 			// the payload;
-			int optionNumber = option.getNumber();
-			if (optionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
+			OptionDefinition definition = option.getDefinition();
+			if (StandardOptionRegistry.CONTENT_FORMAT.equals(definition)) {
 				continue;
 			}
-			if (optionNumber == OptionNumberRegistry.LOCATION_PATH
-					|| optionNumber == OptionNumberRegistry.LOCATION_QUERY) {
+			if (StandardOptionRegistry.LOCATION_PATH.equals(definition)
+					|| StandardOptionRegistry.LOCATION_QUERY.equals(definition)) {
 				hasLocation = true;
 				continue;
 			}
 			// get the mapping from the property file
-			String headerName = translationMapping.getHttpHeader(optionNumber);
+			String headerName = translationMapping.getHttpHeader(option.getNumber());
 
 			// set the header
 			if (headerName != null && !headerName.isEmpty()) {
 
-				OptionFormat optionFormat = OptionNumberRegistry.getFormatByNr(optionNumber);
+				OptionFormat optionFormat = definition.getFormat();
 				// format the value
 				String stringOptionValue = null;
-				if (optionNumber == OptionNumberRegistry.ETAG) {
+				if (StandardOptionRegistry.ETAG.equals(definition)) {
 					stringOptionValue = etagTranslator.getHttpEtag(option.getValue());
-				} else if (optionNumber == OptionNumberRegistry.IF_MATCH) {
+				} else if (StandardOptionRegistry.IF_MATCH.equals(definition)) {
 					stringOptionValue = etagTranslator.getHttpEtag(option.getValue());
-				} else if (optionNumber == OptionNumberRegistry.IF_NONE_MATCH) {
+				} else if (StandardOptionRegistry.IF_NONE_MATCH.equals(definition)) {
 					stringOptionValue = "*";
-				} else if (optionNumber == OptionNumberRegistry.ACCEPT) {
+				} else if (StandardOptionRegistry.ACCEPT.equals(definition)) {
 					try {
 						stringOptionValue = getHttpContentType(option.getIntegerValue()).toString();
 					} catch (TranslationException e) {
@@ -603,7 +603,7 @@ public class CrossProtocolTranslator {
 
 				// custom handling for max-age
 				// format: cache-control: max-age=60
-				if (optionNumber == OptionNumberRegistry.MAX_AGE) {
+				if (StandardOptionRegistry.MAX_AGE.equals(definition)) {
 					stringOptionValue = "max-age=" + stringOptionValue;
 				}
 
@@ -615,9 +615,10 @@ public class CrossProtocolTranslator {
 			StringBuilder locationPath = new StringBuilder();
 			StringBuilder locationQuery = new StringBuilder();
 			for (Option option : optionList) {
-				if (option.getNumber() == OptionNumberRegistry.LOCATION_PATH) {
+				OptionDefinition definition = option.getDefinition();
+				if (StandardOptionRegistry.LOCATION_PATH.equals(definition)) {
 					locationPath.append("/").append(option.getStringValue());
-				} else if (option.getNumber() == OptionNumberRegistry.LOCATION_QUERY) {
+				} else if (StandardOptionRegistry.LOCATION_QUERY.equals(definition)) {
 					locationQuery.append("&").append(option.getStringValue());
 				}
 			}
@@ -783,7 +784,7 @@ public class CrossProtocolTranslator {
 		@Override
 		public byte[] getCoapEtag(String value) {
 			byte[] etag = StringUtil.hex2ByteArray(value);
-			OptionNumberRegistry.assertValueLength(OptionNumberRegistry.ETAG, etag.length);
+			StandardOptionRegistry.ETAG.assertValue(etag);
 			return etag;
 		}
 
@@ -807,7 +808,7 @@ public class CrossProtocolTranslator {
 		@Override
 		public byte[] getCoapEtag(String value) {
 			byte[] etag = value.getBytes(ISO_8859_1);
-			OptionNumberRegistry.assertValueLength(OptionNumberRegistry.ETAG, etag.length);
+			StandardOptionRegistry.ETAG.assertValue(etag);
 			return etag;
 		}
 

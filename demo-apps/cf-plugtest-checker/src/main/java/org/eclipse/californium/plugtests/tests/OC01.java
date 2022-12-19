@@ -17,9 +17,9 @@ package org.eclipse.californium.plugtests.tests;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.plugtests.OscoreTest;
 import org.eclipse.californium.plugtests.TestClientAbstract;
@@ -51,7 +51,7 @@ public class OC01 extends TestClientAbstract implements OscoreTest {
 		success &= checkType(Type.ACK, response.getType());
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkInt(request.getMID(), response.getMID(), "MID");
-		success &= hasOption(response, OptionNumberRegistry.OSCORE, false);
+		success &= hasOption(response, StandardOptionRegistry.OSCORE, false);
 		success &= hasContentType(response);
 		success &= hasNonEmptyPayload(response);
 

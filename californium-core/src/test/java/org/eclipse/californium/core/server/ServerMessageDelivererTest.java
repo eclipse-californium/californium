@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.EmptyOptionDefinition;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -51,6 +52,8 @@ import org.mockito.ArgumentCaptor;
  */
 @Category(Small.class)
 public class ServerMessageDelivererTest {
+	public final EmptyOptionDefinition CUSTOM = new EmptyOptionDefinition(200, "Test");
+	
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
@@ -115,7 +118,7 @@ public class ServerMessageDelivererTest {
 
 		// GIVEN a message deliverer subclass that adds a custom option to incoming
 		// requests
-		final Option customOption = new Option(200);
+		final Option customOption = new Option(CUSTOM);
 		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource, null) {
 			@Override
 			protected boolean preDeliverRequest(Exchange exchange) {
@@ -131,7 +134,7 @@ public class ServerMessageDelivererTest {
 		ArgumentCaptor<Exchange> exchangeCaptor = ArgumentCaptor.forClass(Exchange.class);
 		verify(rootResource).handleRequest(exchangeCaptor.capture());
 		// and the request contains the custom option
-		assertTrue(exchangeCaptor.getValue().getRequest().getOptions().hasOption(200));
+		assertTrue(exchangeCaptor.getValue().getRequest().getOptions().hasOption(CUSTOM));
 	}
 
 	/**
@@ -170,7 +173,7 @@ public class ServerMessageDelivererTest {
 
 			@Override
 			protected boolean preDeliverResponse(Exchange exchange, Response response) {
-				response.getOptions().addOption(new Option(200));
+				response.getOptions().addOption(new Option(CUSTOM));
 				return false;
 			}
 		};
@@ -181,6 +184,6 @@ public class ServerMessageDelivererTest {
 		// THEN the response is delivered to the request
 		assertNotNull(outboundRequest.getRequest().getResponse());
 		// and the response contains the custom option
-		assertTrue(outboundRequest.getRequest().getResponse().getOptions().hasOption(200));
+		assertTrue(outboundRequest.getRequest().getResponse().getOptions().hasOption(CUSTOM));
 	}
 }

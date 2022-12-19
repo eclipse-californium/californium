@@ -19,6 +19,10 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.serialization.TcpDataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
@@ -30,6 +34,14 @@ import org.eclipse.californium.core.network.serialization.UdpDataParser;
  * <a href=
  * "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#option-numbers">
  * IANA - CoAP Option Numbers</a>.
+ * 
+ * Since 3.8 {@link OptionDefinition} and {@link OptionRegistry} is introduced
+ * and is the preferred and future way to specify, which option is represented.
+ * The option number on it's own represents this only for the traditional
+ * options, but options introduced with
+ * <a href="https://www.rfc-editor.org/rfc/rfc8323#section-5.2" target=
+ * "_blank"> RFC8323 5.2. Signaling Option Numbers</a> options dependent also on
+ * the message code.
  */
 public final class OptionNumberRegistry {
 	public static final int UNKNOWN			= -1;
@@ -123,7 +135,10 @@ public final class OptionNumberRegistry {
 	 * Custom option number registry.
 	 * 
 	 * @since 3.7
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	private static volatile CustomOptionNumberRegistry customRegistry;
 
 	/**
@@ -132,42 +147,15 @@ public final class OptionNumberRegistry {
 	 * @param optionNumber
 	 *            The option number
 	 * @return The option format corresponding to the option number
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	public static OptionFormat getFormatByNr(int optionNumber) {
-		switch (optionNumber) {
-		case CONTENT_FORMAT:
-		case MAX_AGE:
-		case URI_PORT:
-		case OBSERVE:
-		case BLOCK2:
-		case BLOCK1:
-		case SIZE2:
-		case SIZE1:
-		case ACCEPT:
-		case NO_RESPONSE:
-			return OptionFormat.INTEGER;
-		case IF_NONE_MATCH:
-			return OptionFormat.EMPTY;
-		case URI_HOST:
-		case URI_PATH:
-		case URI_QUERY:
-		case LOCATION_PATH:
-		case LOCATION_QUERY:
-		case PROXY_URI:
-		case PROXY_SCHEME:
-			return OptionFormat.STRING;
-		case ETAG:
-		case IF_MATCH:
-		case OSCORE:
-			return OptionFormat.OPAQUE;
-		default:
-			CustomOptionNumberRegistry custom = customRegistry;
-			if (custom != null) {
-				OptionFormat format =  custom.getFormatByNr(optionNumber);
-				if (format != null) {
-					return format;
-				}
-			}
+		OptionDefinition definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(optionNumber);
+		if (definition != null) {
+			return definition.getFormat();
+		} else {
 			return OptionFormat.UNKNOWN;
 		}
 	}
@@ -263,34 +251,11 @@ public final class OptionNumberRegistry {
 	 *            the option number
 	 * @return {@code true} if the option is a custom option
 	 * @since 3.7
+	 * @deprecated obsolete
 	 */
+	@Deprecated
 	public static boolean isCustomOption(int optionNumber) {
-		switch (optionNumber) {
-		case CONTENT_FORMAT:
-		case MAX_AGE:
-		case PROXY_URI:
-		case PROXY_SCHEME:
-		case URI_HOST:
-		case URI_PORT:
-		case IF_NONE_MATCH:
-		case OBSERVE:
-		case ACCEPT:
-		case OSCORE:
-		case BLOCK1:
-		case BLOCK2:
-		case SIZE1:
-		case SIZE2:
-		case NO_RESPONSE:
-		case ETAG:
-		case IF_MATCH:
-		case URI_PATH:
-		case URI_QUERY:
-		case LOCATION_PATH:
-		case LOCATION_QUERY:
-			return false;
-		default:
-			return true;
-		}
+		return StandardOptionRegistry.STANDARD_OPTIONS.getDefinitionByNumber(optionNumber) == null;
 	}
 
 	/**
@@ -299,39 +264,16 @@ public final class OptionNumberRegistry {
 	 * @param optionNumber
 	 *            the option number
 	 * @return {@code true} if the option has a single value
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	public static boolean isSingleValue(int optionNumber) {
-		switch (optionNumber) {
-		case CONTENT_FORMAT:
-		case MAX_AGE:
-		case PROXY_URI:
-		case PROXY_SCHEME:
-		case URI_HOST:
-		case URI_PORT:
-		case IF_NONE_MATCH:
-		case OBSERVE:
-		case ACCEPT:
-		case OSCORE:
-		case BLOCK1:
-		case BLOCK2:
-		case SIZE1:
-		case SIZE2:
-		case NO_RESPONSE:
+		OptionDefinition definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(optionNumber);
+		if (definition != null) {
+			return definition.isSingleValue();
+		} else {
 			return true;
-		case ETAG:
-		case IF_MATCH:
-		case URI_PATH:
-		case URI_QUERY:
-		case LOCATION_PATH:
-		case LOCATION_QUERY:
-			return false;
-		default:
-			CustomOptionNumberRegistry custom = customRegistry;
-			if (custom != null) {
-				return custom.isSingleValue(optionNumber);
-			} else {
-				return true;
-			}
 		}
 	}
 
@@ -345,19 +287,18 @@ public final class OptionNumberRegistry {
 	 * @param value value to check
 	 * @throws IllegalArgumentException if value doesn't match the definition
 	 * @since 3.0
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	public static void assertValue(int optionNumber, long value) {
-		if (isCustomOption(optionNumber)) {
-			CustomOptionNumberRegistry custom = customRegistry;
-			if (custom != null) {
-				custom.assertValue(optionNumber, value);
+		OptionDefinition definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(optionNumber);
+		if (definition != null) {
+			try {
+				definition.assertValue(IntegerOptionDefinition.setLongValue(value));
+			} catch (IllegalArgumentException ex) {
+				throw new IllegalArgumentException(ex.getMessage() + " Value " + value);
 			}
-		}
-		try {
-			int length = (Long.SIZE - Long.numberOfLeadingZeros(value) + 7) / Byte.SIZE;
-			assertValueLength(optionNumber, length);
-		} catch (IllegalArgumentException ex) {
-			throw new IllegalArgumentException(ex.getMessage() + " Value " + value);
 		}
 	}
 
@@ -372,72 +313,24 @@ public final class OptionNumberRegistry {
 	 * @throws IllegalArgumentException if value length doesn't match the
 	 *             definition
 	 * @since 3.0
+	 * @deprecated
 	 */
 	public static void assertValueLength(int optionNumber, int valueLength) {
 		int min = 0;
 		int max = 65535 + 269;
-		switch (optionNumber) {
-		case IF_MATCH:
-			max = 8;
-			break;
-		case URI_HOST:
-		case PROXY_SCHEME:
-			min = 1;
-			max = 255;
-			break;
-		case ETAG:
-			min = 1;
-			max = 8;
-			break;
-		case IF_NONE_MATCH:
-			max = 0;
-			break;
-		case URI_PORT:
-		case CONTENT_FORMAT:
-		case ACCEPT:
-			max = 2;
-			break;
-		case NO_RESPONSE:
-			max = 1;
-			break;
-		case URI_PATH:
-		case URI_QUERY:
-		case LOCATION_PATH:
-		case LOCATION_QUERY:
-		case OSCORE:
-			max = 255;
-			break;
-
-		case MAX_AGE:
-		case SIZE1:
-		case SIZE2:
-			max = 4;
-			break;
-
-		case PROXY_URI:
-			min = 1;
-			max = 1034;
-			break;
-		case OBSERVE:
-		case BLOCK1:
-		case BLOCK2:
-			max = 3;
-			break;
-		default:
-			CustomOptionNumberRegistry custom = customRegistry;
-			if (custom != null) {
-				int[] lengths = custom.getValueLengths(optionNumber);
-				if (lengths != null) {
-					if (lengths.length == 2) {
-						min = lengths[0];
-						max = lengths[1];
-					} else if (lengths.length == 1) {
-						min = lengths[0];
-						max = lengths[0];
-					}
-				}
+		int[] lengths = null;
+		OptionDefinition definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(optionNumber);
+		if (definition != null) {
+			lengths = definition.getValueLengths();
+		}
+		if (lengths != null) {
+			if (lengths.length == 2) {
+				min = lengths[0];
+				max = lengths[1];
+			} else if (lengths.length == 1) {
+				min = lengths[0];
+				max = lengths[0];
 			}
-			// empty, already min/max already initialized.
 		}
 		if (valueLength < min || valueLength > max) {
 			String name = toString(optionNumber);
@@ -474,65 +367,15 @@ public final class OptionNumberRegistry {
 	 * @param optionNumber
 	 *            the option number to describe
 	 * @return a string describing the option number
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	public static String toString(int optionNumber) {
-		switch (optionNumber) {
-		case RESERVED_0:
-		case RESERVED_1:
-		case RESERVED_2:
-		case RESERVED_3:
-		case RESERVED_4:
-			return Names.Reserved;
-		case IF_MATCH:
-			return Names.If_Match;
-		case URI_HOST:
-			return Names.Uri_Host;
-		case ETAG:
-			return Names.ETag;
-		case IF_NONE_MATCH:
-			return Names.If_None_Match;
-		case URI_PORT:
-			return Names.Uri_Port;
-		case LOCATION_PATH:
-			return Names.Location_Path;
-		case URI_PATH:
-			return Names.Uri_Path;
-		case CONTENT_FORMAT:
-			return Names.Content_Format;
-		case MAX_AGE:
-			return Names.Max_Age;
-		case URI_QUERY:
-			return Names.Uri_Query;
-		case ACCEPT:
-			return Names.Accept;
-		case LOCATION_QUERY:
-			return Names.Location_Query;
-		case PROXY_URI:
-			return Names.Proxy_Uri;
-		case PROXY_SCHEME:
-			return Names.Proxy_Scheme;
-		case OBSERVE:
-			return Names.Observe;
-		case BLOCK2:
-			return Names.Block2;
-		case BLOCK1:
-			return Names.Block1;
-		case SIZE2:
-			return Names.Size2;
-		case SIZE1:
-			return Names.Size1;
-		case OSCORE:
-			return Names.Object_Security;
-		case NO_RESPONSE:
-			return Names.No_Response;
-		default:
-			CustomOptionNumberRegistry custom = customRegistry;
-			if (custom != null) {
-				String text = custom.toString(optionNumber);
-				if (text != null) {
-					return text;
-				}
-			}
+		OptionDefinition definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(optionNumber);
+		if (definition != null) {
+			return definition.getName();
+		} else {
 			return String.format("Unknown (%d)", optionNumber);
 		}
 	}
@@ -543,36 +386,16 @@ public final class OptionNumberRegistry {
 	 * @param name string representation of the option number
 	 * @return the option number. {@link #UNKNOWN}, if string representation
 	 *         doesn't match a known option number.
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	public static int toNumber(String name) {
-		if (Names.If_Match.equals(name))			return IF_MATCH;
-		else if (Names.Uri_Host.equals(name))		return URI_HOST;
-		else if (Names.ETag.equals(name))			return ETAG;
-		else if (Names.If_None_Match.equals(name))	return IF_NONE_MATCH;
-		else if (Names.Uri_Port.equals(name))		return URI_PORT;
-		else if (Names.Location_Path.equals(name))	return LOCATION_PATH;
-		else if (Names.Uri_Path.equals(name))		return URI_PATH;
-		else if (Names.Content_Format.equals(name))	return CONTENT_FORMAT;
-		else if (Names.Max_Age.equals(name))		return MAX_AGE;
-		else if (Names.Uri_Query.equals(name))		return URI_QUERY;
-		else if (Names.Accept.equals(name))			return ACCEPT;
-		else if (Names.Location_Query.equals(name))	return LOCATION_QUERY;
-		else if (Names.Proxy_Uri.equals(name))		return PROXY_URI;
-		else if (Names.Proxy_Scheme.equals(name))	return PROXY_SCHEME;
-		else if (Names.Observe.equals(name))		return OBSERVE;
-		else if (Names.Block2.equals(name))			return BLOCK2;
-		else if (Names.Block1.equals(name))			return BLOCK1;
-		else if (Names.Size2.equals(name))			return SIZE2;
-		else if (Names.Size1.equals(name))			return SIZE1;
-		else if (Names.Object_Security.equals(name)) return OSCORE;
-		else if (Names.No_Response.equals(name))	return NO_RESPONSE;
-		else {
-			CustomOptionNumberRegistry custom = customRegistry;
-			if (custom != null) {
-				return custom.toNumber(name);
-			} else {
-				return UNKNOWN;
-			}
+		OptionDefinition definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByName(name);
+		if (definition != null) {
+			return definition.getNumber();
+		} else {
+			return UNKNOWN;
 		}
 	}
 
@@ -586,7 +409,10 @@ public final class OptionNumberRegistry {
 	 * @see UdpDataParser#UdpDataParser(boolean, int[])
 	 * @see TcpDataParser#TcpDataParser(int[])
 	 * @since 3.7
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	public static int[] getCriticalCustomOptions() {
 		CustomOptionNumberRegistry custom = customRegistry;
 		if (custom != null) {
@@ -599,15 +425,42 @@ public final class OptionNumberRegistry {
 	/**
 	 * Set custom option number registry.
 	 * 
+	 * Note: it is not intended to use a mixture of custom
+	 * {@link OptionDefinition}s and a {@link CustomOptionNumberRegistry}
+	 * simultaneously! Please migrate your custom option to
+	 * {@link OptionDefinition}s.
+	 * 
+	 * Setting a custom option number registry resets also the
+	 * {@link StandardOptionRegistry#setDefaultOptionRegistry(OptionRegistry)}.
+	 * 
 	 * @param custom custom option number registry. {@code null} to remove it.
 	 * @return previous custom option number registry, or {@code null}, if not
 	 *         available.
 	 * @since 3.7
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	public static CustomOptionNumberRegistry setCustomOptionNumberRegistry(CustomOptionNumberRegistry custom) {
 		CustomOptionNumberRegistry previous = customRegistry;
-		customRegistry = custom;
+		if (previous != custom) {
+			customRegistry = custom;
+			StandardOptionRegistry.setDefaultOptionRegistry(null);
+		}
 		return previous;
+	}
+
+	/**
+	 * Get custom option number registry.
+	 * 
+	 * @return custom option number registry, or {@code null}, if not available.
+	 * @since 3.8
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
+	 */
+	@Deprecated
+	public static CustomOptionNumberRegistry getCustomOptionNumberRegistry() {
+		return customRegistry;
 	}
 
 	private OptionNumberRegistry() {
@@ -617,7 +470,10 @@ public final class OptionNumberRegistry {
 	 * API to support custom options.
 	 * 
 	 * @since 3.7
+	 * @deprecated please use
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 */
+	@Deprecated
 	public interface CustomOptionNumberRegistry {
 
 		/**
@@ -694,4 +550,6 @@ public final class OptionNumberRegistry {
 		 */
 		int[] getCriticalCustomOptions();
 	}
+
+
 }

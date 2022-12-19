@@ -204,8 +204,7 @@ public abstract class DataSerializer {
 	 * @since 2.6
 	 */
 	protected void serializeEmpytMessage(DatagramWriter writer, Message message) {
-		MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(), 0,
-				message.getMID(), 0);
+		MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), Token.EMPTY, 0, message.getMID(), 0);
 		serializeHeader(writer, header);
 		writer.writeCurrentByte();
 	}

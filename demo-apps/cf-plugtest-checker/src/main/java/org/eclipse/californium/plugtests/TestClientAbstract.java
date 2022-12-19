@@ -37,6 +37,8 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.network.Endpoint;
@@ -726,19 +728,50 @@ public abstract class TestClientAbstract {
 	}
 
 	protected boolean hasObserve(Response response) {
-		return hasOption(response, OptionNumberRegistry.OBSERVE, false);
+		return hasOption(response, StandardOptionRegistry.OBSERVE, false);
 	}
 
 	protected boolean hasNoObserve(Response response) {
-		return hasOption(response, OptionNumberRegistry.OBSERVE, true);
+		return hasOption(response, StandardOptionRegistry.OBSERVE, true);
 	}
 
+	@Deprecated
 	protected boolean hasOption(Response response, int optionNumber, boolean invert) {
 		String name = OptionNumberRegistry.toString(optionNumber);
 		List<Option> asSortedList = response.getOptions().asSortedList();
 		Option match = null;
 		for (Option option : asSortedList) {
 			if (option.getNumber() == optionNumber) {
+				match = option;
+				break;
+			}
+		}
+		// invert to check for not having the option
+		boolean success = match != null ^ invert;
+
+		StringBuilder result = new StringBuilder();
+		if (success) {
+			result.append("PASS: Response ");
+		} else {
+			result.append("FAIL: Response ");
+		}
+		if (match != null) {
+			result.append("with ");
+			result.append(name);
+		} else {
+			result.append("without ").append(name);
+		}
+		System.out.println(result);
+
+		return success;
+	}
+
+	protected boolean hasOption(Response response, OptionDefinition optionDefintion, boolean invert) {
+		String name = optionDefintion.getName();
+		List<Option> asSortedList = response.getOptions().asSortedList();
+		Option match = null;
+		for (Option option : asSortedList) {
+			if (optionDefintion.equals(option.getDefinition())) {
 				match = option;
 				break;
 			}

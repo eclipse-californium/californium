@@ -29,12 +29,11 @@ import java.util.ArrayList;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.Option;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
@@ -267,7 +266,7 @@ public class OSCoreTest {
 	public void testEncryptDecryptOptions() throws OSException {
 		Request request = Request.newGet().setURI("coap://localhost:5683");
 		request.getOptions().setLocationPath("/test/path");
-		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE, Bytes.EMPTY));
+		request.getOptions().addOption(StandardOptionRegistry.OSCORE.create(Bytes.EMPTY));
 		assertEquals(2, request.getOptions().getLocationPathCount());
 		try {
 			request = ObjectSecurityLayer.prepareSend(dbClient, request);
@@ -507,7 +506,7 @@ public class OSCoreTest {
 		Request request = Request.newPost().setURI(uri);
 		request.setToken(token);
 		db.addContext(token, ctx);
-		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE, Bytes.EMPTY));
+		request.getOptions().addOption(StandardOptionRegistry.OSCORE.create(Bytes.EMPTY));
 		return ObjectSecurityLayer.prepareSend(db, request);
 	}
 
@@ -542,7 +541,7 @@ public class OSCoreTest {
 			response.setPayload(responsePayload);
 			response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		}
-		response.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE, Bytes.EMPTY));
+		response.getOptions().addOption(StandardOptionRegistry.OSCORE.create(Bytes.EMPTY));
 		response.setToken(token);
 
 		return ObjectSecurityLayer.prepareSend(null, response, tid, false, false, clientCtx.getSenderSeq());

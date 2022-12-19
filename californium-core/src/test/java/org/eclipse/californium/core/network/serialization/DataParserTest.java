@@ -43,6 +43,11 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.CustomOptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
+import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
+import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.coap.option.StringOptionDefinition;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -64,6 +69,7 @@ import org.junit.runners.Parameterized;
  */
 @Category(Small.class)
 @RunWith(Parameterized.class)
+@SuppressWarnings("deprecation")
 public class DataParserTest {
 	private static final InetSocketAddress CONNECTOR = new InetSocketAddress(InetAddress.getLoopbackAddress(), 3000);
 
@@ -132,36 +138,51 @@ public class DataParserTest {
 		}
 	};
 
+	private static final IntegerOptionDefinition CUSTOM_1 = new IntegerOptionDefinition(CUSTOM_OPTION_1, "custom1", true, 0, 4);
+	private static final StringOptionDefinition CUSTOM_2 = new StringOptionDefinition(CUSTOM_OPTION_2, "custom2", false, 0, 64);
+
+
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	private final DataSerializer serializer;
 	private final DataParser parser;
+	private final OptionRegistry registry;
 	private final boolean tcp;
 	private final int expectedMid;
 
-	public DataParserTest(DataSerializer serializer, DataParser parser, boolean tcp) {
+	public DataParserTest(DataSerializer serializer, DataParser parser, OptionRegistry registry, boolean tcp) {
 		this.serializer = serializer;
 		this.parser = parser;
+		this.registry = registry;
 		this.tcp = tcp;
 		this.expectedMid = tcp ? Message.NONE : 13 ;
-		OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
+		if (registry == null) {
+			OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
+		}
 	}
-	
+
 	@After
 	public void tearDown() {
 		((CustomDataParser)parser).setIgnoreOptionError(false);
 		((CustomDataParser)parser).setOptionException(null);
 		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
+		StandardOptionRegistry.setDefaultOptionRegistry(null);
 	}
 
 	@Parameterized.Parameters public static List<Object[]> parameters() {
+
+		// Default, if "criticalCustomOptions" is "null"
 		OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
+
 		List<Object[]> parameters = new ArrayList<>();
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, CRITICAL_CUSTOM_OPTIONS), false });
-		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(CRITICAL_CUSTOM_OPTIONS), true });
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, null), false });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, CRITICAL_CUSTOM_OPTIONS), null, false });
+		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(CRITICAL_CUSTOM_OPTIONS), null, true });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true), null, false });
 		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
+		MapBasedOptionRegistry registry = new MapBasedOptionRegistry(StandardOptionRegistry.getDefaultOptionRegistry(),
+				CUSTOM_1, CUSTOM_2);
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, registry), registry, false });
 		return parameters;
 	}
 
@@ -366,10 +387,17 @@ public class DataParserTest {
 		response.setType(Type.NON);
 		response.setMID(expectedMid);
 		response.setToken(new byte[] { 22, -1, 0, 78, 100, 22 });
-		response.getOptions().addETag(new byte[] { 1, 0, 0, 0, 0, 1 })
+		if (registry != null) {
+			response.getOptions().addETag(new byte[] { 1, 0, 0, 0, 0, 1 })
 				.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten")
-				.addOption(new Option(57453, "Arbitrary".hashCode())).addOption(new Option(19205, "Arbitrary1"))
-				.addOption(new Option(19205, "Arbitrary2")).addOption(new Option(19205, "Arbitrary3"));
+				.addOption(new Option(CUSTOM_1, 1234567)).addOption(new Option(CUSTOM_2, "Arbitrary1"))
+				.addOption(new Option(CUSTOM_2, "Arbitrary2")).addOption(new Option(CUSTOM_2, "Arbitrary3"));
+		} else {
+			response.getOptions().addETag(new byte[] { 1, 0, 0, 0, 0, 1 })
+				.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten")
+				.addOption(new Option(CUSTOM_OPTION_1, 1234567)).addOption(new Option(CUSTOM_OPTION_2, "Arbitrary1"))
+				.addOption(new Option(CUSTOM_OPTION_2, "Arbitrary2")).addOption(new Option(CUSTOM_OPTION_2, "Arbitrary3"));
+		}
 
 		RawData rawData = serializer.serializeResponse(response);
 		rawData = receive(rawData, CONNECTOR);
@@ -377,6 +405,8 @@ public class DataParserTest {
 		Response result = (Response) parser.parseMessage(rawData);
 		assertEquals(response.getMID(), result.getMID());
 		assertEquals(response.getToken(), result.getToken());
+		response.getOptions().asSortedList();
+		result.getOptions().asSortedList();
 		assertEquals(response.getOptions().asSortedList(), result.getOptions().asSortedList());
 	}
 
@@ -412,9 +442,19 @@ public class DataParserTest {
 	public static class CustomUdpDataParser extends UdpDataParser implements CustomDataParser {
 		private boolean ignoreOptionError;
 		private RuntimeException optionError;
+
+		public CustomUdpDataParser(boolean strictEmptyMessageFormat) {
+			super(strictEmptyMessageFormat, (OptionRegistry) null);
+		}
+
 		public CustomUdpDataParser(boolean strictEmptyMessageFormat, int[] criticalCustomOptions) {
 			super(strictEmptyMessageFormat, criticalCustomOptions);
 		}
+
+		public CustomUdpDataParser(boolean strictEmptyMessageFormat, OptionRegistry optionRegistry) {
+			super(strictEmptyMessageFormat, optionRegistry);
+		}
+
 		@Override
 		public void setIgnoreOptionError(boolean ignore) {
 			this.ignoreOptionError = ignore;
@@ -423,14 +463,14 @@ public class DataParserTest {
 		public void setOptionException(RuntimeException optionError) {
 			this.optionError = optionError;
 		}
-		
+
 		@Override
-		public Option createOption(int optionNumber, byte[] value) {
+		public Option createOption(int code, int optionNumber, byte[] value) {
 			if (optionError != null) {
 				throw optionError;
 			}
 			try {
-				return super.createOption(optionNumber, value);
+				return super.createOption(code, optionNumber, value);
 			} catch (RuntimeException ex) {
 				if (ignoreOptionError) {
 					return null;
@@ -457,12 +497,13 @@ public class DataParserTest {
 			this.optionError = optionError;
 		}
 
-		public Option createOption(int optionNumber, byte[] value) {
+		@Override
+		public Option createOption(int code, int optionNumber, byte[] value) {
 			if (optionError != null) {
 				throw optionError;
 			}
 			try {
-				return super.createOption(optionNumber, value);
+				return super.createOption(code, optionNumber, value);
 			} catch (RuntimeException ex) {
 				if (ignoreOptionError) {
 					return null;

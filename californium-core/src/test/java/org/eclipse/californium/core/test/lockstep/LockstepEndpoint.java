@@ -79,10 +79,11 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
@@ -713,6 +714,7 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		@Deprecated
 		public MessageExpectation noOption(final int... numbers) {
 			expectations.add(new Expectation<Message>() {
 
@@ -733,9 +735,49 @@ public class LockstepEndpoint {
 						final int end = numbers.length - 1;
 						int index = 0;
 						for (; index < end; ++index) {
-							result.append(OptionNumberRegistry.toString(numbers[index])).append(",");
+							result.append(getOption(numbers[index])).append(",");
 						}
-						result.append(OptionNumberRegistry.toString(numbers[index]));
+						result.append(getOption(numbers[index]));
+					}
+					result.append(']');
+					return result.toString();
+				}
+
+				private String getOption(int optionNumber) {
+					OptionDefinition definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(optionNumber);
+					if (definition != null) {
+						return definition.toString();
+					} else {
+						return String.format("Unknown (%d)", optionNumber);
+					}
+				}
+			});
+			return this;
+		}
+
+		public MessageExpectation noOption(final OptionDefinition... definitions) {
+			expectations.add(new Expectation<Message>() {
+
+				public void check(Message message) {
+					List<Option> options = message.getOptions().asSortedList();
+					for (Option option : options) {
+						for (OptionDefinition definition : definitions) {
+							if (definition.equals(option.getDefinition())) {
+								fail("Must not have option " + definition + " but has " + option);
+							}
+						}
+					}
+				}
+
+				public String toString() {
+					StringBuilder result = new StringBuilder("Expected no options: [");
+					if (0 < definitions.length) {
+						final int end = definitions.length - 1;
+						int index = 0;
+						for (; index < end; ++index) {
+							result.append(definitions[index]).append(",");
+						}
+						result.append(definitions[index]);
 					}
 					result.append(']');
 					return result.toString();
@@ -956,9 +998,16 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		@Deprecated
 		@Override
 		public RequestExpectation noOption(final int... numbers) {
 			super.noOption(numbers);
+			return this;
+		}
+
+		@Override
+		public RequestExpectation noOption(final OptionDefinition... definitions) {
+			super.noOption(definitions);
 			return this;
 		}
 
@@ -1134,9 +1183,16 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		@Deprecated
 		@Override
 		public ResponseExpectation noOption(final int... numbers) {
 			super.noOption(numbers);
+			return this;
+		}
+
+		@Override
+		public ResponseExpectation noOption(final OptionDefinition... definitions) {
+			super.noOption(definitions);
 			return this;
 		}
 

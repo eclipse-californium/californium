@@ -31,7 +31,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.eclipse.californium.core.coap.OptionNumberRegistry.CustomOptionNumberRegistry;
+import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
@@ -66,26 +68,26 @@ public final class OptionSet {
 	 * Options defined by the CoAP protocol
 	 */
 	private List<byte[]> if_match_list;
-	private String       uri_host;
+	private String uri_host;
 	private List<byte[]> etag_list;
-	private boolean      if_none_match; // true if option is set
-	private Integer      uri_port; // null if no port is explicitly defined
+	private boolean if_none_match; // true if option is set
+	private Integer uri_port; // null if no port is explicitly defined
 	private List<String> location_path_list;
 	private List<String> uri_path_list;
-	private Integer      content_format;
-	private Long         max_age; // (0-4 bytes)
+	private Integer content_format;
+	private Long max_age; // (0-4 bytes)
 	private List<String> uri_query_list;
 	private UriQueryParameter uri_query_parameter;
-	private Integer      accept;
+	private Integer accept;
 	private List<String> location_query_list;
-	private String       proxy_uri;
-	private String       proxy_scheme;
-	private BlockOption  block1;
-	private BlockOption  block2;
-	private Integer      size1;
-	private Integer      size2;
-	private Integer      observe;
-	private byte[]       oscore;
+	private String proxy_uri;
+	private String proxy_scheme;
+	private BlockOption block1;
+	private BlockOption block2;
+	private Integer size1;
+	private Integer size2;
+	private Integer observe;
+	private byte[] oscore;
 	private NoResponseOption no_response;
 
 	// Arbitrary options
@@ -98,30 +100,30 @@ public final class OptionSet {
 	 * Non-lists can be null though.
 	 */
 	public OptionSet() {
-		if_match_list       = null; // new LinkedList<byte[]>();
-		uri_host            = null; // from sender
-		etag_list           = null; // new LinkedList<byte[]>();
-		if_none_match       = false;
-		uri_port            = null; // from sender
-		location_path_list  = null; // new LinkedList<String>();
-		uri_path_list       = null; // new LinkedList<String>();
-		content_format      = null;
-		max_age             = null;
-		uri_query_list      = null; // new LinkedList<String>();
+		if_match_list = null; // new LinkedList<byte[]>();
+		uri_host = null; // from sender
+		etag_list = null; // new LinkedList<byte[]>();
+		if_none_match = false;
+		uri_port = null; // from sender
+		location_path_list = null; // new LinkedList<String>();
+		uri_path_list = null; // new LinkedList<String>();
+		content_format = null;
+		max_age = null;
+		uri_query_list = null; // new LinkedList<String>();
 		uri_query_parameter = null;
-		accept              = null;
+		accept = null;
 		location_query_list = null; // new LinkedList<String>();
-		proxy_uri           = null;
-		proxy_scheme        = null;
-		block1              = null;
-		block2              = null;
-		size1               = null;
-		size2               = null;
-		observe             = null;
-		oscore              = null;
-		no_response         = null;
+		proxy_uri = null;
+		proxy_scheme = null;
+		block1 = null;
+		block2 = null;
+		size1 = null;
+		size2 = null;
+		observe = null;
+		oscore = null;
+		no_response = null;
 
-		others              = null; // new LinkedList<>();
+		others = null; // new LinkedList<>();
 	}
 
 	/**
@@ -133,33 +135,33 @@ public final class OptionSet {
 		if (origin == null) {
 			throw new NullPointerException("option set must not be null!");
 		}
-		if_match_list       = copyList(origin.if_match_list);
-		uri_host            = origin.uri_host;
-		etag_list           = copyList(origin.etag_list);
-		if_none_match       = origin.if_none_match;
-		uri_port            = origin.uri_port;
-		location_path_list  = copyList(origin.location_path_list);
-		uri_path_list       = copyList(origin.uri_path_list);
-		content_format      = origin.content_format;
-		max_age             = origin.max_age;
-		uri_query_list      = copyList(origin.uri_query_list);
+		if_match_list = copyList(origin.if_match_list);
+		uri_host = origin.uri_host;
+		etag_list = copyList(origin.etag_list);
+		if_none_match = origin.if_none_match;
+		uri_port = origin.uri_port;
+		location_path_list = copyList(origin.location_path_list);
+		uri_path_list = copyList(origin.uri_path_list);
+		content_format = origin.content_format;
+		max_age = origin.max_age;
+		uri_query_list = copyList(origin.uri_query_list);
 		uri_query_parameter = origin.uri_query_parameter;
-		accept              = origin.accept;
+		accept = origin.accept;
 		location_query_list = copyList(origin.location_query_list);
-		proxy_uri           = origin.proxy_uri;
-		proxy_scheme        = origin.proxy_scheme;
+		proxy_uri = origin.proxy_uri;
+		proxy_scheme = origin.proxy_scheme;
 
-		block1              = origin.block1;
-		block2              = origin.block2;
+		block1 = origin.block1;
+		block2 = origin.block2;
 
-		size1               = origin.size1;
-		size2               = origin.size2;
-		observe             = origin.observe;
-		if(origin.oscore != null) {
-			oscore          = origin.oscore.clone();
+		size1 = origin.size1;
+		size2 = origin.size2;
+		observe = origin.observe;
+		if (origin.oscore != null) {
+			oscore = origin.oscore.clone();
 		}
-		no_response         = origin.no_response;
-		others              = copyList(origin.others);
+		no_response = origin.no_response;
+		others = copyList(origin.others);
 	}
 
 	/**
@@ -248,7 +250,8 @@ public final class OptionSet {
 	 * server denoting the current resource state.
 	 * 
 	 * @param check the ETag of the current resource state
-	 * @return {@code true}, if ETag matches or message contains an empty If-Match option
+	 * @return {@code true}, if ETag matches or message contains an empty
+	 *         If-Match option
 	 */
 	public boolean isIfMatch(byte[] check) {
 
@@ -278,7 +281,7 @@ public final class OptionSet {
 	 * @throws IllegalArgumentException if the etag has more than 8 bytes.
 	 */
 	public OptionSet addIfMatch(byte[] etag) {
-		checkOptionValue(OptionNumberRegistry.IF_MATCH, etag);
+		checkOptionValue(StandardOptionRegistry.IF_MATCH, etag);
 		getIfMatch().add(etag);
 		return this;
 	}
@@ -332,7 +335,7 @@ public final class OptionSet {
 	 *             255 bytes.
 	 */
 	public OptionSet setUriHost(String host) {
-		checkOptionValue(OptionNumberRegistry.URI_HOST, host);
+		checkOptionValue(StandardOptionRegistry.URI_HOST, host);
 		this.uri_host = host;
 		return this;
 	}
@@ -404,7 +407,7 @@ public final class OptionSet {
 	 *             8 bytes.
 	 */
 	public OptionSet addETag(byte[] etag) {
-		checkOptionValue(OptionNumberRegistry.ETAG, etag);
+		checkOptionValue(StandardOptionRegistry.ETAG, etag);
 		if (!containsETag(etag)) {
 			getETags().add(etag.clone());
 		}
@@ -421,7 +424,7 @@ public final class OptionSet {
 	 *             8 bytes.
 	 */
 	public OptionSet removeETag(byte[] etag) {
-		checkOptionValue(OptionNumberRegistry.ETAG, etag);
+		checkOptionValue(StandardOptionRegistry.ETAG, etag);
 		if (etag_list != null) {
 			for (int index = 0; index < etag_list.size(); ++index) {
 				if (Arrays.equals(etag_list.get(index), etag)) {
@@ -489,7 +492,7 @@ public final class OptionSet {
 	 * @throws IllegalArgumentException if port is not in valid range
 	 */
 	public OptionSet setUriPort(int port) {
-		OptionNumberRegistry.assertValue(OptionNumberRegistry.URI_PORT, port);
+		checkOptionValue(StandardOptionRegistry.URI_PORT, port);
 		this.uri_port = port;
 		return this;
 	}
@@ -562,7 +565,7 @@ public final class OptionSet {
 	 * @throws IllegalArgumentException if the segment has more than 255 bytes.
 	 */
 	public OptionSet addLocationPath(String segment) {
-		checkOptionValue(OptionNumberRegistry.LOCATION_PATH, segment);
+		checkOptionValue(StandardOptionRegistry.LOCATION_PATH, segment);
 		getLocationPath().add(segment);
 		return this;
 	}
@@ -689,7 +692,7 @@ public final class OptionSet {
 	 * @throws IllegalArgumentException if the segment has more than 255 bytes.
 	 */
 	public OptionSet addUriPath(String segment) {
-		checkOptionValue(OptionNumberRegistry.URI_PATH, segment);
+		checkOptionValue(StandardOptionRegistry.URI_PATH, segment);
 		getUriPath().add(segment);
 		return this;
 	}
@@ -757,7 +760,7 @@ public final class OptionSet {
 		if (MediaTypeRegistry.UNDEFINED == format) {
 			content_format = null;
 		} else {
-			OptionNumberRegistry.assertValue(OptionNumberRegistry.CONTENT_FORMAT, format);
+			checkOptionValue(StandardOptionRegistry.CONTENT_FORMAT, format);
 			content_format = format;
 		}
 		return this;
@@ -802,7 +805,7 @@ public final class OptionSet {
 	 * @throws IllegalArgumentException if the age has more than 4 bytes.
 	 */
 	public OptionSet setMaxAge(long age) {
-		OptionNumberRegistry.assertValue(OptionNumberRegistry.MAX_AGE, age);
+		checkOptionValue(StandardOptionRegistry.MAX_AGE, age);
 		max_age = age;
 		return this;
 	}
@@ -883,7 +886,7 @@ public final class OptionSet {
 	 * @throws IllegalArgumentException if the argument has more than 255 bytes.
 	 */
 	public OptionSet addUriQuery(String argument) {
-		checkOptionValue(OptionNumberRegistry.URI_QUERY, argument);
+		checkOptionValue(StandardOptionRegistry.URI_QUERY, argument);
 		getUriQuery().add(argument);
 		uri_query_parameter = null;
 		return this;
@@ -935,7 +938,8 @@ public final class OptionSet {
 	 * <p>
 	 * 
 	 * @param supportedParameterNames list of supported parameter names. May be
-	 *            {@code null} or empty, if the parameter names should not be verified.
+	 *            {@code null} or empty, if the parameter names should not be
+	 *            verified.
 	 * @return the map of Uri-Query parameter
 	 * @throws IllegalArgumentException if a provided query parameter could not
 	 *             be verified.
@@ -1017,7 +1021,7 @@ public final class OptionSet {
 	 * @see MediaTypeRegistry
 	 */
 	public OptionSet setAccept(int format) {
-		OptionNumberRegistry.assertValue(OptionNumberRegistry.ACCEPT, format);
+		checkOptionValue(StandardOptionRegistry.ACCEPT, format);
 		accept = format;
 		return this;
 	}
@@ -1098,7 +1102,7 @@ public final class OptionSet {
 	 * @throws IllegalArgumentException if the argument has more than 255 bytes.
 	 */
 	public OptionSet addLocationQuery(String argument) {
-		checkOptionValue(OptionNumberRegistry.LOCATION_QUERY, argument);
+		checkOptionValue(StandardOptionRegistry.LOCATION_QUERY, argument);
 		getLocationQuery().add(argument);
 		return this;
 	}
@@ -1152,7 +1156,7 @@ public final class OptionSet {
 	 *             1034 bytes.
 	 */
 	public OptionSet setProxyUri(String uri) {
-		checkOptionValue(OptionNumberRegistry.PROXY_URI, uri);
+		checkOptionValue(StandardOptionRegistry.PROXY_URI, uri);
 		proxy_uri = uri;
 		return this;
 	}
@@ -1195,7 +1199,7 @@ public final class OptionSet {
 	 *             than 255 bytes.
 	 */
 	public OptionSet setProxyScheme(String scheme) {
-		checkOptionValue(OptionNumberRegistry.PROXY_SCHEME, scheme);
+		checkOptionValue(StandardOptionRegistry.PROXY_SCHEME, scheme);
 		proxy_scheme = scheme;
 		return this;
 	}
@@ -1441,7 +1445,7 @@ public final class OptionSet {
 	 *             2^24 - 1
 	 */
 	public OptionSet setObserve(final int seqnum) {
-		OptionNumberRegistry.assertValue(OptionNumberRegistry.OBSERVE, seqnum);
+		checkOptionValue(StandardOptionRegistry.OBSERVE, seqnum);
 		this.observe = seqnum;
 		return this;
 	}
@@ -1494,7 +1498,7 @@ public final class OptionSet {
 	 * @throws IllegalArgumentException if the oscore has more than 255 bytes.
 	 */
 	public OptionSet setOscore(byte[] oscore) {
-		checkOptionValue(OptionNumberRegistry.OSCORE, oscore);
+		checkOptionValue(StandardOptionRegistry.OSCORE, oscore);
 		this.oscore = oscore.clone();
 		return this;
 	}
@@ -1512,7 +1516,8 @@ public final class OptionSet {
 	/**
 	 * Gets the NoResponse option.
 	 * 
-	 * @return the NoResponse option, or, {@code null}, if the option is not present
+	 * @return the NoResponse option, or, {@code null}, if the option is not
+	 *         present
 	 * @since 3.0
 	 */
 	public NoResponseOption getNoResponse() {
@@ -1572,9 +1577,24 @@ public final class OptionSet {
 	 * 
 	 * @param number the option number
 	 * @return {@code true}, if present
+	 * @deprecated use {@link #hasOption(OptionDefinition)} instead
 	 */
+	@Deprecated
 	public boolean hasOption(int number) {
 		return Collections.binarySearch(asSortedList(), new Option(number)) >= 0;
+	}
+
+	/**
+	 * Checks, if an arbitrary option is present.
+	 * 
+	 * Note: implementation uses {@link #asSortedList()} and is therefore not
+	 * recommended to be called too frequently.
+	 * 
+	 * @param definition the option definition
+	 * @return {@code true}, if present
+	 */
+	public boolean hasOption(OptionDefinition definition) {
+		return Collections.binarySearch(asSortedList(), new Option(definition)) >= 0;
 	}
 
 	private List<Option> getOthersInternal() {
@@ -1603,15 +1623,46 @@ public final class OptionSet {
 	 * Gets list of other options.
 	 * 
 	 * @param number other option
-	 * @return an unmodifiable and unsorted list of other options with the provided number.
+	 * @return an unmodifiable and unsorted list of other options with the
+	 *         provided number.
 	 * @since 3.7
+	 * @deprecated use {@link #getOthers(OptionDefinition)} instead
 	 */
+	@Deprecated
 	public List<Option> getOthers(int number) {
 		List<Option> options = null;
 		List<Option> others = this.others;
 		if (others != null) {
 			for (Option option : others) {
 				if (option.getNumber() == number) {
+					if (options == null) {
+						options = new ArrayList<>();
+					}
+					options.add(option);
+				}
+			}
+		}
+		if (options == null) {
+			return Collections.emptyList();
+		} else {
+			return Collections.unmodifiableList(options);
+		}
+	}
+
+	/**
+	 * Gets list of other options.
+	 * 
+	 * @param definition other option definition
+	 * @return an unmodifiable and unsorted list of other options with the
+	 *         provided definition.
+	 * @since 3.8
+	 */
+	public List<Option> getOthers(OptionDefinition definition) {
+		List<Option> options = null;
+		List<Option> others = this.others;
+		if (others != null) {
+			for (Option option : others) {
+				if (definition.equals(option.getDefinition())) {
 					if (options == null) {
 						options = new ArrayList<>();
 					}
@@ -1634,12 +1685,35 @@ public final class OptionSet {
 	 * @param number other option
 	 * @return other option, or {@code null}, if not available.
 	 * @since 3.7
+	 * @deprecated use {@link #getOtherOption(OptionDefinition)} instead
 	 */
+	@Deprecated
 	public Option getOtherOption(int number) {
 		List<Option> others = this.others;
 		if (others != null) {
 			for (Option option : others) {
 				if (option.getNumber() == number) {
+					return option;
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Gets other option.
+	 * 
+	 * If the other option is contained more than once, return the first.
+	 * 
+	 * @param definition other option definition
+	 * @return other option, or {@code null}, if not available.
+	 * @since 3.8
+	 */
+	public Option getOtherOption(OptionDefinition definition) {
+		List<Option> others = this.others;
+		if (others != null) {
+			for (Option option : others) {
+				if (definition.equals(option.getDefinition())) {
 					return option;
 				}
 			}
@@ -1660,52 +1734,52 @@ public final class OptionSet {
 
 		if (if_match_list != null)
 			for (byte[] value : if_match_list)
-				options.add(new Option(OptionNumberRegistry.IF_MATCH, value));
+				options.add(StandardOptionRegistry.IF_MATCH.create(value));
 		if (hasUriHost())
-			options.add(new Option(OptionNumberRegistry.URI_HOST, getUriHost()));
+			options.add(StandardOptionRegistry.URI_HOST.create(getUriHost()));
 		if (etag_list != null)
 			for (byte[] value : etag_list)
-				options.add(new Option(OptionNumberRegistry.ETAG, value));
+				options.add(StandardOptionRegistry.ETAG.create(value));
 		if (hasIfNoneMatch())
-			options.add(new Option(OptionNumberRegistry.IF_NONE_MATCH, Bytes.EMPTY));
+			options.add(StandardOptionRegistry.IF_NONE_MATCH.create(Bytes.EMPTY));
 		if (hasUriPort())
-			options.add(new Option(OptionNumberRegistry.URI_PORT, getUriPort()));
+			options.add(StandardOptionRegistry.URI_PORT.create(getUriPort()));
 		if (location_path_list != null)
 			for (String str : location_path_list)
-				options.add(new Option(OptionNumberRegistry.LOCATION_PATH, str));
+				options.add(StandardOptionRegistry.LOCATION_PATH.create(str));
 		if (uri_path_list != null)
 			for (String str : uri_path_list)
-				options.add(new Option(OptionNumberRegistry.URI_PATH, str));
+				options.add(StandardOptionRegistry.URI_PATH.create(str));
 		if (hasContentFormat())
-			options.add(new Option(OptionNumberRegistry.CONTENT_FORMAT, getContentFormat()));
+			options.add(StandardOptionRegistry.CONTENT_FORMAT.create(getContentFormat()));
 		if (hasMaxAge())
-			options.add(new Option(OptionNumberRegistry.MAX_AGE, getMaxAge()));
+			options.add(StandardOptionRegistry.MAX_AGE.create(getMaxAge()));
 		if (uri_query_list != null)
 			for (String str : uri_query_list)
-				options.add(new Option(OptionNumberRegistry.URI_QUERY, str));
+				options.add(StandardOptionRegistry.URI_QUERY.create(str));
 		if (hasAccept())
-			options.add(new Option(OptionNumberRegistry.ACCEPT, getAccept()));
+			options.add(StandardOptionRegistry.ACCEPT.create(getAccept()));
 		if (location_query_list != null)
 			for (String str : location_query_list)
-				options.add(new Option(OptionNumberRegistry.LOCATION_QUERY, str));
+				options.add(StandardOptionRegistry.LOCATION_QUERY.create(str));
 		if (hasProxyUri())
-			options.add(new Option(OptionNumberRegistry.PROXY_URI, getProxyUri()));
+			options.add(StandardOptionRegistry.PROXY_URI.create(getProxyUri()));
 		if (hasProxyScheme())
-			options.add(new Option(OptionNumberRegistry.PROXY_SCHEME, getProxyScheme()));
+			options.add(StandardOptionRegistry.PROXY_SCHEME.create(getProxyScheme()));
 
 		if (hasObserve())
-			options.add(new Option(OptionNumberRegistry.OBSERVE, getObserve()));
+			options.add(StandardOptionRegistry.OBSERVE.create(getObserve()));
 
 		if (hasBlock1())
-			options.add(new Option(OptionNumberRegistry.BLOCK1, getBlock1().getValue()));
+			options.add(StandardOptionRegistry.BLOCK1.create(getBlock1().getValue()));
 		if (hasBlock2())
-			options.add(new Option(OptionNumberRegistry.BLOCK2, getBlock2().getValue()));
+			options.add(StandardOptionRegistry.BLOCK2.create(getBlock2().getValue()));
 		if (hasSize1())
-			options.add(new Option(OptionNumberRegistry.SIZE1, getSize1()));
+			options.add(StandardOptionRegistry.SIZE1.create(getSize1()));
 		if (hasSize2())
-			options.add(new Option(OptionNumberRegistry.SIZE2, getSize2()));
+			options.add(StandardOptionRegistry.SIZE2.create(getSize2()));
 		if (hasOscore())
-			options.add(new Option(OptionNumberRegistry.OSCORE, getOscore()));
+			options.add(StandardOptionRegistry.OSCORE.create(getOscore()));
 		if (hasNoResponse())
 			options.add(getNoResponse().toOption());
 
@@ -1757,71 +1831,76 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet addOption(Option option) {
-		switch (option.getNumber()) {
-		case OptionNumberRegistry.IF_MATCH:
-			addIfMatch(option.getValue());
-			break;
-		case OptionNumberRegistry.URI_HOST:
-			setUriHost(option.getStringValue());
-			break;
-		case OptionNumberRegistry.ETAG:
-			addETag(option.getValue());
-			break;
-		case OptionNumberRegistry.IF_NONE_MATCH:
-			setIfNoneMatch(true);
-			break;
-		case OptionNumberRegistry.URI_PORT:
-			setUriPort(option.getIntegerValue());
-			break;
-		case OptionNumberRegistry.LOCATION_PATH:
-			addLocationPath(option.getStringValue());
-			break;
-		case OptionNumberRegistry.URI_PATH:
-			addUriPath(option.getStringValue());
-			break;
-		case OptionNumberRegistry.CONTENT_FORMAT:
-			setContentFormat(option.getIntegerValue());
-			break;
-		case OptionNumberRegistry.MAX_AGE:
-			setMaxAge(option.getLongValue());
-			break;
-		case OptionNumberRegistry.URI_QUERY:
-			addUriQuery(option.getStringValue());
-			break;
-		case OptionNumberRegistry.ACCEPT:
-			setAccept(option.getIntegerValue());
-			break;
-		case OptionNumberRegistry.LOCATION_QUERY:
-			addLocationQuery(option.getStringValue());
-			break;
-		case OptionNumberRegistry.PROXY_URI:
-			setProxyUri(option.getStringValue());
-			break;
-		case OptionNumberRegistry.PROXY_SCHEME:
-			setProxyScheme(option.getStringValue());
-			break;
-		case OptionNumberRegistry.BLOCK1:
-			setBlock1(option.getValue());
-			break;
-		case OptionNumberRegistry.BLOCK2:
-			setBlock2(option.getValue());
-			break;
-		case OptionNumberRegistry.SIZE1:
-			setSize1(option.getIntegerValue());
-			break;
-		case OptionNumberRegistry.SIZE2:
-			setSize2(option.getIntegerValue());
-			break;
-		case OptionNumberRegistry.OBSERVE:
-			setObserve(option.getIntegerValue());
-			break;
-		case OptionNumberRegistry.OSCORE:
-			setOscore(option.getValue());
-			break;
-		case OptionNumberRegistry.NO_RESPONSE:
-			setNoResponse(option.getIntegerValue());
-			break;
-		default:
+		OptionDefinition definition = option.getDefinition();
+		if (StandardOptionRegistry.STANDARD_OPTIONS.contains(definition)) {
+			switch (option.getNumber()) {
+			case OptionNumberRegistry.IF_MATCH:
+				addIfMatch(option.getValue());
+				break;
+			case OptionNumberRegistry.URI_HOST:
+				setUriHost(option.getStringValue());
+				break;
+			case OptionNumberRegistry.ETAG:
+				addETag(option.getValue());
+				break;
+			case OptionNumberRegistry.IF_NONE_MATCH:
+				setIfNoneMatch(true);
+				break;
+			case OptionNumberRegistry.URI_PORT:
+				setUriPort(option.getIntegerValue());
+				break;
+			case OptionNumberRegistry.LOCATION_PATH:
+				addLocationPath(option.getStringValue());
+				break;
+			case OptionNumberRegistry.URI_PATH:
+				addUriPath(option.getStringValue());
+				break;
+			case OptionNumberRegistry.CONTENT_FORMAT:
+				setContentFormat(option.getIntegerValue());
+				break;
+			case OptionNumberRegistry.MAX_AGE:
+				setMaxAge(option.getLongValue());
+				break;
+			case OptionNumberRegistry.URI_QUERY:
+				addUriQuery(option.getStringValue());
+				break;
+			case OptionNumberRegistry.ACCEPT:
+				setAccept(option.getIntegerValue());
+				break;
+			case OptionNumberRegistry.LOCATION_QUERY:
+				addLocationQuery(option.getStringValue());
+				break;
+			case OptionNumberRegistry.PROXY_URI:
+				setProxyUri(option.getStringValue());
+				break;
+			case OptionNumberRegistry.PROXY_SCHEME:
+				setProxyScheme(option.getStringValue());
+				break;
+			case OptionNumberRegistry.BLOCK1:
+				setBlock1(option.getValue());
+				break;
+			case OptionNumberRegistry.BLOCK2:
+				setBlock2(option.getValue());
+				break;
+			case OptionNumberRegistry.SIZE1:
+				setSize1(option.getIntegerValue());
+				break;
+			case OptionNumberRegistry.SIZE2:
+				setSize2(option.getIntegerValue());
+				break;
+			case OptionNumberRegistry.OBSERVE:
+				setObserve(option.getIntegerValue());
+				break;
+			case OptionNumberRegistry.OSCORE:
+				setOscore(option.getValue());
+				break;
+			case OptionNumberRegistry.NO_RESPONSE:
+				setNoResponse(option.getIntegerValue());
+				break;
+			default:
+				getOthersInternal().add(option);
+			}
+		} else {
 			getOthersInternal().add(option);
 		}
 		return this;
@@ -1836,9 +1915,6 @@ public final class OptionSet {
 	 * {@link #addOption(Option)} for all options, including others, which are
 	 * not intended for tests.
 	 * 
-	 * If custom options are added by this function, the additional validation
-	 * will be applied based on a {@link CustomOptionNumberRegistry}.
-	 * 
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
 	 * @throws NullPointerException if option is {@code null}.
@@ -1849,14 +1925,11 @@ public final class OptionSet {
 		if (option == null) {
 			throw new NullPointerException("Option must not be null!");
 		}
-		int number = option.getNumber();
-		if (OptionNumberRegistry.isCustomOption(number)) {
-			OptionNumberRegistry.assertValueLength(number, option.getLength());
-		}
+		OptionDefinition definition = option.getDefinition();
 		List<Option> others = getOthersInternal();
-		if (OptionNumberRegistry.isSingleValue(number)) {
-			for (int index=0; index < others.size(); ++index) {
-				if (others.get(index).getNumber() == number) {
+		if (definition.isSingleValue()) {
+			for (int index = 0; index < others.size(); ++index) {
+				if (definition.equals(others.get(index).getDefinition())) {
 					others.remove(index);
 					break;
 				}
@@ -1870,8 +1943,8 @@ public final class OptionSet {
 	 * Clear other option by value.
 	 * 
 	 * Note: the removing is based on {@link Option#equals(Object)}, which
-	 * includes the value as well. For repeatable options all are removed,
-	 * if the options are equal.
+	 * includes the value as well. For repeatable options all are removed, if
+	 * the options are equal.
 	 * 
 	 * @param option other option
 	 * @return this OptionSet for a fluent API.
@@ -1903,12 +1976,36 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 * @see #clearOtherOption(Option)
 	 * @since 3.7
+	 * @deprecated use {@link #clearOtherOption(OptionDefinition)} instead.
 	 */
+	@Deprecated
 	public OptionSet clearOtherOption(int number) {
 		Iterator<Option> iterator = getOthersInternal().iterator();
 		while (iterator.hasNext()) {
 			Option currentOption = iterator.next();
 			if (currentOption.getNumber() == number) {
+				iterator.remove();
+			}
+		}
+		return this;
+	}
+
+	/**
+	 * Clear other option by number.
+	 * 
+	 * Note: the removing is based on {@link Option#getNumber()}. For repeatable
+	 * options all are removed, if the number is matching.
+	 * 
+	 * @param definition other option definition
+	 * @return this OptionSet for a fluent API.
+	 * @see #clearOtherOption(Option)
+	 * @since 3.8
+	 */
+	public OptionSet clearOtherOption(OptionDefinition definition) {
+		Iterator<Option> iterator = getOthersInternal().iterator();
+		while (iterator.hasNext()) {
+			Option currentOption = iterator.next();
+			if (definition.equals(currentOption.getDefinition())) {
 				iterator.remove();
 			}
 		}
@@ -1929,13 +2026,13 @@ public final class OptionSet {
 				if (oldNr != -1) {
 					if (list)
 						sbv.append(']');
-					sb.append(sbv.toString()).append(", ");
+					sb.append(sbv).append(", ");
 					sbv.setLength(0);
 				}
 				list = false;
 
 				sb.append('"');
-				sb.append(OptionNumberRegistry.toString(opt.getNumber()));
+				sb.append(opt.getDefinition().getName());
 				sb.append('"');
 				sb.append(':');
 			} else {
@@ -1950,7 +2047,7 @@ public final class OptionSet {
 		}
 		if (list)
 			sbv.append(']');
-		sb.append(sbv.toString());
+		sb.append(sbv);
 		sb.append('}');
 
 		return sb.toString();
@@ -1988,32 +2085,45 @@ public final class OptionSet {
 	/**
 	 * Check option value.
 	 * 
-	 * @param optionNumber option number
+	 * @param definition option definition
 	 * @param value value of option
 	 * @throws NullPointerException if provided value is {@code null}
-	 * @throws IllegalArgumentException if provided value encoded in UTF-8 is
-	 *             out of the provided range.
-	 * @since 3.0
+	 * @throws IllegalArgumentException if provided value encoded in UTF-8
+	 *             doesn't match the option definition.
+	 * @since 3.8 (change parameter to {@link OptionDefinition})
 	 */
-	private static void checkOptionValue(int optionNumber, String value) {
-		checkOptionValue(optionNumber, value == null ? null : value.getBytes(CoAP.UTF8_CHARSET));
+	private void checkOptionValue(OptionDefinition definition, String value) {
+		checkOptionValue(definition, value == null ? null : value.getBytes(CoAP.UTF8_CHARSET));
 	}
 
 	/**
 	 * Check option value.
 	 * 
-	 * @param optionNumber option number
+	 * @param definition option definition
+	 * @param longValue value of option
+	 * @throws IllegalArgumentException if provided value doesn't match the
+	 *             option definition.
+	 * @since 3.8
+	 */
+	private void checkOptionValue(OptionDefinition definition, long longValue) {
+		byte[] value = IntegerOptionDefinition.setLongValue(longValue);
+		checkOptionValue(definition, value);
+	}
+
+	/**
+	 * Check option value.
+	 * 
+	 * @param definition option definition
 	 * @param value value of option
 	 * @throws NullPointerException if provided value is {@code null}
-	 * @throws IllegalArgumentException if provided value encoded in UTF-8 is
-	 *             out of the provided range.
-	 * @since 3.0
+	 * @throws IllegalArgumentException if provided value doesn't match the
+	 *             option definition.
+	 * @since 3.8 (change parameter to {@link OptionDefinition})
 	 */
-	private static void checkOptionValue(int optionNumber, byte[] value) {
+	private void checkOptionValue(OptionDefinition definition, byte[] value) {
 		if (value == null) {
-			String optionName = OptionNumberRegistry.toString(optionNumber);
-			throw new NullPointerException(optionName + " option must not be null!");
+			throw new NullPointerException(definition.getName() + " option must not be null!");
 		}
-		OptionNumberRegistry.assertValueLength(optionNumber, value.length);
+		definition.assertValue(value);
 	}
 }

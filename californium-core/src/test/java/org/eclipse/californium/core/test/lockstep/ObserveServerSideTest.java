@@ -58,9 +58,9 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.ErrorInjector;
@@ -320,7 +320,7 @@ public class ObserveServerSideTest {
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(1).go();
 		client.startMultiExpectation();
 		client.expectEmpty(ACK, mid).go();
-		client.expectSeparateResponse(CON, CONTENT, tok).storeMID("M2").noOption(OptionNumberRegistry.OBSERVE).payload(respPayload).go();
+		client.expectSeparateResponse(CON, CONTENT, tok).storeMID("M2").noOption(StandardOptionRegistry.OBSERVE).payload(respPayload).go();
 		client.goMultiExpectation();
 
 		client.sendEmpty(ACK).loadMID("M2").go();

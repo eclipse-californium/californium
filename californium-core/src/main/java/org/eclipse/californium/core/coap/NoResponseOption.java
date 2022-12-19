@@ -16,6 +16,7 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.CodeClass;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
@@ -150,7 +151,7 @@ public final class NoResponseOption {
 	 * @return generic option.
 	 */
 	public Option toOption() {
-		return new Option(OptionNumberRegistry.NO_RESPONSE, getValue());
+		return StandardOptionRegistry.NO_RESPONSE.create(getValue());
 	}
 
 	@Override

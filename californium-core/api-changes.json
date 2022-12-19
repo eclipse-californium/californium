@@ -98,9 +98,13 @@
 						  "code": "java.method.removed",
 						  "old": "method java.net.InetSocketAddress org.eclipse.californium.core.network.stack.RemoteEndpoint::getRemoteAddress()",
 						  "justification": "Bugfix InetSocketAddress was already generally replaced by Object and EndpointIdentityResolver"
-					}
-					
-					
+					},
+					{
+						  "code": "java.method.numberOfParametersChanged",
+						  "old": "method org.eclipse.californium.core.coap.Option org.eclipse.californium.core.network.serialization.DataParser::createOption(int, byte[])",
+						  "new": "method org.eclipse.californium.core.coap.Option org.eclipse.californium.core.network.serialization.DataParser::createOption(int, int, byte[])",
+						  "justification": "Redesign of new and rather rare used API.  Omit new major release for mainly one user of this function."
+					}				
 				]
 			}
 		}
