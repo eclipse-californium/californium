@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -421,7 +420,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 
 	private static boolean shouldProtectRequest(Request request) {
 		OptionSet options = request.getOptions();
-		return options.hasOption(OptionNumberRegistry.OSCORE);
+		return options.hasOscore();
 
 	}
 
