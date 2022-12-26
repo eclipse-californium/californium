@@ -37,5 +37,4 @@ public interface DatagramFilterExtended {
 	 * @param record the dropped record
 	 */
 	void onDrop(Record record);
-	void onDrop(InetSocketAddress sourceAddress);
 }
