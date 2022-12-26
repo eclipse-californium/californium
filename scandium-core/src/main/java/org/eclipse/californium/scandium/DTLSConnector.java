@@ -1822,6 +1822,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			// other information. If not used, a value of zero is inserted.
 			DROP_LOGGER.trace("Discarding record with {} bytes from [{}] without source-port", packet.getLength(),
 					StringUtil.toLog(peerAddress));
+			if (datagramFilter instanceof DatagramFilterExtended) {
+				((DatagramFilterExtended) datagramFilter).onDrop(packet);
+			}
 			if (health != null) {
 				health.receivingRecord(true);
 			}
@@ -1831,6 +1834,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			if (!datagramFilter.onReceiving(packet)) {
 				DROP_LOGGER.trace("Filter out packet with {} bytes from [{}]", packet.getLength(),
 						StringUtil.toLog(peerAddress));
+				if (datagramFilter instanceof DatagramFilterExtended) {
+					((DatagramFilterExtended) datagramFilter).onDrop(packet);
+				}
 				if (health != null) {
 					health.receivingRecord(true);
 				}
@@ -1845,6 +1851,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		if (records.isEmpty()) {
 			DROP_LOGGER.trace("Discarding malicious record with {} bytes from [{}]", packet.getLength(),
 					StringUtil.toLog(peerAddress));
+			if (datagramFilter instanceof DatagramFilterExtended) {
+				((DatagramFilterExtended) datagramFilter).onDrop(packet);
+			}
 			if (health != null) {
 				health.receivingRecord(true);
 			}
@@ -1856,6 +1865,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					records.get(0).getType(), StringUtil.toLog(peerAddress));
 			LOGGER.debug("Execution shutdown while processing incoming records from peer: {}",
 					StringUtil.toLog(peerAddress));
+			if (datagramFilter instanceof DatagramFilterExtended) {
+				((DatagramFilterExtended) datagramFilter).onDrop(packet);
+			}
 			if (health != null) {
 				health.receivingRecord(true);
 			}
@@ -1885,30 +1897,42 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			if (dtlsRole == DtlsRole.CLIENT_ONLY) {
 				DROP_LOGGER.trace("client-only, discarding {} CLIENT_HELLO from [{}]!", records.size(),
 						StringUtil.toLog(peerAddress));
+				if (datagramFilter instanceof DatagramFilterExtended) {
+					((DatagramFilterExtended) datagramFilter).onDrop(firstRecord);
+				}
 				if (health != null) {
 					health.receivingRecord(true);
 				}
 				return;
 			}
-			executeInbound(getExecutorService(), peerAddress, new LimitedRunnable(pendingInboundJobsCountdown) {
+			executeInbound(getExecutorService(), peerAddress,
+					new LimitedRunnable(pendingInboundJobsCountdown) {
 
-				@Override
-				public void run() {
-					try {
-						if (running.get()) {
-							if (MDC_SUPPORT) {
-								MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
-							}
-							processNewClientHello(firstRecord);
-							if (MDC_SUPPORT) {
-								MDC.clear();
+						@Override
+						public void run() {
+							try {
+								if (running.get()) {
+									if (MDC_SUPPORT) {
+										MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
+									}
+									processNewClientHello(firstRecord);
+									if (MDC_SUPPORT) {
+										MDC.clear();
+									}
+								}
+							} finally {
+								onDequeueing();
 							}
 						}
-					} finally {
-						onDequeueing();
-					}
-				}
-			});
+					},
+					new Runnable() {
+						@Override
+						public void run() {
+							if (datagramFilter instanceof DatagramFilterExtended) {
+								((DatagramFilterExtended) datagramFilter).onDrop(firstRecord);
+							}
+						}
+					});
 			return;
 		}
 
@@ -1916,6 +1940,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		final Connection connection = getConnection(peerAddress, connectionId, false);
 
 		if (connection == null) {
+			if (datagramFilter instanceof DatagramFilterExtended) {
+				((DatagramFilterExtended) datagramFilter).onDrop(firstRecord);
+			}
 			if (health != null) {
 				health.receivingRecord(true);
 			}
@@ -1934,19 +1961,27 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		for (final Record record : records) {
 			record.setAddress(peerAddress, router);
 			try {
-				if (!executeInbound(serialExecutor, peerAddress, new LimitedRunnable(pendingInboundJobsCountdown) {
-
-					@Override
-					public void run() {
-						try {
-							if (running.get() && connection.isExecuting()) {
-								processRecord(record, connection);
+				if (!executeInbound(serialExecutor, peerAddress,
+					new LimitedRunnable(pendingInboundJobsCountdown) {
+						@Override
+						public void run() {
+							try {
+								if (running.get() && connection.isExecuting()) {
+									processRecord(record, connection);
+								}
+							} finally {
+								onDequeueing();
 							}
-						} finally {
-							onDequeueing();
 						}
-					}
-				})) {
+					},
+					new Runnable() {
+						@Override
+						public void run() {
+							if (datagramFilter instanceof DatagramFilterExtended) {
+								((DatagramFilterExtended) datagramFilter).onDrop(record);
+							}
+						}
+					})) {
 					break;
 				}
 			} catch (RuntimeException e) {
@@ -1969,7 +2004,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @since 3.5
 	 */
 	@NoPublicAPI
-	protected boolean executeInbound(Executor executor, InetSocketAddress peer, LimitedRunnable job) {
+	protected boolean executeInbound(Executor executor, InetSocketAddress peer, LimitedRunnable job, Runnable onError) {
 		try {
 			job.execute(executor);
 			return true;
@@ -1982,6 +2017,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				LOGGER.debug("Execution rejected while processing record from peer [{}]", StringUtil.toLog(peer), e);
 			}
 		}
+		onError.run();
 		if (health != null) {
 			health.receivingRecord(true);
 		}
@@ -2005,6 +2041,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				DROP_LOGGER.debug("Drop received record {}, connection changed address {} => {}! (shift {}ms)",
 						record.getType(), StringUtil.toLog(record.getPeerAddress()),
 						StringUtil.toLog(connection.getPeerAddress()), delay);
+				if (datagramFilter instanceof DatagramFilterExtended) {
+					((DatagramFilterExtended) datagramFilter).onDrop(record);
+				}
 				if (health != null) {
 					health.receivingRecord(true);
 				}
@@ -2027,6 +2066,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 							"Discarding {} record [epoch {}, rseqn {}] received from peer [{}], handshake expired!",
 							record.getType(), epoch, record.getSequenceNumber(),
 							StringUtil.toLog(record.getPeerAddress()));
+					if (datagramFilter instanceof DatagramFilterExtended) {
+						((DatagramFilterExtended) datagramFilter).onDrop(record);
+					}
 					if (health != null) {
 						health.receivingRecord(true);
 					}
@@ -2046,6 +2088,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 							"Discarding {} record [epoch {}, rseqn {}] received from peer [{}] without an active dtls context",
 							record.getType(), epoch, record.getSequenceNumber(),
 							StringUtil.toLog(record.getPeerAddress()));
+					if (datagramFilter instanceof DatagramFilterExtended) {
+						((DatagramFilterExtended) datagramFilter).onDrop(record);
+					}
 					if (health != null) {
 						health.receivingRecord(true);
 					}
@@ -2071,6 +2116,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 							record.getType(), epoch, record.getSequenceNumber(),
 							StringUtil.toLog(record.getPeerAddress()));
 				}
+				if (datagramFilter instanceof DatagramFilterExtended) {
+					((DatagramFilterExtended) datagramFilter).onDrop(record);
+				}
 				if (health != null) {
 					health.receivingRecord(true);
 				}
@@ -2082,6 +2130,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				if (epoch == 0) {
 					DROP_LOGGER.debug("Discarding TLS_CID record received from peer [{}] during handshake",
 							StringUtil.toLog(record.getPeerAddress()));
+					if (datagramFilter instanceof DatagramFilterExtended) {
+						((DatagramFilterExtended) datagramFilter).onDrop(record);
+					}
 					if (health != null) {
 						health.receivingRecord(true);
 					}
@@ -2090,6 +2141,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			} else if (epoch > 0 && connection.expectCid()) {
 				DROP_LOGGER.debug("Discarding record received from peer [{}], CID required!",
 						StringUtil.toLog(record.getPeerAddress()));
+				if (datagramFilter instanceof DatagramFilterExtended) {
+					((DatagramFilterExtended) datagramFilter).onDrop(record);
+				}
 				if (health != null) {
 					health.receivingRecord(true);
 				}
@@ -2101,6 +2155,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					if (!datagramFilter.onReceiving(record, connection)) {
 						DROP_LOGGER.trace("Filter out record with {} bytes from [{}]", record.size(),
 								StringUtil.toLog(record.getPeerAddress()));
+						if (datagramFilter instanceof DatagramFilterExtended) {
+							((DatagramFilterExtended) datagramFilter).onDrop(record);
+						}
 						if (health != null) {
 							health.receivingRecord(true);
 						}
@@ -2140,6 +2197,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 						StringUtil.toLog(record.getPeerAddress()));
 			}
 		} catch (RuntimeException e) {
+			if (datagramFilter instanceof DatagramFilterExtended) {
+				((DatagramFilterExtended) datagramFilter).onDrop(record);
+			}
 			if (health != null) {
 				health.receivingRecord(true);
 			}
@@ -2163,6 +2223,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			}
 			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}", record.getType(),
 					StringUtil.toLog(record.getPeerAddress()), e.getMessage());
+			if (datagramFilter instanceof DatagramFilterExtended) {
+				((DatagramFilterExtended) datagramFilter).onDrop(record);
+			}
 			if (health != null) {
 				if (health instanceof DtlsHealthExtended2) {
 					((DtlsHealthExtended2) health).receivingMacError();
@@ -2173,6 +2236,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		} catch (GeneralSecurityException e) {
 			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}", record.getType(),
 					StringUtil.toLog(record.getPeerAddress()), e.getMessage());
+			if (datagramFilter instanceof DatagramFilterExtended) {
+				((DatagramFilterExtended) datagramFilter).onDrop(record);
+			}
 			if (health != null) {
 				health.receivingRecord(true);
 			}
@@ -2230,6 +2296,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			if (useNewerRecordFilter && !newest) {
 				DROP_LOGGER.debug("Discarding reorderd {} record [epoch {}, rseqn {}] received from peer [{}]",
 						record.getType(), record.getEpoch(), record.getSequenceNumber(), StringUtil.toLog(record.getPeerAddress()));
+				if (datagramFilter instanceof DatagramFilterExtended) {
+					((DatagramFilterExtended) datagramFilter).onDrop(record);
+				}
 				if (health != null) {
 					health.receivingRecord(true);
 				}
