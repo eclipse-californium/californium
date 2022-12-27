@@ -3079,9 +3079,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					onDequeueing();
 				}
 			}
-
-			@Override
-			public void onError(RejectedExecutionException ex) {}
 		})) {
 			message.onError(new IllegalStateException("Outbound message overflow!"));
 		}
@@ -3538,9 +3535,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 								onDequeueing();
 							}
 						}
-
-						@Override
-						public void onError(RejectedExecutionException ex) {}
 					});
 				} catch (RuntimeException e) {
 					LOGGER.warn("Unexpected error occurred while processing handshake result [{}]", connection, e);
