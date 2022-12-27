@@ -91,6 +91,12 @@ public abstract class LimitedRunnable implements Runnable {
 	}
 
 	/**
+	 * Handles {@code RejectedExecutionException}
+	 * @param ex the thrown exception
+	 */
+	public abstract void onError(RejectedExecutionException ex);
+
+	/**
 	 * Execute this job.
 	 * 
 	 * @param executor executor to execute jobs.
@@ -101,6 +107,7 @@ public abstract class LimitedRunnable implements Runnable {
 			executor.execute(this);
 		} catch (RejectedExecutionException ex) {
 			onDequeueing();
+			onError(ex);
 			throw ex;
 		}
 	}

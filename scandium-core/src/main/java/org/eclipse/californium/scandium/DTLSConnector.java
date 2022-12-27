@@ -1905,34 +1905,32 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				}
 				return;
 			}
-			executeInbound(getExecutorService(), peerAddress,
-					new LimitedRunnable(pendingInboundJobsCountdown) {
+			executeInbound(getExecutorService(), peerAddress, new LimitedRunnable(pendingInboundJobsCountdown) {
 
-						@Override
-						public void run() {
-							try {
-								if (running.get()) {
-									if (MDC_SUPPORT) {
-										MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
-									}
-									processNewClientHello(firstRecord);
-									if (MDC_SUPPORT) {
-										MDC.clear();
-									}
-								}
-							} finally {
-								onDequeueing();
+				@Override
+				public void run() {
+					try {
+						if (running.get()) {
+							if (MDC_SUPPORT) {
+								MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
+							}
+							processNewClientHello(firstRecord);
+							if (MDC_SUPPORT) {
+								MDC.clear();
 							}
 						}
-					},
-					new Runnable() {
-						@Override
-						public void run() {
-							if (datagramFilter instanceof DatagramFilterExtended) {
-								((DatagramFilterExtended) datagramFilter).onDrop(firstRecord);
-							}
-						}
-					});
+					} finally {
+						onDequeueing();
+					}
+				}
+
+				@Override
+				public void onError(RejectedExecutionException ex) {
+					if (datagramFilter instanceof DatagramFilterExtended) {
+						((DatagramFilterExtended) datagramFilter).onDrop(firstRecord);
+					}
+				}
+			});
 			return;
 		}
 
@@ -1961,27 +1959,25 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		for (final Record record : records) {
 			record.setAddress(peerAddress, router);
 			try {
-				if (!executeInbound(serialExecutor, peerAddress,
-					new LimitedRunnable(pendingInboundJobsCountdown) {
-						@Override
-						public void run() {
-							try {
-								if (running.get() && connection.isExecuting()) {
-									processRecord(record, connection);
-								}
-							} finally {
-								onDequeueing();
+				if (!executeInbound(serialExecutor, peerAddress, new LimitedRunnable(pendingInboundJobsCountdown) {
+					@Override
+					public void run() {
+						try {
+							if (running.get() && connection.isExecuting()) {
+								processRecord(record, connection);
 							}
+						} finally {
+							onDequeueing();
 						}
-					},
-					new Runnable() {
-						@Override
-						public void run() {
-							if (datagramFilter instanceof DatagramFilterExtended) {
-								((DatagramFilterExtended) datagramFilter).onDrop(record);
-							}
+					}
+
+					@Override
+					public void onError(RejectedExecutionException ex) {
+						if (datagramFilter instanceof DatagramFilterExtended) {
+							((DatagramFilterExtended) datagramFilter).onDrop(record);
 						}
-					})) {
+					}
+				})) {
 					break;
 				}
 			} catch (RuntimeException e) {
@@ -2004,7 +2000,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @since 3.5
 	 */
 	@NoPublicAPI
-	protected boolean executeInbound(Executor executor, InetSocketAddress peer, LimitedRunnable job, Runnable onError) {
+	protected boolean executeInbound(Executor executor, InetSocketAddress peer, LimitedRunnable job) {
 		try {
 			job.execute(executor);
 			return true;
@@ -2017,7 +2013,6 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				LOGGER.debug("Execution rejected while processing record from peer [{}]", StringUtil.toLog(peer), e);
 			}
 		}
-		onError.run();
 		if (health != null) {
 			health.receivingRecord(true);
 		}
@@ -3084,6 +3079,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 					onDequeueing();
 				}
 			}
+
+			@Override
+			public void onError(RejectedExecutionException ex) {}
 		})) {
 			message.onError(new IllegalStateException("Outbound message overflow!"));
 		}
@@ -3540,6 +3538,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 								onDequeueing();
 							}
 						}
+
+						@Override
+						public void onError(RejectedExecutionException ex) {}
 					});
 				} catch (RuntimeException e) {
 					LOGGER.warn("Unexpected error occurred while processing handshake result [{}]", connection, e);
