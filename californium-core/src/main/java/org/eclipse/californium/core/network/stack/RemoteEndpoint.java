@@ -61,7 +61,8 @@ public abstract class RemoteEndpoint {
 
 	/**
 	 * The identity of the remote endpoint.
-	 * @see 
+	 * 
+	 * @see EndpointIdentityResolver
 	 * @since 3.8
 	 */
 	private final Object peersIdentity;
@@ -144,9 +145,11 @@ public abstract class RemoteEndpoint {
 	}
 
 	/**
-	 * Get address of remote endpoint.
+	 * Get identity of the remote endpoint.
 	 * 
-	 * @return address of remote endpoint
+	 * @return identity of the remote endpoint
+	 * @see EndpointIdentityResolver
+	 * @since 3.8
 	 */
 	public Object getPeersIdentity() {
 		return peersIdentity;
