@@ -21,18 +21,20 @@ import org.eclipse.californium.scandium.dtls.Record;
 import java.net.DatagramPacket;
 
 /**
- * Extension of DatagramFilter
+ * Extension of DatagramFilter.
+ *
+ * @since 3.8
  */
 @PublicAPIExtension(type = DatagramFilter.class)
 public interface DatagramFilterExtended {
 
 	/**
-	 * Called when a datagram packed is dropped. Allows to inject packet based action in form of callback
+	 * Called when a datagram packed is dropped. Allows to inject packet based action in form of callback.
 	 * @param packet the dropped datagram packet
 	 */
 	void onDrop(DatagramPacket packet);
 	/**
-	 * Called when a record is dropped. Allows to inject record based action in form of callback
+	 * Called when a record is dropped. Allows to inject record based action in form of callback.
 	 * @param record the dropped record
 	 */
 	void onDrop(Record record);

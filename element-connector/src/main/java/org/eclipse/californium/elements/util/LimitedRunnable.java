@@ -93,6 +93,8 @@ public abstract class LimitedRunnable implements Runnable {
 	/**
 	 * Handles {@code RejectedExecutionException}
 	 * @param ex the thrown exception
+	 *
+	 * @since 3.8
 	 */
 	public void onError(RejectedExecutionException ex) {};
 
