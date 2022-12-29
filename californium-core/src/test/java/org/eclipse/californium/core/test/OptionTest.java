@@ -32,6 +32,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.util.List;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.OptionNumberRegistry.CustomOptionNumberRegistry;
+import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Option;
@@ -40,6 +42,7 @@ import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -497,6 +500,68 @@ public class OptionTest {
 
 	@Test
 	public void testOthers() {
+		final int CUSTOM_OPTION_1 = 0xff1c;
+		final int CUSTOM_OPTION_2 = 0xff9c;
+		final int[] CRITICAL_CUSTOM_OPTIONS = { CUSTOM_OPTION_1, CUSTOM_OPTION_2 };
+		final CustomOptionNumberRegistry CUSTOM = new CustomOptionNumberRegistry() {
+			
+			@Override
+			public String toString(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+					return "custom1";
+				case CUSTOM_OPTION_2 :
+					return "custom2";
+				}
+				return null;
+			}
+			
+			@Override
+			public int toNumber(String name) {
+				if ("custom1".equals(name)) {
+					return CUSTOM_OPTION_1;
+				} else if ("custom2".equals(name)) {
+					return CUSTOM_OPTION_2;
+				}
+				return OptionNumberRegistry.UNKNOWN;
+			}
+			
+			@Override
+			public boolean isSingleValue(int optionNumber) {
+				return optionNumber != CUSTOM_OPTION_2;
+			}
+			
+			@Override
+			public OptionFormat getFormatByNr(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+				case CUSTOM_OPTION_2 :
+					return OptionFormat.STRING;
+				}
+				return null;
+			}
+			
+			@Override
+			public int[] getCriticalCustomOptions() {
+				return CRITICAL_CUSTOM_OPTIONS;
+			}
+			
+			@Override
+			public int[] getValueLengths(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+				case CUSTOM_OPTION_2 :
+					return new int[] {0, 64};
+				}
+				return null;
+			}
+			
+			@Override
+			public void assertValue(int optionNumber, long value) {
+			}
+		};
+
+		OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
 		OptionSet options = new OptionSet();
 		Option other1 = new Option(0xff1c, "other1");
 		options.addOtherOption(other1);
@@ -553,6 +618,11 @@ public class OptionTest {
 		assertThat(list, hasItem(other1));
 		assertThat(list, not(hasItem(other2)));
 		assertThat(list, not(hasItem(other3)));
+	}
+
+	@After
+	public void tearDown() {
+		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
 	}
 
 }

@@ -72,6 +72,65 @@ public class DataParserTest {
 	private static final int CUSTOM_OPTION_1 = 57453;
 	private static final int CUSTOM_OPTION_2 = 19205;
 	private static final int[] CRITICAL_CUSTOM_OPTIONS = { CUSTOM_OPTION_1, CUSTOM_OPTION_2 };
+	private static final CustomOptionNumberRegistry CUSTOM = new CustomOptionNumberRegistry() {
+		
+		@Override
+		public String toString(int optionNumber) {
+			switch (optionNumber) {
+			case CUSTOM_OPTION_1 :
+				return "custom1";
+			case CUSTOM_OPTION_2 :
+				return "custom2";
+			}
+			return null;
+		}
+		
+		@Override
+		public int toNumber(String name) {
+			if ("custom1".equals(name)) {
+				return CUSTOM_OPTION_1;
+			} else if ("custom2".equals(name)) {
+				return CUSTOM_OPTION_2;
+			}
+			return OptionNumberRegistry.UNKNOWN;
+		}
+		
+		@Override
+		public boolean isSingleValue(int optionNumber) {
+			return optionNumber != CUSTOM_OPTION_2;
+		}
+		
+		@Override
+		public OptionFormat getFormatByNr(int optionNumber) {
+			switch (optionNumber) {
+			case CUSTOM_OPTION_1 :
+				return OptionFormat.INTEGER;
+			case CUSTOM_OPTION_2 :
+				return OptionFormat.STRING;
+			}
+			return null;
+		}
+		
+		@Override
+		public int[] getCriticalCustomOptions() {
+			return CRITICAL_CUSTOM_OPTIONS;
+		}
+		
+		@Override
+		public int[] getValueLengths(int optionNumber) {
+			switch (optionNumber) {
+			case CUSTOM_OPTION_1 :
+				return new int[] {0, 4};
+			case CUSTOM_OPTION_2 :
+				return new int[] {0, 64};
+			}
+			return null;
+		}
+		
+		@Override
+		public void assertValue(int optionNumber, long value) {
+		}
+	};
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -86,79 +145,23 @@ public class DataParserTest {
 		this.parser = parser;
 		this.tcp = tcp;
 		this.expectedMid = tcp ? Message.NONE : 13 ;
+		OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
 	}
 	
 	@After
 	public void tearDown() {
 		((CustomDataParser)parser).setIgnoreOptionError(false);
 		((CustomDataParser)parser).setOptionException(null);
+		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
 	}
 
 	@Parameterized.Parameters public static List<Object[]> parameters() {
-		CustomOptionNumberRegistry custom = new CustomOptionNumberRegistry() {
-			
-			@Override
-			public String toString(int optionNumber) {
-				switch (optionNumber) {
-				case CUSTOM_OPTION_1 :
-					return "custom1";
-				case CUSTOM_OPTION_2 :
-					return "custom2";
-				}
-				return null;
-			}
-			
-			@Override
-			public int toNumber(String name) {
-				if ("custom1".equals(name)) {
-					return CUSTOM_OPTION_1;
-				} else if ("custom2".equals(name)) {
-					return CUSTOM_OPTION_2;
-				}
-				return OptionNumberRegistry.UNKNOWN;
-			}
-			
-			@Override
-			public boolean isSingleValue(int optionNumber) {
-				return optionNumber == CUSTOM_OPTION_1;
-			}
-			
-			@Override
-			public OptionFormat getFormatByNr(int optionNumber) {
-				switch (optionNumber) {
-				case CUSTOM_OPTION_1 :
-					return OptionFormat.INTEGER;
-				case CUSTOM_OPTION_2 :
-					return OptionFormat.STRING;
-				}
-				return null;
-			}
-			
-			@Override
-			public int[] getCriticalCustomOptions() {
-				return CRITICAL_CUSTOM_OPTIONS;
-			}
-			
-			@Override
-			public int[] getValueLengths(int optionNumber) {
-				switch (optionNumber) {
-				case CUSTOM_OPTION_1 :
-					return new int[] {0, 4};
-				case CUSTOM_OPTION_2 :
-					return new int[] {0, 64};
-				}
-				return null;
-			}
-			
-			@Override
-			public void assertValue(int optionNumber, long value) {
-			}
-		};
-		OptionNumberRegistry.setCustomOptionNumberRegistry(custom);
+		OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
 		List<Object[]> parameters = new ArrayList<>();
 		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, CRITICAL_CUSTOM_OPTIONS), false });
 		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(CRITICAL_CUSTOM_OPTIONS), true });
 		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, null), false });
+		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
 		return parameters;
 	}
 
