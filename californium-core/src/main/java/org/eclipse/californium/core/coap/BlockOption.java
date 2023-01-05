@@ -32,8 +32,8 @@ public final class BlockOption {
 	/**
 	 * SZX for BERT blockwise.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc8323#section-6" target="_blank">RFC8323, 6.
-	 * Block-Wise Transfer and Reliable Transports</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc8323#section-6" target=
+	 * "_blank">RFC8323, 6. Block-Wise Transfer and Reliable Transports</a>.
 	 * 
 	 * @since 3.0
 	 */
@@ -49,14 +49,15 @@ public final class BlockOption {
 	 * @param szx the szx
 	 * @param m the m
 	 * @param num the num
-	 * @throws IllegalArgumentException if the szx is &lt; 0 or &gt; 7 or
-	 *                                  if num is not a 20-bit uint.
+	 * @throws IllegalArgumentException if the szx is &lt; 0 or &gt; 7 or if num
+	 *             is not a 20-bit uint.
 	 */
 	public BlockOption(final int szx, final boolean m, final int num) {
 		if (szx < 0 || 7 < szx) {
-			throw new IllegalArgumentException("Block option's szx "+ szx + " must be between 0 and 7 inclusive");
+			throw new IllegalArgumentException("Block option's szx " + szx + " must be between 0 and 7 inclusive");
 		} else if (num < 0 || (1 << 20) - 1 < num) {
-			throw new IllegalArgumentException("Block option's num "+ num + " must be between 0 and " + (1 << 20 - 1) + " inclusive");
+			throw new IllegalArgumentException(
+					"Block option's num " + num + " must be between 0 and " + (1 << 20 - 1) + " inclusive");
 		} else {
 			this.szx = szx;
 			this.m = m;
@@ -69,14 +70,16 @@ public final class BlockOption {
 	 *
 	 * @param value the bytes
 	 * @throws NullPointerException if the specified bytes are null
-	 * @throws IllegalArgumentException if the specified value's length is larger than 3
+	 * @throws IllegalArgumentException if the specified value's length is
+	 *             larger than 3
 	 */
 	public BlockOption(final byte[] value) {
 
 		if (value == null) {
 			throw new NullPointerException();
 		} else if (value.length > 3) {
-			throw new IllegalArgumentException("Block option's length " + value.length + " must be at most 3 bytes inclusive");
+			throw new IllegalArgumentException(
+					"Block option's length " + value.length + " must be at most 3 bytes inclusive");
 		} else if (value.length == 0) {
 			this.szx = 0;
 			this.m = false;
@@ -99,8 +102,9 @@ public final class BlockOption {
 	 * 
 	 * @return {@code true}, if BERT is used, {@code false}, otherwise.
 	 * @see #BERT_SZX See
-	 *      <a href="https://tools.ietf.org/html/rfc8323#section-6" target="_blank">RFC8323, 6.
-	 *      Block-Wise Transfer and Reliable Transports</a>.
+	 *      <a href="https://tools.ietf.org/html/rfc8323#section-6" target=
+	 *      "_blank">RFC8323, 6. Block-Wise Transfer and Reliable
+	 *      Transports</a>.
 	 * @since 3.0
 	 */
 	public boolean isBERT() {
@@ -111,8 +115,7 @@ public final class BlockOption {
 	 * Assert, that the payload-size doesn't exceed blocksize.
 	 * 
 	 * @param payloadSize payload-size to check.
-	 * @throws IllegalStateException if the payload-size exceeds the
-	 *        blocksize.
+	 * @throws IllegalStateException if the payload-size exceeds the blocksize.
 	 */
 	public void assertPayloadSize(int payloadSize) {
 		if (szx < BERT_SZX && payloadSize > 0) {
@@ -168,7 +171,10 @@ public final class BlockOption {
 	 * Gets the encoded block option as 0-3 byte array.
 	 * 
 	 * The value of the Block Option is a variable-size (0 to 3 byte).
-	 * <hr><blockquote><pre>
+	 * <hr>
+	 * <blockquote>
+	 * 
+	 * <pre>
 	 *  0
 	 *  0 1 2 3 4 5 6 7
 	 * +-+-+-+-+-+-+-+-+
@@ -184,27 +190,23 @@ public final class BlockOption {
 	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 * |                   NUM                 |M| SZX |
 	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 * </pre></blockquote><hr>
+	 * </pre>
+	 * 
+	 * </blockquote>
+	 * <hr>
 	 * 
 	 * @return the value
 	 */
 	public byte[] getValue() {
-		int last = szx | (m ? 1<<3 : 0);
-		if (num == 0 && !m && szx==0) {
+		int last = szx | (m ? 1 << 3 : 0);
+		if (num == 0 && !m && szx == 0) {
 			return Bytes.EMPTY;
 		} else if (num < 1 << 4) {
-			return new byte[] {(byte) (last | (num << 4))};
+			return new byte[] { (byte) (last | (num << 4)) };
 		} else if (num < 1 << 12) {
-			return new byte[] {
-					(byte) (num >> 4),
-					(byte) (last | (num << 4)),
-			};
+			return new byte[] { (byte) (num >> 4), (byte) (last | (num << 4)) };
 		} else {
-			return new byte[] {
-					(byte) (num >> 12),
-					(byte) (num >> 4),
-					(byte) (last | (num << 4)),
-			};
+			return new byte[] { (byte) (num >> 12), (byte) (num >> 4), (byte) (last | (num << 4)) };
 		}
 	}
 
@@ -243,7 +245,7 @@ public final class BlockOption {
 
 	@Override
 	public boolean equals(final Object o) {
-		if (! (o instanceof BlockOption)) {
+		if (!(o instanceof BlockOption)) {
 			return false;
 		}
 		BlockOption block = (BlockOption) o;
@@ -260,7 +262,8 @@ public final class BlockOption {
 
 	/**
 	 * Gets the 3-bit SZX code for a block size as specified by
-	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2" target="_blank">RFC 7959, Section 2.2</a>:
+	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2" target=
+	 * "_blank">RFC 7959, Section 2.2</a>:
 	 * 
 	 * <pre>
 	 * 16 bytes = 2^4 --&gt; 0
@@ -268,12 +271,13 @@ public final class BlockOption {
 	 * 1024 bytes = 2^10 -&gt; 6
 	 * </pre>
 	 * <p>
-	 * This method is tolerant towards <em>illegal</em> block sizes
-	 * that are &lt; 16 or &gt; 1024 bytes in that it will return the corresponding
-	 * codes for sizes 16 or 1024 respectively.
+	 * This method is tolerant towards <em>illegal</em> block sizes that are
+	 * &lt; 16 or &gt; 1024 bytes in that it will return the corresponding codes
+	 * for sizes 16 or 1024 respectively.
 	 * 
 	 * @param blockSize The block size in bytes.
-	 * @return The szx code for the largest number of bytes that is less than or equal to the block size.
+	 * @return The szx code for the largest number of bytes that is less than or
+	 *         equal to the block size.
 	 */
 	public static int size2Szx(int blockSize) {
 
@@ -290,9 +294,9 @@ public final class BlockOption {
 	/**
 	 * Gets the number of bytes corresponding to a szx code.
 	 * <p>
-	 * This method is tolerant towards <em>illegal</em> codes
-	 * that are &lt; 0 or &gt; 6 in that it will return the corresponding
-	 * values for codes 0 or 6 respectively.
+	 * This method is tolerant towards <em>illegal</em> codes that are &lt; 0 or
+	 * &gt; 6 in that it will return the corresponding values for codes 0 or 6
+	 * respectively.
 	 * 
 	 * @param szx The code.
 	 * @return The corresponding number of bytes.
