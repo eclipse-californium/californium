@@ -40,7 +40,8 @@
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>31.1-android</version>
+			<!-- requires java 7 support -->
+			<version>30.1-android</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.google.code.findbugs</groupId>
