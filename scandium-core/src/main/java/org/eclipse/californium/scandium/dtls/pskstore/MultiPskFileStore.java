@@ -176,6 +176,8 @@ public class MultiPskFileStore implements AdvancedPskStore, Destroyable {
 		BufferedReader lineReader = new BufferedReader(reader);
 		try {
 			int lineNumber = 0;
+			int errors = 0;
+			int comments = 0;
 			String line;
 			// readLine() reads the secret into a String,
 			// what may be considered to be a weak practice.
@@ -186,6 +188,11 @@ public class MultiPskFileStore implements AdvancedPskStore, Destroyable {
 						String[] entry = line.split("=", 2);
 						if (entry.length == 2) {
 							byte[] secretBytes = StringUtil.base64ToByteArray(entry[1]);
+							if (secretBytes.length == 0) {
+								LOGGER.warn("{}: '{}' invalid base64 secret in psk-line!", lineNumber, line);
+								++errors;
+								continue;
+							}
 							SecretKey key = SecretUtil.create(secretBytes, "PSK");
 							Bytes.clear(secretBytes);
 							PskPublicInformation id = new PskPublicInformation(entry[0]);
@@ -198,16 +205,24 @@ public class MultiPskFileStore implements AdvancedPskStore, Destroyable {
 								lock.writeLock().unlock();
 							}
 						} else {
-							LOGGER.warn("{}: '{}' invalid psk-line!", lineNumber, line);
+							++errors;
+							LOGGER.warn("{}: '{}' invalid psk-line entries!", lineNumber, line);
 						}
+					} else {
+						++comments;
 					}
 				} catch (IllegalArgumentException ex) {
-					LOGGER.warn("{}: '{}' invalid psk-line!", lineNumber, line);
+					++errors;
+					LOGGER.warn("{}: '{}' invalid psk-line!", lineNumber, line, ex);
 				}
+			}
+			if (identities.size() == 0 && errors > 0 && lineNumber == comments + errors) {
+				LOGGER.warn("read psk-store, only errors, wrong password?");
+				SecretUtil.destroy(this);
 			}
 		} catch (IOException e) {
 			if (e.getCause() instanceof GeneralSecurityException) {
-				LOGGER.warn("read psk-store, wrong password?:", e);
+				LOGGER.warn("read psk-store, wrong password?", e);
 				SecretUtil.destroy(this);
 			} else {
 				throw e;
