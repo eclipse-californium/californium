@@ -15,12 +15,12 @@ package org.eclipse.californium.scandium.dtls.pskstore;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 
 import javax.crypto.SecretKey;
 
@@ -39,10 +39,22 @@ import org.junit.experimental.categories.Category;
 public class MultiPskFileStoreTest {
 
 	/**
-	 * {@code me=secret},{@code you=public}.
+	 * {@code me=secret}, {@code you=public}, {@code it=hex} .
 	 */
-	private static final byte[] DATA = ("me=c2VjcmV0" + StringUtil.lineSeparator + "you=cHVibGlj"
-			+ StringUtil.lineSeparator).getBytes();
+	private static final byte[] DATA = (
+			"me=c2VjcmV0" + StringUtil.lineSeparator + 
+			"you=cHVibGlj" + StringUtil.lineSeparator +
+			"it=:0x686578" + StringUtil.lineSeparator
+			).getBytes();
+
+	/**
+	 * {@code me=secret}, {@code you=public}, {@code it=hex} .
+	 */
+	private static final byte[] DATA_STRICT_BASE64 = (
+			"me=c2VjcmV0" + StringUtil.lineSeparator + 
+			"you=cHVibGlj" + StringUtil.lineSeparator +
+			"it=aGV4" + StringUtil.lineSeparator
+			).getBytes();
 
 	@Rule
 	public LoggingRule logging = new LoggingRule();
@@ -57,25 +69,42 @@ public class MultiPskFileStoreTest {
 	}
 
 	@After
-	public void tearDownp() throws Exception {
+	public void tearDown() throws Exception {
 		store.destroy();
 		SecretUtil.destroy(secret);
 	}
 
 	@Test
 	public void testLoadPlainPskStore() {
-		InputStream in = new ByteArrayInputStream(DATA);
-		store.loadPskCredentials(in);
-		assertThat(store.size(), is(2));
+		store.loadPskCredentials(new ByteArrayInputStream(DATA));
+		assertThat(store.size(), is(3));
 
-		SecretKey key = store.getSecret("me");
 		SecretKey expected = SecretUtil.create("secret".getBytes(), PskSecretResult.ALGORITHM_PSK);
+		SecretKey key = store.getSecret("me");
+		assertThat(key, is(expected));
+		SecretUtil.destroy(key);
+
+		key = store.getSecret(0);
 		assertThat(key, is(expected));
 		SecretUtil.destroy(key);
 		SecretUtil.destroy(expected);
 
-		key = store.getSecret("you");
 		expected = SecretUtil.create("public".getBytes(), PskSecretResult.ALGORITHM_PSK);
+		key = store.getSecret("you");
+		assertThat(key, is(expected));
+		SecretUtil.destroy(key);
+
+		key = store.getSecret(1);
+		assertThat(key, is(expected));
+		SecretUtil.destroy(key);
+		SecretUtil.destroy(expected);
+
+		expected = SecretUtil.create("hex".getBytes(), PskSecretResult.ALGORITHM_PSK);
+		key = store.getSecret("it");
+		assertThat(key, is(expected));
+		SecretUtil.destroy(key);
+
+		key = store.getSecret(2);
 		assertThat(key, is(expected));
 		SecretUtil.destroy(key);
 		SecretUtil.destroy(expected);
@@ -83,21 +112,19 @@ public class MultiPskFileStoreTest {
 
 	@Test
 	public void testSavePlainPskStore() {
-		InputStream in = new ByteArrayInputStream(DATA);
-		store.loadPskCredentials(in);
-		assertThat(store.size(), is(2));
+		store.loadPskCredentials(new ByteArrayInputStream(DATA));
+		assertThat(store.size(), is(3));
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		store.savePskCredentials(out);
 
-		assertArrayEquals(DATA, out.toByteArray());
+		assertArrayEquals(DATA_STRICT_BASE64, out.toByteArray());
 	}
 
 	@Test
 	public void testSaveAndLoadEncryptedPskStore() {
-		InputStream in = new ByteArrayInputStream(DATA);
-		store.loadPskCredentials(in);
-		assertThat(store.size(), is(2));
+		store.loadPskCredentials(new ByteArrayInputStream(DATA));
+		assertThat(store.size(), is(3));
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		store.savePskCredentials(out, secret);
@@ -116,9 +143,8 @@ public class MultiPskFileStoreTest {
 
 	@Test
 	public void testSaveAndLoadEncryptedPskStoreWithWrongPassword() {
-		InputStream in = new ByteArrayInputStream(DATA);
-		store.loadPskCredentials(in);
-		assertThat(store.size(), is(2));
+		store.loadPskCredentials(new ByteArrayInputStream(DATA));
+		assertThat(store.size(), is(3));
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		store.savePskCredentials(out, secret);
@@ -136,6 +162,28 @@ public class MultiPskFileStoreTest {
 		assertThat(store2.isDestroyed(), is(true));
 
 		SecretUtil.destroy(key2);
+	}
+
+	@Test
+	public void testPskStoreRemove() {
+		store.loadPskCredentials(new ByteArrayInputStream(DATA));
+		assertThat(store.size(), is(3));
+
+		store.removeKey("me");
+		assertThat(store.size(), is(2));
+		assertThat(store.getSecret("me"), is(nullValue()));
+
+		store.removeKey("you");
+		assertThat(store.size(), is(1));
+		assertThat(store.getSecret("your"), is(nullValue()));
+
+		
+		store.loadPskCredentials(new ByteArrayInputStream(DATA));
+		assertThat(store.size(), is(3));
+
+		store.removeKey(0);
+		assertThat(store.size(), is(2));
+		assertThat(store.getSecret("me"), is(nullValue()));
 	}
 
 }

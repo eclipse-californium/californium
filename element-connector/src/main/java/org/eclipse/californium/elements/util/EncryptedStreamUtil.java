@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
+import java.util.Arrays;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -136,11 +137,25 @@ public class EncryptedStreamUtil {
 	}
 
 	/**
+	 * Read seed from input stream.
+	 * 
+	 * @param in input stream
+	 * @return read seed, or {@code null}, if missing.
+	 * @see #prepare(byte[], InputStream, SecretKey)
+	 * @since 3.8
+	 */
+	public byte[] readSeed(InputStream in) {
+		DataStreamReader reader = new DataStreamReader(in);
+		return reader.readVarBytes(Byte.SIZE);
+	}
+
+	/**
 	 * Prepare input stream.
 	 * 
 	 * @param in input stream to read data from
 	 * @param password password for decryption. If {@code null}, the input
-	 *            stream must not be encrypted.
+	 *            stream must be not encrypted, but starts with an empty seed
+	 *            (byte 0).
 	 * @return prepared input stream. If a "seed" is found at the head and
 	 *         password is provided, a {@link CipherInputStream}. If that
 	 *         doesn't {@link InputStream#markSupported()}, wrapped with a
@@ -149,8 +164,27 @@ public class EncryptedStreamUtil {
 	 *         empty input stream is returned and no items are loaded.
 	 */
 	public InputStream prepare(InputStream in, SecretKey password) {
-		DataStreamReader reader = new DataStreamReader(in);
-		byte[] seed = reader.readVarBytes(Byte.SIZE);
+		return prepare(readSeed(in), in, password);
+	}
+
+	/**
+	 * Prepare input stream.
+	 * 
+	 * @param seed seed to decrypt data. If {@code null}, don't decrypt.
+	 * @param in input stream to read data from
+	 * @param password password for decryption. If {@code null}, the input
+	 *            stream must be not encrypted, and the seed must be [@link
+	 *            null} or empty.
+	 * @return prepared input stream. If a seed is provided and password is
+	 *         provided, a {@link CipherInputStream}. If that doesn't
+	 *         {@link InputStream#markSupported()}, wrapped with a
+	 *         {@link BufferedInputStream}. If a seed is provided, but the
+	 *         password is missing or the cipher algorithm isn't supported, a
+	 *         empty input stream is returned and no items are loaded.
+	 * @see #readSeed(InputStream)
+	 * @since 3.8
+	 */
+	public InputStream prepare(byte[] seed, InputStream in, SecretKey password) {
 		if (seed != null && seed.length > 0) {
 			if (password == null) {
 				LOGGER.warn("missing password!");
@@ -176,19 +210,54 @@ public class EncryptedStreamUtil {
 	 * 
 	 * @param out output stream to write data to
 	 * @param password password for encryption. If {@code null}, the output
-	 *            stream is not encrypted.
+	 *            stream is not encrypted, but starts with an empty seed (byte
+	 *            0).
 	 * @return prepared output stream, {@link CipherOutputStream}, if a password
 	 *         is provided.
-	 * @throws IOException if an i/o-error occurred
+	 * @throws IOException if an i/o-error occurred or no new random seed could
+	 *             be generated.
 	 */
 	public OutputStream prepare(OutputStream out, SecretKey password) throws IOException {
+		return prepare(null, out, password);
+	}
+
+	/**
+	 * Prepare output stream.
+	 * 
+	 * Writes random seed or {@link Bytes#EMPTY}, if no password is provided.
+	 * 
+	 * @param seed seed the current/last written/read data is using. Ensure, a
+	 *            new seed is used to write. {@code null}, if not available.
+	 * @param out output stream to write data to
+	 * @param password password for encryption. If {@code null}, the output
+	 *            stream is not encrypted, but starts with an empty seed (byte
+	 *            0).
+	 * @return prepared output stream, {@link CipherOutputStream}, if a password
+	 *         is provided.
+	 * @throws IOException if an i/o-error occurred or no new random seed could
+	 *             be generated.
+	 * @since 3.8
+	 */
+	public OutputStream prepare(byte[] seed, OutputStream out, SecretKey password) throws IOException {
 		DatagramWriter writer = new DatagramWriter();
 		if (password != null) {
-			byte[] seed = new byte[16];
-			new SecureRandom().nextBytes(seed);
-			Cipher cipher = init(Cipher.ENCRYPT_MODE, password, seed);
+			byte[] newSeed = new byte[seed == null ? 16 : seed.length];
+			SecureRandom random = new SecureRandom();
+			int count = 0;
+			random.nextBytes(newSeed);
+			while (seed != null && Arrays.equals(seed, newSeed)) {
+				++count;
+				if (count > 5) {
+					throw new IOException("Random seed failed!");
+				}
+				random.nextBytes(newSeed);
+			}
+			if (seed != null) {
+				System.arraycopy(newSeed, 0, seed, 0, seed.length);
+			}
+			Cipher cipher = init(Cipher.ENCRYPT_MODE, password, newSeed);
 			if (cipher != null) {
-				writer.writeVarBytes(seed, Byte.SIZE);
+				writer.writeVarBytes(newSeed, Byte.SIZE);
 				writer.writeTo(out);
 				out = new CipherOutputStream(out, cipher);
 			} else {
