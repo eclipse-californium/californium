@@ -40,6 +40,9 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.EncryptedStreamUtil;
 import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceCheckReady;
+import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceMonitor;
+import org.eclipse.californium.elements.util.SystemResourceMonitors.FileMonitor;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
@@ -414,6 +417,37 @@ public class MultiPskFileStore implements AdvancedPskStore, Destroyable {
 	 */
 	public void setCipher(String cipherAlgorithm, int keySizeBits) {
 		encryptionUtility.setCipher(cipherAlgorithm, keySizeBits);
+	}
+
+	/**
+	 * Get resource monitor for automatic credentials reloading.
+	 * 
+	 * @param file filename of credentials store.
+	 * @param password password of credentials store. {@code null} to use
+	 *            {@link #loadPskCredentials(String)} instead of
+	 *            {@link #loadPskCredentials(String, SecretKey)}.
+	 * @return resource monitor
+	 * @since 3.8
+	 */
+	public SystemResourceMonitor getMonitor(final String file, final SecretKey password) {
+
+		return new FileMonitor(file) {
+
+			private SecretKey monitorPassword = SecretUtil.create(password);
+
+			@Override
+			protected void update(MonitoredValues values, SystemResourceCheckReady ready) {
+				if (file != null) {
+					if (monitorPassword != null) {
+						loadPskCredentials(file, monitorPassword);
+					} else {
+						loadPskCredentials(file);
+					}
+				}
+				ready(values);
+				ready.ready(false);
+			}
+		};
 	}
 
 	/**
