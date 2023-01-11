@@ -386,15 +386,7 @@ public final class ClientHello extends HelloHandshakeMessage {
 	 * @since 3.0
 	 */
 	public List<CipherSuite> getCommonCipherSuites(List<CipherSuite> serverCipherSuite) {
-		List<CipherSuite> common = new ArrayList<>();
-		for (CipherSuite cipherSuite : supportedCipherSuites) {
-			// NEVER negotiate NULL cipher suite
-			if (cipherSuite.isValidForNegotiation() &&
-					serverCipherSuite.contains(cipherSuite)) {
-				common.add(cipherSuite);
-			}
-		}
-		return common;
+		return CipherSuite.preselectCipherSuites(serverCipherSuite, supportedCipherSuites);
 	}
 
 	/**

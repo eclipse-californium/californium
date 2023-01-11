@@ -17,6 +17,7 @@ package org.eclipse.californium.scandium.config;
 
 import java.net.DatagramSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +40,7 @@ import org.eclipse.californium.scandium.DtlsDatagramFilter;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
@@ -470,6 +472,16 @@ public final class DtlsConfig {
 	 */
 	public static final BooleanDefinition DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT = new BooleanDefinition(
 			MODULE + "VERIFY_SERVER_CERTIFICATES_SUBJECT", "DTLS verifies the server certificate's subjects.", true);
+
+	/**
+	 * Specify the supported certificate types.
+	 * 
+	 * @since 3.8
+	 */
+	public static final EnumListDefinition<CertificateType> DTLS_CERTIFICATE_TYPES = new EnumListDefinition<>(
+			MODULE + "CERTIFICATE_TYPES", "DTLS supported certificate types ordered by preference.",
+			Arrays.asList(CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509),
+			new CertificateType[] { CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509 });
 
 	/**
 	 * Specify the supported DTLS roles.
@@ -1052,6 +1064,7 @@ public final class DtlsConfig {
 			config.set(DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, null);
 			config.set(DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
 			config.set(DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, true);
+			config.set(DTLS_CERTIFICATE_TYPES, Arrays.asList(CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
 			config.set(DTLS_ROLE, DtlsRole.BOTH);
 			config.set(DTLS_MAX_TRANSMISSION_UNIT, null);
 			config.set(DTLS_MAX_TRANSMISSION_UNIT_LIMIT, DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT);
