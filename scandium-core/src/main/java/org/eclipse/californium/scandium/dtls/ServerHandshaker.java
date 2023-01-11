@@ -1072,7 +1072,7 @@ public class ServerHandshaker extends Handshaker {
 			// resumption, limit handshake to use the same cipher suite
 			supported = Arrays.asList(sessionCipherSuite);
 		}
-		return clientHello.getCommonCipherSuites(supported);
+		return CipherSuite.preselectCipherSuites(supported, clientHello.getCipherSuites());
 	}
 
 	private List<CertificateType> getCommonClientCertificateTypes(

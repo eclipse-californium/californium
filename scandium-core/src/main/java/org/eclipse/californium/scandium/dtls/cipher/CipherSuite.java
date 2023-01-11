@@ -684,7 +684,7 @@ public enum CipherSuite {
 				for (CipherSuite suite : values()) {
 					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
 						if (suite.isSupported() && keyExchange.equals(suite.keyExchange)) {
-							list.add(suite);
+							ListUtils.addIfAbsent(list, suite);
 						}
 					}
 				}
@@ -693,7 +693,7 @@ public enum CipherSuite {
 			for (CipherSuite suite : values()) {
 				if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
 					if (suite.isSupported() && keyExchangeAlgorithms.contains(suite.keyExchange)) {
-						list.add(suite);
+						ListUtils.addIfAbsent(list, suite);
 					}
 				}
 			}
@@ -949,7 +949,7 @@ public enum CipherSuite {
 		}
 		List<CipherSuite> ordered = new ArrayList<>();
 		for (CipherSuite cipherSuite : preselect) {
-			if (cipherSuites.contains(cipherSuite)) {
+			if (cipherSuite.isValidForNegotiation() && cipherSuites.contains(cipherSuite)) {
 				ordered.add(cipherSuite);
 			}
 		}

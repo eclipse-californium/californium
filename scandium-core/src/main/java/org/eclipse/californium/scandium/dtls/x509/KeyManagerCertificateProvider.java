@@ -34,6 +34,7 @@ import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.CertificateIdentityResult;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -127,7 +128,8 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * 
 	 * @param keyManager key manager with certificates and private keys
 	 * @param supportedCertificateTypes list of supported certificate types
-	 *            ordered by preference
+	 *            ordered by preference. Intended to use
+	 *            {@link DtlsConfig#DTLS_CERTIFICATE_TYPES} as input.
 	 * @throws NullPointerException if the key manager is {@code null}
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
@@ -158,7 +160,8 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 	 * @param defaultAlias default alias. May be {@code null}.
 	 * @param keyManager key manager with certificates and private keys
 	 * @param supportedCertificateTypes list of supported certificate types
-	 *            ordered by preference
+	 *            ordered by preference. Intended to use
+	 *            {@link DtlsConfig#DTLS_CERTIFICATE_TYPES} as input.
 	 * @throws NullPointerException if the key manager is {@code null}
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.

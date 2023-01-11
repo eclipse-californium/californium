@@ -36,6 +36,7 @@ import org.eclipse.californium.elements.util.SslContextUtil.IncompleteCredential
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -465,6 +466,21 @@ public class ConnectorConfig implements Cloneable {
 	 * Setup dependent defaults.
 	 */
 	public void defaults() {
+		CoapConfig.register();
+		UdpConfig.register();
+		DtlsConfig.register();
+		DefinitionsProvider provider = new DefinitionsProvider() {
+
+			@Override
+			public void applyDefinitions(Configuration config) {
+				config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+				config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+				if (customConfigurationDefaultsProvider != null) {
+					customConfigurationDefaultsProvider.applyDefinitions(config);
+				}
+			}
+		};
+		configuration = Configuration.createWithFile(configurationFile, configurationHeader, provider);
 		if (pskStore != null) {
 			if (identity != null || secret != null) {
 				System.err.println("Use either '--psk-store' or single psk credentials!");
@@ -496,21 +512,6 @@ public class ConnectorConfig implements Cloneable {
 		if (cipherHelpRequested || authHelpRequested) {
 			helpRequested = true;
 		}
-		CoapConfig.register();
-		UdpConfig.register();
-		DtlsConfig.register();
-		DefinitionsProvider provider = new DefinitionsProvider() {
-
-			@Override
-			public void applyDefinitions(Configuration config) {
-				config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
-				config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
-				if (customConfigurationDefaultsProvider != null) {
-					customConfigurationDefaultsProvider.applyDefinitions(config);
-				}
-			}
-		};
-		configuration = Configuration.createWithFile(configurationFile, configurationHeader, provider);
 	}
 
 	protected void defaultAuthenticationModes() {
@@ -518,7 +519,19 @@ public class ConnectorConfig implements Cloneable {
 			authenticationModes.add(AuthenticationMode.PSK);
 		}
 		if (authentication != null) {
-			authenticationModes.add(AuthenticationMode.X509);
+			List<CertificateType> list = configuration.get(DtlsConfig.DTLS_CERTIFICATE_TYPES);
+			if (list.isEmpty()) {
+				authenticationModes.add(AuthenticationMode.X509);
+				authenticationModes.add(AuthenticationMode.RPK);
+			} else {
+				for (CertificateType type : list) {
+					if (CertificateType.RAW_PUBLIC_KEY == type) {
+						authenticationModes.add(AuthenticationMode.RPK);
+					} else if (CertificateType.X_509 == type) {
+						authenticationModes.add(AuthenticationMode.X509);
+					}
+				}
+			}
 		}
 	}
 

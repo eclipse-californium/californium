@@ -62,10 +62,10 @@ import org.eclipse.californium.scandium.DtlsHealthLogger;
 import org.eclipse.californium.scandium.MdcConnectionListener;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.MultiPskFileStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
@@ -320,38 +320,45 @@ public abstract class AbstractTestServer extends CoapServer {
 							TimeUnit.MILLISECONDS);
 
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = DtlsConnectorConfig.builder(dtlsConfig);
-					if (cliConfig.clientAuth != null) {
-						dtlsConfigBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
-					}
+					dtlsConfigBuilder.setAddress(bindToAddress);
 					String tag = "dtls:" + StringUtil.toString(bindToAddress);
 					dtlsConfigBuilder.setLoggingTag(tag);
-					PlugPskStore pskStore = new PlugPskStore();
-					if (cliConfig.pskFile != null) {
-						pskStore.loadPskCredentials(cliConfig.pskFile);
+					List<CipherSuite> list = dtlsConfig.get(DtlsConfig.DTLS_CIPHER_SUITES);
+					boolean psk = list == null || CipherSuite.containsPskBasedCipherSuite(list);
+					boolean certificate = list == null || CipherSuite.containsCipherSuiteRequiringCertExchange(list);
+					if (psk || cliConfig.pskFile != null) {
+						PlugPskStore pskStore = new PlugPskStore();
+						if (cliConfig.pskFile != null) {
+							pskStore.loadPskCredentials(cliConfig.pskFile);
+						}
+						AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(pskStore);
+						asyncPskStore.setDelay(handshakeResultDelayMillis);
+						dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 					}
-					AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(pskStore);
-					asyncPskStore.setDelay(handshakeResultDelayMillis);
-					dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
-					dtlsConfigBuilder.setAddress(bindToAddress);
-					X509KeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
-					AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(
-							keyManager, CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
-					certificateProvider.setDelay(handshakeResultDelayMillis);
-					dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
-					AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier
-							.builder();
-					if (cliConfig.trustall) {
-						verifierBuilder.setTrustAllCertificates();
-					} else {
-						verifierBuilder.setTrustedCertificates(trustedCertificates);
+					if (certificate) {
+						if (cliConfig.clientAuth != null) {
+							dtlsConfigBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, cliConfig.clientAuth);
+						}
+						X509KeyManager keyManager = SslContextUtil.getX509KeyManager(serverCredentials);
+						AsyncKeyManagerCertificateProvider certificateProvider = new AsyncKeyManagerCertificateProvider(
+								keyManager, dtlsConfig.get(DtlsConfig.DTLS_CERTIFICATE_TYPES));
+						certificateProvider.setDelay(handshakeResultDelayMillis);
+						dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
+						AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier
+								.builder();
+						if (cliConfig.trustall) {
+							verifierBuilder.setTrustAllCertificates();
+						} else {
+							verifierBuilder.setTrustedCertificates(trustedCertificates);
+						}
+						verifierBuilder.setTrustAllRPKs();
+						AsyncNewAdvancedCertificateVerifier verifier = verifierBuilder.build();
+						verifier.setDelay(handshakeResultDelayMillis);
+						dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
+						AsyncResumptionVerifier resumptionVerifier = new AsyncResumptionVerifier();
+						resumptionVerifier.setDelay(handshakeResultDelayMillis);
+						dtlsConfigBuilder.setResumptionVerifier(resumptionVerifier);
 					}
-					verifierBuilder.setTrustAllRPKs();
-					AsyncNewAdvancedCertificateVerifier verifier = verifierBuilder.build();
-					verifier.setDelay(handshakeResultDelayMillis);
-					dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
-					AsyncResumptionVerifier resumptionVerifier = new AsyncResumptionVerifier();
-					resumptionVerifier.setDelay(handshakeResultDelayMillis);
-					dtlsConfigBuilder.setResumptionVerifier(resumptionVerifier);
 					dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
 					if (dtlsConfig.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS) > 0) {
 						DtlsHealthLogger health = new DtlsHealthLogger(tag);
