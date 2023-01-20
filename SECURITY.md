@@ -2,9 +2,11 @@
 
 ## Reporting a Vulnerability
 
-Californium supports the use of [GitHub security advisories](https://help.github.com/en/articles/managing-security-vulnerabilities-in-your-project) as pilot for [eclipse](https://www.eclipse.org/) projects. Please consider to use it for reporting vulnerabilities.
+Californium supports the use of [GitHub security advisories](https://help.github.com/en/articles/managing-security-vulnerabilities-in-your-project) as pilot for [eclipse](https://www.eclipse.org/) projects.
 
-Alternatively may also report a vulnerability opening a [bugzilla ticket](https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Community&component=Vulnerability+Reports&keywords=security&groups=Security_Advisories).
+To report a vulnerability, [go directly to the form](https://github.com/eclipse-californium/californium/security/advisories/new). Alternatively, switch to the [Security tab](https://github.com/eclipse-californium/californium/security), then click "Report a vulnerability" and another "Report a vulnerability" button again.
+
+You may also report a vulnerability opening a [bugzilla ticket](https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Community&component=Vulnerability+Reports&keywords=security&groups=Security_Advisories).
 
 For more details, please look at [https://www.eclipse.org/security](https://www.eclipse.org/security).
 
