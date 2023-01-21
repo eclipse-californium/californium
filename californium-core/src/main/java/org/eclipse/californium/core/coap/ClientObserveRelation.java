@@ -13,6 +13,8 @@
  * Contributors:
  *    Bosch IO.GmbH - initial implementation,
  *                    mainly copied from CoapObserveRelation
+ *    Rogier Cobben - added confirmable flag and methods to control
+ *                    the type of reregister and cancel requests.
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -72,6 +74,13 @@ public class ClientObserveRelation {
 	/** Indicates whether a proactive cancel request is pending. */
 	private volatile boolean proactiveCancel = false;
 
+	/**
+	 * Indicates whether reregister and cancel requests are sent confirmable.
+	 * 
+	 * @since 3.8
+	 */
+	private volatile boolean confirmable;
+
 	/** The current notification. */
 	private volatile Response current = null;
 
@@ -127,6 +136,7 @@ public class ClientObserveRelation {
 	 */
 	public ClientObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
 		this.request = request;
+		this.confirmable = request.isConfirmable();
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
 		this.reregistrationBackoffMillis = endpoint.getConfig().get(CoapConfig.NOTIFICATION_REREGISTRATION_BACKOFF,
@@ -134,6 +144,29 @@ public class ClientObserveRelation {
 		this.scheduler = executor;
 		this.request.addMessageObserver(pendingRequestObserver);
 		this.request.setProtectFromOffload();
+	}
+
+	/**
+	 * Checks if the relation is reregistered and cancelled confirmable or
+	 * non-confirmable.
+	 *
+	 * @return {@code true}, if the relation is reregistered and cancelled
+	 *         confirmable.
+	 * @since 3.8
+	 */
+	public boolean isConfirmable() {
+		return confirmable;
+	}
+
+	/**
+	 * Set the relation reregister and cancel message type.
+	 *
+	 * @param confirmable when {@code true} reregister and cancel requests are
+	 *            sent confirmable, non-confirmable otherwise.
+	 * @since 3.8
+	 */
+	public void setConfirmable(boolean confirmable) {
+		this.confirmable = confirmable;
 	}
 
 	/**
@@ -161,6 +194,7 @@ public class ClientObserveRelation {
 		}
 		if (requestPending.compareAndSet(false, true)) {
 			Request refresh = Request.newGet();
+			refresh.setConfirmable(confirmable);
 			EndpointContext destinationContext = response != null ? response.getSourceContext()
 					: request.getDestinationContext();
 			refresh.setDestinationContext(destinationContext);
@@ -209,6 +243,7 @@ public class ClientObserveRelation {
 				: request.getDestinationContext();
 
 		Request cancel = Request.newGet();
+		cancel.setConfirmable(confirmable);
 		cancel.setDestinationContext(destinationContext);
 		// use same Token
 		cancel.setToken(request.getToken());
@@ -250,7 +285,7 @@ public class ClientObserveRelation {
 	/**
 	 * Marks this relation as canceled.
 	 *
-	 * @param canceled true if this relation has been canceled
+	 * @param canceled {@code true} if this relation has been canceled
 	 */
 	protected void setCanceled(boolean canceled) {
 		this.canceled.set(canceled);
@@ -295,7 +330,7 @@ public class ClientObserveRelation {
 	/**
 	 * Checks if the relation has been canceled.
 	 *
-	 * @return true, if the relation has been canceled
+	 * @return {@code true}, if the relation has been canceled
 	 */
 	public boolean isCanceled() {
 		return canceled.get();
