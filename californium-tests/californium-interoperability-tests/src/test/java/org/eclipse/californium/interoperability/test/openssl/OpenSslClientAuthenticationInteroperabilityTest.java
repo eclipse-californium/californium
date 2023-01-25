@@ -16,8 +16,12 @@
 package org.eclipse.californium.interoperability.test.openssl;
 
 import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSHAKE_TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.CLIENT_EDDSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.CLIENT_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.ProcessUtil.FOLLOW_UP_TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.DEFAULT_CURVES;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.DEFAULT_EDDSA_SIGALGS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
@@ -31,6 +35,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -169,6 +175,81 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	}
 
 	@Test
+	public void testOpenSslClientBothRawPublicKey() throws Exception {
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_server_rpk", "-enable_client_rpk");
+		scandiumUtil.start(BIND, null, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, cipherSuite);
+		connect(cipher, "Server raw public key");
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testOpenSslClientClientRawPublicKey() throws Exception {
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_client_rpk");
+		scandiumUtil.start(BIND, null, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, cipherSuite);
+		connect(cipher, "Server certificate");
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testOpenSslClientServerRawPublicKey() throws Exception {
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_server_rpk");
+		scandiumUtil.start(BIND, null, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, cipherSuite);
+		connect(cipher, "Server raw public key");
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, X509CertPath.class);
+	}
+
+	@Test
+	public void testOpenSslClientBothRawPublicKeyEd25519() throws Exception {
+		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_server_rpk", "-enable_client_rpk");
+		scandiumUtil.loadEdDsaCredentials(ConnectorUtil.SERVER_EDDSA_NAME);
+		scandiumUtil.start(BIND, null, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, DEFAULT_CURVES, DEFAULT_EDDSA_SIGALGS,
+				CLIENT_EDDSA_CERTIFICATE, cipherSuite);
+		connect(cipher, "Server raw public key", "X25519");
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testOpenSslClientBothRawPublicKeyEmptyCertificate() throws Exception {
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_server_rpk", "-enable_client_rpk");
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, DEFAULT_CURVES, null, CLIENT_RSA_CERTIFICATE, cipherSuite);
+		connect(cipher, "Server raw public key");
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, null);
+	}
+
+	@Test
+	public void testOpenSslClientBothRawPublicKeyClientUnauthenticated() throws Exception {
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_server_rpk", "-enable_client_rpk");
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, cipherSuite);
+		connect(cipher, "Server raw public key");
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, null);
+	}
+
+	@Test
 	public void testOpenSslClientUnauthenticated() throws Exception {
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
@@ -180,11 +261,21 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	}
 
 	@Test
+	public void testOpenSslClientEd25519() throws Exception {
+		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		scandiumUtil.loadEdDsaCredentials(ConnectorUtil.SERVER_EDDSA_NAME);
+		scandiumUtil.start(BIND, null, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, DEFAULT_CURVES, DEFAULT_EDDSA_SIGALGS, CLIENT_EDDSA_CERTIFICATE, cipherSuite);
+		connect(cipher, "X25519");
+	}
+
+	@Test
 	public void testOpenSslClientX25519() throws Exception {
 		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
-		String cipher = processUtil.startupClient(DESTINATION, TRUST, "X25519:prime256v1", null, cipherSuite);
+		String cipher = processUtil.startupClient(DESTINATION, TRUST, DEFAULT_CURVES, null, cipherSuite);
 		connect(cipher, "X25519");
 	}
 
@@ -202,7 +293,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, "prime256v1", null, cipherSuite);
-		connect(cipher, "ECDH, P-256");
+		connect(cipher, "ECDH, (P-256|prime256v1),");
 	}
 
 	@Test
@@ -210,7 +301,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, TRUST, "secp384r1:prime256v1", null, cipherSuite);
-		connect(cipher, "ECDH, P-384");
+		connect(cipher, "ECDH, (P-384|secp384r1),");
 	}
 
 	@Test
@@ -250,7 +341,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 				.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, defaults);
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
-		String cipher = processUtil.startupClient(DESTINATION, TRUST, "X25519:prime256v1",
+		String cipher = processUtil.startupClient(DESTINATION, TRUST, DEFAULT_CURVES,
 				"ed25519:ECDSA+SHA256", "clientEdDsa.pem", cipherSuite);
 		connect(cipher);
 	}
@@ -290,7 +381,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	public void connect(String cipher, String... misc) throws Exception {
 		assertTrue("handshake failed!", processUtil.waitConsole("Cipher is ", HANDSHAKE_TIMEOUT_MILLIS));
-		assertTrue("wrong cipher suite!", processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
+		assertTrue("wrong cipher suite!", processUtil.waitConsole("Cipher is " + cipher, FOLLOW_UP_TIMEOUT_MILLIS));
 		if (misc != null) {
 			for (String check : misc) {
 				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));

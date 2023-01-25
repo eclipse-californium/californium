@@ -34,6 +34,7 @@ import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.scandium.ConnectorHelper;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -93,6 +94,10 @@ public class ConnectorUtil {
 	 */
 	private Credentials nextCredentials;
 	/**
+	 * Next test uses anonymous peer.
+	 */
+	private boolean nextAnonymous;
+	/**
 	 * Specific certificate types to be used by the next test.
 	 */
 	private CertificateType[] nextCertificateTypes;
@@ -122,6 +127,7 @@ public class ConnectorUtil {
 
 	public void loadCredentials(String alias) {
 		try {
+			nextAnonymous = false;
 			nextCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, alias,
 					KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 		} catch (GeneralSecurityException e) {
@@ -135,6 +141,7 @@ public class ConnectorUtil {
 
 	public void loadEdDsaCredentials(String alias) {
 		try {
+			nextAnonymous = false;
 			nextCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + EDDSA_KEY_STORE_LOCATION,
 					alias, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 		} catch (GeneralSecurityException e) {
@@ -144,6 +151,10 @@ public class ConnectorUtil {
 			e.printStackTrace();
 			fail(alias + ": " + e.getMessage());
 		}
+	}
+
+	public void setAnonymous() {
+		nextAnonymous = true;
 	}
 
 	public void setCertificateTypes(CertificateType... types) {
@@ -199,7 +210,10 @@ public class ConnectorUtil {
 					new AdvancedSinglePskStore(CredentialslUtil.OPENSSL_PSK_IDENTITY, CredentialslUtil.OPENSSL_PSK_SECRET));
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(suites)) {
-			if ((credentials != null || nextCredentials != null)
+			if (nextAnonymous) {
+				nextAnonymous = false;
+				dtlsBuilder.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+			} else if ((credentials != null || nextCredentials != null)
 					&& dtlsBuilder.getIncompleteConfig().getCertificateIdentityProvider() == null) {
 				Credentials credentials = nextCredentials != null ? nextCredentials : this.credentials;
 				SingleCertificateProvider provider;

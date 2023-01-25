@@ -18,12 +18,16 @@ package org.eclipse.californium.interoperability.test.openssl;
 import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSHAKE_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_EDDSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
+import static org.eclipse.californium.interoperability.test.ProcessUtil.FOLLOW_UP_TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.DEFAULT_CURVES;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.DEFAULT_SIGALGS;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -31,6 +35,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.ConnectorUtil;
@@ -38,6 +43,7 @@ import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
@@ -193,6 +199,79 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	}
 
 	@Test
+	public void testOpenSslServerBothRawPublicKey() throws Exception {
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_server_rpk", "-enable_client_rpk");
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
+
+		scandiumUtil.setCertificateTypes(CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		connect(cipher, "Client raw public key");
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testOpenSslServerBothRawPublicKeyEmptyCertificate() throws Exception {
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_server_rpk", "-enable_client_rpk");
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
+		scandiumUtil.setAnonymous();
+		scandiumUtil.setCertificateTypes(CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		connect(cipher);
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, RawPublicKeyIdentity.class);
+	}
+
+	/**
+	 * @see <a href="https://github.com/openssl/openssl/issues/20122" target="_blank">
+	 * OpenSSL - State of support for Ed25519 certificates with DTLS 1.2?</a>
+	 */
+	@Test
+	@Ignore // Ed25519 fails on server side
+	public void testOpenSslServerBothRawPublicKeyEd25519() throws Exception {
+		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		processUtil.assumeMinVersion("3.2.");
+		processUtil.addExtraArgs("-enable_server_rpk", "-enable_client_rpk");
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_EDDSA_CERTIFICATE, DEFAULT_CURVES, null,
+				cipherSuite);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.X25519, SupportedGroup.secp256r1);
+
+		scandiumUtil.loadEdDsaCredentials(ConnectorUtil.CLIENT_EDDSA_NAME);
+		scandiumUtil.setCertificateTypes(CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		connect(cipher, "Shared (Elliptic )?groups: [xX]25519", "Client raw public key");
+		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, RawPublicKeyIdentity.class);
+	}
+
+	/**
+	 * @see <a href="https://github.com/openssl/openssl/issues/20122" target="_blank">
+	 * OpenSSL - State of support for Ed25519 certificates with DTLS 1.2?</a>
+	 */
+	@Test
+	@Ignore // Ed25519 fails on server side
+	public void testOpenSslServerEd25519() throws Exception {
+		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_EDDSA_CERTIFICATE, DEFAULT_CURVES, "ed25519:" + DEFAULT_SIGALGS,
+				cipherSuite);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.X25519, SupportedGroup.secp256r1);
+
+		scandiumUtil.loadEdDsaCredentials(ConnectorUtil.CLIENT_EDDSA_NAME);
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		connect(cipher, "Shared (Elliptic )?groups: [xX]25519");
+	}
+
+	@Test
 	public void testOpenSslServerX25519() throws Exception {
 		assumeTrue("X25519 not support by JCE", XECDHECryptography.SupportedGroup.X25519.isUsable());
 		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
@@ -201,7 +280,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.X25519, SupportedGroup.secp256r1);
 
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
-		connect(cipher, "Shared Elliptic groups: X25519");
+		connect(cipher, "Shared (Elliptic )?groups: [xX]25519");
 	}
 
 	@Test
@@ -213,7 +292,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.X448, SupportedGroup.secp256r1);
 
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
-		connect(cipher, "Shared Elliptic groups: X448");
+		connect(cipher, "Shared (Elliptic )?groups: [xX]448");
 	}
 
 	@Test
@@ -224,7 +303,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.secp256r1);
 
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
-		connect(cipher, "Shared Elliptic (groups|curves): P-256");
+		connect(cipher, "Shared (Elliptic )?(groups|curves): (P-256|secp256r1)");
 	}
 
 	@Test
@@ -235,7 +314,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 				.setAsList(DtlsConfig.DTLS_CURVES, SupportedGroup.secp384r1, SupportedGroup.secp256r1);
 
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
-		connect(cipher, "Shared Elliptic (groups|curves): P-384");
+		connect(cipher, "Shared (Elliptic )?(groups|curves): (P-384|secp384r1)");
 	}
 
 	@Test
@@ -251,7 +330,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
-		connect(cipher, "Shared Elliptic (groups|curves): brainpoolP384r1:P-256");
+		connect(cipher, "Shared (Elliptic )?(groups|curves): brainpoolP384r1:(P-256|secp256r1)");
 	}
 
 	@Test
@@ -301,7 +380,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		scandiumUtil.send(message, DESTINATION, HANDSHAKE_TIMEOUT_MILLIS);
 
 		assertTrue("handshake failed!", processUtil.waitConsole("CIPHER is ", TIMEOUT_MILLIS));
-		assertTrue("wrong cipher suite!", processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS));
+		assertTrue("wrong cipher suite!", processUtil.waitConsole("CIPHER is " + cipher, FOLLOW_UP_TIMEOUT_MILLIS));
 		if (misc != null) {
 			for (String check : misc) {
 				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
