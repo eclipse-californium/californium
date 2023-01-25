@@ -19,7 +19,6 @@ import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSH
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.mbedtls.MbedTlsProcessUtil.AuthenticationMode.CHAIN;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeNotNull;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -28,7 +27,6 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.ConnectorUtil;
-import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -69,8 +67,7 @@ public class MbedTlsClientInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new MbedTlsProcessUtil();
-		ProcessResult result = processUtil.getMbedTlsVersion(TIMEOUT_MILLIS);
-		assumeNotNull(result);
+		processUtil.assumeMinVersion("3.2.");
 		scandiumUtil = new ScandiumUtil(false);
 	}
 

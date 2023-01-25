@@ -22,7 +22,6 @@ import static org.eclipse.californium.interoperability.test.openssl.OpenSslProce
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
@@ -38,7 +37,6 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.interoperability.test.ConnectorUtil;
-import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -77,9 +75,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new OpenSslProcessUtil();
-		ProcessResult result = processUtil.getOpenSslVersion(TIMEOUT_MILLIS);
-		assumeNotNull(result);
-		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
+		processUtil.assumeMinVersion("1.1.");
 		scandiumUtil = new ScandiumUtil(false);
 		cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 	}

@@ -19,8 +19,6 @@ import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSH
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeNotNull;
-import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -29,7 +27,6 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.ConnectorUtil;
-import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -69,9 +66,7 @@ public class OpenSslClientInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new OpenSslProcessUtil();
-		ProcessResult result = processUtil.getOpenSslVersion(TIMEOUT_MILLIS);
-		assumeNotNull(result);
-		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
+		processUtil.assumeMinVersion("1.1.");
 		scandiumUtil = new ScandiumUtil(false);
 	}
 
