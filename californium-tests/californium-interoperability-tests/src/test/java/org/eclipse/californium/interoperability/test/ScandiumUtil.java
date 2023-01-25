@@ -17,6 +17,7 @@ package org.eclipse.californium.interoperability.test;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -26,6 +27,7 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.security.Principal;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -173,6 +175,62 @@ public class ScandiumUtil extends ConnectorUtil {
 		receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
 		assertNotNull("scandium missing message '" + message + "'!", receivedData);
 		assertThat(new String(receivedData.getBytes()), containsString(message));
+	}
+
+	/**
+	 * Get remote's principal.
+	 * 
+	 * @param timeoutMillis timeout of message, if not already received
+	 * @return remote's principal, or {@code null}, if missing.
+	 * @throws InterruptedException if interrupted during wait
+	 * @since 3.8
+	 */
+	public Principal getPrincipal(long timeoutMillis) throws InterruptedException {
+		if (receivedData == null) {
+			receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
+		}
+		return receivedData != null ? receivedData.getSenderIdentity() : null;
+	}
+
+	/**
+	 * Get endpoint context.
+	 * 
+	 * @param timeoutMillis timeout of message, if not already received
+	 * @return endpoint context, or {@code null}, if missing.
+	 * @throws InterruptedException if interrupted during wait
+	 * @since 3.8
+	 */
+	public EndpointContext getContext(long timeoutMillis) throws InterruptedException {
+		if (receivedData == null) {
+			receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
+		}
+		return receivedData != null ? receivedData.getEndpointContext() : null;
+	}
+
+	/**
+	 * Assert, that the peer's principal is of expected type.
+	 * 
+	 * @param timeoutMillis timeout of message, if not already received
+	 * @param expectedPrincipalType expected principal type. {@code null}, for
+	 *            no principal.
+	 * @throws InterruptedException if interrupted during wait
+	 * @since 3.8
+	 */
+	public void assertPrincipalType(long timeoutMillis, final Class<?> expectedPrincipalType)
+			throws InterruptedException {
+		if (receivedData == null) {
+			receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
+		}
+		assertNotNull("scandium missing received message!", receivedData);
+		Principal principal = receivedData.getSenderIdentity();
+		// assert that peer identity is of given type
+		if (principal != null && expectedPrincipalType != null) {
+			assertThat(principal, instanceOf(expectedPrincipalType));
+		} else if (expectedPrincipalType != null) {
+			fail("scandium missing principal, expected " + expectedPrincipalType.getSimpleName() + "!");
+		} else if (principal != null) {
+			fail("scandium unexpected principal " + principal + "!");
+		}
 	}
 
 	/**
