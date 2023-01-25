@@ -24,12 +24,14 @@ import static org.eclipse.californium.interoperability.test.CredentialslUtil.TRU
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_IDENTITY;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_SECRET;
 import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil;
@@ -78,10 +80,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 
 	public static final String DEFAULT_CURVES = "X25519:prime256v1";
 	public static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
-
-	private ProcessResult version;
-
-	private List<String> extraArgs = new ArrayList<>();
+	public static final String OPENSSL = "openssl";
 
 	/**
 	 * Create instance.
@@ -95,25 +94,34 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	 * @param timeMillis timeout in milliseconds
 	 * @return result of version command. {@code null}, if not available.
 	 */
-	public ProcessResult getOpenSslVersion(long timeMillis) {
-		if (version == null) {
+	public ProcessResult getToolVersion(long timeMillis) {
+		if (versionResult == null) {
 			try {
-				execute("openssl", "version");
-				version = waitResult(timeMillis);
+				execute(OPENSSL, "version");
+				versionResult = waitResult(timeMillis);
+				assumeNotNull(versionResult);
+				Matcher matcher = versionResult.match("OpenSSL (\\S+) ");
+				assumeNotNull(matcher);
+				version = matcher.group(1);
 			} catch (InterruptedException ex) {
 				return null;
 			} catch (IOException ex) {
 			}
 		}
-		return version;
+		return versionResult;
 	}
 
+	/**
+	 * Assume, that the version supports a server.
+	 * 
+	 * Version {@code 1.1.1a-k} seems to be broken on windows.
+	 */
 	public void assumeServerVersion() {
 		String os = System.getProperty("os.name");
 		if (os.startsWith("Windows")) {
-			if (version != null) {
+			if (versionResult != null) {
 				assumeFalse("Windows openssl server 1.1.1 seems to be broken!",
-						version.contains("OpenSSL 1\\.1\\.1[a-k]"));
+						versionResult.contains("OpenSSL 1\\.1\\.1[a-k]"));
 			} else {
 				assumeFalse("result for openssl version missing!", true);
 			}
@@ -129,20 +137,10 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	 * "_blank">openssl issue</a>.
 	 */
 	public void assumePskServerVersion() {
-		if (version != null) {
-			assumeFalse("openssl 1.1.1l - server PSK support is broken!", version.contains("OpenSSL 1\\.1\\.1l"));
+		if (versionResult != null) {
+			assumeFalse("openssl 1.1.1l - server PSK support is broken!", versionResult.contains("OpenSSL 1\\.1\\.1l"));
 		} else {
 			assumeFalse("result for openssl version missing!", true);
-		}
-	}
-
-	public void clearExtraArgs() {
-		extraArgs.clear();
-	}
-
-	public void addExtraArgs(String... args) {
-		for (String arg : args) {
-			extraArgs.add(arg);
 		}
 	}
 
@@ -161,7 +159,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
 		String openSslCiphers = OpenSslUtil.getOpenSslCipherSuites(ciphers);
-		args.addAll(Arrays.asList("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher",
+		args.addAll(Arrays.asList(OPENSSL, "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher",
 				openSslCiphers));
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
 			args.add("-psk_identity");
@@ -191,7 +189,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
 		String openSslCiphers = OpenSslUtil.getOpenSslCipherSuites(ciphers);
-		args.addAll(Arrays.asList("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-verify", "5",
+		args.addAll(Arrays.asList(OPENSSL, "s_server", "-dtls1_2", "-4", "-accept", accept, "-listen", "-verify", "5",
 				"-cipher", openSslCiphers));
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
 			assumePskServerVersion();

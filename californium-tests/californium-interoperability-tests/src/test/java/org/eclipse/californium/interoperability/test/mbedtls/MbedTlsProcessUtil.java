@@ -23,12 +23,14 @@ import static org.eclipse.californium.interoperability.test.CredentialslUtil.SER
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.TRUSTSTORE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_IDENTITY;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_SECRET;
+import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil;
@@ -77,8 +79,6 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 
 	private String verboseLevel = DEFAULT_VERBOSE_LEVEL;
 
-	private ProcessResult version;
-
 	/**
 	 * Create instance.
 	 */
@@ -103,17 +103,21 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 	 * @param timeMillis timeout in milliseconds
 	 * @return result of version command. {@code null}, if not available.
 	 */
-	public ProcessResult getMbedTlsVersion(long timeMillis) {
-		if (version == null) {
+	public ProcessResult getToolVersion(long timeMillis) {
+		if (versionResult == null) {
 			try {
-				execute("mbedtls_ssl_client2", "version");
-				version = waitResult(timeMillis);
+				execute("mbedtls_ssl_client2", "build_version=1");
+				versionResult = waitResult(timeMillis);
+				assumeNotNull(versionResult);
+				Matcher matcher = versionResult.match("mbed TLS (\\S+) ");
+				assumeNotNull(matcher);
+				version = matcher.group(1);
 			} catch (InterruptedException ex) {
 				return null;
 			} catch (IOException ex) {
 			}
 		}
-		return version;
+		return versionResult;
 	}
 
 	public String startupClient(String destination, int port, MbedTlsProcessUtil.AuthenticationMode authMode,
@@ -144,6 +148,7 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 			add(args, authMode, CA_CERTIFICATES);
 		}
 		add(args, curves);
+		args.addAll(extraArgs);
 		print(args);
 		execute(args);
 		return mbedTlsCiphers;
@@ -175,6 +180,7 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 			add(args, authMode, chain);
 		}
 		add(args, curves);
+		args.addAll(extraArgs);
 		print(args);
 		execute(args);
 		// ensure, server is ready to ACCEPT messages
