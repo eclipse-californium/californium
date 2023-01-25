@@ -24,13 +24,16 @@ public class CredentialslUtil {
 
 	public static final String SERVER_CERTIFICATE = "server.pem";
 	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
+	public static final String SERVER_EDDSA_CERTIFICATE = "serverEdDsa.pem";
 	public static final String SERVER_CA_RSA_CERTIFICATE = "serverCaRsa.pem";
 
 	public static final String CLIENT_CERTIFICATE = "client.pem";
 	public static final String CLIENT_RSA_CERTIFICATE = "clientRsa.pem";
+	public static final String CLIENT_EDDSA_CERTIFICATE = "clientEdDsa.pem";
 	public static final String ROOT_CERTIFICATE = "rootTrustStore.pem";
 	public static final String CA_CERTIFICATES = "caTrustStore.pem";
 	public static final String CA_RSA_CERTIFICATES = "caRsaTrustStore.pem";
+	public static final String CA_EDDSA_CERTIFICATES = "caEdDsaTrustStore.pem";
 	public static final String TRUSTSTORE = "trustStore.pem";
 
 	public static final String OPENSSL_PSK_IDENTITY = "Client_identity";
