@@ -59,12 +59,15 @@ public class ConnectorUtil {
 
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
+	private static final String EDDSA_KEY_STORE_LOCATION = "certs/eddsaKeyStore.jks";
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
 	private static final String SERVER_NAME = "server";
 	public static final String CLIENT_RSA_NAME = "clientrsa";
 	public static final String SERVER_RSA_NAME = "serverrsa";
+	public static final String CLIENT_EDDSA_NAME = "clienteddsa";
+	public static final String SERVER_EDDSA_NAME = "servereddsa";
 	public static final String SERVER_CA_RSA_NAME = "servercarsa";
 	public static final String TRUST_CA = "ca";
 	public static final String TRUST_ROOT = "root";
@@ -89,6 +92,10 @@ public class ConnectorUtil {
 	 * Specific credentials for ECDSA base cipher suites to be used by the next test.
 	 */
 	private Credentials nextCredentials;
+	/**
+	 * Specific certificate types to be used by the next test.
+	 */
+	private CertificateType[] nextCertificateTypes;
 	private Certificate[] trustCa;
 	private Certificate[] trustRoot;
 
@@ -124,6 +131,23 @@ public class ConnectorUtil {
 			e.printStackTrace();
 			fail(alias + ": " + e.getMessage());
 		}
+	}
+
+	public void loadEdDsaCredentials(String alias) {
+		try {
+			nextCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + EDDSA_KEY_STORE_LOCATION,
+					alias, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+			fail(alias + ": " + e.getMessage());
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail(alias + ": " + e.getMessage());
+		}
+	}
+
+	public void setCertificateTypes(CertificateType... types) {
+		nextCertificateTypes = types;
 	}
 
 	/**
@@ -175,10 +199,19 @@ public class ConnectorUtil {
 					new AdvancedSinglePskStore(CredentialslUtil.OPENSSL_PSK_IDENTITY, CredentialslUtil.OPENSSL_PSK_SECRET));
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(suites)) {
-			if (credentials != null && dtlsBuilder.getIncompleteConfig().getCertificateIdentityProvider() == null) {
+			if ((credentials != null || nextCredentials != null)
+					&& dtlsBuilder.getIncompleteConfig().getCertificateIdentityProvider() == null) {
 				Credentials credentials = nextCredentials != null ? nextCredentials : this.credentials;
-				dtlsBuilder.setCertificateIdentityProvider(new SingleCertificateProvider(credentials.getPrivateKey(),
-						credentials.getCertificateChain(), CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
+				SingleCertificateProvider provider;
+				if (nextCertificateTypes == null) {
+					provider = new SingleCertificateProvider(credentials.getPrivateKey(),
+							credentials.getCertificateChain(), CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY);
+				} else {
+					provider = new SingleCertificateProvider(credentials.getPrivateKey(),
+							credentials.getCertificateChain(), nextCertificateTypes);
+					nextCertificateTypes = null;
+				}
+				dtlsBuilder.setCertificateIdentityProvider(provider);
 			}
 			if (dtlsBuilder.getIncompleteConfig().getAdvancedCertificateVerifier() == null) {
 				Builder builder = StaticNewAdvancedCertificateVerifier.builder();
