@@ -126,7 +126,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 				@Override
 				public void onSendError(Throwable error) {
-					observeRelation.cancel();
+					observeRelation.cancelAll();
 				}
 			});
 		}
