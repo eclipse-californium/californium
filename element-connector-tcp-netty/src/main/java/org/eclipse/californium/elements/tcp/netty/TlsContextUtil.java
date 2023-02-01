@@ -38,13 +38,36 @@ import org.eclipse.californium.elements.util.StringUtil;
 
 import io.netty.channel.Channel;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.AttributeKey;
 
 /**
  * Util for building for TLS endpoint context from channel.
+ * 
+ * Note: since 3.8 the {@link Principal} and the session_id are cached using the
+ * {@link SSLSession#getLastAccessedTime()} to refresh them from the SSLSession.
  */
 public class TlsContextUtil extends TcpContextUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TlsContextUtil.class);
+
+	/**
+	 * Key for TLS connect timestamp.
+	 * 
+	 * @since 3.8
+	 */
+	private static final AttributeKey<Long> tlsConnectTimestamp = AttributeKey.newInstance("tls_connect_millis");
+	/**
+	 * Key for TLS principal.
+	 * 
+	 * @since 3.8
+	 */
+	private static final AttributeKey<Principal> tlsPrincipal = AttributeKey.newInstance("tls_principal");
+	/**
+	 * Key for TLS session id.
+	 * 
+	 * @since 3.8
+	 */
+	private static final AttributeKey<String> tlsSessionId = AttributeKey.newInstance("tls_session_id");
 
 	/**
 	 * Client authentication mode.
@@ -86,54 +109,68 @@ public class TlsContextUtil extends TcpContextUtil {
 		SSLEngine sslEngine = sslHandler.engine();
 		SSLSession sslSession = sslEngine.getSession();
 		if (sslSession != null) {
-			boolean checkKerberos = false;
+			long accessTime = sslSession.getLastAccessedTime();
 			Principal principal = null;
-			if (clientAuthMode.useCertificateRequest()) {
-				try {
-					Certificate[] peerCertificateChain = sslSession.getPeerCertificates();
-					if (peerCertificateChain != null && peerCertificateChain.length != 0) {
-						principal = X509CertPath.fromCertificatesChain(peerCertificateChain);
-					} else {
+			String sslId = null;
+			Long contextAccessTime = channel.attr(tlsConnectTimestamp).get();
+			if (contextAccessTime == null || accessTime != contextAccessTime.longValue()) {
+				boolean checkKerberos = false;
+				if (clientAuthMode.useCertificateRequest()) {
+					try {
+						Certificate[] peerCertificateChain = sslSession.getPeerCertificates();
+						if (peerCertificateChain != null && peerCertificateChain.length != 0) {
+							principal = X509CertPath.fromCertificatesChain(peerCertificateChain);
+						} else {
+							// maybe kerberos is used and therefore
+							// getPeerCertificates fails
+							checkKerberos = true;
+						}
+					} catch (SSLPeerUnverifiedException e1) {
 						// maybe kerberos is used and therefore
 						// getPeerCertificates fails
 						checkKerberos = true;
+					} catch (RuntimeException e) {
+						LOGGER.warn("TLS({}) failed to extract principal {}", id, e.getMessage());
 					}
-				} catch (SSLPeerUnverifiedException e1) {
-					// maybe kerberos is used and therefore
-					// getPeerCertificates fails
-					checkKerberos = true;
-				} catch (RuntimeException e) {
-					LOGGER.warn("TLS({}) failed to extract principal {}", id, e.getMessage());
-				}
 
-				if (checkKerberos) {
-					try {
-						principal = sslSession.getPeerPrincipal();
-					} catch (SSLPeerUnverifiedException e2) {
-						// still unverified, so also no kerberos
-						if (clientAuthMode == CertificateAuthenticationMode.NEEDED) {
-							LOGGER.warn("TLS({}) failed to verify principal, {}", id, e2.getMessage());
-						} else {
-							LOGGER.trace("TLS({}) failed to verify principal, {}", id, e2.getMessage());
+					if (checkKerberos) {
+						try {
+							principal = sslSession.getPeerPrincipal();
+						} catch (SSLPeerUnverifiedException e2) {
+							// still unverified, so also no kerberos
+							if (clientAuthMode == CertificateAuthenticationMode.NEEDED) {
+								LOGGER.warn("TLS({}) failed to verify principal, {}", id, e2.getMessage());
+							} else {
+								LOGGER.trace("TLS({}) failed to verify principal, {}", id, e2.getMessage());
+							}
 						}
 					}
-				}
 
-				if (principal != null) {
-					LOGGER.debug("TLS({}) Principal {}", id, principal.getName());
-				} else if (clientAuthMode == CertificateAuthenticationMode.NEEDED) {
-					LOGGER.warn("TLS({}) principal missing", id);
-				} else {
-					LOGGER.trace("TLS({}) principal missing", id);
+					if (principal != null) {
+						LOGGER.debug("TLS({}) Principal {}", id, principal.getName());
+					} else if (clientAuthMode == CertificateAuthenticationMode.NEEDED) {
+						LOGGER.warn("TLS({}) principal missing", id);
+					} else {
+						LOGGER.trace("TLS({}) principal missing", id);
+					}
 				}
+				byte[] sessionId = sslSession.getId();
+				if (sessionId != null && sessionId.length > 0) {
+					sslId = StringUtil.byteArray2HexString(sessionId, StringUtil.NO_SEPARATOR, 0);
+					// cache session_id and principal
+					channel.attr(tlsConnectTimestamp).set(accessTime);
+					channel.attr(tlsPrincipal).set(principal);
+					channel.attr(tlsSessionId).set(sslId);
+				}
+			} else {
+				// load session_id and principal from cache
+				principal = channel.attr(tlsPrincipal).get();
+				sslId = channel.attr(tlsSessionId).get();
 			}
-			byte[] sessionId = sslSession.getId();
-			if (sessionId != null && sessionId.length > 0) {
-				String sslId = StringUtil.byteArray2HexString(sessionId, StringUtil.NO_SEPARATOR, 0);
+			if (sslId != null) {
 				String cipherSuite = sslSession.getCipherSuite();
 				LOGGER.debug("TLS({},{},{})", id, StringUtil.trunc(sslId, 14), cipherSuite);
-				return new TlsEndpointContext(address, principal, id, sslId, cipherSuite,
-						sslSession.getLastAccessedTime());
+				return new TlsEndpointContext(address, principal, id, sslId, cipherSuite, accessTime);
 			}
 		}
 		// TLS handshake not finished
@@ -143,9 +180,10 @@ public class TlsContextUtil extends TcpContextUtil {
 	/**
 	 * Get array of weak cipher suites.
 	 * 
-	 * Work-around for <a href="https://github.com/bcgit/bc-java/issues/1054"
-	 * target="_blank">Bouncy Castle issue 1054: Default cipher suites when
-	 * running with java 7 (restricted)</a>. Fixed with bouncy castle 1.7.0.
+	 * Work-around for
+	 * <a href="https://github.com/bcgit/bc-java/issues/1054" target=
+	 * "_blank">Bouncy Castle issue 1054: Default cipher suites when running
+	 * with java 7 (restricted)</a>. Fixed with bouncy castle 1.7.0.
 	 * 
 	 * @param sslContext ssl context with default cipher suite
 	 * @return array with weak cipher suites, subset of the ssl context.
