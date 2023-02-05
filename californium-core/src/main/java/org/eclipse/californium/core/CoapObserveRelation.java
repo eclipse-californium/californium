@@ -122,7 +122,8 @@ public class CoapObserveRelation extends ClientObserveRelation {
 	/**
 	 * Sets the current response or notification.
 	 *
-	 * Use {@link #orderer} to filter deprecated responses.
+	 * Use {@link #orderer} to filter deprecated responses over UDP.
+	 * Responses over TCP are already in order.
 	 *
 	 * @param response the response or notification
 	 * @return {@code true}, response is accepted by {@link #orderer},
