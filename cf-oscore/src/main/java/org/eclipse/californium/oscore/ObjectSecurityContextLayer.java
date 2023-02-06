@@ -233,7 +233,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 		// block-wise layer (for outer block-wise). If a response was not
 		// processed by OSCORE in the ObjectSecurityLayer it will happen here.
 		Response rawResponse =  exchange.getCurrentResponse();
-		boolean outerBlockwise = rawResponse.getOptions().hasBlock2()
+		boolean outerBlockwise = rawResponse != null && rawResponse.getOptions().hasBlock2()
 				&& ctxDb.getContextByToken(rawResponse.getToken()) != null;
 		if (outerBlockwise) {
 

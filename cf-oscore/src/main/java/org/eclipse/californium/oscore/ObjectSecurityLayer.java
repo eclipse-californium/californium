@@ -128,8 +128,9 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				// Handle outgoing requests for more data from a responder that
 				// is responding with outer block-wise. These requests should
 				// not be processed with OSCORE.
-				if (request.getOptions().hasBlock2() && exchange.getCurrentResponse() != null) {
-					final OSCoreCtx ctx = ctxDb.getContextByToken(exchange.getCurrentResponse().getToken());
+				Response response = exchange.getCurrentResponse();
+				if (request.getOptions().hasBlock2() && response != null) {
+					final OSCoreCtx ctx = ctxDb.getContextByToken(response.getToken());
 					if (ctx != null) {
 						request.addMessageObserver(0, new MessageObserverAdapter() {
 
