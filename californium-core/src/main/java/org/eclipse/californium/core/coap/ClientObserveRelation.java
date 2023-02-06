@@ -386,7 +386,11 @@ public class ClientObserveRelation {
 	 * @return {@code true}, if matched, {@code false}, if not.
 	 */
 	public boolean matchRequest(Request request) {
-		return this.request.getToken().equals(request.getToken());
+		// the client observe relation is created
+		// before the token is assigned sending the 
+		// request.
+		Token token = this.request.getToken();
+		return token != null && token.equals(request.getToken());
 	}
 
 	private void setReregistrationHandle(ScheduledFuture<?> reregistrationHandle) {
