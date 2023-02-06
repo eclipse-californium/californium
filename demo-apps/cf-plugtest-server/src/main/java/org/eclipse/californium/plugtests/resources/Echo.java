@@ -18,6 +18,7 @@ package org.eclipse.californium.plugtests.resources;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.DELETED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.SERVICE_UNAVAILABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_LINK_FORMAT;
@@ -286,7 +287,7 @@ public class Echo extends CoapResource {
 		return null;
 	}
 
-	private static class Keep extends CoapResource {
+	private class Keep extends CoapResource {
 
 		private volatile Request post;
 
@@ -331,6 +332,13 @@ public class Echo extends CoapResource {
 			exchange.respond(response);
 		}
 
+		@Override
+		public void handleDELETE(CoapExchange exchange) {
+			synchronized (keptPosts) {
+				keptPosts.remove(getName(), this);
+			}
+			exchange.respond(DELETED);
+		}
 	}
 
 }
