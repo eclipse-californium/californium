@@ -52,6 +52,13 @@ public class ClientObserveRelation {
 	private final long reregistrationBackoff;
 
 	/**
+	 * Indicate transport over TCP.
+	 * 
+	 * @since 3.8 (back-ported)
+	 */
+	protected final boolean tcp;
+
+	/**
 	 * Indicates, that an observe request or a (proactive) cancel observe
 	 * request is pending.
 	 * 
@@ -126,6 +133,7 @@ public class ClientObserveRelation {
 	 */
 	public ClientObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
 		this.request = request;
+		this.tcp = CoAP.isTcpScheme(request.getScheme());
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
 		this.reregistrationBackoff = endpoint.getConfig()
@@ -167,6 +175,8 @@ public class ClientObserveRelation {
 			refresh.setToken(request.getToken());
 			// copy options
 			refresh.setOptions(request.getOptions());
+			// same scheme
+			refresh.setScheme(request.getScheme());
 
 			refresh.setMaxResourceBodySize(request.getMaxResourceBodySize());
 			if (request.isUnintendedPayload()) {
@@ -215,6 +225,8 @@ public class ClientObserveRelation {
 		cancel.setToken(request.getToken());
 		// copy options
 		cancel.setOptions(request.getOptions());
+		// same scheme
+		cancel.setScheme(request.getScheme());
 		// set Observe to cancel
 		cancel.setObserveCancel();
 
@@ -239,8 +251,9 @@ public class ClientObserveRelation {
 	}
 
 	/**
-	 * Cancel observation. Cancel pending request of this observation and stop
-	 * reregistrations.
+	 * Cancel observation.
+	 * 
+	 * Cancel pending request of this observation and stop reregistrations.
 	 */
 	private void cancel() {
 		endpoint.cancelObservation(request.getToken());
@@ -268,7 +281,7 @@ public class ClientObserveRelation {
 	 */
 	public void reactiveCancel() {
 		Request request = this.request;
-		if (CoAP.isTcpScheme(request.getScheme())) {
+		if (tcp) {
 			LOGGER.info("change to cancel the observe {} proactive over TCP.", request.getTokenString());
 			proactiveCancel();
 		} else {
@@ -281,7 +294,7 @@ public class ClientObserveRelation {
 	/**
 	 * Checks if the relation has been canceled.
 	 *
-	 * @return true, if the relation has been canceled
+	 * @return {@code true}, if the relation has been canceled
 	 */
 	public boolean isCanceled() {
 		return canceled;
@@ -312,7 +325,8 @@ public class ClientObserveRelation {
 	/**
 	 * Sets the current response or notification.
 	 *
-	 * Use {@link #orderer} to filter deprecated responses.
+	 * Use {@link #orderer} to filter deprecated responses over UDP.
+	 * Responses over TCP are already in order.
 	 *
 	 * @param response the response or notification
 	 * @return {@code true}, response is accepted by {@link #orderer},
@@ -324,7 +338,10 @@ public class ClientObserveRelation {
 			Integer observe = response.getOptions().getObserve();
 			// check, if observation is still ongoing
 			boolean prepareNext = observe != null && !isCanceled();
-			isNew = orderer.isNew(response);
+			// RFC8323, 7.1. Notifications and Reordering
+			// For TCP, the observe option may be empty,
+			// and MUST be ignored
+			isNew = tcp || orderer.isNew(response);
 			if (isNew) {
 				current = response;
 			} else if (prepareNext) {
@@ -347,7 +364,11 @@ public class ClientObserveRelation {
 	 * @return {@code true}, if matched, {@code false}, if not.
 	 */
 	public boolean matchRequest(Request request) {
-		return this.request.getToken().equals(request.getToken());
+		// the client observe relation is created
+		// before the token is assigned sending the 
+		// request.
+		Token token = this.request.getToken();
+		return token != null && token.equals(request.getToken());
 	}
 
 	private void setReregistrationHandle(ScheduledFuture<?> reregistrationHandle) {
