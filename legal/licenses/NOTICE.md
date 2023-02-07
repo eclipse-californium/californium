@@ -29,23 +29,23 @@ SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 The project maintains the following source code repositories:
 
-* https://github.com/eclipse/californium
-* https://github.com/eclipse/californium.tools
-* https://github.com/eclipse/californium.actinium
+* https://github.com/eclipse-californium/californium
+* https://github.com/eclipse-californium/californium.tools
+* https://github.com/eclipse-californium/californium.actinium
 
 ## Third-party Content
 
 This project leverages the following third party content.
 
-Apache HttpClient (5.1)
+Apache HttpClient (5.1.3)
 
 * License: Apache-2.0 
 
-Apache HttpComponents Core (5.1.1)
+Apache HttpComponents Core (5.1.3)
 
 * License: Apache License 2.0
 
-ASM (5.0.1)
+ASM (9.4)
 
 * License: New BSD license
 
@@ -88,7 +88,7 @@ Google Guava (30.0-android)
 
 * License: Apache License, 2.0
 
-gson (2.8.9)
+gson (2.10)
 
 * License: Apache-2.0 
 
@@ -96,7 +96,7 @@ javassist (3.22.0)
 
 * License: Apache-2.0
 
-Javax.annotation (1.3)
+Javax.annotation (1.3.2)
 
 * License: CDDL
 
@@ -122,7 +122,7 @@ logback-android (1.1.1)
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
-Netty (4.1.79)
+Netty (4.1.87)
 
 * License: Apache-2.0 AND BSD-3-Clause AND MIT
 * Project: https://netty.io/
@@ -146,7 +146,7 @@ slf4j-jdk14 (1.7.36)
 
 * License: MIT
 
-picocli (4.6.3)
+picocli (4.7.0)
 
 * License: Apache License, 2.0
 * Project: https://picocli.info
@@ -158,7 +158,7 @@ ed25519-java (0.3.0)
 * Project: https://github.com/str4d/ed25519-java
 * Source: https://github.com/str4d/ed25519-java/archive/refs/tags/v0.3.0.zip
 
-openssl (1.1.1) used for interoperability tests only
+openssl (1.1.1, 3.2.0) used for interoperability tests only
 
 * License: Apache License, 2.0
 * Project: https://www.openssl.org/
