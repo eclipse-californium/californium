@@ -834,32 +834,31 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.art>jdk15to18</bc.art>
 				<bc.version>1.72</bc.version>
 				<slf4j.version>1.7.36</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcpkix-${bc.art}</artifactId>
+					<artifactId>bcpkix-jdk15to18</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcprov-${bc.art}</artifactId>
+					<artifactId>bcprov-jdk15to18</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bctls-${bc.art}</artifactId>
+					<artifactId>bctls-jdk15to18</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcutil-${bc.art}</artifactId>
+					<artifactId>bcutil-jdk15to18</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
@@ -890,32 +889,31 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.art>jdk18on</bc.art>
 				<bc.version>1.72</bc.version>
 				<slf4j.version>1.7.36</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcpkix-${bc.art}</artifactId>
+					<artifactId>bcpkix-jdk18on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcprov-${bc.art}</artifactId>
+					<artifactId>bcprov-jdk18on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bctls-${bc.art}</artifactId>
+					<artifactId>bctls-jdk18on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcutil-${bc.art}</artifactId>
+					<artifactId>bcutil-jdk18on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
