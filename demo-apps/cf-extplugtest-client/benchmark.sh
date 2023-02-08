@@ -84,13 +84,13 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-3.8.0.jar
+CF_JAR=cf-extplugtest-client-3.9.0.jar
 CF_JAR_FIND="cf-extplugtest-client-*.jar"
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 #CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
 CF_OPT="-XX:+UseZGC -Xmx10g"
 
-export CALIFORNIUM_STATISTIC="3.8.0"
+export CALIFORNIUM_STATISTIC="3.9.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost

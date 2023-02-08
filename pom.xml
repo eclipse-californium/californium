@@ -110,7 +110,7 @@
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 		<javadoc.doclint>none</javadoc.doclint>
-		<revapi.previous.version>3.7.0</revapi.previous.version>
+		<revapi.previous.version>RELEASE</revapi.previous.version>
 	</properties>
 
 	<distributionManagement>
@@ -562,14 +562,6 @@
 									<package>org\.slf4j</package>
 									<justification>
 										Californium uses classes of slf4j in some case with scope protected.
-									</justification>
-								</item>
-								<item>
-									<regex>true</regex>
-									<code>java.class.externalClassExposedInAPI</code>
-									<package>io\.netty</package>
-									<justification>
-										Californium uses classes of io.netty in some case with scope protected.
 									</justification>
 								</item>
 							</differences>
