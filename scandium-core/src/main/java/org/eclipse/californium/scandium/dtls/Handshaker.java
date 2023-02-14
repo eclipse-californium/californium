@@ -2062,6 +2062,9 @@ public abstract class Handshaker implements Destroyable {
 				}
 				// inform handshaker
 				if (timeout) {
+					if (flight.isFinishedIncluded() && getSession().getCipherSuite().isPskBased()) {
+						message += " Wrong PSK identity or secret?";
+					}
 					handshaker.handshakeFailed(new DtlsHandshakeTimeoutException(
 							"Handshake flight " + flight.getFlightNumber() + " failed!" + message,
 							flight.getFlightNumber()));

@@ -192,7 +192,16 @@ public class DTLSFlight {
 	 * Indicates, whether this flight needs retransmission. The very last flight
 	 * (not every flight needs retransmission, e.g. Alert).
 	 */
-	private boolean retransmissionNeeded = false;
+	private boolean retransmissionNeeded;
+
+	/**
+	 * Indicates, whether this flight includes a {@link Finished} message, or
+	 * not.
+	 * 
+	 * @see #addDtlsMessage(int, DTLSMessage)
+	 * @since 3.9
+	 */
+	private boolean finishedIncluded;
 
 	/**
 	 * Indicates, that the first handshake message of the response is received.
@@ -239,6 +248,9 @@ public class DTLSFlight {
 	/**
 	 * Adds a dtls message to this flight.
 	 * 
+	 * Sets {@link #finishedIncluded} to {@code true}, if provided message is a
+	 * {@link Finished} message.
+	 * 
 	 * @param epoch the epoch of the dtls message.
 	 * @param messageToAdd the dtls message to add.
 	 * @since 2.4
@@ -246,6 +258,9 @@ public class DTLSFlight {
 	public void addDtlsMessage(int epoch, DTLSMessage messageToAdd) {
 		if (messageToAdd == null) {
 			throw new NullPointerException("message must not be null!");
+		}
+		if (messageToAdd instanceof Finished) {
+			finishedIncluded = true;
 		}
 		dtlsMessages.add(new EpochMessage(epoch, messageToAdd));
 	}
@@ -702,6 +717,18 @@ public class DTLSFlight {
 	 */
 	public boolean isResponseCompleted() {
 		return responseCompleted;
+	}
+
+	/**
+	 * Check, if this flight includes a {@link Finished} message.
+	 * 
+	 * @return {@code true}, if {@link Finished} message is included,
+	 *         {@code false}, otherwise.
+	 * @see #addDtlsMessage(int, DTLSMessage)
+	 * @since 3.9
+	 */
+	public boolean isFinishedIncluded() {
+		return finishedIncluded;
 	}
 
 	/**

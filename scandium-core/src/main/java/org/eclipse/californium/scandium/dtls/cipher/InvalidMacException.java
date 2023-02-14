@@ -27,7 +27,7 @@ import org.eclipse.californium.elements.util.Bytes;
 public class InvalidMacException extends GeneralSecurityException {
 
 	private static final long serialVersionUID = 1L;
-	private static final String DEFAULT_MESSAGE = "MAC validation failed";
+	private static final String DEFAULT_MESSAGE = "MAC validation failed!";
 
 	private final byte[] expected;
 	private final byte[] actual;
