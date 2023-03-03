@@ -1,0 +1,41 @@
+# Web Application Configurations
+#
+# # <comments>
+#
+# # Configuration
+# \[<config>.config\]
+#
+# # logo in svg
+# logo=<logo.svg>
+#
+# # Enable to read the device configuration
+# ConfigRead=true
+#
+# # Enable to write the device configuration
+# ConfigWrite=true
+#
+# # Configure details to show in overview list
+# # Values: provider, operator, uptime, battery, all
+# Details=all
+#
+# # Enable diagnose access
+# Diagnose=true
+#
+# # Initial period for device charts
+# period=64
+#
+
+[Admin.config]
+logo=logo.svg
+ConfigRead=true
+ConfigWrite=true
+Details=all
+Diagnose=true
+period=64
+
+[User.config]
+logo=logo.svg
+ConfigRead=true
+ConfigWrite=false
+period=64
+

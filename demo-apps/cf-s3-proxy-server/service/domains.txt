@@ -1,0 +1,77 @@
+# Domains
+#
+# # <comments>
+#
+# \[web\]
+# domain = <domain-with-web-resources>
+# 
+# # Domain
+# \[<domain1>.data\]
+# bucket = <name1>
+# bucket_location = <region1> 
+# host_base = <host1>
+# host_bucket = <bucket1-host1>
+# access_key = <S3-access-key-id1>
+# secret_key = <S3-access-key-secret1>
+# concurrency = <number of concurrent requests>
+# redirect = true|false
+#
+# \[<domain1>.management\]
+# bucket = <name1>
+# bucket_location = <region1> 
+# host_base = <host1>
+# host_bucket = <bucket1-host1>
+# access_key = <S3-access-key-id1>
+# secret_key = <S3-access-key-secret1>
+# concurrency = <number of concurrent requests>
+# redirect = true|false
+# password64 = <default-store-password-base64>
+# device_store = <device1-store>
+# device_store_password64 = <device1-store-password-base64>
+# config_store = <config1-store>
+# config_store_password64 = <config1-store-password-base64>
+# user_store = <user1-store>
+# user_store_password64 = <user1-store-password-base64>
+#
+
+[domain1.data]
+
+host_base = sos-de-fra-1.exo.io
+host_bucket = %(bucket)s.sos-de-fra-1.exo.io
+bucket = devices1
+access_key = <S3-access-key-id1>
+secret_key = <S3-access-key-secret1>
+
+[domain1.management]
+
+host_base = sos-de-fra-1.exo.io
+host_bucket = %(bucket)s.sos-de-fra-1.exo.io
+bucket = devices1mgmt
+access_key = <S3-access-key-id2>
+secret_key = <S3-access-key-secret2>
+
+device_store = devices.txt
+config_store = configs.txt
+user_store = users.txt
+
+[domain2.data]
+
+host_base = sos-de-fra-1.exo.io
+host_bucket = %(bucket)s.sos-de-fra-1.exo.io
+bucket = devices2
+access_key = <S3-access-key-id3>
+secret_key = <S3-access-key-secret3>
+
+[domain2.management]
+
+host_base = sos-de-fra-1.exo.io
+host_bucket = %(bucket)s.sos-de-fra-1.exo.io
+bucket = devices2mgmt
+access_key = <S3-access-key-id4>
+secret_key = <S3-access-key-secret4>
+
+device_store = devices.txt
+config_store = configs.txt
+user_store = users.txt
+
+

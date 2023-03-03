@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 125 115">
+
+<!-- 
+/*******************************************************************************
+ * Copyright (c) 2024 Contributors to the Eclipse Foundation.
+ * 
+ * See the NOTICE file(s) distributed with this work for additional
+ * information regarding copyright ownership.
+ * 
+ * This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ * 
+ ******************************************************************************/
+-->
+
+<rect stroke="black" fill="lightyellow" stroke-width="1" x="20" y="10" width="90" height="90" stroke-linejoin="round" />
+<text x="10" y="7" font-size="5px" text-anchor="middle">Devices</text>
+
+<text x="10" y="23" font-size="5px" text-anchor="middle">1M</text>
+<path stroke="black" fill="none" stroke-width="1" d="M1,25 l19,0" stroke-linecap="round" />
+
+<text x="10" y="53" font-size="5px" text-anchor="middle">10K</text>
+<path stroke="black" fill="none" stroke-width="1" d="M1,55 l19,0" stroke-linecap="round" />
+
+<text x="10" y="83" font-size="5px" text-anchor="middle">200</text>
+<path stroke="black" fill="none" stroke-width="1" d="M1,85 l19,0" stroke-linecap="round" />
+
+<text x="33" y="108" font-size="5px" text-anchor="end">300</text>
+<path stroke="black" fill="none" stroke-width="1" d="M35,100 l0,10" stroke-linecap="round" />
+
+<text x="63" y="108" font-size="5px" text-anchor="end">3000</text>
+<path stroke="black" fill="none" stroke-width="1" d="M65,100 l0,10" stroke-linecap="round" />
+
+<text x="93" y="108" font-size="5px" text-anchor="end">50000</text>
+<path stroke="black" fill="none" stroke-width="1" d="M95,100 l0,10" stroke-linecap="round" />
+
+<text x="100" y="108" font-size="5px" >requests/s</text>
+
+<rect stroke="none" fill="Khaki" x="21" y="41" width="59" height="58" />
+
+<rect stroke="none" fill="YellowGreen" x="21" y="71" width="43" height="28" />
+
+<text x="65" y="23" font-size="5px" text-anchor="middle">
+ <tspan>Californium</tspan>
+ <tspan x="65" dy="7">4x3GHz, 16 GB RAM</tspan>
+</text>
+
+<text x="49" y="53" font-size="5px" text-anchor="middle">
+ <tspan>S3-Proxy</tspan>
+ <tspan x="49" dy="7">4x2GHz, 4 GB RAM</tspan>
+</text>
+
+<text x="40" y="79" font-size="5px" text-anchor="middle">
+ <tspan>Web-App</tspan>
+ <tspan x="40" dy="7">2x1.5GHz</tspan>
+ <tspan x="40" dy="7">2 GB RAM</tspan>
+</text>
+
+</svg>
