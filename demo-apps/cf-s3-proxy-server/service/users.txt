@@ -1,0 +1,29 @@
+# Web Application Users
+#
+# # <comments>
+#
+# # default S3 credentials, use read-only for best practice
+# *.s3='<read-only-S3-access-key-id>','<read-only-S3-access-key-secret>'
+#
+# # Web Application User Credentiaös
+# <name>[.pw]=<password>
+# [[<name>].config=<config>]
+# [[<name>].s3='<S3-access-key-id>','<S3-access-key-secret>']
+# [[<name>].groups=<group1>,<group2>,...]
+# 
+# <config> and <group n>: either plain text or enclosed in ' or "
+# <password> and <*S3-access-key*>: either base64 or plain text enclosed in ' or "
+#
+
+# default S3 credentials
+*.s3='<read-only-S3-access-key-id>','<read-only-S3-access-key-secret>'
+
+Thingy:91='cloudcoap'
+.groups=Thing
+.config=User
+
+ThingsAdmin='cloudcoap-secret'
+.groups=Thing,Monitor
+.config=Admin
+.s3='<write-S3-access-key-id>','<write-S3-access-key-secret>'
+

@@ -1,0 +1,194 @@
+/********************************************************************************
+ * Copyright (c) 2024 Contributors to the Eclipse Foundation
+ * 
+ * See the NOTICE file(s) distributed with this work for additional
+ * information regarding copyright ownership.
+ * 
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * https://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v1.0 which is available at
+ * https://www.eclipse.org/org/documents/edl-v10.php.
+ * 
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ ********************************************************************************/
+
+#logo {
+	display: inline-block;
+	vertical-align: middle;
+}
+
+#title {
+	display: inline-block;
+	vertical-align: middle;
+}
+
+#devicestatus {
+	font-size: x-small;
+}
+
+#devicestatuspage {
+	font-size: x-small;
+}
+
+#deviceconfig {
+	font-size: x-small;
+}
+
+#deviceconfigpage {
+	font-size: x-small;
+}
+
+#deviceconfigpage tr.changed {
+	background-color: lightyellow;
+}
+
+#devicechart {
+	font-size: x-small;
+}
+
+#devicechartpage {
+	font-size: x-small;
+}
+
+#diagnose {
+	font-size: x-small;
+}
+
+#period,
+#perioddec,
+#periodinc,
+#periodoutput,
+#periodlabel {
+	vertical-align: middle;
+	font-size: small;
+}
+
+#period {
+	width: 70%
+}
+
+#devicelist {
+	text-align: left;
+	vertical-align: middle;
+	font-size: small;
+}
+
+#devicelist button.tb2,
+#devicelist button.tb1 {
+	background: lightgrey;
+	border-radius: 0.2em;
+	border: none;
+	width: 100%
+}
+
+#devicelist button.tb2d,
+#devicelist button.tb1d {
+	background: gainsboro;
+	border-radius: 0.2em;
+	border: none;
+	width: 100%
+}
+
+#devicelist tr.changed {
+	background-color: lightyellow;
+}
+
+#devicelist tr.new {
+	background-color: yellow;
+}
+
+#devicelist tr.changed button.tb1 {
+	background: Khaki;
+}
+
+#devicelist tr.new button.tb1 {
+	background: orange;
+}
+
+#devicelist button.tb1:focus,
+#devicelist button.tb1:hover {
+	box-shadow: .1em .1em 0.2em rgb(0 0 0 / .8) inset;
+}
+
+#diagnose button.tb1 {
+	background: lightgrey;
+	border-radius: 0.2em;
+	border: none;
+	font-size: x-small;
+}
+
+#error {
+	font-size: small;
+}
+
+#loadview {
+	font-size: small;
+}
+
+#loadprogress {
+	margin-left: 2em;
+	accent-color: lightyellow;
+}
+
+#loadprogress.ready {
+	margin-left: 2em;
+	accent-color: lightgreen;
+}
+
+#version {
+	text-align: center;
+	font-size: x-small;
+}
+
+#tablist {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+#tablist li {
+	background-color: gainsboro;
+	border: 1px solid black;
+	border-bottom: none;
+	border-radius: 0.2em 0.2em 0 0;
+	display: inline;
+	font-weight: bold;
+	font-size: small;
+	height: 1em;
+	padding: 0.3em 0.5em 0.4em;
+}
+
+#tablist li:focus,
+#tablist li:hover {
+	background-color: #fffbc7;
+}
+
+#tablist li[aria-disabled="true"] {
+	color: grey;
+}
+
+#tablist li[aria-selected="true"] {
+	background-color: white;
+	padding: 0.3em 0.5em 0.5em;
+}
+
+#tablist li[aria-hidden="true"] {
+	display: none;
+}
+
+#tabcontent {
+	background-color: white;
+	border: 1px solid black;
+	border-radius: 0 0.2em 0.2em 0.2em;
+	margin-top: 0.3em;
+	padding: 1em;
+}
+
+[aria-hidden="true"] {
+	display: none;
+}
+
+[aria-hidden="false"] {
+	display: block;
+}
