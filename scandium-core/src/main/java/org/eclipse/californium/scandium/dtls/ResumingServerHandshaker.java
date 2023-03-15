@@ -311,6 +311,11 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		expectChangeCipherSpecMessage();
 	}
 
+	@Override
+	public boolean isFullHandshake() {
+		return fullHandshake;
+	}
+
 	/**
 	 * Checks, if the session and client hello are valid for an resumption
 	 * handshake.

@@ -2358,6 +2358,20 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Check, if the handshake is a full handshake.
+	 * 
+	 * <b>Note:</b> a resumption handshake, may start as abbreviated handshake
+	 * and may change to a full handshake.
+	 * 
+	 * @return {@code true} for a full handshake, {@code false}, for an
+	 *         abbreviated handshake
+	 * @since 3.9
+	 */
+	public boolean isFullHandshake() {
+		return true;
+	}
+
+	/**
 	 * Get cause of failure.
 	 * 
 	 * @return cause of failure, or {@code null}, if the cause is unknown and not set before
