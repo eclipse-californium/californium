@@ -109,6 +109,22 @@ public interface JceNames {
 
 	/**
 	 * Name of environment variable to specify the JCE.
+	 * 
+	 * Usage via environment variable:
+	 * <pre>
+	 * unix:
+	 * export CALIFORNIUM_JCE_PROVIDER=BC
+	 * ...
+	 * java ... 
+	 * </pre>
+	 * 
+	 * or via system property:
+	 * 
+	 * <pre>
+	 * java -DCALIFORNIUM_JCE_PROVIDER=BC ...
+	 * </pre>
+	 * 
+	 * Requires to add the required jars to the classpath!
 	 */
 	public String CALIFORNIUM_JCE_PROVIDER = "CALIFORNIUM_JCE_PROVIDER";
 	/**

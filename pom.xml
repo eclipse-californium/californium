@@ -369,7 +369,7 @@
 						<dependency>
 							<groupId>org.revapi</groupId>
 							<artifactId>revapi-java</artifactId>
-							<version>0.28.0</version>
+							<version>0.28.1</version>
 						</dependency>
 					</dependencies>
 				</plugin>
@@ -557,11 +557,18 @@
 									</justification>
 								</item>
 								<item>
-									<regex>true</regex>
 									<code>java.class.externalClassExposedInAPI</code>
-									<package>org\.slf4j</package>
+									<package>org.slf4j</package>
 									<justification>
 										Californium uses classes of slf4j in some case with scope protected.
+									</justification>
+								</item>
+								<item>
+									<code>java.field.enumConstantOrderChanged</code>
+									<class>org.eclipse.californium.scandium.dtls.cipher.CipherSuite</class>
+									<justification>
+										Order in CipherSuite reflects the preference by intention.
+										ordinal() must not be used.
 									</justification>
 								</item>
 							</differences>
