@@ -802,6 +802,7 @@ public final class CoapConfig {
 			config.set(COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
 
 			config.set(ACK_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
+			config.set(MAX_ACK_TIMEOUT, 60000, TimeUnit.MILLISECONDS);
 			config.set(ACK_INIT_RANDOM, 1.5f);
 			config.set(ACK_TIMEOUT_SCALE, 2f);
 			config.set(MAX_RETRANSMIT, 4);
