@@ -138,12 +138,12 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	private String client = LIBCOAP_CLIENT_OPENSSL;
 	private String server = LIBCOAP_SERVER_OPENSSL;
 
-	private String version;
 	private String dtlsVersion;
 	private String valgrindVersion;
 	private boolean valgrindActive;
 
 	private String verboseLevel = DEFAULT_VERBOSE_LEVEL;
+	private boolean dtlsVerboseLevel;
 	private String certificate;
 	private String privateKey;
 	private String ca;
@@ -289,6 +289,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 			execute(application, "-h");
 			ProcessResult result = waitResult(timeMillis);
 			assumeNotNull(result);
+			versionResult = result;
 			Matcher matcher = result.match(application + " v(\\S+) ");
 			assumeNotNull(matcher);
 			version = matcher.group(1);
@@ -296,6 +297,8 @@ public class LibCoapProcessUtil extends ProcessUtil {
 			matcher = result.match(dtlsLibrary + " - runtime (\\S+),");
 			assumeNotNull(matcher);
 			dtlsVersion = matcher.group(1);
+
+			dtlsVerboseLevel = result.contains("\\[-V num\\]");
 
 			return result;
 		} catch (InterruptedException ex) {
@@ -336,46 +339,17 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		}
 	}
 
-	public void assumeMinVersion(String version) {
-		assumeNotNull(version);
-		assumeTrue(this.version + " > " + version, compareVersion(this.version, version) >= 0);
-	}
-
 	public void assumeMinDtlsVersion(String version) {
-		assumeNotNull(version);
+		assumeNotNull(this.dtlsVersion);
 		assumeTrue(this.dtlsVersion + " > " + version, compareVersion(this.dtlsVersion, version) >= 0);
-	}
-
-	public String getVersion() {
-		return version;
 	}
 
 	public String getDtlsVersion() {
 		return dtlsVersion;
 	}
 
-	public int compareVersion(String version2) {
-		return compareVersion(version, version2);
-	}
-
 	public int compareDtlsVersion(String version2) {
 		return compareVersion(dtlsVersion, version2);
-	}
-
-	public static int compareVersion(String version1, String version2) {
-		String[] versionPath1 = version1.split("\\.");
-		String[] versionPath2 = version2.split("\\.");
-		int length = versionPath1.length;
-		if (versionPath2.length < length) {
-			length = versionPath2.length;
-		}
-		for (int index = 0; index < length; ++index) {
-			int cmp = versionPath1[index].compareTo(versionPath2[index]);
-			if (cmp != 0) {
-				return cmp;
-			}
-		}
-		return versionPath1.length - versionPath2.length;
 	}
 
 	public void setVerboseLevel(String level) {
@@ -418,8 +392,12 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		addValgrind(args);
 		args.add(client);
 		if (verboseLevel != null) {
-			args.add("-v");
+			args.add("-v"); // coap
 			args.add(verboseLevel);
+			if (dtlsVerboseLevel) {
+				args.add("-V"); // dtls
+				args.add(verboseLevel);
+			}
 		}
 		if (message != null) {
 			message = message.replace(" ", "%20");
@@ -462,6 +440,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 			args.add("-N");
 		}
 		args.add(destination);
+		args.addAll(extraArgs);
 		print(args);
 		execute(args);
 	}
@@ -474,8 +453,12 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		// provide coap port, coaps will be +1
 		args.addAll(Arrays.asList(server, "-p", "5683"));
 		if (verboseLevel != null) {
-			args.add("-v");
+			args.add("-v"); // coap
 			args.add(verboseLevel);
+			if (dtlsVerboseLevel) {
+				args.add("-V"); // dtls
+				args.add(verboseLevel);
+			}
 		}
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
 			args.add("-k");
@@ -495,6 +478,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 				add(args, authMode);
 			}
 		}
+		args.addAll(extraArgs);
 		print(args);
 		execute(args);
 		// wait for DEBG created DTLS endpoint [::]:5684

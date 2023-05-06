@@ -160,8 +160,15 @@ public class PlugtestServer extends AbstractTestServer {
 			config.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
 			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PRESELECTED_CIPHER_SUITES);
 			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10000);
-			config.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, false);
+			config.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
 			config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, false);
+			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, 4, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD, 8);
+			config.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 3, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 8, TimeUnit.SECONDS);
+			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS);
+			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 60, TimeUnit.MINUTES);
+			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);
 			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
 			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
 			config.set(UDP_DROPS_READ_INTERVAL, 2000, TimeUnit.MILLISECONDS);
@@ -490,8 +497,7 @@ public class PlugtestServer extends AbstractTestServer {
 			if (observer != null) {
 				server.addDefaultEndpointObserver(observer);
 			}
-			server.add(new Echo(configuration.get(CoapConfig.MAX_RESOURCE_BODY_SIZE),
-					config.echoDelay ? mainExecutor : null));
+			server.add(new Echo(configuration, config.echoDelay ? mainExecutor : null));
 			server.start();
 			server.addLogger(true);
 

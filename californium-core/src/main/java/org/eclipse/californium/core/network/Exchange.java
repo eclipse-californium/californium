@@ -79,6 +79,7 @@ import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -337,10 +338,10 @@ public class Exchange {
 	 * @param peersIdentity peer's identity. Usually that's the peer's
 	 *            {@link InetSocketAddress}.
 	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Maybe {@code null} for
-	 *            unit tests.
-	 * @throws NullPointerException if request is {@code null}
-	 * @since 3.0 (added peersIdentity)
+	 * @param executor executor to be used for exchanges.
+	 * @throws NullPointerException if request or executor is {@code null}
+	 * @see EndpointIdentityResolver
+	 * @since 3.0 (added peersIdentity, executor adapted to mandatory)
 	 */
 	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor) {
 		this(request, peersIdentity, origin, executor, null, false);
@@ -359,6 +360,7 @@ public class Exchange {
 	 * @param notification {@code true} for notification exchange, {@code false}
 	 *            otherwise
 	 * @throws NullPointerException if request or executor is {@code null}
+	 * @see EndpointIdentityResolver
 	 * @since 3.0 (added peersIdentity, executor adapted to mandatory)
 	 */
 	public Exchange(Request request, Object peersIdentity, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
@@ -509,6 +511,32 @@ public class Exchange {
 
 	public boolean isOfLocalOrigin() {
 		return origin == Origin.LOCAL;
+	}
+
+	/**
+	 * Get remote socket address.
+	 * 
+	 * Get remote socket address of current request.
+	 * 
+	 * @return current remote socket address
+	 * @throws IllegalArgumentException if corresponding endpoint context is
+	 *             missing
+	 * @since 3.8
+	 */
+	public InetSocketAddress getRemoteSocketAddress() {
+		EndpointContext remoteEndpoint;
+		if ((origin == Origin.LOCAL)) {
+			remoteEndpoint = currentRequest.getDestinationContext();
+			if (remoteEndpoint == null) {
+				throw new IllegalArgumentException("Outgoing request must have destination context");
+			}
+		} else {
+			remoteEndpoint = currentRequest.getSourceContext();
+			if (remoteEndpoint == null) {
+				throw new IllegalArgumentException("Incoming request must have source context");
+			}
+		}
+		return remoteEndpoint.getPeerAddress();
 	}
 
 	/**
@@ -783,6 +811,7 @@ public class Exchange {
 	 * Returns the other peer's identity.
 	 * 
 	 * @return the other peer's identity
+	 * @see EndpointIdentityResolver
 	 * @since 3.0
 	 */
 	public Object getPeersIdentity() {

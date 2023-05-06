@@ -11,6 +11,8 @@ Here is a (non-exclusive, non-prioritized) list of things you might be able to h
 * features (both ideas and code are welcome)
 * test cases
 
+There are a couple of [enhancement issues](https://github.com/eclipse-californium/californium/issues?q=is%3Aissue+label%3Ahibernate), which have been closed for longer inactivity. Maybe, if you like to help and spend some time, you will be welcome.
+
 In order to get you started as fast as possible we need to go through some organizational issues first, though.
 
 ## Eclipse Contributor Agreement

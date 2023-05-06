@@ -17,19 +17,23 @@ package org.eclipse.californium.interoperability.test.openssl;
 
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.CA_CERTIFICATES;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.CA_RSA_CERTIFICATES;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.CA_EDDSA_CERTIFICATES;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.CLIENT_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_EDDSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.TRUSTSTORE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_IDENTITY;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_SECRET;
 import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil;
@@ -78,10 +82,11 @@ public class OpenSslProcessUtil extends ProcessUtil {
 
 	public static final String DEFAULT_CURVES = "X25519:prime256v1";
 	public static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
+	public static final String DEFAULT_EDDSA_SIGALGS = "ed25519:ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
 
-	private ProcessResult version;
-
-	private List<String> extraArgs = new ArrayList<>();
+	public static final String OPENSSL_OS = "openssl";
+	public static final String OPENSSL_DEV = "/usr/local/ssl/bin/openssl";
+	public static final String OPENSSL = OPENSSL_OS;
 
 	/**
 	 * Create instance.
@@ -95,25 +100,34 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	 * @param timeMillis timeout in milliseconds
 	 * @return result of version command. {@code null}, if not available.
 	 */
-	public ProcessResult getOpenSslVersion(long timeMillis) {
-		if (version == null) {
+	public ProcessResult getToolVersion(long timeMillis) {
+		if (versionResult == null) {
 			try {
-				execute("openssl", "version");
-				version = waitResult(timeMillis);
+				execute(OPENSSL, "version");
+				versionResult = waitResult(timeMillis);
+				assumeNotNull(versionResult);
+				Matcher matcher = versionResult.match("OpenSSL (\\S+) ");
+				assumeNotNull(matcher);
+				version = matcher.group(1);
 			} catch (InterruptedException ex) {
 				return null;
 			} catch (IOException ex) {
 			}
 		}
-		return version;
+		return versionResult;
 	}
 
+	/**
+	 * Assume, that the version supports a server.
+	 * 
+	 * Version {@code 1.1.1a-k} seems to be broken on windows.
+	 */
 	public void assumeServerVersion() {
 		String os = System.getProperty("os.name");
 		if (os.startsWith("Windows")) {
-			if (version != null) {
+			if (versionResult != null) {
 				assumeFalse("Windows openssl server 1.1.1 seems to be broken!",
-						version.contains("OpenSSL 1\\.1\\.1[a-k]"));
+						versionResult.contains("OpenSSL 1\\.1\\.1[a-k]"));
 			} else {
 				assumeFalse("result for openssl version missing!", true);
 			}
@@ -129,20 +143,10 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	 * "_blank">openssl issue</a>.
 	 */
 	public void assumePskServerVersion() {
-		if (version != null) {
-			assumeFalse("openssl 1.1.1l - server PSK support is broken!", version.contains("OpenSSL 1\\.1\\.1l"));
+		if (versionResult != null) {
+			assumeFalse("openssl 1.1.1l - server PSK support is broken!", versionResult.contains("OpenSSL 1\\.1\\.1l"));
 		} else {
 			assumeFalse("result for openssl version missing!", true);
-		}
-	}
-
-	public void clearExtraArgs() {
-		extraArgs.clear();
-	}
-
-	public void addExtraArgs(String... args) {
-		for (String arg : args) {
-			extraArgs.add(arg);
 		}
 	}
 
@@ -161,7 +165,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
 		String openSslCiphers = OpenSslUtil.getOpenSslCipherSuites(ciphers);
-		args.addAll(Arrays.asList("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher",
+		args.addAll(Arrays.asList(OPENSSL, "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher",
 				openSslCiphers));
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
 			args.add("-psk_identity");
@@ -172,13 +176,13 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
 			args.add("-cert");
 			args.add(clientCert);
-			add(args, authMode, CA_CERTIFICATES);
+			add(args, authMode, CA_CERTIFICATES, TRUSTSTORE);
 		}
 		add(args, curves, sigAlgs);
 		args.addAll(extraArgs);
 		print(args);
 		execute(args);
-		return "(" + openSslCiphers.replace(":", "|") + ")";
+		return "(" + openSslCiphers.replace(":@SECLEVEL=0", "").replace(":", "|") + ")";
 	}
 
 	public String startupServer(String accept, OpenSslProcessUtil.AuthenticationMode authMode, CipherSuite... ciphers)
@@ -191,7 +195,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
 		String openSslCiphers = OpenSslUtil.getOpenSslCipherSuites(ciphers);
-		args.addAll(Arrays.asList("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-verify", "5",
+		args.addAll(Arrays.asList(OPENSSL, "s_server", "-dtls1_2", "-4", "-accept", accept, "-listen", "-verify", "5",
 				"-cipher", openSslCiphers));
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
 			assumePskServerVersion();
@@ -204,10 +208,15 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			args.add("-cert");
 			args.add(serverCertificate);
 			String chain = CA_CERTIFICATES;
+			String trust = TRUSTSTORE;
 			if (SERVER_CA_RSA_CERTIFICATE.equals(serverCertificate)) {
 				chain = CA_RSA_CERTIFICATES;
+				trust = CA_RSA_CERTIFICATES;
+			} else if (SERVER_EDDSA_CERTIFICATE.equals(serverCertificate)) {
+				chain = CA_EDDSA_CERTIFICATES;
+				trust = CA_EDDSA_CERTIFICATES;
 			}
-			add(args, authMode, chain);
+			add(args, authMode, chain, trust);
 		}
 		add(args, curves, sigAlgs);
 		args.addAll(extraArgs);
@@ -215,7 +224,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		execute(args);
 		// ensure, server is ready to ACCEPT messages
 		assumeTrue(waitConsole("ACCEPT", TIMEOUT_MILLIS));
-		return "(" + openSslCiphers.replace(":", "|") + ")";
+		return "(" + openSslCiphers.replace(":@SECLEVEL=0", "").replace(":", "|") + ")";
 	}
 
 	public void add(List<String> args, String curves, String sigAlgs) throws IOException, InterruptedException {
@@ -229,7 +238,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		}
 	}
 
-	public void add(List<String> args, OpenSslProcessUtil.AuthenticationMode authMode, String chain)
+	public void add(List<String> args, OpenSslProcessUtil.AuthenticationMode authMode, String chain, String trust)
 			throws IOException, InterruptedException {
 		switch (authMode) {
 		case PSK:
@@ -244,7 +253,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			break;
 		case TRUST:
 			args.add("-CAfile");
-			args.add(TRUSTSTORE);
+			args.add(trust);
 			args.add("-build_chain");
 			break;
 		}

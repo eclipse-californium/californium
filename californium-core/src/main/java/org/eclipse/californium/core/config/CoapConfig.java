@@ -32,6 +32,7 @@ import org.eclipse.californium.core.network.deduplication.SweepDeduplicator;
 import org.eclipse.californium.core.network.deduplication.SweepPerPeerDeduplicator;
 import org.eclipse.californium.core.network.stack.KeyUri;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.config.BooleanDefinition;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
@@ -690,6 +691,24 @@ public final class CoapConfig {
 			CongestionControlMode.NULL, CongestionControlMode.values());
 
 	/**
+	 * Force congestion control algorithm to use inet-address instead of remote
+	 * peer's identity.
+	 * 
+	 * The {@link EndpointIdentityResolver} enables Californium to use a
+	 * different remote identity instead of the inet-address to process states.
+	 * For congestion control that may result in less good results, if an
+	 * inet-address change, maybe caused by a NAT, also causes the quality of
+	 * the ip-route.
+	 * 
+	 * @since 3.8
+	 */
+	public static final BooleanDefinition CONGESTION_CONTROL_USE_INET_ADDRESS = new BooleanDefinition(
+			MODULE + "CONGESTION_CONTROL_USE_INET_ADDRESS",
+			"Use inet-address for congestion control, even if an other peer identity is used."
+					+ " Enable, if NAT changes are also changing the quality of the ip-route.",
+			false);
+
+	/**
 	 * Number of threads to process coap-exchanges.
 	 */
 	public static final IntegerDefinition PROTOCOL_STAGE_THREAD_COUNT = new IntegerDefinition(
@@ -783,6 +802,7 @@ public final class CoapConfig {
 			config.set(COAP_SECURE_PORT, CoAP.DEFAULT_COAP_SECURE_PORT);
 
 			config.set(ACK_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
+			config.set(MAX_ACK_TIMEOUT, 60000, TimeUnit.MILLISECONDS);
 			config.set(ACK_INIT_RANDOM, 1.5f);
 			config.set(ACK_TIMEOUT_SCALE, 2f);
 			config.set(MAX_RETRANSMIT, 4);

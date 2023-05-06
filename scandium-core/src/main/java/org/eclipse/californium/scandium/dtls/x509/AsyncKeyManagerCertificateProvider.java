@@ -25,6 +25,7 @@ import javax.security.auth.x500.X500Principal;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.CertificateIdentityResult;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -37,7 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Asynchronous test implementation based on {@link KeyManagerCertificateProvider}.
+ * Asynchronous test implementation based on
+ * {@link KeyManagerCertificateProvider}.
  * 
  * Use {@code 0} or negative delays for test with synchronous blocking behavior.
  * And positive delays for test with asynchronous none-blocking behavior.
@@ -51,7 +53,8 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 	/**
 	 * Thread factory.
 	 */
-	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncKeyManagerCertProvider#", NamedThreadFactory.SCANDIUM_THREAD_GROUP);
+	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncKeyManagerCertProvider#",
+			NamedThreadFactory.SCANDIUM_THREAD_GROUP);
 	/**
 	 * Executor for asynchronous behaviour.
 	 */
@@ -74,13 +77,12 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 	 * 
 	 * @param keyManager key manager with certificates and private keys
 	 * @param supportedCertificateTypes array of supported certificate types
-	 *            ordered by preference
+	 *            ordered by preference.
 	 * @throws NullPointerException if the key manager is {@code null}
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
 	 */
-	public AsyncKeyManagerCertificateProvider(X509KeyManager keyManager,
-			CertificateType... supportedCertificateTypes) {
+	public AsyncKeyManagerCertificateProvider(X509KeyManager keyManager, CertificateType... supportedCertificateTypes) {
 		super(keyManager, supportedCertificateTypes);
 		this.executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
 	}
@@ -90,7 +92,8 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 	 * 
 	 * @param keyManager key manager with certificates and private keys
 	 * @param supportedCertificateTypes list of supported certificate types
-	 *            ordered by preference
+	 *            ordered by preference. Intended to use
+	 *            {@link DtlsConfig#DTLS_CERTIFICATE_TYPES} as input.
 	 * @throws NullPointerException if the key manager is {@code null}
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
@@ -124,7 +127,8 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 	 * @param defaultAlias default alias. May be {@code null}.
 	 * @param keyManager key manager with certificates and private keys
 	 * @param supportedCertificateTypes list of supported certificate types
-	 *            ordered by preference
+	 *            ordered by preference. Intended to use
+	 *            {@link DtlsConfig#DTLS_CERTIFICATE_TYPES} as input.
 	 * @throws NullPointerException if the key manager is {@code null}
 	 * @throws IllegalArgumentException if list of certificate types is empty or
 	 *             contains unsupported types.
@@ -175,7 +179,8 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 
 	@Override
 	public CertificateIdentityResult requestCertificateIdentity(final ConnectionId cid, final boolean client,
-			final List<X500Principal> issuers, final ServerNames serverNames, final List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
+			final List<X500Principal> issuers, final ServerNames serverNames,
+			final List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
 			final List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, final List<SupportedGroup> curves) {
 
 		if (delayMillis <= 0) {
@@ -185,15 +190,16 @@ public class AsyncKeyManagerCertificateProvider extends KeyManagerCertificatePro
 				} catch (InterruptedException e) {
 				}
 			}
-			return super.requestCertificateIdentity(cid, client, issuers, serverNames, certificateKeyAlgorithms, signatureAndHashAlgorithms,
-					curves);
+			return super.requestCertificateIdentity(cid, client, issuers, serverNames, certificateKeyAlgorithms,
+					signatureAndHashAlgorithms, curves);
 		} else {
 			executorService.schedule(new Runnable() {
 
 				@Override
 				public void run() {
-					CertificateIdentityResult result = AsyncKeyManagerCertificateProvider.super.requestCertificateIdentity(cid,
-							client, issuers, serverNames, certificateKeyAlgorithms, signatureAndHashAlgorithms, curves);
+					CertificateIdentityResult result = AsyncKeyManagerCertificateProvider.super.requestCertificateIdentity(
+							cid, client, issuers, serverNames, certificateKeyAlgorithms, signatureAndHashAlgorithms,
+							curves);
 					resultHandler.apply(result);
 				}
 			}, delayMillis, TimeUnit.MILLISECONDS);

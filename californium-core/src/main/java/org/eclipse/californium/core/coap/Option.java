@@ -24,14 +24,22 @@ package org.eclipse.californium.core.coap;
 
 import java.util.Arrays;
 
+import org.eclipse.californium.core.coap.option.EmptyOptionDefinition;
+import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
+import org.eclipse.californium.core.coap.option.OpaqueOptionDefinition;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.coap.option.StringOptionDefinition;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
- * Both requests and responses may include a list of one or more options. An
- * Option number is constructed with a bit mask to indicate if an option is
+ * Both requests and responses may include a list of one or more options.
+ * 
+ * An option number is constructed with a bit mask to indicate if an option is
  * Critical/Elective, Unsafe/Safe and in the case of Safe, also a Cache-Key
- * indication.
+ * indication. See <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.6"
+ * target= "_blank">RFC7252 5.4.6. Option Numbers</a>.
  * 
  * <hr><blockquote><pre>
  *   0   1   2   3   4   5   6   7
@@ -48,37 +56,57 @@ import org.eclipse.californium.elements.util.StringUtil;
  * NoCacheKey = ((onum &amp; 0x1e) == 0x1c);
  * </pre></blockquote><hr>
  *
- * {@code CoAP} defines several option numbers detailed in {@link OptionNumberRegistry}.
+ * {@code CoAP} defines several option numbers detailed in
+ * {@link OptionNumberRegistry}.
  * <p>
- * Class variables {@code number} and {@code value} directly maps to {@code CoAP} request
- * and response options as is. In {@code CoAP} specification {@code number} is
- * an option header key as {@code int} and {@code value} is represented as
- * a raw byte array {@code byte[]}. User must be careful when using {@code value} directly
- * as depending on actual option, {@code value} may be {@code empty}, {@code opaque},
- * {@code uint} or {@code string}. For example, for {@code uint} the number 0 is represented
- * with an empty option value (a zero-length sequence of bytes) and the number 1 by a single
- * byte with the numerical value of 1 (bit combination 00000001 in most significant bit first
- * notation). A recipient MUST be prepared to process values with leading zero bytes.
+ * Class variables {@code number} and {@code value} directly maps to
+ * {@code CoAP} request and response options as is. In {@code CoAP}
+ * specification {@code number} is an option header key as {@code int} and
+ * {@code value} is represented as a raw byte array {@code byte[]}. User must be
+ * careful when using {@code value} directly as depending on actual option,
+ * {@code value} may be {@code empty}, {@code opaque}, {@code uint} or
+ * {@code string}. For example, for {@code uint} the number 0 is represented
+ * with an empty option value (a zero-length sequence of bytes) and the number 1
+ * by a single byte with the numerical value of 1 (bit combination 00000001 in
+ * most significant bit first notation). A recipient MUST be prepared to process
+ * values with leading zero bytes.
  * <p>
  * {@code Option} has helper methods, namely {@link #getIntegerValue()} and
  * {@link #toValueString()} taking into account actual option type and how it
  * may be represented in a native {@code value}.
+ * 
+ * Since 3.8 {@link OptionDefinition} is introduced and is the preferred and
+ * future way to specify, which option is represented. The option number on it's
+ * own represents this only for the traditional options, but options introduced
+ * with <a href="https://www.rfc-editor.org/rfc/rfc8323#section-5.2" target=
+ * "_blank"> RFC8323 5.2. Signaling Option Numbers</a> dependent also on the
+ * message code.
+ * 
+ * <pre>
+ * <code>
+ *   Option maxAge = StandardOptionRegistry.MAX_AGE.create(10);
+ * </code>
+ * </pre>
  *
  * @see OptionSet
  */
 public class Option implements Comparable<Option> {
 
-	/** The option number. */
-	private final int number;
+	/**
+	 * The option definition.
+	 * 
+	 * @since 3.8
+	 */
+	private final OptionDefinition definition;
 
 	/** The value as byte array. */
-	protected byte[] value; // not null
+	private byte[] value; // not null
 
 	/**
 	 * Instantiates a new empty option.
 	 */
 	public Option() {
-		this.number = OptionNumberRegistry.RESERVED_0;
+		this.definition = new OpaqueOptionDefinition(OptionNumberRegistry.RESERVED_0, "Reserved 0");
 		setValue(Bytes.EMPTY);
 	}
 
@@ -92,13 +120,115 @@ public class Option implements Comparable<Option> {
 	 * {@code Bytes.EMPTY} as default would fail in too many cases.
 	 * 
 	 * @param number the option number
+	 * @throws IllegalArgumentException if option number is not supported by
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
 	 * @see #setValue(byte[])
 	 * @see #setStringValue(String)
 	 * @see #setIntegerValue(int)
 	 * @see #setLongValue(long)
+	 * @deprecated use an {@link #Option(OptionDefinition)}
 	 */
+	@Deprecated
 	public Option(int number) {
-		this.number = number;
+		definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(number);
+		if (definition == null) {
+			throw new IllegalArgumentException("Unkonwn " + number + " not supported!");
+		}
+	}
+
+	/**
+	 * Instantiates a new option with the specified option number.
+	 * 
+	 * Note: The value must be set using one of the setters or other
+	 * constructors. Using {@code Bytes.EMPTY} as default fails in too many
+	 * cases.
+	 * 
+	 * @param definition the option definition
+	 * @see #setValue(byte[])
+	 * @see #setStringValue(String)
+	 * @see #setIntegerValue(int)
+	 * @see #setLongValue(long)
+	 * @since 3.8
+	 */
+	public Option(OptionDefinition definition) {
+		if (definition == null) {
+			throw new NullPointerException("Definition must not be null!");
+		}
+		this.definition = definition;
+	}
+
+	/**
+	 * Instantiates a new empty option with the specified empty option
+	 * definition.
+	 * 
+	 * @param definition the option definition
+	 * @since 3.8
+	 */
+	public Option(EmptyOptionDefinition definition) {
+		this.definition = definition;
+		setValue(Bytes.EMPTY);
+	}
+
+	/**
+	 * Instantiates a new option with the specified option definition and with
+	 * an arbitrary byte array as value.
+	 * 
+	 * @param definition the option definition
+	 * @param value the option value in bytes
+	 * @throws NullPointerException if value is {@code null}
+	 * @throws IllegalArgumentException if value doesn't match the option
+	 *             definition.
+	 * @since 3.8
+	 */
+	public Option(OptionDefinition definition, byte[] value) {
+		this.definition = definition;
+		setValue(value);
+	}
+
+	/**
+	 * Instantiates a new option with the specified option definition and
+	 * encodes the specified string as option value.
+	 * 
+	 * @param definition the option definition
+	 * @param value the option value as string
+	 * @throws NullPointerException if value is {@code null}
+	 * @throws IllegalArgumentException if value doesn't match the option
+	 *             definition.
+	 * @since 3.8
+	 */
+	public Option(StringOptionDefinition definition, String value) {
+		this.definition = definition;
+		setStringValue(value);
+	}
+
+	/**
+	 * Instantiates a new option with the specified option definition and
+	 * encodes the specified integer as option value.
+	 * 
+	 * @param definition the option definition
+	 * @param value the option value as integer
+	 * @throws IllegalArgumentException if value doesn't match the option
+	 *             definition.
+	 * @since 3.8
+	 */
+	public Option(IntegerOptionDefinition definition, int value) {
+		this.definition = definition;
+		setIntegerValue(value);
+	}
+
+	/**
+	 * Instantiates a new option with the specified option definition and
+	 * encodes the specified long as option value.
+	 * 
+	 * @param definition the option definition
+	 * @param value the option value as long
+	 * @throws IllegalArgumentException if value doesn't match the option
+	 *             definition.
+	 * @since 3.8
+	 */
+	public Option(IntegerOptionDefinition definition, long value) {
+		this.definition = definition;
+		setLongValue(value);
 	}
 
 	/**
@@ -106,15 +236,18 @@ public class Option implements Comparable<Option> {
 	 * the specified string as option value.
 	 * 
 	 * @param number the number
-	 * @param str the option value as string
+	 * @param value the option value as string
 	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if value length doesn't match the option
-	 *             definition.
+	 * @throws IllegalArgumentException if option number is not supported by
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()} or
+	 *             the value doesn't match the option definition.
 	 * @since 3.0 validate the value and throws exception on mismatch
+	 * @deprecated use {@link #Option(StringOptionDefinition, String)}
 	 */
-	public Option(int number, String str) {
-		this.number = number;
-		setStringValue(str);
+	@Deprecated
+	public Option(int number, String value) {
+		this(number);
+		setStringValue(value);
 	}
 
 	/**
@@ -123,12 +256,15 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param number the option number
 	 * @param val the option value as integer
-	 * @throws IllegalArgumentException if value length doesn't match the option
-	 *             definition.
+	 * @throws IllegalArgumentException if option number is not supported by
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()} or
+	 *             the value doesn't match the option definition.
 	 * @since 3.0 validate the value and throws exception on mismatch
+	 * @deprecated use {@link #Option(IntegerOptionDefinition, int)}
 	 */
+	@Deprecated
 	public Option(int number, int val) {
-		this.number = number;
+		this(number);
 		setIntegerValue(val);
 	}
 
@@ -138,12 +274,15 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param number the option number
 	 * @param val the option value as long
-	 * @throws IllegalArgumentException if value length doesn't match the option
-	 *             definition.
+	 * @throws IllegalArgumentException if option number is not supported by
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()} or
+	 *             the value doesn't match the option definition.
 	 * @since 3.0 validate the value and throws exception on mismatch
+	 * @deprecated use {@link #Option(IntegerOptionDefinition, long)}
 	 */
+	@Deprecated
 	public Option(int number, long val) {
-		this.number = number;
+		this(number);
 		setLongValue(val);
 	}
 
@@ -153,16 +292,29 @@ public class Option implements Comparable<Option> {
 	 * @param number the option number
 	 * @param opaque the option value in bytes
 	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if value length doesn't match the option
-	 *             definition.
+	 * @throws IllegalArgumentException if option number is not supported by
+	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()} or
+	 *             the value doesn't match the option definition.
 	 * @since 3.0 validate the value and throws exception on mismatch
+	 * @deprecated use {@link #Option(OptionDefinition, byte[])}
 	 */
+	@Deprecated
 	public Option(int number, byte[] opaque) {
-		this.number = number;
+		this(number);
 		setValue(opaque);
 	}
 
 	// Getter and Setter
+
+	/**
+	 * Gets the option definition.
+	 * 
+	 * @return the option definition
+	 * @since 3.8
+	 */
+	public OptionDefinition getDefinition() {
+		return definition;
+	}
 
 	/**
 	 * Gets the length of the option value.
@@ -180,7 +332,7 @@ public class Option implements Comparable<Option> {
 	 * @return the option number
 	 */
 	public int getNumber() {
-		return number;
+		return definition.getNumber();
 	}
 
 	/**
@@ -191,8 +343,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public byte[] getValue() {
 		if (value == null) {
-			String name = getName();
-			throw new IllegalStateException(name + " option value must be set before!");
+			throw new IllegalStateException(definition.getName() + " option value must be set before!");
 		}
 		return value;
 	}
@@ -204,41 +355,33 @@ public class Option implements Comparable<Option> {
 	 * @throws IllegalStateException if value was not set before (since 3.0).
 	 */
 	public String getStringValue() {
-		return new String(getValue(), CoAP.UTF8_CHARSET);
+		return StringOptionDefinition.getStringValue(getValue());
 	}
 
 	/**
-	 * Gets the option value as integer. Handles cases where {@code value}
-	 * contains leading 0's or a case where {@code value} is empty which
-	 * returns 0.
+	 * Gets the option value as integer.
+	 * 
+	 * Handles cases where {@code value} contains leading 0's or a case where
+	 * {@code value} is empty which returns 0.
 	 *
 	 * @return the integer value
 	 * @throws IllegalStateException if value was not set before (since 3.0).
 	 */
 	public int getIntegerValue() {
-		int ret = 0;
-		byte[] value = getValue();
-		for (int i = 0; i < value.length; i++) {
-			ret += (value[value.length - i - 1] & 0xFF) << (i * 8);
-		}
-		return ret;
+		return IntegerOptionDefinition.getIntegerValue(getValue());
 	}
 
 	/**
-	 * Gets the option value as long. Handles cases where {@code value}
-	 * contains leading 0's or a case where {@code value} is empty which
-	 * returns 0.
+	 * Gets the option value as long.
+	 * 
+	 * Handles cases where {@code value} contains leading 0's or a case where
+	 * {@code value} is empty which returns 0.
 	 *
 	 * @return the long value
 	 * @throws IllegalStateException if value was not set before (since 3.0).
 	 */
 	public long getLongValue() {
-		long ret = 0;
-		byte[] value = getValue();
-		for (int i = 0; i < value.length; i++) {
-			ret += (long) (value[value.length - i - 1] & 0xFF) << (i * 8);
-		}
-		return ret;
+		return IntegerOptionDefinition.getLongValue(getValue());
 	}
 
 	/**
@@ -246,21 +389,17 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param value the new value
 	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if value length doesn't match the option
+	 * @throws IllegalArgumentException if value doesn't match the option
 	 *             definition.
+	 * @see OptionDefinition#assertValue(byte[])
 	 * @since 3.0 validate the value and throws exception on mismatch
 	 */
 	public void setValue(byte[] value) {
 		if (value == null) {
-			String name = getName();
-			throw new NullPointerException(name + " option value must not be null!");
+			throw new NullPointerException(definition.getName() + " option value must not be null!");
 		}
-		assertValueLength(number);
+		definition.assertValue(value);
 		this.value = value;
-	}
-	
-	protected void assertValueLength(int length) {
-		OptionNumberRegistry.assertValueLength(number, length);
 	}
 
 	/**
@@ -268,46 +407,36 @@ public class Option implements Comparable<Option> {
 	 *
 	 * @param str the new option value as string
 	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if value length doesn't match the option
+	 * @throws IllegalArgumentException if value doesn't match the option
 	 *             definition.
 	 * @since 3.0 validate the value and throws exception on mismatch
 	 */
 	public void setStringValue(String str) {
-		setValue(str == null ? null : str.getBytes(CoAP.UTF8_CHARSET));
+		setValue(StringOptionDefinition.setStringValue(str));
 	}
 
 	/**
 	 * Sets the option value from an integer.
 	 *
 	 * @param val the new option value as integer
-	 * @throws IllegalArgumentException if value length doesn't match the option
+	 * @throws IllegalArgumentException if value doesn't match the option
 	 *             definition.
 	 * @since 3.0 validate the value and throws exception on mismatch
 	 */
 	public void setIntegerValue(int val) {
-		int length = (Integer.SIZE - Integer.numberOfLeadingZeros(val) + 7) / Byte.SIZE;
-		byte[] value = new byte[length];
-		for (int i = 0; i < length; i++) {
-			value[length - i - 1] = (byte) (val >> i * 8);
-		}
-		setValue(value);
+		setValue(IntegerOptionDefinition.setIntegerValue(val));
 	}
 
 	/**
 	 * Sets the option value from a long.
 	 *
 	 * @param val the new option value as long
-	 * @throws IllegalArgumentException if value length doesn't match the option
+	 * @throws IllegalArgumentException if value doesn't match the option
 	 *             definition.
 	 * @since 3.0 validate the value and throws exception on mismatch
 	 */
 	public void setLongValue(long val) {
-		int length = (Long.SIZE - Long.numberOfLeadingZeros(val) + 7) / Byte.SIZE;
-		byte[] value = new byte[length];
-		for (int i = 0; i < length; i++) {
-			value[length - i - 1] = (byte) (val >> i * 8);
-		}
-		setValue(value);
+		setValue(IntegerOptionDefinition.setLongValue(val));
 	}
 
 	/**
@@ -317,7 +446,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public boolean isCritical() {
 		// Critical = (onum & 1);
-		return (number & 1) != 0;
+		return (getNumber() & 1) != 0;
 	}
 
 	/**
@@ -327,7 +456,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public boolean isUnSafe() {
 		// UnSafe = (onum & 2);
-		return (number & 2) != 0;
+		return (getNumber() & 2) != 0;
 	}
 
 	/**
@@ -337,18 +466,22 @@ public class Option implements Comparable<Option> {
 	 */
 	public boolean isNoCacheKey() {
 		// NoCacheKey = ((onum & 0x1e) == 0x1c);
-		return (number & 0x1E) == 0x1C;
+		return (getNumber() & 0x1E) == 0x1C;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */
 	@Override
 	public int compareTo(Option o) {
-		return number - o.number;
+		return getNumber() - o.getNumber();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@Override
@@ -359,40 +492,39 @@ public class Option implements Comparable<Option> {
 			return false;
 		}
 		Option op = (Option) o;
-		return number == op.number && Arrays.equals(value, op.value);
+		return definition.equals(op.definition) && Arrays.equals(value, op.value);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see java.lang.Object#hashCode()
 	 */
 	@Override
 	public int hashCode() {
-		return number * 31 + Arrays.hashCode(value);
+		return definition.hashCode() * 31 + Arrays.hashCode(value);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(getName());
+		sb.append(definition.getName());
 		sb.append(": ");
 		sb.append(toValueString());
 		return sb.toString();
-	}
-	
-	
-	public String getName() {
-		return OptionNumberRegistry.toString(number);
 	}
 
 	/**
 	 * Renders the option value as string. Takes into account of option type,
 	 * thus giving more accurate representation of an option {@code value}.
 	 * Formats {@code value} as integer or string if so defined in
-	 * {@link OptionNumberRegistry}. In case of option {@code value} is just
-	 * an opaque byte array, formats this value as hex string.
+	 * {@link OptionNumberRegistry}. In case of option {@code value} is just an
+	 * opaque byte array, formats this value as hex string.
 	 *
 	 * @return the option value as string
 	 */
@@ -400,17 +532,17 @@ public class Option implements Comparable<Option> {
 		if (value == null) {
 			return "not available";
 		}
-		switch (OptionNumberRegistry.getFormatByNr(number)) {
+		switch (definition.getFormat()) {
 		case INTEGER:
-			if (number == OptionNumberRegistry.BLOCK1 || number == OptionNumberRegistry.BLOCK2)
+			if (StandardOptionRegistry.BLOCK1.equals(definition) || StandardOptionRegistry.BLOCK2.equals(definition))
 				return "\"" + new BlockOption(value) + "\"";
 			int iValue = getIntegerValue();
-			if (number == OptionNumberRegistry.ACCEPT || number == OptionNumberRegistry.CONTENT_FORMAT)
+			if (StandardOptionRegistry.ACCEPT.equals(definition)
+					|| StandardOptionRegistry.CONTENT_FORMAT.equals(definition))
 				return "\"" + MediaTypeRegistry.toString(iValue) + "\"";
-			else if (number == OptionNumberRegistry.NO_RESPONSE)
+			if (StandardOptionRegistry.NO_RESPONSE.equals(definition))
 				return "\"" + new NoResponseOption(iValue) + "\"";
-			else
-				return Long.toString(getLongValue());
+			return Long.toString(getLongValue());
 		case STRING:
 			return "\"" + this.getStringValue() + "\"";
 		case EMPTY:

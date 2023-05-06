@@ -455,7 +455,7 @@ public class DTLSConnectorHandshakeTest {
 
 		if (incompleteConfig.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION)) {
 			serverBuilder.setCertificateIdentityProvider(new KeyManagerCertificateProvider(DtlsTestTools.SERVER_NAME,
-					DtlsTestTools.getDtlsServerKeyManager(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509));
+					DtlsTestTools.getDtlsServerKeyManager(), incompleteConfig.get(DtlsConfig.DTLS_CERTIFICATE_TYPES)));
 		}
 		if (incompleteConfig.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NONE) {
 			if (incompleteConfig.getAdvancedCertificateVerifier() == null) {

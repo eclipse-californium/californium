@@ -111,4 +111,15 @@ public class ObserveNotificationOrderer {
 			return false;
 		}
 	}
+
+	/**
+	 * Reset state.
+	 * 
+	 * @since 3.8
+	 */
+	public synchronized void reset() {
+		number.set(0);
+		nanoTimestamp = 0;
+	}
+
 }

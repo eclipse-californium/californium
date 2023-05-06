@@ -110,10 +110,7 @@ public class Diagnose extends CoapResource {
 		}
 		for (ServerInterface server : serverList) {
 			for (Endpoint ep : server.getEndpoints()) {
-				String scheme = ep.getUri().getScheme();
-				if (CoAP.isUdpScheme(scheme)) {
-					addHealth(ep, serverHealth);
-				}
+				addHealth(ep, serverHealth);
 			}
 		}
 	}

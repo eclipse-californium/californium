@@ -44,6 +44,7 @@ import org.eclipse.californium.core.network.stack.congestioncontrol.CongestionSt
 import org.eclipse.californium.core.network.stack.congestioncontrol.LinuxRto;
 import org.eclipse.californium.core.network.stack.congestioncontrol.PeakhopperRto;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 
@@ -124,7 +125,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	private final static int MAX_RTO = 60000;
 
 	/** The map of remote endpoints */
-	private LeastRecentlyUsedCache<InetSocketAddress, RemoteEndpoint> remoteEndpoints;
+	private LeastRecentlyUsedCache<Object, RemoteEndpoint> remoteEndpoints;
 
 	/** The configuration */
 	protected final Configuration config;
@@ -133,6 +134,14 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * The logging tag.
 	 */
 	protected final String tag;
+
+	/**
+	 * Use inet-address for congestion control.
+	 * 
+	 * @see CoapConfig#CONGESTION_CONTROL_USE_INET_ADDRESS
+	 * @since 3.8
+	 */
+	private final boolean useInetSocketAddress;
 
 	// In CoAP, dithering is applied to the initial RTO of a transmission;
 	// set to true to apply dithering
@@ -156,6 +165,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		this.remoteEndpoints = new LeastRecentlyUsedCache<>(config.get(CoapConfig.MAX_ACTIVE_PEERS),
 				config.get(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, TimeUnit.SECONDS));
 		this.remoteEndpoints.setEvictingOnReadAccess(false);
+		this.useInetSocketAddress = config.get(CoapConfig.CONGESTION_CONTROL_USE_INET_ADDRESS);
 		setDithering(false);
 	}
 
@@ -181,10 +191,13 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	/**
 	 * Create new, algorithm specific remote endpoint.
 	 * 
-	 * @param remoteSocketAddress peer to create the endpoint for.
+	 * @param peersIdentity peer's identity. Usually that's the peer's
+	 *            {@link InetSocketAddress}.
 	 * @return create endpoint.
+	 * @see EndpointIdentityResolver
+	 * @since 3.8 (exchanged InetSocketAddress to Object)
 	 */
-	protected abstract RemoteEndpoint createRemoteEndpoint(InetSocketAddress remoteSocketAddress);
+	protected abstract RemoteEndpoint createRemoteEndpoint(Object peersIdentity);
 
 	/**
 	 * Get remote endpoint.
@@ -193,21 +206,21 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * 
 	 * @param exchange to get the endpoint for
 	 * @return endpoint for exchange.
-	 * @see #createRemoteEndpoint(InetSocketAddress)
+	 * @see #createRemoteEndpoint(Object)
+	 * @see #useInetSocketAddress
 	 */
 	protected RemoteEndpoint getRemoteEndpoint(Exchange exchange) {
-		Message message;
-		if (exchange.isOfLocalOrigin()) {
-			message = exchange.getCurrentRequest();
+		Object peersIdentity;
+		if (useInetSocketAddress) {
+			peersIdentity = exchange.getRemoteSocketAddress();
 		} else {
-			message = exchange.getCurrentResponse();
+			peersIdentity = exchange.getPeersIdentity();
 		}
-		InetSocketAddress remoteSocketAddress = message.getDestinationContext().getPeerAddress();
 		synchronized (remoteEndpoints) {
-			RemoteEndpoint remoteEndpoint = remoteEndpoints.get(remoteSocketAddress);
+			RemoteEndpoint remoteEndpoint = remoteEndpoints.get(peersIdentity);
 			if (remoteEndpoint == null) {
-				remoteEndpoint = createRemoteEndpoint(remoteSocketAddress);
-				remoteEndpoints.put(remoteSocketAddress, remoteEndpoint);
+				remoteEndpoint = createRemoteEndpoint(peersIdentity);
+				remoteEndpoints.put(peersIdentity, remoteEndpoint);
 			}
 			return remoteEndpoint;
 		}
@@ -262,14 +275,16 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 *         response is postponed and put into a queue.
 	 */
 	private boolean processResponse(RemoteEndpoint endpoint, Exchange exchange, Response response) {
-		Type messageType = response.getType();
+
+		exchange.setCurrentResponse(response);
 		if (!response.isNotification()) {
-			if (messageType == Type.CON) {
+			if (response.isConfirmable()) {
 				return checkNSTART(endpoint, exchange);
 			} else {
 				return true;
 			}
 		}
+
 		// Check, if there's space in the notifies queue
 		int size;
 		boolean start = false;
@@ -306,16 +321,16 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	private boolean checkNSTART(RemoteEndpoint endpoint, Exchange exchange) {
 		boolean send = false;
 		boolean queued = false;
-		Type type;
+		Message message;
 		String messageType;
 		Queue<Exchange> queue;
 		if (exchange.isOfLocalOrigin()) {
 			messageType = "req.-";
-			type = exchange.getCurrentRequest().getType();
+			message = exchange.getCurrentRequest();
 			queue = endpoint.getRequestQueue();
 		} else {
 			messageType = "resp.-";
-			type = exchange.getCurrentResponse().getType();
+			message = exchange.getCurrentResponse();
 			queue = endpoint.getResponseQueue();
 		}
 		int size;
@@ -333,16 +348,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			}
 		}
 		if (send) {
-			Message message;
-			if (exchange.isOfLocalOrigin()) {
-				// it's a request
-				message = exchange.getCurrentRequest();
-			} else {
-				// it's a response
-				message = exchange.getCurrentResponse();
-			}
 			message.addMessageObserver(new TimeoutTask(endpoint, exchange));
-			LOGGER.trace("{}send {}{}", tag, messageType, type);
+			LOGGER.trace("{}send {}{}", tag, messageType, message.getType());
 			if (statistic != null) {
 				statistic.sendRequest();
 			}
@@ -352,7 +359,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 				statistic.queueRequest();
 			}
 		} else {
-			LOGGER.debug("{}drop {}{}, queue full {}", tag, messageType, type, size);
+			LOGGER.debug("{}drop {}{}, queue full {}", tag, messageType, message.getType(), size);
 		}
 		return false;
 	}
@@ -465,6 +472,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		// process ReliabilityLayer
 		prepareRequest(exchange, request);
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
+		exchange.setCurrentRequest(request);
 		if (checkNSTART(endpoint, exchange)) {
 			endpoint.checkAging();
 			LOGGER.debug("{}send request", tag);

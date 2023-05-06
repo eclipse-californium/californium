@@ -62,6 +62,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.util.ListUtils;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -356,7 +357,9 @@ public class ClientInitializer {
 			}
 
 			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
+			StaticNewAdvancedCertificateVerifier.Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
 			boolean psk = false;
+			boolean cert = false;
 			List<KeyExchangeAlgorithm> keyExchangeAlgorithms = new ArrayList<KeyExchangeAlgorithm>();
 			List<CertificateType> certificateTypes = new ArrayList<CertificateType>();
 			for (ConnectorConfig.AuthenticationMode auth : clientConfig.authenticationModes) {
@@ -368,22 +371,26 @@ public class ClientInitializer {
 					keyExchangeAlgorithms.add(KeyExchangeAlgorithm.PSK);
 					break;
 				case RPK:
+					cert = true;
 					certificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-					keyExchangeAlgorithms.add(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
-					dtlsConfig.setAdvancedCertificateVerifier(
-							StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build());
+					ListUtils.addIfAbsent(keyExchangeAlgorithms, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
+					verifierBuilder.setTrustAllRPKs();
 					break;
 				case X509:
+					cert = true;
 					certificateTypes.add(CertificateType.X_509);
-					dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
-							.setTrustedCertificates(clientConfig.trust.trusts).build());
-					keyExchangeAlgorithms.add(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
+					verifierBuilder.setTrustedCertificates(clientConfig.trust.trusts);
+					ListUtils.addIfAbsent(keyExchangeAlgorithms, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
 					break;
 				case ECDHE_PSK:
 					psk = true;
 					keyExchangeAlgorithms.add(KeyExchangeAlgorithm.ECDHE_PSK);
 					break;
 				}
+			}
+			if (cert) {
+				verifierBuilder.setSupportedCertificateTypes(certificateTypes);
+				dtlsConfig.setAdvancedCertificateVerifier(verifierBuilder.build());
 			}
 
 			if (clientConfig.authentication != null && clientConfig.authentication.credentials != null) {

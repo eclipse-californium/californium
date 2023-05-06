@@ -23,18 +23,19 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.CODE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.LENGTH_NIBBLE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_BITS;
+
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.CoAP.SignalingCode;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
-import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.SignalingMessage;
-import org.eclipse.californium.core.coap.SignalingOption;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.DatagramReader;
-
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 /**
  * A parser for messages encoded following the encoding defined by the
@@ -46,11 +47,8 @@ public class TcpDataParser extends DataParser {
 	/**
 	 * Create TCP data parser.
 	 * 
-	 * Use {@link OptionNumberRegistry#getCriticalCustomOptions()} as default to
-	 * check for critical custom options.
-	 * 
-	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *        default.
+	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 *        as default option registry.
 	 */
 	public TcpDataParser() {
 		super();
@@ -64,11 +62,25 @@ public class TcpDataParser extends DataParser {
 	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
 	 *            default to check for critical custom options.
 	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *        default.
+	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 *        as default option registry.
+	 * @deprecated please use {@link OptionRegistry} with
+	 *             {@link #TcpDataParser(OptionRegistry)}.
 	 */
+	@Deprecated
 	public TcpDataParser(int[] criticalCustomOptions) {
 		super(criticalCustomOptions);
+	}
+
+	/**
+	 * Create TCP data parser with provided option registry.
+	 * 
+	 * @param optionRegistry option registry. {@code null} to use
+	 *            {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 * @since 3.8
+	 */
+	public TcpDataParser(OptionRegistry optionRegistry) {
+		super(optionRegistry);
 	}
 
 	@Override
@@ -80,21 +92,6 @@ public class TcpDataParser extends DataParser {
 		}
 	}
 	
-	@Override
-	public Option createOption(Message message, int optionNumber, byte[] value) {
-		if (message instanceof SignalingMessage) {
-			if (OptionNumberRegistry.isCritical(optionNumber)) {
-				throw new IllegalArgumentException("Unknown critical option " + optionNumber);
-			}
-			SignalingCode code = ((SignalingMessage)message).getCode();
-			Option option = new SignalingOption(code, optionNumber);
-			option.setValue(value);
-			return option;
-		} else {
-			return super.createOption(message, optionNumber, value);
-		}
-	}
-
 	@Override
 	protected MessageHeader parseHeader(final DatagramReader reader) {
 		if (!reader.bytesAvailable(1)) {

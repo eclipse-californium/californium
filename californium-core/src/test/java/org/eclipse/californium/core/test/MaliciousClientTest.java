@@ -33,10 +33,10 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPOptionException;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.TestOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
@@ -110,7 +110,7 @@ public class MaliciousClientTest {
 	@Test
 	public void testConRequestWithTooLongUri() throws Exception {
 		Request get = newGet();
-		get.getOptions().addOtherOption(newOption(OptionNumberRegistry.URI_PATH, 256));
+		get.getOptions().addOtherOption(newOption(StandardOptionRegistry.URI_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeRequest(get);
@@ -133,7 +133,7 @@ public class MaliciousClientTest {
 	public void testConRequestWithTooLongUriIgnored() throws Exception {
 		serverParser.setIgnoreOptionError(true);
 		Request get = newGet();
-		get.getOptions().addOtherOption(newOption(OptionNumberRegistry.URI_PATH, 256));
+		get.getOptions().addOtherOption(newOption(StandardOptionRegistry.URI_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeRequest(get);
@@ -156,7 +156,7 @@ public class MaliciousClientTest {
 	public void testConRequestWithTooLongUriNotFound() throws Exception {
 		serverParser.setOptionException(new CoAPOptionException("too long uri", ResponseCode.NOT_FOUND));
 		Request get = newGet();
-		get.getOptions().addOtherOption(newOption(OptionNumberRegistry.URI_PATH, 256));
+		get.getOptions().addOtherOption(newOption(StandardOptionRegistry.URI_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeRequest(get);
@@ -179,7 +179,7 @@ public class MaliciousClientTest {
 	public void testConRequestWithTooLongUriRejected() throws Exception {
 		serverParser.setOptionException(new CoAPOptionException("too long uri, reject", null));
 		Request get = newGet();
-		get.getOptions().addOtherOption(newOption(OptionNumberRegistry.URI_PATH, 256));
+		get.getOptions().addOtherOption(newOption(StandardOptionRegistry.URI_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeRequest(get);
@@ -202,7 +202,7 @@ public class MaliciousClientTest {
 	public void testNonRequestWithTooLongUri() throws Exception {
 		Request get = newGet();
 		get.setConfirmable(false);
-		get.getOptions().addOtherOption(newOption(OptionNumberRegistry.URI_PATH, 256));
+		get.getOptions().addOtherOption(newOption(StandardOptionRegistry.URI_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeRequest(get);
@@ -225,7 +225,7 @@ public class MaliciousClientTest {
 		serverParser.setIgnoreOptionError(true);
 		Request get = newGet();
 		get.setConfirmable(false);
-		get.getOptions().addOtherOption(newOption(OptionNumberRegistry.URI_PATH, 256));
+		get.getOptions().addOtherOption(newOption(StandardOptionRegistry.URI_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeRequest(get);
@@ -249,7 +249,7 @@ public class MaliciousClientTest {
 		serverParser.setOptionException(new CoAPOptionException("too long uri", ResponseCode.NOT_FOUND));
 		Request get = newGet();
 		get.setConfirmable(false);
-		get.getOptions().addOtherOption(newOption(OptionNumberRegistry.URI_PATH, 256));
+		get.getOptions().addOtherOption(newOption(StandardOptionRegistry.URI_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeRequest(get);
@@ -272,7 +272,7 @@ public class MaliciousClientTest {
 		serverParser.setOptionException(new CoAPOptionException("too long uri", null));
 		Request get = newGet();
 		get.setConfirmable(false);
-		get.getOptions().addOtherOption(newOption(OptionNumberRegistry.URI_PATH, 256));
+		get.getOptions().addOtherOption(newOption(StandardOptionRegistry.URI_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeRequest(get);
@@ -318,7 +318,7 @@ public class MaliciousClientTest {
 	public void testConResponseWithTooLongLocation() throws Exception {
 		Response response = newResponse(ResponseCode.CONTENT);
 		response.setConfirmable(true);
-		response.getOptions().addOtherOption(newOption(OptionNumberRegistry.LOCATION_PATH, 256));
+		response.getOptions().addOtherOption(newOption(StandardOptionRegistry.LOCATION_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeResponse(response);
@@ -341,7 +341,7 @@ public class MaliciousClientTest {
 	public void testNonResponseWithTooLongLocation() throws Exception {
 		Response response = newResponse(ResponseCode.CONTENT);
 		response.setConfirmable(false);
-		response.getOptions().addOtherOption(newOption(OptionNumberRegistry.LOCATION_PATH, 256));
+		response.getOptions().addOtherOption(newOption(StandardOptionRegistry.LOCATION_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeResponse(response);
@@ -363,7 +363,7 @@ public class MaliciousClientTest {
 	public void testPiggyBackedResponseWithTooLongLocation() throws Exception {
 		Response response = newResponse(ResponseCode.CONTENT);
 		response.setType(Type.ACK);
-		response.getOptions().addOtherOption(newOption(OptionNumberRegistry.LOCATION_PATH, 256));
+		response.getOptions().addOtherOption(newOption(StandardOptionRegistry.LOCATION_PATH, 256));
 
 		DataSerializer serializer = new UdpDataSerializer();
 		RawData rawData = serializer.serializeResponse(response);
@@ -413,7 +413,7 @@ public class MaliciousClientTest {
 	private static CoapServer createServer() throws IOException {
 		Configuration config = network.getStandardTestConfig();
 
-		CustomUdpDataParser parser = new CustomUdpDataParser(true, null);
+		CustomUdpDataParser parser = new CustomUdpDataParser(true);
 		serverParser = parser;
 
 		

@@ -17,10 +17,13 @@ package org.eclipse.californium.interoperability.test;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +32,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.junit.AssumptionViolatedException;
 
 /**
  * Utility to start external tools.
@@ -36,6 +40,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 public class ProcessUtil {
 
 	public static final long TIMEOUT_MILLIS = 2000;
+	public static final long FOLLOW_UP_TIMEOUT_MILLIS = 100;
 
 	/**
 	 * Process of external tool.
@@ -60,6 +65,24 @@ public class ProcessUtil {
 	 * Result of external tool. RC and console output.
 	 */
 	private ProcessResult result;
+	/**
+	 * Result of version request of external tool. RC and console output.
+	 * 
+	 * @since 3.8
+	 */
+	protected ProcessResult versionResult;
+	/**
+	 * Version of external tool.
+	 * 
+	 * @since 3.8
+	 */
+	protected String version;
+	/**
+	 * List with extra arguments.
+	 * 
+	 * @since 3.8
+	 */
+	protected List<String> extraArgs = new ArrayList<>();
 
 	private boolean stopped;
 
@@ -115,6 +138,27 @@ public class ProcessUtil {
 			tag = ", " + tag;
 		}
 		this.tag = tag;
+	}
+
+	/**
+	 * Clear current extra arguments.
+	 * 
+	 * @since 3.8
+	 */
+	public void clearExtraArgs() {
+		extraArgs.clear();
+	}
+
+	/**
+	 * Add extra argument.
+	 * 
+	 * @param args extra arguments
+	 * @since 3.8
+	 */
+	public void addExtraArgs(String... args) {
+		for (String arg : args) {
+			extraArgs.add(arg);
+		}
 	}
 
 	/**
@@ -215,6 +259,93 @@ public class ProcessUtil {
 	}
 
 	/**
+	 * Get external tool's version.
+	 * 
+	 * @param timeMillis timeout in milliseconds
+	 * @return result of version command. {@code null}, if not available.
+	 * @since 3.8
+	 */
+	public ProcessResult getToolVersion(long timeMillis) {
+		return null;
+	}
+
+	/**
+	 * Get version of external tool.
+	 * 
+	 * @return version of external tool, or {@code null}, if not available.
+	 * @see #getToolVersion(long)
+	 * @since 3.8 (moved from LibCoapProcessUtil)
+	 */
+	public String getVersion() {
+		if (versionResult == null) {
+			getToolVersion(TIMEOUT_MILLIS);
+		}
+		return version;
+	}
+
+	/**
+	 * Compare version with version of external tool.
+	 * 
+	 * @param version version to compare
+	 * @return {@code <0}, if the provided version is newer, {@code 0}, if the
+	 *         versions are matching, {@code >0}, if provided version is older.
+	 * @see #getToolVersion(long)
+	 * @since 3.8 (moved from LibCoapProcessUtil)
+	 */
+	public int compareVersion(String version) {
+		if (versionResult == null) {
+			getToolVersion(TIMEOUT_MILLIS);
+		}
+		assumeNotNull(this.version);
+		return compareVersion(this.version, version);
+	}
+
+	/**
+	 * Assume a minimum version of the external tool.
+	 * 
+	 * @param version assumed minimum version
+	 * @throws AssumptionViolatedException if the external tool's version is
+	 *             older than the provided one.
+	 * @see #getToolVersion(long)
+	 * @since 3.8 (moved from LibCoapProcessUtil)
+	 */
+	public void assumeMinVersion(String version) {
+		if (versionResult == null) {
+			getToolVersion(TIMEOUT_MILLIS);
+		}
+		assumeNotNull(this.version);
+		assumeTrue(this.version + " > " + version, compareVersion(this.version, version) >= 0);
+	}
+
+	/**
+	 * Compare versions.
+	 * 
+	 * Split the provided arguments at the {@code '.'}s.
+	 * 
+	 * @param version1 version 1
+	 * @param version2 version 2
+	 * @return {@code <0}, if version 1 is older than version 2, {@code 0}, if the
+	 *         versions are matching, {@code >0}, if version 1 is newer than
+	 *         version2.
+	 * @since 3.8 (moved from LibCoapProcessUtil)
+	 */
+	public static int compareVersion(String version1, String version2) {
+		String[] versionPath1 = version1.split("\\.");
+		String[] versionPath2 = version2.split("\\.");
+		int length = versionPath1.length;
+		if (versionPath2.length < length) {
+			length = versionPath2.length;
+		}
+		for (int index = 0; index < length; ++index) {
+			int cmp = versionPath1[index].compareTo(versionPath2[index]);
+			if (cmp != 0) {
+				return cmp;
+			}
+		}
+		return versionPath1.length - versionPath2.length;
+	}
+
+	/**
 	 * Get console quiet period in milliseconds.
 	 * 
 	 * @return milliseconds since the last console update.
@@ -269,6 +400,7 @@ public class ProcessUtil {
 	 * @since 3.0 (add return value)
 	 */
 	public boolean stop() {
+		clearExtraArgs();
 		Process process = getProcess();
 		if (process != null) {
 			try {

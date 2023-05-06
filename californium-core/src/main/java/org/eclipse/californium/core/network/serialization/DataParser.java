@@ -28,10 +28,12 @@ package org.eclipse.californium.core.network.serialization;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
 
-import java.util.Arrays;
-
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.option.LegacyMapBasedOptionRegistry;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.CoAPOptionException;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -49,30 +51,19 @@ import org.eclipse.californium.elements.util.DatagramReader;
 /**
  * A base class for parsing CoAP messages from a byte array.
  */
+@SuppressWarnings("deprecation")
 public abstract class DataParser {
 
-	/**
-	 * Sorted array of critical custom options.
-	 * 
-	 * {@code null}, to not check for critical custom options, empty to fail on
-	 * critical custom options.
-	 * 
-	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.7 the array is sorted
-	 */
-	private final int[] criticalCustomOptions;
+	protected final OptionRegistry optionRegistry;
 
 	/**
 	 * Create data parser.
 	 * 
-	 * Use {@link OptionNumberRegistry#getCriticalCustomOptions()} as default to
-	 * check for critical custom options.
-	 * 
-	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *        default.
+	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 *        as default option registry.
 	 */
 	protected DataParser() {
-		criticalCustomOptions = null;
+		optionRegistry = StandardOptionRegistry.getDefaultOptionRegistry();
 	}
 
 	/**
@@ -83,19 +74,32 @@ public abstract class DataParser {
 	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
 	 *            default to check for critical custom options.
 	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.7 use {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *        default.
+	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 *        as default option registry.
+	 * @deprecated please use {@link OptionRegistry} with
+	 *             {@link #DataParser(OptionRegistry)}.
 	 */
+	@Deprecated
 	protected DataParser(int[] criticalCustomOptions) {
 		if (criticalCustomOptions == null) {
 			criticalCustomOptions = OptionNumberRegistry.getCriticalCustomOptions();
 		}
-		if (criticalCustomOptions != null) {
-			this.criticalCustomOptions = criticalCustomOptions.clone();
-			Arrays.sort(this.criticalCustomOptions);
-		} else {
-			this.criticalCustomOptions = null;
+		this.optionRegistry = new LegacyMapBasedOptionRegistry(true, criticalCustomOptions,
+				StandardOptionRegistry.getDefaultOptionRegistry());
+	}
+
+	/**
+	 * Create data parser with provided option registry.
+	 * 
+	 * @param optionRegistry option registry. {@code null} to use
+	 *            {@link StandardOptionRegistry#getDefaultOptionRegistry()}
+	 * @since 3.8
+	 */
+	protected DataParser(OptionRegistry optionRegistry) {
+		if (optionRegistry == null) {
+			optionRegistry = StandardOptionRegistry.getDefaultOptionRegistry();
 		}
+		this.optionRegistry = optionRegistry;
 	}
 
 	/**
@@ -218,9 +222,11 @@ public abstract class DataParser {
 	 * @return {@code true}, if option number is a critical custom option,
 	 *         {@code false}, if not.
 	 * @since 3.4
+	 * @deprecated
 	 */
+	@Deprecated
 	protected boolean isCiriticalCustomOption(int optionNumber) {
-		return Arrays.binarySearch(criticalCustomOptions, optionNumber) >= 0;
+		return false;
 	}
 
 	/**
@@ -241,6 +247,7 @@ public abstract class DataParser {
 		if (message == null) {
 			throw new NullPointerException("message must not be null!");
 		}
+		int code = message.getRawCode();
 		int currentOptionNumber = 0;
 		byte nextByte = 0;
 		OptionSet optionSet = message.getOptions();
@@ -262,7 +269,7 @@ public abstract class DataParser {
 				// read option
 				if (reader.bytesAvailable(optionLength)) {
 					byte[] value = reader.readBytes(optionLength);
-					Option option = createOption(message, currentOptionNumber, value);
+					Option option = createOption(code, currentOptionNumber, value);
 					if (option != null) {
 						optionSet.addOption(option);
 					}
@@ -315,6 +322,7 @@ public abstract class DataParser {
 	 * Malformed CON-responses are always rejected and malformed NON-messages
 	 * are always ignored.
 	 * 
+	 * @param code message code
 	 * @param optionNumber option number
 	 * @param value option value
 	 * @return create option, or {@code null}, to ignore this option. Please
@@ -325,18 +333,19 @@ public abstract class DataParser {
 	 * @throws IllegalArgumentException if the option is a critical custom
 	 *             option or the value doesn't match the option's specification.
 	 * @throws NullPointerException if provided value is {@code null}
-	 * @since 3.7
+	 * @see Message#getRawCode()
+	 * @see Option#getNumber()
+	 * @since 3.8 (add parameter code)
 	 */
-	public Option createOption(Message message, int optionNumber, byte[] value) {
-		if (criticalCustomOptions != null && OptionNumberRegistry.isCritical(optionNumber)
-				&& OptionNumberRegistry.isCustomOption(optionNumber)) {
-			if (!isCiriticalCustomOption(optionNumber)) {
-				throw new IllegalArgumentException("Unknown critical option " + optionNumber);
-			}
+	public Option createOption(int code, int optionNumber, byte[] value) {
+		OptionDefinition definition = optionRegistry.getDefinitionByNumber(code, optionNumber);
+		if (definition != null) {
+			return definition.create(value);
+		} else if (OptionNumberRegistry.isCritical(optionNumber)) {
+			throw new IllegalArgumentException("Unknown critical option " + optionNumber + " is not supported!");
+		} else {
+			return null;
 		}
-		Option option = new Option(optionNumber);
-		option.setValue(value);
-		return option;
 	}
 
 	/**

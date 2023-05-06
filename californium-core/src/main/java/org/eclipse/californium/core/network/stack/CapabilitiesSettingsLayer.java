@@ -1,13 +1,13 @@
 package org.eclipse.californium.core.network.stack;
 
 import org.eclipse.californium.core.coap.CoAP.SignalingCode;
-import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.coap.option.SignalingOptionRegistry;
+import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.SignalingMessage;
-import org.eclipse.californium.core.coap.SignalingOption;
-import org.eclipse.californium.core.coap.SignalingOptionNumberRegistry;
+import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
 import org.slf4j.Logger;
@@ -46,12 +46,10 @@ public class CapabilitiesSettingsLayer extends AbstractConnectionOrientedLayer {
 	public void connected(EndpointContext context) {
 		SignalingMessage cms = new SignalingMessage(SignalingCode.CSM);
 
-		SignalingOption max_message_size = new SignalingOption(SignalingCode.CSM, SignalingOptionNumberRegistry.MAX_MESSAGE_SIZE);
 		// TODO use max message size from config ?
-		max_message_size.setIntegerValue(1152);
+		Option max_message_size = SignalingOptionRegistry.MAX_MESSAGE_SIZE.create(1152);
+		Option block_wise_transfer = SignalingOptionRegistry.BLOCK_WISE_TRANSFER.create(Bytes.EMPTY);
 
-		SignalingOption block_wise_transfer = new SignalingOption(SignalingCode.CSM, SignalingOptionNumberRegistry.BLOCK_WISE_TRANSFER);
-		block_wise_transfer.setValue(Bytes.EMPTY);
 		cms.setOptions(new OptionSet().addOptions(max_message_size, block_wise_transfer));
 
 		cms.setDestinationContext(context);

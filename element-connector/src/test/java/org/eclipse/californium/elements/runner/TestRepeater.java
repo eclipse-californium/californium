@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.junit.runner.Description;
 import org.junit.runner.Runner;
 import org.junit.runner.notification.Failure;
@@ -58,7 +59,7 @@ public class TestRepeater {
 	 * Maximum number of repeats.
 	 * 
 	 * 0 := repeat until failure. May be set via property
-	 * "org.eclipse.californium.runner.TestRepeater.repeats". Default
+	 * "org.eclipse.californium.elements.runner.TestRepeater.repeats". Default
 	 * {@link #DEFAULT_MAXIMUM_REPEATS}.
 	 */
 	private final long maximumRepeats;
@@ -66,7 +67,7 @@ public class TestRepeater {
 	 * Interval for alive logging in milliseconds.
 	 * 
 	 * 0 := disabled. May be set via property
-	 * "org.eclipse.californium.runner.TestRepeater.alive". Default
+	 * "org.eclipse.californium.elements.runner.TestRepeater.alive". Default
 	 * {@link #DEFAULT_ALIVE_INTERVAL_IN_MILLISECONDS}.
 	 */
 	private final int aliveIntervalInMilliseconds;
@@ -75,29 +76,24 @@ public class TestRepeater {
 	 * Create new test repeater.
 	 */
 	public TestRepeater() {
-		Integer value = getProperty(TestRepeater.class.getName() + ".repeats");
-		maximumRepeats = null == value ? DEFAULT_MAXIMUM_REPEATS : value;
-		value = getProperty(TestRepeater.class.getName() + ".alive");
-		aliveIntervalInMilliseconds = null == value ? DEFAULT_ALIVE_INTERVAL_IN_MILLISECONDS : value;
-	}
-
-	/**
-	 * Get integer value from property with provided name.
-	 * 
-	 * @param name name of property
-	 * @return value, of {@code null}, if property is not defined or value is no
-	 *         integer number.
-	 */
-	private Integer getProperty(String name) {
-		String value = System.getProperty(name);
-		if (null != value) {
-			try {
-				return Integer.valueOf(value);
-			} catch (NumberFormatException ex) {
-				LOGGER.error("value for ''{}'' := ''{}'' is no number!", name, value);
-			}
+		String name = TestRepeater.class.getName() + ".repeats";
+		Long value = StringUtil.getConfigurationLong(name);
+		if (value == null) {
+			LOGGER.info("Use default {} for {}", DEFAULT_MAXIMUM_REPEATS, name);
+			maximumRepeats = DEFAULT_MAXIMUM_REPEATS;
+		} else {
+			LOGGER.info("Use {} for {}", value, name);
+			maximumRepeats = value;
 		}
-		return null;
+		name = TestRepeater.class.getName() + ".alive";
+		value = StringUtil.getConfigurationLong(name);
+		if (value == null) {
+			LOGGER.info("Use default {} for {}", DEFAULT_ALIVE_INTERVAL_IN_MILLISECONDS, name);
+			aliveIntervalInMilliseconds = DEFAULT_ALIVE_INTERVAL_IN_MILLISECONDS;
+		} else {
+			LOGGER.info("Use {} for {}", value, name);
+			aliveIntervalInMilliseconds = value.intValue();
+		}
 	}
 
 	/**

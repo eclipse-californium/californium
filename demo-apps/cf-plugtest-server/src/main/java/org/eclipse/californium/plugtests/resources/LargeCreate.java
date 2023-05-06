@@ -107,6 +107,7 @@ public class LargeCreate extends CoapResource {
 		@Override
 		public void handleDELETE(CoapExchange exchange) {
 			this.delete();
+			exchange.respond(DELETED);
 		}
 	}
 	

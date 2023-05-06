@@ -139,6 +139,7 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 		assertTrue(result.contains("certificate \\(11\\)"));
 		assertTrue(result.contains("certificate_request \\(13\\)"));
 		assertTrue(result.contains("certificate_verify \\(15\\)"));
+		assertTrue(result.contains("CN 'RPK' presented by client \\(Certificate\\)"));
 		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
 	}
 

@@ -8,7 +8,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>parent</artifactId>
-	<version>3.8.0-SNAPSHOT</version>
+	<version>3.9.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<name>Californium (Cf) Parent</name>
@@ -110,7 +110,7 @@
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 		<javadoc.doclint>none</javadoc.doclint>
-		<revapi.previous.version>3.7.0</revapi.previous.version>
+		<revapi.previous.version>RELEASE</revapi.previous.version>
 	</properties>
 
 	<distributionManagement>
@@ -364,12 +364,12 @@
 				<plugin>
 					<groupId>org.revapi</groupId>
 					<artifactId>revapi-maven-plugin</artifactId>
-					<version>0.14.6</version>
+					<version>0.15.0</version>
 					<dependencies>
 						<dependency>
 							<groupId>org.revapi</groupId>
 							<artifactId>revapi-java</artifactId>
-							<version>0.26.1</version>
+							<version>0.28.1</version>
 						</dependency>
 					</dependencies>
 				</plugin>
@@ -557,19 +557,18 @@
 									</justification>
 								</item>
 								<item>
-									<regex>true</regex>
 									<code>java.class.externalClassExposedInAPI</code>
-									<package>org\.slf4j</package>
+									<package>org.slf4j</package>
 									<justification>
 										Californium uses classes of slf4j in some case with scope protected.
 									</justification>
 								</item>
 								<item>
-									<regex>true</regex>
-									<code>java.class.externalClassExposedInAPI</code>
-									<package>io\.netty</package>
+									<code>java.field.enumConstantOrderChanged</code>
+									<class>org.eclipse.californium.scandium.dtls.cipher.CipherSuite</class>
 									<justification>
-										Californium uses classes of io.netty in some case with scope protected.
+										Order in CipherSuite reflects the preference by intention.
+										ordinal() must not be used.
 									</justification>
 								</item>
 							</differences>
@@ -834,32 +833,31 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.art>jdk15to18</bc.art>
 				<bc.version>1.72</bc.version>
 				<slf4j.version>1.7.36</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcpkix-${bc.art}</artifactId>
+					<artifactId>bcpkix-jdk15to18</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcprov-${bc.art}</artifactId>
+					<artifactId>bcprov-jdk15to18</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bctls-${bc.art}</artifactId>
+					<artifactId>bctls-jdk15to18</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcutil-${bc.art}</artifactId>
+					<artifactId>bcutil-jdk15to18</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
@@ -890,32 +888,31 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.art>jdk18on</bc.art>
 				<bc.version>1.72</bc.version>
 				<slf4j.version>1.7.36</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcpkix-${bc.art}</artifactId>
+					<artifactId>bcpkix-jdk18on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcprov-${bc.art}</artifactId>
+					<artifactId>bcprov-jdk18on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bctls-${bc.art}</artifactId>
+					<artifactId>bctls-jdk18on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcutil-${bc.art}</artifactId>
+					<artifactId>bcutil-jdk18on</artifactId>
 					<version>${bc.version}</version>
 					<scope>test</scope>
 				</dependency>

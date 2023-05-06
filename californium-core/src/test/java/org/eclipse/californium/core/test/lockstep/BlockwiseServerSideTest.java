@@ -43,7 +43,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.NON;
-import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
+import static org.eclipse.californium.core.coap.option.StandardOptionRegistry.OBSERVE;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
@@ -61,7 +61,6 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -69,6 +68,7 @@ import org.eclipse.californium.core.network.UdpMatcher;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.EndpointContext;
@@ -945,7 +945,7 @@ public class BlockwiseServerSideTest {
 		Token tok = generateNextToken();
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(2, true, 64).payload(reqtPayload.substring(2*64, 3*64)).go();
-		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).noOption(OptionNumberRegistry.BLOCK1).go();
+		client.expectResponse(ACK, REQUEST_ENTITY_INCOMPLETE, tok, mid).noOption(StandardOptionRegistry.BLOCK1).go();
 		Response response = serverInterceptor.getLastSentResponse();
 		assertThat(response, is(notNullValue()));
 		assertThat(response.isInternal(), is(true));

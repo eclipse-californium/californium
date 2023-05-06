@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -234,7 +233,7 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 		// block-wise layer (for outer block-wise). If a response was not
 		// processed by OSCORE in the ObjectSecurityLayer it will happen here.
 		Response rawResponse =  exchange.getCurrentResponse();
-		boolean outerBlockwise = rawResponse.getOptions().hasBlock2()
+		boolean outerBlockwise = rawResponse != null && rawResponse.getOptions().hasBlock2()
 				&& ctxDb.getContextByToken(rawResponse.getToken()) != null;
 		if (outerBlockwise) {
 
@@ -277,11 +276,11 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 
 	private static boolean shouldProtectRequest(Request request) {
 		OptionSet options = request.getOptions();
-		return options.hasOption(OptionNumberRegistry.OSCORE);
+		return options.hasOscore();
 	}
 
 	private static boolean isProtected(Message message) {
 		OptionSet options = message.getOptions();
-		return options.hasOption(OptionNumberRegistry.OSCORE);
+		return options.hasOscore();
 	}
 }

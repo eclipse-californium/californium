@@ -17,6 +17,7 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - add more tests
+ *    Rogier Cobben - add signaling code
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -30,6 +31,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.CodeClass;
 import org.eclipse.californium.core.coap.CoAP.MessageFormat;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.SignalingCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -42,6 +44,7 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class CoapTest {
+
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
@@ -78,6 +81,15 @@ public class CoapTest {
 	}
 
 	@Test
+	public void testSignalingCode() {
+		for (SignalingCode code : SignalingCode.values()) {
+			assertEquals(code, SignalingCode.valueOf(code.value));
+			assertTrue(MessageFormat.SIGNALING_MESSAGE_CODE_LOWER_BOUND <= code.value);
+			assertTrue(code.value <= MessageFormat.SIGNALING_MESSAGE_CODE_UPPER_BOUND);
+		}
+	}
+
+	@Test
 	public void testGetCodeClass() {
 		for (Code code : Code.values()) {
 			assertThat(CoAP.getCodeClass(code.value), is(CodeClass.REQUEST.value));
@@ -89,13 +101,19 @@ public class CoapTest {
 		// errors
 		assertThat(CoAP.getCodeClass(ResponseCode.BAD_REQUEST.value), is(CodeClass.ERROR_RESPONSE.value));
 		assertThat(CoAP.getCodeClass(ResponseCode.CONFLICT.value), is(CodeClass.ERROR_RESPONSE.value));
-		assertThat(CoAP.getCodeClass(ResponseCode.UNSUPPORTED_CONTENT_FORMAT.value), is(CodeClass.ERROR_RESPONSE.value));
+		assertThat(CoAP.getCodeClass(ResponseCode.UNSUPPORTED_CONTENT_FORMAT.value),
+				is(CodeClass.ERROR_RESPONSE.value));
 		assertThat(CoAP.getCodeClass(ResponseCode.UNPROCESSABLE_ENTITY.value), is(CodeClass.ERROR_RESPONSE.value));
 		// server errors
 		assertThat(CoAP.getCodeClass(ResponseCode.INTERNAL_SERVER_ERROR.value),
 				is(CodeClass.SERVER_ERROR_RESPONSE.value));
 		assertThat(CoAP.getCodeClass(ResponseCode.NOT_IMPLEMENTED.value), is(CodeClass.SERVER_ERROR_RESPONSE.value));
-		assertThat(CoAP.getCodeClass(ResponseCode.SERVICE_UNAVAILABLE.value), is(CodeClass.SERVER_ERROR_RESPONSE.value));
+		assertThat(CoAP.getCodeClass(ResponseCode.SERVICE_UNAVAILABLE.value),
+				is(CodeClass.SERVER_ERROR_RESPONSE.value));
+		// signaling
+		for (SignalingCode code : SignalingCode.values()) {
+			assertThat(CoAP.getCodeClass(code.value), is(CodeClass.SIGNAL.value));
+		}
 	}
 
 	@Test
@@ -118,6 +136,12 @@ public class CoapTest {
 		assertThat(CoAP.getCodeDetail(ResponseCode.INTERNAL_SERVER_ERROR.value), is(0));
 		assertThat(CoAP.getCodeDetail(ResponseCode.NOT_IMPLEMENTED.value), is(1));
 		assertThat(CoAP.getCodeDetail(ResponseCode.SERVICE_UNAVAILABLE.value), is(3));
+		// signaling
+		assertThat(CoAP.getCodeDetail(SignalingCode.CSM.value), is(1));
+		assertThat(CoAP.getCodeDetail(SignalingCode.PING.value), is(2));
+		assertThat(CoAP.getCodeDetail(SignalingCode.PONG.value), is(3));
+		assertThat(CoAP.getCodeDetail(SignalingCode.RELEASE.value), is(4));
+		assertThat(CoAP.getCodeDetail(SignalingCode.ABORT.value), is(5));
 	}
 
 	@Test
@@ -142,6 +166,12 @@ public class CoapTest {
 		assertThat(CoAP.formatCode(ResponseCode.INTERNAL_SERVER_ERROR.value), is("5.00"));
 		assertThat(CoAP.formatCode(ResponseCode.NOT_IMPLEMENTED.value), is("5.01"));
 		assertThat(CoAP.formatCode(ResponseCode.SERVICE_UNAVAILABLE.value), is("5.03"));
+		// signaling
+		assertThat(CoAP.formatCode(SignalingCode.CSM.value), is("7.01"));
+		assertThat(CoAP.formatCode(SignalingCode.PING.value), is("7.02"));
+		assertThat(CoAP.formatCode(SignalingCode.PONG.value), is("7.03"));
+		assertThat(CoAP.formatCode(SignalingCode.RELEASE.value), is("7.04"));
+		assertThat(CoAP.formatCode(SignalingCode.ABORT.value), is("7.05"));
 	}
 
 	@Test

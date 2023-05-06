@@ -84,13 +84,13 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-3.8.0.jar
+CF_JAR=cf-extplugtest-client-3.9.0.jar
 CF_JAR_FIND="cf-extplugtest-client-*.jar"
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 #CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
-CF_OPT="-XX:MaxRAMPercentage=50"
+CF_OPT="-XX:+UseZGC -Xmx10g"
 
-export CALIFORNIUM_STATISTIC="3.8.0"
+export CALIFORNIUM_STATISTIC="3.9.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
@@ -148,7 +148,7 @@ MULTIPLIER=10
 : "${REQS:=$((1000 * $MULTIPLIER))}"
 REQS_EXTRA=$(($REQS + ($REQS/10)))
 REV_REQS=$((2 * $REQS))
-: "${NOTIFIES:=$((1000 * $MULTIPLIER))}"
+: "${NOTIFIES:=$((350 * $MULTIPLIER))}"
 : "${REV_NOTIFIES:=$NOTIFIES}"
 
 : "${PAYLOAD:=40}"
@@ -157,8 +157,8 @@ REV_REQS=$((2 * $REQS))
 : "${REQS_LARGE:=$(($PAYLOAD * $REQS / $PAYLOAD_LARGE))}"
 
 : "${UDP_CLIENTS:=$((200 * $CLIENTS_MULTIPLIER))}"
-: "${TCP_CLIENTS:=$((50 * $CLIENTS_MULTIPLIER))}"
-: "${OBS_CLIENTS:=$((50 * $CLIENTS_MULTIPLIER))}"
+: "${TCP_CLIENTS:=$((100 * $CLIENTS_MULTIPLIER))}"
+: "${OBS_CLIENTS:=$((100 * $CLIENTS_MULTIPLIER))}"
 
 : "${CALI_AUTH:=--psk-store cali.psk}"
 
@@ -235,29 +235,31 @@ benchmark()
 
 benchmark_all()
 {
-   if [ ${USE_REQUEST} -eq 1 ] ; then
 # POST
-      if [ ${USE_CON} -eq 1 ] || [ ${USE_CON} -eq 3 ] ; then
-         if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
+   if [ ${USE_REQUEST} -eq 1 ] ; then
+#    Large Payload
+      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
+         if [ ${USE_CON} -eq 1 ] || [ ${USE_CON} -eq 3 ] ; then
             benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
          fi
+         if [ ${USE_NON} -ne 0 ] ; then
+            benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
+         fi
+         benchmark_tcp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --bertblocks 4
+      fi
+
+#    Small Payload
+      if [ ${USE_CON} -eq 1 ] || [ ${USE_CON} -eq 3 ] ; then
          benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART} --payload-random ${PAYLOAD}
       fi
 
       if [ ${USE_NON} -ne 0 ] ; then
-         if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
-            benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
-         fi
          benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART} --payload-random ${PAYLOAD}
-      fi
-
-      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
-         benchmark_tcp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --bertblocks 4
       fi
       benchmark_tcp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} --payload-random ${PAYLOAD}
 
-      if [ ${USE_CON} -eq 2 ] || [ ${USE_CON} -eq 3 ] ; then
 # POST separate response
+      if [ ${USE_CON} -eq 2 ] || [ ${USE_CON} -eq 3 ] ; then
          benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_NSTART} --payload-random ${PAYLOAD}
       fi
    fi
@@ -266,6 +268,7 @@ benchmark_all()
       benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 
       benchmark_udp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 --cancel-proactive
       benchmark_tcp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75
+      benchmark_tcp "${RESOURCE_PATH}?rlen=${PAYLOAD}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --notifies ${NOTIFIES} --reregister 25 --register 75 --cancel-proactive
    fi
 
    if [ ${USE_REVERSE} -eq 1 ] ; then

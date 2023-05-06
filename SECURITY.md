@@ -2,9 +2,11 @@
 
 ## Reporting a Vulnerability
 
-Californium supports the use of [GitHub security advisories](https://help.github.com/en/articles/managing-security-vulnerabilities-in-your-project) as pilot for [eclipse](https://www.eclipse.org/) projects. Please consider to use it for reporting vulnerabilities.
+Californium supports the use of [GitHub security advisories](https://help.github.com/en/articles/managing-security-vulnerabilities-in-your-project) as pilot for [eclipse](https://www.eclipse.org/) projects.
 
-Alternatively may also report a vulnerability opening a [bugzilla ticket](https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Community&component=Vulnerability+Reports&keywords=security&groups=Security_Advisories).
+To report a vulnerability, [go directly to the form](https://github.com/eclipse-californium/californium/security/advisories/new). Alternatively, switch to the [Security tab](https://github.com/eclipse-californium/californium/security), then click "Report a vulnerability" and another "Report a vulnerability" button again.
+
+You may also report a vulnerability opening a [bugzilla ticket](https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Community&component=Vulnerability+Reports&keywords=security&groups=Security_Advisories).
 
 For more details, please look at [https://www.eclipse.org/security](https://www.eclipse.org/security).
 
@@ -12,9 +14,9 @@ For more details, please look at [https://www.eclipse.org/security](https://www.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 3.8.0-SNAPSHOT (main) | :heavy_check_mark: |
-| 3.7.0   | :heavy_check_mark: |
-| 3.6.0, 3.5.0, 3.4.0, 3.3.1, 3.2.0, 3.1.0, 3.0.0 | :question: |
+| 3.9.0-SNAPSHOT (main) | :heavy_check_mark: |
+| 3.8.0   | :heavy_check_mark: |
+| 3.8.0, 3.6.0, 3.5.0, 3.4.0, <br/> 3.3.1, 3.2.0, 3.1.0, <br/> 3.0.0 | :question: |
 | 2.7.4   | :question: |
 | 2.7.3, 2.6.6, 2.5.0, 2.4.1, <br/> 2.3.1, 2.2.3, 2.1.0, <br/> 2.0.0 | :question: |
 | before 2.0.0   | :x: |

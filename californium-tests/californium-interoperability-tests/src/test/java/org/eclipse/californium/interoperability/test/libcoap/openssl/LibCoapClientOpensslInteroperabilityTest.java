@@ -39,7 +39,7 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.NoResponseOption;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.Configuration;
@@ -202,7 +202,7 @@ public class LibCoapClientOpensslInteroperabilityTest {
 		String message = "Hello, CoAP! " + californiumUtil.createTextPayload(4096);
 		processUtil.setClientBlocksize(128);
 		int szx = BlockOption.size2Szx(128);
-		processUtil.setClientOption(new BlockOption(szx, false, 0).toOption(OptionNumberRegistry.BLOCK2));
+		processUtil.setClientOption(StandardOptionRegistry.BLOCK2.create(new BlockOption(szx, false, 0).getValue()));
 		processUtil.startupClient(DESTINATION_URL + "large?size=4096", PSK, message, cipherSuite);
 		ProcessResult result = connect(message,
 				"3f#############################################################");

@@ -20,6 +20,7 @@
 package org.eclipse.californium.oscore;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.core.coap.Option;
@@ -299,10 +300,10 @@ public class OptionJuggle {
 	 */
 	public static OptionSet merge(OptionSet eOptions, OptionSet uOptions) {
 
-		List<Option> u = uOptions.asSortedList();
+		List<Option> e = eOptions.asSortedList();
 
-		for (Option tmp : u) {
-			if (!eOptions.hasOption(tmp.getNumber())) {
+		for (Option tmp : uOptions.asSortedList()) {
+			if (Collections.binarySearch(e, tmp) < 0) {
 				eOptions.addOption(tmp);
 			}
 		}

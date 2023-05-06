@@ -52,13 +52,9 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Test cases verifying the client side behavior of the examples from
- * <a href="https://tools.ietf.org/html/rfc7959#section-3" target="_blank">RFC 7958, Section 3</em>.
- */
 @Category(Medium.class)
-public class CongestionControlTest {
-	private static final Logger LOGGER = LoggerFactory.getLogger(CongestionControlTest.class);
+public class CongestionControlClientSideTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(CongestionControlClientSideTest.class);
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
@@ -73,10 +69,7 @@ public class CongestionControlTest {
 
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
-	private static final int TEST_BLOCKWISE_STATUS_INTERVAL = 50;
-	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 300;
 
-	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final int RESPONSE_TIMEOUT_IN_MS = 1000;
 	private static final int ERROR_TIMEOUT_IN_MS = 500;
 	// client retransmits after 200 ms
@@ -92,17 +85,12 @@ public class CongestionControlTest {
 	@Before
 	public void setup() throws Exception {
 		config = network.createStandardTestConfig()
-				.set(CoapConfig.MAX_MESSAGE_SIZE, 128)
-				.set(CoapConfig.PREFERRED_BLOCK_SIZE, 128)
-				.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
 				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.ACK_INIT_RANDOM, 1F)
 				.set(CoapConfig.MAX_RETRANSMIT, 2)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1F)
-				.set(CoapConfig.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.CONGESTION_CONTROL_ALGORITHM, CongestionControlMode.BASIC_RTO)
 				.set(CoapConfig.NSTART, 3);
 
@@ -144,6 +132,7 @@ public class CongestionControlTest {
 		client.sendRequest(request3);
 		server.expectRequest(NON, GET, path).storeToken("C").go();
 
+		// NSTART 3 will postpone request 4
 		Request request4 = createRequest(GET, path, server);
 		request4.setType(NON);
 		client.sendRequest(request4);

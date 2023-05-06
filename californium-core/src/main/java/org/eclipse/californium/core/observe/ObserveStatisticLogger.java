@@ -65,7 +65,7 @@ public class ObserveStatisticLogger extends CounterStatisticManager implements O
 		try {
 			if (isEnabled()) {
 				if (LOGGER.isDebugEnabled()) {
-					if (observes.isUsed()) {
+					if (observeRequests.isUsed()) {
 						StringBuilder log = new StringBuilder();
 						String eol = StringUtil.lineSeparator();
 						String head = "   " + tag;
@@ -74,7 +74,7 @@ public class ObserveStatisticLogger extends CounterStatisticManager implements O
 						log.append(head).append(endpoints).append(eol);
 						log.append(head).append(observeRequests).append(eol);
 						log.append(head).append(cancelRequests).append(eol);
-						log.append(tag).append(rejectedNotifies);
+						log.append(head).append(rejectedNotifies);
 						LOGGER.debug("{}", log);
 					}
 				}

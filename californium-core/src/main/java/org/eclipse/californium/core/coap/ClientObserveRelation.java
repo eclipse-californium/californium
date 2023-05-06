@@ -13,6 +13,8 @@
  * Contributors:
  *    Bosch IO.GmbH - initial implementation,
  *                    mainly copied from CoapObserveRelation
+ *    Rogier Cobben - added confirmable flag and methods to control
+ *                    the type of reregister and cancel requests.
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -49,8 +51,25 @@ public class ClientObserveRelation {
 	/** The endpoint. */
 	protected final Endpoint endpoint;
 
+	/**
+	 * The orderer.
+	 * 
+	 * Only used for UDP, {@code null} for TCP.
+	 * 
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc8323.html#section-7.1"
+	 *      target="_blank">RFC8323, 7.1. Notifications and Reordering</a>
+	 */
+	private final ObserveNotificationOrderer orderer;
+
 	/** The re-registration backoff duration [ms]. */
 	private final long reregistrationBackoffMillis;
+
+	/**
+	 * Indicate transport over TCP.
+	 * 
+	 * @since 3.8
+	 */
+	protected final boolean tcp;
 
 	/**
 	 * Indicates, that an observe request or a (proactive) cancel observe
@@ -72,11 +91,15 @@ public class ClientObserveRelation {
 	/** Indicates whether a proactive cancel request is pending. */
 	private volatile boolean proactiveCancel = false;
 
+	/**
+	 * Indicates whether reregister and cancel requests are sent confirmable.
+	 * 
+	 * @since 3.8
+	 */
+	private volatile boolean confirmable;
+
 	/** The current notification. */
 	private volatile Response current = null;
-
-	/** The orderer. */
-	private volatile ObserveNotificationOrderer orderer;
 
 	/**
 	 * Task to schedule {@link CoapObserveRelation#reregister()}.
@@ -127,13 +150,38 @@ public class ClientObserveRelation {
 	 */
 	public ClientObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
 		this.request = request;
+		this.confirmable = request.isConfirmable();
+		this.tcp = CoAP.isTcpScheme(request.getScheme());
 		this.endpoint = endpoint;
-		this.orderer = new ObserveNotificationOrderer();
+		this.orderer = tcp ? null : new ObserveNotificationOrderer();
 		this.reregistrationBackoffMillis = endpoint.getConfig().get(CoapConfig.NOTIFICATION_REREGISTRATION_BACKOFF,
 				TimeUnit.MILLISECONDS);
 		this.scheduler = executor;
 		this.request.addMessageObserver(pendingRequestObserver);
 		this.request.setProtectFromOffload();
+	}
+
+	/**
+	 * Checks if the relation is reregistered and cancelled confirmable or
+	 * non-confirmable.
+	 *
+	 * @return {@code true}, if the relation is reregistered and cancelled
+	 *         confirmable.
+	 * @since 3.8
+	 */
+	public boolean isConfirmable() {
+		return confirmable;
+	}
+
+	/**
+	 * Set the relation reregister and cancel message type.
+	 *
+	 * @param confirmable when {@code true} reregister and cancel requests are
+	 *            sent confirmable, non-confirmable otherwise.
+	 * @since 3.8
+	 */
+	public void setConfirmable(boolean confirmable) {
+		this.confirmable = confirmable;
 	}
 
 	/**
@@ -161,6 +209,7 @@ public class ClientObserveRelation {
 		}
 		if (requestPending.compareAndSet(false, true)) {
 			Request refresh = Request.newGet();
+			refresh.setConfirmable(confirmable);
 			EndpointContext destinationContext = response != null ? response.getSourceContext()
 					: request.getDestinationContext();
 			refresh.setDestinationContext(destinationContext);
@@ -168,6 +217,8 @@ public class ClientObserveRelation {
 			refresh.setToken(request.getToken());
 			// copy options
 			refresh.setOptions(request.getOptions());
+			// same scheme
+			refresh.setScheme(request.getScheme());
 
 			refresh.setMaxResourceBodySize(request.getMaxResourceBodySize());
 			if (request.isUnintendedPayload()) {
@@ -188,7 +239,9 @@ public class ClientObserveRelation {
 			// update request in observe handle for correct cancellation
 			// reset orderer to accept any sequence number since server
 			// might have rebooted
-			this.orderer = new ObserveNotificationOrderer();
+			if (this.orderer != null) {
+				this.orderer.reset();
+			}
 
 			endpoint.sendRequest(refresh);
 
@@ -209,11 +262,14 @@ public class ClientObserveRelation {
 				: request.getDestinationContext();
 
 		Request cancel = Request.newGet();
+		cancel.setConfirmable(confirmable);
 		cancel.setDestinationContext(destinationContext);
 		// use same Token
 		cancel.setToken(request.getToken());
 		// copy options
 		cancel.setOptions(request.getOptions());
+		// same scheme
+		cancel.setScheme(request.getScheme());
 		// set Observe to cancel
 		cancel.setObserveCancel();
 
@@ -250,7 +306,7 @@ public class ClientObserveRelation {
 	/**
 	 * Marks this relation as canceled.
 	 *
-	 * @param canceled true if this relation has been canceled
+	 * @param canceled {@code true} if this relation has been canceled
 	 */
 	protected void setCanceled(boolean canceled) {
 		this.canceled.set(canceled);
@@ -282,7 +338,7 @@ public class ClientObserveRelation {
 	 */
 	public void reactiveCancel() {
 		Request request = this.request;
-		if (CoAP.isTcpScheme(request.getScheme())) {
+		if (tcp) {
 			LOGGER.info("change to cancel the observe {} proactive over TCP.", request.getTokenString());
 			proactiveCancel();
 		} else if (this.canceled.compareAndSet(false, true)) {
@@ -295,7 +351,7 @@ public class ClientObserveRelation {
 	/**
 	 * Checks if the relation has been canceled.
 	 *
-	 * @return true, if the relation has been canceled
+	 * @return {@code true}, if the relation has been canceled
 	 */
 	public boolean isCanceled() {
 		return canceled.get();
@@ -313,7 +369,8 @@ public class ClientObserveRelation {
 	/**
 	 * Sets the current response or notification.
 	 *
-	 * Use {@link #orderer} to filter deprecated responses.
+	 * Use {@link #orderer} to filter deprecated responses over UDP.
+	 * Responses over TCP are already in order.
 	 *
 	 * @param response the response or notification
 	 * @return {@code true}, response is accepted by {@link #orderer},
@@ -325,14 +382,17 @@ public class ClientObserveRelation {
 			Integer observe = response.getOptions().getObserve();
 			// check, if observation is still ongoing
 			boolean prepareNext = observe != null && !isCanceled();
-			isNew = orderer.isNew(response);
+			// RFC8323, 7.1. Notifications and Reordering
+			// For TCP, the observe option may be empty,
+			// and MUST be ignored
+			isNew = orderer == null || orderer.isNew(response);
 			if (isNew) {
 				current = response;
 				LOGGER.debug("Updated with {}", response);
 			} else if (prepareNext) {
 				// renew preparation also for reregistration responses,
 				// which may still be unchanged
-				prepareNext = orderer.getCurrent() == observe;
+				prepareNext = orderer == null || orderer.getCurrent() == observe;
 			}
 			if (prepareNext) {
 				prepareReregistration(response);
@@ -351,7 +411,11 @@ public class ClientObserveRelation {
 	 * @return {@code true}, if matched, {@code false}, if not.
 	 */
 	public boolean matchRequest(Request request) {
-		return this.request.getToken().equals(request.getToken());
+		// the client observe relation is created
+		// before the token is assigned sending the 
+		// request.
+		Token token = this.request.getToken();
+		return token != null && token.equals(request.getToken());
 	}
 
 	private void setReregistrationHandle(ScheduledFuture<?> reregistrationHandle) {

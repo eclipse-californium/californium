@@ -100,6 +100,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.SignalingMessage;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.interceptors.MalformedMessageInterceptor;
@@ -1517,14 +1519,27 @@ public class CoapEndpoint implements Endpoint, Executor {
 		/**
 		 * Array of critical custom options.
 		 * 
-		 * Only used, if {@link #parser} is not set with
-		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)}.
+		 * Only used, if {@link CoapEndpoint#parser} is not set with
+		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)} nor a
+		 * {@link OptionRegistry} is provided with
+		 * {@link #setOptionRegistry(OptionRegistry)}.
 		 * {@code null}, to not check for critical custom options, empty to fail
 		 * on critical custom options. Default empty.
 		 * 
 		 * @since 3.4
+		 * @deprecated use {@link #optionRegistry} instead.
 		 */
+		@Deprecated
 		private int[] criticalCustomOptions = new int[0];
+		/**
+		 * Option registry for endpoint parser.
+		 * 
+		 * Only used, if {@link CoapEndpoint#parser} is not set with
+		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)}.
+		 * 
+		 * @since 3.8
+		 */
+		private OptionRegistry optionRegistry;
 		/**
 		 * Logging tag.
 		 */
@@ -1745,20 +1760,40 @@ public class CoapEndpoint implements Endpoint, Executor {
 		 * Set critical custom options.
 		 * 
 		 * Only used, if {@link CoapEndpoint#parser} is not set with
-		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)}.
+		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)} nor a
+		 * {@link OptionRegistry} is provided with
+		 * {@link #setOptionRegistry(OptionRegistry)}.
 		 * 
 		 * @param criticalCustomOptions Array of critical custom options.
 		 *            {@code null}, to not check for critical custom options,
 		 *            empty to fail on custom critical options. Default empty.
 		 * @return this
 		 * @since 3.4
+		 * @deprecated use {@link #setOptionRegistry(OptionRegistry)} instead
 		 */
+		@Deprecated
 		public Builder setCriticalCustomOptions(int[] criticalCustomOptions) {
 			if (criticalCustomOptions != null) {
 				this.criticalCustomOptions = criticalCustomOptions.clone();
 			} else {
 				this.criticalCustomOptions = null;
 			}
+			return this;
+		}
+
+		/**
+		 * Set specific option registry for incoming messages.
+		 * 
+		 * Only used, if {@link CoapEndpoint#parser} is not set with
+		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)}.
+		 * 
+		 * @param optionRegistry option registry. Default
+		 *            {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
+		 * @return this
+		 * @since 3.8
+		 */
+		public Builder setOptionRegistry(OptionRegistry optionRegistry) {
+			this.optionRegistry = optionRegistry;
 			return this;
 		}
 
@@ -1793,6 +1828,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		 * 
 		 * @return new endpoint
 		 */
+		@SuppressWarnings("deprecation")
 		public CoapEndpoint build() {
 			if (config == null) {
 				config = Configuration.getStandard();
@@ -1824,10 +1860,18 @@ public class CoapEndpoint implements Endpoint, Executor {
 			}
 			if (parser == null) {
 				if (CoAP.isTcpProtocol(connector.getProtocol())) {
-					parser = new TcpDataParser(criticalCustomOptions);
+					if (optionRegistry != null) {
+						parser = new TcpDataParser(optionRegistry);
+					} else {
+						parser = new TcpDataParser(criticalCustomOptions);
+					}
 				} else {
 					boolean strictEmptyMessageFormat = config.get(CoapConfig.STRICT_EMPTY_MESSAGE_FORMAT);
-					parser = new UdpDataParser(strictEmptyMessageFormat, criticalCustomOptions);
+					if (optionRegistry != null) {
+						parser = new UdpDataParser(strictEmptyMessageFormat, optionRegistry);
+					} else {
+						parser = new UdpDataParser(strictEmptyMessageFormat, criticalCustomOptions);
+					}
 				}
 			}
 			return new CoapEndpoint(connector, config, tokenGenerator, observationStore, exchangeStore,

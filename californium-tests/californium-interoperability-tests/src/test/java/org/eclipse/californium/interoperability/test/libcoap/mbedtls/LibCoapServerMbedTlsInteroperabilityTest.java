@@ -24,7 +24,6 @@ import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProce
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.TRUST;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -159,9 +158,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		ProcessResult result = connect(true);
-		assertFalse(result.contains("write certificate request"));
-		assertFalse(result.contains("'cf-client'"));
+		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
@@ -171,9 +168,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		ProcessResult result = connect(true);
-		assertFalse(result.contains("write certificate request"));
-		assertFalse(result.contains("'cf-client'"));
+		connect(true);
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 

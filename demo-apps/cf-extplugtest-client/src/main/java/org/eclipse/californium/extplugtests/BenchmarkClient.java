@@ -646,6 +646,7 @@ public class BenchmarkClient {
 	private final String id;
 
 	private final boolean secure;
+	private final boolean tcp;
 
 	private final DTLSConnector dtlsConnector;
 
@@ -705,7 +706,7 @@ public class BenchmarkClient {
 		if (destinationContext != null) {
 			request.setDestinationContext(destinationContext);
 		}
-		request.setURI(client.getURI());
+		request.setURI(uri);
 		ResponseTimeout timeout = new ResponseTimeout(request, responseTimeout, executorService);
 		request.addMessageObserver(timeout);
 		request.addMessageObserver(retransmissionDetector);
@@ -851,21 +852,26 @@ public class BenchmarkClient {
 				}
 				LOGGER.trace("{}: receive notify {}/{}", id, notifies, overallNotifiesDownCounter.get());
 				CoapObserveRelation relation = clientObserveRelation;
-				if (relation != null) {
+				if (relation != null && !relation.isCanceled()) {
 					if (config.observe.register > 0 && (notifies % config.observe.register) == 0) {
-						if (config.observe.proactive) {
+						clientObserveRelation = null;
+						if (config.observe.proactive || tcp) {
 							relation.proactiveCancel();
 							LOGGER.trace("{}: cancel proactive, register again {}/{}", id, notifies, overallNotifiesDownCounter.get());
 							return true;
 						} else {
 							relation.reactiveCancel();
 							LOGGER.trace("{}: register again {}/{}", id, notifies, overallNotifiesDownCounter.get());
+							// send next request for new registration
 						}
 					} else if (config.observe.reregister > 0 && (notifies % config.observe.reregister) == 0) {
-						overallRequestsDownCounter.decrementAndGet();
 						notifyResponse.set(true);
-						relation.reregister();
-						LOGGER.trace("{}: reregister {}/{}", id, notifies, overallNotifiesDownCounter.get());
+						try {
+							relation.reregister();
+							overallRequestsDownCounter.decrementAndGet();
+							LOGGER.trace("{}: reregister {}/{}", id, notifies, overallNotifiesDownCounter.get());
+						} catch (IllegalStateException ex) {
+						}
 						return true;
 					} else {
 						// notify without new request
@@ -987,6 +993,7 @@ public class BenchmarkClient {
 	public BenchmarkClient(int index, Config.Reverse reverse, URI uri, CoapEndpoint endpoint,
 			ScheduledExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
 		this.secure = CoAP.isSecureScheme(uri.getScheme());
+		this.tcp = CoAP.isTcpScheme(uri.getScheme());
 		Connector connector = endpoint.getConnector();
 		this.dtlsConnector = secure && connector instanceof DTLSConnector ? (DTLSConnector) connector : null;
 		this.id = endpoint.getTag();
@@ -1629,7 +1636,7 @@ public class BenchmarkClient {
 		boolean observe = false;
 		long lastReverseResponsesCountDown = overallReverseResponsesDownCounter.get();
 		if (config.reverse != null && lastReverseResponsesCountDown > 0) {
-			System.out.println("Requests send.");
+			System.out.println("Requests sent.");
 			long lastChangeNanoRealtime = ClockUtil.nanoRealtime();
 			while (!overallReveresResponsesDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
 				long currentReverseResponsesCountDown = overallReverseResponsesDownCounter.get();
@@ -1685,7 +1692,7 @@ public class BenchmarkClient {
 
 		long lastNotifiesCountDown = overallNotifiesDownCounter.get();
 		if (config.observe != null && lastNotifiesCountDown > 0) {
-			System.out.println("Observe-Requests send.");
+			System.out.println("Observe-Requests sent.");
 			long currentOverallSentRequests = overallRequests - overallRequestsDownCounter.get();
 			long lastChangeNanoRealtime = ClockUtil.nanoRealtime();
 			while (!overallNotifiesDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {

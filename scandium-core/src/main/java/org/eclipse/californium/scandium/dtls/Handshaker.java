@@ -2062,6 +2062,9 @@ public abstract class Handshaker implements Destroyable {
 				}
 				// inform handshaker
 				if (timeout) {
+					if (flight.isFinishedIncluded() && getSession().getCipherSuite().isPskBased()) {
+						message += " Wrong PSK identity or secret?";
+					}
 					handshaker.handshakeFailed(new DtlsHandshakeTimeoutException(
 							"Handshake flight " + flight.getFlightNumber() + " failed!" + message,
 							flight.getFlightNumber()));
@@ -2352,6 +2355,20 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	public boolean isRemovingConnection() {
 		return !handshakeAborted && !connection.hasEstablishedDtlsContext();
+	}
+
+	/**
+	 * Check, if the handshake is a full handshake.
+	 * 
+	 * <b>Note:</b> a resumption handshake, may start as abbreviated handshake
+	 * and may change to a full handshake.
+	 * 
+	 * @return {@code true} for a full handshake, {@code false}, for an
+	 *         abbreviated handshake
+	 * @since 3.9
+	 */
+	public boolean isFullHandshake() {
+		return true;
 	}
 
 	/**

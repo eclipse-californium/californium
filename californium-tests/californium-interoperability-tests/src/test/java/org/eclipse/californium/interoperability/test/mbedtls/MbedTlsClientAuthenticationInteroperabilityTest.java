@@ -21,7 +21,6 @@ import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_
 import static org.eclipse.californium.interoperability.test.mbedtls.MbedTlsProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.mbedtls.MbedTlsProcessUtil.AuthenticationMode.TRUST;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
@@ -37,7 +36,6 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.interoperability.test.ConnectorUtil;
-import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -77,8 +75,7 @@ public class MbedTlsClientAuthenticationInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new MbedTlsProcessUtil();
-		ProcessResult result = processUtil.getMbedTlsVersion(TIMEOUT_MILLIS);
-		assumeNotNull(result);
+		processUtil.assumeMinVersion("3.2.");
 		scandiumUtil = new ScandiumUtil(false);
 		cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 	}

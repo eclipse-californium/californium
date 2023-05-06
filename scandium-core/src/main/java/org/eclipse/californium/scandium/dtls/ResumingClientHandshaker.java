@@ -112,7 +112,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			new HandshakeState(HandshakeType.FINISHED) };
 
 	// flag to indicate if we must do a full handshake or an abbreviated one
-	private boolean fullHandshake = false;
+	private volatile boolean fullHandshake = false;
 
 	/**
 	 * Creates a new handshaker for resuming an existing session with a server.
@@ -299,5 +299,10 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		wrapMessage(flight, message);
 		sendFlight(flight);
 		setExpectedStates(INIT);
+	}
+
+	@Override
+	public boolean isFullHandshake() {
+		return fullHandshake;
 	}
 }

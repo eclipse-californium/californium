@@ -32,14 +32,21 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.util.List;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.OptionNumberRegistry.CustomOptionNumberRegistry;
+import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
+import org.eclipse.californium.core.coap.option.SignalingOptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.coap.option.StringOptionDefinition;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -49,7 +56,10 @@ import org.junit.experimental.categories.Category;
  * integer and long values to byte arrays work properly.
  */
 @Category(Small.class)
+@SuppressWarnings("deprecation")
 public class OptionTest {
+	private static final int CUSTOM_OPTION_1 = 0xff1c;
+	private static final int CUSTOM_OPTION_2 = 0xff9c;
 
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
@@ -77,6 +87,12 @@ public class OptionTest {
 		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.SIZE1));
 		assertTrue(OptionNumberRegistry.isCritical(OptionNumberRegistry.OSCORE));
 		assertFalse(OptionNumberRegistry.isCritical(OptionNumberRegistry.NO_RESPONSE));
+		assertFalse(OptionNumberRegistry.isCritical(SignalingOptionRegistry.MAX_MESSAGE_SIZE.getNumber()));
+		assertFalse(OptionNumberRegistry.isCritical(SignalingOptionRegistry.BLOCK_WISE_TRANSFER.getNumber()));
+		assertFalse(OptionNumberRegistry.isCritical(SignalingOptionRegistry.CUSTODY.getNumber()));
+		assertFalse(OptionNumberRegistry.isCritical(SignalingOptionRegistry.ALTERNATIVE_ADDRESS.getNumber()));
+		assertFalse(OptionNumberRegistry.isCritical(SignalingOptionRegistry.HOLD_OFF.getNumber()));
+		assertFalse(OptionNumberRegistry.isCritical(SignalingOptionRegistry.BAD_CSM_OPTION.getNumber()));
 	}
 
 	@Test
@@ -102,6 +118,12 @@ public class OptionTest {
 		assertTrue(OptionNumberRegistry.isElective(OptionNumberRegistry.SIZE1));
 		assertFalse(OptionNumberRegistry.isElective(OptionNumberRegistry.OSCORE));
 		assertTrue(OptionNumberRegistry.isElective(OptionNumberRegistry.NO_RESPONSE));
+		assertTrue(OptionNumberRegistry.isElective(SignalingOptionRegistry.MAX_MESSAGE_SIZE.getNumber()));
+		assertTrue(OptionNumberRegistry.isElective(SignalingOptionRegistry.BLOCK_WISE_TRANSFER.getNumber()));
+		assertTrue(OptionNumberRegistry.isElective(SignalingOptionRegistry.CUSTODY.getNumber()));
+		assertTrue(OptionNumberRegistry.isElective(SignalingOptionRegistry.ALTERNATIVE_ADDRESS.getNumber()));
+		assertTrue(OptionNumberRegistry.isElective(SignalingOptionRegistry.HOLD_OFF.getNumber()));
+		assertTrue(OptionNumberRegistry.isElective(SignalingOptionRegistry.BAD_CSM_OPTION.getNumber()));
 	}
 
 	@Test
@@ -496,13 +518,88 @@ public class OptionTest {
 	}
 
 	@Test
+	public void testOthersCustomOptionNumberRegistry() {
+		final int[] CRITICAL_CUSTOM_OPTIONS = { CUSTOM_OPTION_1, CUSTOM_OPTION_2 };
+		final CustomOptionNumberRegistry CUSTOM = new CustomOptionNumberRegistry() {
+			
+			@Override
+			public String toString(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+					return "custom1";
+				case CUSTOM_OPTION_2 :
+					return "custom2";
+				}
+				return null;
+			}
+			
+			@Override
+			public int toNumber(String name) {
+				if ("custom1".equals(name)) {
+					return CUSTOM_OPTION_1;
+				} else if ("custom2".equals(name)) {
+					return CUSTOM_OPTION_2;
+				}
+				return OptionNumberRegistry.UNKNOWN;
+			}
+			
+			@Override
+			public boolean isSingleValue(int optionNumber) {
+				return optionNumber != CUSTOM_OPTION_2;
+			}
+			
+			@Override
+			public OptionFormat getFormatByNr(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+				case CUSTOM_OPTION_2 :
+					return OptionFormat.STRING;
+				}
+				return null;
+			}
+			
+			@Override
+			public int[] getCriticalCustomOptions() {
+				return CRITICAL_CUSTOM_OPTIONS;
+			}
+			
+			@Override
+			public int[] getValueLengths(int optionNumber) {
+				switch (optionNumber) {
+				case CUSTOM_OPTION_1 :
+				case CUSTOM_OPTION_2 :
+					return new int[] {0, 64};
+				}
+				return null;
+			}
+			
+			@Override
+			public void assertValue(int optionNumber, long value) {
+			}
+		};
+
+		OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
+		testOthers();
+	}
+
+	@Test
+	public void testOthersCustomOptionRegistry() {
+		StringOptionDefinition CUSTOM_1 = new StringOptionDefinition(CUSTOM_OPTION_1, "custom1", true, 0, 64);
+		StringOptionDefinition CUSTOM_2 = new StringOptionDefinition(CUSTOM_OPTION_2, "custom2", false, 0, 64);
+		MapBasedOptionRegistry registry = new MapBasedOptionRegistry(StandardOptionRegistry.getDefaultOptionRegistry(),
+				CUSTOM_1, CUSTOM_2);
+		StandardOptionRegistry.setDefaultOptionRegistry(registry);
+		testOthers();
+	}
+
 	public void testOthers() {
+
 		OptionSet options = new OptionSet();
-		Option other1 = new Option(0xff1c, "other1");
+		Option other1 = new Option(CUSTOM_OPTION_1, "other1");
 		options.addOtherOption(other1);
-		Option other2 = new Option(0xff9c, "other2");
+		Option other2 = new Option(CUSTOM_OPTION_2, "other2");
 		options.addOtherOption(other2);
-		Option other3 = new Option(0xff9c, "other3");
+		Option other3 = new Option(CUSTOM_OPTION_2, "other3");
 		options.addOtherOption(other3);
 		Option port = new Option(OptionNumberRegistry.URI_PORT, 5684);
 		options.addOption(port);
@@ -525,7 +622,7 @@ public class OptionTest {
 		assertThat(list, not(hasItem(port)));
 		assertThat(list, not(hasItem(no)));
 
-		list = options.getOthers(0xff1c);
+		list = options.getOthers(CUSTOM_OPTION_1);
 		assertThat(list.size(), is(1));
 		assertThat(list, hasItem(other1));
 		assertThat(list, not(hasItem(other2)));
@@ -533,8 +630,8 @@ public class OptionTest {
 		assertThat(list, not(hasItem(port)));
 		assertThat(list, not(hasItem(no)));
 
-		assertThat(options.getOtherOption(0xff1c), is(other1));
-		assertThat(options.getOtherOption(0xff9c), is(other2));
+		assertThat(options.getOtherOption(CUSTOM_OPTION_1), is(other1));
+		assertThat(options.getOtherOption(CUSTOM_OPTION_2), is(other2));
 
 		options.addOtherOption(other2);
 		options.clearOtherOption(other2);
@@ -553,6 +650,12 @@ public class OptionTest {
 		assertThat(list, hasItem(other1));
 		assertThat(list, not(hasItem(other2)));
 		assertThat(list, not(hasItem(other3)));
+	}
+
+	@After
+	public void tearDown() {
+		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
+		StandardOptionRegistry.setDefaultOptionRegistry(null);
 	}
 
 }

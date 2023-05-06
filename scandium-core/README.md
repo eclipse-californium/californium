@@ -119,7 +119,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>scandium</artifactId>
-            <version>3.7.0</version>
+            <version>3.8.0</version>
     </dependency>
     ...
   </dependencies>
@@ -210,6 +210,19 @@ Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to pr
 - *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384*
 - *TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA*
 
+ARIA cipher suites since 3.9.0, requires support by JCE, e.g. BouncyCastle 1.72:
+- TLS_PSK_WITH_ARIA_128_GCM_SHA256
+- TLS_PSK_WITH_ARIA_256_GCM_SHA384
+- *TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256*
+- *TLS_PSK_WITH_ARIA_128_CBC_SHA256*
+- *TLS_PSK_WITH_ARIA_256_CBC_SHA384*
+- TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256
+- TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384
+- *TLS_ECDHE_ECDSA_WITH_ARIA_128_CBC_SHA256*
+- *TLS_ECDHE_ECDSA_WITH_ARIA_256_CBC_SHA384*
+- TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256
+- TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384
+
 Note: the *CBC* cipher suites are not longer recommended for new deployments!
 
 Note: *SHA378* in the cipher suite names are typos. It must be *SHA384*. The straight forward fix would break the API, therefore the fix is postponed to 4.0 (no schedule for now)!
@@ -246,6 +259,7 @@ Supported extensions:
 - [RFC 6066 - TLS Extensions](https://tools.ietf.org/html/rfc6066)
      - [RFC 6066 - Server Name Indication](https://tools.ietf.org/html/rfc6066#section-3)
      - [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4)
+- [RFC 6209 - ARIA Cipher Suites](https://tools.ietf.org/html/rfc6209) (since 3.9.0)
 - [RFC 7250 - Raw Public Keys](https://tools.ietf.org/html/rfc7250)
 - [RFC 7627 - Extended Master Secret Extension](https://tools.ietf.org/html/rfc7627)
 - [RFC 7748 - Elliptic Curves for Security](https://tools.ietf.org/html/rfc7748)
@@ -309,6 +323,19 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 (With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72).
 
 And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
+
+environment variable on unix:
+
+```
+export CALIFORNIUM_JCE_PROVIDER=BC
+...
+java ...
+```
+java `System.property`:
+
+```
+java -DCALIFORNIUM_JCE_PROVIDER=BC
+```
 
 Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but it may be not possible for us to answer them.
 

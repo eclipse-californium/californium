@@ -17,8 +17,6 @@
 
 package org.eclipse.californium.core.network.stack.congestioncontrol;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 import org.eclipse.californium.core.network.stack.RemoteEndpoint;
 import org.eclipse.californium.elements.config.Configuration;
@@ -30,8 +28,8 @@ public class PeakhopperRto extends CongestionControlLayer {
 	}
 
 	@Override
-	protected RemoteEndpoint createRemoteEndpoint(InetSocketAddress remoteSocketAddress) {
-		return new PeakhopperRemoteEndoint(remoteSocketAddress, defaultReliabilityLayerParameters.getAckTimeout(),
+	protected RemoteEndpoint createRemoteEndpoint(Object peersIdentity) {
+		return new PeakhopperRemoteEndoint(peersIdentity, defaultReliabilityLayerParameters.getAckTimeout(),
 				defaultReliabilityLayerParameters.getNstart());
 	}
 
@@ -50,8 +48,8 @@ public class PeakhopperRto extends CongestionControlLayer {
 		private long[] RTT_sample = new long[RTT_HISTORY_SIZE];
 		private int currentRtt;
 
-		private PeakhopperRemoteEndoint(InetSocketAddress remoteAddress, int ackTimeout, int nstart) {
-			super(remoteAddress, ackTimeout, nstart, true);
+		private PeakhopperRemoteEndoint(Object peersIdentity, int ackTimeout, int nstart) {
+			super(peersIdentity, ackTimeout, nstart, true);
 		}
 
 		private void initializeRTOEstimators(long measuredRTT) {

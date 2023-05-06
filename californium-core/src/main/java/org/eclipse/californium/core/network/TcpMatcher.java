@@ -197,7 +197,7 @@ public final class TcpMatcher extends BaseMatcher {
 				EndpointContext context = exchange.getEndpointContext();
 				if (context == null) {
 					// ignore response
-					LOGGER.error("ignoring response from [{}]: {}, request pending to sent!",
+					LOGGER.debug("ignoring response from [{}]: {}, request pending to sent!",
 							response.getSourceContext(), response);
 					cancel(response, receiver);
 					return;
