@@ -51,8 +51,8 @@ public class TinydtlsProcessUtil extends ProcessUtil {
 
 	public static final String DEFAULT_VERBOSE_LEVEL = "9";
 
-	private static final String CLIENT = "tinydtls-client2";
-	private static final String SERVER = "tinydtls-server2";
+	private static final String CLIENT = "tinydtls-client";
+	private static final String SERVER = "tinydtls-server";
 
 	private String verboseLevel = DEFAULT_VERBOSE_LEVEL;
 

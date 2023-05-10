@@ -119,7 +119,7 @@ public class TinydtlsClientInteroperabilityTest {
 	@Test
 	public void testTinydtlsClientCid() throws Exception {
 		processUtil.setTag("tinydtls-client, " + cipherSuite.name());
-		processUtil.addExtraArgs("-#", "-e", "-r");
+		processUtil.addExtraArgs("-z", "-e", "-r");
 		scandiumUtil.start(BIND, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, ScandiumUtil.PORT,
