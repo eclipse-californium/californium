@@ -63,10 +63,10 @@ import org.slf4j.LoggerFactory;
  * kept (mostly) simple and usually already defines the defaults. That prevents
  * to apply several different defaults when accessing them. If custom logic is
  * required, please consider to {@link #setTransient(DocumentedDefinition)} such
- * a value and replace it by a custom definition (with different name na
- * detailed documentation!) It's then the responsibility of that custom code to
+ * a value and replace it by a custom definition (with different name and
+ * detailed documentation!). It's then the responsibility of that custom code to
  * determine the value for the original Californium configuration value and set
- * that before passing the Configuration to Californium's functions.
+ * that before passing the configuration to Californium's functions.
  * 
  * <pre>
  * <code>
@@ -89,7 +89,6 @@ import org.slf4j.LoggerFactory;
  * </code>
  * </pre>
  * 
- * 
  * <p>
  * If both, the file-based provider and the setter-API, provides values for one
  * configuration topic, the value of the setter has precedence over the one from
@@ -108,6 +107,30 @@ import org.slf4j.LoggerFactory;
  * provide specific values, such a file may be generate on a system, where files
  * are possible to write. Take that generated file as template, edit it
  * accordingly and then use it as "read-only" source.
+ * 
+ * Example parts of "Californium3.properties":
+ * 
+ * <pre>
+ * <code>
+ * # Californium CoAP Properties file for client
+ * # Tue Oct 19 10:21:43 CEST 2021
+ * #
+ * # Random factor for initial CoAP acknowledge timeout.
+ * # Default: 1.5
+ * COAP.ACK_INIT_RANDOM=1.5
+ * # Initial CoAP acknowledge timeout.
+ * # Default: 2[s]
+ * COAP.ACK_TIMEOUT=2[s]
+ * # Scale factor for CoAP acknowledge backoff-timeout.
+ * # Default: 2.0
+ * COAP.ACK_TIMEOUT_SCALE=2.0
+ * # Enable automatic failover on "entity too large" response.
+ * # Default: true
+ * COAP.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER=true
+ * ...
+ * </code>
+ * </pre>
+ * 
  * <p>
  * <b>Note</b>: For Android it's recommended to use the AssetManager and pass in
  * the InputStream to the variants using that as parameter. Alternatively you
