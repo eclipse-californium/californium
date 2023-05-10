@@ -31,13 +31,13 @@ users:
    no_user_group: true
 
 runcmd:
- - [ wget, "https://github.com/eclipse/californium/raw/main/demo-apps/cf-unix-setup/scripts/cali.service", -O, "/etc/systemd/system/cali.service" ]
+ - [ wget, "https://github.com/eclipse-californium/californium/raw/main/demo-apps/cf-unix-setup/scripts/cali.service", -O, "/etc/systemd/system/cali.service" ]
  - [ wget, "https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.8.0/cf-plugtest-server-3.8.0.jar", -O, "/home/cali/cf-plugtest-server-update.jar" ]
- - [ wget, "https://github.com/eclipse/californium/raw/main/demo-apps/cf-plugtest-server/src/main/resources/logback.xml", -O, "/home/cali/logback.xml" ]
+ - [ wget, "https://github.com/eclipse-californium/californium/raw/main/demo-apps/cf-plugtest-server/src/main/resources/logback.xml", -O, "/home/cali/logback.xml" ]
  - [ systemctl, start, cali ]
  - [ systemctl, enable, cali ]
- - [ wget, "https://github.com/eclipse/californium/raw/main/demo-apps/cf-unix-setup/scripts/fail2ban/cali2fail.conf", -O, "/etc/fail2ban/jail.d/cali2fail.conf" ]
- - [ wget, "https://github.com/eclipse/californium/raw/main/demo-apps/cf-unix-setup/scripts/fail2ban/cali.conf", -O, "/etc/fail2ban/filter.d/cali.conf" ]
+ - [ wget, "https://github.com/eclipse-californium/californium/raw/main/demo-apps/cf-unix-setup/scripts/fail2ban/cali2fail.conf", -O, "/etc/fail2ban/jail.d/cali2fail.conf" ]
+ - [ wget, "https://github.com/eclipse-californium/californium/raw/main/demo-apps/cf-unix-setup/scripts/fail2ban/cali.conf", -O, "/etc/fail2ban/filter.d/cali.conf" ]
  - [ sleep, 5 ]
  - [ systemctl, restart, fail2ban ]
 
