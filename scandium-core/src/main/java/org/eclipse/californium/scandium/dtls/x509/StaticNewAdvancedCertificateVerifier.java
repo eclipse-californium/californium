@@ -20,6 +20,7 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
+import java.security.cert.CertPathValidatorException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -217,6 +218,10 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 								trustedCertificates);
 					}
 					return new CertificateVerificationResult(cid, certChain, null);
+				} catch (CertPathValidatorException e) {
+					LOGGER.debug("Certificate validation failed: {}", e.getMessage());
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+					throw new HandshakeException("Certificate chain could not be validated", alert, e);
 				} catch (GeneralSecurityException e) {
 					if (LOGGER.isTraceEnabled()) {
 						LOGGER.trace("Certificate validation failed", e);
