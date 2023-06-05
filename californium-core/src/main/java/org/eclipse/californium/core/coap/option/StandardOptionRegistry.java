@@ -104,6 +104,14 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	public static final IntegerOptionDefinition ACCEPT = new IntegerOptionDefinition(OptionNumberRegistry.ACCEPT,
 			Names.Accept, true, 0, 2);
 	/**
+	 * Not supported for now, only for logging!
+	 * 
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc9177.html#section-4"
+	 *      target= "_blank">RFC9177 4. The Q-Block1 and Q-Block2 Options </a>
+	 * @since 3.9
+	 */
+	public static final IntegerOptionDefinition Q_BLOCK_1 = new IntegerOptionDefinition(19, "Q-Block-1", true, 0, 3);
+	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
@@ -152,17 +160,41 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	public static final IntegerOptionDefinition SIZE2 = new IntegerOptionDefinition(OptionNumberRegistry.SIZE2,
 			Names.Size2, true, 0, 4);
 	/**
+	 * Not supported for now, only for logging!
+	 * 
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc9177.html#section-4"
+	 *      target= "_blank">RFC9177 4. The Q-Block1 and Q-Block2 Options </a>
+	 * @since 3.9
+	 */
+	public static final IntegerOptionDefinition Q_BLOCK_2 = new IntegerOptionDefinition(31, "Q-Block-2", false, 0, 3);
+	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc8613.html#section-2"
 	 *      target= "_blank">RFC8613 2. The OSCORE Option</a>
 	 */
 	public static final OpaqueOptionDefinition OSCORE = new OpaqueOptionDefinition(OptionNumberRegistry.OSCORE,
 			Names.Object_Security, true, 0, 255);
 	/**
+	 * Not supported for now, only for logging!
+	 * 
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc9175.html#section-2.2.1"
+	 *      target= "_blank">RFC9175 2.2.1. Echo Option Format</a>
+	 * @since 3.9
+	 */
+	public static final OpaqueOptionDefinition ECHO = new OpaqueOptionDefinition(252, "Echo", true, 1, 40);
+	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7967.html#section-2"
 	 *      target= "_blank">RFC7967 2. Option Definition</a>
 	 */
 	public static final IntegerOptionDefinition NO_RESPONSE = new IntegerOptionDefinition(
 			OptionNumberRegistry.NO_RESPONSE, Names.No_Response, true, 0, 1);
+	/**
+	 * Not supported for now, only for logging!
+	 * 
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc9175.html#section-3.2.1"
+	 *      target= "_blank">RFC9175 3.2.1. Request-Tag Option Format </a>
+	 * @since 3.9
+	 */
+	public static final OpaqueOptionDefinition REQUEST_TAG = new OpaqueOptionDefinition(292, "Request-Tag", true, 0, 8);
 
 	/**
 	 * Registry with all standard options.
@@ -171,8 +203,8 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 
 	private StandardOptionRegistry() {
 		super(IF_MATCH, URI_HOST, ETAG, IF_NONE_MATCH, URI_PORT, LOCATION_PATH, URI_PATH, CONTENT_FORMAT, MAX_AGE,
-				URI_QUERY, ACCEPT, LOCATION_QUERY, PROXY_URI, PROXY_SCHEME, SIZE1, OBSERVE, BLOCK1, BLOCK2, SIZE2,
-				OSCORE, NO_RESPONSE);
+				URI_QUERY, ACCEPT, Q_BLOCK_1, LOCATION_QUERY, PROXY_URI, PROXY_SCHEME, SIZE1, OBSERVE, BLOCK1, BLOCK2,
+				SIZE2, Q_BLOCK_2, OSCORE, ECHO, NO_RESPONSE, REQUEST_TAG);
 	}
 
 	/**
