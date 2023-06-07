@@ -42,9 +42,11 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 
 /**
@@ -71,6 +73,7 @@ import org.junit.rules.ExpectedException;
  * 
  * </pre>
  */
+@Category(Small.class)
 public class CertPathUtilTest {
 
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();

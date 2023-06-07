@@ -31,9 +31,12 @@ import java.net.SocketException;
 import java.util.Collection;
 import java.util.HashSet;
 
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class NetworkInterfacesUtilTest {
 
 	private static final InetAddress[] ARRAY_TYPE = new InetAddress[0];

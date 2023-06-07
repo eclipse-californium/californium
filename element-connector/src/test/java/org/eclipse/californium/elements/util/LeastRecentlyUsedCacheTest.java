@@ -34,17 +34,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.assume.TimeAssume;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.EvictionListener;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Timestamped;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Verifies behavior of {@code LeastRecentlyUsedCache}.
  *
  */
+@Category(Small.class)
 public class LeastRecentlyUsedCacheTest {
 
 	private static final long THRESHOLD_MILLIS = 300;

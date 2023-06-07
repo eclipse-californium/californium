@@ -17,11 +17,14 @@ package org.eclipse.californium.elements.util;
 
 import static org.junit.Assert.assertEquals;
 
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 
+@Category(Small.class)
 public class DatagramWriterTest {
 
 	@Rule

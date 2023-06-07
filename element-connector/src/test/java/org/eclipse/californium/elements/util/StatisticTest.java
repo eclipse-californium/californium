@@ -21,9 +21,12 @@ import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 
 import java.util.Random;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.Statistic.Summary;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class StatisticTest {
 
 	private static final long RANGE = 6;

@@ -33,8 +33,11 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class SslContextUtilTrustTest {
 
 	public static final String TRUST_STORE_PASSWORD_HEX = "726F6F7450617373";

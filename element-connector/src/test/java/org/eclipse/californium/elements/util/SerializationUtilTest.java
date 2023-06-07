@@ -28,11 +28,14 @@ import org.eclipse.californium.elements.Definition;
 import org.eclipse.californium.elements.Definitions;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class SerializationUtilTest {
 
 	private static final long MILLISECOND_IN_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
