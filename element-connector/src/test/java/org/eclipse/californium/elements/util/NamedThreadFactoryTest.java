@@ -29,12 +29,15 @@ import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Test ThreadFactory and predefined ThreadGroups. Ensure, that the predefined
  * ThreadGroups are no daemons, regardless of the ThreadGroup context.
  */
+@Category(Small.class)
 public class NamedThreadFactoryTest {
 
 	@Test

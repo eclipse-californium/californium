@@ -27,12 +27,15 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.security.GeneralSecurityException;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.SslContextUtil.KeyStoreType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class SslContextUtilConfigurationTest {
 
 	public static final String KEY_STORE_PASSWORD_HEX = "656E6450617373";

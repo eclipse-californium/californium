@@ -21,13 +21,16 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Unit tests for {@link Bytes}.
  * 
  * @since 3.0
  */
+@Category(Small.class)
 public class BytesTest {
 
 	private static class TestBytes extends Bytes {

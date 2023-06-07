@@ -33,9 +33,12 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class SslContextUtilCredentialsTest {
 
 	public static final String KEY_STORE_PASSWORD_HEX = "656E6450617373";

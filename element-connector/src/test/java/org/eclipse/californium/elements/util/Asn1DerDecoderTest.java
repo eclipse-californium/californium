@@ -34,13 +34,16 @@ import java.security.SignatureException;
 import java.security.interfaces.ECPublicKey;
 import java.util.Arrays;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.Asn1DerDecoder.Keys;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Verifies behavior of {@link Asn1DerDecoder}.
  */
+@Category(Small.class)
 public class Asn1DerDecoderTest {
 
 	/**
