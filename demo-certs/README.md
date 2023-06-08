@@ -30,6 +30,8 @@ For extended tests,
 14. A pair of private/public RSA keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *server* (alias "serverrsa").
 15. A pair of private/public RSA keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *client* (alias "clientrsa").
 
+16. A pair of private/public EC keys along with a certificate signed with the intermediary CA's key valid for one day which together assert the identity of a expired *client* (alias "clientexpired"). The certificate is intended to be after a day in order ot be expired 
+
 **Trust Store**
 
 The `trustStore.jks` contains the self-signed certificate for the root CA (alias `root`) as well as the certificate chain for the intermediary CAs
@@ -77,6 +79,8 @@ root (cf-root) --+-- carsa (cf-ca-rsa) --+-- servercarsa (cf-server-ca-rsa)
                                          +-- clientrsa (cf-client-rsa)
                                          |
                                          +-- clientext (cf-clientext)
+                                         |
+                                         +-- clientexpired (cf-clientexpired)
 
 self (cf-self)
 

@@ -62,6 +62,7 @@ CLIENT_CER=client.cer
 CLIENT_EXT_CER=clientExt.cer
 CLIENT_EDDSA_CER=clientEdDsa.cer
 CLIENT_RSA_CER=clientRsa.cer
+CLIENT_EXPIRED_CER=clientExpired.cer
 
 # android support - PKCS12
 TRUST_STORE_P12=trustStore.p12
@@ -114,7 +115,7 @@ VALIDITY=365
 
 remove_keys() {
 	rm -f $KEY_STORE $TRUST_STORE $EDDSA_KEY_STORE $EDDSA_TRUST_STORE
-	rm -f $ROOT_CER $CA_CER $CA2_CER $CA_RSA_CER $SERVER_CER $SERVER_LARGE_CER $SERVER_RSA_CER $SERVER_CA_RSA_CER $CLIENT_CER $CLIENT_EXT_CER $CLIENT_EDDSA_CER $CLIENT_RSA_CER $SERVER_EDDSA_CER $CA_EDDSA_CER
+	rm -f $ROOT_CER $CA_CER $CA2_CER $CA_RSA_CER $SERVER_CER $SERVER_LARGE_CER $SERVER_RSA_CER $SERVER_CA_RSA_CER $CLIENT_CER $CLIENT_EXT_CER $CLIENT_EDDSA_CER $CLIENT_RSA_CER $SERVER_EDDSA_CER $CA_EDDSA_CER $CLIENT_EXPIRED_CER
 	rm -f $CLIENT_KEY_STORE_P12 $SERVER_KEY_STORE_P12 $SERVER_LARGE_KEY_STORE_P12 $SERVER_RSA_KEY_STORE_P12 $SERVER_CA_RSA_KEY_STORE_P12 $SERVER_RSA_KEY_STORE_P12 $TRUST_STORE_P12 $CA_TRUST_STORE_P12 $CA_RSA_TRUST_STORE_P12 $CLIENT_EDDSA_KEY_STORE_P12 $CLIENT_RSA_KEY_STORE_P12 $ROOT_TRUST_STORE_P12 $SERVER_EDDSA_KEY_STORE_P12 $CA_EDDSA_TRUST_STORE_P12 $EDDSA_TRUST_STORE_P12
 	rm -f $CLIENT_KEY_STORE_PEM $SERVER_KEY_STORE_PEM $SERVER_LARGE_KEY_STORE_PEM $SERVER_RSA_KEY_STORE_PEM $SERVER_CA_RSA_KEY_STORE_PEM $TRUST_STORE_PEM $CA_TRUST_STORE_PEM $CA_RSA_TRUST_STORE_PEM $CLIENT_EDDSA_KEY_STORE_PEM $CLIENT_RSA_KEY_STORE_PEM $ROOT_TRUST_STORE_PEM $SERVER_EDDSA_KEY_STORE_PEM $CA_EDDSA_TRUST_STORE_PEM
 	rm -f $EC_PUBLIC_KEY_PEM $EC_PRIVATE_KEY_PEM $ED25519_PUBLIC_KEY_PEM $ED25519_PRIVATE_KEY_PEM $ED448_PUBLIC_KEY_PEM $ED448_PRIVATE_KEY_PEM
@@ -232,6 +233,14 @@ create_keys() {
         keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig \
         -validity $VALIDITY -sigalg SHA256withECDSA -rfc > $CLIENT_CER
    keytool -alias client -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_CER
+
+   echo "creating expired client key and certificate..."
+   keytool -genkeypair -alias clientexpired -keyalg EC -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client-expired' \
+        -validity 1 -keypass $KEY_STORE_PWD -keystore $KEY_STORE -storepass $KEY_STORE_PWD
+   keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias clientexpired | \
+        keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig \
+        -validity 1 -sigalg SHA256withECDSA -rfc > $CLIENT_EXPIRED_CER
+   keytool -alias clientexpired -noprompt -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_EXPIRED_CER
 
    echo "creating client rsa-key and certificate..."
    keytool -genkeypair -alias clientrsa -keyalg RSA -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client-rsa' \

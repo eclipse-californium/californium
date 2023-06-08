@@ -71,6 +71,12 @@ public class TestCertificatesTools {
 	public static final String CA_ALIAS = "ca";
 	public static final String CA_ALT_ALIAS = "caalt";
 	public static final String NO_SIGNING_ALIAS = "nosigning";
+	/**
+	 * Alias for client expired certificate chain.
+	 * 
+	 * @since 3.9
+	 */
+	public static final String CLIENT_EXPIRED_NAME = "clientexpired";
 
 	private static final SecureRandom random = new SecureRandom();
 
@@ -79,6 +85,7 @@ public class TestCertificatesTools {
 	private static X509KeyManager serverEdDsaKeyManager;
 	public static Credentials clientCredentials;
 	public static Credentials clientRsaCredentials;
+	public static Credentials clientExpiredCredentials;
 	public static Credentials serverCredentials;
 	public static Credentials serverCaRsaCredentials;
 	public static Credentials serverRsaCredentials;
@@ -96,6 +103,8 @@ public class TestCertificatesTools {
 					CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			clientRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					CLIENT_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			clientExpiredCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
+					CLIENT_EXPIRED_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			serverCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			serverCaRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
@@ -268,6 +277,28 @@ public class TestCertificatesTools {
 	}
 
 	/**
+	 * Get client expired certificate chain. 
+	 * 
+	 * @return client expired certificate chain as array
+	 * @since 3.9
+	 */
+	public static X509Certificate[] getClientExpiredCertificateChain() {
+		X509Certificate[] certificateChain = clientExpiredCredentials.getCertificateChain();
+		return Arrays.copyOf(certificateChain, certificateChain.length);
+	}
+
+	/**
+	 * Get client expired certificate chain. 
+	 * 
+	 * @return client expired certificate chain as list
+	 * @since 3.9
+	 */
+	public static List<X509Certificate> getClientExpiredCertificateChainAsList() {
+		X509Certificate[] certificateChain = clientExpiredCredentials.getCertificateChain();
+		return Arrays.asList(certificateChain);
+	}
+
+	/**
 	 * Get credentials for alias.
 	 * 
 	 * @param alias alias for credentials
@@ -348,6 +379,16 @@ public class TestCertificatesTools {
 	}
 
 	/**
+	 * Gets the client's expired private key from the example key store.
+	 * 
+	 * @return the key
+	 * @since 3.9
+	 */
+	public static PrivateKey getClientExpiredPrivateKey() {
+		return clientExpiredCredentials.getPrivateKey();
+	}
+
+	/**
 	 * Gets the server's public key from the example key store.
 	 * 
 	 * @return The key.
@@ -381,6 +422,16 @@ public class TestCertificatesTools {
 	 */
 	public static PublicKey getClientRsaPublicKey() {
 		return clientRsaCredentials.getCertificateChain()[0].getPublicKey();
+	}
+
+	/**
+	 * Gets the client's expired public key from the example key store.
+	 * 
+	 * @return The key.
+	 * @since 3.9
+	 */
+	public static PublicKey getClientExpiredPublicKey() {
+		return clientExpiredCredentials.getCertificateChain()[0].getPublicKey();
 	}
 
 	/**
