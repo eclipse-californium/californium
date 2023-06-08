@@ -2197,6 +2197,39 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	@Test
+	public void testX509HandshakeFailingExpiredClientCertificate() throws Exception {
+		startServer();
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllCertificates().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		clientCertificateChain = DtlsTestTools.getClientExpiredCertificateChain();
+		clientPrivateKey = DtlsTestTools.getClientExpiredPrivateKey();
+		setupClientCertificateIdentity(CertificateType.X_509);
+		clientBuilder.setAdvancedCertificateVerifier(clientCertificateVerifier);
+
+		startClientFailing();
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.CERTIFICATE_EXPIRED)));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("fatal alert"));
+
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.CERTIFICATE_EXPIRED)));
+	}
+
+	@Test
 	public void testX509HandshakeFailingMissingClientCertificate() throws Exception {
 		startServer();
 

@@ -22,6 +22,7 @@ import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateExpiredException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -219,7 +220,16 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 					}
 					return new CertificateVerificationResult(cid, certChain, null);
 				} catch (CertPathValidatorException e) {
-					LOGGER.debug("Certificate validation failed: {}", e.getMessage());
+					Throwable cause = e.getCause();
+					if (cause instanceof CertificateExpiredException) {
+						LOGGER.debug("Certificate expired: {}", cause.getMessage());
+						AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.CERTIFICATE_EXPIRED);
+						throw new HandshakeException("Certificate expired", alert);
+					} else if (cause != null) {
+						LOGGER.debug("Certificate validation failed: {}/{}", e.getMessage(), cause.getMessage());
+					} else {
+						LOGGER.debug("Certificate validation failed: {}", e.getMessage());
+					}
 					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 					throw new HandshakeException("Certificate chain could not be validated", alert, e);
 				} catch (GeneralSecurityException e) {
