@@ -71,12 +71,22 @@ public class EncryptedPersistentComponentUtil extends PersistentComponentUtil {
 	private final EncryptedStreamUtil encryptionUtility = new EncryptedStreamUtil();
 
 	/**
-	 * Create encrypted serialization utility with
-	 * {@link EncryptedStreamUtil#DEFAULT_CIPHER_ALGORITHM} and
-	 * {@link EncryptedStreamUtil#DEFAULT_KEY_SIZE_BITS}.
+	 * Create encrypted serialization utility with default algorithm and key
+	 * size.
 	 */
 	public EncryptedPersistentComponentUtil() {
-		this(EncryptedStreamUtil.DEFAULT_CIPHER_ALGORITHM, EncryptedStreamUtil.DEFAULT_KEY_SIZE_BITS);
+	}
+
+	/**
+	 * Create encrypted serialization utility with provided cipher specification.
+	 * 
+	 * @param spec cipher specification (algorithm + key size). e.g.
+	 *            "AES/GCM/128".
+	 * @throws IllegalArgumentException if cipher and key size is not supported
+	 * @since 3.9
+	 */
+	public EncryptedPersistentComponentUtil(String spec) {
+		setWriteCipher(spec);
 	}
 
 	/**
@@ -85,9 +95,30 @@ public class EncryptedPersistentComponentUtil extends PersistentComponentUtil {
 	 * 
 	 * @param cipherAlgorithm cipher algorithm
 	 * @param keySizeBits key size in bits
+	 * @throws IllegalArgumentException if cipher and key size is not supported (since 3.9)
 	 */
 	public EncryptedPersistentComponentUtil(String cipherAlgorithm, int keySizeBits) {
-		setCipher(cipherAlgorithm, keySizeBits);
+		setWriteCipher(cipherAlgorithm, keySizeBits);
+	}
+
+	/**
+	 * Get write cipher specification.
+	 * 
+	 * @return cipher specification (algorithm + key size). e.g. "AES/GCM/128".
+	 * @since 3.9
+	 */
+	public String getWriteCipher() {
+		return encryptionUtility.getWriteCipher();
+	}
+
+	/**
+	 * Get read cipher specification.
+	 * 
+	 * @return cipher specification (algorithm + key size). e.g. "AES/GCM/128". {@code null}, if 
+	 * @since 3.9
+	 */
+	public String getReadCipher() {
+		return encryptionUtility.getReadCipher();
 	}
 
 	/**
@@ -95,9 +126,45 @@ public class EncryptedPersistentComponentUtil extends PersistentComponentUtil {
 	 * 
 	 * @param cipherAlgorithm cipher algorithm
 	 * @param keySizeBits key size in bits
+	 * @deprecated use {@link #setWriteCipher(String, int)} instead
 	 */
+	@Deprecated
 	public void setCipher(String cipherAlgorithm, int keySizeBits) {
 		encryptionUtility.setCipher(cipherAlgorithm, keySizeBits);
+	}
+
+	/**
+	 * Set cipher to default cipher.
+	 * 
+	 * @see EncryptedStreamUtil#setDefaultWriteCipher()
+	 * @since 3.9
+	 */
+	public void setDefaultWriteCipher() {
+		encryptionUtility.setDefaultWriteCipher();
+	}
+
+	/**
+	 * Set algorithm and key size.
+	 * 
+	 * @param cipherAlgorithm cipher algorithm
+	 * @param keySizeBits key size in bits
+	 * @throws IllegalArgumentException if cipher and key size is not supported
+	 * @since 3.9
+	 */
+	public void setWriteCipher(String cipherAlgorithm, int keySizeBits) {
+		encryptionUtility.setWriteCipher(cipherAlgorithm, keySizeBits);
+	}
+
+	/**
+	 * Set cipher specification.
+	 * 
+	 * @param spec cipher specification (algorithm + key size). e.g.
+	 *            "AES/GCM/128".
+	 * @throws IllegalArgumentException if cipher and key size is not supported
+	 * @since 3.9
+	 */
+	public void setWriteCipher(String spec) {
+		encryptionUtility.setWriteCipher(spec);
 	}
 
 	/**
