@@ -520,6 +520,70 @@ public class StringUtil {
 	}
 
 	/**
+	 * Remove header from builder's.
+	 * 
+	 * If provided header doesn't match, the provided builder is unchanged.
+	 * 
+	 * @param builder builder to remove tail
+	 * @param header header to remove.
+	 * @return {@code true}, if the provided header has been removed,
+	 *         {@code false}, if the build is left unchanged.
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
+	 * @since 3.9
+	 */
+	public static boolean truncateHeader(StringBuilder builder, String header) {
+		if (builder == null) {
+			throw new NullPointerException("Builder must not be null!");
+		}
+		if (header == null) {
+			throw new NullPointerException("Tail must not be null!");
+		}
+		boolean truncated = false;
+		int headerLength = header.length();
+		if (headerLength > 0 && headerLength <= builder.length()) {
+			truncated = true;
+			for (int index = 0; index < headerLength; ++index) {
+				if (builder.charAt(index) != header.charAt(index)) {
+					truncated = false;
+					break;
+				}
+			}
+			if (truncated) {
+				builder.replace(0, headerLength, "");
+			}
+		}
+		return truncated;
+	}
+
+	/**
+	 * Remove header from text.
+	 * 
+	 * If provided header doesn't match the header of the text, the text is
+	 * returned unchanged.
+	 * 
+	 * @param text text to remove tail
+	 * @param header header to remove
+	 * @return text with header removed, if matching. Otherwise the provided
+	 *         text.
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
+	 * @since 3.9
+	 */
+	public static String truncateHeader(String text, String header) {
+		if (text == null) {
+			throw new NullPointerException("Text must not be null!");
+		}
+		if (header == null) {
+			throw new NullPointerException("Tail must not be null!");
+		}
+		if (header.length() > 0 && text.startsWith(header)) {
+			return text.substring(header.length());
+		}
+		return text;
+	}
+
+	/**
 	 * Convert UTF-8 data into display string.
 	 * 
 	 * If none-printable data is contained, the data is converted to a

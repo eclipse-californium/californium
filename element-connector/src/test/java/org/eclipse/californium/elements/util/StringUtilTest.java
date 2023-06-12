@@ -27,8 +27,11 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Set;
 
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(Small.class)
 public class StringUtilTest {
 
 	@Test
@@ -198,12 +201,10 @@ public class StringUtilTest {
 	@Test
 	public void testTruncateTail() {
 		String text = "message";
-		String result1 = StringUtil.truncateTail(text, "agX");
-		String result2 = StringUtil.truncateTail(text, "age");
-		String result3 = StringUtil.truncateTail(text, "");
-		assertThat(result1, is(text));
-		assertThat(result2, is("mess"));
-		assertThat(result3, is(text));
+		assertThat(StringUtil.truncateTail(text, "agX"), is(text));
+		assertThat(StringUtil.truncateTail(text, "age"), is("mess"));
+		assertThat(StringUtil.truncateTail(text, ""), is(text));
+		assertThat(StringUtil.truncateTail(text, "mes"), is(text));
 	}
 
 	@Test
@@ -211,15 +212,40 @@ public class StringUtilTest {
 		StringBuilder text1 = new StringBuilder("message");
 		StringBuilder text2 = new StringBuilder("message");
 		StringBuilder text3 = new StringBuilder("message");
-		boolean result1 = StringUtil.truncateTail(text1, "agX");
-		boolean result2 = StringUtil.truncateTail(text2, "age");
-		boolean result3 = StringUtil.truncateTail(text3, "");
-		assertThat(result1, is(false));
-		assertThat(result2, is(true));
-		assertThat(result3, is(false));
+		StringBuilder text4 = new StringBuilder("message");
+		assertThat(StringUtil.truncateTail(text1, "agX"), is(false));
+		assertThat(StringUtil.truncateTail(text2, "age"), is(true));
+		assertThat(StringUtil.truncateTail(text3, ""), is(false));
+		assertThat(StringUtil.truncateTail(text4, "mes"), is(false));
 		assertThat(text1.toString(), is("message"));
 		assertThat(text2.toString(), is("mess"));
 		assertThat(text3.toString(), is("message"));
+		assertThat(text4.toString(), is("message"));
+	}
+
+	@Test
+	public void testTruncateHeader() {
+		String text = "message";
+		assertThat(StringUtil.truncateHeader(text, "meX"), is(text));
+		assertThat(StringUtil.truncateHeader(text, "mes"), is("sage"));
+		assertThat(StringUtil.truncateHeader(text, ""), is(text));
+		assertThat(StringUtil.truncateHeader(text, "age"), is(text));
+	}
+
+	@Test
+	public void testTruncateStringBuilderHeader() {
+		StringBuilder text1 = new StringBuilder("message");
+		StringBuilder text2 = new StringBuilder("message");
+		StringBuilder text3 = new StringBuilder("message");
+		StringBuilder text4 = new StringBuilder("message");
+		assertThat(StringUtil.truncateHeader(text1, "meX"), is(false));
+		assertThat(StringUtil.truncateHeader(text2, "mes"), is(true));
+		assertThat(StringUtil.truncateHeader(text3, ""), is(false));
+		assertThat(StringUtil.truncateHeader(text4, "age"), is(false));
+		assertThat(text1.toString(), is("message"));
+		assertThat(text2.toString(), is("sage"));
+		assertThat(text3.toString(), is("message"));
+		assertThat(text4.toString(), is("message"));
 	}
 
 }
