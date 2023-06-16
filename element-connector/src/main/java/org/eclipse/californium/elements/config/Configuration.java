@@ -147,6 +147,22 @@ import org.slf4j.LoggerFactory;
  * order to ensure, that the modules are register in a early stage, a
  * application should call e.g. {@link SystemConfig#register()} of the used
  * modules at the begin. See {@link SystemConfig} as example.
+ * 
+ * <pre>
+ * <code>
+ *   ...
+ *   static {
+ *      SystemmConfig.register();
+ *      CoapConfig.register();
+ *   }
+ *   ...
+ *   public static void main(String[] args) {
+ *      Configuration.getStandard();
+ *      ...
+ *   }
+ * </code>
+ * </pre>
+ * 
  * <p>
  * Alternatively
  * {@link Configuration#Configuration(ModuleDefinitionsProvider...)} may be used
