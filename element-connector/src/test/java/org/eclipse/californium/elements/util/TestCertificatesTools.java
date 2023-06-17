@@ -139,7 +139,14 @@ public class TestCertificatesTools {
 			X509Certificate[] chain = SslContextUtil.loadCertificateChain(
 					KEY_STORE_URI, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
 			nosigningCertificate = chain[0];
-		} catch (IOException | GeneralSecurityException e) {
+		} catch (RuntimeException e) {
+			e.printStackTrace(System.err);
+			throw e;
+		} catch (Error e) {
+			e.printStackTrace(System.err);
+			throw e;
+		} catch (Throwable e) {
+			e.printStackTrace(System.err);
 			throw new Error(e.getMessage());
 		}
 	}
