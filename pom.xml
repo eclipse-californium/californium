@@ -833,7 +833,7 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.version>1.72</bc.version>
+				<bc.version>1.75</bc.version>
 				<slf4j.version>1.7.36</slf4j.version>
 			</properties>
 			<dependencies>
@@ -888,7 +888,7 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.version>1.72</bc.version>
+				<bc.version>1.75</bc.version>
 				<slf4j.version>1.7.36</slf4j.version>
 			</properties>
 			<dependencies>
