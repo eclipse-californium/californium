@@ -45,9 +45,10 @@ import org.junit.experimental.categories.Category;
 
 /**
  * Verifies behavior of {@code LeastRecentlyUsedCache}.
- *
+ * @deprecated
  */
 @Category(Small.class)
+@Deprecated
 public class LeastRecentlyUsedCacheTest {
 
 	private static final long THRESHOLD_MILLIS = 300;

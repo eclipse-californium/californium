@@ -83,9 +83,27 @@ import java.util.concurrent.TimeUnit;
  * applied in {@link #get(Object)} (otherwise that get would never return
  * something).
  * 
+ * <b>Migration hints: </b> The {@link LeastRecentlyUpdatedCache} differs in the
+ * API, therefore some adaption will be needed.
+ * {@link #setUpdatingOnReadAccess(boolean)} is removed. Use either
+ * {@link LeastRecentlyUpdatedCache#get(Object)} or
+ * {@link LeastRecentlyUpdatedCache#update(Object)} instead.
+ * {@link #setEvictingOnReadAccess(boolean)} is removed. To remove stale
+ * entries, use {@link LeastRecentlyUpdatedCache#removeExpiredEntries(int)}. To
+ * prevent stale entries from being returned, use
+ * {@link LeastRecentlyUpdatedCache#setHideStaleValues(boolean)}.
+ * {@link #valuesIterator(boolean)} is removed. Please use
+ * {@link LeastRecentlyUpdatedCache#valuesIterator()}. Automatic updating the
+ * iterated items is not longer supported. The most common pitfall is the
+ * default value for {@link #updateOnReadAccess} and {@link #evictOnReadAccess},
+ * because for both that default is {@code true} and requires to apply the
+ * migration mentioned above.
+ * 
  * @param <K> The type of the keys used in the cache.
  * @param <V> The type of the values used in the cache.
+ * @deprecated please migrate to {@link LeastRecentlyUpdatedCache}
  */
+@Deprecated
 public class LeastRecentlyUsedCache<K, V> {
 
 	/**
@@ -767,10 +785,11 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * <p>
 	 * The iterator returned is backed by this cache's underlying
 	 * {@link ConcurrentHashMap#values()}. The iterator is a "weakly consistent"
-	 * iterator that will never throw {@link java.util.ConcurrentModificationException},
-	 * and guarantees to traverse elements as they existed upon construction of
-	 * the iterator, and may (but is not guaranteed to) reflect any
-	 * modifications subsequent to construction.
+	 * iterator that will never throw
+	 * {@link java.util.ConcurrentModificationException}, and guarantees to
+	 * traverse elements as they existed upon construction of the iterator, and
+	 * may (but is not guaranteed to) reflect any modifications subsequent to
+	 * construction.
 	 * </p>
 	 * <p>
 	 * The {@link #evictOnReadAccess} and {@link #updateOnReadAccess} are
@@ -931,6 +950,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 */
 	public final Iterator<Timestamped<V>> timestampedIterator() {
 		return new Iterator<Timestamped<V>>() {
+
 			final int max = cache.size();
 			int counter;
 			CacheEntry<K, V> current = header;
@@ -1023,6 +1043,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	public static final class Timestamped<V> {
+
 		private final V value;
 		private final long lastUpdate;
 
@@ -1044,7 +1065,7 @@ public class LeastRecentlyUsedCache<K, V> {
 			int hash = (int) (lastUpdate ^ (lastUpdate >>> 32));
 			if (value != null) {
 				return hash + value.hashCode();
-			} 
+			}
 			return hash;
 		}
 

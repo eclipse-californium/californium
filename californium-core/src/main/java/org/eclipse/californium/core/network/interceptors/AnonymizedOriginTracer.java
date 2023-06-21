@@ -21,6 +21,8 @@ import java.net.InetSocketAddress;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -29,7 +31,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,8 +73,8 @@ public final class AnonymizedOriginTracer extends MessageInterceptorAdapter {
 	/**
 	 * Cache for hashed client addresses.
 	 */
-	private static final LeastRecentlyUsedCache<InetAddress, String> CLIENT_CACHE = new LeastRecentlyUsedCache<InetAddress, String>(
-			INITIAL_CAPACITY, MAX_CAPACITY, HOST_TIMEOUT_IN_SECONDS);
+	private static final LeastRecentlyUpdatedCache<InetAddress, String> CLIENT_CACHE = new LeastRecentlyUpdatedCache<InetAddress, String>(
+			INITIAL_CAPACITY, MAX_CAPACITY, HOST_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 
 	/**
 	 * Hmac to anonymize the client address.
@@ -94,14 +96,14 @@ public final class AnonymizedOriginTracer extends MessageInterceptorAdapter {
 		} catch (NoSuchAlgorithmException e) {
 		}
 		HMAC = mac;
-		CLIENT_CACHE.setEvictingOnReadAccess(true);
+		CLIENT_CACHE.setHideStaleValues(true);
 	}
 
 	/**
 	 * Cache for filter message based on inet socket address.
 	 */
-	private final LeastRecentlyUsedCache<InetSocketAddress, String> currentTests = new LeastRecentlyUsedCache<InetSocketAddress, String>(
-			INITIAL_CAPACITY, MAX_CAPACITY, DEFAULT_MESSAGE_FILTER_TIMEOUT_IN_SECONDS);
+	private final LeastRecentlyUpdatedCache<InetSocketAddress, String> currentTests = new LeastRecentlyUpdatedCache<InetSocketAddress, String>(
+			INITIAL_CAPACITY, MAX_CAPACITY, DEFAULT_MESSAGE_FILTER_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 
 	/**
 	 * Schema name. Added to log message.
@@ -128,7 +130,8 @@ public final class AnonymizedOriginTracer extends MessageInterceptorAdapter {
 	 */
 	public AnonymizedOriginTracer(String scheme, long filterTimeout) {
 		this.scheme = scheme;
-		currentTests.setExpirationThreshold(filterTimeout);
+		currentTests.setExpirationThreshold(filterTimeout, TimeUnit.SECONDS);
+		currentTests.setHideStaleValues(true);
 	}
 
 	@Override
@@ -156,12 +159,18 @@ public final class AnonymizedOriginTracer extends MessageInterceptorAdapter {
 	 */
 	public boolean log(Message message) {
 		InetSocketAddress address = message.getSourceContext().getPeerAddress();
-		synchronized (currentTests) {
-			if (currentTests.get(address) != null) {
+		currentTests.removeExpiredEntries(32);
+		WriteLock lock = currentTests.writeLock();
+		lock.lock();
+		try {
+			if (currentTests.update(address) == null) {
+				currentTests.put(address, scheme);
+			} else {
 				// already logged in the past REQUEST_TIMEOUT
 				return false;
 			}
-			currentTests.put(address, scheme);
+		} finally {
+			lock.unlock();
 		}
 		String id = getAnonymizedOrigin(address.getAddress());
 		if (id != null) {
@@ -187,8 +196,11 @@ public final class AnonymizedOriginTracer extends MessageInterceptorAdapter {
 	 * @return hash of address.
 	 */
 	public static String getAnonymizedOrigin(InetAddress address) {
-		synchronized (CLIENT_CACHE) {
-			String id = CLIENT_CACHE.get(address);
+		CLIENT_CACHE.removeExpiredEntries(32);
+		WriteLock lock = CLIENT_CACHE.writeLock();
+		lock.lock();
+		try {
+			String id = CLIENT_CACHE.update(address);
 			if (id == null) {
 				byte[] raw = address.getAddress().clone();
 				try {
@@ -207,6 +219,8 @@ public final class AnonymizedOriginTracer extends MessageInterceptorAdapter {
 				CLIENT_CACHE.put(address, id);
 			}
 			return id;
+		} finally {
+			lock.unlock();
 		}
 	}
 

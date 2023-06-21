@@ -94,6 +94,19 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 */
 	private volatile long expirationThresholdNanos;
 
+	/**
+	 * Hide stale values.
+	 * 
+	 * Return {@code null} instead of stale values and don't apply
+	 * {@link #update(Object)}.
+	 * 
+	 * @see #get(Object)
+	 * @see #getTimestamped(Object)
+	 * @see #update(Object)
+	 * @since 3.9
+	 */
+	private volatile boolean hideStaleValues;
+
 	private final List<EvictionListener<V>> evictionListeners = new LinkedList<>();
 
 	/**
@@ -232,6 +245,31 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 */
 	public final int remainingCapacity() {
 		return Math.max(0, capacity - cache.size());
+	}
+
+	/**
+	 * Check, if stale values are hidden.
+	 * 
+	 * @return {@code true}, if stale values are hidden, {@code false}
+	 *         otherwise.
+	 * @see #get(Object)
+	 * @see #getTimestamped(Object)
+	 * @see #update(Object)
+	 * @since 3.9
+	 */
+	public boolean isHidingStaleValues() {
+		return hideStaleValues;
+	}
+
+	/**
+	 * Set to hide stale values.
+	 * 
+	 * @param hideStaleValues {@code true}, to hide stale values, {@code false}
+	 *            otherwise.
+	 * @since 3.9
+	 */
+	public void setHideStaleValues(boolean hideStaleValues) {
+		this.hideStaleValues = hideStaleValues;
 	}
 
 	/**
@@ -462,7 +500,8 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 * Check, if entry is stale.
 	 * 
 	 * @param key the key to look up in the cache
-	 * @return {@code true}, if the entry is stale, {@code false}, otherwise.
+	 * @return {@code true}, if the entry is stale, {@code false}, if there is
+	 *         either no entry, or the entry is not stale.
 	 */
 	public final boolean isStale(K key) {
 		CacheEntry<K, V> entry = getEntry(key);
@@ -476,57 +515,72 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	/**
 	 * Gets a value from the cache.
 	 * 
+	 * Since 3.9 the {@link #isHidingStaleValues()} is supported and returns
+	 * {@code null}, if the value is stale.
+	 * 
 	 * @param key the key to look up in the cache
 	 * @return the value, if the key has been found in the cache, {@code null},
 	 *         otherwise
+	 * @see #isHidingStaleValues()
 	 */
 	public final V get(K key) {
 		CacheEntry<K, V> entry = getEntry(key);
-		if (entry == null) {
-			return null;
-		} else {
-			return entry.getValue();
+		if (entry != null) {
+			if (!hideStaleValues || !entry.isStale(expirationThresholdNanos)) {
+				return entry.getValue();
+			}
 		}
+		return null;
 	}
 
 	/**
 	 * Gets a timestamped value from the cache.
 	 * 
+	 * Since 3.9 the {@link #isHidingStaleValues()} is supported and returns
+	 * {@code null}, if the value is stale.
+	 * 
 	 * @param key the key to look up in the cache
 	 * @return the timestamped value, if the key has been found in the cache,
 	 *         {@code null}, otherwise
+	 * @see #isHidingStaleValues()
 	 */
 	public final Timestamped<V> getTimestamped(K key) {
 		CacheEntry<K, V> entry = getEntry(key);
-		if (entry == null) {
-			return null;
-		} else {
-			return entry.getEntry();
+		if (entry != null) {
+			if (!hideStaleValues || !entry.isStale(expirationThresholdNanos)) {
+				return entry.getEntry();
+			}
 		}
+		return null;
 	}
 
 	/**
 	 * Update the last-access time.
+	 * 
+	 * Since 3.9 the {@link #isHidingStaleValues()} is supported preventing
+	 * stale values from being updated and returns {@code null}.
 	 * 
 	 * Acquires the write-lock. <em>O(1)</em>
 	 * 
 	 * @param key the key to update the last-access time.
 	 * @return the value, if the key has been found in the cache, {@code null},
 	 *         otherwise
+	 * @see #isHidingStaleValues()
 	 */
 	public final V update(K key) {
-		if (key == null) {
-			return null;
-		}
-		lock.writeLock().lock();
-		try {
-			CacheEntry<K, V> entry = cache.get(key);
-			if (entry != null) {
-				entry.recordAccess(header);
-				return entry.getValue();
+		if (key != null) {
+			lock.writeLock().lock();
+			try {
+				CacheEntry<K, V> entry = cache.get(key);
+				if (entry != null) {
+					if (!hideStaleValues || !entry.isStale(expirationThresholdNanos)) {
+						entry.recordAccess(header);
+						return entry.getValue();
+					}
+				}
+			} finally {
+				lock.writeLock().unlock();
 			}
-		} finally {
-			lock.writeLock().unlock();
 		}
 		return null;
 	}
@@ -627,6 +681,9 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	/**
 	 * Finds a value based on a predicate.
 	 * 
+	 * Since 3.9 the {@link #isHidingStaleValues()} is supported preventing
+	 * stale values from being found.
+	 * 
 	 * Returns the first matching value.
 	 * 
 	 * Acquires the read-lock.
@@ -642,9 +699,11 @@ public class LeastRecentlyUpdatedCache<K, V> {
 			final Iterator<CacheEntry<K, V>> iterator = cache.values().iterator();
 			while (iterator.hasNext()) {
 				CacheEntry<K, V> entry = iterator.next();
-				V value = entry.getValue();
-				if (predicate.accept(value)) {
-					return value;
+				if (!hideStaleValues || !entry.isStale(expirationThresholdNanos)) {
+					V value = entry.getValue();
+					if (predicate.accept(value)) {
+						return value;
+					}
 				}
 			}
 		}
@@ -696,6 +755,8 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 * may (but is not guaranteed to) reflect any modifications subsequent to
 	 * construction.
 	 * </p>
+	 * Since 3.9 the {@link #isHidingStaleValues()} is supported preventing
+	 * stale values from being returned.
 	 * 
 	 * @return an iterator over all values backed by the underlying map.
 	 */
@@ -713,8 +774,10 @@ public class LeastRecentlyUpdatedCache<K, V> {
 					nextEntry = null;
 					while (iterator.hasNext()) {
 						CacheEntry<K, V> entry = iterator.next();
-						nextEntry = entry;
-						break;
+						if (!hideStaleValues || !entry.isStale(expirationThresholdNanos)) {
+							nextEntry = entry;
+							break;
+						}
 					}
 					hasNextCalled = true;
 				}
@@ -736,8 +799,8 @@ public class LeastRecentlyUpdatedCache<K, V> {
 				if (nextEntry == null || hasNextCalled) {
 					throw new IllegalStateException("next() must be called before remove()!");
 				}
+				lock.writeLock().lock();
 				try {
-					lock.writeLock().lock();
 					iterator.remove();
 					nextEntry.remove();
 				} finally {
@@ -753,6 +816,9 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 * 
 	 * The returned collection is intended to be used as read access, therefore
 	 * the modifying methods will throw a {@link UnsupportedOperationException}.
+	 * 
+	 * Since 3.9 the {@link #isHidingStaleValues()} is supported preventing
+	 * stale values from being returned.
 	 * 
 	 * @return an collection of all connections backed by the underlying map.
 	 */
@@ -816,6 +882,10 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 * {@code true} and the the follow up call of {@link Iterator#next()}, the
 	 * last values are removed, {@link Iterator#next()} will return an already
 	 * removed value.
+	 * </p>
+	 * <p>
+	 * Since 3.9 the {@link #isHidingStaleValues()} is supported preventing
+	 * stale values from being returned.
 	 * </p>
 	 * Acquires the read-lock.
 	 * 
@@ -913,7 +983,8 @@ public class LeastRecentlyUpdatedCache<K, V> {
 
 		@Override
 		public boolean hasNext() {
-			while (next != header && next != null && next.isRemoved()) {
+			while (next != header && next != null
+					&& (next.isRemoved() || (hideStaleValues && next.isStale(expirationThresholdNanos)))) {
 				next = nextEntry(next);
 			}
 			return next != null && !next.isRemoved();
