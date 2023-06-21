@@ -99,7 +99,9 @@ import org.slf4j.LoggerFactory;
  * cleanup for stale sessions. If a connection is removed by a critical ALERT,
  * the session get's removed also from the session store.
  * </p>
+ * @deprecated please migrate to {@link InMemoryReadWriteLockConnectionStore}
  */
+@Deprecated
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryConnectionStore.class);

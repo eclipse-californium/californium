@@ -81,7 +81,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
-import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,8 +211,8 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 
 	};
-	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
-	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
+	private final LeastRecentlyUpdatedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
+	private final LeastRecentlyUpdatedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
 	private final AtomicInteger ignoredBlock2 = new AtomicInteger();
 	private final String tag;
 	private volatile boolean enableStatus;
@@ -356,10 +356,9 @@ public class BlockwiseLayer extends AbstractLayer {
 		blockInterval = config.getTimeAsInt(CoapConfig.BLOCKWISE_STATUS_INTERVAL,TimeUnit.MILLISECONDS);
 		maxResourceBodySize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 		int maxActivePeers = config.get(CoapConfig.MAX_ACTIVE_PEERS);
-		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout,
+		block1Transfers = new LeastRecentlyUpdatedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout,
 				TimeUnit.MILLISECONDS);
-		block1Transfers.setEvictingOnReadAccess(false);
-		block1Transfers.addEvictionListener(new LeastRecentlyUsedCache.EvictionListener<Block1BlockwiseStatus>() {
+		block1Transfers.addEvictionListener(new LeastRecentlyUpdatedCache.EvictionListener<Block1BlockwiseStatus>() {
 
 			@Override
 			public void onEviction(Block1BlockwiseStatus status) {
@@ -369,10 +368,9 @@ public class BlockwiseLayer extends AbstractLayer {
 				}
 			}
 		});
-		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout,
+		block2Transfers = new LeastRecentlyUpdatedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout,
 				TimeUnit.MILLISECONDS);
-		block2Transfers.setEvictingOnReadAccess(false);
-		block2Transfers.addEvictionListener(new LeastRecentlyUsedCache.EvictionListener<Block2BlockwiseStatus>() {
+		block2Transfers.addEvictionListener(new LeastRecentlyUpdatedCache.EvictionListener<Block2BlockwiseStatus>() {
 
 			@Override
 			public void onEviction(Block2BlockwiseStatus status) {
@@ -404,7 +402,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					if (enableStatus) {
 						{
 							HEALTH_LOGGER.debug("{}{} block1 transfers", tag, block1Transfers.size());
-							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.valuesIterator(false);
+							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.ascendingIterator();
 							int max = 5;
 							while (iterator.hasNext()) {
 								HEALTH_LOGGER.debug("   block1 {}", iterator.next());
@@ -416,7 +414,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						}
 						{
 							HEALTH_LOGGER.debug("{}{} block2 transfers", tag, block2Transfers.size());
-							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.valuesIterator(false);
+							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.ascendingIterator();
 							int max = 5;
 							while (iterator.hasNext()) {
 								HEALTH_LOGGER.debug("   block2 {}", iterator.next());
@@ -1333,7 +1331,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (reset) {
 				previousStatus = block1Transfers.remove(key);
 			} else {
-				status = block1Transfers.get(key);
+				status = block1Transfers.update(key);
 			}
 			if (status == null) {
 				status = Block1BlockwiseStatus.forOutboundRequest(key, removeHandler, exchange, request,
@@ -1384,7 +1382,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (reset) {
 				previousStatus = block1Transfers.remove(key);
 			} else {
-				status = block1Transfers.get(key);
+				status = block1Transfers.update(key);
 			}
 			if (status == null) {
 				check = false;
@@ -1445,7 +1443,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (reset) {
 				previousStatus = block2Transfers.remove(key);
 			} else {
-				status = block2Transfers.get(key);
+				status = block2Transfers.update(key);
 			}
 			if (status == null) {
 				status = Block2BlockwiseStatus.forOutboundResponse(key, removeHandler, exchange, response,
@@ -1485,7 +1483,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		int maxPayloadSize = getMaxResourceBodySize(response);
 		Block2BlockwiseStatus status;
 		synchronized (block2Transfers) {
-			status = block2Transfers.get(key);
+			status = block2Transfers.update(key);
 			if (status == null) {
 				status = Block2BlockwiseStatus.forInboundResponse(key, removeHandler, exchange, response,
 						maxPayloadSize, maxTcpBertBulkBlocks);
@@ -1512,7 +1510,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private Block1BlockwiseStatus getBlock1Status(final KeyUri key) {
 
 		synchronized (block1Transfers) {
-			return block1Transfers.get(key);
+			return block1Transfers.update(key);
 		}
 	}
 
@@ -1527,7 +1525,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private Block2BlockwiseStatus getBlock2Status(final KeyUri key) {
 
 		synchronized (block2Transfers) {
-			return block2Transfers.get(key);
+			return block2Transfers.update(key);
 		}
 	}
 

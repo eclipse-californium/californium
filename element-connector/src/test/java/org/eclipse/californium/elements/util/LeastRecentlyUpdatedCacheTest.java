@@ -17,6 +17,8 @@ package org.eclipse.californium.elements.util;
 
 import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
@@ -46,6 +48,62 @@ public class LeastRecentlyUpdatedCacheTest {
 	public TestTimeRule time = new TestTimeRule();
 
 	LeastRecentlyUpdatedCache<Integer, String> cache;
+
+	@Test
+	public void testGetFailsWhenExpired() throws InterruptedException {
+		int capacity = 5;
+		int numberOfEntries = 1;
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
+		cache.setHideStaleValues(true);
+		String eldest = cache.getEldest();
+		Integer key = Integer.valueOf(eldest);
+		assertThat(cache.get(key), is(notNullValue()));
+		time.setTestTimeShift(THRESHOLD_MILLIS + 100, TimeUnit.MILLISECONDS);
+		assertThat(cache.get(key), is(nullValue()));
+	}
+
+	@Test
+	public void testUpdateFailsWhenExpired() throws InterruptedException {
+		int capacity = 5;
+		int numberOfEntries = 1;
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
+		cache.setHideStaleValues(true);
+		String eldest = cache.getEldest();
+		Integer key = Integer.valueOf(eldest);
+		assertThat(cache.update(key), is(notNullValue()));
+		time.setTestTimeShift(THRESHOLD_MILLIS + 100, TimeUnit.MILLISECONDS);
+		assertThat(cache.update(key), is(nullValue()));
+	}
+
+	@Test
+	public void testGetSucceedsEvenExpired() throws InterruptedException {
+		int capacity = 5;
+		int numberOfEntries = 1;
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
+		cache.setHideStaleValues(false);
+		String eldest = cache.getEldest();
+		Integer key = Integer.valueOf(eldest);
+		assertThat(cache.get(key), is(notNullValue()));
+		time.setTestTimeShift(THRESHOLD_MILLIS + 100, TimeUnit.MILLISECONDS);
+		assertThat(cache.get(key), is(notNullValue()));
+	}
+
+	@Test
+	public void testUpdateSucceedsEvenExpired() throws InterruptedException {
+		int capacity = 5;
+		int numberOfEntries = 1;
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfEntries);
+		cache.setHideStaleValues(false);
+		String eldest = cache.getEldest();
+		Integer key = Integer.valueOf(eldest);
+		assertThat(cache.update(key), is(notNullValue()));
+		time.setTestTimeShift(THRESHOLD_MILLIS + 100, TimeUnit.MILLISECONDS);
+		assertThat(cache.update(key), is(notNullValue()));
+	}
 
 	@Test
 	public void testMultipleIteratorsRemove() throws InterruptedException {

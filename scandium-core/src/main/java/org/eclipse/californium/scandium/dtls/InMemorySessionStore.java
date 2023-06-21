@@ -15,7 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import java.util.concurrent.TimeUnit;
+
+import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
 import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
@@ -28,11 +30,15 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * Note: this store is not well tested! If used and causing trouble, don't
  * hesitate to create an issue.
  * 
+ * Note: since 3.9 the implementation based on the
+ * {@link LeastRecentlyUpdatedCache} instead of the deprecated
+ * LeastRecentlyUsedCache.
+ * 
  * @since 3.0
  */
 public class InMemorySessionStore implements SessionStore {
 
-	private final LeastRecentlyUsedCache<SessionId, DTLSSession> store;
+	private final LeastRecentlyUpdatedCache<SessionId, DTLSSession> store;
 
 	/**
 	 * Create in memory session store.
@@ -43,9 +49,7 @@ public class InMemorySessionStore implements SessionStore {
 	 *            the store if a new session is to be added to the store
 	 */
 	public InMemorySessionStore(int capacity, long threshold) {
-		this.store = new LeastRecentlyUsedCache<>(capacity, threshold);
-		this.store.setEvictingOnReadAccess(false);
-		this.store.setUpdatingOnReadAccess(false);
+		this.store = new LeastRecentlyUpdatedCache<>(capacity, threshold, TimeUnit.SECONDS);
 	}
 
 	@Override
@@ -60,7 +64,7 @@ public class InMemorySessionStore implements SessionStore {
 
 	@Override
 	public DTLSSession get(final SessionId id) {
-		DTLSSession session = store.get(id);
+		DTLSSession session = store.update(id);
 		return session == null ? null : new DTLSSession(session);
 	}
 

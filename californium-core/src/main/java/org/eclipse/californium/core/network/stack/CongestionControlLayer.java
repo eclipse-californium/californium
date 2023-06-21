@@ -27,6 +27,7 @@ import java.net.InetSocketAddress;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -46,7 +47,7 @@ import org.eclipse.californium.core.network.stack.congestioncontrol.PeakhopperRt
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
 
 /**
  * The optional Congestion Control (CC) Layer for the Californium CoAP
@@ -125,7 +126,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	private final static int MAX_RTO = 60000;
 
 	/** The map of remote endpoints */
-	private LeastRecentlyUsedCache<Object, RemoteEndpoint> remoteEndpoints;
+	private LeastRecentlyUpdatedCache<Object, RemoteEndpoint> remoteEndpoints;
 
 	/** The configuration */
 	protected final Configuration config;
@@ -162,9 +163,9 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		super(config);
 		this.tag = tag;
 		this.config = config;
-		this.remoteEndpoints = new LeastRecentlyUsedCache<>(config.get(CoapConfig.MAX_ACTIVE_PEERS),
-				config.get(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, TimeUnit.SECONDS));
-		this.remoteEndpoints.setEvictingOnReadAccess(false);
+		this.remoteEndpoints = new LeastRecentlyUpdatedCache<>(config.get(CoapConfig.MAX_ACTIVE_PEERS),
+				config.get(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, TimeUnit.SECONDS), TimeUnit.SECONDS);
+		this.remoteEndpoints.setHideStaleValues(true);
 		this.useInetSocketAddress = config.get(CoapConfig.CONGESTION_CONTROL_USE_INET_ADDRESS);
 		setDithering(false);
 	}
@@ -216,13 +217,18 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		} else {
 			peersIdentity = exchange.getPeersIdentity();
 		}
-		synchronized (remoteEndpoints) {
-			RemoteEndpoint remoteEndpoint = remoteEndpoints.get(peersIdentity);
+		remoteEndpoints.removeExpiredEntries(32);
+		WriteLock lock = remoteEndpoints.writeLock();
+		lock.lock();
+		try {
+			RemoteEndpoint remoteEndpoint = remoteEndpoints.update(peersIdentity);
 			if (remoteEndpoint == null) {
 				remoteEndpoint = createRemoteEndpoint(peersIdentity);
 				remoteEndpoints.put(peersIdentity, remoteEndpoint);
 			}
 			return remoteEndpoint;
+		} finally {
+			lock.unlock();
 		}
 	}
 
