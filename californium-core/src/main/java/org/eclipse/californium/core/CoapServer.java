@@ -777,18 +777,24 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 		private void setVersion(String version) {
 			String title = "CoAP RFC 7252";
 			if (version != null && !version.isEmpty()) {
-				title = String.format("%s %50s%n", title, "Cf " + version);
+				title = String.format("%s %50s", title, "Cf " + version);
 			}
+			title += "\n";
 			StringBuilder builder = new StringBuilder()
 					.append("****************************************************************\n")
 					.append(title)
 					.append("****************************************************************\n")
 					.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
 					.append("published under EPL+EDL: http://www.eclipse.org/californium/\n\n");
-			builder.append("(c) 2014-2022 Institute for Pervasive Computing, ETH Zurich and others\n");
-			String master = StringUtil.getConfiguration("COAP_ROOT_RESOURCE_FOOTER");
-			if (master != null) {
-				builder.append(master).append("\n");
+			String note = StringUtil.getConfiguration("COAP_ROOT_RESOURCE_NOTE");
+			if (note != null) {
+				builder.append(note).append("\n\n");
+			}
+			builder.append("(c) 2014-2023 Institute for Pervasive Computing, ETH Zurich\n" + 
+			               "              and others\n");
+			String footer = StringUtil.getConfiguration("COAP_ROOT_RESOURCE_FOOTER");
+			if (footer != null) {
+				builder.append(footer).append("\n");
 			}
 			builder.append("****************************************************************");
 			msg = builder.toString();
