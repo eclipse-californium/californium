@@ -27,6 +27,7 @@
 		<!-- use same version for httpcore and httpcore-nio -->
 		<httpcore.version>4.4.10</httpcore.version>
 		<httpcore.version.spec>version="[${versionmask;==;${httpcore.version}},${versionmask;+;${httpcore.version}})"</httpcore.version.spec>
+		<guava.version>32.0.0-android</guava.version>
 	</properties>
 
 	<dependencies>
@@ -45,7 +46,7 @@
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>28.2-android</version>
+			<version>${guava.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.google.code.findbugs</groupId>
