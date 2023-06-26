@@ -123,6 +123,9 @@ public class PlugtestServer extends AbstractTestServer {
 		UdpConfig.register();
 		DtlsConfig.register();
 		TcpConfig.register();
+		System.setProperty("COAP_ROOT_RESOURCE_NOTE",
+				"Note: the data sent to this server is public visible to other\n" +
+				"      users! Don't send data, which requires data privacy.");
 	}
 
 	private static final File CONFIG_FILE = new File("CaliforniumPlugtest3.properties");
