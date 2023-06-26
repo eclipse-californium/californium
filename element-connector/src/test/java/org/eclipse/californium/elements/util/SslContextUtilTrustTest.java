@@ -43,6 +43,7 @@ public class SslContextUtilTrustTest {
 	public static final String TRUST_STORE_PASSWORD_HEX = "726F6F7450617373";
 	public static final String TRUST_P12_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/trustStore.p12";
 	public static final String TRUST_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/trustStore.pem";
+	public static final String SINGLE_TRUST_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/rootTrustStore.pem";
 
 	public static final char[] TRUST_STORE_WRONG_PASSWORD = "wrongPass".toCharArray();
 
@@ -237,6 +238,16 @@ public class SslContextUtilTrustTest {
 		assertThat(manager, is(notNullValue()));
 		assertThat(manager.length, is(greaterThan(0)));
 		assertThat(manager[0], is(instanceOf(X509TrustManager.class)));
+	}
+
+	@Test
+	public void testLoadPemTrustedSingleCertificate() throws IOException, GeneralSecurityException {
+		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(SINGLE_TRUST_PEM_LOCATION);
+		assertThat(trustedCertificates, is(notNullValue()));
+		assertThat(trustedCertificates.length, is(1));
+		X509Certificate x509 = (X509Certificate) trustedCertificates[0];
+		assertThat(x509.getPublicKey(), is(notNullValue()));
+		assertThat(x509.getSubjectX500Principal(), is(DN_ROOT));
 	}
 
 }
