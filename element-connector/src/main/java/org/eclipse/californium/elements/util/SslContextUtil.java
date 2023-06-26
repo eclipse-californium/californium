@@ -425,10 +425,12 @@ public class SslContextUtil {
 		KeyStoreType configuration = getKeyStoreTypeFromUri(keyStoreUri);
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
-			if (credentials.trusts == null) {
-				throw new IllegalArgumentException("no trusted x509 certificates found in '" + keyStoreUri + "'!");
+			if (credentials.trusts != null) {
+				return credentials.trusts;
+			} else if (credentials.chain != null) {
+				return credentials.chain;
 			}
-			return credentials.trusts;
+			throw new IllegalArgumentException("no trusted x509 certificates found in '" + keyStoreUri + "'!");
 		}
 
 		KeyStore ks = loadKeyStore(keyStoreUri, storePassword, configuration);
@@ -482,19 +484,6 @@ public class SslContextUtil {
 		KeyStoreType configuration = getKeyStoreTypeFromUri(keyStoreUri);
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
-			if (credentials.getTrustedCertificates() != null) {
-				// only certificate loaded
-				try {
-					CertificateFactory factory = CertificateFactory.getInstance("X.509");
-					CertPath certPath = factory.generateCertPath(Arrays.asList(credentials.getTrustedCertificates()));
-					List<? extends Certificate> path = certPath.getCertificates();
-					X509Certificate[] x509Certificates = path.toArray(new X509Certificate[path.size()]);
-					credentials = new Credentials(null, null, x509Certificates);
-					throw new IncompleteCredentialsException(credentials, "credentials missing! No private key found!");
-				} catch (GeneralSecurityException ex) {
-					LOGGER.warn("Load PEM {}:", keyStoreUri, ex);
-				}
-			}
 			if (credentials.publicKey == null && credentials.privateKey == null) {
 				throw new IllegalArgumentException("credentials missing! No keys found!");
 			} else if (credentials.privateKey == null) {
