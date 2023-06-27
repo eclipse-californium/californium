@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
@@ -49,7 +50,7 @@ public abstract class BlockwiseStatus {
 
 	protected final Message firstMessage;
 
-	private final RemoveHandler removeHandler;
+	private final MessageObserver removeObserver;
 	private final KeyUri keyUri;
 	private final ByteBuffer buf;
 	private final int contentFormat;
@@ -75,8 +76,7 @@ public abstract class BlockwiseStatus {
 	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @since 3.0
 	 */
-	protected BlockwiseStatus(KeyUri keyUri, RemoveHandler removeHandler, Exchange exchange, Message first,
-			int maxSize, int maxTcpBertBulkBlocks) {
+	protected BlockwiseStatus(KeyUri keyUri, final RemoveHandler removeHandler, Exchange exchange, Message first, int maxSize, int maxTcpBertBulkBlocks) {
 		if (keyUri == null) {
 			throw new NullPointerException("Key URI must not be null!");
 		}
@@ -90,7 +90,18 @@ public abstract class BlockwiseStatus {
 			throw new IllegalArgumentException("max. size must not be 0!");
 		}
 		this.keyUri = keyUri;
-		this.removeHandler = removeHandler;
+		this.removeObserver = new MessageObserverAdapter() {
+
+			@Override
+			public void onCancel() {
+				removeHandler.remove(BlockwiseStatus.this);
+			}
+
+			@Override
+			protected void failed() {
+				removeHandler.remove(BlockwiseStatus.this);
+			}
+		};
 		this.firstMessage = first;
 		this.firstMessage.setProtectFromOffload();
 		this.exchange = exchange;
@@ -186,7 +197,8 @@ public abstract class BlockwiseStatus {
 	/**
 	 * Gets the current payload size in bytes.
 	 * 
-	 * @return The number of bytes corresponding to the current szx code and BERT.
+	 * @return The number of bytes corresponding to the current szx code and
+	 *         BERT.
 	 */
 	protected final int getCurrentPayloadSize() {
 		int size = getCurrentSize();
@@ -460,18 +472,7 @@ public abstract class BlockwiseStatus {
 				}
 			});
 		}
-		message.addMessageObserver(new MessageObserverAdapter() {
-
-			@Override
-			public void onCancel() {
-				removeHandler.remove(BlockwiseStatus.this);
-			}
-
-			@Override
-			protected void failed() {
-				removeHandler.remove(BlockwiseStatus.this);
-			}
-		});
+		message.addMessageObserver(removeObserver);
 	}
 
 	/**

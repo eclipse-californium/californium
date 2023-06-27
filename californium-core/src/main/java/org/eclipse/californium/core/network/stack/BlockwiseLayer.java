@@ -66,6 +66,7 @@ import java.util.Iterator;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -125,20 +126,20 @@ import org.slf4j.LoggerFactory;
  * in by the stack in transparent mode. Only in rare cases the application may
  * use a block option, but that easily ends up in undefined behavior. Usually
  * disabling the transparent blockwise mode setting
- * {@link CoapConfig#MAX_RESOURCE_BODY_SIZE} to {@code 0} is the better option, if
- * application block options are required.
+ * {@link CoapConfig#MAX_RESOURCE_BODY_SIZE} to {@code 0} is the better option,
+ * if application block options are required.
  * <p>
- * Synchronization: The blockwise-layer uses synchronization to prevent from
- * failures caused by race-conditions. All blockwise-status are kept in
- * {@link #block1Transfers} or {@link #block1Transfers}. Add, get, remove a
- * blockwise-status are executed synchronized on these collection.
+ * Synchronization: Since 3.9 the blockwise-layer uses the read/write lock of
+ * the {@link LeastRecentlyUpdatedCache} to prevent from failures caused by
+ * race-conditions. All blockwise-status are kept in {@link #block1Transfers} or
+ * {@link #block2Transfers}. {@code Add}, {@code update} and {@code remove} a
+ * blockwise-status is executed acquiring the read/write lock on these
+ * collections.
  * <ul>
  * <li>{@link #getOutboundBlock1Status(KeyUri, Exchange, Request, boolean)}</li>
  * <li>{@link #getInboundBlock1Status(KeyUri, Exchange, Request, boolean)}</li>
  * <li>{@link #getOutboundBlock2Status(KeyUri, Exchange, Response, boolean)}</li>
  * <li>{@link #getInboundBlock2Status(KeyUri, Exchange, Response)}</li>
- * <li>{@link #getBlock1Status(KeyUri)}</li>
- * <li>{@link #getBlock2Status(KeyUri)}</li>
  * <li>{@link #clearBlock1Status(Block1BlockwiseStatus)}</li>
  * <li>{@link #clearBlock2Status(Block2BlockwiseStatus)}</li>
  * </ul>
@@ -165,32 +166,37 @@ public class BlockwiseLayer extends AbstractLayer {
 	/*
 	 * What if a request contains a Block2 option with size 128 but the response
 	 * is only 10 bytes long? A configuration property allow the server between
-	 * two choices : <ul> <li>Include block2 option with m flag set to false to
-	 * indicate that there is no more block to request.</li> <li>Do not include
+	 * two choices :
+	 * <ul>
+	 * <li>Include block2 option with m flag set to false to
+	 * indicate that there is no more block to request.</li>
+	 * <li>Do not include
 	 * the block2 option at all (allowed by the RFC, it should be up to the
 	 * client to handle this use case :
-	 * https://tools.ietf.org/html/rfc7959#section-2.2)</li> </ul> <p> The draft
-	 * needs to specify whether it is allowed to use separate responses or NONs.
-	 * Otherwise, I do not know whether I should allow (or prevent) the resource
-	 * to use it. Currently, we do not prevent it but I am not sure what would
-	 * happen if a resource used accept() or NONs. <p> What is the client
-	 * supposed to do when it asks the server for block x but receives a wrong
-	 * block? The client cannot send a 4.08 (Request Entity Incomplete). Should
-	 * it reject it? Currently, we reject it and cancel the request. <p> In a
-	 * blockwise transfer of a response to a POST request, the draft should
+	 * https://tools.ietf.org/html/rfc7959#section-2.2)</li>
+	 * </ul>
+	 * <p>
+	 * The above behavior is configured with 
+	 * {@link CoapConfig#BLOCKWISE_STRICT_BLOCK2_OPTION}. 
+	 * <p>
+	 * A client, which uses the transparent blockwise mode, fails the request
+	 * and cancels the complete transfer, if the offsets in the request and
+	 * response are different.
+	 * A client without that transparent blockwise mode needs to implement it's
+	 * own preferred strategy.
+	 * <p> 
+	 * In a blockwise transfer of a response to a POST request, the draft should
 	 * mention whether the client should always include all options in each
 	 * request for the next block or not. The response is already produced at
 	 * the server, thus, there is no point in receiving them again. The draft
 	 * only states that the payload should be empty. Currently we always send
 	 * all options in each request (just in case) (except observe which is not
-	 * allowed). <p> When an observe notification is being sent blockwise, it is
-	 * not clear whether we are allowed to include the observe option in each
-	 * response block. In the draft, the observe option is left out but it would
-	 * be easier for us if we were allowed to include it. The policy which
-	 * options should be included in which block is not clear to me anyway. ETag
-	 * is always included, observe only in the first block, what about the
-	 * others? Currently, I send observe only in the first block so that it
-	 * exactly matches the example in the draft.
+	 * allowed).
+	 * <p>
+	 * When an observe notification is being sent blockwise, only the first
+	 * block contains the observe option. The client decides, if it continues 
+	 * to get the rest of the blocks and use a standard blockwise transfer for
+	 * that.
 	 */
 
 	// Minimal block size : 2^4 bytes
@@ -199,15 +205,19 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseLayer.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
-	private final BlockwiseStatus.RemoveHandler removeHandler = new BlockwiseStatus.RemoveHandler() {
+	private final BlockwiseStatus.RemoveHandler removeBlock1Handler = new BlockwiseStatus.RemoveHandler() {
 
 		@Override
 		public void remove(BlockwiseStatus status) {
-			if (status instanceof Block1BlockwiseStatus) {
-				clearBlock1Status((Block1BlockwiseStatus) status);
-			} else if (status instanceof Block2BlockwiseStatus) {
-				clearBlock2Status((Block2BlockwiseStatus) status);
-			}
+			clearBlock1Status((Block1BlockwiseStatus)status);
+		}
+
+	};
+	private final BlockwiseStatus.RemoveHandler removeBlock2Handler = new BlockwiseStatus.RemoveHandler() {
+
+		@Override
+		public void remove(BlockwiseStatus status) {
+			clearBlock2Status((Block2BlockwiseStatus)status);
 		}
 
 	};
@@ -235,7 +245,8 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * integrity of the payload by other means.
 	 * </p>
 	 * 
-	 * @see <a href="https://github.com/core-wg/attacks-on-coap" target="_blank">attacks-on-coap</a>
+	 * @see <a href="https://github.com/core-wg/attacks-on-coap" target=
+	 *      "_blank">attacks-on-coap</a>
 	 * @since 3.8
 	 */
 	private final boolean reuseToken;
@@ -299,46 +310,48 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * <p>
 	 * The following configuration properties are used:
 	 * <ul>
-	 * <li>{@link CoapConfig#MAX_MESSAGE_SIZE}
-	 * - This value is used as the threshold for determining whether an inbound
-	 * or outbound message's body needs to be transferred blockwise. If not set,
-	 * a default value of 4096 bytes is used.</li>
+	 * <li>{@link CoapConfig#MAX_MESSAGE_SIZE} - This value is used as the
+	 * threshold for determining whether an inbound or outbound message's body
+	 * needs to be transferred blockwise. If not set, a default value of 4096
+	 * bytes is used.</li>
 	 * 
-	 * <li>{@link CoapConfig#PREFERRED_BLOCK_SIZE}
-	 * - This value is used as the value proposed to a peer when doing a
-	 * transparent blockwise transfer. The value indicates the number of bytes,
-	 * not the szx code. If not set, a default value of 1024 bytes is used.</li>
+	 * <li>{@link CoapConfig#PREFERRED_BLOCK_SIZE} - This value is used as the
+	 * value proposed to a peer when doing a transparent blockwise transfer. The
+	 * value indicates the number of bytes, not the szx code. If not set, a
+	 * default value of 1024 bytes is used.</li>
 	 * 
-	 * <li>{@link CoapConfig#MAX_RESOURCE_BODY_SIZE}
-	 * - This value (in bytes) is used as the upper limit for the size of the
-	 * buffer used for assembling blocks of a transparent blockwise transfer.
-	 * Resource bodies larger than this value can only be transferred in a
-	 * manually managed blockwise transfer. Setting this value to 0 disables
-	 * transparent blockwise handling altogether, i.e. all messages will simply
-	 * be forwarded directly up and down to the next layer. If not set, a
-	 * default value of 8192 bytes is used.</li>
+	 * <li>{@link CoapConfig#MAX_RESOURCE_BODY_SIZE} - This value (in bytes) is
+	 * used as the upper limit for the size of the buffer used for assembling
+	 * blocks of a transparent blockwise transfer. Resource bodies larger than
+	 * this value can only be transferred in a manually managed blockwise
+	 * transfer. Setting this value to 0 disables transparent blockwise handling
+	 * altogether, i.e. all messages will simply be forwarded directly up and
+	 * down to the next layer. If not set, a default value of 8192 bytes is
+	 * used.</li>
 	 * 
-	 * <li>{@link CoapConfig#BLOCKWISE_STATUS_LIFETIME}
-	 * - The maximum amount of time (in milliseconds) allowed between transfers
-	 * of individual blocks before the blockwise transfer state is discarded. If
-	 * not set, a default value of 30 seconds is used.</li>
+	 * <li>{@link CoapConfig#BLOCKWISE_STATUS_LIFETIME} - The maximum amount of
+	 * time (in milliseconds) allowed between transfers of individual blocks
+	 * before the blockwise transfer state is discarded. If not set, a default
+	 * value of 30 seconds is used.</li>
 	 * 
-	 * <li>{@link CoapConfig#BLOCKWISE_STRICT_BLOCK2_OPTION}
-	 * - This value is used to indicate if the response should always include
-	 * the Block2 option when client request early blockwise negociation but the
-	 * response can be sent on one packet.</li>
+	 * <li>{@link CoapConfig#BLOCKWISE_STRICT_BLOCK2_OPTION} - This value is
+	 * used to indicate if the response should always include the Block2 option
+	 * when client request early blockwise negociation but the response can be
+	 * sent on one packet.</li>
 	 * </ul>
 	 * 
 	 * @param tag logging tag
 	 * @param enableBert {@code true}, enable TCP/BERT support, if the
-	 *            configured value for {@link CoapConfig#TCP_NUMBER_OF_BULK_BLOCKS} is
-	 *            larger than {@code 1}. {@code false} disable it.
+	 *            configured value for
+	 *            {@link CoapConfig#TCP_NUMBER_OF_BULK_BLOCKS} is larger than
+	 *            {@code 1}. {@code false} disable it.
 	 * @param config The configuration values to use.
 	 * @param matchingStrategy endpoint context matcher to relate responses with
 	 *            requests
 	 * @since 3.1
 	 */
-	public BlockwiseLayer(String tag, boolean enableBert, Configuration config, EndpointContextMatcher matchingStrategy) {
+	public BlockwiseLayer(String tag, boolean enableBert, Configuration config,
+			EndpointContextMatcher matchingStrategy) {
 		this.tag = tag;
 		this.matchingStrategy = matchingStrategy;
 		int blockSize = config.get(CoapConfig.PREFERRED_BLOCK_SIZE);
@@ -353,7 +366,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		maxMessageSize = config.get(CoapConfig.MAX_MESSAGE_SIZE);
 		preferredBlockSzx = szx;
 		blockTimeout = config.getTimeAsInt(CoapConfig.BLOCKWISE_STATUS_LIFETIME, TimeUnit.MILLISECONDS);
-		blockInterval = config.getTimeAsInt(CoapConfig.BLOCKWISE_STATUS_INTERVAL,TimeUnit.MILLISECONDS);
+		blockInterval = config.getTimeAsInt(CoapConfig.BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 		maxResourceBodySize = config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 		int maxActivePeers = config.get(CoapConfig.MAX_ACTIVE_PEERS);
 		block1Transfers = new LeastRecentlyUpdatedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout,
@@ -460,17 +473,15 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			if (isRandomAccess(exchange)) {
 				// This is the case if the user has explicitly added a block
-				// option
-				// for random access.
+				// option for random access.
 				// Note: We do not regard it as random access when the block
 				// number is 0.
 				// This is because the user might just want to do early block
 				// size negotiation but actually want to retrieve the whole body
-				// by means of
-				// a transparent blockwise transfer.
+				// by means of a transparent blockwise transfer.
 			} else {
 				KeyUri key = KeyUri.getKey(exchange);
-				Block2BlockwiseStatus status = getBlock2Status(key);
+				Block2BlockwiseStatus status = block2Transfers.get(key);
 				if (status != null) {
 					// Receiving a blockwise response in transparent mode
 					// is done by in an "internal request" for the left payload.
@@ -483,9 +494,8 @@ public class BlockwiseLayer extends AbstractLayer {
 					// response payload transfer (e.g., GET) operations to the
 					// same resource."
 					// So one transfer must be abandoned. This chose the
-					// transfer
-					// of the notify to be abandoned so that the client receives
-					// the requested response but lose the notify.
+					// transfer of the notify to be abandoned so that the client
+					// receives the requested response but lose the notify.
 					clearBlock2Status(status);
 					status.completeOldTransfer(null);
 				}
@@ -534,13 +544,14 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (block2 != null && block2.getNum() > 0) {
 				// follow up block, respond from status?
 				KeyUri key = KeyUri.getKey(exchange);
-				Block2BlockwiseStatus status = getBlock2Status(key);
+				Block2BlockwiseStatus status = block2Transfers.update(key);
 				if (status == null) {
 					LOGGER.debug(
 							"{}peer wants to retrieve individual block2 {} of {}, delivering request to application layer",
 							tag, block2, key);
 				} else {
-					// The peer wants to retrieve the next block of a blockwise transfer
+					// The peer wants to retrieve the next block of a blockwise
+					// transfer
 					boolean matching = true;
 					if (matchingStrategy != null) {
 						EndpointContext sourceContext2 = request.getSourceContext();
@@ -549,11 +560,12 @@ public class BlockwiseLayer extends AbstractLayer {
 						matching = matchingStrategy.isResponseRelatedToRequest(sourceContext1, sourceContext2);
 					}
 					if (matching) {
-						// matching endpoint context, use available response 
+						// matching endpoint context, use available response
 						handleInboundRequestForNextBlock(exchange, request, status);
 						return;
 					} else {
-						// not matching endpoint context, forward request to application layer
+						// not matching endpoint context, forward request to
+						// application layer
 						clearBlock2Status(status);
 						LOGGER.debug(
 								"{}peer wants to retrieve block2 {} of {} with new security context, delivering request to application layer",
@@ -621,10 +633,8 @@ public class BlockwiseLayer extends AbstractLayer {
 					status.assembleReceivedMessage(assembled);
 
 					// make sure we deliver the request using the MID and token
-					// of the latest request
-					// so that the response created by the application layer can
-					// reply to his
-					// token and MID
+					// of the latest request so that the response created by the
+					// application layer can reply to his token and MID
 					assembled.setMID(request.getMID());
 					assembled.setToken(request.getToken());
 					// copy scheme
@@ -717,8 +727,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				} else if (response.hasBlock(requestBlock2)) {
 					// the resource implementation does not support blockwise
 					// retrieval but instead has responded with the full
-					// response body
-					// crop the response down to the requested block
+					// response body crop the response down to the requested
+					// block
 					BlockOption block2 = getLimitedBlockOption(requestBlock2);
 					Block2BlockwiseStatus.crop(responseToSend, block2, maxTcpBertBulkBlocks);
 				} else if (!response.isError()) {
@@ -843,10 +853,8 @@ public class BlockwiseLayer extends AbstractLayer {
 
 					// server is not able to process the payload we included
 					KeyUri key = KeyUri.getKey(exchange);
-					Block1BlockwiseStatus status = getBlock1Status(key);
-					if (status != null) {
-						clearBlock1Status(status);
-					}
+					Block1BlockwiseStatus removedTracker = block1Transfers.remove(key);
+					logRemovedBlock1Transfer(removedTracker);
 				default:
 				}
 
@@ -860,7 +868,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			if (!isRandomAccess(exchange)) {
 				KeyUri key = KeyUri.getKey(exchange);
-				Block2BlockwiseStatus status = getBlock2Status(key);
+				Block2BlockwiseStatus status = block2Transfers.get(key);
 				if (discardBlock2(key, status, exchange, response)) {
 					return;
 				}
@@ -910,8 +918,10 @@ public class BlockwiseLayer extends AbstractLayer {
 							&& block1.getSize() < initialRequest.getPayloadSize();
 
 					Block1BlockwiseStatus status;
-					synchronized (block1Transfers) {
-						status = getBlock1Status(key);
+					WriteLock lock = block1Transfers.writeLock();
+					lock.lock();
+					try {
+						status = block1Transfers.update(key);
 						if (status == null && start) {
 							// We sent a request without using block1 and
 							// server give us hint it want it with block1
@@ -919,6 +929,8 @@ public class BlockwiseLayer extends AbstractLayer {
 							blockRequest = startBlockwiseUpload(key, exchange, initialRequest,
 									Math.min(block1.getSzx(), preferredBlockSzx));
 						}
+					} finally {
+						lock.unlock();
 					}
 					if (status == null) {
 						if (blockRequest != null) {
@@ -962,13 +974,17 @@ public class BlockwiseLayer extends AbstractLayer {
 						maxSize = initialRequest.getPayloadSize() - 1;
 					}
 					if (maxSize != null) {
-						synchronized (block1Transfers) {
-							if (getBlock1Status(key) == null) {
+						WriteLock lock = block1Transfers.writeLock();
+						lock.lock();
+						try {
+							if (block1Transfers.update(key) == null) {
 								// Start blockwise if we guess a correct size
 								int blockszx = BlockOption.size2Szx(maxSize);
 								requestToSend = startBlockwiseUpload(key, exchange, initialRequest,
 										Math.min(blockszx, preferredBlockSzx));
 							}
+						} finally {
+							lock.unlock();
 						}
 					}
 					if (requestToSend != null) {
@@ -1000,7 +1016,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		// Block1 transfer has been originally created for an outbound request
 		final KeyUri key = KeyUri.getKey(exchange);
 
-		Block1BlockwiseStatus status = getBlock1Status(key);
+		Block1BlockwiseStatus status = block1Transfers.update(key);
 
 		if (status == null) {
 
@@ -1011,8 +1027,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			// a concurrent block1 transfer has been started in the meantime
 			// which has "overwritten" the status object with the new
-			// (concurrent) request
-			// so we simply discard the response
+			// (concurrent) request so we simply discard the response
 			LOGGER.debug("{}discarding obsolete block1 response: {}", tag, response);
 
 		} else if (exchange.getRequest().isCanceled()) {
@@ -1026,8 +1041,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (block1.isM()) {
 				if (response.getCode() == ResponseCode.CONTINUE) {
 					// server wants us to send the remaining blocks before
-					// returning
-					// its response
+					// returning its response
 					sendNextBlock(exchange, response, status);
 				} else {
 					// the server has responded in a way that is not compliant
@@ -1038,19 +1052,15 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			} else {
 				// this means that the response already contains the server's
-				// final
-				// response to the request. However, the server is still
-				// expecting us
-				// to continue to send the remaining blocks as specified in
-				// https://tools.ietf.org/html/rfc7959#section-2.3
+				// final response to the request. However, the server is still
+				// expecting us to continue to send the remaining blocks as
+				// specified in https://tools.ietf.org/html/rfc7959#section-2.3
 
 				// the current implementation does not allow us to forward the
-				// response
-				// to the application layer, though, because it would "complete"
-				// the exchange and thus remove the blockwise status necessary
-				// to keep track of this POST/PUT request
-				// we therefore go on sending all pending blocks and then return
-				// the
+				// response to the application layer, though, because it would
+				// "complete" the exchange and thus remove the blockwise status
+				// necessary to keep track of this POST/PUT request we therefore
+				// go on sending all pending blocks and then return the
 				// response received for the last block
 				sendNextBlock(exchange, response, status);
 			}
@@ -1166,14 +1176,10 @@ public class BlockwiseLayer extends AbstractLayer {
 		if (exchange.getRequest().isCanceled()) {
 
 			// We have received a block of the resource body in response to a
-			// request that
-			// has been canceled by the application layer. There is no need to
-			// retrieve the
-			// remaining blocks.
-			Block2BlockwiseStatus status = getBlock2Status(key);
-			if (status != null) {
-				clearBlock2Status(status);
-			}
+			// request that has been canceled by the application layer. There
+			// is no need to retrieve the remaining blocks.
+			Block2BlockwiseStatus removedTracker = block2Transfers.remove(key);
+			logRemovedBlock2Transfer(removedTracker);
 
 			if (response.isNotification()) {
 				// We have received a notification for an observed resource that
@@ -1196,12 +1202,16 @@ public class BlockwiseLayer extends AbstractLayer {
 			upper().receiveResponse(exchange, response);
 		} else {
 			Block2BlockwiseStatus status;
-			synchronized (block2Transfers) {
-				status = getBlock2Status(key);
+			WriteLock lock = block2Transfers.writeLock();
+			lock.lock();
+			try {
+				status = block2Transfers.get(key);
 				if (discardBlock2(key, status, exchange, response)) {
 					return;
 				}
 				status = getInboundBlock2Status(key, exchange, response);
+			} finally {
+				lock.unlock();
 			}
 
 			try {
@@ -1310,7 +1320,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * 
 	 * If not available, create new block1status,
 	 * 
-	 * Synchronized on {@link #block1Transfers}.
+	 * Acquires write lock on {@link #block1Transfers}.
 	 * 
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
@@ -1327,19 +1337,23 @@ public class BlockwiseLayer extends AbstractLayer {
 		Integer size = null;
 		Block1BlockwiseStatus previousStatus = null;
 		Block1BlockwiseStatus status = null;
-		synchronized (block1Transfers) {
+		WriteLock lock = block1Transfers.writeLock();
+		lock.lock();
+		try {
 			if (reset) {
 				previousStatus = block1Transfers.remove(key);
 			} else {
 				status = block1Transfers.update(key);
 			}
 			if (status == null) {
-				status = Block1BlockwiseStatus.forOutboundRequest(key, removeHandler, exchange, request,
+				status = Block1BlockwiseStatus.forOutboundRequest(key, removeBlock1Handler, exchange, request,
 						maxTcpBertBulkBlocks);
 				block1Transfers.put(key, status);
 				enableStatus = true;
 				size = block1Transfers.size();
 			}
+		} finally {
+			lock.unlock();
 		}
 		if (previousStatus != null && previousStatus.cancelRequest()) {
 			LOGGER.debug("{}stop previous block1 transfer {} {} for new {}", tag, key, previousStatus, request);
@@ -1359,7 +1373,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * If {@code true} is provided for {@code reset}, remove and complete the
 	 * previous block1status. If not available, create new block1status.
 	 * 
-	 * Synchronized on {@link #block1Transfers}.
+	 * Acquires write lock on {@link #block1Transfers}.
 	 * 
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
@@ -1378,7 +1392,9 @@ public class BlockwiseLayer extends AbstractLayer {
 		Block1BlockwiseStatus previousStatus = null;
 		Block1BlockwiseStatus status = null;
 		int maxPayloadSize = getMaxResourceBodySize(request);
-		synchronized (block1Transfers) {
+		WriteLock lock = block1Transfers.writeLock();
+		lock.lock();
+		try {
 			if (reset) {
 				previousStatus = block1Transfers.remove(key);
 			} else {
@@ -1386,12 +1402,14 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 			if (status == null) {
 				check = false;
-				status = Block1BlockwiseStatus.forInboundRequest(key, removeHandler, exchange, request, maxPayloadSize,
-						maxTcpBertBulkBlocks);
+				status = Block1BlockwiseStatus.forInboundRequest(key, removeBlock1Handler, exchange, request,
+						maxPayloadSize, maxTcpBertBulkBlocks);
 				block1Transfers.put(key, status);
 				enableStatus = true;
 				size = block1Transfers.size();
 			}
+		} finally {
+			lock.unlock();
 		}
 		if (previousStatus != null && previousStatus.complete()) {
 			LOGGER.debug("{}stop previous block1 transfer {} {} for new {}", tag, key, previousStatus, request);
@@ -1422,7 +1440,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * If {@code true} is provided for {@code reset}, remove and complete the
 	 * previous block2status. If not available, create new block2status.
 	 * 
-	 * Synchronized on {@link #block2Transfers}.
+	 * Acquires write lock on {@link #block2Transfers}.
 	 * 
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
@@ -1439,19 +1457,23 @@ public class BlockwiseLayer extends AbstractLayer {
 		Integer size = null;
 		Block2BlockwiseStatus previousStatus = null;
 		Block2BlockwiseStatus status = null;
-		synchronized (block2Transfers) {
+		WriteLock lock = block2Transfers.writeLock();
+		lock.lock();
+		try {
 			if (reset) {
 				previousStatus = block2Transfers.remove(key);
 			} else {
 				status = block2Transfers.update(key);
 			}
 			if (status == null) {
-				status = Block2BlockwiseStatus.forOutboundResponse(key, removeHandler, exchange, response,
+				status = Block2BlockwiseStatus.forOutboundResponse(key, removeBlock2Handler, exchange, response,
 						maxTcpBertBulkBlocks);
 				block2Transfers.put(key, status);
 				enableStatus = true;
 				size = block2Transfers.size();
 			}
+		} finally {
+			lock.unlock();
 		}
 		if (previousStatus != null && previousStatus.completeResponse()) {
 			LOGGER.debug("{}stop previous block2 transfer {} {} for new {}", tag, key, previousStatus, response);
@@ -1470,7 +1492,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * 
 	 * If not available, create new block2status,
 	 * 
-	 * Synchronized on {@link #block2Transfers}.
+	 * Acquires write lock on {@link #block2Transfers}.
 	 * 
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
@@ -1482,15 +1504,19 @@ public class BlockwiseLayer extends AbstractLayer {
 		Integer size = null;
 		int maxPayloadSize = getMaxResourceBodySize(response);
 		Block2BlockwiseStatus status;
-		synchronized (block2Transfers) {
+		WriteLock lock = block2Transfers.writeLock();
+		lock.lock();
+		try {
 			status = block2Transfers.update(key);
 			if (status == null) {
-				status = Block2BlockwiseStatus.forInboundResponse(key, removeHandler, exchange, response,
+				status = Block2BlockwiseStatus.forInboundResponse(key, removeBlock2Handler, exchange, response,
 						maxPayloadSize, maxTcpBertBulkBlocks);
 				block2Transfers.put(key, status);
 				enableStatus = true;
 				size = block2Transfers.size();
 			}
+		} finally {
+			lock.unlock();
 		}
 		if (size != null) {
 			LOGGER.debug("{}created tracker for {} inbound block2 transfer {}, transfers in progress: {}, {}", tag, key,
@@ -1500,37 +1526,10 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	/**
-	 * Get block1status.
-	 * 
-	 * Synchronized on {@link #block1Transfers}.
-	 * 
-	 * @param key uri-key
-	 * @return block1status, or {@code null}, if not available.
-	 */
-	private Block1BlockwiseStatus getBlock1Status(final KeyUri key) {
-
-		synchronized (block1Transfers) {
-			return block1Transfers.update(key);
-		}
-	}
-
-	/**
-	 * Get block2status.
-	 * 
-	 * Synchronized on {@link #block2Transfers}.
-	 * 
-	 * @param key uri-key
-	 * @return block2status, or {@code null}, if not available.
-	 */
-	private Block2BlockwiseStatus getBlock2Status(final KeyUri key) {
-
-		synchronized (block2Transfers) {
-			return block2Transfers.update(key);
-		}
-	}
-
-	/**
 	 * Cleanup expired block status.
+	 * 
+	 * Acquires write lock on {@link #block1Transfers} and
+	 * {@link #block2Transfers}.
 	 * 
 	 * @param dump {code true}, always log using {@link #HEALTH_LOGGER} with
 	 *            {@code debug}, {@code false}, log only using {@link #LOGGER}
@@ -1538,12 +1537,8 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 	private void cleanupExpiredBlockStatus(boolean dump) {
 		int count = 0;
-		synchronized (block1Transfers) {
-			count += block1Transfers.removeExpiredEntries(128);
-		}
-		synchronized (block2Transfers) {
-			count += block2Transfers.removeExpiredEntries(128);
-		}
+		count += block1Transfers.removeExpiredEntries(128);
+		count += block2Transfers.removeExpiredEntries(128);
 		if (dump) {
 			HEALTH_LOGGER.debug("{}cleaned up {} block transfers!", tag, count);
 		} else if (enableStatus && count > 0) {
@@ -1554,47 +1549,51 @@ public class BlockwiseLayer extends AbstractLayer {
 	/**
 	 * Clear block1status.
 	 * 
-	 * Synchronized on {@link #block1Transfers}.
+	 * Acquires write lock on {@link #block1Transfers}.
 	 * 
 	 * @param status status to remove
-	 * @return removed status, or {@code null}, if status is not a current
-	 *         transfer.
 	 */
-	private Block1BlockwiseStatus clearBlock1Status(Block1BlockwiseStatus status) {
-		int size;
-		Block1BlockwiseStatus removedTracker;
-		synchronized (block1Transfers) {
-			removedTracker = block1Transfers.remove(status.getKeyUri(), status);
-			size = block1Transfers.size();
-		}
+	private void clearBlock1Status(Block1BlockwiseStatus status) {
+		Block1BlockwiseStatus removedTracker = block1Transfers.remove(status.getKeyUri(), status);
+		logRemovedBlock1Transfer(removedTracker);
+	}
+
+	/**
+	 * Log removed block1status.
+	 * 
+	 * @param removedTracker removed block1 transfer tracker
+	 * @since 3.9
+	 */
+	private void logRemovedBlock1Transfer(Block1BlockwiseStatus removedTracker) {
 		if (removedTracker != null && removedTracker.complete()) {
 			LOGGER.debug("{}removing block1 tracker [{}], block1 transfers still in progress: {}", tag,
-					status.getKeyUri(), size);
+					removedTracker.getKeyUri(), block1Transfers.size());
 		}
-		return removedTracker;
 	}
 
 	/**
 	 * Clear block2status.
 	 * 
-	 * Synchronized on {@link #block2Transfers}.
+	 * Acquires write lock on {@link #block2Transfers}.
 	 * 
 	 * @param status status to remove
-	 * @return removed status, or {@code null}, if status is not a current
-	 *         transfer.
 	 */
-	private Block2BlockwiseStatus clearBlock2Status(Block2BlockwiseStatus status) {
-		int size;
-		Block2BlockwiseStatus removedTracker;
-		synchronized (block2Transfers) {
-			removedTracker = block2Transfers.remove(status.getKeyUri(), status);
-			size = block2Transfers.size();
-		}
+	private void clearBlock2Status(Block2BlockwiseStatus status) {
+		Block2BlockwiseStatus removedTracker = block2Transfers.remove(status.getKeyUri(), status);
+		logRemovedBlock2Transfer(removedTracker);
+	}
+
+	/**
+	 * Log removed block2status.
+	 * 
+	 * @param removedTracker removed block2 transfer tracker
+	 * @since 3.9
+	 */
+	private void logRemovedBlock2Transfer(Block2BlockwiseStatus removedTracker) {
 		if (removedTracker != null && removedTracker.complete()) {
 			LOGGER.debug("{}removing block2 tracker [{}], block2 transfers still in progress: {}", tag,
-					status.getKeyUri(), size);
+					removedTracker.getKeyUri(), block2Transfers.size());
 		}
-		return removedTracker;
 	}
 
 	private boolean requiresBlock1wise(Request request) {
