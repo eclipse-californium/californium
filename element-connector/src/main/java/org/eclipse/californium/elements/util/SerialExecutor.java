@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * 
  * Serialize job execution before passing the jobs to a provided executor.
  */
-public class SerialExecutor extends AbstractExecutorService {
+public class SerialExecutor extends AbstractExecutorService implements CheckedExecutor {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SerialExecutor.class);
 
@@ -119,12 +119,11 @@ public class SerialExecutor extends AbstractExecutorService {
 	}
 
 	/**
-	 * Assert, that the current thread executes the
-	 * {@link #currentlyExecutedJob}.
+	 * {@inheritDoc}
 	 * 
-	 * @throws ConcurrentModificationException if current thread doesn't execute
-	 *             the {@link #currentlyExecutedJob}.
-	 */
+	 * {@link #currentlyExecutedJob} is used for the current job.
+		 */
+	@Override
 	public void assertOwner() {
 		final Thread me = Thread.currentThread();
 		if (owner.get() != me) {
@@ -138,11 +137,11 @@ public class SerialExecutor extends AbstractExecutorService {
 	}
 
 	/**
-	 * Check, if current thread executes the {@link #currentlyExecutedJob}.
+	 * {@inheritDoc}
 	 * 
-	 * @return {@code true}, if current thread executes the
-	 *         {@link #currentlyExecutedJob}, {@code false}, otherwise.
-	 */
+	 * {@link #currentlyExecutedJob} is used for the current job.
+		 */
+	@Override
 	public boolean checkOwner() {
 		return owner.get() == Thread.currentThread();
 	}
