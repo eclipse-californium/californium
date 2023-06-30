@@ -17,8 +17,8 @@ For more details, please look at [https://www.eclipse.org/security](https://www.
 | 3.9.0-SNAPSHOT (main) | :heavy_check_mark: |
 | 3.8.0   | :heavy_check_mark: |
 | 3.8.0, 3.6.0, 3.5.0, 3.4.0, <br/> 3.3.1, 3.2.0, 3.1.0, <br/> 3.0.0 | :question: |
-| 2.7.4   | :question: |
-| 2.7.3, 2.6.6, 2.5.0, 2.4.1, <br/> 2.3.1, 2.2.3, 2.1.0, <br/> 2.0.0 | :question: |
+| 2.8.0   | :question: |
+| 2.7.4, 2.6.6, 2.5.0, 2.4.1, <br/> 2.3.1, 2.2.3, 2.1.0, <br/> 2.0.0 | :question: |
 | before 2.0.0   | :x: |
 
 :heavy_check_mark: development version / current release - all bugfixes will be applied

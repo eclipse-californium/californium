@@ -82,13 +82,13 @@ com.upokecenter.cbor (4.5.2)
 
 * License: CC-1.0
 * Project: https://github.com/peteroupc/CBOR-Java
-* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.4.4
+* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.5.2
 
-Google Guava (30.0-android)
+Google Guava (32.0.1-android)
 
 * License: Apache License, 2.0
 
-gson (2.10)
+gson (2.10.1)
 
 * License: Apache-2.0 
 
@@ -122,11 +122,11 @@ logback-android (1.1.1)
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
-Netty (4.1.87)
+Netty (4.1.94)
 
 * License: Apache-2.0 AND BSD-3-Clause AND MIT
 * Project: https://netty.io/
-* Source: https://github.com/netty/netty/archive/refs/tags/netty-4.1.67.Final.zip
+* Source: https://github.com/netty/netty/archive/refs/tags/netty-4.1.94.Final.zip
 
 OSGi Service Platform Compendium Companion Code (5.0)
 
@@ -146,11 +146,11 @@ slf4j-jdk14 (1.7.36)
 
 * License: MIT
 
-picocli (4.7.0)
+picocli (4.7.4)
 
 * License: Apache License, 2.0
 * Project: https://picocli.info
-* Source: https://github.com/remkop/picocli/archive/v4.6.1.zip
+* Source: https://github.com/remkop/picocli/archive/v4.7.4.zip
 
 ed25519-java (0.3.0)
 
