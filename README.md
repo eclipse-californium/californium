@@ -1,5 +1,7 @@
 ![Californium logo](cf_64.png)
 
+** !!! Please migrate to Californium 3.8.0 !!! **
+
 # Californium (Cf) - CoAP for Java
 
 Eclipse Californium is a Java implementation of [RFC7252 - Constrained Application Protocol](http://tools.ietf.org/html/rfc7252) for IoT Cloud services. Thus, the focus is on scalability and usability instead of resource-efficiency
@@ -73,7 +75,7 @@ In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.6.2).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.8.0).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots):
 
@@ -83,7 +85,7 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>2.6.2</version>
+            <version>2.8.0</version>
     </dependency>
     ...
   </dependencies>
@@ -107,7 +109,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `2.6.3-SNAPSHOT`.
+You can then simply depend on `2.8.1-SNAPSHOT`.
 
 # Eclipse
 
