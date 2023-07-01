@@ -66,7 +66,7 @@ import org.eclipse.californium.scandium.dtls.ConnectionIdExtension;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
-import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
@@ -268,7 +268,7 @@ public final class DtlsConnectorConfig {
 	private DatagramFilter datagramFilter;
 
 	/**
-	 * Session store for {@link InMemoryConnectionStore}.
+	 * Session store for {@link InMemoryReadWriteLockConnectionStore}.
 	 * 
 	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
 	 * session store must be provided directly to that implementation. In that
@@ -1498,7 +1498,7 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets session store for {@link InMemoryConnectionStore}.
+	 * Gets session store for {@link InMemoryReadWriteLockConnectionStore}.
 	 * 
 	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
 	 * session store must be provided directly to that implementation. In that
@@ -2113,7 +2113,7 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the session store for {@link InMemoryConnectionStore}.
+		 * Sets the session store for {@link InMemoryReadWriteLockConnectionStore}.
 		 * 
 		 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
 		 * session store must be provided directly to that implementation. In
@@ -2186,6 +2186,7 @@ public final class DtlsConnectorConfig {
 		 * @return the configuration object
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
+		@SuppressWarnings("deprecation")
 		public DtlsConnectorConfig build() {
 			// set default values
 			config.loggingTag = StringUtil.normalizeLoggingTag(config.loggingTag);
@@ -2250,7 +2251,7 @@ public final class DtlsConnectorConfig {
 			}
 			DtlsRole dtlsRole = config.get(DtlsConfig.DTLS_ROLE);
 			if (dtlsRole == DtlsRole.SERVER_ONLY) {
-				if (config.getCertificateAuthenticationMode() == CertificateAuthenticationMode.NONE
+				if (config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) == CertificateAuthenticationMode.NONE
 						&& config.advancedCertificateVerifier != null) {
 					throw new IllegalStateException(
 							"configured certificate verifier is not used for client authentication mode NONE!");
@@ -2279,7 +2280,7 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("Enabled DTLS MAC error filter requires a record-filter!");
 			}
 
-			Integer cidCodePoint = config.useDeprecatedCid();
+			Integer cidCodePoint = config.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
 			if (cidCodePoint != null) {
 				ExtensionType cidType = ExtensionType.getExtensionTypeById(cidCodePoint);
 				if (cidType == null) {
@@ -2341,7 +2342,7 @@ public final class DtlsConnectorConfig {
 						+ "explicitly or implicitly by means of setting the identity or PSK store");
 			}
 
-			if (config.useRecommendedCipherSuitesOnly()) {
+			if (config.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY)) {
 				verifyRecommendedCipherSuitesOnly(config.supportedCipherSuites);
 			}
 
@@ -2417,11 +2418,11 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			if (config.useRecommendedSupportedGroupsOnly()) {
+			if (config.get(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY)) {
 				verifyRecommendedSupportedGroupsOnly(config.supportedGroups);
 			}
 
-			if (config.useRecommendedSignatureAndHashAlgorithmsOnly()) {
+			if (config.get(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY)) {
 				verifyRecommendedSignatureAndHashAlgorithmsOnly(config.supportedSignatureAlgorithms);
 			}
 
@@ -2500,7 +2501,7 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException(
 							"One of the keys (" + keyAlgorithms + ") must be capable for configured " + suite.name());
 				}
-				if (config.getCertificateAuthenticationMode() != CertificateAuthenticationMode.NONE) {
+				if (config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NONE) {
 					if (config.advancedCertificateVerifier == null) {
 						throw new IllegalStateException(
 								"certificate verifier must be set for authentication using the configured "
@@ -2585,7 +2586,7 @@ public final class DtlsConnectorConfig {
 							config.certificateIdentityProvider.getSupportedCertificateKeyAlgorithms());
 				}
 				if (!keyAlgorithms.isEmpty()) {
-					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.useRecommendedCipherSuitesOnly(),
+					ciphers.addAll(CipherSuite.getCertificateCipherSuites(config.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY),
 							keyAlgorithms));
 				}
 			}
@@ -2593,12 +2594,12 @@ public final class DtlsConnectorConfig {
 			if (config.advancedPskStore != null) {
 				if (config.advancedPskStore.hasEcdhePskSupported()) {
 					ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(
-							config.useRecommendedCipherSuitesOnly(), KeyExchangeAlgorithm.ECDHE_PSK));
+							config.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY), KeyExchangeAlgorithm.ECDHE_PSK));
 				}
 				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(
-						config.useRecommendedCipherSuitesOnly(), KeyExchangeAlgorithm.PSK));
+						config.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY), KeyExchangeAlgorithm.PSK));
 			}
-			List<CipherSuite> preselectedCipherSuites = config.getPreselectedCipherSuites();
+			List<CipherSuite> preselectedCipherSuites = config.get(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES);
 			if (preselectedCipherSuites != null && !preselectedCipherSuites.isEmpty()) {
 				ciphers = CipherSuite.preselectCipherSuites(ciphers, preselectedCipherSuites);
 			}

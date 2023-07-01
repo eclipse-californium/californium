@@ -730,7 +730,9 @@ public final class DtlsConfig {
 	 * disable this function.
 	 * </p>
 	 * Default {@link #DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}.
+	 * @deprecated use the general {@link #DTLS_USE_HELLO_VERIFY_REQUEST} instead.
 	 */
+	@Deprecated
 	public static final IntegerDefinition DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD = new IntegerDefinition(
 			MODULE + "VERIFY_PEERS_ON_RESUMPTION_THRESHOLD", "DTLS verify peers on resumption threshold in percent.",
 			DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT, 0);
@@ -745,8 +747,9 @@ public final class DtlsConfig {
 	 * To limit the amplification, the peers must share PSK cipher suites to by
 	 * pass that check. If only certificate based cipher suites are shared, the
 	 * HELLO_VERIFY_REQUEST will still be used.
-	 * 
+	 * @deprecated use the general {@link #DTLS_USE_HELLO_VERIFY_REQUEST} instead.
 	 */
+	@Deprecated
 	public static final BooleanDefinition DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK = new BooleanDefinition(
 			MODULE + "USE_HELLO_VERIFY_REQUEST_FOR_PSK",
 			"DTLS use a HELLO_VERIFY_REQUEST for PSK cipher suites to protect against spoofing.", true);
@@ -909,14 +912,18 @@ public final class DtlsConfig {
 	 * Specify the usage of DTLS CID before version 09 of <a href=
 	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
 	 * target="_blank">Draft dtls-connection-id</a> for the client side.
+	 * @deprecated do not longer use deprecated CID definitions! 
 	 */
+	@Deprecated
 	public static final IntegerDefinition DTLS_USE_DEPRECATED_CID = new IntegerDefinition(MODULE + "USE_DEPRECATED_CID",
 			"DTLS use deprecated CID extension code point for client (before version 09 of RFC-CID).", null, 53);
 	/**
 	 * Specify the support of DTLS CID before version 9 of <a href=
 	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
 	 * target="_blank">Draft dtls-connection-id</a> for the server side.
+	 * @deprecated do not longer use deprecated CID definitions! 
 	 */
+	@Deprecated
 	public static final BooleanDefinition DTLS_SUPPORT_DEPRECATED_CID = new BooleanDefinition(
 			MODULE + "SUPPORT_DEPRECATED_CID", "DTLS support deprecated CID for server (before version 9).", false);
 
@@ -947,9 +954,11 @@ public final class DtlsConfig {
 	 * Use read-write-lock connection store.
 	 * 
 	 * @since 3.5
+	 * @deprecated please use only the new read-write-lock connection store
 	 */
+	@Deprecated
 	public static final BooleanDefinition DTLS_READ_WRITE_LOCK_CONNECTION_STORE = new BooleanDefinition(
-			MODULE + "READ_WRITE_LOCK_CONNECTION_STORE", "Use read-write-lock connection store.", false);
+			MODULE + "READ_WRITE_LOCK_CONNECTION_STORE", "Use read-write-lock connection store.", true);
 
 	/**
 	 * Quiet time for DTLS MAC error filter.
@@ -1107,7 +1116,7 @@ public final class DtlsConfig {
 			config.set(DTLS_SUPPORT_DEPRECATED_CID, false);
 			config.set(DTLS_USE_DEFAULT_RECORD_FILTER, true);
 			config.set(DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, false);
-			config.set(DTLS_READ_WRITE_LOCK_CONNECTION_STORE, false);
+			config.set(DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
 			config.set(DTLS_MAC_ERROR_FILTER_QUIET_TIME, 0, TimeUnit.SECONDS);
 			config.set(DTLS_MAC_ERROR_FILTER_THRESHOLD, 0);
 		}

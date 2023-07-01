@@ -160,7 +160,6 @@ public class PlugtestServer extends AbstractTestServer {
 			config.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
 			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PRESELECTED_CIPHER_SUITES);
 			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10000);
-			config.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
 			config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, false);
 			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, 4, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD, 8);
