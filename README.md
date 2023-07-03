@@ -183,7 +183,7 @@ It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/r
 The root resource responds with its current version.
 
 **Please note:**
-The server is intended to test the interoperability of CoAP and DTLS 1.2. Data sent to that server is typically "Hello world". The data is public visible to all other users and is remove on any restart. Please don't send data, which requires "data privacy", the sandbox server is not intended for such usage. 
+The server is intended to test the interoperability of CoAP and DTLS 1.2. Data sent to that server is typically "Hello world". The data is public visible to all other users and is removed on any restart. Please don't send data, which requires "data privacy", the sandbox server is not intended for such usage. 
 
 More information can be found at [http://www.eclipse.org/californium](http://www.eclipse.org/californium) and technical details at [https://projects.eclipse.org/projects/iot.californium](https://projects.eclipse.org/projects/iot.californium).
 
