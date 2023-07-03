@@ -97,7 +97,10 @@ public final class TcpConfig {
 
 		@Override
 		public void applyDefinitions(Configuration config) {
-			config.set(TCP_WORKER_THREADS, 1);
+			final int CORES = Runtime.getRuntime().availableProcessors();
+			final int THREADS = CORES > 3 ? 2 : 1;
+
+			config.set(TCP_WORKER_THREADS, THREADS);
 			config.set(TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(TLS_HANDSHAKE_TIMEOUT, DEFAULT_TLS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
