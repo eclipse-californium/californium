@@ -29,6 +29,8 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Message;
@@ -40,7 +42,7 @@ import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.DatagramWriter;
-import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -162,8 +164,8 @@ public class RequestStatistic extends CoapResource {
 	 */
 	private static final int DEFAULT_MAX_PAYLOAD_LENGTH = 500;
 
-	private final LeastRecentlyUsedCache<String, List<RequestInformation>> requests = new LeastRecentlyUsedCache<String, List<RequestInformation>>(
-			1024 * 16, 0);
+	private final LeastRecentlyUpdatedCache<String, List<RequestInformation>> requests = new LeastRecentlyUpdatedCache<String, List<RequestInformation>>(
+			1024 * 16, 0, TimeUnit.SECONDS);
 
 	public RequestStatistic() {
 		super(RESOURCE_NAME);
@@ -171,7 +173,6 @@ public class RequestStatistic extends CoapResource {
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_JSON);
 		getAttributes().addContentType(APPLICATION_CBOR);
-		requests.setEvictingOnReadAccess(false);
 	}
 
 	@Override
@@ -216,12 +217,16 @@ public class RequestStatistic extends CoapResource {
 		}
 
 		List<RequestInformation> history;
-		synchronized (requests) {
-			history = requests.get(dev);
+		WriteLock lock = requests.writeLock();
+		lock.lock();
+		try {
+			history = requests.update(dev);
 			if (history == null) {
 				history = new ArrayList<RequestInformation>();
 				requests.put(dev, history);
 			}
+		} finally {
+			lock.unlock();
 		}
 
 		if (history != null) {

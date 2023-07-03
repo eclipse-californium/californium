@@ -214,7 +214,6 @@ public class BenchmarkClient {
 			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 8192);
 			config.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, 8192);
 			config.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
-			config.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
 			config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, false);
 			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS); // disabled
 		}
