@@ -103,6 +103,7 @@ import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.deduplication.NoDeduplicator;
 import org.eclipse.californium.core.network.interceptors.MalformedMessageInterceptor;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
@@ -1781,8 +1782,10 @@ public class CoapEndpoint implements Endpoint, Executor {
 				tag = CoAP.getSchemeForProtocol(connector.getProtocol());
 			}
 			tag = StringUtil.normalizeLoggingTag(tag);
+			InMemoryMessageExchangeStore store = null;
 			if (exchangeStore == null) {
-				exchangeStore = new InMemoryMessageExchangeStore(tag, config, tokenGenerator);
+				store = new InMemoryMessageExchangeStore(tag, config, tokenGenerator);
+				exchangeStore = store;
 			}
 			if (coapStackFactory == null) {
 				coapStackFactory = getDefaultCoapStackFactory();
@@ -1793,6 +1796,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 						parser = new TcpDataParser(optionRegistry);
 					} else {
 						parser = new TcpDataParser(criticalCustomOptions);
+					}
+					if (store != null) {
+						store.setDeduplicator(new NoDeduplicator());
 					}
 				} else {
 					boolean strictEmptyMessageFormat = config.get(CoapConfig.STRICT_EMPTY_MESSAGE_FORMAT);
