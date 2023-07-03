@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.LinkFormat;
@@ -47,7 +48,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
 
 /**
  * Echo resource.
@@ -119,7 +120,7 @@ public class Echo extends CoapResource {
 
 	private final AtomicInteger pendingResponses = new AtomicInteger();
 
-	private final LeastRecentlyUsedCache<String, Resource> keptPosts = new LeastRecentlyUsedCache<>(100, 500, 6,
+	private final LeastRecentlyUpdatedCache<String, Resource> keptPosts = new LeastRecentlyUpdatedCache<>(100, 500, 6,
 			TimeUnit.HOURS);
 
 	/**
@@ -137,8 +138,6 @@ public class Echo extends CoapResource {
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
 		getAttributes().addContentType(APPLICATION_LINK_FORMAT);
-		keptPosts.setEvictingOnReadAccess(false);
-		keptPosts.setUpdatingOnReadAccess(false);
 	}
 
 	@Override
@@ -153,16 +152,12 @@ public class Echo extends CoapResource {
 
 	@Override
 	public Resource getChild(String name) {
-		synchronized (keptPosts) {
-			return keptPosts.get(name);
-		}
+		return keptPosts.get(name);
 	}
 
 	@Override // should be used for read-only
 	public Collection<Resource> getChildren() {
-		synchronized (keptPosts) {
-			return keptPosts.values();
-		}
+		return keptPosts.values();
 	}
 
 	@Override
@@ -235,8 +230,10 @@ public class Echo extends CoapResource {
 			}
 			if (principal != null) {
 				request.setProtectFromOffload();
-				synchronized (keptPosts) {
-					Resource child = keptPosts.get(principal);
+				WriteLock lock = keptPosts.writeLock();
+				lock.lock();
+				try {
+					Resource child = keptPosts.update(principal);
 					if (!(child instanceof Keep)) {
 						child = new Keep(principal);
 					}
@@ -245,6 +242,8 @@ public class Echo extends CoapResource {
 						child.setParent(this);
 						keptPosts.put(principal, child);
 					}
+				} finally {
+					lock.unlock();
 				}
 			}
 		}
@@ -334,9 +333,7 @@ public class Echo extends CoapResource {
 
 		@Override
 		public void handleDELETE(CoapExchange exchange) {
-			synchronized (keptPosts) {
-				keptPosts.remove(getName(), this);
-			}
+			keptPosts.remove(getName(), this);
 			exchange.respond(DELETED);
 		}
 	}
