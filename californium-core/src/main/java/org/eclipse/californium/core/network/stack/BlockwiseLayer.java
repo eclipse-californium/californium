@@ -544,7 +544,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (block2 != null && block2.getNum() > 0) {
 				// follow up block, respond from status?
 				KeyUri key = KeyUri.getKey(exchange);
-				Block2BlockwiseStatus status = block2Transfers.update(key);
+				Block2BlockwiseStatus status = block2Transfers.get(key);
 				if (status == null) {
 					LOGGER.debug(
 							"{}peer wants to retrieve individual block2 {} of {}, delivering request to application layer",
@@ -679,6 +679,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		if (nextBlockResponse.getOptions().getBlock2().isM()) {
 			LOGGER.debug("{}peer has requested intermediary block of blockwise transfer: {}", tag, status);
+			block2Transfers.update(status.getKeyUri());
 		} else {
 			// clean up blockwise status
 			LOGGER.debug("{}peer has requested last block of blockwise transfer: {}", tag, status);
