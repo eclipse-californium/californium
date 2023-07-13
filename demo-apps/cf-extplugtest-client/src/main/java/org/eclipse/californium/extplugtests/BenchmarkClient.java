@@ -200,7 +200,7 @@ public class BenchmarkClient {
 			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
 			config.set(TcpConfig.TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
-			config.set(TcpConfig.TCP_WORKER_THREADS, 2);
+			config.set(TcpConfig.TCP_WORKER_THREADS, 1);
 			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 1);
 			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 1);
 			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
