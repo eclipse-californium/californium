@@ -63,9 +63,12 @@ public final class TcpConfig {
 			"TCP connect timeout.", DEFAULT_TCP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 	/**
 	 * Number of TCP worker threads.
+	 * 
+	 * Since 3.9: supports value {@code 0} for the default value of the TCP
+	 * implementation, e.g. of netty.io.
 	 */
 	public static final IntegerDefinition TCP_WORKER_THREADS = new IntegerDefinition(MODULE + "WORKER_THREADS",
-			"Number of TCP worker threads.", 1, 1);
+			"Number of TCP worker threads. 0 to use default of TCP implementation.", 0, 0);
 	/**
 	 * TLS handshake timeout.
 	 */
@@ -97,10 +100,7 @@ public final class TcpConfig {
 
 		@Override
 		public void applyDefinitions(Configuration config) {
-			final int CORES = Runtime.getRuntime().availableProcessors();
-			final int THREADS = CORES > 3 ? 2 : 1;
-
-			config.set(TCP_WORKER_THREADS, THREADS);
+			config.set(TCP_WORKER_THREADS, 0);
 			config.set(TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(TLS_HANDSHAKE_TIMEOUT, DEFAULT_TLS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
