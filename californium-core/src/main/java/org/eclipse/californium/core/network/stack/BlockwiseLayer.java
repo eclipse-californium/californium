@@ -1520,7 +1520,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			lock.unlock();
 		}
 		if (size != null) {
-			LOGGER.debug("{}created tracker for {} inbound block2 transfer {}, transfers in progress: {}, {}", tag, key,
+			LOGGER.debug("{}created tracker for inbound block2 transfer {}, transfers in progress: {}, {}", tag, 
 					status, size, response);
 		}
 		return status;
