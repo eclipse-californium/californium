@@ -168,6 +168,10 @@ public class StringUtilTest {
 		String scope = scopes.iterator().next();
 
 		String hostname = StringUtil.getUriHostname(Inet6Address.getByName("[FF02::FD%" + scope + "]"));
+
+		// work-around for openjdk bug JDK-8199396.
+		// some characters are not supported for the ipv6 scope.
+		scope = scope.replaceAll("[-._~]", "");
 		assertThat(hostname, is("ff02:0:0:0:0:0:0:fd%25" + scope));
 
 		URI test = new URI("coap", null, hostname, 5683, null, null, null);
