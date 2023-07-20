@@ -264,7 +264,9 @@ public final class DtlsConfig {
 	/**
 	 * The default value for the
 	 * {@link #DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} property in percent.
+	 * @deprecated use the general {@link #DTLS_USE_HELLO_VERIFY_REQUEST} instead.
 	 */
+	@Deprecated
 	public static final int DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT = 30;
 	/**
 	 * The default value for the {@link #DTLS_SECURE_RENEGOTIATION}.
