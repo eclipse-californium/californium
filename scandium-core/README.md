@@ -119,7 +119,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>scandium</artifactId>
-            <version>3.8.0</version>
+            <version>3.9.0</version>
     </dependency>
     ...
   </dependencies>
@@ -320,7 +320,7 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 </dependencies>
 ```
 
-(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72).
+(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72, and with 3.9 it is 1.74).
 
 And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
 
@@ -334,7 +334,7 @@ java ...
 java `System.property`:
 
 ```
-java -DCALIFORNIUM_JCE_PROVIDER=BC
+java -DCALIFORNIUM_JCE_PROVIDER=BC ...
 ```
 
 Supporting Bouncy Castle for the unit test uncovers a couple of differences, which required to adapt the implementation. It is assumed, that more will be found and more adaption will be required. If you find some, don't hesitate to report issues, perhaps research and analysis, and fixes. On the other hand, the project Californium will for now not be able to provide support for Bouncy Castle questions with or without relation to Californium. You may create issues, but it may be not possible for us to answer them.
@@ -343,7 +343,7 @@ On issue seems to be the `SecureRandom` generator of BC. Dependent on the runtim
 
 One option to overcome that on some linux variants is using `rng-tools`. That may help to provide more entropy.
 
-A second option o overcome that is to setup `CALIFORNIUM_JCE_PROVIDER` using the value `BC_NON_BLOCKING_RANDOM` instead of `BC`. The `JceProviderUtil` then adapts `SecureRandom` to use a, maybe weaker, non-blocking `SecureRandom`. If that works, depends unfortunately on your platform, so especially for Android, that may not work. In that cases, please use `BC` as `CALIFORNIUM_JCE_PROVIDER` and configure "securerandom.strongAlgorithms" ahead with
+A second option to overcome that is to setup `CALIFORNIUM_JCE_PROVIDER` using the value `BC_NON_BLOCKING_RANDOM` instead of `BC`. The `JceProviderUtil` then adapts `SecureRandom` to use a, maybe weaker, non-blocking `SecureRandom`. If that works, depends unfortunately on your platform, so especially for Android, that may not work. In that cases, please use `BC` as `CALIFORNIUM_JCE_PROVIDER` and configure "securerandom.strongAlgorithms" ahead with
 
 ```
 Security.setProperty("securerandom.strongAlgorithms", "<your-android-algorithm>");

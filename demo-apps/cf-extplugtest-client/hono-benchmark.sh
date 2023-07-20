@@ -52,12 +52,12 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-3.9.0.jar
+CF_JAR=cf-extplugtest-client-3.10.0.jar
 CF_JAR_FIND='cf-extplugtest-client-*.jar'
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
 
-export CALIFORNIUM_STATISTIC="3.9.0-hono"
+export CALIFORNIUM_STATISTIC="3.10.0-hono"
 
 # store psk credentials in "hono.psk"
 #   format:

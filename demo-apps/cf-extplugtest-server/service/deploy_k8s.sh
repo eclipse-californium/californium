@@ -63,7 +63,7 @@ fi
 : "${DOCKERFILE:=service/Dockerfile}"
 
 CONTAINER=cf-extserver-jdk11-slim
-VERSION=3.9.0
+VERSION=3.10.0
 
 if [ "$1" = "install" ]  ; then
 	CONTAINER_VERSION="${CONTAINER}:${VERSION}"
