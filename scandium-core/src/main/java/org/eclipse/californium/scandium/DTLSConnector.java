@@ -168,6 +168,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.PersistentComponent;
 import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
@@ -180,6 +181,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.Filter;
 import org.eclipse.californium.elements.util.LimitedRunnable;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
@@ -689,7 +691,8 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			DtlsHealth healthHandler = config.getHealthHandler();
 			// this is a useful health metric
 			// that could later be exported to some kind of monitoring interface
-			if (healthHandler == null && config.getHealthStatusIntervalMilliseconds() > 0) {
+			if (healthHandler == null
+					&& config.getTimeAsInt(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS) > 0) {
 				healthHandler = createDefaultHealthHandler(config);
 				if (!healthHandler.isEnabled()) {
 					healthHandler = null;
@@ -862,6 +865,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @deprecated use {@link Builder#setSessionListener(SessionListener)}
 	 *             instead
 	 */
+	@Deprecated
 	protected void onInitializeHandshaker(final Handshaker handshaker) {
 	}
 
@@ -1310,7 +1314,8 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		if (health != null && health.isEnabled()) {
-			final int healthStatusIntervalMillis = config.getHealthStatusIntervalMilliseconds();
+			final int healthStatusIntervalMillis = config.getTimeAsInt(SystemConfig.HEALTH_STATUS_INTERVAL,
+					TimeUnit.MILLISECONDS);
 			// check either for interval or DtlsHealthExtended
 			long intervalMillis = healthStatusIntervalMillis;
 			if (health instanceof DtlsHealthExtended) {
@@ -1548,7 +1553,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		if (principal == null) {
 			throw new NullPointerException("principal must not be null!");
 		}
-		LeastRecentlyUsedCache.Predicate<Principal> handler = new LeastRecentlyUsedCache.Predicate<Principal>() {
+		Filter<Principal> handler = new Filter<Principal>() {
 
 			@Override
 			public boolean accept(Principal connectionPrincipal) {
@@ -1573,7 +1578,11 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @return future to cancel or wait for completion
 	 * @see #startTerminateConnectionsForPrincipal(org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate,
 	 *      boolean)
+	 * @deprecated use
+	 *             {@link #startTerminateConnectionsForPrincipal(Filter)}
+	 *             instead.
 	 */
+	@Deprecated
 	public Future<Void> startTerminateConnectionsForPrincipal(
 			LeastRecentlyUsedCache.Predicate<Principal> principalHandler) {
 		return startTerminateConnectionsForPrincipal(principalHandler, true);
@@ -1595,7 +1604,11 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @return future to cancel or wait for completion
 	 * @see #startTerminateConnectionsForPrincipal(org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate)
 	 * @since 2.6
+	 * @deprecated use
+	 *             {@link #startTerminateConnectionsForPrincipal(Filter, boolean)}
+	 *             instead.
 	 */
+	@Deprecated
 	public Future<Void> startTerminateConnectionsForPrincipal(
 			final LeastRecentlyUsedCache.Predicate<Principal> principalHandler, final boolean removeFromSessionCache) {
 		if (principalHandler == null) {
@@ -1626,7 +1639,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 *            passed in connection. If {@code true} is returned, iterating
 	 *            is stopped.
 	 * @return future to cancel or wait for completion
+	 * @deprecated use {@link #startForEach(Filter)} instead.
 	 */
+	@Deprecated
 	public Future<Void> startForEach(LeastRecentlyUsedCache.Predicate<Connection> handler) {
 		if (handler == null) {
 			throw new NullPointerException("handler must not be null!");
@@ -1645,9 +1660,146 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 *            iterator. Iteration is stopped, when handler returns
 	 *            {@code true}
 	 * @param result future to get cancelled or signal completion
+	 * @deprecated use
+	 *             {@link #nextForEach(Iterator, Filter, ForEachFuture)}
+	 *             instead.
 	 */
+	@Deprecated
 	private void nextForEach(final Iterator<Connection> iterator,
 			final LeastRecentlyUsedCache.Predicate<Connection> handler, final ForEachFuture result) {
+
+		if (!result.isStopped() && iterator.hasNext()) {
+			final Connection next = iterator.next();
+			try {
+				next.getExecutor().execute(new Runnable() {
+
+					@Override
+					public void run() {
+						boolean done = true;
+						try {
+							if (!result.isStopped() && !handler.accept(next)) {
+								done = false;
+								nextForEach(iterator, handler, result);
+							}
+						} catch (Exception exception) {
+							result.failed(exception);
+						} finally {
+							if (done) {
+								result.done();
+							}
+						}
+					}
+				});
+				return;
+			} catch (RejectedExecutionException ex) {
+				if (!handler.accept(next)) {
+					while (iterator.hasNext()) {
+						if (handler.accept(iterator.next())) {
+							break;
+						}
+						if (result.isStopped()) {
+							break;
+						}
+					}
+				}
+			}
+		}
+		result.done();
+	}
+
+	/**
+	 * Start to terminate connections applying the provided handler to the
+	 * principals of all connections.
+	 * 
+	 * Note: if {@link SessionStore} is used, it's not possible to remove a
+	 * cache entry, if no related connection is in the connection store. All
+	 * available connections will be removed from that session cache as well.
+	 * 
+	 * @param principalHandler handler to be called within the serial execution
+	 *            of the related connection. If {@code true} is returned, the
+	 *            related connection is terminated and the session is removed
+	 *            from the session cache.
+	 * @return future to cancel or wait for completion
+	 * @see #startTerminateConnectionsForPrincipal(Filter, boolean)
+	 * @since 3.10
+	 */
+	public Future<Void> startTerminateConnectionsForPrincipal(
+			Filter<Principal> principalHandler) {
+		return startTerminateConnectionsForPrincipal(principalHandler, true);
+	}
+
+	/**
+	 * Start to terminate connections applying the provided handler to the
+	 * principals of all connections.
+	 * 
+	 * Note: if {@link SessionStore} is used, it's not possible to remove a
+	 * cache entry, if no related connection is in the connection store.
+	 * 
+	 * @param principalHandler handler to be called within the serial execution
+	 *            of the related connection. If {@code true} is returned, the
+	 *            related connection is terminated
+	 * @param removeFromSessionCache {@code true} if the session of the
+	 *            connection should be removed from the session cache,
+	 *            {@code false}, otherwise
+	 * @return future to cancel or wait for completion
+	 * @see #startTerminateConnectionsForPrincipal(Filter)
+	 * @since 3.10
+	 */
+	public Future<Void> startTerminateConnectionsForPrincipal(
+			final Filter<Principal> principalHandler,
+			final boolean removeFromSessionCache) {
+		if (principalHandler == null) {
+			throw new NullPointerException("principal handler must not be null!");
+		}
+		Filter<Connection> connectionHandler = new Filter<Connection>() {
+
+			@Override
+			public boolean accept(Connection connection) {
+				Principal peer = null;
+				DTLSSession session = connection.getSession();
+				if (session != null) {
+					peer = session.getPeerIdentity();
+					if (peer != null && principalHandler.accept(peer)) {
+						connectionStore.remove(connection, removeFromSessionCache);
+					}
+				}
+				return false;
+			}
+		};
+		return startForEach(connectionHandler);
+	}
+
+	/**
+	 * Start applying provided handler to all connections.
+	 * 
+	 * @param handler handler to be called within the serial execution of the
+	 *            passed in connection. If {@code true} is returned, iterating
+	 *            is stopped.
+	 * @return future to cancel or wait for completion
+	 * @since 3.10
+	 */
+	public Future<Void> startForEach(Filter<Connection> handler) {
+		if (handler == null) {
+			throw new NullPointerException("handler must not be null!");
+		}
+		ForEachFuture result = new ForEachFuture();
+		nextForEach(connectionStore.iterator(), handler, result);
+		return result;
+	}
+
+	/**
+	 * Calls provided handler for each connection returned be the provided
+	 * iterator.
+	 * 
+	 * @param iterator iterator over connections
+	 * @param handler handler to be called for all connections returned by the
+	 *            iterator. Iteration is stopped, when handler returns
+	 *            {@code true}
+	 * @param result future to get cancelled or signal completion
+	 * @since 3.10
+	 */
+	private void nextForEach(final Iterator<Connection> iterator,
+			final Filter<Connection> handler, final ForEachFuture result) {
 
 		if (!result.isStopped() && iterator.hasNext()) {
 			final Connection next = iterator.next();

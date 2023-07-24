@@ -198,7 +198,7 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 * @param unit TimeUnit for threshold
 	 * @see #put(Object, Object)
 	 * @see #get(Object)
-	 * @see #find(Predicate)
+	 * @see #find(Filter)
 	 */
 	public final void setExpirationThreshold(long newThreshold, TimeUnit unit) {
 		this.expirationThresholdNanos = unit.toNanos(newThreshold);
@@ -681,6 +681,39 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	/**
 	 * Finds a value based on a predicate.
 	 * 
+	 * The {@link #isHidingStaleValues()} is supported preventing stale values
+	 * from being found.
+	 * 
+	 * Returns the first matching value.
+	 * 
+	 * Acquires the read-lock.
+	 * 
+	 * @param filter the condition to match. Assumed to match entries in a
+	 *            unique manner. Therefore stops on first match, even if that
+	 *            gets evicted on the read access.
+	 * @return the first value from the cache that matches according to the
+	 *         given predicate, or {@code null}, if no value matches
+	 * @since 3.10
+	 */
+	public V find(Filter<V> filter) {
+		if (filter != null) {
+			final Iterator<CacheEntry<K, V>> iterator = cache.values().iterator();
+			while (iterator.hasNext()) {
+				CacheEntry<K, V> entry = iterator.next();
+				if (!hideStaleValues || !entry.isStale(expirationThresholdNanos)) {
+					V value = entry.getValue();
+					if (filter.accept(value)) {
+						return value;
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Finds a value based on a predicate.
+	 * 
 	 * Since 3.9 the {@link #isHidingStaleValues()} is supported preventing
 	 * stale values from being found.
 	 * 
@@ -693,7 +726,9 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 *            gets evicted on the read access.
 	 * @return the first value from the cache that matches according to the
 	 *         given predicate, or {@code null}, if no value matches
+	 * @deprecated use {@link #find(Filter)} instead
 	 */
+	@Deprecated
 	public final V find(Predicate<V> predicate) {
 		if (predicate != null) {
 			final Iterator<CacheEntry<K, V>> iterator = cache.values().iterator();
@@ -715,7 +750,9 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 * when searching for particular values.
 	 *
 	 * @param <V> The type of value the predicate can be evaluated on.
+	 * @deprecated use {@link Filter} instead.
 	 */
+	@Deprecated
 	public static interface Predicate<V> {
 
 		/**
@@ -834,7 +871,7 @@ public class LeastRecentlyUpdatedCache<K, V> {
 
 				@Override
 				public final boolean contains(final Object o) {
-					return null != find(new Predicate<V>() {
+					return null != find(new Filter<V>() {
 
 						@Override
 						public boolean accept(final V value) {
