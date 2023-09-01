@@ -21,6 +21,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +98,8 @@ public class MediaTypeRegistry {
 	// implementation specific
 	public static final int UNDEFINED = -1;
 
+	private static final int[] EMPTY = new int[0];
+
 	// initializer
 	private static final Map<Integer, MediaTypeDefintion> registry = new ConcurrentHashMap<>();
 
@@ -149,7 +152,8 @@ public class MediaTypeRegistry {
 		addNonPrintable(APPLICATION_DOTS_CBOR, "application/dots+cbor", "cbor");
 		addNonPrintable(APPLICATION_MISSING_BLOCKS_CBOR_SEQ, "application/missing-blocks+cbor-seq", "cbor");
 
-		addNonPrintable(APPLICATION_PKCS7_SERVER_GENERATED_KEY, "application/pkcs7-mime; smime-type=\"server-generated-key\"", "pkcs");
+		addNonPrintable(APPLICATION_PKCS7_SERVER_GENERATED_KEY,
+				"application/pkcs7-mime; smime-type=\"server-generated-key\"", "pkcs");
 		addNonPrintable(APPLICATION_PKCS7_CERTS_ONLY, "application/pkcs7-mime; smime-type=\"certs-only\"", "pkcs");
 		addNonPrintable(APPLICATION_PKCS8, "application/pkcs8", "pkcs");
 		addNonPrintable(APPLICATION_CSATTRS, "application/csattrs", "csattrs");
@@ -259,7 +263,6 @@ public class MediaTypeRegistry {
 		if (type == null) {
 			return UNDEFINED;
 		}
-
 		for (MediaTypeDefintion defintion : registry.values()) {
 			if (defintion.match(type)) {
 				return defintion.getType();
@@ -270,13 +273,36 @@ public class MediaTypeRegistry {
 	}
 
 	/**
+	 * Parse the media type string with mime parameter.
+	 * 
+	 * @param mime media type string, may contain a mime parameter
+	 * @return set of media types (without {@link #UNDEFINED}).
+	 * @throws NullPointerException if mimeType is {@code null}
+	 * @since 3.10
+	 */
+	public static int[] parseWithParameter(String mime) {
+		String[] mimeDefinition = parseMime(mime);
+		List<Integer> matches = new LinkedList<Integer>();
+		for (MediaTypeDefintion defintion : registry.values()) {
+			if (defintion.match(mimeDefinition[0], mimeDefinition[1])) {
+				matches.add(defintion.getType());
+			}
+		}
+		return toArray(matches);
+	}
+
+	/**
 	 * Parse the media type string supporting wildcards.
 	 * 
 	 * @param wildcard media type string with optional wildcards
 	 * @return set of media types (without {@link #UNDEFINED}).
-	 * @since 3.0 (changed return type from Integer[] to int[])
+	 * @throws NullPointerException if wildcard is {@code null}
+	 * @since 3.0 (changed return type from {@code Integer[]} to {@code int[]})
 	 */
 	public static int[] parseWildcard(String wildcard) {
+		if (wildcard == null) {
+			throw new NullPointerException("wildcard must not be null!");
+		}
 		List<Integer> matches = new LinkedList<Integer>();
 		if (wildcard.equals("*/*")) {
 			for (MediaTypeDefintion defintion : registry.values()) {
@@ -296,9 +322,29 @@ public class MediaTypeRegistry {
 				}
 			}
 		}
-		int[] result = new int[matches.size()];
-		for (int index=0; index < result.length;++index) {
-			result[index] = matches.get(index);
+		return toArray(matches);
+	}
+
+	/**
+	 * Parse mime content type.
+	 * 
+	 * @param mime mime content type
+	 * @return array of strings, mime type at position 0, mime parameter at
+	 *         position 1.
+	 * @throws NullPointerException if mime is {@code null}
+	 * @since 3.10
+	 */
+	public static String[] parseMime(String mime) {
+		if (mime == null) {
+			throw new NullPointerException("mime must not be null!");
+		}
+		String[] result = new String[2];
+		String[] split = mime.split(";", 2);
+		for (int index = 0; index < split.length; ++index) {
+			result[index] = split[index].trim();
+			if (result[index].isEmpty()) {
+				result[index] = null;
+			}
 		}
 		return result;
 	}
@@ -335,6 +381,25 @@ public class MediaTypeRegistry {
 		} else {
 			return "unknown/" + mediaType;
 		}
+	}
+
+	/**
+	 * Convert list of {@link Integer} into array of {@code int}s.
+	 * 
+	 * @param value list of {@link Integer} values.
+	 * @return array of {@code int}s
+	 * @since 3.10
+	 */
+	private static int[] toArray(List<Integer> value) {
+		if (value.isEmpty()) {
+			return EMPTY;
+		}
+		int[] result = new int[value.size()];
+		for (int index = 0; index < result.length; ++index) {
+			result[index] = value.get(index);
+		}
+		Arrays.sort(result);
+		return result;
 	}
 
 	/**
@@ -389,6 +454,18 @@ public class MediaTypeRegistry {
 		 */
 		private final String mime;
 		/**
+		 * MIME type.
+		 * 
+		 * @since 3.10
+		 */
+		private final String mimeType;
+		/**
+		 * MIME parameter.
+		 * 
+		 * @since 3.10
+		 */
+		private final String mimeParameter;
+		/**
 		 * File extension.
 		 */
 		private final String fileExtension;
@@ -422,6 +499,9 @@ public class MediaTypeRegistry {
 			}
 			this.type = type;
 			this.mime = mime;
+			String[] parts = parseMime(mime);
+			this.mimeType = parts[0];
+			this.mimeParameter = parts[1];
 			this.fileExtension = fileExtension;
 			this.isPrintable = false;
 			this.isCharsetConvertible = false;
@@ -450,6 +530,9 @@ public class MediaTypeRegistry {
 			}
 			this.type = type;
 			this.mime = mime;
+			String[] parts = parseMime(mime);
+			this.mimeType = parts[0];
+			this.mimeParameter = parts[1];
 			this.fileExtension = fileExtension;
 			this.isPrintable = true;
 			this.isCharsetConvertible = isCharsetConvertible;
@@ -463,6 +546,24 @@ public class MediaTypeRegistry {
 		 */
 		public boolean match(String mime) {
 			return this.mime.equalsIgnoreCase(mime);
+		}
+
+		/**
+		 * Match the mime type.
+		 * 
+		 * @param mimeType mime type to match
+		 * @param mimeParameter mime parameter to match
+		 * @return {@code true}, if matching, {@code false}, otherwise.
+		 * @since 3.10
+		 */
+		public boolean match(String mimeType, String mimeParameter) {
+			if (!this.mimeType.equalsIgnoreCase(mimeType)) {
+				return false;
+			}
+			if (this.mimeParameter == null || mimeParameter == null) {
+				return true;
+			}
+			return this.mimeParameter.equalsIgnoreCase(mimeParameter);
 		}
 
 		/**
