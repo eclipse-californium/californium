@@ -18,6 +18,7 @@ package org.eclipse.californium.core.coap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -36,27 +37,55 @@ public class MediaTypeRegistryTest {
 
 	@Test
 	public void testParse() {
-		assertThat(MediaTypeRegistry.parse("plain/text"), is(MediaTypeRegistry.UNDEFINED));
-		assertThat(MediaTypeRegistry.parse("text/plain"), is(MediaTypeRegistry.TEXT_PLAIN));
-		assertThat(MediaTypeRegistry.parse("application/json"), is(MediaTypeRegistry.APPLICATION_JSON));
+		assertThat(MediaTypeRegistry.parse("plain/text"), is(UNDEFINED));
+		assertThat(MediaTypeRegistry.parse("text/plain"), is(TEXT_PLAIN));
+		assertThat(MediaTypeRegistry.parse("application/json"), is(APPLICATION_JSON));
 	}
 
 	@Test
 	public void testParseWildcard() {
 		int[] mediaTypes = MediaTypeRegistry.parseWildcard("text/plain");
-		assertArrayEquals(new int[] {MediaTypeRegistry.TEXT_PLAIN}, mediaTypes);
+		assertArrayEquals(new int[] { TEXT_PLAIN }, mediaTypes);
 		mediaTypes = MediaTypeRegistry.parseWildcard("*/*");
 		assertThat(mediaTypes.length, is(MediaTypeRegistry.getAllMediaTypes().size()));
 		mediaTypes = MediaTypeRegistry.parseWildcard("text/*");
-		assertThat(mediaTypes.length, is(2));
+		assertArrayEquals(new int[] { TEXT_PLAIN, TEXT_CSS }, mediaTypes);
 		mediaTypes = MediaTypeRegistry.parseWildcard("application/*");
 		assertThat(mediaTypes.length, is(47));
 		mediaTypes = MediaTypeRegistry.parseWildcard("image/*");
-		assertThat(mediaTypes.length, is(4));
+		assertArrayEquals(new int[] { IMAGE_GIF, IMAGE_JPEG, IMAGE_PNG, IMAGE_SVG_XML }, mediaTypes);
 		mediaTypes = MediaTypeRegistry.parseWildcard("plain/*");
 		assertThat(mediaTypes.length, is(0));
 		mediaTypes = MediaTypeRegistry.parseWildcard("*/plain");
 		assertThat(mediaTypes.length, is(0));
 	}
 
+	@Test(expected = NullPointerException.class)
+	public void testParseWildcardNull() {
+		MediaTypeRegistry.parseWildcard(null);
+	}
+
+	@Test
+	public void testParseWithParameter() {
+		int[] mediaTypes = MediaTypeRegistry.parseWithParameter("text/plain");
+		assertArrayEquals(new int[] { TEXT_PLAIN }, mediaTypes);
+		mediaTypes = MediaTypeRegistry.parseWithParameter("text/plain; charset=utf-8");
+		assertArrayEquals(new int[] { TEXT_PLAIN }, mediaTypes);
+		mediaTypes = MediaTypeRegistry.parseWithParameter("text/plain; charset=us-ascii");
+		assertArrayEquals(new int[] { TEXT_PLAIN }, mediaTypes);
+		mediaTypes = MediaTypeRegistry.parseWithParameter("application/cose; cose-type=\"cose-mac\"");
+		assertArrayEquals(new int[] { APPLICATION_COSE_MAC }, mediaTypes);
+		mediaTypes = MediaTypeRegistry.parseWithParameter("application/cose; cose-type=\"cose-sign\"");
+		assertArrayEquals(new int[] { APPLICATION_COSE_SIGN }, mediaTypes);
+		mediaTypes = MediaTypeRegistry.parseWithParameter("application/cose; cose-type=\"unknown\"");
+		assertArrayEquals(new int[] {}, mediaTypes);
+		mediaTypes = MediaTypeRegistry.parseWithParameter("application/cose");
+		assertArrayEquals(new int[] { APPLICATION_COSE_ENCRYPT0, APPLICATION_COSE_MAC0, APPLICATION_COSE_SIGN1,
+				APPLICATION_COSE_ENCRYPT, APPLICATION_COSE_MAC, APPLICATION_COSE_SIGN }, mediaTypes);
+	}
+
+	@Test(expected = NullPointerException.class)
+	public void testParseWithParameterNull() {
+		MediaTypeRegistry.parseWithParameter(null);
+	}
 }
