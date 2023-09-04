@@ -139,6 +139,7 @@ public class ConnectorHelper {
 	RawDataProcessor serverRawDataProcessor;
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
 	AlertCatcher serverAlertCatcher;
+	DropCatcher serverDropCatcher;
 	AdvancedMultiPskStore serverPskStore;
 
 	DtlsConnectorConfig serverConfig;
@@ -193,6 +194,10 @@ public class ConnectorHelper {
 
 		ensureTrusts(serverBuilder);
 
+		if (serverBuilder.getIncompleteConfig().getDatagramFilter() == null) {
+			serverDropCatcher = new DropCatcher();
+			serverBuilder.setDatagramFilter(serverDropCatcher);
+		}
 		serverConfig = serverBuilder.build();
 		serverSessionStore = serverConfig.getSessionStore();
 		if (serverSessionStore instanceof TestInMemorySessionStore) {
@@ -203,7 +208,6 @@ public class ConnectorHelper {
 		serverConnectionStore = createDebugConnectionStore(serverConfig);
 
 		serverAlertCatcher = new AlertCatcher();
-
 		server = new DtlsTestConnector(serverConfig, serverConnectionStore);
 		serverRawDataProcessor = new MessageCapturingProcessor();
 		serverRawDataChannel = new SimpleRawDataChannel(server, serverRawDataProcessor);
@@ -267,8 +271,11 @@ public class ConnectorHelper {
 		if (server != null) {
 			server.clearRecentHandshakes();
 		}
+		if (serverDropCatcher != null) {
+			serverDropCatcher.resetEvent();
+		}
 		if (serverAlertCatcher != null) {
-			serverAlertCatcher.resetAlert();
+			serverAlertCatcher.resetEvent();
 			if (server != null) {
 				server.setAlertHandler(serverAlertCatcher);
 			}
@@ -931,51 +938,89 @@ public class ConnectorHelper {
 		return expand.toArray(new BuilderSetups[expand.size()]);
 	}
 
-	public static class AlertCatcher implements AlertHandler {
+	/**
+	 * Events catcher.
+	 *
+	 * @param <T> events type
+	 * @since 3.10
+	 */
+	public static class Catcher<T> {
 
-		private AlertMessage alert;
+		private T event;
 
-		@Override
-		public synchronized void onAlert(InetSocketAddress peer, AlertMessage alert) {
-			if (this.alert == null) {
-				this.alert = alert;
+		public synchronized void onEvent(T event) {
+			if (this.event == null) {
+				this.event = event;
 				notify();
 			}
 		}
 
 		/**
-		 * Reset current alert.
-		 * 
-		 * @since 3.0
+		 * Reset current event.
 		 */
-		public synchronized void resetAlert() {
-			this.alert = null;
+		public synchronized void resetEvent() {
+			this.event = null;
 		}
 
 		/**
-		 * Get alert.
+		 * Get event.
 		 * 
-		 * @return alert, or {@code null}, if no alert was received.
-		 * @since 3.0
+		 * @return event, or {@code null}, if no event was received.
 		 */
-		public synchronized AlertMessage getAlert() {
-			return alert;
+		public synchronized T getEvent() {
+			return event;
 		}
 
 		/**
-		 * Wait for alert.
+		 * Wait for event.
 		 * 
-		 * @return {@code AlertMessage} if reported, {@code null}, otherwise.
+		 * @return event if reported, {@code null}, otherwise.
 		 */
-		public synchronized AlertMessage waitForAlert(long timeout, TimeUnit unit) throws InterruptedException {
-			if (alert == null && timeout > 0) {
+		public synchronized T waitForEvent(long timeout, TimeUnit unit) throws InterruptedException {
+			if (event == null && timeout > 0) {
 				long millis = unit.toMillis(timeout);
 				if (millis <= 0) {
 					millis = 1;
 				}
 				wait(millis);
 			}
-			return alert;
+			return event;
+		}
+	}
+
+	public static class AlertCatcher extends Catcher<AlertMessage> implements AlertHandler {
+
+		@Override
+		public void onAlert(InetSocketAddress peer, AlertMessage alert) {
+			onEvent(alert);
+		}
+	}
+
+	public static class DropCatcher extends Catcher<Record> implements DatagramFilterExtended, DatagramFilter {
+
+		@Override
+		public void onDrop(DatagramPacket packet) {
+
+		}
+
+		@Override
+		public void onDrop(Record record) {
+			onEvent(record);
+		}
+
+		@Override
+		public boolean onReceiving(DatagramPacket packet) {
+			return true;
+		}
+
+		@Override
+		public boolean onReceiving(Record record, Connection connection) {
+			return true;
+		}
+
+		@Override
+		public boolean onMacError(Record record, Connection connection) {
+			return true;
 		}
 	}
 

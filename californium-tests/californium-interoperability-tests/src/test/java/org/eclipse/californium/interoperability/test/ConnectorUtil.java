@@ -242,7 +242,7 @@ public class ConnectorUtil {
 		}
 		dtlsBuilder.set(DtlsConfig.DTLS_CIPHER_SUITES, suites);
 		connector = new DTLSConnector(dtlsBuilder.build());
-		alertCatcher.resetAlert();
+		alertCatcher.resetEvent();
 		connector.setAlertHandler(alertCatcher);
 		nextCredentials = null;
 	}
@@ -276,9 +276,9 @@ public class ConnectorUtil {
 	 * @since 3.0
 	 */
 	public void assertAlert(long timeout, AlertMessage expected) throws InterruptedException {
-		AlertMessage alert = getAlertCatcher().waitForAlert(timeout, TimeUnit.MILLISECONDS);
+		AlertMessage alert = getAlertCatcher().waitForEvent(timeout, TimeUnit.MILLISECONDS);
 		assertThat("received alert", alert, is(expected));
-		getAlertCatcher().resetAlert();
+		getAlertCatcher().resetEvent();
 	}
 
 	/**
@@ -291,9 +291,9 @@ public class ConnectorUtil {
 		if (expectedAlerts == null || expectedAlerts.length == 0) {
 			expectedAlerts = new AlertMessage[] { new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY) };
 		}
-		AlertMessage alert = getAlertCatcher().getAlert();
+		AlertMessage alert = getAlertCatcher().getEvent();
 		if (alert != null) {
-			getAlertCatcher().resetAlert();
+			getAlertCatcher().resetEvent();
 			StringBuffer description = new StringBuffer();
 			description.append(alert.getLevel()).append("/").append(alert.getDescription())
 					.append(" is not of expected ");

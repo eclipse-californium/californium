@@ -74,12 +74,15 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -96,6 +99,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.ClientKeyExchange;
@@ -282,6 +286,30 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
+	public void testMessagesFromUnknowClientGetsDropped() throws Exception {
+
+		// GIVEN a record;
+		ApplicationMessage message = new ApplicationMessage(Bytes.EMPTY);
+		Record record = new Record(ContentType.APPLICATION_DATA, ProtocolVersion.VERSION_DTLS_1_2, 10, message);
+		RawData data = RawData.outbound(record.toByteArray(), new AddressEndpointContext(serverHelper.serverEndpoint),
+				null, false);
+		// GIVEN a unknown client;
+		UDPConnector connector = new UDPConnector(null, network.createClientTestConfig());
+		try {
+			// WHEN sending the message
+			connector.start();
+			connector.send(data);
+
+			// THEN assert that the drop handler has been invoked
+			Record event = serverHelper.serverDropCatcher.waitForEvent(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			assertThat(event, is(notNullValue()));
+			assertThat(event.getPeerAddress(), is(notNullValue()));
+		} finally {
+			connector.destroy();
+		}
+	}
+
+	@Test
 	public void testConnectorEstablishesSecureSession() throws Exception {
 		givenAnEstablishedSession(true);
 	}
@@ -327,7 +355,7 @@ public class DTLSConnectorTest {
 
 		// THEN assert that the server has removed all connection state with
 		// client
-		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForEvent(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 		assertNotNull(alert);
 		Connection serverConnection = serverHelper.serverConnectionStore.get(clientTestContext.getClientAddress());
 		if (alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
@@ -1061,7 +1089,7 @@ public class DTLSConnectorTest {
 	public void testConnectorIgnoresUnknownPskIdentity() throws Exception {
 		ensureConnectorIgnoresBadCredentials(
 				new AdvancedSinglePskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
-		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2, TimeUnit.SECONDS);
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForEvent(2, TimeUnit.SECONDS);
 		assertThat("server side internal alert", alert,
 				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY)));
 	}
@@ -1178,7 +1206,7 @@ public class DTLSConnectorTest {
 		client.sendRecord(record);
 
 		// ensure server answer with a NO_RENOGIATION alert
-		AlertMessage alert = alertCatcher.waitForAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		AlertMessage alert = alertCatcher.waitForEvent(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 		assertThat("client received alert", alert,
 				is(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION)));
 	}
@@ -1195,7 +1223,7 @@ public class DTLSConnectorTest {
 		serverHelper.server.sendRecord(record);
 
 		// ensure client answer with a NO_RENOGIATION alert
-		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForEvent(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 		assertThat("server received alert", alert,
 				is(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION)));
 	}

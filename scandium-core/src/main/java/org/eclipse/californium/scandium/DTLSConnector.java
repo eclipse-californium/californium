@@ -2088,6 +2088,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 		final Connection connection = getConnection(peerAddress, connectionId, false);
 
 		if (connection == null) {
+			firstRecord.setAddress(peerAddress, router);
 			informListenerOfRecordDrop(firstRecord);
 			if (health != null) {
 				health.receivingRecord(true);
