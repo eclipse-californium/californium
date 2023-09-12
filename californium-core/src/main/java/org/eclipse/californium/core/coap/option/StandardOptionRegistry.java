@@ -194,7 +194,7 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	 *      target= "_blank">RFC9175 3.2.1. Request-Tag Option Format </a>
 	 * @since 3.9
 	 */
-	public static final OpaqueOptionDefinition REQUEST_TAG = new OpaqueOptionDefinition(292, "Request-Tag", true, 0, 8);
+	public static final OpaqueOptionDefinition REQUEST_TAG = new OpaqueOptionDefinition(292, "Request-Tag", false, 0, 8);
 
 	/**
 	 * Registry with all standard options.
