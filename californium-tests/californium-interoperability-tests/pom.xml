@@ -8,7 +8,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>californium-tests</artifactId>
-		<version>3.9.1</version>
+		<version>3.9.2-SNAPSHOT</version>
 	</parent>
 	<artifactId>californium-interoperability-tests</artifactId>
 
