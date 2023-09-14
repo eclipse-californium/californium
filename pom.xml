@@ -196,11 +196,11 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-install-plugin</artifactId>
-					<version>2.5.2</version>
+					<version>3.1.1</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-resources-plugin</artifactId>
-					<version>3.2.0</version>
+					<version>3.3.1</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-site-plugin</artifactId>
@@ -208,12 +208,12 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-dependency-plugin</artifactId>
-					<version>3.1.2</version>
+					<version>3.6.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-toolchains-plugin</artifactId>
-					<version>3.0.0</version>
+					<version>3.1.0</version>
 					<executions>
 						<execution>
 							<goals>
@@ -232,7 +232,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.8.1</version>
+					<version>3.11.0</version>
 					<configuration>
 						<source>${project.build.javaVersion}</source>
 						<target>${project.build.javaVersion}</target>
@@ -244,7 +244,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-source-plugin</artifactId>
-					<version>3.2.1</version>
+					<version>3.3.0</version>
 					<executions>
 						<execution>
 							<id>attach-sources</id>
@@ -258,7 +258,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.22.2</version>
+					<version>3.1.2</version>
 					<configuration>
 						<useSystemClassLoader>false</useSystemClassLoader>
 					</configuration>
@@ -266,7 +266,7 @@
 				<plugin>
 					<groupId>org.apache.felix</groupId>
 					<artifactId>maven-bundle-plugin</artifactId>
-					<version>5.1.2</version>
+					<version>5.1.9</version>
 					<executions>
 						<execution>
 							<id>bundle-manifest</id>
@@ -280,7 +280,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>3.3.0</version>
+					<version>3.5.0</version>
 					<executions>
 						<execution>
 							<id>attach-javadocs</id>
@@ -296,7 +296,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-assembly-plugin</artifactId>
-					<version>3.3.0</version>
+					<version>3.6.0</version>
 					<inherited>true</inherited>
 					<dependencies>
 						<dependency>
@@ -327,7 +327,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-jar-plugin</artifactId>
-					<version>3.2.2</version>
+					<version>3.3.0</version>
 					<configuration>
 						<excludes>
 							<exclude>**/logback-test.xml</exclude>
@@ -336,26 +336,26 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>1.4.1</version>
+					<version>3.4.1</version>
 				</plugin>
 				<plugin>
 					<groupId>org.sonatype.plugins</groupId>
 					<artifactId>nexus-staging-maven-plugin</artifactId>
-					<version>1.6.8</version>
+					<version>1.6.13</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-gpg-plugin</artifactId>
-					<version>3.0.1</version>
+					<version>3.1.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.eclipse.cbi.maven.plugins</groupId>
 					<artifactId>eclipse-jarsigner-plugin</artifactId>
-					<version>1.3.1</version>
+					<version>1.4.2</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>animal-sniffer-maven-plugin</artifactId>
-					<version>1.20</version>
+					<version>1.23</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
@@ -521,7 +521,7 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>3.2.0</version>
+				<version>3.4.0</version>
 				<executions>
 					<execution>
 						<id>parse-version</id>
