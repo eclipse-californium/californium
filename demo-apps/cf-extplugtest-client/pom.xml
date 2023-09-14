@@ -9,7 +9,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>demo-apps</artifactId>
-		<version>3.9.1-SNAPSHOT</version>
+		<version>3.9.1</version>
 	</parent>
 	<artifactId>cf-extplugtest-client</artifactId>
 
