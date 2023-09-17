@@ -351,7 +351,8 @@
 				<plugin>
 					<groupId>org.eclipse.cbi.maven.plugins</groupId>
 					<artifactId>eclipse-jarsigner-plugin</artifactId>
-					<version>1.4.2</version>
+					<version>1.3.5</version>
+					<!-- version 1.4.2 requires java 8 -->
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
