@@ -46,6 +46,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.NON;
 import static org.eclipse.californium.core.coap.option.StandardOptionRegistry.OBSERVE;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createChangedLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
@@ -74,6 +75,8 @@ import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoi
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.assume.TimeAssume;
 import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.config.Configuration;
@@ -446,6 +449,73 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 32).payload(respPayload.substring(64)).go();
 
 		assertThat(testResource.calls.get(), is(2));
+	}
+
+	@Test
+	public void testGETWithChangingAddress() throws Exception {
+		// smaller than MAX MESSAGE SIZE
+		respPayload = generateRandomPayload(76);
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(0, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 32).size2(respPayload.length())
+			.payload(respPayload.substring(0, 32)).go();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 32).payload(respPayload.substring(32, 64)).go();
+
+		// change address
+		client = createChangedLockstepEndpoint(client);
+		cleanup.add(client);
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(2, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 32).payload(respPayload.substring(64)).go();
+
+		// 2. GET for new address
+		assertThat(testResource.calls.get(), is(2));
+	}
+
+	@Test
+	public void testGETWithChangingAddressAndSameIdentity() throws Exception {
+
+		CoapTestEndpoint endpoint = new CoapTestEndpoint(new UDPConnector(TestTools.LOCALHOST_EPHEMERAL, config),
+				config, new UdpEndpointContextMatcher(false) {
+
+					private Object dummy = new Object();
+					public Object getEndpointIdentity(EndpointContext context) {
+						// simulate same identity
+						return dummy;
+					}
+
+				});
+		server.addEndpoint(endpoint);
+		endpoint.start();
+
+		InetSocketAddress serverAddress = endpoint.getAddress();
+		LOGGER.info("Server binds also to port {}", serverAddress.getPort());
+		client = createLockstepEndpoint(serverAddress, config);
+		cleanup.add(client);
+
+		// smaller than MAX MESSAGE SIZE
+		respPayload = generateRandomPayload(76); 
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(0, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 32).size2(respPayload.length())
+				.payload(respPayload.substring(0, 32)).go();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 32).payload(respPayload.substring(32, 64)).go();
+
+		// change address
+		client = createChangedLockstepEndpoint(client);
+		cleanup.add(client);
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(2, false, 32).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 32).payload(respPayload.substring(64)).go();
+
+		// only 1 GET, identity is not changing
+		assertThat(testResource.calls.get(), is(1));
 	}
 
 	/**
