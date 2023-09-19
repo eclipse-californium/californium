@@ -445,7 +445,6 @@ public abstract class BlockwiseStatus {
 			throw new IllegalArgumentException("initial message has no destinationcontext!");
 		}
 		// The assembled request will contain the options of the first block
-		message.setDestinationContext(initialMessage.getDestinationContext());
 		message.setType(initialMessage.getType());
 		message.setOptions(initialMessage.getOptions());
 		message.setMaxResourceBodySize(initialMessage.getMaxResourceBodySize());

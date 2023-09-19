@@ -522,6 +522,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			throws BlockwiseTransferException {
 		Block1BlockwiseStatus status = getOutboundBlock1Status(key, exchange, request, true);
 		Request block = status.getNextRequestBlock(blockSzx);
+		block.setDestinationContext(request.getDestinationContext());
 		Token token = request.getToken();
 		if (token != null) {
 			block.setToken(token);
@@ -676,6 +677,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		BlockOption block2 = request.getOptions().getBlock2();
 		block2 = getLimitedBlockOption(block2);
 		Response nextBlockResponse = status.getNextResponseBlock(block2);
+		nextBlockResponse.setDestinationContext(request.getSourceContext());
 
 		if (nextBlockResponse.getOptions().getBlock2().isM()) {
 			LOGGER.debug("{}peer has requested intermediary block of blockwise transfer: {}", tag, status);
@@ -758,6 +760,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					block2 = new BlockOption(preferredBlockSzx, false, 0);
 				}
 				responseToSend = status.getNextResponseBlock(block2);
+				responseToSend.setDestinationContext(exchange.getRequest().getSourceContext());
 				if (!responseToSend.getOptions().getBlock2().isM()) {
 					clearBlock2Status(status);
 				}
