@@ -38,6 +38,7 @@ import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.SimpleRawDataChannel;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
@@ -205,6 +206,25 @@ public class ScandiumUtil extends ConnectorUtil {
 			receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
 		}
 		return receivedData != null ? receivedData.getEndpointContext() : null;
+	}
+
+	/**
+	 * Get DTLS context.
+	 * 
+	 * @param timeoutMillis timeout of message, if not already received
+	 * @return DTLS context, or {@code null}, if missing.
+	 * @throws InterruptedException if interrupted during wait
+	 * @since 3.10
+	 */
+	public DTLSContext getDTLSContext(long timeoutMillis) throws InterruptedException {
+		if (receivedData == null) {
+			receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
+		}
+		if (receivedData != null) {
+			DTLSConnector dtls = (DTLSConnector) getConnector();
+			return dtls.getDtlsContextByAddress(receivedData.getInetSocketAddress());
+		}
+		return null;
 	}
 
 	/**

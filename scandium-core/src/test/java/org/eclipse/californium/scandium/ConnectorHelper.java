@@ -401,6 +401,22 @@ public class ConnectorHelper {
 		}
 	}
 
+	public static void reloadConnections(String tag, PersistentComponent component) {
+		try {
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			int saveCount = component.save(out, 1000);
+			byte[] data1 = out.toByteArray();
+			int readCount = component.load(new ByteArrayInputStream(data1), 0);
+			assertEquals(tag + " read mismatch", saveCount, readCount);
+		} catch (IllegalStateException e) {
+			e.printStackTrace();
+			fail(tag + ": " + e.getMessage());
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail(tag + " io-error: " + e.getMessage());
+		}
+	}
+
 	public static DebugConnectionStore createDebugConnectionStore(DtlsConnectorConfig configuration) {
 		DebugConnectionStore store = createDebugConnectionStore(configuration.getConfiguration(),
 				configuration.getSessionStore());

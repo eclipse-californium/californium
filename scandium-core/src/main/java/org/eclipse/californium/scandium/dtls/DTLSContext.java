@@ -31,6 +31,7 @@ import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersions;
 import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersionsMatcher;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -75,8 +76,40 @@ public final class DTLSContext implements Destroyable {
 	 */
 	private DTLSConnectionState writeState = DTLSConnectionState.NULL;
 
+	/**
+	 * Write key for cluster internal communication.
+	 */
 	private SecretKey clusterWriteMacKey = null;
+	/**
+	 * Read key for cluster internal communication.
+	 */
 	private SecretKey clusterReadMacKey = null;
+
+	/**
+	 * Indicates, if support for key material export is enabled.
+	 * 
+	 * @see DtlsConfig#DTLS_SUPPORT_KEY_MATERIAL_EXPORT
+	 * @since 3.10
+	 */
+	private final boolean supportExport;
+	/**
+	 * Client random.
+	 * 
+	 * Only available, if {@link DtlsConfig#DTLS_SUPPORT_KEY_MATERIAL_EXPORT} is
+	 * enabled.
+	 * 
+	 * @since 3.10
+	 */
+	private Random clientRandom;
+	/**
+	 * Server random.
+	 * 
+	 * Only available, if {@link DtlsConfig#DTLS_SUPPORT_KEY_MATERIAL_EXPORT} is
+	 * enabled.
+	 * 
+	 * @since 3.10
+	 */
+	private Random serverRandom;
 
 	/**
 	 * The current read epoch, incremented with every CHANGE_CIPHER_SPEC message
@@ -130,14 +163,41 @@ public final class DTLSContext implements Destroyable {
 	 *            details)
 	 * @throws IllegalArgumentException if sequence number is out of the valid
 	 *             range {@code [0...2^48)}.
+	 *             @deprecated use {@link #DTLSContext(long, boolean)} instead.
 	 */
+	@Deprecated
 	DTLSContext(long initialRecordSequenceNo) {
+		this(initialRecordSequenceNo, false);
+	}
+
+	/**
+	 * Creates a new DTLS context initialized with a given record sequence
+	 * number.
+	 *
+	 * @param initialRecordSequenceNo the initial record sequence number to
+	 *            start from in epoch 0. When starting a new handshake with a
+	 *            client that has successfully exchanged a cookie with the
+	 *            server, the sequence number to use in the SERVER_HELLO record
+	 *            MUST be the same as the one from the successfully validated
+	 *            CLIENT_HELLO record (see
+	 *            <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1"
+	 *            target="_blank"> section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for
+	 *            details)
+	 * @param supportExport {@code true}, if
+	 *            {@link DtlsConfig#DTLS_SUPPORT_KEY_MATERIAL_EXPORT} is
+	 *            enabled.
+	 * @throws IllegalArgumentException if sequence number is out of the valid
+	 *             range {@code [0...2^48)}.
+	 * @since 3.10
+	 */
+	DTLSContext(long initialRecordSequenceNo, boolean supportExport) {
 		if (initialRecordSequenceNo < 0 || initialRecordSequenceNo > Record.MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		}
 		this.session = new DTLSSession();
 		this.handshakeTime = System.currentTimeMillis();
 		this.sequenceNumbers[0] = initialRecordSequenceNo;
+		this.supportExport = supportExport;
 	}
 
 	@Override
@@ -285,6 +345,60 @@ public final class DTLSContext implements Destroyable {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Set client- and server-random.
+	 * 
+	 * Only applied, if {@link DtlsConfig#DTLS_SUPPORT_KEY_MATERIAL_EXPORT} is
+	 * enabled.
+	 * 
+	 * @param clientRandom client random
+	 * @param serverRandom server random
+	 * @since 3.10
+	 */
+	void setRandoms(Random clientRandom, Random serverRandom) {
+		if (supportExport) {
+			this.clientRandom = clientRandom;
+			this.serverRandom = serverRandom;
+		}
+	}
+
+	/**
+	 * Calculate the pseudo random function for exporter as defined in
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
+	 * "_blank">RFC 5246</a> and
+	 * <a href="https://tools.ietf.org/html/rfc5705#section-4" target=
+	 * "_blank">RFC 5705</a>.
+	 *
+	 * In order to use this function,
+	 * {@link DtlsConfig#DTLS_SUPPORT_KEY_MATERIAL_EXPORT} must be enabled.
+	 * 
+	 * @param label label to use
+	 * @param context context, or {@code null}, if no context is used.
+	 * @param length length of the key.
+	 * @return calculated pseudo random for exporter
+	 * @throws IllegalArgumentException if label is not allowed for exporter
+	 * @throws IllegalStateException if DTLS_SUPPORT_KEY_MATERIAL_EXPORT is not
+	 *             enabled or the random is missing.
+	 * @since 3.10
+	 */
+	public byte[] exportKeyMaterial(byte[] label, byte[] context, int length) {
+		if (!supportExport) {
+			throw new IllegalStateException("DTLS_SUPPORT_KEY_MATERIAL_EXPORT not enabled!");
+		}
+		if (clientRandom == null || serverRandom == null) {
+			throw new IllegalStateException("Random missing!");
+		}
+		byte[] seed = Bytes.concatenate(clientRandom, serverRandom);
+		if (context != null) {
+			DatagramWriter writer = new DatagramWriter(seed.length + context.length + 2);
+			writer.writeBytes(seed);
+			writer.write(context.length, Short.SIZE);
+			writer.writeBytes(context);
+			seed = writer.toByteArray();
+		}
+		return session.exportKeyMaterial(label, seed, length);
 	}
 
 	/**
@@ -821,16 +935,20 @@ public final class DTLSContext implements Destroyable {
 	/**
 	 * Version number for serialization.
 	 */
-	private static final int VERSION = 3;
+	private static final int VERSION = 4;
 
 	/**
 	 * Version number for serialization before introducing
 	 * {@link #useDeprecatedCid}.
 	 */
 	private static final int VERSION_DEPRECATED = 2;
+	/**
+	 * Version number for serialization before introducing
+	 * {@link #useDeprecatedCid}.
+	 */
+	private static final int VERSION_DEPRECATED_2 = 3;
 
-	private static final SupportedVersions VERSIONS = new SupportedVersions(VERSION,
-			VERSION_DEPRECATED);
+	private static final SupportedVersions VERSIONS = new SupportedVersions(VERSION, VERSION_DEPRECATED, VERSION_DEPRECATED_2);
 
 	/**
 	 * Write DTLS context state.
@@ -861,8 +979,15 @@ public final class DTLSContext implements Destroyable {
 		}
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
 		writeSequenceNumbers(writer);
+		// after deprecation
 		writer.writeByte(useDeprecatedCid ? (byte) 1 : (byte) 0);
 		writer.write(effectiveMaxMessageSize, Short.SIZE);
+		// after deprecation_2
+		writer.writeByte(supportExport ? (byte) 1 : (byte) 0);
+		if (supportExport) {
+			writer.writeVarBytes(clientRandom, Byte.SIZE);
+			writer.writeVarBytes(serverRandom, Byte.SIZE);
+		}
 		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 		return true;
 	}
@@ -919,9 +1044,27 @@ public final class DTLSContext implements Destroyable {
 		if (version == VERSION_DEPRECATED) {
 			useDeprecatedCid = true;
 			effectiveMaxMessageSize = 0;
+			supportExport = false;
+		} else if (version == VERSION_DEPRECATED_2) {
+			useDeprecatedCid = reader.readNextByte() == 1;
+			effectiveMaxMessageSize = reader.read(Short.SIZE);
+			supportExport = false;
 		} else if (version == VERSION) {
 			useDeprecatedCid = reader.readNextByte() == 1;
 			effectiveMaxMessageSize = reader.read(Short.SIZE);
+			supportExport = reader.readNextByte() == 1;
+			if (supportExport) {
+				data = reader.readVarBytes(Byte.SIZE);
+				if (data != null) {
+					clientRandom = new Random( data);
+				}
+				data = reader.readVarBytes(Byte.SIZE);
+				if (data != null) {
+					serverRandom = new Random( data);
+				}
+			}
+		} else {
+			supportExport = false;
 		}
 		reader.assertFinished("dtls-context");
 	}

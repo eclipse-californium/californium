@@ -527,7 +527,7 @@ public abstract class Handshaker implements Destroyable {
 		}
 		this.sendMessageSequence = initialMessageSeq;
 		this.nextReceiveMessageSequence = initialMessageSeq;
-		this.context = new DTLSContext(initialRecordSequenceNo);
+		this.context = new DTLSContext(initialRecordSequenceNo, config.get(DtlsConfig.DTLS_SUPPORT_KEY_MATERIAL_EXPORT));
 		this.recordLayer = recordLayer;
 		this.timer = timer;
 		this.connection = connection;
@@ -1456,6 +1456,7 @@ public abstract class Handshaker implements Destroyable {
 			SecretUtil.destroy(clusterServerMacKey);
 		}
 		Bytes.clear(data);
+		context.setRandoms(clientRandom, serverRandom);
 	}
 
 	/**

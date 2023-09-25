@@ -96,7 +96,7 @@ public class RecordDecryptTest {
 		DTLSSession session = new DTLSSession();
 		session.setCipherSuite(cipherSuite);
 		session.setCompressionMethod(CompressionMethod.NULL);
-		context = new DTLSContext(0);
+		context = new DTLSContext(0, false);
 		context.getSession().set(session);
 		SecretUtil.destroy(session);
 		context.createReadState(encKey, iv, macKey);

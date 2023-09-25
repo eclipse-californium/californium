@@ -28,22 +28,30 @@ import static org.eclipse.californium.interoperability.test.openssl.OpenSslProce
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.DEFAULT_CURVES;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.DEFAULT_SIGALGS;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.regex.Matcher;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.StandardCharsets;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.ConnectorUtil;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
+import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
@@ -375,7 +383,35 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		connect(cipher);
 	}
 
-	public void connect(String cipher, String... misc) throws Exception {
+	@Test
+	public void testOpenSslServerExportKeyMaterial() throws Exception {
+		String exportLabel = "EXPERIMENTAL_TEST";
+
+		processUtil.assumePskServerVersion();
+		processUtil.addExtraArgs("-keymatexport",exportLabel);
+
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		String cipher = processUtil.startupServer(ACCEPT, PSK, cipherSuite);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_SUPPORT_KEY_MATERIAL_EXPORT, true);
+
+		scandiumUtil.start(BIND, dtlsBuilder, null, cipherSuite);
+
+		ProcessResult result = connect(cipher);
+		assertNotNull("missing openssl result", result);
+		Matcher match = result.match("Keying material: ([\\dABCDEFabcdef]+)");
+		assertNotNull("missing keying material", match);
+		String opensslMaterial = match.group(1);
+		DTLSContext dtlsContext = scandiumUtil.getDTLSContext(TIMEOUT_MILLIS);
+		assertNotNull("missing DTLS context", dtlsContext);
+		byte[] keyMaterial = dtlsContext.exportKeyMaterial(exportLabel.getBytes(StandardCharsets.UTF_8), null, 20);
+		String scandiumMaterial = StringUtil.byteArray2Hex(keyMaterial);
+		assertEquals(opensslMaterial, scandiumMaterial);
+		Bytes.clear(keyMaterial);
+	}
+
+	public ProcessResult connect(String cipher, String... misc) throws Exception {
 		String message = "Hello OpenSSL!";
 		scandiumUtil.send(message, DESTINATION, HANDSHAKE_TIMEOUT_MILLIS);
 
@@ -391,6 +427,6 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 		scandiumUtil.assertReceivedData("ACK-" + message, TIMEOUT_MILLIS);
 
-		processUtil.stop(TIMEOUT_MILLIS);
+		return processUtil.stop(TIMEOUT_MILLIS);
 	}
 }
