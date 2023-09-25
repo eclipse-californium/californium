@@ -25,6 +25,8 @@ import static org.eclipse.californium.interoperability.test.openssl.OpenSslProce
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -34,19 +36,25 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.JceNames;
 import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.elements.util.StandardCharsets;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.ConnectorUtil;
+import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
@@ -230,7 +238,8 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
-		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, DEFAULT_CURVES, null, CLIENT_RSA_CERTIFICATE, cipherSuite);
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, DEFAULT_CURVES, null,
+				CLIENT_RSA_CERTIFICATE, cipherSuite);
 		connect(cipher, "Server raw public key");
 		scandiumUtil.assertPrincipalType(HANDSHAKE_TIMEOUT_MILLIS, null);
 	}
@@ -266,7 +275,8 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		scandiumUtil.loadEdDsaCredentials(ConnectorUtil.SERVER_EDDSA_NAME);
 		scandiumUtil.start(BIND, null, cipherSuite);
 
-		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, DEFAULT_CURVES, DEFAULT_EDDSA_SIGALGS, CLIENT_EDDSA_CERTIFICATE, cipherSuite);
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, DEFAULT_CURVES, DEFAULT_EDDSA_SIGALGS,
+				CLIENT_EDDSA_CERTIFICATE, cipherSuite);
 		connect(cipher, "X25519");
 	}
 
@@ -341,8 +351,8 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 				.set(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS, defaults);
 		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
-		String cipher = processUtil.startupClient(DESTINATION, TRUST, DEFAULT_CURVES,
-				"ed25519:ECDSA+SHA256", "clientEdDsa.pem", cipherSuite);
+		String cipher = processUtil.startupClient(DESTINATION, TRUST, DEFAULT_CURVES, "ed25519:ECDSA+SHA256",
+				"clientEdDsa.pem", cipherSuite);
 		connect(cipher);
 	}
 
@@ -364,7 +374,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslClientUnauthenticatedFullhandshake() throws Exception {
-		CipherSuite cipherSuite2 =  CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM;
+		CipherSuite cipherSuite2 = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM;
 		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 
@@ -379,7 +389,32 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		connect(cipher);
 	}
 
-	public void connect(String cipher, String... misc) throws Exception {
+	@Test
+	public void testOpenSslClientExportKeyMaterial() throws Exception {
+		String exportLabel = "EXPERIMENTAL_TEST";
+
+		processUtil.addExtraArgs("-keymatexport", exportLabel);
+		DtlsConnectorConfig.Builder dtlsBuilder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_SUPPORT_KEY_MATERIAL_EXPORT, true);
+
+		scandiumUtil.start(BIND, dtlsBuilder, null, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, CERTIFICATE, cipherSuite);
+
+		ProcessResult result = connect(cipher);
+		assertNotNull("missing openssl result", result);
+		Matcher match = result.match("Keying material: ([\\dABCDEFabcdef]+)");
+		assertNotNull("missing keying material", match);
+		String opensslMaterial = match.group(1);
+		DTLSContext dtlsContext = scandiumUtil.getDTLSContext(TIMEOUT_MILLIS);
+		assertNotNull("missing DTLS context", dtlsContext);
+		byte[] keyMaterial = dtlsContext.exportKeyMaterial(exportLabel.getBytes(StandardCharsets.UTF_8), null, 20);
+		String scandiumMaterial = StringUtil.byteArray2Hex(keyMaterial);
+		assertEquals(opensslMaterial, scandiumMaterial);
+		Bytes.clear(keyMaterial);
+	}
+
+	public ProcessResult connect(String cipher, String... misc) throws Exception {
 		assertTrue("handshake failed!", processUtil.waitConsole("Cipher is ", HANDSHAKE_TIMEOUT_MILLIS));
 		assertTrue("wrong cipher suite!", processUtil.waitConsole("Cipher is " + cipher, FOLLOW_UP_TIMEOUT_MILLIS));
 		if (misc != null) {
@@ -396,6 +431,6 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 		assertTrue("openssl is missing ACK!", processUtil.waitConsole("ACK-" + message, TIMEOUT_MILLIS));
 
-		processUtil.stop(TIMEOUT_MILLIS);
+		return processUtil.stop(TIMEOUT_MILLIS);
 	}
 }

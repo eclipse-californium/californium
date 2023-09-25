@@ -78,7 +78,6 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
-import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
@@ -87,6 +86,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
@@ -197,6 +197,7 @@ public class DTLSConnectorTest {
 		serverHelper.serverBuilder.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 500, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 2000, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 2)
+				.set(DtlsConfig.DTLS_SUPPORT_KEY_MATERIAL_EXPORT, true)
 				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED)
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
@@ -714,8 +715,7 @@ public class DTLSConnectorTest {
 		// client has successfully established a secure session with server
 		// and has been "crashed"
 		// now we try to establish a new session with a client connecting from
-		// the
-		// same IP address and port again
+		// the same IP address and port again
 		clientTestContext.setLatchCount(1);
 		DtlsConnectorConfig clientConfig = newClientConfigBuilder().setAddress(clientTestContext.getClientAddress()).build();
 		ResumptionSupportingConnectionStore clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
@@ -1260,6 +1260,41 @@ public class DTLSConnectorTest {
 		assertThat(callback.await(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)), is(true));
 		// THEN assert that onConnect is not invoked
 		assertThat(callback.isConnecting(), is(false));
+	}
+
+	/**
+	 * Test exporting key material on client and server side is the same.
+	 */
+	@Test
+	public void testKeyMaterialExport() throws Exception {
+		int size = 20;
+		byte[] label = "EXPERIMENTAL_TEST".getBytes(StandardCharsets.UTF_8);
+		if (client != null) {
+			client.destroy();
+		}
+
+		// WHEN starting a new handshake (epoch 0) reusing the same client IP
+		DtlsConnectorConfig clientConfig = newClientConfigBuilder().setAddress(LOCAL)
+				.set(DtlsConfig.DTLS_SUPPORT_KEY_MATERIAL_EXPORT, true).build();
+		clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+
+		// THEN assert that the handshake succeeds and a session is established
+		givenAnEstablishedSession(false);
+		DTLSContext serverDtlsContext = serverHelper.getEstablishedServerDtlsContext(client.getAddress());
+		assertNotNull("missing server side dtls context", serverDtlsContext);
+		byte[] clientKeyMaterial = establishedClientContext.exportKeyMaterial(label, null, size);
+		byte[] serverKeyMaterial = serverDtlsContext.exportKeyMaterial(label, null, size);
+		assertEquals(size, clientKeyMaterial.length);
+		assertEquals(size, serverKeyMaterial.length);
+		assertArrayEquals(clientKeyMaterial, serverKeyMaterial);
+		serverHelper.server.stop();
+		ConnectorHelper.reloadConnections("server", serverHelper.server);
+		serverHelper.server.restart();
+		serverDtlsContext = serverHelper.server.getDtlsContextByAddress(client.getAddress());
+		byte[] server2KeyMaterial = serverDtlsContext.exportKeyMaterial(label, null, size);
+		assertEquals(size, server2KeyMaterial.length);
+		assertArrayEquals(serverKeyMaterial, server2KeyMaterial);
 	}
 
 	private ClientHello createClientHello(CipherSuite... cipherSuites) {

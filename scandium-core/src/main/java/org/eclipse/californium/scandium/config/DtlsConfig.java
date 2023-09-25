@@ -1041,6 +1041,16 @@ public final class DtlsConfig {
 					+ "Renegotation handshakes are always rejected by Californium.",
 			DEFAULT_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.values());
 
+	/**
+	 * Support key material export.
+	 * 
+	 * @see <a href="https://tools.ietf.org/html/rfc5705" target="_blank">RFC 5705</a>
+	 * 
+	 * @since 3.10
+	 */
+	public static final BooleanDefinition DTLS_SUPPORT_KEY_MATERIAL_EXPORT = new BooleanDefinition(
+			MODULE + "SUPPORT_KEY_MATERIAL_EXPORT", "Support key material export according RFC5705.", false);
+
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
 		@Override
@@ -1121,6 +1131,7 @@ public final class DtlsConfig {
 			config.set(DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
 			config.set(DTLS_MAC_ERROR_FILTER_QUIET_TIME, 0, TimeUnit.SECONDS);
 			config.set(DTLS_MAC_ERROR_FILTER_THRESHOLD, 0);
+			config.set(DTLS_SUPPORT_KEY_MATERIAL_EXPORT, false);
 		}
 	};
 

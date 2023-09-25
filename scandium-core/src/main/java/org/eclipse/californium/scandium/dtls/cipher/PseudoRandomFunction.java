@@ -79,6 +79,58 @@ public final class PseudoRandomFunction {
 		}
 	}
 
+	private static byte[] EXPORTER = "EXPORTER".getBytes(StandardCharsets.UTF_8);
+	private static byte[] EXPERIMENTAL = "EXPERIMENTAL".getBytes(StandardCharsets.UTF_8);
+
+	/**
+	 * Check, if array starts with other array.
+	 * 
+	 * @param value value to check
+	 * @param start header to check
+	 * @return {@code true}, if value starts with header, {@code false}
+	 *         otherwise.
+	 * @since 3.10
+	 */
+	private static boolean startsWith(byte[] value, byte[] start) {
+		if (value.length < start.length) {
+			return false;
+		}
+		for (int index = 0; index < start.length; ++index) {
+			if (value[index] != start[index]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Check, if the provided label is supported for key material export.
+	 * 
+	 * @param label label to check
+	 * @return {@code true}, if allowed, {@code false}, if not.
+	 * @since 3.10
+	 */
+	public static boolean isExportLabel(byte[] label) {
+		if (startsWith(label, EXPORTER)) {
+			return true;
+		}
+		if (startsWith(label, EXPERIMENTAL)) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Does the pseudo random function as defined in
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>.
+	 * 
+	 * @param hmac MAC algorithm.  e.g. HmacSHA256
+	 * @param secret the secret to use for the secure hash function
+	 * @param label the label to use for creating the original data.
+	 * @param seed the seed to use for creating the original data
+	 * @param length the length of data to create
+	 * @return the expanded data
+	 */
 	static byte[] doPRF(Mac hmac, SecretKey secret, byte[] label, byte[] seed, int length) {
 		try {
 			hmac.init(secret);
@@ -90,6 +142,29 @@ public final class PseudoRandomFunction {
 			// keys can be of arbitrary length
 			throw new IllegalArgumentException("Cannot run Pseudo Random Function with invalid key", e);
 		}
+	}
+
+	/**
+	 * Calculate the pseudo random function for exporter as defined in
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
+	 * "_blank">RFC 5246</a>.
+	 * 
+	 * @param hmac MAC algorithm.  e.g. HmacSHA256
+	 * @param secret the secret to use for the secure hash function
+	 * @param label the label to use for creating the original data.
+	 * @param seed the seed to use for creating the original data
+	 * @param length the length of data to create
+	 * @return the expanded data
+     * @throws IllegalArgumentException if label is not allowed for exporter
+	 * @see <a href="https://tools.ietf.org/html/rfc5705" target="_blank">RFC
+	 *      5705</a>
+	 * @since 3.10
+	 */
+	public static final byte[] doExporterPRF(Mac hmac, SecretKey secret, byte[] label, byte[] seed, int length) {
+		if (!isExportLabel(label)) {
+			throw new IllegalArgumentException("label must be valid for export!");
+		}
+		return doPRF(hmac, secret, label, seed, length);
 	}
 
 	/**

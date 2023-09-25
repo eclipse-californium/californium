@@ -64,6 +64,7 @@ import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersions
 import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersionsMatcher;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
@@ -612,6 +613,26 @@ public final class DTLSSession implements Destroyable {
 		} else {
 			throw new IllegalStateException("master secret already available!");
 		}
+	}
+
+	/**
+	 * Calculate the pseudo random function for exporter as defined in
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
+	 * "_blank">RFC 5246</a> and
+	 * <a href="https://tools.ietf.org/html/rfc5705#section-4" target=
+	 * "_blank">RFC 5705</a> using the negotiated {@link #cipherSuite} and
+	 * {@link #masterSecret}.
+	 * 
+	 * @param label label to use
+	 * @param seed seed to use
+	 * @param length length of the key.
+	 * @return calculated pseudo random for exporter
+	 * @throws IllegalArgumentException if label is not allowed for exporter
+	 * @since 3.10
+	 */
+	byte[] exportKeyMaterial(byte[] label, byte[] seed, int length) {
+		return PseudoRandomFunction.doExporterPRF(cipherSuite.getThreadLocalPseudoRandomFunctionMac(), masterSecret, label,
+				seed, length);
 	}
 
 	/**

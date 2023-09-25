@@ -264,7 +264,7 @@ public class InMemoryConnectionStoreTest {
 		// assert that the store has two entries
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 2));
 
-		DTLSContext dtlsContext = new DTLSContext(0);
+		DTLSContext dtlsContext = new DTLSContext(0, false);
 		dtlsContext.getSession().set(session);
 		con2.getSessionListener().contextEstablished(null, dtlsContext);
 
@@ -308,7 +308,7 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.get(address), is(con2));
 		assertThat(con1.getPeerAddress(), is(nullValue()));
 
-		DTLSContext dtlsContext = new DTLSContext(0);
+		DTLSContext dtlsContext = new DTLSContext(0, false);
 		dtlsContext.getSession().set(session);
 		con2.getSessionListener().contextEstablished(null, dtlsContext);
 

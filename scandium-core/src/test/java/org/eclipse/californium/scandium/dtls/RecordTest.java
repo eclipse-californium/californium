@@ -71,7 +71,7 @@ public class RecordTest {
 		DTLSSession session = new DTLSSession();
 		session.setCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		session.setCompressionMethod(CompressionMethod.NULL);
-		context = new DTLSContext(0);
+		context = new DTLSContext(0, false);
 		context.getSession().set(session);
 		SecretUtil.destroy(session);
 		context.createReadState(key, new SecretIvParameterSpec(client_iv), null);
@@ -82,7 +82,7 @@ public class RecordTest {
 		DTLSSession session = new DTLSSession();
 		session.setCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		session.setCompressionMethod(CompressionMethod.NULL);
-		DTLSContext context = new DTLSContext(Record.MAX_SEQUENCE_NO);
+		DTLSContext context = new DTLSContext(Record.MAX_SEQUENCE_NO, false);
 		context.getSession().set(session);
 		SecretUtil.destroy(session);
 		new Record(ContentType.HANDSHAKE, 0, new HelloRequest(), context, true, 0);
