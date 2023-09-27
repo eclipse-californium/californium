@@ -51,6 +51,7 @@ public class LinkFormat {
 	public static final String TITLE = "title";
 	public static final String OBSERVABLE = "obs";
 	public static final String LINK = "href";
+	public static final String OSCOREONLY = "osc"; // RFC 8613
 
 	// for Resource Directory
 	public static final String LIFE_TIME = "lt";

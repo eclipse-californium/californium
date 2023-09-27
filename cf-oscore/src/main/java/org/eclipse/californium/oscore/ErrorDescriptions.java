@@ -60,6 +60,7 @@ public final class ErrorDescriptions {
 	public static final String CONTEXT_NULL = "Context is null";
 	public static final String ALGORITHM_NOT_DEFINED = "Algorithm not defined";
 	public static final String CONTEXT_REGENERATION_FAILED = "Security context re-generation failed";
+	public static final String OSCORE_ONLY_RESOURCE = "The resource is only accessible using OSCORE";
 
 	public static final String CANNOT_CREATE_ERROR_MESS = "Cannot create error message for this error";
 
