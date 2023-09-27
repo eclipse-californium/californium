@@ -252,6 +252,34 @@ public class ResourceAttributes {
 	}
 
 	/**
+	 * Marks the resource as only accessible using OSCORE.
+	 *
+	 * @since 3.10
+	 */
+	public void setOscoreOnly() {
+		findAttributeValues(LinkFormat.OSCOREONLY).setOnly("");
+	}
+
+	/**
+	 * Checks if the resource is only accessible using OSCORE.
+	 *
+	 * @return {@code true}, if only accessible using OSCORE
+	 * @since 3.10
+	 */
+	public boolean hasOscoreOnly() {
+		return hasAttribute(LinkFormat.OSCOREONLY);
+	}
+
+	/**
+	 * Marks the resource as not only accessible using OSCORE.
+	 *
+	 * @since 3.10
+	 */
+	public void clearOscoreOnly() {
+		attributes.remove(LinkFormat.OSCOREONLY);
+	}
+
+	/**
 	 * Replaces the value for the specified attribute with the specified value.
 	 * If another value has been set for the attribute name, it will be removed.
 	 * 

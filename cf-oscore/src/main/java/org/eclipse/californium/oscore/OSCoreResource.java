@@ -12,13 +12,13 @@
  * 
  * Contributors:
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
@@ -34,6 +34,9 @@ public class OSCoreResource extends CoapResource {
 
 	public OSCoreResource(String name, final boolean isProtected) {
 		super(name);
+		if (isProtected) {
+			getAttributes().setOscoreOnly();
+		}
 		this.isProtected = isProtected;
 	}
 
@@ -43,7 +46,7 @@ public class OSCoreResource extends CoapResource {
 			OptionSet options = exchange.getRequest().getOptions();
 			if (!options.hasOscore()) {
 				Response r = new Response(ResponseCode.UNAUTHORIZED);
-				r.setType(Type.RST);
+				r.setPayload(ErrorDescriptions.OSCORE_ONLY_RESOURCE);
 				exchange.sendResponse(r);
 				return;
 			}
