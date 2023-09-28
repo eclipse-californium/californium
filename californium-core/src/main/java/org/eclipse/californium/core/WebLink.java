@@ -40,7 +40,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 public class WebLink implements Comparable<WebLink> {
 
 	/**
-	 * List of standard attribute names. Defines order in [@link #toString()}.
+	 * List of standard attribute names. Defines order in {@link #toString()}.
 	 * 
 	 * @since 3.7
 	 */
