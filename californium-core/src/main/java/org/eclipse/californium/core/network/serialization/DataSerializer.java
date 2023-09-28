@@ -76,6 +76,9 @@ public abstract class DataSerializer {
 			serializeEmpytMessage(messageWriter, message);
 			return messageWriter.toByteArray();
 		} else {
+			if (message.getType() == Type.RST) {
+				throw new IllegalArgumentException("RST must use code 0 (empty message)!");
+			}
 			DatagramWriter messageWriter = new DatagramWriter();
 			serializeMessage(messageWriter, message);
 			return messageWriter.toByteArray();

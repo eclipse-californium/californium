@@ -27,12 +27,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -149,13 +151,15 @@ public class DataParserTest {
 	private final DataParser parser;
 	private final OptionRegistry registry;
 	private final boolean tcp;
+	private final boolean strictEmpty;
 	private final int expectedMid;
 
-	public DataParserTest(DataSerializer serializer, DataParser parser, OptionRegistry registry, boolean tcp) {
+	public DataParserTest(DataSerializer serializer, DataParser parser, OptionRegistry registry, boolean tcp, boolean strictEmpty) {
 		this.serializer = serializer;
 		this.parser = parser;
 		this.registry = registry;
 		this.tcp = tcp;
+		this.strictEmpty = strictEmpty;
 		this.expectedMid = tcp ? Message.NONE : 13 ;
 		if (registry == null) {
 			OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
@@ -176,13 +180,14 @@ public class DataParserTest {
 		OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
 
 		List<Object[]> parameters = new ArrayList<>();
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, CRITICAL_CUSTOM_OPTIONS), null, false });
-		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(CRITICAL_CUSTOM_OPTIONS), null, true });
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true), null, false });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, CRITICAL_CUSTOM_OPTIONS), null, false, true });
+		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(CRITICAL_CUSTOM_OPTIONS), null, true, false });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true), null, false, true });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(false), null, false, false });
 		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
 		MapBasedOptionRegistry registry = new MapBasedOptionRegistry(StandardOptionRegistry.getDefaultOptionRegistry(),
 				CUSTOM_1, CUSTOM_2);
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, registry), registry, false });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, registry), registry, false, true });
 		return parameters;
 	}
 
@@ -239,6 +244,32 @@ public class DataParserTest {
 		} catch (CoAPMessageFormatException e) {
 			assertEquals(code, e.getCode());
 			assertEquals(true, e.isConfirmable());
+			// THEN an exception is thrown by the parser
+		}
+	}
+
+	@Test public void testParseMessageDetectsMalformedRst() {
+		assumeFalse(tcp);
+		int code = CoAP.ResponseCode.UNAUTHORIZED.value; // 4.01 
+		// GIVEN a message with a class code of 0.07, i.e. not a request
+		byte[] malformedRequest = new byte[] { 
+				0b01110000, // ver 1, RST, token length: 0
+				(byte) code,
+				0x00, 0x10 // message ID
+		};
+
+		// WHEN parsing the request
+		try {
+			parser.parseMessage(malformedRequest);
+			if (strictEmpty) {
+				fail("Parser should have detected that RST is not empty");
+			}
+		} catch (CoAPMessageFormatException e) {
+			if (!strictEmpty) {
+				fail("Parser should have ignored that RST is not empty");				
+			}
+			assertEquals(code, e.getCode());
+			assertEquals(false, e.isConfirmable());
 			// THEN an exception is thrown by the parser
 		}
 	}

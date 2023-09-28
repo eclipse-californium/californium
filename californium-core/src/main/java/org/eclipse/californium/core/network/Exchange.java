@@ -528,6 +528,9 @@ public class Exchange {
 	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void sendResponse(Response response) {
+		if (response.getType() == Type.RST) {
+			throw new IllegalArgumentException("Response must not use type RST!");
+		}
 		Request current = currentRequest;
 		if (current.getOptions().hasNoResponse()) {
 			NoResponseOption noResponse = current.getOptions().getNoResponse();
