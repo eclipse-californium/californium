@@ -150,8 +150,14 @@ public class UdpDataParser extends DataParser {
 		}
 		int code = reader.read(CODE_BITS);
 		int mid = reader.read(MESSAGE_ID_BITS);
-		if (strictEmptyMessageFormat && code == 0 && reader.bytesAvailable()) {
-			throw new CoAPMessageFormatException("UDP malformed Empty Message!", null, mid, code, confirmable);
+		if (strictEmptyMessageFormat) {
+			if (code == 0) {
+				if (reader.bytesAvailable()) {
+					throw new CoAPMessageFormatException("UDP malformed Empty Message!", null, mid, code, confirmable);
+				}
+			} else if (type == Type.RST) {
+				throw new CoAPMessageFormatException("UDP malformed RST Message!", null, mid, code, confirmable);				
+			}
 		}
 		if (!reader.bytesAvailable(tokenLength)) {
 			throw new CoAPMessageFormatException("UDP Message too short for token! " + (reader.bitsLeft() / Byte.SIZE)

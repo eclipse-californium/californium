@@ -23,19 +23,26 @@ package org.eclipse.californium.core.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.UdpMatcher;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -64,10 +71,15 @@ public class MessageTypeTest {
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
+	@Rule 
+	public LoggingRule logging = new LoggingRule();
+
 	private static final String SERVER_RESPONSE = "server responds hi";
 	private static final String ACC_RESOURCE = "acc-res";
 	private static final String NO_ACC_RESOURCE = "no-acc-res";
+	private static final String MALFORMED_RST_RESOURCE = "mal-rst-res";
 
+	private static AtomicReference<Throwable> error = new AtomicReference<>();
 	private static Endpoint serverEndpoint;
 
 	@BeforeClass
@@ -91,6 +103,19 @@ public class MessageTypeTest {
 		server.add(new CoapResource(NO_ACC_RESOURCE) {
 			public void handlePOST(CoapExchange exchange) {
 				exchange.respond(SERVER_RESPONSE);
+			}
+		});
+		server.add(new CoapResource(MALFORMED_RST_RESOURCE) {
+
+			public void handlePOST(CoapExchange exchange) {
+				try {
+					Response response = new Response(ResponseCode.UNAUTHORIZED);
+					response.setType(Type.RST);
+					exchange.respond(response);
+				} catch (IllegalArgumentException ex) {
+					error.set(ex);
+					throw ex;
+				}
 			}
 		});
 		server.start();
@@ -144,11 +169,30 @@ public class MessageTypeTest {
 		assertPayloadIsOfCorrectType(response, SERVER_RESPONSE, Type.ACK);
 	}
 
+	@Test
+	public void testMalicousRstResponse() throws Exception {
+		logging.setLoggingLevel("ERROR", UdpMatcher.class);
+		error.set(null);
+
+		// send request
+		Request req2rst = new Request(Code.POST);
+		req2rst.setConfirmable(true);
+		req2rst.setURI(getUri(MALFORMED_RST_RESOURCE));
+		req2rst.setPayload("client says hi");
+		req2rst.send();
+
+		// receive response and check
+		Response response = req2rst.waitForResponse(1000);
+		assertTrue(req2rst.isRejected());
+		assertNotNull("Server doesn't report error", error.get());
+		assertNull("Client received response", response);
+	}
+
 	private static void assertPayloadIsOfCorrectType(final Response response, final String expectedPayload,
 			final Type expectedType) {
 		assertNotNull("Client received no response", response);
-		assertEquals(response.getPayloadString(), expectedPayload);
-		assertEquals(response.getType(), expectedType);
+		assertEquals(expectedPayload, response.getPayloadString());
+		assertEquals(expectedType, response.getType());
 	}
 
 	private static String getUri(final String resourceName) {
