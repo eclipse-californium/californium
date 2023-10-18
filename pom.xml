@@ -97,10 +97,11 @@
 			<name>Achim Kraus</name>
 			<email>achim.kraus@bosch.io</email>
 			<url>https://github.com/boaks</url>
-			<organization>Bosch.IO GmbH</organization>
-			<organizationUrl>http://www.bosch.io</organizationUrl>
+			<organization>Private</organization>
+			<organizationUrl>https://cloudcoap.net/</organizationUrl>
 			<roles>
 				<role>Committer</role>
+				<role>Lead</role>
 			</roles>
 		</developer>
 	</developers>
