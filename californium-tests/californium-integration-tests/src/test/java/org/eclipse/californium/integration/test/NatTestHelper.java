@@ -72,6 +72,7 @@ import org.slf4j.LoggerFactory;
 public class NatTestHelper {
 	private static final Logger LOGGER = LoggerFactory.getLogger(NatTestHelper.class);
 
+	static final long ACK_TIMEOUT = 400;
 	static final long RESPONSE_TIMEOUT = 10 * 1000L;
 	static final String TARGET = "resource";
 	static final String IDENITITY = "client1";
@@ -203,16 +204,17 @@ public class NatTestHelper {
 		}
 	}
 
-	void setupConfiguration(MatcherMode mode, int ackTimeout) {
+	Configuration setupConfiguration(MatcherMode mode) {
 		config = network.getStandardTestConfig()
 				// retransmit starting with 200 milliseconds
-				.set(CoapConfig.ACK_TIMEOUT, ackTimeout, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_TIMEOUT, ACK_TIMEOUT, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.ACK_INIT_RANDOM, 1.5f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1.5f)
 				.set(CoapConfig.EXCHANGE_LIFETIME, RESPONSE_TIMEOUT, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.RESPONSE_MATCHING, mode)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, ackTimeout, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, ACK_TIMEOUT, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 4);
+		return config;
 	}
 
 	void createSecureServer(Integer cidLength) throws IOException {

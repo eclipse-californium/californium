@@ -52,7 +52,6 @@ public class SecureCidClusterTest {
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
-	static final int ACK_TIMEOUT = 200;
 	static final int NUM_OF_CLIENTS = 20;
 	static final int NUM_OF_LOOPS = 50;
 
@@ -73,7 +72,7 @@ public class SecureCidClusterTest {
 
 	@Test
 	public void testSecureGet() throws Exception {
-		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT);
 		helper.createSecureServer(null, null);
 		helper.createDefaultClientEndpoint(null);
 
@@ -91,7 +90,7 @@ public class SecureCidClusterTest {
 
 	@Test
 	public void testSecureGetWithCID() throws Exception {
-		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
@@ -112,7 +111,7 @@ public class SecureCidClusterTest {
 
 	@Test
 	public void testMultipleSecureGetWithCID() throws Exception {
-		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
@@ -139,9 +138,9 @@ public class SecureCidClusterTest {
 	@Test
 	public void testMultipleSecureGetWithCIDAndResumption() throws Exception {
 		// resumption in cluster isn't strict!
-		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
-		helper.setupConfiguration(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL);
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		int overallResumes = 0;
@@ -171,9 +170,9 @@ public class SecureCidClusterTest {
 
 	@Test
 	public void testSecureGetWithMixedAddressesAndCID() throws Exception {
-		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
-		helper.setupConfiguration(MatcherMode.STRICT, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.STRICT);
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		CoapClient client = new CoapClient(helper.uri);
@@ -199,9 +198,9 @@ public class SecureCidClusterTest {
 	@Test
 	public void testSecureGetWithMixedAddressesCIDAndResumption() throws Exception {
 		// resumption in cluster isn't strict!
-		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
-		helper.setupConfiguration(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL);
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		int overallResumes = 0;
@@ -238,9 +237,9 @@ public class SecureCidClusterTest {
 	@Test
 	public void testSecureGetWithMixedAddressesCIDReordered() throws Exception {
 		// resumption in cluster isn't strict!
-		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL_IDENTITY);
 		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
-		helper.setupConfiguration(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.setupConfiguration(MatcherMode.PRINCIPAL);
 		helper.createDefaultClientEndpoint(SUPPORT_CID);
 		helper.nat.setMessageReordering(10, 500, 500);
 
