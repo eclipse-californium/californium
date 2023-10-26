@@ -17,6 +17,7 @@
 package org.eclipse.californium.elements.util;
 
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeNotNull;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -139,6 +140,10 @@ public class TestCertificatesTools {
 			X509Certificate[] chain = SslContextUtil.loadCertificateChain(
 					KEY_STORE_URI, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
 			nosigningCertificate = chain[0];
+			
+			if (!clientExpiredCredentials.isExpired()) {
+				clientExpiredCredentials = null;
+			}
 		} catch (RuntimeException e) {
 			e.printStackTrace(System.err);
 			throw e;
@@ -290,6 +295,7 @@ public class TestCertificatesTools {
 	 * @since 3.9
 	 */
 	public static X509Certificate[] getClientExpiredCertificateChain() {
+		assumeNotNull("client certificate is not expired", clientExpiredCredentials);
 		X509Certificate[] certificateChain = clientExpiredCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
@@ -301,6 +307,7 @@ public class TestCertificatesTools {
 	 * @since 3.9
 	 */
 	public static List<X509Certificate> getClientExpiredCertificateChainAsList() {
+		assumeNotNull("client certificate is not expired", clientExpiredCredentials);
 		X509Certificate[] certificateChain = clientExpiredCredentials.getCertificateChain();
 		return Arrays.asList(certificateChain);
 	}
@@ -392,6 +399,7 @@ public class TestCertificatesTools {
 	 * @since 3.9
 	 */
 	public static PrivateKey getClientExpiredPrivateKey() {
+		assumeNotNull("client certificate is not expired", clientExpiredCredentials);
 		return clientExpiredCredentials.getPrivateKey();
 	}
 
@@ -438,6 +446,7 @@ public class TestCertificatesTools {
 	 * @since 3.9
 	 */
 	public static PublicKey getClientExpiredPublicKey() {
+		assumeNotNull("client certificate is not expired", clientExpiredCredentials);
 		return clientExpiredCredentials.getCertificateChain()[0].getPublicKey();
 	}
 

@@ -41,7 +41,9 @@ import java.security.Security;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1449,6 +1451,26 @@ public class SslContextUtil {
 		 */
 		public Certificate[] getTrustedCertificates() {
 			return trusts;
+		}
+
+		/**
+		 * Checks, if the node certificate is expired.
+		 * 
+		 * @return {@code true} expired, {@code false} not expired.
+		 * @since 3.10
+		 */
+		public boolean isExpired() {
+			if (chain != null && chain.length > 0) {
+				try {
+					chain[0].checkValidity();
+				} catch (CertificateExpiredException ex) {
+					LOGGER.debug("{} is expired!", chain[0].getSubjectX500Principal(), ex);
+					return true;
+				} catch (CertificateNotYetValidException ex) {
+					LOGGER.debug("{} is not valid yet!", chain[0].getSubjectX500Principal(), ex);
+				}
+			}
+			return false;
 		}
 	}
 
