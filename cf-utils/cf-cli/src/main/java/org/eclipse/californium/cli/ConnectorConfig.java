@@ -351,7 +351,7 @@ public class ConnectorConfig implements Cloneable {
 	 * List of authentication modes (ordered by preference).
 	 */
 	@Option(names = { "-a",
-			"--auth" }, split = ":", description = "use authentikation modes. '--help-auth' to list available authentication modes.")
+			"--auth" }, split = ":", description = "use authentication modes. '--help-auth' to list available authentication modes.")
 	public List<AuthenticationMode> authenticationModes;
 
 	/**
