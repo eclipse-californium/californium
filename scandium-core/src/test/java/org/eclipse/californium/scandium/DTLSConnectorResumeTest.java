@@ -205,6 +205,7 @@ public class DTLSConnectorResumeTest {
 				return PreSharedKeyIdentity.class;
 			}
 
+			@SuppressWarnings("deprecation")
 			@Override
 			public void setup(Builder builder) {
 				clientPskStore.setDelay(100);
@@ -418,6 +419,7 @@ public class DTLSConnectorResumeTest {
 	 * 
 	 * @throws Exception if the connector cannot be started.
 	 */
+	@SuppressWarnings("deprecation")
 	@BeforeClass
 	public static void startServer() throws Exception {
 

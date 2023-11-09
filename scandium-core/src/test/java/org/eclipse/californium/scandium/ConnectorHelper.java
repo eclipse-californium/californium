@@ -408,6 +408,7 @@ public class ConnectorHelper {
 		return store;
 	}
 
+	@SuppressWarnings("deprecation")
 	public static DebugConnectionStore createDebugConnectionStore(Configuration configuration,
 			SessionStore sessionStore) {
 		DebugConnectionStore store;

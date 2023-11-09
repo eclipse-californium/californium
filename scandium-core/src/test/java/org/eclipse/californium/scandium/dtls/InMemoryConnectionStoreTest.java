@@ -31,6 +31,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -51,15 +52,30 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
+@RunWith(Parameterized.class)
 @Category(Medium.class)
 public class InMemoryConnectionStoreTest {
+
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
 			DtlsNetworkRule.Mode.NATIVE);
+
+	@Parameter(0)
+	public boolean readWriteLockStore;
+
+	@Parameters
+	public static List<Boolean> parameters() {
+		return Arrays.asList(Boolean.TRUE, Boolean.FALSE);
+	}
+
 	@Rule
 	public ThreadsRule cleanup = new ThreadsRule();
-	@Rule 
+	@Rule
 	public LoggingRule logging = new LoggingRule();
 
 	private static final int INITIAL_CAPACITY = 10;
@@ -67,11 +83,12 @@ public class InMemoryConnectionStoreTest {
 	Connection con;
 	SessionId sessionId;
 
+	@SuppressWarnings("deprecation")
 	@Before
 	public void setUp() throws Exception {
-		Configuration config = network.createTestConfig()
-				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, INITIAL_CAPACITY)
-				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 1000, TimeUnit.SECONDS);
+		Configuration config = network.createTestConfig().set(DtlsConfig.DTLS_MAX_CONNECTIONS, INITIAL_CAPACITY)
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 1000, TimeUnit.SECONDS)
+				.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, readWriteLockStore);
 		store = ConnectorHelper.createDebugConnectionStore(config, null);
 		store.attach(null);
 		con = newConnection(50L);
@@ -123,13 +140,17 @@ public class InMemoryConnectionStoreTest {
 		assertThat(session, is(con.getEstablishedSession()));
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testFindRetrievesSharedConnection() {
 
-		// GIVEN an empty connection store with a session store shared by another node
+		// GIVEN an empty connection store with a session store shared by
+		// another node
 		SessionStore sessionStore = new TestInMemorySessionStore(true);
 		sessionStore.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
+		store = readWriteLockStore
+				? new InMemoryReadWriteLockConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true)
+				: new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
 
 		// WHEN retrieving the connection for the given peer
 		DTLSSession resumeSession = store.find(sessionId);
@@ -139,6 +160,7 @@ public class InMemoryConnectionStoreTest {
 		assertThat(resumeSession.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testFindRemovesStaleConnectionFromStore() {
 
@@ -146,11 +168,14 @@ public class InMemoryConnectionStoreTest {
 		// and a (local) connection based on this session
 		SessionStore sessionStore = new TestInMemorySessionStore(true);
 		sessionStore.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
+		store = readWriteLockStore
+				? new InMemoryReadWriteLockConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true)
+				: new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
 		store.attach(null);
 		store.put(con);
 
-		// WHEN the session is removed from the session store (e.g. because it became stale)
+		// WHEN the session is removed from the session store (e.g. because it
+		// became stale)
 		sessionStore.remove(con.getEstablishedSession().getSessionIdentifier());
 
 		// THEN assert that the connection has been removed from the local store
@@ -191,10 +216,10 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 
 		// when adding a new connection to the store
-		Connection con1 =  newConnection(51L);
+		Connection con1 = newConnection(51L);
 		InetSocketAddress addr1 = con1.getPeerAddress();
 		assertTrue(store.put(con1));
-		Connection con2 =  newConnection(51L);
+		Connection con2 = newConnection(51L);
 		InetSocketAddress addr2 = con2.getPeerAddress();
 		assertTrue(store.put(con2));
 
@@ -216,10 +241,10 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 
 		// when adding a new connection to the store
-		Connection con1 =  newConnection(51L);
+		Connection con1 = newConnection(51L);
 		InetSocketAddress addr1 = con1.getPeerAddress();
 		assertTrue(store.put(con1));
-		Connection con2 =  newConnection(52L);
+		Connection con2 = newConnection(52L);
 		InetSocketAddress addr2 = con2.getPeerAddress();
 		assertTrue(store.put(con2));
 
@@ -249,14 +274,14 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 
 		// when adding a new connection to the store
-		Connection con1 =  newConnection(51L);
+		Connection con1 = newConnection(51L);
 		DTLSSession session = con1.getEstablishedSession();
 		InetSocketAddress address = con1.getPeerAddress();
 		assertTrue(store.put(con1));
 
 		assertThat(store.find(session.getSessionIdentifier()), is(session));
 
-		Connection con2 =  newConnection(52L);
+		Connection con2 = newConnection(52L);
 		con2.resetContext();
 		assertTrue(store.put(con2));
 		assertThat(store.find(session.getSessionIdentifier()), is(session));
@@ -289,14 +314,14 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 
 		// when adding a new connection to the store
-		Connection con1 =  newConnection(51L);
+		Connection con1 = newConnection(51L);
 		DTLSSession session = con1.getEstablishedSession();
 		InetSocketAddress address = con1.getPeerAddress();
 		assertTrue(store.put(con1));
-		
+
 		assertThat(store.find(session.getSessionIdentifier()), is(con1.getEstablishedSession()));
 
-		Connection con2 =  newConnection(51L);
+		Connection con2 = newConnection(51L);
 		con2.resetContext();
 		assertTrue(store.put(con2));
 
@@ -355,6 +380,7 @@ public class InMemoryConnectionStoreTest {
 		assertThat(conLoaded2, is(con2));
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testSaveAndLoadMaliciousConnections() throws Exception {
 		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class, InMemoryReadWriteLockConnectionStore.class);
@@ -412,7 +438,8 @@ public class InMemoryConnectionStoreTest {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
 		Connection con = new Connection(peerAddress).setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null);
-		DTLSContext dtlsContext = DTLSContextTest.newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
+		DTLSContext dtlsContext = DTLSContextTest.newEstablishedServerDtlsContext(
+				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		con.getSessionListener().contextEstablished(null, dtlsContext);
 		return con;
 	}
