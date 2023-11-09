@@ -256,6 +256,7 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws NullPointerException if any of the provided parameter is
 	 *             {@code null}
 	 */
+	@SuppressWarnings("deprecation")
 	public ServerHandshaker(long initialRecordSequenceNo, int initialMessageSequenceNo, RecordLayer recordLayer,
 			ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
 		super(initialRecordSequenceNo, initialMessageSequenceNo, recordLayer, timer, connection, config);

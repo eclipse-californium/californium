@@ -592,6 +592,7 @@ public class DtlsConnectorConfigTest {
 		StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates);
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite() {
 		exception.expect(IllegalStateException.class);
@@ -602,6 +603,7 @@ public class DtlsConnectorConfigTest {
 		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite2() {
 		exception.expect(IllegalStateException.class);

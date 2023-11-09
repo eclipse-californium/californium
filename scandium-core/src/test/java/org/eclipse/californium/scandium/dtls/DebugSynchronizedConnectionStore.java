@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.5
  */
+@SuppressWarnings("deprecation")
 public final class DebugSynchronizedConnectionStore extends InMemoryConnectionStore implements DebugConnectionStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DebugSynchronizedConnectionStore.class);

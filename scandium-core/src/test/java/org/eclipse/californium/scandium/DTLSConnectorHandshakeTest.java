@@ -1251,6 +1251,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testPskHandshakeWithDeprecatedCid() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)
@@ -1269,6 +1270,7 @@ public class DTLSConnectorHandshakeTest {
 		assertCidVariant(endpointContext, true, 6, 4);
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testPskHandshakeWithDeprecatedClientCid() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)
@@ -1287,6 +1289,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testPskHandshakeWithSupportedDeprecatedCid() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)

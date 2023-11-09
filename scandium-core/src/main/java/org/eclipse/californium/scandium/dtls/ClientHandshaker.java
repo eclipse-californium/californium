@@ -283,6 +283,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws NullPointerException if any of the provided parameter is
 	 *             {@code null}, except the hostname.
 	 */
+	@SuppressWarnings("deprecation")
 	public ClientHandshaker(String hostname, RecordLayer recordLayer, ScheduledExecutorService timer,
 			Connection connection, DtlsConnectorConfig config, boolean probe) {
 		super(0, 0, recordLayer, timer, connection, config);

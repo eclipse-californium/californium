@@ -3308,6 +3308,7 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testDisableHelloVerifyRequestForPsk() throws Exception {
 		alternativeServerHelper = new ConnectorHelper(network);
@@ -3369,6 +3370,7 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testDisabledHelloVerifyRequestForPskWithCertificate() throws Exception {
 		alternativeServerHelper = new ConnectorHelper(network);

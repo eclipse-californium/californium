@@ -39,7 +39,7 @@ import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
+import org.eclipse.californium.elements.util.Filter;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
@@ -283,7 +283,7 @@ public class DtlsManagedClusterConnectorTest {
 		clientHealth.reset();
 
 		// adapt the destination address to connector 2
-		Future<Void> result = clientConnector.startForEach(new Predicate<Connection>() {
+		Future<Void> result = clientConnector.startForEach(new Filter<Connection>() {
 
 			@Override
 			public boolean accept(Connection value) {

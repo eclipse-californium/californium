@@ -1056,6 +1056,7 @@ public class DTLSConnectorTest {
 		assertThat(connection.hasEstablishedDtlsContext(), is(true));
 	}
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
 		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class, InMemoryReadWriteLockConnectionStore.class);
