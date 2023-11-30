@@ -126,7 +126,12 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	 */
 	private static final String MARK = "CoAP";
 
-	/** The logger. */
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private
+	 */
+	@Deprecated
 	protected static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
 
 	/** The root resource. */

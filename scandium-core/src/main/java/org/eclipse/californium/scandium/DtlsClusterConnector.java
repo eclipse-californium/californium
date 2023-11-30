@@ -70,7 +70,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DtlsClusterConnector.class);
 
-	private final FilteredLogger FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
+	private final FilteredLogger FILTER = new FilteredLogger(LOGGER.getName(), 3, TimeUnit.SECONDS.toNanos(10));
 
 	/**
 	 * Offset of cluster record type.

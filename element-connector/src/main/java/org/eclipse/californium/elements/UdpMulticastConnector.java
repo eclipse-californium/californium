@@ -109,7 +109,12 @@ import org.slf4j.LoggerFactory;
  *        one multicast group is provided.
  */
 public class UdpMulticastConnector extends UDPConnector {
-
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private.
+	 */
+	@Deprecated
 	public static final Logger LOGGER = LoggerFactory.getLogger(UdpMulticastConnector.class);
 
 	/**

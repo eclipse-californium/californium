@@ -88,7 +88,12 @@ import org.slf4j.LoggerFactory;
  * @see EmptyMessage
  */
 public abstract class Message {
-
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private
+	 */
+	@Deprecated
 	protected final static Logger LOGGER = LoggerFactory.getLogger(Message.class);
 
 	/**

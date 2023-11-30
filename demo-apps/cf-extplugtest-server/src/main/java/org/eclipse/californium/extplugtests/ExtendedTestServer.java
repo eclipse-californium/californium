@@ -117,6 +117,10 @@ import picocli.CommandLine.ParseResult;
  * statistic resource.
  */
 public class ExtendedTestServer extends AbstractTestServer {
+	/**
+	 * @since 3.10
+	 */
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
 
 	private static final Logger STATISTIC_LOGGER = LoggerFactory
 			.getLogger("org.eclipse.californium.extplugtests.statistics");

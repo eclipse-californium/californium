@@ -48,7 +48,12 @@ import org.slf4j.LoggerFactory;
 @NotForAndroid
 public class NetSocketHealthLogger extends CounterStatisticManager {
 
-	/** the logger. */
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private.
+	 */
+	@Deprecated
 	protected static final Logger LOGGER = LoggerFactory.getLogger(NetSocketHealthLogger.class);
 
 	/**

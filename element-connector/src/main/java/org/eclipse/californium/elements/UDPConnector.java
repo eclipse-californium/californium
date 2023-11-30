@@ -85,7 +85,12 @@ import org.slf4j.LoggerFactory;
  * {@link UdpConfig#UDP_SEND_BUFFER_SIZE} in the provided {@link Configuration}.
  */
 public class UDPConnector implements Connector {
-
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private.
+	 */
+	@Deprecated
 	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnector.class);
 
 	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$

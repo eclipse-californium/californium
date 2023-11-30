@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 /**
@@ -63,7 +64,9 @@ public class FilteredLogger {
 	 * @param logger logger to log
 	 * @param maxPerPeriod maximum logging messages per period.
 	 * @param nanosPerPeriod nanoseconds per period.
+	 * @deprecated use {@link #FilteredLogger(String, long, long)} instead.
 	 */
+	@Deprecated
 	public FilteredLogger(Logger logger, long maxPerPeriod, long nanosPerPeriod) {
 		this(logger, maxPerPeriod, nanosPerPeriod, TimeUnit.NANOSECONDS);
 	}
@@ -76,9 +79,40 @@ public class FilteredLogger {
 	 * @param period period in units
 	 * @param unit time unit of the period
 	 * @since 3.5
+	 * @deprecated use {@link #FilteredLogger(String, long, long, TimeUnit)}
+	 *             instead.
 	 */
+	@Deprecated
 	public FilteredLogger(Logger logger, long maxPerPeriod, long period, TimeUnit unit) {
 		this.logger = logger;
+		this.maxPerPeriod = maxPerPeriod;
+		this.nanosPerPeriod = unit.toNanos(period);
+		this.startNanos = ClockUtil.nanoRealtime();
+	}
+
+	/**
+	 * Create logging filter.
+	 * 
+	 * @param name name of logger to log
+	 * @param maxPerPeriod maximum logging messages per period.
+	 * @param nanosPerPeriod nanoseconds per period.
+	 * @since 3.10
+	 */
+	public FilteredLogger(String name, long maxPerPeriod, long nanosPerPeriod) {
+		this(name, maxPerPeriod, nanosPerPeriod, TimeUnit.NANOSECONDS);
+	}
+
+	/**
+	 * Create logging filter.
+	 * 
+	 * @param name name of logger to log
+	 * @param maxPerPeriod maximum logging messages per period.
+	 * @param period period in units
+	 * @param unit time unit of the period
+	 * @since 3.10
+	 */
+	public FilteredLogger(String name, long maxPerPeriod, long period, TimeUnit unit) {
+		this.logger = LoggerFactory.getLogger(name);
 		this.maxPerPeriod = maxPerPeriod;
 		this.nanosPerPeriod = unit.toNanos(period);
 		this.startNanos = ClockUtil.nanoRealtime();

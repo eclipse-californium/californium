@@ -266,9 +266,9 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class);
 	private static final Logger DROP_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".drops");
-	private static final FilteredLogger DROP_LOGGER_IN_FILTERED = new FilteredLogger(DROP_LOGGER, 3, 30, TimeUnit.SECONDS);
-	private static final FilteredLogger DROP_LOGGER_OUT_FILTERED = new FilteredLogger(DROP_LOGGER, 3, 30, TimeUnit.SECONDS);
-	private static final FilteredLogger DROP_LOGGER_HANDSHAKE_RESULTS_FILTERED = new FilteredLogger(DROP_LOGGER, 3, 30, TimeUnit.SECONDS);
+	private static final FilteredLogger DROP_LOGGER_IN_FILTERED = new FilteredLogger(DROP_LOGGER.getName(), 3, 30, TimeUnit.SECONDS);
+	private static final FilteredLogger DROP_LOGGER_OUT_FILTERED = new FilteredLogger(DROP_LOGGER.getName(), 3, 30, TimeUnit.SECONDS);
+	private static final FilteredLogger DROP_LOGGER_HANDSHAKE_RESULTS_FILTERED = new FilteredLogger(DROP_LOGGER.getName(), 3, 30, TimeUnit.SECONDS);
 	private static final int MAX_CIPHERTEXT_EXPANSION = CipherSuite.getOverallMaxCiphertextExpansion();
 	private static final int MAX_DATAGRAM_BUFFER_SIZE = Record.DTLS_MAX_PLAINTEXT_FRAGMENT_LENGTH
 			+ Record.DTLS_HANDSHAKE_HEADER_LENGTH + MAX_CIPHERTEXT_EXPANSION;

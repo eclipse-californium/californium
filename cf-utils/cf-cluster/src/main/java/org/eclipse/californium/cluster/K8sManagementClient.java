@@ -108,8 +108,11 @@ public abstract class K8sManagementClient {
 	private static final String KUBECTL_NAMESPACE = "KUBECTL_NAMESPACE";
 
 	/**
-	 * Logger.
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private.
 	 */
+	@Deprecated
 	protected static final Logger LOGGER = LoggerFactory.getLogger(K8sManagementClient.class);
 	/**
 	 * Hostname.

@@ -20,8 +20,14 @@ package org.eclipse.californium.core.network.stack.congestioncontrol;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
 import org.eclipse.californium.core.network.stack.RemoteEndpoint;
 import org.eclipse.californium.elements.config.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LinuxRto extends CongestionControlLayer {
+	/**
+	 * @since 3.10
+	 */
+	private static final Logger LOG = LoggerFactory.getLogger(LinuxRto.class);
 
 	public LinuxRto(String tag, Configuration config) {
 		super(tag, config);
@@ -104,7 +110,7 @@ public class LinuxRto extends CongestionControlLayer {
 		}
 
 		private void printLinuxStats() {
-			LOGGER.trace("SRTT: {}, RTTVAR: {}, mdev: {}, mdev_max: {}", SRTT, RTTVAR, mdev, mdev_max);
+			LOG.trace("SRTT: {}, RTTVAR: {}, mdev: {}, mdev_max: {}", SRTT, RTTVAR, mdev, mdev_max);
 		}
 	}
 }

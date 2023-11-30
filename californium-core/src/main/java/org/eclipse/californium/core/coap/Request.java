@@ -61,6 +61,8 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Request represents a CoAP request and has either the {@link Type} CON or NON
@@ -173,6 +175,10 @@ import org.eclipse.californium.elements.util.StringUtil;
  * @see Response
  */
 public class Request extends Message {
+	/**
+	 * @since 3.10
+	 */
+	private static final Logger LOG = LoggerFactory.getLogger(Request.class);
 
 	/**
 	 * The request code.
@@ -440,7 +446,7 @@ public class Request extends Message {
 			String coapUri = uri;
 			if (!uri.contains("://")) {
 				coapUri = "coap://" + uri;
-				LOGGER.warn("update your code to supply an RFC 7252 compliant URI including a scheme");
+				LOG.warn("update your code to supply an RFC 7252 compliant URI including a scheme");
 			}
 			return setURI(new URI(coapUri));
 		} catch (URISyntaxException e) {
@@ -608,7 +614,7 @@ public class Request extends Message {
 					}
 				} catch (UnknownHostException e) {
 					// this should not happen because we do not need to resolve a host name
-					LOGGER.warn("could not parse IP address of URI despite successful IP address pattern matching");
+					LOG.warn("could not parse IP address of URI despite successful IP address pattern matching");
 				}
 			} else {
 				if (!StringUtil.isValidHostName(host)) {

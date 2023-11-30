@@ -412,8 +412,8 @@ public class BenchmarkClient {
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(DEFAULT_TIMEOUT_SECONDS);
 	private static final long DTLS_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(120);
 
-	private static final FilteredLogger errorResponseFilter = new FilteredLogger(LOGGER, 5, DEFAULT_TIMEOUT_NANOS);
-	private static final FilteredLogger errorFilter = new FilteredLogger(LOGGER, 3, DEFAULT_TIMEOUT_NANOS);
+	private static final FilteredLogger errorResponseFilter = new FilteredLogger(LOGGER.getName(), 5, DEFAULT_TIMEOUT_NANOS);
+	private static final FilteredLogger errorFilter = new FilteredLogger(LOGGER.getName(), 3, DEFAULT_TIMEOUT_NANOS);
 
 	/**
 	 * Atomic down-counter for overall requests.

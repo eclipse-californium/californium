@@ -46,6 +46,8 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The resuming client handshaker executes a abbreviated handshake by adding a
@@ -106,6 +108,8 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  */
 @NoPublicAPI
 public class ResumingClientHandshaker extends ClientHandshaker {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingClientHandshaker.class);
 
 	private static final HandshakeState[] ABBREVIATED_HANDSHAKE = { 
 			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
