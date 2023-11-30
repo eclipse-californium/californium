@@ -81,6 +81,11 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractTestServer extends CoapServer {
 
+	/**
+	 * @since 3.10
+	 */
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
+
 	public enum Protocol {
 		UDP, DTLS, TCP, TLS
 	}

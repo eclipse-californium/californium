@@ -51,7 +51,12 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 public abstract class HelloExtension {
-
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated to be removed.
+	 */
+	@Deprecated
 	protected static final Logger LOGGER = LoggerFactory.getLogger(HelloExtension.class);
 
 	public static final int TYPE_BITS = 16;

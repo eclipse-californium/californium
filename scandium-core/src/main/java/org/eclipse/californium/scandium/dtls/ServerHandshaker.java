@@ -125,6 +125,8 @@ import org.slf4j.LoggerFactory;
 @NoPublicAPI
 public class ServerHandshaker extends Handshaker {
 
+	private final Logger LOGGER = LoggerFactory.getLogger(getClass());
+
 	private static final HandshakeState[] CLIENT_HELLO = { new HandshakeState(HandshakeType.CLIENT_HELLO) };
 
 	private static final HandshakeState[] CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),

@@ -63,6 +63,12 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	private static final X509Certificate[] X509_TRUST_ALL = new X509Certificate[0];
 	private static final RawPublicKeyIdentity[] RPK_TRUST_ALL = new RawPublicKeyIdentity[0];
 
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private.
+	 */
+	@Deprecated
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	/**

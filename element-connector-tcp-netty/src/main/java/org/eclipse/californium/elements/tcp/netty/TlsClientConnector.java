@@ -46,6 +46,8 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.netty.channel.Channel;
 import io.netty.handler.ssl.SslHandler;
@@ -56,6 +58,11 @@ import io.netty.util.concurrent.GenericFutureListener;
  * A TLS client connector that establishes outbound TLS connections.
  */
 public class TlsClientConnector extends TcpClientConnector {
+
+	/**
+	 * @since 3.10
+	 */
+	private static final Logger LOG = LoggerFactory.getLogger(TlsClientConnector.class);
 
 	/**
 	 * Context to be used to for connections.
@@ -176,11 +183,11 @@ public class TlsClientConnector extends TcpClientConnector {
 	 */
 	private SSLEngine createSllEngine(SocketAddress remoteAddress) {
 		if (remoteAddress instanceof InetSocketAddress) {
-			LOGGER.info("Connection to inet {}", StringUtil.toLog(remoteAddress));
+			LOG.info("Connection to inet {}", StringUtil.toLog(remoteAddress));
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
 			return sslContext.createSSLEngine(remote.getAddress().getHostAddress(), remote.getPort());
 		} else {
-			LOGGER.info("Connection to {}", StringUtil.toLog(remoteAddress));
+			LOG.info("Connection to {}", StringUtil.toLog(remoteAddress));
 			return sslContext.createSSLEngine();
 		}
 	}
@@ -226,14 +233,14 @@ public class TlsClientConnector extends TcpClientConnector {
 		if (hostname != null) {
 			if (!CertPathUtil.matchDestination(certificate, hostname)) {
 				String cn = CertPathUtil.getSubjectsCn(certificate);
-				LOGGER.debug("Certificate {} validation failed: destination doesn't match", cn);
+				LOG.debug("Certificate {} validation failed: destination doesn't match", cn);
 				throw new SSLPeerUnverifiedException(
 						"Certificate " + cn + ": Destination '" + hostname + "' doesn't match!");
 			}
 		} else {
 			if (!CertPathUtil.matchLiteralIP(certificate, literalIp)) {
 				String cn = CertPathUtil.getSubjectsCn(certificate);
-				LOGGER.debug("Certificate {} validation failed: literal IP doesn't match", cn);
+				LOG.debug("Certificate {} validation failed: literal IP doesn't match", cn);
 				throw new SSLPeerUnverifiedException(
 						"Certificate " + cn + ": Literal IP " + literalIp + " doesn't match!");
 			}

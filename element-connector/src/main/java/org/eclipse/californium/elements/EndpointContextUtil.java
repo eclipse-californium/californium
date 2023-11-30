@@ -30,7 +30,7 @@ public class EndpointContextUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointContextUtil.class);
 
-	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
+	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER.getName(), 3, TimeUnit.SECONDS.toNanos(10));
 
 	/**
 	 * Match endpoint contexts based on a set of definitions.

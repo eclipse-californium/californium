@@ -41,7 +41,12 @@ import org.slf4j.LoggerFactory;
 @NotForAndroid
 public class NetStatLogger extends CounterStatisticManager {
 
-	/** the logger. */
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private.
+	 */
+	@Deprecated
 	protected static final Logger LOGGER = LoggerFactory.getLogger(NetStatLogger.class);
 
 	// Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors

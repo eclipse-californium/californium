@@ -38,7 +38,12 @@ import org.slf4j.LoggerFactory;
 public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 
 	// Logging ////////////////////////////////////////////////////////
-
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated to be removed.
+	 */
+	@Deprecated
 	protected static final Logger LOGGER = LoggerFactory.getLogger(DefaultCipherSuiteSelector.class);
 
 	@Override

@@ -90,6 +90,12 @@ public class TcpClientConnector implements Connector {
 		TCP_THREAD_GROUP.setDaemon(false);
 	}
 
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private.
+	 */
+	@Deprecated
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	private final int numberOfThreads;

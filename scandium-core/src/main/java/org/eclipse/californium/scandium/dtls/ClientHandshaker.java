@@ -72,6 +72,8 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * ClientHandshaker does the protocol handshaking from the point of view of a
@@ -136,6 +138,11 @@ import org.eclipse.californium.scandium.util.ServerNames;
  */
 @NoPublicAPI
 public class ClientHandshaker extends Handshaker {
+
+	/**
+	 * @since 3.10
+	 */
+	private final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	protected static final HandshakeState[] INIT = {
 			new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),

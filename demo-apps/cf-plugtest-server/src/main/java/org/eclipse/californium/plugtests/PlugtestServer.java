@@ -99,6 +99,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.unixhealth.NetSocketHealthLogger;
 import org.eclipse.californium.unixhealth.NetStatLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
@@ -117,6 +119,11 @@ import picocli.CommandLine.ParseResult;
  */
 @SuppressWarnings("deprecation")
 public class PlugtestServer extends AbstractTestServer {
+
+	/**
+	 * @since 3.10
+	 */
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
 
 	static {
 		CoapConfig.register();

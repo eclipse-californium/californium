@@ -136,7 +136,12 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("deprecation")
 public class CoapResource implements Resource, ObservableResource {
 
-	/** The logger. */
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private
+	 */
+	@Deprecated
 	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class);
 
 	/**

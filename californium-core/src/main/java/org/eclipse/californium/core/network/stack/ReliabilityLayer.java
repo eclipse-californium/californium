@@ -62,7 +62,12 @@ import org.slf4j.LoggerFactory;
  */
 public class ReliabilityLayer extends AbstractLayer {
 
-	/** The logger. */
+	/**
+	 * The logger.
+	 * 
+	 * @deprecated scope will change to private
+	 */
+	@Deprecated
 	protected final static Logger LOGGER = LoggerFactory.getLogger(ReliabilityLayer.class);
 
 	protected final ReliabilityLayerParameters defaultReliabilityLayerParameters;

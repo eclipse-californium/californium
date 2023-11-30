@@ -33,6 +33,8 @@ import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple asynchronous test implementation of
@@ -45,6 +47,10 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * @since 2.5
  */
 public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertificateVerifier {
+	/**
+	 * @since 3.10
+	 */
+	private static final Logger LOG = LoggerFactory.getLogger(AsyncNewAdvancedCertificateVerifier.class);
 
 	/**
 	 * Thread factory.
@@ -84,11 +90,11 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	public AsyncNewAdvancedCertificateVerifier setDelay(int delayMillis) {
 		this.delayMillis = delayMillis;
 		if (delayMillis > 0) {
-			LOGGER.info("Asynchronous delayed certificate verifier {}ms.", delayMillis);
+			LOG.info("Asynchronous delayed certificate verifier {}ms.", delayMillis);
 		} else if (delayMillis < 0) {
-			LOGGER.info("Synchronous delayed certificate verifier {}ms.", -delayMillis);
+			LOG.info("Synchronous delayed certificate verifier {}ms.", -delayMillis);
 		} else {
-			LOGGER.info("Synchronous certificate verifier.");
+			LOG.info("Synchronous certificate verifier.");
 		}
 		return this;
 	}
@@ -145,11 +151,11 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 		CertPath certPath = result.getCertificatePath();
 		PublicKey publicKey = result.getPublicKey();
 		if (certPath == null && publicKey == null) {
-			LOGGER.info("Validation failed!");
+			LOG.info("Validation failed!");
 		} else if (certPath != null) {
-			LOGGER.info("Validation {}", certPath.getCertificates().size());
+			LOG.info("Validation {}", certPath.getCertificates().size());
 		} else if (publicKey != null) {
-			LOGGER.info("Validation RPK");
+			LOG.info("Validation RPK");
 		}
 		resultHandler.apply(result);
 	}

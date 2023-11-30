@@ -55,7 +55,7 @@ public class Feed extends CoapResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Feed.class);
 
-	private static final FilteredLogger ERROR_FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
+	private static final FilteredLogger ERROR_FILTER = new FilteredLogger(LOGGER.getName(), 3, TimeUnit.SECONDS.toNanos(10));
 
 	/**
 	 * Resource name.

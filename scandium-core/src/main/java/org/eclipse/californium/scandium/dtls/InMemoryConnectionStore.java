@@ -105,7 +105,7 @@ import org.slf4j.LoggerFactory;
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryConnectionStore.class);
-	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
+	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER.getName(), 3, TimeUnit.SECONDS.toNanos(10));
 
 	// extra cid bytes additionally to required bytes for small capacity.
 	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2;
