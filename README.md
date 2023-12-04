@@ -96,7 +96,8 @@ In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar
 
 ## Run unit tests using Bouncy Castle as alternative JCE provider
 
-With 3.0 a first, experimental support for using Bouncy Castle (version 1.69, bcprov-jdk15on, bcpkix-jdk15on, and, for tls, bctls-jdk15on) is implemented. With 3.3 the tests are using the updated version 1.70 (for tls also  bcutil-jdk15on is used additionally), with 3.8 version 1.72, and with 3.9 version 1.74 is used.
+With 3.0 a first, experimental support for using Bouncy Castle (version 1.69, bcprov-jdk15on, bcpkix-jdk15on, and, for tls, bctls-jdk15on) is implemented. With 3.3 the tests are using the updated version 1.70 (for tls also  bcutil-jdk15on is used additionally), with 3.8 version 1.72, with 3.9 version 1.74,
+and with 3.10 to version 1.77.
 
 To demonstrate the basic functions, run the unit-tests using the profile `bc-tests`
 

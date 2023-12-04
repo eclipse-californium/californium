@@ -255,6 +255,7 @@ Supported extensions:
 - [RFC 4279 - Pre-Shared Key](https://tools.ietf.org/html/rfc4279) simple and light authentication.
 - [RFC 4492 - Elliptic Curve Cryptography (ECC)](https://tools.ietf.org/html/rfc4492)
 - [RFC 5489 - ECDHE_PSK Cipher Suites](https://tools.ietf.org/html/rfc5489)
+- [RFC 5705 -  Keying Material Exporters for Transport Layer Security (TLS)](https://tools.ietf.org/html/rfc5705)
 - [RFC 5746 - Transport Layer Security (TLS) Renegotiation Indication Extension](https://tools.ietf.org/html/rfc5746) only minimal version, renegotiation is not supported at all!
 - [RFC 6066 - TLS Extensions](https://tools.ietf.org/html/rfc6066)
      - [RFC 6066 - Server Name Indication](https://tools.ietf.org/html/rfc6066#section-3)
@@ -288,7 +289,7 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 ```
 <properties>
 	<bc.art>jdk18on</bc.art>
-	<bc.version>1.72</bc.version>
+	<bc.version>1.77</bc.version>
 	<slf4j.version>1.7.36</slf4j.version>
 </properties>
 <dependencies>
@@ -320,7 +321,7 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 </dependencies>
 ```
 
-(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72, and with 3.9 it is 1.74).
+(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72, with 3.9 it is 1.74, and with 3.10 it is 1.77).
 
 And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
 
