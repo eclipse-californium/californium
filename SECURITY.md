@@ -51,4 +51,4 @@ See also [NIST database of known Californium vulnerabilities](https://nvd.nist.g
 | Californium Version | Dependency | Affected Version | Usage | Vulnerability
 | ------------------- | ---------- | ---------------- | ----- | -------------
 | < 3.5 | JDK / JCE | <= 15.0.2? <br/> <= 16.0.2? <br/> < 17.0.3 <br/> < 18.0.1 | execution environment | ECDSA [CVE-2022-21449](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21449)
-
+| < 3.10 | logback | < 1.2.13 | logging implementation | Remote appender [CVE-2023-6378](https://nvd.nist.gov/vuln/detail/CVE-2023-6378)<br/>[CVE-2023-6481](https://nvd.nist.gov/vuln/detail/CVE-2023-6481)
