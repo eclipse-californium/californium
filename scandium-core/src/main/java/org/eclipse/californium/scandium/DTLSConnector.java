@@ -746,7 +746,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 										peerAddress);
 							} else {
 								LOGGER.warn("Handshake with [{}] failed after session was established! {}",
-										peerAddress, alert);
+										peerAddress, alert, error);
 							}
 						} else {
 							// failure after established (last FINISH),
@@ -3037,11 +3037,11 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 							StringUtil.toLog(handshaker.getPeerAddress()));
 				} else {
 					LOGGER.warn("Handshake with [{}] failed after session was established! {}",
-							StringUtil.toLog(handshaker.getPeerAddress()), alert);
+							StringUtil.toLog(handshaker.getPeerAddress()), alert, cause);
 				}
 			} else if (connectionContext != null) {
 				LOGGER.warn("Handshake with [{}] failed, but has an established session!",
-						StringUtil.toLog(handshaker.getPeerAddress()));
+						StringUtil.toLog(handshaker.getPeerAddress()), cause);
 			}
 			sendAlert(connection, handshakeContext, alert);
 			handshaker.handshakeFailed(cause);
