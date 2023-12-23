@@ -834,15 +834,21 @@ public abstract class Handshaker implements Destroyable {
 					}
 				} else {
 					throw new HandshakeException(
-							String.format("Received unexpected message type [%s] from peer %s",
-									messageToProcess.getContentType(), peerToLog),
+							String.format("Received unexpected message type [%s], epoch %d from peer %s",
+									messageToProcess.getContentType(), recordToProcess.getEpoch(), peerToLog),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 				}
 				recordToProcess = inboundMessageBuffer.getNextRecord();
 				if (epoch < context.getReadEpoch()) {
-					if (recordToProcess != null || !inboundMessageBuffer.isEmpty()) {
+					if (recordToProcess == null && !inboundMessageBuffer.isEmpty()) {
+						recordToProcess = inboundMessageBuffer.queue.first();
+					}
+					if (recordToProcess != null) {
+						HandshakeMessage left = (HandshakeMessage) recordToProcess.getFragment();
 						throw new HandshakeException(
-								String.format("Unexpected handshake message left from peer %s", peerToLog),
+								String.format("Unexpected %s handshake message, epoch %d.%d/%d left from peer %s",
+										left.getMessageType(), recordToProcess.getEpoch(),
+										recordToProcess.getSequenceNumber(), left.getMessageSeq(), peerToLog),
 								new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 					}
 				}
