@@ -84,6 +84,7 @@ public final class UdpConfig {
 			config.set(UDP_RECEIVE_BUFFER_SIZE, null);
 			config.set(UDP_SEND_BUFFER_SIZE, null);
 			config.set(UDP_CONNECTOR_OUT_CAPACITY, Integer.MAX_VALUE);
+			DefinitionUtils.verify(UdpConfig.class, config);
 		}
 	};
 

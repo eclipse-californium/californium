@@ -35,6 +35,7 @@ import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.config.BooleanDefinition;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.DefinitionUtils;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
 import org.eclipse.californium.elements.config.EnumDefinition;
 import org.eclipse.californium.elements.config.FloatDefinition;
@@ -697,8 +698,9 @@ public final class CoapConfig {
 	 * The {@link EndpointIdentityResolver} enables Californium to use a
 	 * different remote identity instead of the inet-address to process states.
 	 * For congestion control that may result in less good results, if an
-	 * inet-address change, maybe caused by a NAT, also causes the quality of
-	 * the ip-route.
+	 * inet-address change, maybe caused by a NAT, also changes the quality of
+	 * the ip-route. In such cases, it may be better to switch to inet-address
+	 * based congestion control.
 	 * 
 	 * @since 3.8
 	 */
@@ -827,6 +829,7 @@ public final class CoapConfig {
 			config.set(MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 			config.set(BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(BLOCKWISE_STATUS_INTERVAL, DEFAULT_BLOCKWISE_STATUS_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
+			config.set(BLOCKWISE_STRICT_BLOCK1_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK1_OPTION);
 			config.set(BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
 			config.set(BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER, DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 			config.set(BLOCKWISE_REUSE_TOKEN, false);
@@ -838,6 +841,7 @@ public final class CoapConfig {
 			config.set(NOTIFICATION_REREGISTRATION_BACKOFF, 2000, TimeUnit.MILLISECONDS);
 
 			config.set(CONGESTION_CONTROL_ALGORITHM, CongestionControlMode.NULL);
+			config.set(CONGESTION_CONTROL_USE_INET_ADDRESS, false);
 			config.set(PROTOCOL_STAGE_THREAD_COUNT, CORES);
 
 			config.set(DEDUPLICATOR, DEFAULT_DEDUPLICATOR);
@@ -851,6 +855,7 @@ public final class CoapConfig {
 			config.set(STRICT_EMPTY_MESSAGE_FORMAT, true);
 
 			config.set(MAX_SERVER_OBSERVES, DEFAULT_MAX_SERVER_OBSERVES);
+			DefinitionUtils.verify(CoapConfig.class, config);
 		}
 	};
 

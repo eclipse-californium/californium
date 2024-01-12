@@ -47,7 +47,7 @@ public final class SystemConfig {
 
 			// 0 for disable
 			config.set(HEALTH_STATUS_INTERVAL, 0, TimeUnit.SECONDS);
-
+			DefinitionUtils.verify(SystemConfig.class, config);
 		}
 	};
 	

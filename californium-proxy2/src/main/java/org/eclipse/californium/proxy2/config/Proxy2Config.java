@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.DefinitionUtils;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
@@ -108,7 +109,7 @@ public final class Proxy2Config {
 			config.set(HTTP_CONNECT_TIMEOUT, DEFAULT_HTTP_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(HTTP_VERSION_POLICY, HttpVersion.NEGOTIATE);
 			config.set(HTTPS_HANDSHAKE_TIMEOUT, DEFAULT_HTTPS_HANDSHAKE_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
-
+			DefinitionUtils.verify(Proxy2Config.class, config);
 		}
 	};
 
