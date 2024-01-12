@@ -27,6 +27,7 @@ import org.eclipse.californium.elements.config.BooleanDefinition;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
+import org.eclipse.californium.elements.config.DefinitionUtils;
 import org.eclipse.californium.elements.config.EnumDefinition;
 import org.eclipse.californium.elements.config.EnumListDefinition;
 import org.eclipse.californium.elements.config.FloatDefinition;
@@ -1133,6 +1134,8 @@ public final class DtlsConfig {
 			config.set(DTLS_MAC_ERROR_FILTER_THRESHOLD, 0);
 			config.set(DTLS_SECURE_RENEGOTIATION, DEFAULT_SECURE_RENEGOTIATION);
 			config.set(DTLS_SUPPORT_KEY_MATERIAL_EXPORT, false);
+
+			DefinitionUtils.verify(DtlsConfig.class, config);
 		}
 	};
 

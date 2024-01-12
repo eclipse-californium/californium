@@ -1132,6 +1132,26 @@ public final class Configuration {
 	}
 
 	/**
+	 * Check, if definitions is already available.
+	 * 
+	 * Definitions are automatically added by their first use with one of the
+	 * getter or setter. This checks, if the definition has been added before
+	 * calling this method.
+	 * 
+	 * @param <T> value type
+	 * @param definition definition to check
+	 * @return {@code true}, if available, {@code false}, if not.
+	 * @throws NullPointerException if definition is {@code null}
+	 * @since 3.11
+	 */
+	public <T> boolean hasDefinition(DocumentedDefinition<T> definition) {
+		if (definition == null) {
+			throw new NullPointerException("definition must not be null");
+		}
+		return definitions.get(definition.getKey()) != null;
+	}
+
+	/**
 	 * Associates the specified textual value with the specified definition.
 	 * 
 	 * @param <T> value type

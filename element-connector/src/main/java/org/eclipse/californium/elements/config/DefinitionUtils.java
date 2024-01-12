@@ -15,7 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.config;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Collection of utility functions for {@link DocumentedDefinition}.
@@ -23,6 +28,7 @@ import java.util.List;
  * @since 3.0
  */
 public class DefinitionUtils {
+	private static final Logger LOGGER = LoggerFactory.getLogger(DefinitionUtils.class);
 
 	/**
 	 * Get element class from array of enumeration values.
@@ -124,4 +130,33 @@ public class DefinitionUtils {
 		return null;
 	}
 
+	/**
+	 * Verify, if all declared {@link DocumentedDefinition} fields in the
+	 * provided class are available in the configuration.
+	 * 
+	 * @param definitionClz class with {@code static final}
+	 *            {@link DocumentedDefinition} fields.
+	 * @param config configuration to check, if fields are available.
+	 * @since 3.11
+	 */
+	public static void verify(Class<?> definitionClz, Configuration config) {
+		Field[] declaredFields = definitionClz.getDeclaredFields();
+		for (Field field : declaredFields) {
+			int modifiers = field.getModifiers();
+			if (Modifier.isStatic(modifiers) && Modifier.isFinal(modifiers)) {
+				try {
+					Object value = field.get(null);
+					if (value instanceof DocumentedDefinition<?>) {
+						DocumentedDefinition<?> definition = (DocumentedDefinition<?>) value;
+						if (!config.hasDefinition(definition)) {
+							LOGGER.warn("Missing definition {} in {}.", definition.getKey(),
+									definitionClz.getSimpleName());
+						}
+					}
+				} catch (IllegalArgumentException e) {
+				} catch (IllegalAccessException e) {
+				}
+			}
+		}
+	}
 }

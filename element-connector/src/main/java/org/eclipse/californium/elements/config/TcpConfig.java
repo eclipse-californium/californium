@@ -107,6 +107,7 @@ public final class TcpConfig {
 			config.set(TLS_SESSION_TIMEOUT, 1, TimeUnit.HOURS);
 			config.set(TLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 			config.set(TLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, true);
+			DefinitionUtils.verify(TcpConfig.class, config);
 		}
 
 	};
