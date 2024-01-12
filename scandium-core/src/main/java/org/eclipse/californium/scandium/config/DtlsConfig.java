@@ -1131,6 +1131,7 @@ public final class DtlsConfig {
 			config.set(DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
 			config.set(DTLS_MAC_ERROR_FILTER_QUIET_TIME, 0, TimeUnit.SECONDS);
 			config.set(DTLS_MAC_ERROR_FILTER_THRESHOLD, 0);
+			config.set(DTLS_SECURE_RENEGOTIATION, DEFAULT_SECURE_RENEGOTIATION);
 			config.set(DTLS_SUPPORT_KEY_MATERIAL_EXPORT, false);
 		}
 	};
