@@ -15,9 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test;
 
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeThat;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
@@ -296,7 +298,7 @@ public class ProcessUtil {
 		if (versionResult == null) {
 			getToolVersion(TIMEOUT_MILLIS);
 		}
-		assumeNotNull(this.version);
+		assumeThat("version not available!", version, notNullValue());
 		return compareVersion(this.version, version);
 	}
 

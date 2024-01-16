@@ -21,9 +21,10 @@ import static org.eclipse.californium.interoperability.test.CredentialslUtil.CLI
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_CA_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.TRUSTSTORE;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_IDENTITY;
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.OPENSSL_PSK_SECRET;
-import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeThat;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
@@ -77,7 +78,32 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 
 	public static final String DEFAULT_CURVES = "x25519,secp256r1";
 
+	/**
+	 * Option for {@code curves} (or {@code groups}) used by the mbedtls
+	 * programs up to version 3.4.1.
+	 * 
+	 * @since 3.11
+	 */
+	private static final String DEPRECATED_CURVES_OPTION = "curves";
+
+	/**
+	 * Option for {@code curves} (or {@code groups}) used by the mbedtls
+	 * programs since version 3.5.0.
+	 * 
+	 * @since 3.11
+	 */
+	private static final String NEW_CURVES_OPTION = "groups";
+
 	private String verboseLevel = DEFAULT_VERBOSE_LEVEL;
+
+	/**
+	 * Option for {@code curves} (or {@code groups}).
+	 * 
+	 * Depends on version of mbedtls.
+	 * 
+	 * @since 3.11
+	 */
+	private String curvesOption = "curves";
 
 	/**
 	 * Create instance.
@@ -108,10 +134,11 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 			try {
 				execute("mbedtls_ssl_client2", "build_version=1");
 				versionResult = waitResult(timeMillis);
-				assumeNotNull(versionResult);
-				Matcher matcher = versionResult.match("mbed TLS (\\S+) ");
-				assumeNotNull(matcher);
+				assumeThat("reading version failed!", versionResult, notNullValue());
+				Matcher matcher = versionResult.match("[mM]bed TLS (\\S+) ");
+				assumeThat("extracting version failed!", versionResult, notNullValue());
 				version = matcher.group(1);
+				curvesOption = (compareVersion("3.5.0") >= 0) ? NEW_CURVES_OPTION : DEPRECATED_CURVES_OPTION;
 			} catch (InterruptedException ex) {
 				return null;
 			} catch (IOException ex) {
@@ -190,7 +217,7 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 
 	public void add(List<String> args, String curves) throws IOException, InterruptedException {
 		if (curves != null) {
-			args.add("curves=" + curves);
+			args.add(curvesOption + "=" + curves);
 		}
 	}
 
