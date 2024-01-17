@@ -17,6 +17,7 @@ import static org.eclipse.californium.interoperability.test.ConnectorUtil.HANDSH
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
 import java.io.IOException;
@@ -118,7 +119,7 @@ public class TinydtlsClientInteroperabilityTest {
 
 	@Test
 	public void testTinydtlsClientCid() throws Exception {
-		processUtil.setTag("tinydtls-client, " + cipherSuite.name());
+		processUtil.setTag("tinydtls-client, cid, " + cipherSuite.name());
 		processUtil.addExtraArgs("-z", "-e", "-r");
 		scandiumUtil.start(BIND, null, cipherSuite);
 
@@ -138,8 +139,9 @@ public class TinydtlsClientInteroperabilityTest {
 		processUtil.send("client:exit\n");
 
 		EndpointContext context = scandiumUtil.getContext(TIMEOUT_MILLIS);
-		Bytes bytes = context.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
+		Bytes bytes = context.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID);
 		assertNotNull("Missing CID", bytes);
+		assertFalse("Empyt CID", bytes.isEmpty());
 		Boolean extendedMasterSecret = context.get(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET);
 		assertEquals("Missing extended master secret", Boolean.TRUE, extendedMasterSecret);
 
