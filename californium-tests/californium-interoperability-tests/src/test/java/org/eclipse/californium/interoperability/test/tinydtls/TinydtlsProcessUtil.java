@@ -34,6 +34,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * the names "tinydtls-client" and "tinydtls-server" for the binaries found in
  * {@code <tinydtls>}/tests when copy or link them into your {@code PATH}.
  * 
+ * In order to support DTLS 1.2 CID it's required to use the
+ * "feature/connection_id" branch.
+ * 
  * @since 3.8
  */
 public class TinydtlsProcessUtil extends ProcessUtil {
@@ -103,9 +106,9 @@ public class TinydtlsProcessUtil extends ProcessUtil {
 			CipherSuite cipherSuite) throws IOException, InterruptedException {
 		List<String> args = new ArrayList<String>();
 		String tinydtlsCiphers = TinydtlsUtil.getTinydtlsCipherSuites(cipherSuite);
-		args.addAll(Arrays.asList(CLIENT, "-v", verboseLevel, "-c", tinydtlsCiphers, destination,
-				Integer.toString(port)));
+		args.addAll(Arrays.asList(CLIENT, "-v", verboseLevel, "-c", tinydtlsCiphers));
 		args.addAll(extraArgs);
+		args.addAll(Arrays.asList(destination, Integer.toString(port)));
 		print(args);
 		execute(args);
 		return tinydtlsCiphers;

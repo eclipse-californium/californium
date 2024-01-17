@@ -18,7 +18,7 @@ For [openssl](https://github.com/openssl/openssl) some notes are in [OpenSslProc
 
 For [Mbed-TLS](https://github.com/Mbed-TLS/mbedtls) some notes are in [MbedTlsProcessUtil](src/test/java/org/eclipse/californium/interoperability/test/mbedtls/MbedTlsProcessUtil.java#L39-L58)
 
-For [tinydtls](https://github.com/eclipse/tinydtls) some notes are in [TinydtlsProcessUtil](src/test/java/org/eclipse/californium/interoperability/test/tinydtls/TinydtlsProcessUtil.java#L28-L38)
+For [tinydtls](https://github.com/eclipse/tinydtls) some notes are in [TinydtlsProcessUtil](src/test/java/org/eclipse/californium/interoperability/test/tinydtls/TinydtlsProcessUtil.java#L28-L38). Ensure to use the ""feature/connection_id" to enable DTLS 1.2 CID support.
 
 When the binaries a build and install in the "PATH", the tests are execute using
 
@@ -62,3 +62,6 @@ mvn test -Dorg.eclipse.californium.elements.runner.TestRepeater.repeats=1000
 
 enables to select an other number, here 1000.
 
+# Testing Interoperability Of Specific Versions
+
+Just in the case someone needs to test with specific versions of the other implementations, that may work "out of the box" or not. Some of the libraries have bugs in single features on single versions so a failure requires then analysis and the knowledge to do so. Sometimes the CLI-API is changing, so also be careful with that.
