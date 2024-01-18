@@ -163,8 +163,6 @@ public class MbedTlsProcessUtil extends ProcessUtil {
 		String mbedTlsCiphers = MbedTlsUtil.getMbedTlsCipherSuites(cipherSuite);
 		args.addAll(Arrays.asList("mbedtls_ssl_client2", "dtls=1", "debug_level=" + verboseLevel,
 				"server_addr=" + destination, "server_port=" + port, "force_ciphersuite=" + mbedTlsCiphers));
-		args.add("cid=1");
-		args.add("cid_val=1234");
 		if (cipherSuite.isPskBased()) {
 			args.add("psk_identity=" + OPENSSL_PSK_IDENTITY);
 			args.add("psk=" + StringUtil.byteArray2Hex(OPENSSL_PSK_SECRET));

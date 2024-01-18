@@ -20,19 +20,27 @@ import static org.eclipse.californium.interoperability.test.CredentialslUtil.SER
 import static org.eclipse.californium.interoperability.test.CredentialslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.mbedtls.MbedTlsProcessUtil.AuthenticationMode.CHAIN;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.interoperability.test.ShutdownUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.junit.After;
@@ -122,9 +130,13 @@ public class MbedTlsServerInteroperabilityTest {
 		processUtil.stop(200);
 	}
 
+	/**
+	 * Establish a "connection" and send a message to the server and back to the
+	 * client. Enables to use multiple handshake messages per record.
+	 */
 	@Test
 	public void testMbedTlsServerMultiFragments() throws Exception {
-		processUtil.setTag("mbedtls-server, multifragments per record, " + cipherSuite.name());
+		processUtil.setTag("mbedtls-server,  multiple handshake messages per record, " + cipherSuite.name());
 
 		String certificate = cipherSuite.getCertificateKeyAlgorithm() == CertificateKeyAlgorithm.RSA ?
 				SERVER_RSA_CERTIFICATE : SERVER_CERTIFICATE;
@@ -143,6 +155,42 @@ public class MbedTlsServerInteroperabilityTest {
 
 		// Mbed TLS server responds with HTTP 200, even in DTLS mode
 		scandiumUtil.assertContainsReceivedData("HTTP/1.0 200 OK", TIMEOUT_MILLIS);
+
+		processUtil.stop(200);
+	}
+
+	/**
+	 * Establish a "connection" and send a message to the server and back to the
+	 * client. Use DTLS 1.2 CID.
+	 */
+	@Test
+	public void testMbedTlsServerCID() throws Exception {
+		Bytes cid = new ConnectionId(new byte[] { 0, 1, 2, 3 });
+		processUtil.setTag("mbedtls-server, " + cipherSuite.name());
+		processUtil.addExtraArgs("cid=1", "cid_val=" + cid.getAsString());
+		String certificate = cipherSuite.getCertificateKeyAlgorithm() == CertificateKeyAlgorithm.RSA ?
+				SERVER_RSA_CERTIFICATE : SERVER_CERTIFICATE;
+		String cipher = processUtil.startupServer(ACCEPT, ScandiumUtil.PORT, CHAIN, certificate, null, cipherSuite);
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(new Configuration())
+				.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		scandiumUtil.start(BIND, builder, null, cipherSuite);
+
+		String message = "Hello MbedTLS!";
+		scandiumUtil.send(message, DESTINATION, HANDSHAKE_TIMEOUT_MILLIS);
+
+		assertTrue(processUtil.waitConsole("Ciphersuite is " + cipher, TIMEOUT_MILLIS));
+		assertTrue(processUtil.waitConsole(message, TIMEOUT_MILLIS));
+
+		// Mbed TLS server responds with HTTP 200, even in DTLS mode
+		scandiumUtil.assertContainsReceivedData("HTTP/1.0 200 OK", TIMEOUT_MILLIS);
+
+		EndpointContext context = scandiumUtil.getContext(TIMEOUT_MILLIS);
+		Bytes bytes = context.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID);
+		assertNotNull("Missing read CID", bytes);
+		assertFalse("Empyt read CID", bytes.isEmpty());
+		bytes = context.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
+		assertThat("Write CID", bytes, is(cid));
 
 		processUtil.stop(200);
 	}
