@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
@@ -401,13 +402,16 @@ public class ObserveRelation {
 	 * Process response using this observe relation.
 	 * 
 	 * The first response will {@link #setEstablished()} the relation and
-	 * {@link ObservableResource#addObserveRelation(ObserveRelation)} it. If not
-	 * {@link #isCanceled()}, and the response {@link Response#isSuccess()},
-	 * {@link ObservableResource#getNotificationSequenceNumber()} will be set.
+	 * {@link ObservableResource#addObserveRelation(ObserveRelation)} it. If the
+	 * response {@link Response#isSuccess()}, {@link OptionSet#setObserve(int)}
+	 * is not already provided, and this relation is not {@link #isCanceled()},
+	 * the {@link ObservableResource#getNotificationSequenceNumber()} will be
+	 * provided to {@link OptionSet#setObserve(int)}
 	 * 
 	 * @param response response
 	 * @return current relation state.
-	 * @since 3.6
+	 * @since 3.11 (behavior change: already provided observe options will not
+	 *        be overwritten).
 	 */
 	public State onResponse(Response response) {
 		boolean canceled = isCanceled();
@@ -415,7 +419,7 @@ public class ObserveRelation {
 			return State.CANCELED;
 		} else if (isEstablished()) {
 			exchange.retransmitResponse();
-			if (response.isSuccess()) {
+			if (response.isSuccess() && !response.isNotification()) {
 				response.getOptions().setObserve(resource.getNotificationSequenceNumber());
 			}
 			return State.ESTABILSHED;
@@ -427,7 +431,9 @@ public class ObserveRelation {
 				established = !isCanceled();
 			}
 			if (established) {
-				response.getOptions().setObserve(resource.getNotificationSequenceNumber());
+				if (!response.isNotification()) {
+					response.getOptions().setObserve(resource.getNotificationSequenceNumber());
+				}
 				return State.INIT;
 			} else {
 				return State.CANCELED;
@@ -635,15 +641,18 @@ public class ObserveRelation {
 	 * Process response using this observe relation.
 	 * 
 	 * The first response will {@link #setEstablished()} the relation and
-	 * {@link ObservableResource#addObserveRelation(ObserveRelation)}. And the
-	 * {@link ObservableResource#getNotificationSequenceNumber()} will be set to
-	 * the options of all responses.
+	 * {@link ObservableResource#addObserveRelation(ObserveRelation)} it. If the
+	 * response {@link Response#isSuccess()}, {@link OptionSet#setObserve(int)}
+	 * is not already provided, and this relation is not {@link #isCanceled()},
+	 * the {@link ObservableResource#getNotificationSequenceNumber()} will be
+	 * provided to {@link OptionSet#setObserve(int)}
 	 * 
 	 * @param relation the observe relation, or {@code null}, if not available
 	 * @param response response
 	 * @return current relation state.
 	 * @see #onResponse(Response)
-	 * @since 3.6
+	 * @since 3.11 (behavior change: already provided observe options will not
+	 *        be overwritten for success responses).
 	 */
 	public static State onResponse(ObserveRelation relation, Response response) {
 		State result = State.NONE;
