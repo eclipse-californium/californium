@@ -45,8 +45,10 @@ public interface ObservableResource {
 	/**
 	 * Returns the current notification number.
 	 *
+	 * @param exchange the current exchange
 	 * @return the current notification number
 	 * @see ObserveNotificationOrderer#getCurrent()
+	 * @since 3.11 (add parameter exchange)
 	 */
 	int getNotificationSequenceNumber(Exchange exchange);
 

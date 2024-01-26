@@ -109,7 +109,7 @@
 			}
 		}
 	],
-	"3.10.0": [
+	"3.11.0": [
 		{
 			"extension": "revapi.differences",
 			"configuration": {
@@ -118,13 +118,13 @@
 					{
 						"code": "java.method.numberOfParametersChanged",
 						"old": "method int org.eclipse.californium.core.server.resources.ObservableResource::getNotificationSequenceNumber()",
-						"new": "method int org.eclipse.californium.core.server.resources.ObservableResource::getNotificationSequenceNumber(===org.eclipse.californium.core.network.Exchange===)",
+						"new": "method int org.eclipse.californium.core.server.resources.ObservableResource::getNotificationSequenceNumber(org.eclipse.californium.core.network.Exchange)",
 						"justification": "Redesign to support separate sequence numbers for different observe tokens"
 					},
 					{
 						"code": "java.method.numberOfParametersChanged",
 						"old": "method int org.eclipse.californium.core.CoapResource::getNotificationSequenceNumber()",
-						"new": "method int org.eclipse.californium.core.CoapResource::getNotificationSequenceNumber(===org.eclipse.californium.core.network.Exchange===)",
+						"new": "method int org.eclipse.californium.core.CoapResource::getNotificationSequenceNumber(org.eclipse.californium.core.network.Exchange)",
 						"justification": "Redesign to support separate sequence numbers for different observe tokens"
 					}
 				]
