@@ -90,20 +90,22 @@ public class ObserveRelationTest {
 		return exchange;
 	}
 
-	private ObserveRelation handleExchange(final Exchange exchange, final ResponseCode code) {
+	private ObserveRelation handleExchange(final Exchange exchange, final ResponseCode code, final Integer observe) {
 		exchange.execute(new Runnable() {
 
 			@Override
 			public void run() {
 				manager.addObserveRelation(exchange, resource);
 				Response response = Response.createResponse(exchange.getRequest(), code);
+				if (observe != null) {
+					response.getOptions().setObserve(observe);
+				}
 				exchange.sendResponse(response);
+				// dummy processing similar to the coap-stack
 				exchange.setResponse(response);
 				exchange.setCurrentResponse(response);
 				ObserveRelation relation = exchange.getRelation();
-				if (relation != null) {
-					relation.onResponse(response);
-				}
+				ObserveRelation.onResponse(relation, response);
 			}
 		});
 		return exchange.getRelation();
@@ -132,7 +134,7 @@ public class ObserveRelationTest {
 
 	@Test
 	public void testEstablished() {
-		handleExchange(exchange, ResponseCode.CONTENT);
+		handleExchange(exchange, ResponseCode.CONTENT, null);
 
 		assertThat(exchange.getRelation(), is(notNullValue()));
 		assertThat(exchange.getRelation().getEndpoint().isEmpty(), is(false));
@@ -144,8 +146,35 @@ public class ObserveRelationTest {
 	}
 
 	@Test
+	public void testEstablishedWithObserveOption() {
+		Integer observe = new Integer(100);
+		handleExchange(exchange, ResponseCode.CONTENT, observe);
+
+		assertThat(exchange.getRelation(), is(notNullValue()));
+		assertThat(exchange.getRelation().getEndpoint().isEmpty(), is(false));
+		assertThat(exchange.getCurrentResponse().getOptions().getObserve(), is(observe));
+		assertThat(resource.getObserverCount(), is(1));
+		exchange.getRelation().cancel();
+		assertThat(exchange.getRelation().getEndpoint().isEmpty(), is(true));
+		assertThat(resource.getObserverCount(), is(0));
+	}
+
+	@Test
 	public void testNoSuccess() {
-		handleExchange(exchange, ResponseCode.NOT_FOUND);
+		handleExchange(exchange, ResponseCode.NOT_FOUND, null);
+
+		assertThat(exchange.getRelation(), is(notNullValue()));
+		assertThat(exchange.getRelation().getEndpoint().isEmpty(), is(false));
+		assertThat(exchange.getCurrentResponse().isNotification(), is(false));
+		assertThat(resource.getObserverCount(), is(0));
+		exchange.getRelation().onSend(exchange.getCurrentResponse());
+		assertThat(exchange.getRelation().getEndpoint().isEmpty(), is(true));
+	}
+
+	@Test
+	public void testNoSuccessWithObserveOption() {
+		Integer observe = new Integer(100);
+		handleExchange(exchange, ResponseCode.NOT_FOUND, observe);
 
 		assertThat(exchange.getRelation(), is(notNullValue()));
 		assertThat(exchange.getRelation().getEndpoint().isEmpty(), is(false));
@@ -157,8 +186,8 @@ public class ObserveRelationTest {
 
 	@Test
 	public void testTwoObserves() {
-		handleExchange(exchange, ResponseCode.CONTENT);
-		handleExchange(exchange2, ResponseCode.CONTENT);
+		handleExchange(exchange, ResponseCode.CONTENT, null);
+		handleExchange(exchange2, ResponseCode.CONTENT, null);
 
 		assertThat(exchange.getRelation(), is(notNullValue()));
 		assertThat(exchange.getRelation().getEndpoint().isEmpty(), is(false));
@@ -171,11 +200,11 @@ public class ObserveRelationTest {
 
 	@Test
 	public void testLimitObserves() {
-		ObserveRelation relation = handleExchange(exchange, ResponseCode.CONTENT);
-		ObserveRelation relation2 = handleExchange(exchange2, ResponseCode.CONTENT);
+		ObserveRelation relation = handleExchange(exchange, ResponseCode.CONTENT, null);
+		ObserveRelation relation2 = handleExchange(exchange2, ResponseCode.CONTENT, null);
 		long token = 1;
 		Exchange exchangeN = createExchange(++token);
-		while (handleExchange(exchangeN, ResponseCode.CONTENT) != null) {
+		while (handleExchange(exchangeN, ResponseCode.CONTENT, null) != null) {
 			exchangeN = createExchange(++token);
 		}
 		assertThat(manager.isFull(), is(true));
@@ -183,7 +212,7 @@ public class ObserveRelationTest {
 
 		// replace
 		Exchange exchangeM = createExchange(0x123);
-		handleExchange(exchangeM, ResponseCode.CONTENT);
+		handleExchange(exchangeM, ResponseCode.CONTENT, null);
 		assertThat(exchangeM.getRelation(), is(notNullValue()));
 		assertThat(relation.isCanceled(), is(true));
 
@@ -192,7 +221,7 @@ public class ObserveRelationTest {
 
 		assertThat(manager.isFull(), is(false));
 		exchangeN = createExchange(++token);
-		handleExchange(exchangeN, ResponseCode.CONTENT);
+		handleExchange(exchangeN, ResponseCode.CONTENT, null);
 		assertThat(exchangeN.getRelation(), is(notNullValue()));
 
 		// cancel all
