@@ -376,7 +376,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	@Override
-	public int getNotificationSequenceNumber() {
+	public int getNotificationSequenceNumber(Exchange exchange) {
 		return notificationOrderer.getCurrent();
 	}
 

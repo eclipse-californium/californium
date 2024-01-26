@@ -16,6 +16,7 @@
 package org.eclipse.californium.core.server.resources;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 
@@ -43,11 +44,13 @@ public interface ObservableResource {
 
 	/**
 	 * Returns the current notification number.
-	 * 
+	 *
+	 * @param exchange the current exchange
 	 * @return the current notification number
 	 * @see ObserveNotificationOrderer#getCurrent()
+	 * @since 3.11 (add parameter exchange)
 	 */
-	int getNotificationSequenceNumber();
+	int getNotificationSequenceNumber(Exchange exchange);
 
 	/**
 	 * Checks if this resource is observable by remote CoAP clients.

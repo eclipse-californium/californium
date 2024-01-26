@@ -221,7 +221,7 @@ public class ObserveRelationTest {
 		}
 
 		@Override
-		public int getNotificationSequenceNumber() {
+		public int getNotificationSequenceNumber(Exchange exchange) {
 			return 0;
 		}
 

@@ -403,7 +403,7 @@ public class ObserveRelation {
 	 * The first response will {@link #setEstablished()} the relation and
 	 * {@link ObservableResource#addObserveRelation(ObserveRelation)} it. If not
 	 * {@link #isCanceled()}, and the response {@link Response#isSuccess()},
-	 * {@link ObservableResource#getNotificationSequenceNumber()} will be set.
+	 * {@link ObservableResource#getNotificationSequenceNumber(Exchange)} will be set.
 	 * 
 	 * @param response response
 	 * @return current relation state.
@@ -416,7 +416,7 @@ public class ObserveRelation {
 		} else if (isEstablished()) {
 			exchange.retransmitResponse();
 			if (response.isSuccess()) {
-				response.getOptions().setObserve(resource.getNotificationSequenceNumber());
+				response.getOptions().setObserve(resource.getNotificationSequenceNumber(exchange));
 			}
 			return State.ESTABILSHED;
 		} else {
@@ -427,7 +427,7 @@ public class ObserveRelation {
 				established = !isCanceled();
 			}
 			if (established) {
-				response.getOptions().setObserve(resource.getNotificationSequenceNumber());
+				response.getOptions().setObserve(resource.getNotificationSequenceNumber(exchange));
 				return State.INIT;
 			} else {
 				return State.CANCELED;
@@ -636,7 +636,7 @@ public class ObserveRelation {
 	 * 
 	 * The first response will {@link #setEstablished()} the relation and
 	 * {@link ObservableResource#addObserveRelation(ObserveRelation)}. And the
-	 * {@link ObservableResource#getNotificationSequenceNumber()} will be set to
+	 * {@link ObservableResource#getNotificationSequenceNumber(Exchange)} will be set to
 	 * the options of all responses.
 	 * 
 	 * @param relation the observe relation, or {@code null}, if not available
