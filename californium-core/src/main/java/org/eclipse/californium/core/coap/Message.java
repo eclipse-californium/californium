@@ -1230,6 +1230,9 @@ public abstract class Message {
 	 * the message, therefore it's very short after actual receiving the
 	 * message.
 	 * 
+	 * If a "transparent blockwise-transfers" is received, the time reflects the
+	 * time of the first block.
+	 * 
 	 * @return the nano timestamp
 	 * @see ClockUtil#nanoRealtime()
 	 */

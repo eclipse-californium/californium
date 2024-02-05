@@ -50,8 +50,10 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.as
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -220,6 +222,7 @@ public class BlockwiseClientSideTest {
 
 		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(response, respPayload);
+		assertThat(response.getNanoTimestamp(), is(not(0L)));
 	}
 
 	/**
@@ -1075,6 +1078,7 @@ public class BlockwiseClientSideTest {
 		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		printServerLog(clientInterceptor);
 		assertResponseContainsExpectedPayload(response, CHANGED, respPayload);
+		assertThat(response.getNanoTimestamp(), is(not(0L)));
 	}
 
 	@Test
@@ -1093,6 +1097,7 @@ public class BlockwiseClientSideTest {
 		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		printServerLog(clientInterceptor);
 		assertResponseContainsExpectedPayload(response, CONTENT, respPayload.substring(256));
+		assertThat(response.getNanoTimestamp(), is(not(0L)));
 	}
 
 	@Test
@@ -1141,6 +1146,7 @@ public class BlockwiseClientSideTest {
 		Response notification1 = notificationListener.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(notification1, respPayload);
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
+		assertThat(notification1.getNanoTimestamp(), is(not(0L)));
 
 		clientInterceptor.logNewLine("... time passes ...");
 		respPayload = generateRandomPayload(290);
@@ -1187,6 +1193,8 @@ public class BlockwiseClientSideTest {
 		Response notification2 = notificationListener.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
 		assertResponseContainsExpectedPayload(notification2, respPayload);
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
+		assertThat(notification2.getNanoTimestamp(), is(not(0L)));
+		assertThat(notification2.getNanoTimestamp(), is(greaterThan(notification1.getNanoTimestamp())));
 	}
 
 	/**
