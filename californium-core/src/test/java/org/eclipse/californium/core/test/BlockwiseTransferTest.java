@@ -42,6 +42,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.TestResource;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -398,8 +399,7 @@ public class BlockwiseTransferTest {
 		builderStrictBlock2.setConfiguration(configEndpointStrictBlock2Option);
 		serverEndpointStrictBlock2Option = builderStrictBlock2.build();
 		result.addEndpoint(serverEndpointStrictBlock2Option);
-		
-		result.add(new CoapResource(RESOURCE_TEST) {
+		TestResource testResoure = new TestResource(RESOURCE_TEST) {
 
 			private boolean isShortRequest(final CoapExchange exchange) {
 				return exchange.getQueryParameter(PARAM_SHORT_REQ) != null;
@@ -445,7 +445,9 @@ public class BlockwiseTransferTest {
 					exchange.respond(LONG_POST_RESPONSE);
 				}
 			}
-		});
+		};
+		cleanup.add(testResoure);
+		result.add(testResoure);
 		result.add(new CoapResource(RESOURCE_BIG) {
 
 			@Override

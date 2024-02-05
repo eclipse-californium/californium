@@ -60,11 +60,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
-import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.TestResource;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.UdpMatcher;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
@@ -158,6 +158,7 @@ public class BlockwiseServerSideTest {
 		expectedToken = null;
 		testResource = new MyTestResource(RESOURCE_PATH);
 		testResource.setObservable(true);
+		cleanup.add(testResource);
 		setupServerAndClient();
 	}
 
@@ -1163,7 +1164,7 @@ public class BlockwiseServerSideTest {
 	}
 
 	// All tests are made with this resource
-	private class MyTestResource extends CoapResource {
+	private class MyTestResource extends TestResource {
 
 		public AtomicInteger calls = new AtomicInteger();
 
