@@ -49,8 +49,9 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.cr
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createChangedLockstepEndpoint;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -133,7 +134,7 @@ public class BlockwiseServerSideTest {
 	private CoapTestEndpoint serverEndpoint;
 	private LockstepEndpoint client;
 	private int mid = 7000;
-	private TestResource testResource;
+	private MyTestResource testResource;
 	private String respPayload;
 	private String reqtPayload;
 	private byte[] etag;
@@ -155,7 +156,7 @@ public class BlockwiseServerSideTest {
 		etag = null;
 		expectedMid = null;
 		expectedToken = null;
-		testResource = new TestResource(RESOURCE_PATH);
+		testResource = new MyTestResource(RESOURCE_PATH);
 		testResource.setObservable(true);
 		setupServerAndClient();
 	}
@@ -684,6 +685,7 @@ public class BlockwiseServerSideTest {
 		expectedMid = ++mid;
 		client.sendRequest(CON, PUT, expectedToken, expectedMid).path(RESOURCE_PATH).block1(2, false, 128).payload(reqtPayload.substring(256)).go();
 		client.expectResponse(ACK, CHANGED, expectedToken, expectedMid).block1(2, false, 128).payload(respPayload).go();
+//		assertThat()
 	}
 
 	@Test
@@ -1161,11 +1163,11 @@ public class BlockwiseServerSideTest {
 	}
 
 	// All tests are made with this resource
-	private class TestResource extends CoapResource {
+	private class MyTestResource extends CoapResource {
 
 		public AtomicInteger calls = new AtomicInteger();
 
-		public TestResource(String name) { 
+		public MyTestResource(String name) {
 			super(name);
 		}
 
@@ -1181,11 +1183,13 @@ public class BlockwiseServerSideTest {
 			if (expectedToken != null) {
 				assertThat("request did not contain expected token", exchange.advanced().getRequest().getToken(), is(expectedToken));
 			}
+			assertThat("request did not provide the receive time", exchange.advanced().getRequest().getNanoTimestamp(), is(not(0L)));
 			respond(exchange, ResponseCode.CHANGED, respPayload);
 		}
 
 		public void handlePOST(final CoapExchange exchange) {
 			assertThat("server did not receive expected request payload", exchange.getRequestText(), is(reqtPayload));
+			assertThat("request did not provide the receive time", exchange.advanced().getRequest().getNanoTimestamp(), is(not(0L)));
 			respond(exchange, ResponseCode.CHANGED, respPayload);
 		}
 

@@ -416,6 +416,7 @@ public abstract class BlockwiseStatus {
 		message.getOptions().removeBlock1();
 		message.getOptions().removeBlock2();
 		message.addMessageSize(messageSize);
+		message.setNanoTimestamp(firstMessage.getNanoTimestamp());
 		if (buf.position() > 0) {
 			if (!message.isIntendedPayload()) {
 				message.setUnintendedPayload();
