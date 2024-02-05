@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * Clock utility. Provides a {@linkplain ClockUtil#handler handler}.
  * 
@@ -78,5 +80,22 @@ public class ClockUtil {
 	 */
 	public static long nanoRealtime() {
 		return handler.nanoRealtime();
+	}
+
+	/**
+	 * Calculate the delta from the provided past nano-realtime.
+	 * 
+	 * @param pastNanoRealtime past value of {@link #nanoRealtime()}. Maybe
+	 *            {@code 0}, if the past nano-realtime isn't available.
+	 * @param unit unit of result
+	 * @return the difference of the current nano-realtime to the provided one,
+	 *         or {@code 0}, if {@code 0} is provided.
+	 * @since 3.11
+	 */
+	public static long delta(long pastNanoRealtime, TimeUnit unit) {
+		if (pastNanoRealtime > 0) {
+			return unit.convert(handler.nanoRealtime() - pastNanoRealtime, TimeUnit.NANOSECONDS);
+		}
+		return 0;
 	}
 }
