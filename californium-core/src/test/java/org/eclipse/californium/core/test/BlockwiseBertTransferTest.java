@@ -32,6 +32,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.TestResource;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
@@ -268,8 +269,7 @@ public class BlockwiseBertTransferTest {
 		serverEndpoint = builder.build();
 		serverEndpoint.addInterceptor(interceptor);
 		result.addEndpoint(serverEndpoint);
-
-		result.add(new CoapResource(RESOURCE_TEST) {
+		TestResource testResource = new TestResource(RESOURCE_TEST) {
 
 			@Override
 			public void handleGET(final CoapExchange exchange) {
@@ -285,7 +285,9 @@ public class BlockwiseBertTransferTest {
 				assertEquals(payload, LONG_POST_REQUEST);
 				exchange.respond(LONG_POST_RESPONSE);
 			}
-		});
+		};
+		cleanup.add(testResource);
+		result.add(testResource);
 		result.add(new CoapResource(RESOURCE_BIG) {
 
 			@Override
