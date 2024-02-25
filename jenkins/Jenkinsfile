@@ -95,7 +95,7 @@ pipeline {
         container("hugo") {
           dir("${WEBSITE_SRC_DIR}") {
             sh '''#!/bin/bash
-              hugo -v -d "${WEBSITE_REPO_DIR}" -b "https://www.eclipse.org/${PROJECT_NAME}/"
+              hugo -v -d "${WEBSITE_REPO_DIR}" -b "https://eclipse.dev/${PROJECT_NAME}/"
             '''
           }
         }
