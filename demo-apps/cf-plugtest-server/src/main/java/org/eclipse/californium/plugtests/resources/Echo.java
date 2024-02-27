@@ -281,7 +281,10 @@ public class Echo extends CoapResource {
 	private static String getPrincipalName(Request request) {
 		Principal principal = request.getSourceContext().getPeerIdentity();
 		if (principal != null) {
-			return principal.getName();
+			String name = principal.getName();
+			if (!name.contains("/")) {
+				return name;
+			}
 		}
 		return null;
 	}
