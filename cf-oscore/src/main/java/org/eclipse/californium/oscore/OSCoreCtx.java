@@ -645,9 +645,18 @@ public class OSCoreCtx {
 
 	/**
 	 * @param seq the recipient sequence number to set
+	 * @since 3.11 (adjust visibility to public)
 	 */
-	synchronized void setRecipientSeq(int seq) {
+	public synchronized void setRecipientSeq(int seq) {
 		lowest_recipient_seq = seq;
+	}
+
+	/**
+	 * @param window the recipient replay window to set
+	 * @since 3.11
+	 */
+	public synchronized void setRecipientReplayWindow(int window) {
+		recipient_replay_window = window;
 	}
 
 	/**
