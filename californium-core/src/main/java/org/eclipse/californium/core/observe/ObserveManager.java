@@ -51,7 +51,7 @@ public class ObserveManager {
 	/** The mapping from endpoint addresses to ObservingEndpoints */
 	private final ConcurrentHashMap<InetSocketAddress, ObservingEndpoint> endpoints;
 	/**
-	 * The mapping from endpoint addresses to ObservingEndpoints.
+	 * The mapping from token/endpoint address pairs to ObserveRelations.
 	 * 
 	 * @since 3.6
 	 */

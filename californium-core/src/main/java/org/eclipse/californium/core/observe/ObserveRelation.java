@@ -425,7 +425,8 @@ public class ObserveRelation {
 			return State.ESTABILSHED;
 		} else {
 			boolean established = false;
-			if (response.isSuccess()) {
+			boolean add = response.isSuccess();
+			if (add) {
 				setEstablished();
 				resource.addObserveRelation(this);
 				established = !isCanceled();
@@ -436,6 +437,9 @@ public class ObserveRelation {
 				}
 				return State.INIT;
 			} else {
+				if (add) {
+					resource.removeObserveRelation(this);
+				}
 				return State.CANCELED;
 			}
 		}
