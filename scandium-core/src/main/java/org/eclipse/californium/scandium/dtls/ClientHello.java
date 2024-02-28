@@ -95,8 +95,7 @@ public final class ClientHello extends HelloHandshakeMessage {
 	public ClientHello(ProtocolVersion version, List<CipherSuite> supportedCipherSuites,
 			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes,
-			List<SupportedGroup> supportedGroups) {
+			List<CertificateType> supportedServerCertificateTypes, List<SupportedGroup> supportedGroups) {
 
 		this(version, SessionId.emptySessionId(), supportedCipherSuites, supportedSignatureAndHashAlgorithms,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, supportedGroups);
@@ -121,8 +120,7 @@ public final class ClientHello extends HelloHandshakeMessage {
 	public ClientHello(ProtocolVersion version, DTLSSession session,
 			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes,
-			List<SupportedGroup> supportedGroups) {
+			List<CertificateType> supportedServerCertificateTypes, List<SupportedGroup> supportedGroups) {
 
 		this(version, session.getSessionIdentifier(), Arrays.asList(session.getCipherSuite()),
 				supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes, supportedServerCertificateTypes,
@@ -133,8 +131,7 @@ public final class ClientHello extends HelloHandshakeMessage {
 	private ClientHello(ProtocolVersion version, SessionId sessionId, List<CipherSuite> supportedCipherSuites,
 			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes,
-			List<SupportedGroup> supportedGroups) {
+			List<CertificateType> supportedServerCertificateTypes, List<SupportedGroup> supportedGroups) {
 		super(version, sessionId);
 
 		this.cookie = Bytes.EMPTY;
@@ -199,8 +196,7 @@ public final class ClientHello extends HelloHandshakeMessage {
 		extensions.readFrom(reader);
 		ServerNameExtension extension = getServerNameExtension();
 		if (extension != null && extension.getServerNames() == null) {
-			throw new HandshakeException(
-					"ClientHello message contains empty ServerNameExtension",
+			throw new HandshakeException("ClientHello message contains empty ServerNameExtension",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 		}
 	}
@@ -352,19 +348,27 @@ public final class ClientHello extends HelloHandshakeMessage {
 	/**
 	 * Update hmac for cookie generation.
 	 * 
-	 * @param hmac initialized hmac
-	 * @since 3.0
+	 * @param hmac initialized hmac*
+	 * @since 3.11 use no {@link HelloExtensions} for the cookie, use only the
+	 *        parameter values (version, random, session_id, cipher_suites,
+	 *        compression_method). Considering DTLS 1.3 clients, which may vary
+	 *        additional data, including more in the cookie will cause "endless
+	 *        retries" instead of abort the handshake with an alert.
 	 */
 	public void updateForCookie(Mac hmac) {
 		byte[] rawMessage = toByteArray();
 		int head = sessionId.length() + RANDOM_BYTES
 				+ (VERSION_BITS + VERSION_BITS + SESSION_ID_LENGTH_BITS) / Byte.SIZE;
-		int tail = head + 1 + MESSAGE_HEADER_LENGTH_BYTES;
+		int tail = head + COOKIE_LENGTH_BITS / Byte.SIZE + MESSAGE_HEADER_LENGTH_BYTES;
 		if (cookie != null) {
 			tail += cookie.length;
 		}
+		int tailLength = (CIPHER_SUITES_LENGTH_BITS + CIPHER_SUITES_LENGTH_BITS
+				+ supportedCipherSuites.size() * CipherSuite.CIPHER_SUITE_BITS
+				+ compressionMethods.size() * CompressionMethod.COMPRESSION_METHOD_BITS) / Byte.SIZE;
+
 		hmac.update(rawMessage, MESSAGE_HEADER_LENGTH_BYTES, head);
-		hmac.update(rawMessage, tail, rawMessage.length - tail);
+		hmac.update(rawMessage, tail, tailLength);
 	}
 
 	/**
