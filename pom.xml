@@ -95,7 +95,7 @@
 		<developer>
 			<id>boaks</id>
 			<name>Achim Kraus</name>
-			<email>achim.kraus@bosch.io</email>
+			<email>achim.kraus@cloudcoap.net</email>
 			<url>https://github.com/boaks</url>
 			<organization>Private</organization>
 			<organizationUrl>https://cloudcoap.net/</organizationUrl>
@@ -109,6 +109,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
+		<maven.compiler.release>7</maven.compiler.release>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 		<javadoc.doclint>none</javadoc.doclint>
 		<revapi.previous.version>RELEASE</revapi.previous.version>
@@ -235,8 +236,6 @@
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.11.0</version>
 					<configuration>
-						<source>${project.build.javaVersion}</source>
-						<target>${project.build.javaVersion}</target>
 						<encoding>${project.build.sourceEncoding}</encoding>
 						<compilerArgs>
 							<arg>-Xlint:deprecation</arg>
