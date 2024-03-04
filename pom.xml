@@ -13,7 +13,7 @@
 
 	<name>Californium (Cf) Parent</name>
 	<description>Common definitions and configuration for all Californium (Cf) components</description>
-	<url>https://www.eclipse.org/californium/</url>
+	<url>https://eclipse.dev/californium/</url>
 	<organization>
 		<name>Eclipse Foundation</name>
 		<url>http://www.eclipse.org/</url>
@@ -29,13 +29,13 @@
 		</license>
 	</licenses>
 	<scm>
-		<developerConnection>scm:git:ssh://git@github.com/eclipse/californium.git</developerConnection>
-		<url>https://github.com/eclipse/californium</url>
+		<developerConnection>scm:git:ssh://git@github.com/eclipse-californium/californium.git</developerConnection>
+		<url>https://github.com/eclipse-californium/californium</url>
 		<tag>HEAD</tag>
 	</scm>
 	<issueManagement>
 		<system>GitHub</system>
-		<url>https://github.com/eclipse/californium/issues</url>
+		<url>https://github.com/eclipse-californium/californium/issues</url>
 	</issueManagement>
 	<ciManagement>
 		<system>Jenkins</system>
