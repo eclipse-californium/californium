@@ -5,7 +5,7 @@
 Eclipse Californium is a Java implementation of [RFC7252 - Constrained Application Protocol](http://tools.ietf.org/html/rfc7252) for IoT Cloud services. Thus, the focus is on scalability and usability instead of resource-efficiency like for embedded devices. Yet Californium is also suitable for embedded JVMs.
 
 More information can be found at
-[http://www.eclipse.org/californium/](http://www.eclipse.org/californium/)
+[http://eclipse.dev/californium/](http://eclipse.dev/californium/)
 and [http://coap.technology/](http://coap.technology/).
 
 Like to help improving Californium? Then consider to [contribute](#contributing).
@@ -46,7 +46,12 @@ In combination with the "non-existing.host" now existing, the build with unit te
 
 ## Build jdk7 compliant
 
-Californium 2.x and newer can be used with java 7 or newer. If you want to build it with a jdk 7, but use also plugins which are only supported for newer jdks, the toolchain plugin could be used. That requires a toolchains configuration in "toolchains.xml" in your maven ".m2" folder
+Californium 2.x and newer can be used with java 7 or newer. In order to use plugins,
+which are only supported for newer jdks, the `--release` option is used (requires java 9 or newer).
+
+If you want to build it with a jdk 7, the toolchain plugin could be used, but requires
+manually remove the `maven.compiler.release` property in the pom.xml. That requires
+also a toolchains configuration in "toolchains.xml" in your maven ".m2" folder
 
 ```xml
 <?xml version="1.0" encoding="UTF8"?>
@@ -92,7 +97,9 @@ $ mvn clean install -DuseToolchain=true -Dno.net.i2p.crypto.eddsa=true
 
 In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar) is provided to the classpath separately.
 
-*Note:* using the oracle build 28 of openjdk 11 uncovers, that calling `EdDSAEngine.engineSetParameter(null)` fails with `ǸullPointerException` instead of `InvalidAlgorithmParameterException`. That causes to fail the verification of the signature at all. Using the aptopen build seems not to call `EdDSAEngine.engineSetParameter(null)` and therefore works. [ed25519-java](https://github.com/str4d/ed25519-java) seems to be not longer maintained. It's therefore recommended to update to newer jdks (e.g. 17) or to use Bouncy Castle (see next section, even if the Bouncy Castle support is experimental).
+*Note:* using the oracle build 28 of openjdk 11 uncovers, that calling `EdDSAEngine.engineSetParameter(null)` fails with `ǸullPointerException` instead of `InvalidAlgorithmParameterException`. That causes to fail the verification of the signature at all. Using the aptopen build seems not to call `EdDSAEngine.engineSetParameter(null)` and therefore works.
+
+[ed25519-java](https://github.com/str4d/ed25519-java) seems to be not longer maintained. It's therefore recommended to update to newer jdks (e.g. 17) or to use Bouncy Castle (see next section, even if the Bouncy Castle support is experimental).
 
 ## Run unit tests using Bouncy Castle as alternative JCE provider
 
