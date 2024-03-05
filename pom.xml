@@ -724,7 +724,7 @@
 			<id>java11-javadoc</id>
 			<activation>
 				<!-- jdk executing maven, not the jdk of the toolchain -->
-				<jdk>[11,)</jdk>
+				<jdk>[11,17)</jdk>
 				<property>
 					<name>createJavadoc</name>
 				</property>
@@ -743,6 +743,27 @@
 			</build>
 		</profile>
 		<profile>
+			<id>java17-javadoc</id>
+			<activation>
+				<!-- jdk executing maven, not the jdk of the toolchain -->
+				<jdk>[17,)</jdk>
+				<property>
+					<name>createJavadoc</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<configuration>
+							<doclint>${javadoc.doclint}</doclint>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
 			<!-- This profile activate the usage of toolchain to compile using JDK 
 				1.7 -->
 			<id>useToolchain</id>
@@ -751,8 +772,18 @@
 					<name>useToolchain</name>
 				</property>
 			</activation>
+			<properties>
+				<maven.compiler.release></maven.compiler.release>
+			</properties>
 			<build>
 				<plugins>
+					<plugin>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<source>${project.build.javaVersion}</source>
+							<target>${project.build.javaVersion}</target>
+						</configuration>
+					</plugin>
 					<plugin>
 						<artifactId>maven-toolchains-plugin</artifactId>
 					</plugin>
@@ -771,10 +802,17 @@
 			<build>
 				<plugins>
 					<plugin>
-						<artifactId>maven-toolchains-plugin</artifactId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<source>${project.build.javaVersion}</source>
+							<target>${project.build.javaVersion}</target>
+						</configuration>
 					</plugin>
 					<plugin>
 						<artifactId>maven-javadoc-plugin</artifactId>
+					</plugin>
+					<plugin>
+						<artifactId>maven-toolchains-plugin</artifactId>
 					</plugin>
 				</plugins>
 			</build>
