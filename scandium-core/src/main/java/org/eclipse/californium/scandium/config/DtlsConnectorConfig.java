@@ -830,9 +830,8 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the TLSKEYLOG.
 	 * 
-	 * @see <a href=
-	 *      "https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html"
-	 *      target="_blank"> draft-ietf-tls-keylogfile</a>
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc9850.html" target="_blank">
+	 *         RFC 9850 - The SSLKEYLOGFILE Format for TLS</a>
 	 * @since 4.0
 	 */
 	public TlsKeyLog getTlsKeyLog() {
@@ -1132,9 +1131,8 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @return the TLSKEYLOG.
 		 * 
-		 * @see <a href=
-		 *      "https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html"
-		 *      target="_blank"> draft-ietf-tls-keylogfile</a>
+		 * @see <a href="https://www.rfc-editor.org/rfc/rfc9850.html" target="_blank">
+		 *         RFC 9850 - The SSLKEYLOGFILE Format for TLS</a>
 		 * @since 4.0
 		 */
 		public Builder setTlsKeyLog(TlsKeyLog tlsKeyLog) {

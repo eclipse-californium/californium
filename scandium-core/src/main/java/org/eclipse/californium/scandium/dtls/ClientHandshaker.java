@@ -447,6 +447,9 @@ public class ClientHandshaker extends Handshaker {
 			throw new HandshakeException("Extended Master Secret required!",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
+		if (message.hasReturnRoutabilityCheckExtension()) {
+			session.setReturnRoutabilityCheck(true);
+		}
 		session.setSniSupported(message.getServerNameExtension() != null);
 		setExpectedStates(cipherSuite.requiresServerCertificateMessage() ? SEVER_CERTIFICATE : NO_SEVER_CERTIFICATE);
 	}
@@ -952,6 +955,9 @@ public class ClientHandshaker extends Handshaker {
 			} else {
 				// use empty cid
 				connectionId = ConnectionId.EMPTY;
+			}
+			if (returnRoutabilityCheck) {
+				helloMessage.addExtension(ReturnRoutabilityCheckExtension.INSTANCE);
 			}
 			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
 			helloMessage.addExtension(extension);

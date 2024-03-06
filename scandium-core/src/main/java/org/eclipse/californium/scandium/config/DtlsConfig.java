@@ -261,6 +261,12 @@ public final class DtlsConfig {
 	 * @since 3.8
 	 */
 	public static final DtlsSecureRenegotiation DEFAULT_SECURE_RENEGOTIATION = DtlsSecureRenegotiation.WANTED;
+	/**
+	 * The default amplification threshold to trigger a return routability check.
+	 * 
+	 * @since 4.0
+	 */
+	public static final float DEFAULT_RETURN_ROUTABILITY_CHECK_THRESHOLD = 3.0F;
 
 	/**
 	 * DTLS session timeout. Currently not supported!
@@ -961,14 +967,26 @@ public final class DtlsConfig {
 	 * <p>
 	 * The file contains sensitive keys for encryption! Use it with reasonable care!
 	 * 
-	 * @see <a href="https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html" target="_blank">
-	 *         draft-ietf-tls-keylogfile</a>
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc9850.html" target="_blank">
+	 *         RFC 9850 - The SSLKEYLOGFILE Format for TLS</a>
 	 * @since 4.0
 	 */
 	public static final StringDefinition DTLS_TLSKEYLOG_FILE = new StringDefinition(
 			MODULE + "TLSKEYLOG_FILE", 
 			"File to write TLSKEYLOG. The file contains sensitive keys for encryption!\n" +
 			"!!! Use it with reasonable care !!!", null);
+
+	/**
+	 * Return routability check threshold.
+	 * <p>
+	 * Values less than {@code 1} to disable Return routability check.
+	 * 
+	 * @since 4.0
+	 */
+	public static final FloatDefinition DTLS_RETURN_ROUTABILITY_CHECK_THRESHOLD = new FloatDefinition(
+			MODULE + "RETURN_ROUTABILITY_CHECK_THRESHOLD",
+			"DTLS amplification threshold to trigger a return routability check. Values less than 1.0 disables the check.",
+			DEFAULT_RETURN_ROUTABILITY_CHECK_THRESHOLD);
 
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
@@ -1047,6 +1065,7 @@ public final class DtlsConfig {
 			config.set(DTLS_SUPPORT_KEY_MATERIAL_EXPORT, false);
 			config.set(DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 0, TimeUnit.SECONDS);
 			config.set(DTLS_TLSKEYLOG_FILE, null);
+			config.set(DTLS_RETURN_ROUTABILITY_CHECK_THRESHOLD, DEFAULT_RETURN_ROUTABILITY_CHECK_THRESHOLD);
 
 			DefinitionUtils.verify(DtlsConfig.class, config);
 		}

@@ -893,6 +893,10 @@ public class ServerHandshaker extends Handshaker {
 		if (supportsConnectionId()) {
 			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
 			if (connectionIdExtension != null) {
+				if (returnRoutabilityCheck && clientHello.hasReturnRoutabilityCheckExtension()) {
+					session.setReturnRoutabilityCheck(true);
+					serverHello.addExtension(ReturnRoutabilityCheckExtension.INSTANCE);
+				}
 				ConnectionId connectionId = getReadConnectionId();
 				ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
 				serverHello.addExtension(extension);
