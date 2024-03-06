@@ -86,6 +86,8 @@ public final class Connection {
 	private final SessionListener sessionListener = new ConnectionSessionListener();
 
 	private volatile ConnectionListener connectionListener;
+	private ReturnRoutabilityChecker returnRoutabilityChecker;
+	private int currentMessageLength;
 
 	/**
 	 * Identifier of the Client Hello used to start the handshake.
@@ -127,6 +129,7 @@ public final class Connection {
 	private long lastPeerAddressNanos;
 	private volatile SerialExecutor serialExecutor;
 	private InetSocketAddress peerAddress;
+	private InetSocketAddress previousPeerAddress;
 	private InetSocketAddress router;
 	/**
 	 * Connection ID.
@@ -324,6 +327,52 @@ public final class Connection {
 	}
 
 	/**
+	 * Gets return routability checker.
+	 * 
+	 * @return return routability checker.
+	 * @since 4.0
+	 */
+	public ReturnRoutabilityChecker getReturnRoutabilityChecker() {
+		return returnRoutabilityChecker;
+	}
+
+	/**
+	 * Sets return routability checker.
+	 * 
+	 * @param returnRoutabilityChecker return routability checker.
+	 * @since 4.0
+	 */
+	public void setReturnRoutabilityChecker(ReturnRoutabilityChecker returnRoutabilityChecker) {
+		this.returnRoutabilityChecker = returnRoutabilityChecker;
+	}
+
+	/**
+	 * Gets current message length.
+	 * <p>
+	 * Used for return routability checker.
+	 * 
+	 * @return current message length. {@code 0} to prevent a return routability
+	 *         check.
+	 * @since 4.0
+	 */
+	public int getCurrentMessageLength() {
+		return currentMessageLength;
+	}
+
+	/**
+	 * Sets current message length.
+	 * <p>
+	 * Used for return routability checker.
+	 * 
+	 * @param currentMessageLength current message length. {@code 0} to prevent
+	 *            a return routability check.
+	 * @since 4.0
+	 */
+	public void setCurrentMessageLength(int currentMessageLength) {
+		this.currentMessageLength = currentMessageLength;
+	}
+
+	/**
 	 * Checks whether this connection is either in use on this node or can be
 	 * resumed by peers interacting with this node.
 	 * <p>
@@ -436,6 +485,11 @@ public final class Connection {
 			}
 			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
 			InetSocketAddress previous = this.peerAddress;
+			if (this.previousPeerAddress == null) {
+				this.previousPeerAddress = previous;
+			} else if (this.previousPeerAddress.equals(peerAddress)) {
+				this.previousPeerAddress = null;
+			}
 			this.peerAddress = peerAddress;
 			if (peerAddress == null) {
 				final Handshaker pendingHandshaker = getOngoingHandshake();
@@ -468,6 +522,25 @@ public final class Connection {
 			return false;
 		}
 		return this.peerAddress.equals(peerAddress);
+	}
+
+	/**
+	 * Gets the previous address of this connection's peer.
+	 * 
+	 * @return the previous address
+	 * @since 4.0
+	 */
+	public InetSocketAddress getPreviuosPeerAddress() {
+		return previousPeerAddress;
+	}
+
+	/**
+	 * Resets the previous address of this connection's peer to {@code null}.
+	 * 
+	 * @since 4.0
+	 */
+	public void resetPreviuosPeerAddress() {
+		previousPeerAddress = null;
 	}
 
 	/**
