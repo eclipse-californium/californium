@@ -91,6 +91,7 @@ import org.eclipse.californium.plugtests.resources.Oscore;
 import org.eclipse.californium.plugtests.resources.OscoreInfo;
 import org.eclipse.californium.plugtests.resources.Path;
 import org.eclipse.californium.plugtests.resources.Query;
+import org.eclipse.californium.plugtests.resources.Rrc;
 import org.eclipse.californium.plugtests.resources.Separate;
 import org.eclipse.californium.plugtests.resources.Shutdown;
 import org.eclipse.californium.plugtests.resources.Validate;
@@ -714,6 +715,7 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, false));
 		add(new MyContext(MyContext.RESOURCE_NAME, CALIFORNIUM_BUILD_VERSION, false));
+		add(new Rrc(Rrc.RESOURCE_NAME, false));
 
 		if (oscoreCtxDb != null && oscoreServerRid != null) {
 			add(new Oscore());

@@ -261,6 +261,18 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	}
 
 	/**
+	 * Checks whether <em>ReturnRoutabilityCheck</em> extension is present in
+	 * this message.
+	 * 
+	 * @return {@code true}, if the <em>ReturnRoutabilityCheck</em> extension is
+	 *         present, {@code false}, otherwise
+	 * @since 3.12
+	 */
+	public boolean hasReturnRoutabilityCheckExtension() {
+		return extensions.getExtension(ExtensionType.RETURN_ROUTABILITY_CHECK) != null;
+	}
+
+	/**
 	 * Checks whether <em>RenegotiationInfo</em> extension is present in this
 	 * message.
 	 * 

@@ -205,6 +205,9 @@ public abstract class HelloExtension {
 			case CONNECTION_ID:
 				extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, type);
 				break;
+			case RETURN_ROUTABILITY_CHECK:
+				extension = ReturnRoutabilityCheckExtension.fromExtensionDataReader(extensionDataReader);
+				break;
 			case RENEGOTIATION_INFO:
 				extension = RenegotiationInfoExtension.fromExtensionDataReader(extensionDataReader);
 				break;
@@ -372,8 +375,21 @@ public abstract class HelloExtension {
 		 * </pre>
 		 * 
 		 * @since 3.0
+		 * @deprecated
 		 **/
+		@Deprecated
 		CONNECTION_ID_DEPRECATED(53, "Connection ID (deprecated)", CONNECTION_ID),
+
+		/**
+		 * See <a href= "https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html" target
+		 * ="_blank">dtls-rrc/draft-ietf-tls-dtls-rrc, Return Routability Check for DTLS 1.2 and DTLS 1.3</a> and
+		 * <a href=
+		 * "https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-1"
+		 * target="_blank">IANA TLS ExtensionType Values</a>
+		 * 
+		 * @since 3.12
+		 **/
+		RETURN_ROUTABILITY_CHECK(61, "Return Routability Check"),
 
 		/**
 		 * See <a href="https://www.iana.org/go/rfc5746" target="_blank">RFC
