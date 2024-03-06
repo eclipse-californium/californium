@@ -60,6 +60,7 @@ Additionally these commands are supported:
 - clear ``[n]``- drop all NAT entries, or  or drop `n` NAT entries
 - reassign - reassign incoming addresses
 - rebalance - reassign outgoing addresses
+- spoof - emulate spoofing, assign ephemeral outgoing address
 - add ``<host:port>`` - add new destination to load-balancer, e.g. "add node1.coaps.cluster:5684"
 - remove ``<host:port>`` - remove destination from load-balancer
 - reverse ``(on|off)`` - enable/disable reverse address updates.
