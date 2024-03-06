@@ -85,6 +85,8 @@ public final class Connection {
 	private final SessionListener sessionListener = new ConnectionSessionListener();
 
 	private volatile ConnectionListener connectionListener;
+	private ReturnRoutabilityChecker returnRoutabilityChecker;
+	private int currentMessageLength;
 
 	/**
 	 * Identifier of the Client Hello used to start the handshake.
@@ -126,6 +128,7 @@ public final class Connection {
 	private long lastPeerAddressNanos;
 	private volatile SerialExecutor serialExecutor;
 	private InetSocketAddress peerAddress;
+	private InetSocketAddress previousPeerAddress;
 	private InetSocketAddress router;
 	/**
 	 * Connection ID.
@@ -228,6 +231,19 @@ public final class Connection {
 	}
 
 	/**
+	 * Create task to execute provided task in serial execution.
+	 * 
+	 * @param task task to be execute in serial executor
+	 * @param force flag indicating, that the task should be executed, even if
+	 *            the serial executors are exhausted or shutdown.
+	 * @return created task
+	 * @since 4.0
+	 */
+	public Runnable createTask(Runnable task, boolean force) {
+		return new ConnectionTask(task, force);
+	}
+
+	/**
 	 * Checks, if the connection has a executing serial executor.
 	 * 
 	 * @return {@code true}, if the connection has an executing serial executor.
@@ -245,12 +261,30 @@ public final class Connection {
 	 * run it directly.
 	 * 
 	 * @param job the job to execute
+	 * @see #execute(Runnable, boolean)
 	 * @since 4.0
 	 */
 	public void execute(Runnable job) {
+		execute(job, true);
+	}
+
+	/**
+	 * Execute a connection job.
+	 * <p>
+	 * If the serial execution is available, use that to run the job. Otherwise
+	 * run it directly, if parameter force is {@code true}. Otherwise drop the
+	 * job.
+	 * 
+	 * @param job the job to execute
+	 * @param force {@code true} to force execution even if the serial execution
+	 *            is available is not available.
+	 * @see #execute(Runnable)
+	 * @since 4.0
+	 */
+	public void execute(Runnable job, boolean force) {
 		if (isExecuting()) {
 			serialExecutor.executeForced(job);
-		} else {
+		} else if (force) {
 			job.run();
 		}
 	}
@@ -281,6 +315,52 @@ public final class Connection {
 	 */
 	public final SessionListener getSessionListener() {
 		return sessionListener;
+	}
+
+	/**
+	 * Gets return routability checker.
+	 * 
+	 * @return return routability checker.
+	 * @since 4.0
+	 */
+	public ReturnRoutabilityChecker getReturnRoutabilityChecker() {
+		return returnRoutabilityChecker;
+	}
+
+	/**
+	 * Sets return routability checker.
+	 * 
+	 * @param returnRoutabilityChecker return routability checker.
+	 * @since 4.0
+	 */
+	public void setReturnRoutabilityChecker(ReturnRoutabilityChecker returnRoutabilityChecker) {
+		this.returnRoutabilityChecker = returnRoutabilityChecker;
+	}
+
+	/**
+	 * Gets current message length.
+	 * <p>
+	 * Used for return routability checker.
+	 * 
+	 * @return current message length. {@code 0} to prevent a return routability
+	 *         check.
+	 * @since 4.0
+	 */
+	public int getCurrentMessageLength() {
+		return currentMessageLength;
+	}
+
+	/**
+	 * Sets current message length.
+	 * <p>
+	 * Used for return routability checker.
+	 * 
+	 * @param currentMessageLength current message length. {@code 0} to prevent
+	 *            a return routability check.
+	 * @since 4.0
+	 */
+	public void setCurrentMessageLength(int currentMessageLength) {
+		this.currentMessageLength = currentMessageLength;
 	}
 
 	/**
@@ -396,6 +476,11 @@ public final class Connection {
 			}
 			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
 			InetSocketAddress previous = this.peerAddress;
+			if (this.previousPeerAddress == null) {
+				this.previousPeerAddress = previous;
+			} else if (this.previousPeerAddress.equals(peerAddress)) {
+				this.previousPeerAddress = null;
+			}
 			this.peerAddress = peerAddress;
 			if (peerAddress == null) {
 				final Handshaker pendingHandshaker = getOngoingHandshake();
@@ -428,6 +513,25 @@ public final class Connection {
 			return false;
 		}
 		return this.peerAddress.equals(peerAddress);
+	}
+
+	/**
+	 * Gets the previous address of this connection's peer.
+	 * 
+	 * @return the previous address
+	 * @since 4.0
+	 */
+	public InetSocketAddress getPreviuosPeerAddress() {
+		return previousPeerAddress;
+	}
+
+	/**
+	 * Resets the previous address of this connection's peer to {@code null}.
+	 * 
+	 * @since 4.0
+	 */
+	public void resetPreviuosPeerAddress() {
+		previousPeerAddress = null;
 	}
 
 	/**
@@ -1090,6 +1194,43 @@ public final class Connection {
 
 		@Override
 		public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
+		}
+	}
+
+	/**
+	 * Connection task.
+	 * <p>
+	 * Execute using the connection's serialExecutor.
+	 * 
+	 * @since 4.0
+	 */
+	private class ConnectionTask implements Runnable {
+		/**
+		 * Task to execute in serial executor.
+		 */
+		private final Runnable task;
+		/**
+		 * Flag to force execution, if serial execution is exhausted or
+		 * shutdown. The task is then executed in the context of this
+		 * {@link Runnable}.
+		 */
+		private final boolean force;
+
+		/**
+		 * Creates connection task.
+		 * 
+		 * @param task task to be execute in serial executor
+		 * @param force flag indicating, that the task should be executed, even
+		 *            if the serial executors are exhausted or shutdown.
+		 */
+		private ConnectionTask(Runnable task, boolean force) {
+			this.task = task;
+			this.force = force;
+		}
+
+		@Override
+		public void run() {
+			execute(task, force);
 		}
 	}
 
