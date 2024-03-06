@@ -207,6 +207,7 @@ import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionEvictedException;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSConnectionState;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
@@ -228,7 +229,9 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
-import org.eclipse.californium.scandium.dtls.ConnectionStore;
+import org.eclipse.californium.scandium.dtls.ReturnRoutabilityCheckMessage;
+import org.eclipse.californium.scandium.dtls.ReturnRoutabilityCheckType;
+import org.eclipse.californium.scandium.dtls.ReturnRoutabilityChecker;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionId;
@@ -2070,6 +2073,9 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 			case HANDSHAKE:
 				processHandshakeRecord(record, connection, context);
 				break;
+			case RRC:
+				processReturnRoutabilityCheckRecord(record, connection, context);
+				break;
 			default:
 				DROP_LOGGER.debug("Discarding record of unsupported type [{}] from peer [{}]", record.getType(),
 						StringUtil.toLog(record.getPeerAddress()));
@@ -2161,7 +2167,7 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 			// APPLICATION_DATA can only be processed within the context of
 			// an established, i.e. fully negotiated, session
 			ApplicationMessage message = (ApplicationMessage) record.getFragment();
-			InetSocketAddress previousAddress = connection.getPeerAddress();
+			InetSocketAddress previousAddressBefore = connection.getPreviuosPeerAddress();
 			boolean newest = updateConnectionAddress(record, connection);
 			if (useNewerRecordFilter && !newest) {
 				DROP_LOGGER.debug("Discarding reorderd {} record [epoch {}, rseqn {}] received from peer [{}]",
@@ -2183,8 +2189,14 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 				if (newest) {
 					attributes.add(DtlsEndpointContext.KEY_NEWEST_RECORD, Boolean.TRUE);
 				}
-				if (previousAddress != null && !connection.equalsPeerAddress(previousAddress)) {
+				InetSocketAddress previousAddress = connection.getPreviuosPeerAddress();
+				if (previousAddress != null) {
 					attributes.add(DtlsEndpointContext.KEY_PREVIOUS_ADDRESS, previousAddress);
+					if (previousAddressBefore == null) {
+						// first message triggered a RRC
+						connection.setCurrentMessageLength(message.size());
+					}
+					attributes.add(DtlsEndpointContext.KEY_RETURN_ROUTABILITY_CHECK, connection.getReturnRoutabilityChecker() != null);
 				}
 
 				DtlsEndpointContext endpointContext = connection.getReadContext(attributes, record.getPeerAddress());
@@ -2314,6 +2326,88 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 			// context of an existing handshake -> ignore record
 			DROP_LOGGER.debug("Received CHANGE_CIPHER_SPEC record from peer [{}] with no handshake going on",
 					StringUtil.toLog(record.getPeerAddress()));
+		}
+	}
+
+	/**
+	 * Process return routability check record.
+	 * 
+	 * @param record return routability check record
+	 * @param connection connection to process the record.
+	 * @param dtlsContext dtls context of the record.
+	 * @since 4.0
+	 */
+	private void processReturnRoutabilityCheckRecord(Record record, Connection connection, DTLSContext dtlsContext) {
+		LOGGER.trace("Received {} record from peer [{}]", record.getType(), StringUtil.toLog(record.getPeerAddress()));
+		if (connection.getEstablishedDtlsContext() == dtlsContext) {
+			connection.markRecordAsRead(record);
+			if (dtlsContext.getSession().useReturnRoutabilityCheck()) {
+				ReturnRoutabilityChecker checker = connection.getReturnRoutabilityChecker();
+				ReturnRoutabilityCheckMessage rrcMessage = (ReturnRoutabilityCheckMessage) record.getFragment();
+				ReturnRoutabilityCheckType type = rrcMessage.getReturnRoutabilityCheckType();
+				if (type != null) {
+					LOGGER.info("Received {} from peer [{}]", rrcMessage, StringUtil.toLog(record.getPeerAddress()));
+					switch (type) {
+					case PATH_CHALLENGE:
+						ReturnRoutabilityCheckMessage response = ReturnRoutabilityChecker.createResponse(rrcMessage);
+						sendDtlsMessage(connection, dtlsContext, response);
+						LOGGER.info("Sent {} to peer [{}]", response, StringUtil.toLog(record.getPeerAddress()));
+						break;
+					case PATH_RESPONSE:
+						if (checker != null && checker.match(rrcMessage)) {
+							LOGGER.info("Received matching {}", type);
+							connection.resetPreviuosPeerAddress();
+							connection.setReturnRoutabilityChecker(null);
+							connection.setCurrentMessageLength(0);
+							for (RawData message : checker.takeDeferredApplicationData()) {
+								sendMessage(message, connection);
+							}
+						}
+						break;
+					case PATH_DROP:
+						if (checker != null && checker.match(rrcMessage)) {
+							LOGGER.info("Received matching {}", type);
+							restorePreviousConnectionAddress(record.getPeerAddress(), connection);
+						}
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Restore previous connection address.
+	 * 
+	 * @param dropAddress address to drop.
+	 * @param connection connection of received record
+	 * @since 4.0
+	 */
+	private void restorePreviousConnectionAddress(InetSocketAddress dropAddress, Connection connection) {
+		InetSocketAddress previousAddress = connection.getPreviuosPeerAddress();
+		ReturnRoutabilityChecker checker = connection.getReturnRoutabilityChecker();
+
+		if (previousAddress != null && connection.equalsPeerAddress(dropAddress)) {
+			// connection.setRouter(record.getRouter());
+			connectionStore.update(connection, previousAddress);
+			if (connectionListener != null) {
+				if (connectionListener.onConnectionUpdatesSequenceNumbers(connection, false)) {
+					closeConnection(connection);
+				}
+			}
+		}
+		connection.setCurrentMessageLength(0);
+		if (checker != null) {
+			connection.setReturnRoutabilityChecker(null);
+			for (RawData message : checker.takeDeferredApplicationData()) {
+				if (DROP_LOGGER.isInfoEnabled()) {
+					DROP_LOGGER.info("DTLSConnector ({}) drops {} bytes outgoing, rrc failed", this, message.getSize());
+				}
+				message.onError(new IOException("RRC failed!"));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
+			}
 		}
 	}
 
@@ -2819,6 +2913,19 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 		}
 	}
 
+	private boolean sendDtlsMessage(Connection connection, DTLSContext dtlsContext, DTLSMessage message) {
+		try {
+			Record responseRecord = new Record(ContentType.RRC, dtlsContext.getWriteEpoch(), message,
+					dtlsContext, true, TLS12_CID_PADDING);
+			responseRecord.setAddress(connection.getPeerAddress(), connection.getRouter());
+			sendRecord(responseRecord);
+			return true;
+		} catch (IOException ex) {
+		} catch (GeneralSecurityException ex) {
+		}
+		return false;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -3172,18 +3279,52 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 
 	private void sendMessage(final RawData message, final Connection connection) {
 		try {
-			DTLSContext dltsContext = connection.getEstablishedDtlsContext();
+			DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
 			LOGGER.trace("send {}-{} using {}", connection.getConnectionId(),
-					StringUtil.toLog(connection.getPeerAddress()), dltsContext.getSession().getSessionIdentifier());
+					StringUtil.toLog(connection.getPeerAddress()), dtlsContext.getSession().getSessionIdentifier());
 			Attributes attributes = new Attributes();
 			final DtlsEndpointContext context = connection.getWriteContext(attributes);
 			if (!checkOutboundEndpointContext(message, context)) {
 				return;
 			}
-
+			if (dtlsContext.getSession().useReturnRoutabilityCheck()) {
+				ReturnRoutabilityChecker checker = connection.getReturnRoutabilityChecker();
+				if (checker == null) {
+					Boolean trigger = message.getEndpointContext()
+							.get(DtlsEndpointContext.KEY_RETURN_ROUTABILITY_CHECK);
+					if (trigger == null || !trigger) {
+						int current = connection.getCurrentMessageLength();
+						trigger = current > 0 && current
+								* config.get(DtlsConfig.DTLS_RETURN_ROUTABILITY_CHECK_THRESHOLD) < message.getSize();
+					}
+					InetSocketAddress previousAddress = connection.getPreviuosPeerAddress();
+					if (previousAddress != null && trigger) {
+						checker = new ReturnRoutabilityChecker(
+								config.get(DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES));
+						connection.setReturnRoutabilityChecker(checker);
+						final InetSocketAddress checkAddress = connection.getPeerAddress();
+						final DTLSMessage challenge = checker.getChallenge();
+						if (sendDtlsMessage(connection, dtlsContext, challenge)) {
+							LOGGER.info("Sent {} to peer [{}]", challenge,
+									StringUtil.toLog(connection.getPeerAddress()));
+							long timeoutMillis = config.get(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT,
+									TimeUnit.MILLISECONDS);
+							ScheduledFuture<?> timeout = executorService.schedule(() -> {
+								LOGGER.info("Timeout {} with peer [{}]", challenge, StringUtil.toLog(checkAddress));
+								connection.execute(() -> restorePreviousConnectionAddress(checkAddress, connection));
+							}, timeoutMillis * 2, TimeUnit.MILLISECONDS);
+							checker.setTimeout(timeout);
+						}
+					}
+				}
+				if (checker != null) {
+					checker.addApplicationDataForDeferredProcessing(message);
+					return;
+				}
+			}
 			message.onContextEstablished(context);
-			Record record = new Record(ContentType.APPLICATION_DATA, dltsContext.getWriteEpoch(),
-					new ApplicationMessage(message.getBytes()), dltsContext, true, TLS12_CID_PADDING);
+			Record record = new Record(ContentType.APPLICATION_DATA, dtlsContext.getWriteEpoch(),
+					new ApplicationMessage(message.getBytes()), dtlsContext, true, TLS12_CID_PADDING);
 			record.setAddress(connection.getPeerAddress(), connection.getRouter());
 			sendRecord(record);
 			message.onSent();

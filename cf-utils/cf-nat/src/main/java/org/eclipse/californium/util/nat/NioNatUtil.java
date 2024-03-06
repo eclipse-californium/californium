@@ -241,6 +241,14 @@ public class NioNatUtil implements Runnable {
 	 * @since 2.5
 	 */
 	private long lastWrongRoutedCounter;
+
+	/**
+	 * Counter for (emulated) spoof messages.
+	 * 
+	 * @since 4.0
+	 */
+	private AtomicLong spoofedCounter = new AtomicLong();
+
 	/**
 	 * Counter for timedout NAT entries.
 	 * 
@@ -291,6 +299,13 @@ public class NioNatUtil implements Runnable {
 	 * @since 3.0
 	 */
 	private AtomicBoolean dtlsFilter = new AtomicBoolean();
+
+	/**
+	 * Enable (emulated) spoofing.
+	 * 
+	 * @since 4.0
+	 */
+	private AtomicBoolean spoof = new AtomicBoolean();
 
 	/**
 	 * NAT address state.
@@ -1048,12 +1063,20 @@ public class NioNatUtil implements Runnable {
 
 	private NatEntry getNatEntry(InetSocketAddress source, DatagramChannel proxyChannel) throws IOException {
 		NatEntry entry = nats.get(source);
+		boolean spoof = this.spoof.getAndSet(false);
+		if (entry != null && spoof) {
+			entry = null;
+		}
 		if (entry == null && nats.size() < maximumNumberOfNatEtries.get()) {
-			entry = new NatEntry(source, proxyChannel, selector);
-			NatEntry previousEntry = nats.putIfAbsent(source, entry);
-			if (previousEntry != null) {
-				entry.stop();
-				entry = previousEntry;
+			entry = new NatEntry(source, proxyChannel, selector, spoof);
+			if (spoof) {
+				spoofedCounter.incrementAndGet();
+			} else {
+				NatEntry previousEntry = nats.putIfAbsent(source, entry);
+				if (previousEntry != null) {
+					entry.stop();
+					entry = previousEntry;
+				}
 			}
 		}
 		return entry;
@@ -1254,7 +1277,7 @@ public class NioNatUtil implements Runnable {
 	}
 
 	/**
-	 * Get list of pending destinations.
+	 * Gets list of pending destinations.
 	 * 
 	 * @return list of pending destinations
 	 * @since 3.0
@@ -1265,6 +1288,16 @@ public class NioNatUtil implements Runnable {
 			result.addAll(pendingDestinations);
 		}
 		return result;
+	}
+
+	/**
+	 * Gets number of (emulated) spoofed message.
+	 * 
+	 * @return number of spoofed messages
+	 * @since 4.0
+	 */
+	public long getSpoofedMessages() {
+		return spoofedCounter.get();
 	}
 
 	/**
@@ -1310,7 +1343,7 @@ public class NioNatUtil implements Runnable {
 				InetSocketAddress incoming = entry.getKey();
 				try {
 					NatEntry oldentry = entry.getValue();
-					NatEntry newEntry = new NatEntry(entry.getKey(), oldentry.proxyChannel, selector);
+					NatEntry newEntry = new NatEntry(entry.getKey(), oldentry.proxyChannel, selector, false);
 					nats.put(incoming, newEntry);
 					oldentry.setIncoming(null);
 					olds.add(oldentry);
@@ -1372,7 +1405,7 @@ public class NioNatUtil implements Runnable {
 			} else {
 				channel = old.proxyChannel;
 			}
-			NatEntry entry = new NatEntry(incoming, channel, selector);
+			NatEntry entry = new NatEntry(incoming, channel, selector, false);
 			old = nats.put(incoming, entry);
 			if (null != old) {
 				LOGGER.info("changed NAT for {} from {} to {}.", incoming, old.getPort(), entry.getPort());
@@ -1709,6 +1742,15 @@ public class NioNatUtil implements Runnable {
 	}
 
 	/**
+	 * Activates (emulated) spoofing.
+	 * 
+	 * @since 4.0 
+	 */
+	public void activateSpoof() {
+		this.spoof.set(true);
+	}
+
+	/**
 	 * Dump message dropping statistics to log.
 	 */
 	public void dumpMessageDroppingStatistic() {
@@ -1836,11 +1878,12 @@ public class NioNatUtil implements Runnable {
 		private final DatagramChannel outgoing;
 		private final String natName;
 		private final InetSocketAddress local;
+		private final boolean spoof;
 		private NatAddress incoming;
 		private NatAddress destination;
 		private boolean first;
 
-		public NatEntry(InetSocketAddress incoming, DatagramChannel proxyChannel, Selector selector)
+		public NatEntry(InetSocketAddress incoming, DatagramChannel proxyChannel, Selector selector, boolean spoof)
 				throws IOException {
 			setDestination(getRandomDestination());
 			this.proxyChannel = proxyChannel;
@@ -1849,6 +1892,7 @@ public class NioNatUtil implements Runnable {
 			this.outgoing.bind(null);
 			this.local = (InetSocketAddress) this.outgoing.getLocalAddress();
 			this.natName = Integer.toString(this.local.getPort());
+			this.spoof = spoof;
 			setIncoming(incoming);
 			this.outgoing.register(selector, SelectionKey.OP_READ, this);
 		}
@@ -1950,7 +1994,7 @@ public class NioNatUtil implements Runnable {
 			}
 			incoming.updateUsage();
 			MessageDropping dropping = backward;
-			if (dropping != null && dropping.dropMessage()) {
+			if (spoof || (dropping != null && dropping.dropMessage())) {
 				LOGGER.debug("backward drops {} bytes from {} to {} via {}", packet.limit(), destination.name,
 						incoming.name, natName);
 			} else {
@@ -1994,6 +2038,9 @@ public class NioNatUtil implements Runnable {
 			}
 			if (incoming == null) {
 				LOGGER.debug("forward drops {} bytes, no incoming address.", packet.limit());
+				if (spoof) {
+					stop();
+				}
 				return false;
 			}
 			incoming.updateUsage();
@@ -2028,6 +2075,9 @@ public class NioNatUtil implements Runnable {
 					if (outgoing.send(packet, destination.address) == 0) {
 						LOGGER.info("forward overloaded {} bytes from {} to {} via {}", packet.limit(), incoming.name,
 								destination.name, natName);
+						if (spoof) {
+							stop();
+						}
 						return false;
 					} else {
 						destination.updateSend();
@@ -2036,6 +2086,9 @@ public class NioNatUtil implements Runnable {
 								destination.name, natName);
 					}
 				}
+			}
+			if (spoof) {
+				stop();
 			}
 			return true;
 		}

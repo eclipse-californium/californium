@@ -84,6 +84,7 @@ import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.plugtests.resources.Echo;
 import org.eclipse.californium.plugtests.resources.Hono;
 import org.eclipse.californium.plugtests.resources.MyContext;
+import org.eclipse.californium.plugtests.resources.Rrc;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
@@ -676,6 +677,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		add(new Hono("event"));
 		add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 		add(new MyContext(MyContext.RESOURCE_NAME, PlugtestServer.CALIFORNIUM_BUILD_VERSION, true));
+		add(new Rrc(Rrc.RESOURCE_NAME, false));
 	}
 
 	private boolean isReady() {
