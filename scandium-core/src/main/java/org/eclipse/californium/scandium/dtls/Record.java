@@ -764,8 +764,16 @@ public class Record {
 			break;
 
 		case HANDSHAKE:
-
 			fragment = HandshakeMessage.fromByteArray(decryptedMessage);
+			break;
+
+		case RRC:
+			if (readState.hasValidCipherSuite()) {
+				fragment = ReturnRoutabilityCheckMessage.fromByteArray(decryptedMessage);
+			} else {
+				LOGGER.debug("{} is only supported for encrypted records!", actualType);
+				fragment = ReturnRoutabilityCheckMessage.INVALID;
+			}
 			break;
 
 		default:
@@ -834,6 +842,7 @@ public class Record {
 		case APPLICATION_DATA:
 		case HANDSHAKE:
 		case CHANGE_CIPHER_SPEC:
+		case RRC:
 			this.type = type;
 			break;
 

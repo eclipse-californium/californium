@@ -231,12 +231,10 @@ public abstract class Handshaker implements Destroyable {
 
 	/** Maximum length of reassembled fragmented handshake messages */
 	private final int maxFragmentedHandshakeMessageLength;
-	/** Maximum number of outgoing application data messages, which may be processed deferred after the handshake */
-	private final int maxDeferredProcessedOutgoingApplicationDataMessages;
 	/** Maximum number of bytes of deferred processed incoming records */
 	private final int maxDeferredProcessedIncomingRecordsSize;
 	/** List of application data messages, which are send deferred after the handshake */
-	private final List<RawData> deferredApplicationData = new ArrayList<RawData>();
+	private final DeferredApplicationData deferredApplicationData;
 	/**
 	 * List of received records of next epoch.
 	 * 
@@ -383,6 +381,12 @@ public abstract class Handshaker implements Destroyable {
 	 * Truncate certificate path for validation.
 	 */
 	protected final boolean useTruncatedCertificatePathForVerification;
+	/**
+	 * Support Return Routability Check.
+	 * 
+	 * @since 3.12
+	 */
+	protected final boolean returnRoutabilityCheck;
 
 	/**
 	 * Stop retransmission with receiving the first record of the answer flight.
@@ -573,13 +577,14 @@ public abstract class Handshaker implements Destroyable {
 		this.maxFragmentedHandshakeMessageLength = config.get(DtlsConfig.DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH);
 		this.useMultiRecordMessages = config.get(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES);
 		this.useMultiHandshakeMessagesRecord = config.get(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS);
-		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.get(DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES);
+		this.deferredApplicationData = new DeferredApplicationData(config.get(DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES));
 		this.maxDeferredProcessedIncomingRecordsSize = config.get(DtlsConfig.DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE);
 		this.sniEnabled = config.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION);
 		this.extendedMasterSecretMode = config.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
 		this.useTruncatedCertificatePathForVerification = config.get(DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION);
 		this.useEarlyStopRetransmission = config.get(DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION);
 		this.tlsKeyLog = config.getTlsKeyLog();
+		this.returnRoutabilityCheck = config.get(DtlsConfig.DTLS_RETURN_ROUTABILITY_CHECK_THRESHOLD) >= 1.0F;
 		this.certificateIdentityProvider = config.getCertificateIdentityProvider();
 		this.certificateVerifier = config.getCertificateVerifier();
 		this.pskStore = config.getPskStore();
@@ -1826,9 +1831,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @param outgoingMessage outgoing application data
 	 */
 	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
-		if (deferredApplicationData.size() < maxDeferredProcessedOutgoingApplicationDataMessages) {
 			deferredApplicationData.add(outgoingMessage);
-		}
 	}
 
 	/**
@@ -1889,9 +1892,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @return list of application data
 	 */
 	public List<RawData> takeDeferredApplicationData() {
-		List<RawData> applicationData = new ArrayList<RawData>(deferredApplicationData);
-		deferredApplicationData.clear();
-		return applicationData;
+		return deferredApplicationData.take();
 	}
 
 	/**
@@ -1918,7 +1919,7 @@ public abstract class Handshaker implements Destroyable {
 	 *            application data
 	 */
 	public void takeDeferredApplicationData(Handshaker replacedHandshaker) {
-		deferredApplicationData.addAll(replacedHandshaker.takeDeferredApplicationData());
+		deferredApplicationData.take(replacedHandshaker.deferredApplicationData);
 	}
 
 	/**
