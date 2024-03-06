@@ -170,6 +170,17 @@ public final class DTLSSession implements Destroyable {
 	 * @since 3.8
 	 */
 	private boolean secureRenegotiation;
+	/**
+	 * Use return routability check-
+	 * 
+	 * See
+	 * <a href= "https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html" target
+	 * ="_blank">dtls-rrc/draft-ietf-tls-dtls-rrc, Return Routability Check for
+	 * DTLS 1.2 and DTLS 1.3</a>.
+	 * 
+	 * @since 4.0
+	 */
+	private boolean returnRoutabilityCheck;
 
 	/**
 	 * The 48-byte master secret shared by client and server to derive key
@@ -244,6 +255,7 @@ public final class DTLSSession implements Destroyable {
 		ecGroup = session.getEcGroup();
 		extendedMasterSecret = session.useExtendedMasterSecret();
 		secureRenegotiation = session.useSecureRengotiation();
+		returnRoutabilityCheck = session.useReturnRoutabilityCheck();
 		sendCertificateType = session.sendCertificateType();
 		receiveCertificateType = session.receiveCertificateType();
 		recordSizeLimit = session.getRecordSizeLimit();
@@ -594,6 +606,38 @@ public final class DTLSSession implements Destroyable {
 	 */
 	public boolean useSecureRengotiation() {
 		return secureRenegotiation;
+	}
+
+	/**
+	 * Sets use return routability check.
+	 * <p>
+	 * See
+	 * <a href= "https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html" target
+	 * ="_blank">dtls-rrc/draft-ietf-tls-dtls-rrc, Return Routability Check for
+	 * DTLS 1.2 and DTLS 1.3</a>.
+	 * 
+	 * @param enable {@code true}, to enable the use of the return routability
+	 *            check, {@code false}, if not.
+	 * @since 4.0
+	 */
+	public void setReturnRoutabilityCheck(boolean enable) {
+		returnRoutabilityCheck = enable;
+	}
+
+	/**
+	 * Gets use return routability check.
+	 * 
+	 * See
+	 * <a href= "https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html" target
+	 * ="_blank">dtls-rrc/draft-ietf-tls-dtls-rrc, Return Routability Check for
+	 * DTLS 1.2 and DTLS 1.3</a>.
+	 * 
+	 * @return {@code true}, to enable the use of the return routability check,
+	 *         {@code false}, if not.
+	 * @since 4.0
+	 */
+	public boolean useReturnRoutabilityCheck() {
+		return returnRoutabilityCheck;
 	}
 
 	/**
