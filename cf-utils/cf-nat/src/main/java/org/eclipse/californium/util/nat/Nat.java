@@ -185,6 +185,7 @@ public class Nat {
 					System.out.println("clear [n] - drop all NAT entries, or drop n NAT entries");
 					System.out.println("reassign - reassign incoming addresses");
 					System.out.println("rebalance - reassign outgoing addresses");
+					System.out.println("spoof - assign ephemeral outgoing address");
 					System.out.println("add <host:port> - add new destination to load balancer");
 					System.out.println("remove <host:port> - remove destination from load balancer");
 					System.out.println("reverse (on|off) - enable/disable reverse address updates.");
@@ -207,6 +208,8 @@ public class Nat {
 					int entries = util.getNumberOfEntries();
 					int count = util.reassignDestinationAddresses();
 					System.out.println("reassigned " + count + " destinations of " + entries + ".");
+				} else if (line.equals("spoof")) {
+					util.activateSpoof();
 				} else if (line.startsWith("remove ")) {
 					try {
 						InetSocketAddress dest = createDestinationAddress("remove ", line);
@@ -274,6 +277,10 @@ public class Nat {
 		for (NioNatUtil.NatAddress address : destinations) {
 			System.out.println("Pending    : " + address.name + ", usage: " + address.usageCounter() + ", last usage: "
 					+ address.lastUsage() + "[s] " + address.getState());
+		}
+		long spoofed = util.getSpoofedMessages();
+		if (spoofed> 0) {
+			System.out.println("Spoofed    : " + spoofed);
 		}
 	}
 

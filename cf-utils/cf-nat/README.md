@@ -6,7 +6,7 @@ In order to test NAT and LoadBalancer specific situations, this module contains 
 
 # Download
 
-[Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/3.12.0/cf-nat-3.12.0.jar)
+[Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/3.11.0-RRC-0/cf-nat-3.11.0-RRC-0.jar)
 
 #Usage
 
@@ -60,6 +60,7 @@ Additionally these commands are supported:
 - clear ``[n]``- drop all NAT entries, or  or drop `n` NAT entries
 - reassign - reassign incoming addresses
 - rebalance - reassign outgoing addresses
+- spoof - assign ephemeral outgoing address
 - add ``<host:port>`` - add new destination to load-balancer, e.g. "add node1.coaps.cluster:5684"
 - remove ``<host:port>`` - remove destination from load-balancer
 - reverse ``(on|off)`` - enable/disable reverse address updates.

@@ -1,18 +1,17 @@
-/*******************************************************************************
- * Copyright (c) 2020 Bosch.IO GmbH and others.
+/********************************************************************************
+ * Copyright (c) 2024 Contributors to the Eclipse Foundation
  * 
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v2.0
- * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * See the NOTICE file(s) distributed with this work for additional
+ * information regarding copyright ownership.
  * 
- * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v20.html
- * and the Eclipse Distribution License is available at
- *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * https://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v1.0 which is available at
+ * https://www.eclipse.org/org/documents/edl-v10.php.
  * 
- * Contributors:
- *    Bosch.IO GmbH - initial creation
- ******************************************************************************/
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ ********************************************************************************/
 package org.eclipse.californium.plugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
@@ -24,44 +23,37 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.net.InetSocketAddress;
-import java.security.Principal;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.TlsEndpointContext;
-import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.config.DtlsConfig;
 
 import com.upokecenter.cbor.CBORObject;
 
 /**
- * Context resource.
+ * Return routability check.
  * 
- * @since 3.0 (renamed, was Context)
+ * @since 3.11
  */
-public class MyContext extends CoapResource {
+public class Rrc extends CoapResource {
 
-	public static final String RESOURCE_NAME = "mycontext";
+	public static final String RESOURCE_NAME = "rrc";
 
-	private final String version;
-
-	public MyContext(String name, String version, boolean visible) {
+	public Rrc(String name,  boolean visible) {
 		super(name, visible);
-		getAttributes().setTitle("Communication Context");
+		getAttributes().setTitle("Return Routability Check");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_CBOR);
 		getAttributes().addContentType(APPLICATION_JSON);
 		getAttributes().addContentType(APPLICATION_XML);
-		this.version = version;
 	}
 
 	@Override
@@ -98,6 +90,13 @@ public class MyContext extends CoapResource {
 			return;
 		}
 		response.setPayload(payload);
+		EndpointContext context = exchange.advanced().getCurrentRequest().getSourceContext();
+		Boolean rrc = context.get(DtlsEndpointContext.KEY_RETURN_ROUTABILITY_CHECK);
+		if (rrc != null) {
+			context = MapBasedEndpointContext.addEntries(context,
+					DtlsEndpointContext.ATTRIBUE_FORCED_RETURN_ROUTABILITY_CHECK);
+			response.setDestinationContext(context);
+		}
 		exchange.respond(response);
 	}
 
@@ -106,73 +105,10 @@ public class MyContext extends CoapResource {
 		EndpointContext context = exchange.getRequest().getSourceContext();
 		InetSocketAddress source = context.getPeerAddress();
 
-		formatter.add("ip", StringUtil.toString(source.getAddress()));
-		formatter.add("port", new Long(source.getPort()));
-		Endpoint endpoint = exchange.getEndpoint();
-		if (endpoint != null) {
-			Configuration config = endpoint.getConfig();
-			Integer nodeId = config.get(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID);
-			if (nodeId != null) {
-				formatter.add("node-id", nodeId.toString());
-			}
-		}
-		Principal peerIdentity = context.getPeerIdentity();
-		if (peerIdentity != null) {
-			formatter.add("peer", peerIdentity.getName());
-		}
-		String cipherSuite = context.getString(DtlsEndpointContext.KEY_CIPHER);
-		if (cipherSuite == null) {
-			cipherSuite = context.getString(TlsEndpointContext.KEY_CIPHER);
-		}
-		if (cipherSuite != null) {
-			formatter.add("cipher-suite", cipherSuite);
-		}
-		String sessionId = context.getString(DtlsEndpointContext.KEY_SESSION_ID);
-		if (sessionId == null) {
-			sessionId = context.getString(TlsEndpointContext.KEY_SESSION_ID);
-		}
-		if (sessionId != null) {
-			formatter.add("session-id", sessionId);
-		}
-		String cid = context.getString(DtlsEndpointContext.KEY_READ_CONNECTION_ID);
-		if (cid != null) {
-			formatter.add("read-cid", cid);
-		}
-		cid = context.getString(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
-		if (cid != null) {
-			formatter.add("write-cid", cid);
-		}
-		String via = context.getString(DtlsEndpointContext.KEY_VIA_ROUTER);
-		if (via != null) {
-			formatter.add("via", via);
-		}
-		Boolean secureRenegotiation = context.get(DtlsEndpointContext.KEY_SECURE_RENEGOTIATION);
-		if (secureRenegotiation != null) {
-			formatter.add("secure-renegotiation", secureRenegotiation);
-		}
-		Boolean extendedMasterSecret = context.get(DtlsEndpointContext.KEY_EXTENDED_MASTER_SECRET);
-		if (extendedMasterSecret != null) {
-			formatter.add("ext-master-secret", extendedMasterSecret);
-		}
-		Boolean newest = context.get(DtlsEndpointContext.KEY_NEWEST_RECORD);
-		if (newest != null) {
-			formatter.add("newest-record", newest);
-		}
-		Integer limit = context.get(DtlsEndpointContext.KEY_MESSAGE_SIZE_LIMIT);
-		if (limit != null) {
-			formatter.add("message-size-limit", new Long(limit));
-		}
-		InetSocketAddress previous = context.get(DtlsEndpointContext.KEY_PREVIOUS_ADDRESS);
-		if (previous != null) {
-			formatter.add("prev-ip", StringUtil.toString(previous.getAddress()));
-			formatter.add("prev-port", new Long(previous.getPort()));
-		}
+		formatter.add("ip", StringUtil.toString(source));
 		Boolean rrc = context.get(DtlsEndpointContext.KEY_RETURN_ROUTABILITY_CHECK);
 		if (rrc != null) {
 			formatter.add("rrc", rrc);
-		}
-		if (version != null) {
-			formatter.add("server", "Cf " + version);
 		}
 		return formatter.getPayload();
 	}

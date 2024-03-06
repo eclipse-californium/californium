@@ -229,12 +229,10 @@ public abstract class Handshaker implements Destroyable {
 
 	/** Maximum length of reassembled fragmented handshake messages */
 	private final int maxFragmentedHandshakeMessageLength;
-	/** Maximum number of outgoing application data messages, which may be processed deferred after the handshake */
-	private final int maxDeferredProcessedOutgoingApplicationDataMessages;
 	/** Maximum number of bytes of deferred processed incoming records */
 	private final int maxDeferredProcessedIncomingRecordsSize;
 	/** List of application data messages, which are send deferred after the handshake */
-	private final List<RawData> deferredApplicationData = new ArrayList<RawData>();
+	private final DeferredApplicationData deferredApplicationData;
 	/**
 	 * List of received records of next epoch.
 	 * 
@@ -374,6 +372,12 @@ public abstract class Handshaker implements Destroyable {
 	 * Truncate certificate path for validation.
 	 */
 	protected final boolean useTruncatedCertificatePathForVerification;
+	/**
+	 * Support Return Routability Check.
+	 * 
+	 * @since 3.12
+	 */
+	protected final boolean returnRoutabilityCheck;
 
 	/**
 	 * Stop retransmission with receiving the first record of the answer flight.
@@ -551,12 +555,13 @@ public abstract class Handshaker implements Destroyable {
 		this.maxFragmentedHandshakeMessageLength = config.get(DtlsConfig.DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH);
 		this.useMultiRecordMessages = config.get(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES);
 		this.useMultiHandshakeMessagesRecord = config.get(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS);
-		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.get(DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES);
+		this.deferredApplicationData = new DeferredApplicationData(config.get(DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES));
 		this.maxDeferredProcessedIncomingRecordsSize = config.get(DtlsConfig.DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE);
 		this.sniEnabled = config.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION);
 		this.extendedMasterSecretMode = config.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
 		this.useTruncatedCertificatePathForVerification = config.get(DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION);
 		this.useEarlyStopRetransmission = config.get(DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION);
+		this.returnRoutabilityCheck = config.get(DtlsConfig.DTLS_RETURN_ROUTABILITY_CHECK_THRESHOLD) >= 1.0F;
 		this.certificateIdentityProvider = config.getCertificateIdentityProvider();
 		this.certificateVerifier = config.getAdvancedCertificateVerifier();
 		this.advancedPskStore = config.getAdvancedPskStore();
@@ -1799,9 +1804,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @param outgoingMessage outgoing application data
 	 */
 	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
-		if (deferredApplicationData.size() < maxDeferredProcessedOutgoingApplicationDataMessages) {
 			deferredApplicationData.add(outgoingMessage);
-		}
 	}
 
 	/**
@@ -1862,9 +1865,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @return list of application data
 	 */
 	public List<RawData> takeDeferredApplicationData() {
-		List<RawData> applicationData = new ArrayList<RawData>(deferredApplicationData);
-		deferredApplicationData.clear();
-		return applicationData;
+		return deferredApplicationData.take();
 	}
 
 	/**
@@ -1891,7 +1892,7 @@ public abstract class Handshaker implements Destroyable {
 	 *            application data
 	 */
 	public void takeDeferredApplicationData(Handshaker replacedHandshaker) {
-		deferredApplicationData.addAll(replacedHandshaker.takeDeferredApplicationData());
+		deferredApplicationData.take(replacedHandshaker.deferredApplicationData);
 	}
 
 	/**
@@ -1917,7 +1918,16 @@ public abstract class Handshaker implements Destroyable {
 	 * @see #sendFlight(DTLSFlight)
 	 */
 	public void sendLastFlight(DTLSFlight flight) {
-		timeoutLastFlight = timer.schedule(new TimeoutCompletedTask(), nanosExpireTimeout, TimeUnit.NANOSECONDS);
+		Runnable task = connection.createTask(new Runnable() {
+			@Override
+			public void run() {
+				if (recordLayer.isRunning()) {
+					handshakeCompleted();
+				}
+			}
+		}, false);
+		
+		timeoutLastFlight = timer.schedule(task, nanosExpireTimeout, TimeUnit.NANOSECONDS);
 		flight.setRetransmissionNeeded(false);
 		sendFlight(flight);
 	}
@@ -1928,7 +1938,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @param flight flight to send
 	 * @see #sendFlight(DTLSFlight)
 	 */
-	public void sendFlight(DTLSFlight flight) {
+	public void sendFlight(final DTLSFlight flight) {
 		completePendingFlight();
 		try {
 			int timeout = retransmissionTimeout;
@@ -1954,7 +1964,12 @@ public abstract class Handshaker implements Destroyable {
 			recordLayer.sendFlight(datagrams);
 			pendingFlight.set(flight);
 			if (flight.isRetransmissionNeeded()) {
-				retransmitFlight = new TimeoutPeerTask(flight);
+				retransmitFlight = connection.createTask(new Runnable() {
+					@Override
+					public void run() {
+						handleTimeout(flight);
+					}
+				}, true);
 				flight.scheduleRetransmission(timer, retransmitFlight);
 			}
 			int effectiveMessageSize = flight.getEffectiveMaxMessageSize();
@@ -2086,79 +2101,6 @@ public abstract class Handshaker implements Destroyable {
 							"Handshake flight " + flight.getFlightNumber() + " failed!" + message, cause));
 				}
 			}
-		}
-	}
-
-	/**
-	 * Peer related task for executing in serial executor.
-	 * 
-	 * @since 2.4
-	 */
-	private class ConnectionTask implements Runnable {
-		/**
-		 * Task to execute in serial executor.
-		 */
-		private final Runnable task;
-		/**
-		 * Flag to force execution, if serial execution is exhausted or
-		 * shutdown. The task is then executed in the context of this
-		 * {@link Runnable}.
-		 */
-		private final boolean force;
-		/**
-		 * Create peer task.
-		 * 
-		 * @param task task to be execute in serial executor
-		 * @param force flag indicating, that the task should be executed, even
-		 *            if the serial executors are exhausted or shutdown.
-		 */
-		private ConnectionTask(Runnable task, boolean force) {
-			this.task = task;
-			this.force = force;
-		}
-
-		@Override
-		public void run() {
-			final SerialExecutor serialExecutor = connection.getExecutor();
-			try {
-				serialExecutor.execute(task);
-			} catch (RejectedExecutionException e) {
-				LOGGER.debug("Execution rejected while execute task of peer: {}", connection.getPeerAddress(), e);
-				if (force) {
-					task.run();
-				}
-			}
-		}
-	}
-
-	/**
-	 * Peer task calling the {@link #handleTimeout(DTLSFlight)}.
-	 * 
-	 * @since 2.4
-	 */
-	private class TimeoutPeerTask extends ConnectionTask {
-
-		private TimeoutPeerTask(final DTLSFlight flight) {
-			super(new Runnable() {
-				@Override
-				public void run() {
-					handleTimeout(flight);
-				}
-			}, true);
-		}
-	}
-
-	private class TimeoutCompletedTask extends ConnectionTask {
-
-		private TimeoutCompletedTask() {
-			super(new Runnable() {
-				@Override
-				public void run() {
-					if (recordLayer.isRunning()) {
-						handshakeCompleted();
-					}
-				}
-			}, false);
 		}
 	}
 

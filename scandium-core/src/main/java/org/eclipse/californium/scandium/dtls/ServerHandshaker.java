@@ -906,6 +906,10 @@ public class ServerHandshaker extends Handshaker {
 			if (connectionIdExtension != null) {
 				boolean useDeprecatedCid = connectionIdExtension.useDeprecatedCid();
 				if (!useDeprecatedCid || supportDeprecatedCid) {
+					if (returnRoutabilityCheck && clientHello.hasReturnRoutabilityCheckExtension()) {
+						session.setReturnRoutabilityCheck(true);
+						serverHello.addExtension(ReturnRoutabilityCheckExtension.INSTANCE);
+					}
 					ConnectionId connectionId = getReadConnectionId();
 					ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId,
 							connectionIdExtension.getType());

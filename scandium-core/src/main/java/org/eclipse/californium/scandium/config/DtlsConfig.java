@@ -277,6 +277,13 @@ public final class DtlsConfig {
 	public static final DtlsSecureRenegotiation DEFAULT_SECURE_RENEGOTIATION = DtlsSecureRenegotiation.WANTED;
 
 	/**
+	 * The default amplification threshold to trigger a return routability check.
+	 * 
+	 * @since 3.12
+	 */
+	public static final float DEFAULT_RETURN_ROUTABILITY_CHECK_THRESHOLD = 3.0F;
+	
+	/**
 	 * DTLS session timeout. Currently not supported!
 	 * 
 	 * Californium uses {@link #DTLS_MAX_CONNECTIONS} and
@@ -1060,6 +1067,18 @@ public final class DtlsConfig {
 	public static final BooleanDefinition DTLS_SUPPORT_KEY_MATERIAL_EXPORT = new BooleanDefinition(
 			MODULE + "SUPPORT_KEY_MATERIAL_EXPORT", "Support key material export according RFC5705.", false);
 
+	/**
+	 * Return routability check threshold.
+	 * 
+	 * Values less than {@code 1} to disable Return routability check.
+	 * 
+	 * @see 3.12
+	 */
+	public static final FloatDefinition DTLS_RETURN_ROUTABILITY_CHECK_THRESHOLD = new FloatDefinition(
+			MODULE + "RETURN_ROUTABILITY_CHECK_THRESHOLD",
+			"DTLS amplification threshold to trigger a return routability check. Values less than 1.0 disables the check.",
+			DEFAULT_RETURN_ROUTABILITY_CHECK_THRESHOLD);
+
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
 		@Override
@@ -1143,7 +1162,8 @@ public final class DtlsConfig {
 			config.set(DTLS_MAC_ERROR_FILTER_THRESHOLD, 0);
 			config.set(DTLS_SECURE_RENEGOTIATION, DEFAULT_SECURE_RENEGOTIATION);
 			config.set(DTLS_SUPPORT_KEY_MATERIAL_EXPORT, false);
-
+			config.set(DTLS_RETURN_ROUTABILITY_CHECK_THRESHOLD, DEFAULT_RETURN_ROUTABILITY_CHECK_THRESHOLD);
+			
 			DefinitionUtils.verify(DtlsConfig.class, config);
 		}
 	};

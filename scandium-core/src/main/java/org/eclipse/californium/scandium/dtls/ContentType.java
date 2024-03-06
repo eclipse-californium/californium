@@ -24,7 +24,7 @@ package org.eclipse.californium.scandium.dtls;
  */
 public enum ContentType {
 
-	CHANGE_CIPHER_SPEC(20), ALERT(21), HANDSHAKE(22), APPLICATION_DATA(23), TLS12_CID(25);
+	CHANGE_CIPHER_SPEC(20), ALERT(21), HANDSHAKE(22), APPLICATION_DATA(23), TLS12_CID(25), RRC(27);
 
 	private final int code;
 
@@ -42,7 +42,7 @@ public enum ContentType {
 	 * 
 	 * @param code
 	 *            the code representation of the content type (i.e. 20, 21, 22,
-	 *            23, 25).
+	 *            23, 25, 27).
 	 * @return the corresponding content type.
 	 */
 	public static ContentType getTypeByValue(int code) {
@@ -59,6 +59,8 @@ public enum ContentType {
 			/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/" target="_blank">Draft dtls-connection-id</a> **/
 			/** See <a href="https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY" target="_blank">IANA code point assignment</a> **/
 			return ContentType.TLS12_CID;
+		case 27:
+			return ContentType.RRC;
 
 		default:
 			return null;
@@ -78,6 +80,8 @@ public enum ContentType {
 			return "Application Data (23)";
 		case 25:
 			return "TLS CID (25)";
+		case 27:
+			return "Return Routability Check (27)";
 
 		default:
 			return "Unknown Content Type";

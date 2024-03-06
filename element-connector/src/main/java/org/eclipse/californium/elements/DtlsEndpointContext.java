@@ -140,7 +140,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	public static final Definition<InetSocketAddress> KEY_PREVIOUS_ADDRESS = new Definition<>(
 			KEY_PREFIX_NONE_CRITICAL + "DTLS_PREVIOUS_ADDRESS", InetSocketAddress.class, ATTRIBUTE_DEFINITIONS);
 	/**
-	 * The name of the attribute that contains a marker for the secure renegotiationt 
+	 * The name of the attribute that contains a marker for the secure renegotiation 
 	 * (see <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC 5746</a>).
 	 * 
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
@@ -150,6 +150,24 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public static final Definition<Boolean> KEY_SECURE_RENEGOTIATION = new Definition<>(
 			"DTLS_SECURE_RENEGOTIATION", Boolean.class, ATTRIBUTE_DEFINITIONS);
+	/**
+	 * The name of the attribute that contains a marker for the return
+	 * routability check.
+	 * 
+	 * Using DTLS Connection ID supports receiving messages from changed ip
+	 * source addresses. On receiving the first message with changed address,
+	 * this attribute is set to {@code Boolean#FALSE}. If the response message
+	 * just passes that value, the size of the message is used to decide, if a
+	 * return routability check is executed. If the response message uses
+	 * {@code Boolean#TRUE}, then a return routability check is executed without
+	 * considering the message size. Messages received during a return
+	 * routability check contains {@code Boolean#TRUE} and responses will be
+	 * kept until the return routability check has finished.
+	 * 
+	 * @since 3.12
+	 */
+	public static final Definition<Boolean> KEY_RETURN_ROUTABILITY_CHECK = new Definition<>(
+			KEY_PREFIX_NONE_CRITICAL + "DTLS_RETURN_ROUTABILITY_CHECK", Boolean.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * Force full handshake before send this message. Doesn't start a handshake,
 	 * if the connector is configured to act as server only.
@@ -208,6 +226,13 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public static final Attributes ATTRIBUE_HANDSHAKE_MODE_FORCE_FULL = new Attributes()
 			.add(KEY_HANDSHAKE_MODE, HANDSHAKE_MODE_FORCE_FULL).lock();
+	/**
+	 * Attribute to set RETURN_ROUTABILITY_CHECK to {@link Boolean#TRUE}.
+	 * 
+	 * @since 3.11
+	 */
+	public static final Attributes ATTRIBUE_FORCED_RETURN_ROUTABILITY_CHECK = new Attributes()
+			.add(KEY_RETURN_ROUTABILITY_CHECK, Boolean.TRUE).lock();
 
 	/**
 	 * Creates a context for DTLS session parameters.
