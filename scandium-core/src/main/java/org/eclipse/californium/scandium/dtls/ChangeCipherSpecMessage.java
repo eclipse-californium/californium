@@ -48,6 +48,7 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 	 * for specification.
 	 */
 	public enum CCSType {
+
 		CHANGE_CIPHER_SPEC(1);
 
 		private int code;
@@ -97,6 +98,10 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 		DatagramReader reader = new DatagramReader(byteArray);
 		int code = reader.read(CCS_BITS);
 		if (code == CCSType.CHANGE_CIPHER_SPEC.getCode()) {
+			if (reader.bytesAvailable()) {
+				throw new HandshakeException("Change Cipher Spec must be empty!",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
+			}
 			return new ChangeCipherSpecMessage();
 		} else {
 			String message = "Unknown Change Cipher Spec code received: " + code;
