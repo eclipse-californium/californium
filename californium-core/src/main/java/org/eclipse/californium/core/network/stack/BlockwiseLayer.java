@@ -708,7 +708,10 @@ public class BlockwiseLayer extends AbstractLayer {
 		if (isTransparentBlockwiseHandlingEnabled()) {
 
 			BlockOption requestBlock2 = exchange.getRequest().getOptions().getBlock2();
-
+			EndpointContext destinationContext = response.getEffectiveDestinationContext();
+			if (destinationContext == null) {
+				destinationContext = exchange.getRequest().getSourceContext();
+			}
 			if (isRandomAccess(exchange)) {
 
 				BlockOption responseBlock2 = response.getOptions().getBlock2();
@@ -722,7 +725,7 @@ public class BlockwiseLayer extends AbstractLayer {
 								tag, exchange.getRequest().getURI(), requestBlock2.getOffset(),
 								responseBlock2.getOffset());
 						responseToSend = new Response(ResponseCode.INTERNAL_SERVER_ERROR, true);
-						responseToSend.setDestinationContext(exchange.getRequest().getSourceContext());
+						responseToSend.setDestinationContext(destinationContext);
 						responseToSend.setType(response.getType());
 						responseToSend.setMID(response.getMID());
 						responseToSend.addMessageObservers(response.getMessageObservers());
@@ -737,7 +740,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				} else if (!response.isError()) {
 					// peer has requested a non existing block
 					responseToSend = new Response(ResponseCode.BAD_OPTION, true);
-					responseToSend.setDestinationContext(exchange.getRequest().getSourceContext());
+					responseToSend.setDestinationContext(destinationContext);
 					responseToSend.setType(response.getType());
 					responseToSend.setMID(response.getMID());
 					responseToSend.addMessageObservers(response.getMessageObservers());
@@ -760,7 +763,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					block2 = new BlockOption(preferredBlockSzx, false, 0);
 				}
 				responseToSend = status.getNextResponseBlock(block2);
-				responseToSend.setDestinationContext(exchange.getRequest().getSourceContext());
+				responseToSend.setDestinationContext(destinationContext);
 				if (!responseToSend.getOptions().getBlock2().isM()) {
 					clearBlock2Status(status);
 				}
