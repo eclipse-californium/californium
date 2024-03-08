@@ -776,6 +776,14 @@ public final class DtlsConfig {
 	 *      target= "_blank">RFC6347 4.1.2.6. Anti-Replay</a>
 	 */
 	public static final BooleanDefinition DTLS_USE_ANTI_REPLAY_FILTER = new BooleanDefinition(
+			MODULE + "USE_ANTI_REPLAY_FILTER", "DTLS use the anti-replay-filter.", true);
+
+	/**
+	 * Use anti replay filter with typo in name.
+	 * @deprecated
+	 */
+	@Deprecated
+	private static final BooleanDefinition DTLS_USE_USE_ANTI_REPLAY_FILTER = new BooleanDefinition(
 			MODULE + "USE_USE_ANTI_REPLAY_FILTER", "DTLS use the anti-replay-filter.", true);
 
 	/**
@@ -1111,6 +1119,7 @@ public final class DtlsConfig {
 					DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT);
 			config.set(DTLS_USE_HELLO_VERIFY_REQUEST, true);
 			config.set(DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, true);
+			config.setDeprecated(DTLS_USE_USE_ANTI_REPLAY_FILTER, DTLS_USE_ANTI_REPLAY_FILTER);
 			config.set(DTLS_USE_ANTI_REPLAY_FILTER, true);
 			config.set(DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER, 0);
 			config.set(DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS, true);
