@@ -23,8 +23,9 @@ import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * Application data messages are carried by the record layer and are fragmented,
- * compressed, and encrypted based on the current connection state. The messages
- * are treated as transparent data to the record layer.
+ * compressed, and encrypted based on the current connection state.
+ * 
+ * The messages are treated as transparent data to the record layer.
  */
 public final class ApplicationMessage implements DTLSMessage {
 
@@ -39,7 +40,7 @@ public final class ApplicationMessage implements DTLSMessage {
 	 * message's payload.
 	 * 
 	 * @param data byte array with the application data.
-	 * @throws NullPointerException if peer or data is {@code null}
+	 * @throws NullPointerException if data is {@code null}
 	 */
 	public ApplicationMessage(byte[] data) {
 		if (data == null) {
@@ -56,14 +57,19 @@ public final class ApplicationMessage implements DTLSMessage {
 	@Override
 	public String toString(int indent) {
 		StringBuilder sb = new StringBuilder();
-		String indentation = StringUtil.indentation(indent);
-		sb.append(indentation).append("Application Data: ").append(StringUtil.byteArray2HexString(data, StringUtil.NO_SEPARATOR, 32)).append(StringUtil.lineSeparator());
+		if (indent > 0) {
+			sb.append(StringUtil.indentation(indent));
+		}
+		sb.append("Application Data: ").append(StringUtil.byteArray2HexString(data, StringUtil.NO_SEPARATOR, 32));
+		if (indent > 0) {
+			sb.append(StringUtil.lineSeparator());
+		}
 		return sb.toString();
 	}
 
 	@Override
 	public String toString() {
-		return toString();
+		return toString(0);
 	}
 
 	@Override
