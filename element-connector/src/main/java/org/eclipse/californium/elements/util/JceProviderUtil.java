@@ -477,6 +477,7 @@ public class JceProviderUtil {
 			} else if (isNetI2PEdDsa(provider)) {
 				// i2p EdDSA support: add Ed25519 to KeyFactory
 				configure(provider, "Alg.Alias.KeyFactory." + JceNames.ED25519, JceNames.EDDSA);
+				configure(provider, "Alg.Alias.Signature." + JceNames.ED25519, "NONEwithEdDSA");
 			}
 			try {
 				KeyFactory.getInstance(JceNames.ED25519);
