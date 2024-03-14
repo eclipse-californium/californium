@@ -29,7 +29,7 @@ The variant and version may vary, but usually all from java "1.7" on will do it 
 sudo apt install openjdk-11-jre-headless
 ```
 
-and check the result again with `java -version`. If that's done, then copy your californium.jar to the host. If you want to run the cf-plugtest-server, it's the "<californium>/demo-apps/run/cf-plugtest-server-???.jar" (replace the ??? with the version your using, e.g. 3.10.0). The [cf-plugtest-server-3.10.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar) is also available for download.
+and check the result again with `java -version`. If that's done, then copy your californium.jar to the host. If you want to run the cf-plugtest-server, it's the "<californium>/demo-apps/run/cf-plugtest-server-???.jar" (replace the ??? with the version your using, e.g. 3.11.0). The [cf-plugtest-server-3.11.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar) is also available for download.
 
 ### Preparation
 
@@ -78,9 +78,9 @@ WantedBy=multi-user.target
 
 [Download "cali.service" file](scripts/cali.service)
 
-Depending on the number of connectors, the value of `TasksMax` in the service description must be adapted. There may be also a limit of  `TasksMax` from the machine it runs on. Especially, if a container solution is used instead of VM.  Check, if  "/proc/user_beancounters" is available, and if so, check the number of "numproc". The required number depends also from the used configuration value in the "Californium???3.properties". Check the values for receiving and sending threads per connector.  
+Depending on the number of connectors, the value of `TasksMax` in the service description must be adapted. There may be also a limit of  `TasksMax` from the machine it runs on. Especially, if a container solution is used instead of VM.  Check, if  "/proc/user_beancounters" is available, and if so, check the number of "numproc". The required number depends also from the used configuration value in the "Californium???3.properties". Check the values for receiving and sending threads per connector.
 
-**Note:** the number of connectors is not the number of connections. A connector can run many connections and doesn't require to use a high number of tasks.  
+**Note:** the number of connectors is not the number of connections. A connector can run many connections and doesn't require to use a high number of tasks.
 
 **Note:** `-XX:MaxRAMPercentage=75` is supported from java 11 on. For older java versions please adjust the size  of the java heap according your needs using `-Xmx`, e.g. `-Xmx1000m`.
 
@@ -115,7 +115,7 @@ users:
 
 runcmd:
  - [ wget, "https://github.com/eclipse-californium/californium/raw/main/demo-apps/cf-unix-setup/scripts/cali.service", -O, "/etc/systemd/system/cali.service" ]
- - [ wget, "https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar", -O, "/home/cali/cf-plugtest-server-update.jar" ]
+ - [ wget, "https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar", -O, "/home/cali/cf-plugtest-server-update.jar" ]
  - [ wget, "https://github.com/eclipse-californium/californium/raw/main/demo-apps/cf-plugtest-server/src/main/resources/logback.xml", -O, "/home/cali/logback.xml" ]
  - [ systemctl, start, cali ]
  - [ systemctl, enable, cali ]
@@ -127,7 +127,7 @@ runcmd:
 
 [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml)
 
-This updates all packages, installs a java runtime and [fail2ban](#fail2ban). It the follows the manual installation, copying files and configuring the systemd service. The used files are downloaded from this git repository and the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar).
+This updates all packages, installs a java runtime and [fail2ban](#fail2ban). It the follows the manual installation, copying files and configuring the systemd service. The used files are downloaded from this git repository and the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar).
 
 ### Installation on Exoscale cloud
 
@@ -135,7 +135,7 @@ This updates all packages, installs a java runtime and [fail2ban](#fail2ban). It
 
 [deploy_exo.sh](scripts/cloud-installs/deploy_exo.sh)
 
-This script uses the exoscale cli (exo) to create a compute instance and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar).
+This script uses the exoscale cli (exo) to create a compute instance and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar).
 
 Features: IPv4, IPv6, Firewall
 
@@ -147,7 +147,7 @@ For further instructions see the comments in that script.
 
 [deploy_do.sh](scripts/cloud-installs/deploy_do.sh)
 
-This script uses the digitalocean cli (doctl) to create a compute droplet and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar).
+This script uses the digitalocean cli (doctl) to create a compute droplet and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar).
 
 Features: IPv4, IPv6, Firewall
 
@@ -159,7 +159,7 @@ For further instructions see the comments in that script.
 
 [deploy_gcloud.sh](scripts/cloud-installs/deploy_gcloud.sh)
 
-This script uses the google cloud API (gcloud) to create a compute instance and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar).
+This script uses the google cloud API (gcloud) to create a compute instance and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar).
 
 Features: IPv4, Firewall
 
@@ -171,7 +171,7 @@ For further instructions see the comments in that script.
 
 [deploy_azure.sh](scripts/cloud-installs/deploy_azure.sh)
 
-This script uses the azure cloud API (az) to create a vm and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar).
+This script uses the azure cloud API (az) to create a vm and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar).
 
 Features: IPv4, Firewall
 
@@ -183,7 +183,7 @@ For further instructions see the comments in that script.
 
 [deploy_aws.sh](scripts/cloud-installs/deploy_aws.sh)
 
-This script uses the aws API (aws) to create a vm and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar).
+This script uses the aws API (aws) to create a vm and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar).
 
 Features: IPv4, Firewall
 

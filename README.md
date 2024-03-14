@@ -24,30 +24,20 @@ Executable JARs of the examples with all dependencies can be found in the `demo-
 The build-process in branch `main` is tested for jdk 7, jdk 8, jdk 11 and jdk 17. 
 For jdk 7 the revapi maven-plugin is disabled, it requires at least java 8.
 
+Note: the build **has been" tested long ago. In the meantime too much has changed. Please focus on using jdk 17 to build it.
+
 To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set the `JAVA_HOME`.
 
 ```sh
 $ mvn clean install -DcreateJavadoc=true
 ```
-## Build earlier release
-
-## !!! Since 29. October 2021 !!!
-**The hostname "non-existing.host" is now existing and all builds of version and tags before that date will fail the tests. Therefore use -DskipTests**
-
-To (re-)build versions before that date the unit tests must therefore be skipped.
-
-```sh
-$ mvn clean install -DskipTests
-```
-
-Earlier versions (3.0.0-Mx, 2.6.5 and before) may also fail to build with newer JDKs, especially, if java 17 is used! That is cause by the unit test dependency to a deprecated version of "mockito". If such a (re-)build is required, the unit tests must be skipped (which is in the meantime anyway required caused by the "non-existing.host").
-
-In combination with the "non-existing.host" now existing, the build with unit test only works for the current heads of the branches `2.6.x`, `2.7.x`, `2.8.x` and `main`!
 
 ## Build jdk7 compliant
 
+In the meantime, JDK 7 is pretty deprecated! The next major version (4) will not longer support it! It hopefully comes this year (2024).
+
 Californium 2.x and newer can be used with java 7 or newer. In order to use plugins,
-which are only supported for newer jdks, the `--release` option is used (requires java 9 or newer).
+which are only supported for newer jdks, the `--release` option is used (requires java 9 or newer to build it).
 
 If you want to build it with a jdk 7, the toolchain plugin could be used, but requires
 manually remove the `maven.compiler.release` property in the pom.xml. That requires
@@ -130,9 +120,9 @@ With that, it gets very time consuming to test all combinations. Therefore, if y
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.10.0).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.11.0).
 To use the latest released version as a library in your projects, add the following dependency
-to your `pom.xml` (without the dots):
+to your `pom.xml` (without the dots `...`):
 
 ```xml
   <dependencies>
@@ -140,7 +130,7 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>3.10.0</version>
+            <version>3.11.0</version>
     </dependency>
     ...
   </dependencies>
@@ -164,7 +154,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `3.11.0-SNAPSHOT`.
+You can then simply depend on `3.12.0-SNAPSHOT`.
 
 # Eclipse
 
@@ -187,8 +177,10 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 
 A test server is running at <a href="coap://californium.eclipseprojects.io:5683/">coap://californium.eclipseprojects.io:5683/</a>
 
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.10.0/cf-plugtest-server-3.10.0.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar) from the demo-apps.
 The root resource responds with its current version.
+
+For a preview to the [Return Routability Check for DTLS 1.2 and DTLS 1.3](https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html) experimental support, please read [feature/rrc - branch](https://github.com/eclipse-californium/californium/tree/feature/rrc).
 
 **Please note:**
 The server is intended to test the interoperability of CoAP and DTLS 1.2. Data sent to that server is typically "Hello world". The data is public visible to all other users and is removed on any restart. Please don't send data, which requires "data privacy", the sandbox server is not intended for such usage. 
