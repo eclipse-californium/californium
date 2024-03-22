@@ -16,6 +16,7 @@
 package org.eclipse.californium.scandium.util;
 
 import java.security.MessageDigest;
+import java.security.PrivateKey;
 import java.security.spec.KeySpec;
 import java.util.Arrays;
 
@@ -31,7 +32,20 @@ import org.slf4j.LoggerFactory;
  * Utility to use {@link Destroyable} {@link SecretKey} for java before 1.8.
  */
 public class SecretUtil {
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(SecretUtil.class);
+
+	/**
+	 * Destroy private key.
+	 * 
+	 * @param key private key to destroy. If {@code null}, nothing is destroyed.
+	 * @since 3.12
+	 */
+	public static void destroy(PrivateKey key) {
+		if (key instanceof Destroyable) {
+			destroy((Destroyable) key);
+		}
+	}
 
 	/**
 	 * Destroy secret key.
@@ -54,19 +68,39 @@ public class SecretUtil {
 			try {
 				destroyable.destroy();
 			} catch (DestroyFailedException e) {
-				// Using SecretIvParameterSpec or SecretKey created by this class
-				// should never throw it. Using other Destroyable implementations
-				// may throw it.
+				// Using SecretIvParameterSpec or SecretKey created by this
+				// class should never throw it.
+				// Using other Destroyable implementations may throw it.
 				LOGGER.warn("Destroy on {} failed!", destroyable.getClass(), e);
 			}
 		}
 	}
 
 	/**
+	 * Checks if a private key has already been destroyed.
+	 * 
+	 * @param key private key to check (may be {@code null}).
+	 * @return {@code true} if the key either is {@code null} or has been
+	 *         destroyed.
+	 * @since 3.12
+	 */
+	public static boolean isDestroyed(PrivateKey key) {
+		if (key != null) {
+			if (key instanceof Destroyable) {
+				return ((Destroyable) key).isDestroyed();
+			} else {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Checks if a secret key has already been destroyed.
 	 * 
 	 * @param key secret key to check (may be {@code null}).
-	 * @return {@code true} if the key either is {@code null} or has been destroyed.
+	 * @return {@code true} if the key either is {@code null} or has been
+	 *         destroyed.
 	 */
 	public static boolean isDestroyed(SecretKey key) {
 		if (key != null) {
@@ -83,7 +117,8 @@ public class SecretUtil {
 	 * Checks if a given destroyable has already been destroyed.
 	 * 
 	 * @param destroyable The destroyable to check (may be {@code null}).
-	 * @return {@code true} if the given object either is {@code null} or has been destroyed.
+	 * @return {@code true} if the given object either is {@code null} or has
+	 *         been destroyed.
 	 */
 	public static boolean isDestroyed(Destroyable destroyable) {
 		return destroyable == null || destroyable.isDestroyed();
@@ -94,9 +129,10 @@ public class SecretUtil {
 	 * 
 	 * @param secret The key material.
 	 * @param algorithm The algorithm that the key is used for. The name
-	 *                  <em>PSK</em> should be used if the key is supposed to
-	 *                  be used with a PSK based TLS handshake.
-	 * @return The newly created key which also implements {@code javax.security.auth.Destroyable}.
+	 *            <em>PSK</em> should be used if the key is supposed to be used
+	 *            with a PSK based TLS handshake.
+	 * @return The newly created key which also implements
+	 *         {@code javax.security.auth.Destroyable}.
 	 */
 	public static SecretKey create(byte[] secret, String algorithm) {
 		return new DestroyableSecretKeySpec(secret, algorithm);
@@ -106,12 +142,14 @@ public class SecretUtil {
 	 * Create a secret key.
 	 * 
 	 * @param secret The source to copy the key material from.
-	 * @param offset The start index from which the key material should be copied.
+	 * @param offset The start index from which the key material should be
+	 *            copied.
 	 * @param length The number of bytes to copy.
 	 * @param algorithm The algorithm that the key is used for. The name
-	 *                  <em>PSK</em> should be used if the key is supposed to
-	 *                  be used with a PSK based TLS handshake.
-	 * @return The newly created key which also implements {@code javax.security.auth.Destroyable}.
+	 *            <em>PSK</em> should be used if the key is supposed to be used
+	 *            with a PSK based TLS handshake.
+	 * @return The newly created key which also implements
+	 *         {@code javax.security.auth.Destroyable}.
 	 */
 	public static SecretKey create(byte[] secret, int offset, int length, String algorithm) {
 		return new DestroyableSecretKeySpec(secret, offset, length, algorithm);
@@ -121,8 +159,9 @@ public class SecretUtil {
 	 * Creates a copy of a secret key.
 	 * 
 	 * @param key The key to copy (may be {@code null}).
-	 * @return The newly created key or {@code null} if the provided key was {@code null}.
-	 *         The returned key also implements {@code javax.security.auth.Destroyable}.
+	 * @return The newly created key or {@code null} if the provided key was
+	 *         {@code null}. The returned key also implements
+	 *         {@code javax.security.auth.Destroyable}.
 	 */
 	public static SecretKey create(SecretKey key) {
 		SecretKey result = null;
@@ -138,7 +177,8 @@ public class SecretUtil {
 	 * Creates copy of a secret init vector.
 	 * 
 	 * @param iv The init vector to copy (may be {@code null}).
-	 * @return The newly created IV, or {@code null} if the provided IV was {@code null}.
+	 * @return The newly created IV, or {@code null} if the provided IV was
+	 *         {@code null}.
 	 */
 	public static SecretIvParameterSpec createIv(SecretIvParameterSpec iv) {
 		SecretIvParameterSpec result = null;
