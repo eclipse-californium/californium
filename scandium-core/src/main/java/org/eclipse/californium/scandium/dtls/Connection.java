@@ -503,6 +503,25 @@ public final class Connection {
 	}
 
 	/**
+	 * Sets the {@link Principal} of the established session.
+	 * 
+	 * @param principal the {@link Principal} of the established session.
+	 * @throws NullPointerException if principal is {@code null}
+	 * @throws IllegalStateException if session is not established
+	 * @since 3.12
+	 */
+	public void setEstablishedPeerIdentity(Principal principal) {
+		if (principal == null) {
+			throw new IllegalStateException("Principal must not be null!");
+		}
+		DTLSContext context = getEstablishedDtlsContext();
+		if (context == null) {
+			throw new IllegalStateException("DTLS session not established!");
+		}
+		context.getSession().setPeerIdentity(principal);
+	}
+
+	/**
 	 * Gets the DTLS session id of an already established DTLS context that
 	 * exists with this connection's peer.
 	 * 

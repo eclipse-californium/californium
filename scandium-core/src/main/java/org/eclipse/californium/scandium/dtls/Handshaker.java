@@ -2588,22 +2588,14 @@ public abstract class Handshaker implements Destroyable {
 
 		DTLSSession session = getSession();
 		Principal peerIdentity = session.getPeerIdentity();
-		if (peerIdentity instanceof ExtensiblePrincipal) {
+		if (applicationLevelInfoSupplier != null && peerIdentity instanceof ExtensiblePrincipal) {
 			// amend the client principal with additional application level information
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensibleClientIdentity = (ExtensiblePrincipal<? extends Principal>) peerIdentity;
-			AdditionalInfo additionalInfo = getAdditionalPeerInfo(peerIdentity);
+			AdditionalInfo additionalInfo = applicationLevelInfoSupplier.getInfo(peerIdentity, customArgument);
 			if (additionalInfo != null) {
 				session.setPeerIdentity(extensibleClientIdentity.amend(additionalInfo));
 			}
-		}
-	}
-
-	private AdditionalInfo getAdditionalPeerInfo(Principal peerIdentity) {
-		if (applicationLevelInfoSupplier == null || peerIdentity == null) {
-			return null;
-		} else {
-			return applicationLevelInfoSupplier.getInfo(peerIdentity, customArgument);
 		}
 	}
 }
