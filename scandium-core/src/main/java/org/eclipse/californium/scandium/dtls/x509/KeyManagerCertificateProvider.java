@@ -386,14 +386,14 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				X509Certificate[] certificateChain = keyManager.getCertificateChain(id);
 				List<X509Certificate> chain = Arrays.asList(certificateChain);
 				PrivateKey privateKey = keyManager.getPrivateKey(id);
-				return new CertificateIdentityResult(cid, privateKey, chain, id);
+				return new CertificateIdentityResult(cid, privateKey, chain);
 			} else {
 				LOGGER.debug("[{}]: {} no matching credentials left!", id, role);
 			}
 		} else {
 			LOGGER.debug("[{}]: no matching credentials", id);
 		}
-		return new CertificateIdentityResult(cid, null);
+		return new CertificateIdentityResult(cid);
 	}
 
 	@Override

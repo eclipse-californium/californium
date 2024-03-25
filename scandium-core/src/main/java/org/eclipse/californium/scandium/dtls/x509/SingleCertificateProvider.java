@@ -227,9 +227,9 @@ public class SingleCertificateProvider implements CertificateProvider, Configura
 			List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
 			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves) {
 		if (certificateChain != null) {
-			return new CertificateIdentityResult(cid, privateKey, certificateChain, null);
+			return new CertificateIdentityResult(cid, privateKey, certificateChain);
 		} else {
-			return new CertificateIdentityResult(cid, privateKey, publicKey, null);
+			return new CertificateIdentityResult(cid, privateKey, publicKey);
 		}
 	}
 
