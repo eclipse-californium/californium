@@ -36,7 +36,7 @@ import org.eclipse.californium.scandium.ConnectionListener;
  * @since 1.1
  */
 @SuppressWarnings("deprecation")
-public interface ResumptionSupportingConnectionStore extends PersistentConnector {
+public interface ResumptionSupportingConnectionStore extends PersistentConnector, Iterable<Connection> {
 
 	/**
 	 * Set connection listener.

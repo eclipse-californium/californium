@@ -168,6 +168,8 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.PersistentComponent;
 import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
@@ -190,6 +192,7 @@ import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
+import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -1523,7 +1526,24 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 
 	@Override
 	public int load(InputStream in, long deltaNanos) throws IOException {
-		return connectionStore.loadConnections(in, deltaNanos);
+		int res = connectionStore.loadConnections(in, deltaNanos);
+		ApplicationLevelInfoSupplier infoSupplier = config.getApplicationLevelInfoSupplier();
+		if (infoSupplier != null) {
+			for (Connection connection : connectionStore) {
+				Principal principal = connection.getEstablishedPeerIdentity();
+				if (principal instanceof ExtensiblePrincipal) {
+					// amend the client principal with
+					// additional application level information
+					@SuppressWarnings("unchecked")
+					ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
+					AdditionalInfo additionalInfo = infoSupplier.getInfo(principal, null);
+					if (additionalInfo != null) {
+						connection.setEstablishedPeerIdentity(extensiblePrincipal.amend(additionalInfo));
+					}
+				}
+			}
+		}
+		return res;
 	}
 
 	@Override
@@ -1578,8 +1598,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 * @return future to cancel or wait for completion
 	 * @see #startTerminateConnectionsForPrincipal(org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate,
 	 *      boolean)
-	 * @deprecated use
-	 *             {@link #startTerminateConnectionsForPrincipal(Filter)}
+	 * @deprecated use {@link #startTerminateConnectionsForPrincipal(Filter)}
 	 *             instead.
 	 */
 	@Deprecated
@@ -1660,8 +1679,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 	 *            iterator. Iteration is stopped, when handler returns
 	 *            {@code true}
 	 * @param result future to get cancelled or signal completion
-	 * @deprecated use
-	 *             {@link #nextForEach(Iterator, Filter, ForEachFuture)}
+	 * @deprecated use {@link #nextForEach(Iterator, Filter, ForEachFuture)}
 	 *             instead.
 	 */
 	@Deprecated
@@ -2233,7 +2251,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 				return;
 			}
 
-			// When a connection is closed, drop records newer than 
+			// When a connection is closed, drop records newer than
 			// the close notify base on the epoch/sequence number
 			boolean closed = connection.isClosed();
 			// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay
@@ -2430,7 +2448,7 @@ public class DTLSConnector implements Connector, PersistentConnector, Persistent
 			if (channel != null) {
 				// context
 				Attributes attributes = new Attributes();
-				//dtls sequence number
+				// dtls sequence number
 				attributes.add(DtlsEndpointContext.DTLS_READ_SEQUENCE_NUMBER, record.getSequenceNumber());
 				if (newest) {
 					attributes.add(DtlsEndpointContext.KEY_NEWEST_RECORD, Boolean.TRUE);
