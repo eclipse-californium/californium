@@ -507,14 +507,40 @@ public class StringUtil {
 	 * @since 3.7
 	 */
 	public static String truncateTail(String text, String tail) {
+		return truncateTail(false, text, tail);
+	}
+
+	/**
+	 * Remove tail from text.
+	 * 
+	 * If provided tail doesn't match the tail of the text, the text is returned
+	 * unchanged.
+	 * 
+	 * @param ignoreCase ignore case of characters
+	 * @param text text to remove tail
+	 * @param tail tail to remove
+	 * @return text with tail removed, if matching. Otherwise the provided text.
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
+	 * @since 3.12
+	 */
+	public static String truncateTail(boolean ignoreCase, String text, String tail) {
 		if (text == null) {
 			throw new NullPointerException("Text must not be null!");
 		}
 		if (tail == null) {
 			throw new NullPointerException("Tail must not be null!");
 		}
-		if (tail.length() > 0 && text.endsWith(tail)) {
-			return text.substring(0, text.length() - tail.length());
+		int length = tail.length();
+		int offset = text.length() - length;
+		if (offset >= 0) {
+			if (text.regionMatches(ignoreCase, offset, tail, 0, length)) {
+				if (offset == 0) {
+					return "";
+				} else {
+					return text.substring(0, offset);
+				}
+			}
 		}
 		return text;
 	}
@@ -524,7 +550,7 @@ public class StringUtil {
 	 * 
 	 * If provided header doesn't match, the provided builder is unchanged.
 	 * 
-	 * @param builder builder to remove tail
+	 * @param builder builder to remove header
 	 * @param header header to remove.
 	 * @return {@code true}, if the provided header has been removed,
 	 *         {@code false}, if the build is left unchanged.
@@ -537,7 +563,7 @@ public class StringUtil {
 			throw new NullPointerException("Builder must not be null!");
 		}
 		if (header == null) {
-			throw new NullPointerException("Tail must not be null!");
+			throw new NullPointerException("Header must not be null!");
 		}
 		boolean truncated = false;
 		int headerLength = header.length();
@@ -562,7 +588,7 @@ public class StringUtil {
 	 * If provided header doesn't match the header of the text, the text is
 	 * returned unchanged.
 	 * 
-	 * @param text text to remove tail
+	 * @param text text to remove header
 	 * @param header header to remove
 	 * @return text with header removed, if matching. Otherwise the provided
 	 *         text.
@@ -575,10 +601,45 @@ public class StringUtil {
 			throw new NullPointerException("Text must not be null!");
 		}
 		if (header == null) {
-			throw new NullPointerException("Tail must not be null!");
+			throw new NullPointerException("Header must not be null!");
 		}
 		if (header.length() > 0 && text.startsWith(header)) {
 			return text.substring(header.length());
+		}
+		return text;
+	}
+
+	/**
+	 * Remove header from text.
+	 * 
+	 * If provided header doesn't match the header of the text, the text is
+	 * returned unchanged.
+	 * 
+	 * @param ignoreCase ignore case of characters
+	 * @param text text to remove header
+	 * @param header header to remove
+	 * @return text with header removed, if matching. Otherwise the provided
+	 *         text.
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
+	 * @since 3.12
+	 */
+	public static String truncateHeader(boolean ignoreCase, String text, String header) {
+		if (text == null) {
+			throw new NullPointerException("Text must not be null!");
+		}
+		if (header == null) {
+			throw new NullPointerException("Header must not be null!");
+		}
+		int length = header.length();
+		if (text.length() >= length) {
+			if (text.regionMatches(ignoreCase, 0, header, 0, length)) {
+				if (text.length() == length) {
+					return "";
+				} else {
+					return text.substring(length);
+				}
+			}
 		}
 		return text;
 	}
