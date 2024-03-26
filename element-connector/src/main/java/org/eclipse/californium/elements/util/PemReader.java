@@ -19,6 +19,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PemReader {
+
 	/**
 	 * The logger.
 	 * 
@@ -41,8 +43,23 @@ public class PemReader {
 	private BufferedReader reader;
 	private String tag;
 
+	/**
+	 * Create PEM reader from {@link InputStream}.
+	 * 
+	 * @param in input stream
+	 */
 	public PemReader(InputStream in) {
 		reader = new BufferedReader(new InputStreamReader(in));
+	}
+
+	/**
+	 * Create PEM reader from {@link Reader}.
+	 * 
+	 * @param in reader
+	 * @since 3.12
+	 */
+	public PemReader(Reader in) {
+		reader = new BufferedReader(in);
 	}
 
 	public void close() {

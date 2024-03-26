@@ -964,14 +964,26 @@ public class SslContextUtil {
 	 * @since 3.0 (changed scope to public)
 	 */
 	public static Credentials loadPemCredentials(InputStream inputStream) throws GeneralSecurityException, IOException {
-		PemReader reader = new PemReader(inputStream);
+		return loadPemCredentials(new PemReader(inputStream));
+	}
+
+	/**
+	 * Load credentials in PEM format
+	 * 
+	 * @param pemReader PEM reader
+	 * @return credentials
+	 * @throws GeneralSecurityException if credentials could not be read
+	 * @throws IOException if key store could not be read
+	 * @since 3.12
+	 */
+	public static Credentials loadPemCredentials(PemReader pemReader) throws GeneralSecurityException, IOException {
 		try {
 			String tag;
 			Asn1DerDecoder.Keys keys = new Asn1DerDecoder.Keys();
 			List<Certificate> certificatesList = new ArrayList<>();
 			CertificateFactory factory = CertificateFactory.getInstance("X.509");
-			while ((tag = reader.readNextBegin()) != null) {
-				byte[] decode = reader.readToEnd();
+			while ((tag = pemReader.readNextBegin()) != null) {
+				byte[] decode = pemReader.readToEnd();
 				if (decode != null) {
 					if (tag.contains("CERTIFICATE")) {
 						certificatesList.add(factory.generateCertificate(new ByteArrayInputStream(decode)));
@@ -1024,7 +1036,7 @@ public class SslContextUtil {
 				return new Credentials(keys.getPrivateKey(), keys.getPublicKey(), x509Certificates);
 			}
 		} finally {
-			reader.close();
+			pemReader.close();
 		}
 	}
 
@@ -1348,8 +1360,8 @@ public class SslContextUtil {
 	/**
 	 * Credentials.
 	 * 
-	 * Pair of private key and public key or certificate chain. Or set of trusted
-	 * certificates.
+	 * Pair of private key and public key or certificate chain. Or set of
+	 * trusted certificates.
 	 */
 	public static class Credentials {
 
@@ -1477,6 +1489,32 @@ public class SslContextUtil {
 				}
 			}
 			return false;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 * 
+		 * Text indicating the available components.
+		 * 
+		 * @since 3.12
+		 */
+		public String toString() {
+			if (privateKey != null) {
+				if (chain != null) {
+					return "private key + certificate chain";
+				} else if (publicKey != null) {
+					return "private key + public key";
+				} else {
+					return "private key";
+				}
+			} else if (chain != null) {
+				return "certificate chain";
+			} else if (publicKey != null) {
+				return "public key";
+			} else if (trusts != null) {
+				return "trusted certificates";
+			}
+			return "no credentials";
 		}
 	}
 
