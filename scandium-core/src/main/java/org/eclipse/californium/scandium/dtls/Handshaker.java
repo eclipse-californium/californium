@@ -2524,7 +2524,7 @@ public abstract class Handshaker implements Destroyable {
 		certificateIdentityPending = true;
 		CertificateIdentityResult result;
 		if (certificateIdentityProvider == null) {
-			result = new CertificateIdentityResult(connection.getConnectionId(), null);
+			result = new CertificateIdentityResult(connection.getConnectionId());
 		} else {
 			LOGGER.info("Start certificate identity.");
 			result = certificateIdentityProvider.requestCertificateIdentity(connection.getConnectionId(), isClient(),
