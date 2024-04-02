@@ -63,6 +63,7 @@
 				<artifactId>maven-dependency-plugin</artifactId>
 				<executions>
 					<execution>
+						<?m2e ignore?>
 						<id>copy-installed</id>
 						<phase>install</phase>
 						<goals>
