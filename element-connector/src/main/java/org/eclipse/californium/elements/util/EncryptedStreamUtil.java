@@ -333,7 +333,8 @@ public class EncryptedStreamUtil {
 	/**
 	 * Get read cipher specification.
 	 * 
-	 * @return cipher specification (algorithm + key size). e.g. "AES/GCM/128". {@code null}, if 
+	 * @return cipher specification (algorithm + key size). e.g. "AES/GCM/128".
+	 *         {@code null}, if not available
 	 * @since 3.9
 	 */
 	public String getReadCipher() {
