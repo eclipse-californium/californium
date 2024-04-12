@@ -749,7 +749,7 @@ public class Asn1DerDecoder {
 		Keys keys = null;
 		String algorithm = readPrivateKeyAlgorithm(data);
 		if (algorithm != null) {
-			if (algorithm == JceNames.ED25519v2 || algorithm == ED448v2) {
+			if (algorithm == JceNames.ED25519v2 || algorithm == JceNames.ED448v2) {
 				keys = readEdDsaPrivateKeyV2(data);
 			} else if (algorithm == JceNames.ECv2) {
 				keys = readEcPrivateKeyV2(data);
