@@ -32,6 +32,7 @@ import java.security.spec.ECPoint;
 import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EncodedKeySpec;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
@@ -715,7 +716,7 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target=
+	 * v1 (PKCS #8), <a href="https://tools.ietf.org/html/rfc5208" target=
 	"_blank">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
@@ -723,7 +724,7 @@ public class Asn1DerDecoder {
 	 *  privateKey                PrivateKey,
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
-	 * v2 (PKCS12), 
+	 * v2 (PKCS #12), 
 	 * <a href="https://tools.ietf.org/html/rfc5958" target=
 	"_blank">RFC 5958 - (EC only!)</a>,
 	 * <a href="https://tools.ietf.org/html/rfc8410" target=
@@ -740,9 +741,9 @@ public class Asn1DerDecoder {
 	 * </pre>
 	 * 
 	 * @param data private key encoded in ASN.1 DER
-	 * @return keys with private key for RFC 5208 encoding and optional public
-	 *         key for RFC 5958 or RFC8410 encoding. Or {@code null}, if the OID
-	 *         of the private key is unknown.
+	 * @return keys with private key and optional public key for RFC 5208, RFC
+	 *         5958 or RFC8410 encoding. Or {@code null}, if the OID of the
+	 *         private key is unknown.
 	 * @throws GeneralSecurityException if private key could not be read
 	 */
 	public static Keys readPrivateKey(final byte[] data) throws GeneralSecurityException {
@@ -753,12 +754,95 @@ public class Asn1DerDecoder {
 				keys = readEdDsaPrivateKeyV2(data);
 			} else if (algorithm == JceNames.ECv2) {
 				keys = readEcPrivateKeyV2(data);
+			} else if (algorithm == JceNames.EC) {
+				keys = readEcPrivateKeyV1(data);
 			} else {
 				KeyFactory factory = getKeyFactory(algorithm);
 				EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(data);
 				keys = new Keys();
 				keys.privateKey = factory.generatePrivate(privateKeySpec);
 			}
+		}
+		return keys;
+	}
+
+	/**
+	 * Read EC private key (and public key) from PKCS #8 / RFC 5208 v1 format.
+	 * 
+	 * <pre>
+	 * EC private key, <a href="https://tools.ietf.org/html/rfc5915" target=
+	 * "_blank">RFC 5915</a>
+	 * ECPrivateKey ::= SEQUENCE {
+	 *      version        INTEGER { ecPrivkeyVer1(1) } (ecPrivkeyVer1),
+	 *      privateKey     OCTET STRING,
+	 *      parameters [0] ECParameters {{ NamedCurve }} OPTIONAL,
+	 *      publicKey  [1] BIT STRING OPTIONAL }
+	 * </pre>
+	 * 
+	 * @param data ec private key encoded according PKCS #8, RFC 5208 / RFC 5915
+	 *            v1
+	 * @return keys with private and public key. {@code null}, if keys could not
+	 *         be read.
+	 * @throws GeneralSecurityException if decoding fails.
+	 * @since 3.12
+	 */
+	public static Keys readEcPrivateKeyV1(final byte[] data) throws GeneralSecurityException {
+		Keys keys = null;
+		// outer sequence, PrivateKeyInfo
+		DatagramReader reader = new DatagramReader(data, false);
+		reader = SEQUENCE.createRangeReader(reader, false);
+		// INTEGER version
+		byte[] readValue = INTEGER.readValue(reader);
+		if (readValue.length == 1 && readValue[0] == 0) {
+			try {
+				// RFC 5480, PrivateKeyAlgorithmIdentifier
+				DatagramReader sequenceReader = SEQUENCE.createRangeReader(reader, false);
+				byte[] oid = readOidValue(sequenceReader);
+				if (!Arrays.equals(oid, OID_EC_PUBLIC_KEY)) {
+					throw new InvalidKeySpecException("Provided key is no EC key! " + OID.toString(oid));
+				}
+				oid = readOidValue(sequenceReader);
+				ECParameterSpec ecParameterSpec = getECParameterSpec(OID.toString(oid));
+				// RFC 5208, private key as OCTET_STRING
+				reader = OCTET_STRING.createRangeReader(reader, false);
+				// RFC 5915, EC private key, SEQUENCE
+				reader = SEQUENCE.createRangeReader(reader, false);
+				// INTEGER version
+				readValue = INTEGER.readValue(reader);
+				if (readValue.length == 1 && readValue[0] == 1) {
+					// OCTET_STRING, private key
+					byte[] privateKeyValue = OCTET_STRING.readValue(reader);
+					int keySize = (ecParameterSpec.getCurve().getField().getFieldSize() + Byte.SIZE - 1) / Byte.SIZE;
+					if (privateKeyValue.length != keySize) {
+						throw new GeneralSecurityException(
+								"private key size " + privateKeyValue.length + " doesn't match " + keySize);
+					}
+					KeySpec privateKeySpec = new ECPrivateKeySpec(new BigInteger(1, privateKeyValue), ecParameterSpec);
+					keys = new Keys();
+					keys.privateKey = KeyFactory.getInstance(JceNames.EC).generatePrivate(privateKeySpec);
+					// ignore, optional
+					CONTEXT_SPECIFIC_0.createOptionalRangeReader(reader, false);
+					// BIT_STRING. optional
+					DatagramReader value = CONTEXT_SPECIFIC_1.createOptionalRangeReader(reader, false);
+					if (value != null) {
+						value = BIT_STRING.createRangeReader(value, false);
+						// BIT_STRING, unused bits in last byte
+						int unusedBits = value.read(Byte.SIZE);
+						if (unusedBits == 0) {
+							keys.publicKey = readEcPublicKey(value, ecParameterSpec);
+						}
+					}
+				} else {
+					throw new InvalidKeySpecException("Provided EC private key version " + readValue[0] + " is not 1!");
+				}
+			} catch (IllegalArgumentException e) {
+				throw new GeneralSecurityException(e.getMessage(), e);
+			} catch (GeneralSecurityException e) {
+				// currently only EC is supported for RFC 5958 v2
+				throw e;
+			}
+		} else {
+			throw new InvalidKeySpecException("Provided version " + readValue[0] + " is not 0!");
 		}
 		return keys;
 	}
@@ -779,11 +863,8 @@ public class Asn1DerDecoder {
 		// INTEGER version
 		byte[] readValue = INTEGER.readValue(reader);
 		if (readValue.length == 1 && readValue[0] == 1) {
-			try {
-				SEQUENCE.createRangeReader(reader, false);
-			} catch (IllegalArgumentException ex) {
-				// ignore, optional
-			}
+			// ignore, optional
+			SEQUENCE.createOptionalRangeReader(reader, false);
 			// RFC 5958
 			// OCTET_STRING
 			byte[] privateKeyValue = OCTET_STRING.readValue(reader);
@@ -813,6 +894,8 @@ public class Asn1DerDecoder {
 				// currently only EC is supported for RFC 5958 v2
 				throw e;
 			}
+		} else {
+			throw new InvalidKeySpecException("Provided version " + readValue[0] + " is not 1!");
 		}
 		return keys;
 	}
@@ -1027,7 +1110,7 @@ public class Asn1DerDecoder {
 	 * 
 	 * @param oid oid name of curve
 	 * @return EC parameter spec
-	 * @throws GeneralSecurityException if curve ist not available
+	 * @throws GeneralSecurityException if curve is not available
 	 */
 	public static ECParameterSpec getECParameterSpec(String oid) throws GeneralSecurityException {
 		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(JceNames.EC);
@@ -1297,10 +1380,34 @@ public class Asn1DerDecoder {
 		 * @return range reader for the value or entity.
 		 * @throws IllegalArgumentException if provided bytes doesn't contain
 		 *             this valid entity.
+		 * @see #createOptionalRangeReader(DatagramReader, boolean)
 		 */
 		public DatagramReader createRangeReader(DatagramReader reader, boolean entity) {
 			int length = readLength(reader, entity);
 			return reader.createRangeReader(length);
+		}
+
+		/**
+		 * Create an optional range reader for value or entity.
+		 * 
+		 * Returns {@code null} instead of throwing a
+		 * {@link IllegalArgumentException}.
+		 * 
+		 * @param reader reader containing the bytes to read.
+		 * @param entity {@code true} to return the entity including the tag and
+		 *            length, {@code false} to return the value excluding the
+		 *            tag and length
+		 * @return range reader for the value or entity, or {@code null}, if
+		 *         provided bytes doesn't contain this valid entity.
+		 * @see #createRangeReader(DatagramReader, boolean)
+		 * @since 3.12
+		 */
+		public DatagramReader createOptionalRangeReader(DatagramReader reader, boolean entity) {
+			try {
+				return createRangeReader(reader, entity);
+			} catch (IllegalArgumentException ex) {
+				return null;
+			}
 		}
 
 		/**
@@ -1320,8 +1427,8 @@ public class Asn1DerDecoder {
 				throw new IllegalArgumentException(String.format("Not enough bytes for %s! Required %d, available %d.",
 						description, HEADER_LENGTH, leftBytes));
 			}
-			// mark reader, if the entity must be returned, or the tag doesn't
-			// match
+			// mark reader, if the entity must be returned,
+			// or the tag doesn't match
 			reader.mark();
 			// check tag
 			int tag = reader.read(Byte.SIZE);
