@@ -67,6 +67,8 @@ import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -970,7 +972,7 @@ public class SslContextUtil {
 	/**
 	 * Load credentials in PEM format
 	 * 
-	 * @param pemReader PEM reader
+	 * @param pemReader PEM reader. Closed on finish.
 	 * @return credentials
 	 * @throws GeneralSecurityException if credentials could not be read
 	 * @throws IOException if key store could not be read
@@ -986,18 +988,21 @@ public class SslContextUtil {
 				byte[] decode = pemReader.readToEnd();
 				if (decode != null) {
 					if (tag.contains("CERTIFICATE")) {
+						LOGGER.trace("Load CERTIFICATE");
 						certificatesList.add(factory.generateCertificate(new ByteArrayInputStream(decode)));
 					} else if (tag.contains("PRIVATE KEY")) {
 						Asn1DerDecoder.Keys read = Asn1DerDecoder.readPrivateKey(decode);
 						if (read == null) {
 							throw new GeneralSecurityException("private key type not supported!");
 						}
+						LOGGER.trace("Load PRIVATE KEY");
 						keys.add(read);
 					} else if (tag.contains("PUBLIC KEY")) {
 						PublicKey read = Asn1DerDecoder.readSubjectPublicKey(decode);
 						if (read == null) {
 							throw new GeneralSecurityException("public key type not supported!");
 						}
+						LOGGER.trace("Load PUBLIC KEY");
 						keys.setPublicKey(read);
 					} else {
 						LOGGER.warn("{} not supported, ignored!", tag);
@@ -1363,7 +1368,14 @@ public class SslContextUtil {
 	 * Pair of private key and public key or certificate chain. Or set of
 	 * trusted certificates.
 	 */
-	public static class Credentials {
+	public static class Credentials implements Destroyable {
+
+		/**
+		 * Indicates, that this instance has been {@link #destroy()}ed.
+		 * 
+		 * @since 3.12
+		 */
+		private volatile boolean destroyed;
 
 		/**
 		 * Private key.
@@ -1393,6 +1405,36 @@ public class SslContextUtil {
 		 *             certificates head
 		 */
 		public Credentials(PrivateKey privateKey, PublicKey publicKey, X509Certificate[] chain) {
+			this(privateKey, publicKey, chain, null);
+		}
+
+		/**
+		 * Create credentials.
+		 * 
+		 * @param trusts certificate trusts, {@code null} for no trusted
+		 *            certificates.
+		 */
+		public Credentials(Certificate[] trusts) {
+			this.privateKey = null;
+			this.publicKey = null;
+			this.chain = null;
+			this.trusts = trusts;
+		}
+
+		/**
+		 * Create credentials.
+		 * 
+		 * @param privateKey private key
+		 * @param publicKey public key
+		 * @param chain certificate chain
+		 * @param trusts certificate trusts, {@code null} for no trusted
+		 *            certificates.
+		 * @throws IllegalArgumentException if public key and chain is provided,
+		 *             but the public key doesn't match the one of the
+		 *             certificates head
+		 * @since 3.12
+		 */
+		private Credentials(PrivateKey privateKey, PublicKey publicKey, X509Certificate[] chain, Certificate[] trusts) {
 			if (chain != null) {
 				if (chain.length == 0) {
 					chain = null;
@@ -1407,19 +1449,6 @@ public class SslContextUtil {
 			this.privateKey = privateKey;
 			this.chain = chain;
 			this.publicKey = publicKey;
-			this.trusts = null;
-		}
-
-		/**
-		 * Create credentials.
-		 * 
-		 * @param trusts certificate trusts, {@code null} for no trusted
-		 *            certificates.
-		 */
-		public Credentials(Certificate[] trusts) {
-			this.privateKey = null;
-			this.publicKey = null;
-			this.chain = null;
 			this.trusts = trusts;
 		}
 
@@ -1515,6 +1544,66 @@ public class SslContextUtil {
 				return "trusted certificates";
 			}
 			return "no credentials";
+		}
+
+		/**
+		 * Destroy key material! {@link #equals(Object)} and {@link #hashCode}
+		 * must not be used after the key is destroyed!
+		 * 
+		 * @since 3.12
+		 */
+		@Override
+		public void destroy() throws DestroyFailedException {
+			if (privateKey instanceof Destroyable) {
+				((Destroyable) privateKey).destroy();
+			}
+			destroyed = true;
+		}
+
+		@Override
+		public boolean isDestroyed() {
+			return destroyed || (privateKey == null && trusts == null && publicKey == null);
+		}
+
+		/**
+		 * Merge two {@link Credentials}.
+		 * 
+		 * @param credentials1 credentials to merge
+		 * @param credentials2 credentials to merge
+		 * @return merged credentials
+		 * @throws IllegalArgumentException if credentials are ambiguous.
+		 * @since 3.12
+		 */
+		public static Credentials merge(Credentials credentials1, Credentials credentials2) {
+			PrivateKey privateKey = credentials1.privateKey;
+			PublicKey publicKey = credentials1.publicKey;
+			X509Certificate[] chain = credentials1.chain;
+			Certificate[] trusts = credentials1.trusts;
+			if (credentials2.privateKey != null) {
+				if (privateKey != null && !privateKey.equals(credentials2.privateKey)) {
+					throw new IllegalArgumentException("Ambiguous private key!");
+				}
+				privateKey = credentials2.privateKey;
+			}
+			if (credentials2.publicKey != null) {
+				if (publicKey != null && !publicKey.equals(credentials2.publicKey)) {
+					throw new IllegalArgumentException("Ambiguous public key!");
+				}
+				publicKey = credentials2.publicKey;
+			}
+			if (credentials2.chain != null) {
+				if (chain != null && !Arrays.deepEquals(chain, credentials2.chain)) {
+					throw new IllegalArgumentException("Ambiguous chain!");
+				}
+				chain = credentials2.chain;
+			}
+			if (credentials2.trusts != null) {
+				if (trusts != null && !Arrays.deepEquals(trusts, credentials2.trusts)) {
+					throw new IllegalArgumentException("Ambiguous trusts!");
+				}
+				trusts = credentials2.trusts;
+			}
+			return new Credentials(privateKey, publicKey, chain, trusts);
 		}
 	}
 

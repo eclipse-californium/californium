@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsNull.notNullValue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
@@ -338,6 +339,20 @@ public class SslContextUtilCredentialsTest {
 		assumeTrue("ED448 requires JCE support!", JceProviderUtil.isSupported(JceNames.ED448));
 		PublicKey publicKey = SslContextUtil.loadPublicKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed448_public.pem", null, null);
 		assertThat(publicKey, is(notNullValue()));
+	}
+
+	@Test
+	public void testMergeCredentials() throws IOException, GeneralSecurityException {
+		Credentials credentials1 = SslContextUtil.loadCredentials(SERVER_PEM_LOCATION, null, null, null);
+		Credentials credentials2 = SslContextUtil.loadCredentials(SERVER_LARGE_PEM_LOCATION, null, null, null);
+		try {
+			Credentials.merge(credentials1, credentials2);
+			fail("Ambiguous credentials not detected");
+		} catch (IllegalArgumentException ex) {
+		}
+		Credentials credentials3 = new Credentials(credentials1.getPrivateKey(), null, null);
+		Credentials credentials4 = new Credentials(null, null, credentials1.getCertificateChain());
+		Credentials.merge(credentials3, credentials4);
 	}
 
 }
