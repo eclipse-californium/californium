@@ -72,14 +72,50 @@ public class SystemResourceMonitors {
 	 * @param unit time unit for checks
 	 * @param resource system resource monitor used for check.
 	 * @return created check-job.
+	 * @throws NullPointerException if name or resource is {@code null}.
+	 * @throws IllegalArgumentException if interval is {@code <= 0}.
 	 */
 	public SystemResourceJob addMonitor(String name, long interval, TimeUnit unit, SystemResourceMonitor resource) {
+		if (resource == null) {
+			throw new NullPointerException("Resource monitor must not be null!");
+		}
+		if (name == null) {
+			throw new NullPointerException("Name must not be null!");
+		}
+		if (interval <= 0) {
+			throw new IllegalArgumentException("Interval must be > 0!");
+		}
 		SystemResourceJob job = new SystemResourceJob(scheduler, name, interval, unit, resource);
 		resources.add(job);
 		if (running.get()) {
 			job.start();
+		} else {
+			LOGGER.info("{} added scheduled in {} {}.", name, interval, unit);
 		}
 		return job;
+	}
+
+	/**
+	 * Add system resource monitor.
+	 * 
+	 * @param name name of monitor
+	 * @param interval interval for checks. If {@code <= 0} no check-job is
+	 *            added.
+	 * @param unit time unit for checks
+	 * @param resource system resource monitor used for check. If {@code null},
+	 *            no check-job is added.
+	 * @return created check-job, or {@code null}, if the provided resource was
+	 *         {@code null}.
+	 * @throws NullPointerException if name is {@code null}.
+	 * @since 3.12
+	 */
+	public SystemResourceJob addOptionalMonitor(String name, long interval, TimeUnit unit,
+			SystemResourceMonitor resource) {
+		if (resource != null && interval > 0) {
+			return addMonitor(name, interval, unit, resource);
+		} else {
+			return null;
+		}
 	}
 
 	/**
@@ -275,7 +311,11 @@ public class SystemResourceMonitors {
 		@Override
 		public void ready(boolean stop) {
 			pending.set(false);
-			LOGGER.info("{} check ready!", name);
+			if (stop) {
+				LOGGER.info("{} reports finished!", name);
+			} else {
+				LOGGER.info("{} reports ready!", name);
+			}
 			synchronized (this) {
 				ScheduledFuture<?> future = scheduled.get();
 				if (future != null) {
