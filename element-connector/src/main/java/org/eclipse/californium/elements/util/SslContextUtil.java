@@ -67,6 +67,8 @@ import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1363,7 +1365,14 @@ public class SslContextUtil {
 	 * Pair of private key and public key or certificate chain. Or set of
 	 * trusted certificates.
 	 */
-	public static class Credentials {
+	public static class Credentials implements Destroyable {
+
+		/**
+		 * Indicates, that this instance has been {@link #destroy()}ed.
+		 * 
+		 * @since 3.12
+		 */
+		private volatile boolean destroyed;
 
 		/**
 		 * Private key.
@@ -1515,6 +1524,29 @@ public class SslContextUtil {
 				return "trusted certificates";
 			}
 			return "no credentials";
+		}
+
+		/**
+		 * {@inheritDoc}
+		 * 
+		 * @since 3.12
+		 */
+		@Override
+		public void destroy() throws DestroyFailedException {
+			if (privateKey instanceof Destroyable) {
+				((Destroyable) privateKey).destroy();
+			}
+			destroyed = true;
+		}
+
+		/**
+		 * {@inheritDoc}
+		 * 
+		 * @since 3.12
+		 */
+		@Override
+		public boolean isDestroyed() {
+			return destroyed || (privateKey == null && trusts == null && publicKey == null);
 		}
 	}
 
