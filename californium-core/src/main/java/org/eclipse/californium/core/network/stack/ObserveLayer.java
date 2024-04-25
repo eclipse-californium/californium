@@ -192,6 +192,21 @@ public class ObserveLayer extends AbstractLayer {
 		}
 
 		@Override
+		public void onCancel() {
+			exchange.execute(new Runnable() {
+
+				@Override
+				public void run() {
+					ObserveRelation relation = exchange.getRelation();
+					Response next = relation.getNextNotification(response, true);
+					if (next != null) {
+						next.cancel();
+					}
+				}
+			});
+		}
+
+		@Override
 		public void onAcknowledgement() {
 			exchange.execute(new Runnable() {
 

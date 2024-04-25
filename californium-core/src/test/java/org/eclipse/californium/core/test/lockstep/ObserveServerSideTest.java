@@ -44,6 +44,7 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.ge
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNull;
 
 import java.net.InetSocketAddress;
 import java.nio.Buffer;
@@ -403,6 +404,7 @@ public class ObserveServerSideTest {
 
 		Assert.assertEquals("Resource has not removed observe relation:", 0, waitForObservers(ACK_TIMEOUT + 100, 0));
 	}
+
 	@Test
 	public void testGetNONNotifyCON() throws Exception {
 
@@ -698,6 +700,41 @@ public class ObserveServerSideTest {
 		Assert.assertEquals("Resource has not removed observe relation:", 0, waitForObservers(ACK_TIMEOUT + 100, 0));
 	}
 
+	@Test
+	public void testServerRestartNotifyCON() throws Exception {
+
+		respPayload = generateRandomPayload(30);
+		Token tok = generateNextToken();
+
+		testObsResource.setObserveType(CON);
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
+		client.expectResponse().type(ACK).code(CONTENT).token(tok).storeObserve("A").payload(respPayload).go();
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+
+		serverInterceptor.logNewLine("Observe relation established");
+
+		// First notification
+		testObsResource.change("First notification " + generateRandomPayload(10));
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("A", "B").payload(respPayload).go();
+
+		Thread.sleep(ACK_TIMEOUT/2);
+
+		serverInterceptor.logNewLine("stop server");
+		serverEndpoint.rebindLocalAddress();
+		serverEndpoint.stop();
+		serverInterceptor.logNewLine("start server");
+		serverEndpoint.start();
+
+		assertNull("received notification after restart", client.receiveNextMessage(ACK_TIMEOUT * 2, TimeUnit.MILLISECONDS));
+
+		testObsResource.change("Second notification " + generateRandomPayload(10));
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID2").checkObs("B", "C").payload(respPayload).go();
+		client.sendEmpty(ACK).loadMID("MID2").go();
+
+		Assert.assertEquals("Resource has not added relation:", 1, testObsResource.getObserverCount());
+	}
+
 	private void assertAllEndpointExchangesAreCompleted(final CoapTestEndpoint endpoint) {
 		assertAllExchangesAreCompleted(endpoint, time);
 	}
@@ -742,7 +779,7 @@ public class ObserveServerSideTest {
 		}
 
 		public void change(final String newPayload) {
-			LOGGER.info("Resource body changed to: [{}]",  newPayload);
+			ObserveServerSideTest.LOGGER.info("Resource body changed to: [{}]",  newPayload);
 			respPayload = newPayload;
 			changed();
 		}

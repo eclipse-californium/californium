@@ -445,7 +445,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		if (running) {
 			running = false;
 			for (Exchange exchange : exchangesByMID.values()) {
-				exchange.getRequest().setCanceled(true);
+				if (exchange.isOfLocalOrigin()) {
+					exchange.getRequest().setCanceled(true);
+				} else {
+					exchange.getResponse().setCanceled(true);
+				}
 			}
 			if (statusLogger != null) {
 				statusLogger.cancel(false);

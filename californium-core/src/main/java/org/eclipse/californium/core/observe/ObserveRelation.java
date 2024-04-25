@@ -688,6 +688,8 @@ public class ObserveRelation {
 	 * response is in transit, if it has not yet been acknowledged, rejected or
 	 * its current transmission has not yet timed out.
 	 * 
+	 * Since 3.12: in transit check also for not yet canceled.
+	 * 
 	 * @param response notification to check.
 	 * @return {@code true}, if notification is in transit, {@code false},
 	 *         otherwise.
@@ -697,7 +699,7 @@ public class ObserveRelation {
 		if (response == null || !response.isConfirmable()) {
 			return false;
 		}
-		return !response.isAcknowledged() && !response.isTimedOut() && !response.isRejected();
+		return !response.isAcknowledged() && !response.isTimedOut() && !response.isRejected() && !response.isCanceled();
 	}
 
 }
