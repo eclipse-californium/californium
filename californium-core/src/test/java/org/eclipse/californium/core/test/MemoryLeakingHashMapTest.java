@@ -477,7 +477,7 @@ public class MemoryLeakingHashMapTest {
 				exchange.accept();
 			}
 
-			LOGGER.debug("TestResource [{}] received POST message: {}", new Object[]{getName(), exchange.getRequestText()});
+			MemoryLeakingHashMapTest.LOGGER.debug("TestResource [{}] received POST message: {}", new Object[]{getName(), exchange.getRequestText()});
 
 			exchange.respond(ResponseCode.CREATED, currentResponseText);
 		}

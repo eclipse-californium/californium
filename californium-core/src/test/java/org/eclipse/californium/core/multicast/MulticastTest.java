@@ -124,7 +124,7 @@ public class MulticastTest {
 				InetSocketAddress localAddress = exchange.advanced().getRequest().getLocalAddress();
 				String receiver = StringUtil.toString(localAddress.getAddress());
 				exchange.respond(ResponseCode.CONTENT, "Hello Multicast-World 1! " + receiver);
-				LOGGER.debug("server 1 response");
+				MulticastTest.LOGGER.debug("server 1 response");
 			}
 		});
 		server1.add(new CoapResource("no") {
@@ -133,9 +133,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.reject();
 				if (exchange.isMulticastRequest()) {
-					LOGGER.debug("server 1 mc reject");
+					MulticastTest.LOGGER.debug("server 1 mc reject");
 				} else {
-					LOGGER.debug("server 1 reject");
+					MulticastTest.LOGGER.debug("server 1 reject");
 				}
 			}
 		});
@@ -145,9 +145,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.NOT_FOUND);
 				if (exchange.isMulticastRequest()) {
-					LOGGER.debug("server 1 mc error");
+					MulticastTest.LOGGER.debug("server 1 mc error");
 				} else {
-					LOGGER.debug("server 1 error");
+					MulticastTest.LOGGER.debug("server 1 error");
 				}
 			}
 		});
@@ -170,7 +170,7 @@ public class MulticastTest {
 				InetSocketAddress localAddress = exchange.advanced().getRequest().getLocalAddress();
 				String receiver = StringUtil.toString(localAddress.getAddress());
 				exchange.respond(ResponseCode.CONTENT, "Hello Multicast-World 2! " + receiver);
-				LOGGER.debug("server 2 response");
+				MulticastTest.LOGGER.debug("server 2 response");
 			}
 		});
 		server2.add(new CoapResource("no") {
@@ -178,7 +178,7 @@ public class MulticastTest {
 			@Override
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.CONTENT, "no!");
-				LOGGER.debug("server 2 no");
+				MulticastTest.LOGGER.debug("server 2 no");
 			}
 		});
 		server2.add(new CoapResource("error") {
@@ -187,9 +187,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.NOT_FOUND);
 				if (exchange.isMulticastRequest()) {
-					LOGGER.debug("server 2 mc error");
+					MulticastTest.LOGGER.debug("server 2 mc error");
 				} else {
-					LOGGER.debug("server 2 error");
+					MulticastTest.LOGGER.debug("server 2 error");
 				}
 			}
 		});
@@ -221,10 +221,10 @@ public class MulticastTest {
 				String receiver = StringUtil.toString(localAddress.getAddress());
 				if (exchange.isMulticastRequest()) {
 					exchange.respond(ResponseCode.CONTENT, "Hello Multicast-Unicast-World! " + receiver);
-					LOGGER.debug("server 3 mc response");
+					MulticastTest.LOGGER.debug("server 3 mc response");
 				} else {
 					exchange.respond(ResponseCode.CONTENT, "Hello Unicast-World! " + receiver);
-					LOGGER.debug("server 3 response");
+					MulticastTest.LOGGER.debug("server 3 response");
 				}
 			}
 		});
@@ -234,9 +234,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.reject();
 				if (exchange.isMulticastRequest()) {
-					LOGGER.debug("server 3 mc reject");
+					MulticastTest.LOGGER.debug("server 3 mc reject");
 				} else {
-					LOGGER.debug("server 3 reject");
+					MulticastTest.LOGGER.debug("server 3 reject");
 				}
 			}
 		});
@@ -246,9 +246,9 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.NOT_FOUND);
 				if (exchange.isMulticastRequest()) {
-					LOGGER.debug("server 3 mc error");
+					MulticastTest.LOGGER.debug("server 3 mc error");
 				} else {
-					LOGGER.debug("server 3 error");
+					MulticastTest.LOGGER.debug("server 3 error");
 				}
 			}
 		});

@@ -1158,9 +1158,9 @@ public class ObserveTest {
 				currentResponse = String.format("\"%s says %s for the %d time\"", getName(), currentLabel, count);
 			}
 			if (init) {
-				LOGGER.debug("Resource {} changed to {}", getName(), currentResponse);
+				ObserveTest.LOGGER.debug("Resource {} changed to {}", getName(), currentResponse);
 			} else {
-				LOGGER.info("Resource {} changed to {}", getName(), currentResponse);
+				ObserveTest.LOGGER.info("Resource {} changed to {}", getName(), currentResponse);
 			}
 		}
 
