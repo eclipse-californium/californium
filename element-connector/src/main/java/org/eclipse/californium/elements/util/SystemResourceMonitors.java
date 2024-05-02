@@ -283,11 +283,16 @@ public class SystemResourceMonitors {
 		 */
 		private void checkNow() {
 			if (pending.compareAndSet(false, true)) {
-				ScheduledFuture<?> future = scheduled.get();
-				if (future != null) {
-					future.cancel(false);
+				try {
+					ScheduledFuture<?> future = scheduled.get();
+					if (future != null) {
+						future.cancel(false);
+					}
+					resource.checkForUpdate(this);
+				} catch (RuntimeException ex) {
+					LOGGER.info("{} unexpected error!", name, ex);
+					ready(false);
 				}
-				resource.checkForUpdate(this);
 			}
 		}
 
@@ -296,8 +301,13 @@ public class SystemResourceMonitors {
 		 */
 		private void check() {
 			if (pending.compareAndSet(false, true)) {
-				LOGGER.info("{} check for update!", name);
-				resource.checkForUpdate(this);
+				try {
+					LOGGER.info("{} check for update!", name);
+					resource.checkForUpdate(this);
+				} catch (RuntimeException ex) {
+					LOGGER.info("{} unexpected error!", name, ex);
+					ready(false);
+				}
 			} else {
 				LOGGER.info("{} check for update pending!", name);
 			}
@@ -418,8 +428,13 @@ public class SystemResourceMonitors {
 		public void checkForUpdate(SystemResourceCheckReady ready) {
 			MonitoredValues values = readMonitoredValues();
 			if (this.values.check(values)) {
-				LOGGER.info("File {} changed!", file);
-				update(values, ready);
+				try {
+					LOGGER.info("File {} changed!", file);
+					update(values, ready);
+				} catch (RuntimeException ex) {
+					ready(values);
+					throw ex;
+				}
 			} else {
 				LOGGER.info("File {} unchanged.", file);
 				ready.ready(false);
