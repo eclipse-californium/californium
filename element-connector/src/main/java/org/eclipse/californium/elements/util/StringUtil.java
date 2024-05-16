@@ -477,17 +477,9 @@ public class StringUtil {
 		int tailLength = tail.length();
 		if (tailLength > 0) {
 			int end = builder.length() - tailLength;
-			if (end > 0) {
+			if (end >= 0 && builder.indexOf(tail, end) == end) {
+				builder.setLength(end);
 				truncated = true;
-				for (int index = 0; index < tailLength; ++index) {
-					if (builder.charAt(index + end) != tail.charAt(index)) {
-						truncated = false;
-						break;
-					}
-				}
-				if (truncated) {
-					builder.setLength(end);
-				}
 			}
 		}
 		return truncated;
