@@ -183,7 +183,7 @@ For further instructions see the comments in that script.
 
 [deploy_aws.sh](scripts/cloud-installs/deploy_aws.sh)
 
-This script uses the aws API (aws) to create a vm and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar).
+This script uses the aws API (aws) to create a vm and the [cloud-config.yaml](scripts/cloud-installs/cloud-config.yaml) to configure and install the [Californium Plugtest Server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.12.0/cf-plugtest-server-3.12.0.jar).
 
 Features: IPv4, Firewall
 

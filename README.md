@@ -120,7 +120,7 @@ With that, it gets very time consuming to test all combinations. Therefore, if y
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.11.0).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.12.0).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots `...`):
 
@@ -130,7 +130,7 @@ to your `pom.xml` (without the dots `...`):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>3.11.0</version>
+            <version>3.12.0</version>
     </dependency>
     ...
   </dependencies>
@@ -154,7 +154,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `3.12.0-SNAPSHOT`.
+You can then simply depend on `3.13.0-SNAPSHOT`.
 
 # Eclipse
 
@@ -235,7 +235,7 @@ OSCORE Key Rederivation:
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.10.0.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.12.0.jar MulticastTestServer`
 
 # Contact
 
