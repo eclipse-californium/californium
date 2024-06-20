@@ -348,7 +348,9 @@ public class WebAppUserParser implements ResourceParser<WebAppUserParser> {
 	}
 
 	@Override
-	public void load(Reader reader) throws IOException {
+	public int load(Reader reader) throws IOException {
+		int entriesBefore = size();
+		int entries = 0;
 		BufferedReader lineReader = new BufferedReader(reader);
 		try {
 			int lineNumber = 0;
@@ -407,7 +409,9 @@ public class WebAppUserParser implements ResourceParser<WebAppUserParser> {
 							prefix = prefix(name, PW_POSTFIX);
 							if (prefix != name || isName(name)) {
 								if (builder.name != null) {
-									add(builder);
+									if (add(builder)) {
+										++entries;
+									}
 									builder = WebAppUser.builder();
 								}
 								if (values.length != 1) {
@@ -435,7 +439,9 @@ public class WebAppUserParser implements ResourceParser<WebAppUserParser> {
 				}
 			}
 			if (builder.name != null) {
-				add(builder);
+				if (add(builder)) {
+					++entries;
+				}
 			}
 			if (size() == 0 && errors > 0 && lineNumber == comments + errors) {
 				LOGGER.warn("read store, only errors, wrong password?");
@@ -456,7 +462,12 @@ public class WebAppUserParser implements ResourceParser<WebAppUserParser> {
 			} catch (IOException e) {
 			}
 		}
-		LOGGER.info("read {} user credentials.", size());
+		if (entriesBefore == 0) {
+			LOGGER.info("read {} user credentials.", size());
+		} else {
+			LOGGER.info("read {} new user credentials (total {}).", entries, size());
+		}
+		return entries;
 	}
 
 	/**

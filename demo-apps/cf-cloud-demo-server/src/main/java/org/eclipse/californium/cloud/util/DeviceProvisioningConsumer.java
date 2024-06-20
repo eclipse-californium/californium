@@ -14,40 +14,22 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.util;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
-
-import javax.security.auth.Destroyable;
+import org.eclipse.californium.cloud.util.DeviceManager.DeviceInfo;
 
 /**
- * Resource parser.
+ * Device provisioning consumer.
  * 
- * @since 3.12
+ * @since 3.13
  */
-public interface ResourceParser<T extends ResourceParser<T>> extends Destroyable {
+public interface DeviceProvisioningConsumer {
 
 	/**
-	 * Write resource.
+	 * Add data to device store.
 	 * 
-	 * @param writer writer to save resource
-	 * @throws IOException if an I/O error occurred
+	 * @param info device info of provisioning.
+	 * @param time timestamp of request.
+	 * @param data data to add.
+	 * @param response response consumer.
 	 */
-	void save(Writer writer) throws IOException;
-
-	/**
-	 * Load resource.
-	 * 
-	 * @param reader reader for configuration.
-	 * @return number of added entries.
-	 * @throws IOException if an I/O error occurred
-	 */
-	int load(Reader reader) throws IOException;
-
-	/**
-	 * Create resource parser.
-	 * 
-	 * @return created resource parser
-	 */
-	T create();
+	void add(DeviceInfo info, long time, String data, ResultConsumer response);
 }

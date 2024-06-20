@@ -63,7 +63,8 @@ Usage: CloudDemoServer [-h] [--diagnose] [--wildcard-interface | [[--[no-]
                        [--coaps-password64=<password64>]] [--device-file=<file>
                        [--device-file-password64=<password64>]]
                        [--store-file=<file> --store-max-age=<maxAge>
-                       [--store-password64=<password64>]]
+                       [--store-password64=<password64>]] [--provisioning
+                       [--replace]]
       --coaps-credentials=<credentials>
                              Folder containing coaps credentials in 'privkey.
                                pem' and 'pubkey.pem'
@@ -87,6 +88,10 @@ Usage: CloudDemoServer [-h] [--diagnose] [--wildcard-interface | [[--[no-]
       --[no-]ipv4            enable coap endpoints for ipv4.
       --[no-]ipv6            enable coap endpoints for ipv6.
       --[no-]loopback        enable coap endpoints on loopback network.
+      --provisioning         enable 'prov'-resource for auto-provisioning.
+      --replace              replaces previous device credentials entries with
+                               new entries. For use during development. Don't
+                               use it for production!
       --store-file=<file>    file-store for dtls state.
       --store-max-age=<maxAge>
                              maximum age of connections in hours to store dtls
@@ -110,7 +115,7 @@ Examples:
 
 to see the set of options and arguments.
 
-When the server is started the first time, it creates the "CaliforniumCloudDemo3.properties" file. this contains the settings, which may be adjusted by editing this file.
+When the server is started the first time, it creates the "CaliforniumCloudDemo3.properties" file. This contains the settings, which may be adjusted by editing this file.
 
 ```
 # Californium CoAP Properties file for S3 Proxy Server
@@ -164,19 +169,55 @@ PSK credentials are provided with `[<name>].psk=<psk-identity>,<psk-secret>`. If
 ```
 RPK credentials are provided similar with `[<name>].rpk=<public-key>`. The `public-key` is in base64 or with ":0x" in hexadecimal. That `public-key` must also be unique for each device, which will be natural, if a fresh key-pair is generated for each device. RPK requires the server also to load it's private and public key with `--coaps-credentials <dir>`. The directory must contain a `privkey.pem`, and, if that doesn't contain the public key as well, a  `publickey.pem`.
 
-You may either provide that server key pair on your own or create one with:
+You may either provide that server key pair on your own or create a new one using `openssl` with:
 
 ```sh
 openssl ecparam -genkey -name prime256v1 -noout -out privkey.pem
 ```
 
-(The PEM created by that command contains both, the private and the public key. Therefore you need only this one. Other formats or tools may have other results and you may need then two files, one `privkey.pem` and one `publickey.pem`.)
+or
 
-**Note:** the device credentials file is read using UTF-8 encoding, '=' are not supported for device names. Lines starting with '#' are skipped as comment, therefore a device name must not start with a '#'. Empty lines are also skipped. 
+```sh
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out privkey.pem
+```
+
+(The later command "supercedes" the first according the openssl documentation. The PEM created by that commands contains both, the private and the public key. Therefore you need only this one. Other formats or tools may have other results and you may need then two files, one `privkey.pem` and one `publickey.pem`.)
+
+**Note:** the device credentials file is read using UTF-8 encoding, '=' are not supported for device names. Lines starting with '#' are skipped as comment, therefore a device name must not start with a '#'. Empty lines are also skipped.
 
 The cloud demo server checks frequently, if the file has changed and automatically reloads the device credentials.
 
 Devices already connected with removed credentials are kept connected but on the next handshake these device will fail to communicate with the cloud demo server.
+
+## Device Credentials - Auto-Provisioning
+
+In order to provision device efficiently, an auto-provisioning function can be used. This requires to enable `auto-provisioning` via the cli option (`--auto-provisioning`) and to add `auto-provisioning-credentials` to the device store.
+
+```
+Provisioning1=Admin
+.rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENTGXGkhc7gL614R4HBOkXoESM98YIXP3yts4VG7wpRlsIxYFFXVez3I3VE7oGaOpLlAMMhFa4Myq/4OIRMvauQ==
+.prov=1
+```
+
+That's done by the entry above. It contains a name (`Provisioning1`), the `public key` from the `auto-provisioning key-pair` and the marker `.prov=2`. For now, only RPK is supported for `auto-provisioning`.
+
+A device will provision its credentials by authenticate itself with the `auto-provisioning key-pair` and a `POST` request to resource `/prov` using the the intended device credentials as payload.
+
+```
+my-device-id=Thing
+.rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEe7jf4/mFVId9GnUfFdV1XQVUAn4fAKsctXYfLnrcvKMXAPAKe6mLPNMNxXf/+TsDQDXEcamWAcjDUFVc/9pIeQ==
+.sig=BAMARzBFAiEAkL9amzTcqBrovw3EPeUJ+iB/NhiEhgS603VBGDx6UUMCIDNfKVwOG7aCQVnsL7mDqgQZhXW7XrCMEKp0hAk7wGac
+```
+
+For production it's only successful, if the `my-device-id` is not already used. For development, this may be overwritten, if `--replace` is passed as cli option. On success, the entry is added to the device credentials.
+
+```
+...
+# added 2024-08-11T07:00:19Z by Provisioning1
+my-device-id=Thing
+.rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEe7jf4/mFVId9GnUfFdV1XQVUAn4fAKsctXYfLnrcvKMXAPAKe6mLPNMNxXf/+TsDQDXEcamWAcjDUFVc/9pIeQ==
+.sig=BAMARzBFAiEAkL9amzTcqBrovw3EPeUJ+iB/NhiEhgS603VBGDx6UUMCIDNfKVwOG7aCQVnsL7mDqgQZhXW7XrCMEKp0hAk7wGac
+```
 
 ## DTLS Graceful Restart
 

@@ -79,6 +79,7 @@ import org.slf4j.LoggerFactory;
  * {@code [http_forward = <http forward destination>]}
  * {@code [http_authentication = Bearer <token>]} or {@code [http_authentication = <username>:<password>]}
  * {@code [http_device_identity_mode = NONE|HEADLINE|QUERY_PARAMETER]}
+ * {@code [devices_replaced = true|false]}
  * </pre>
  * 
  * The web application configuration {@code config_store} is defined using
@@ -277,7 +278,6 @@ public class Domains
 	 */
 	public DomainDeviceManager loadDevices(Configuration config, PrivateKey privateKey, PublicKey publicKey) {
 		long interval = config.get(BaseServer.DEVICE_CREDENTIALS_RELOAD_INTERVAL, TimeUnit.SECONDS);
-		DeviceParser factory = new DeviceParser(true);
 		ConcurrentMap<String, ResourceStore<DeviceParser>> allDevices = new ConcurrentHashMap<>();
 
 		for (Entry<String, Domain> domainEntry : domains.entrySet()) {
@@ -285,14 +285,21 @@ public class Domains
 			String managementSection = domainEntry.getKey() + MANAGEMENT_SUFFIX;
 
 			String password64 = configuration.get(managementSection, "password64");
+			Boolean replace = configuration.getBoolean(managementSection, "devices_replaced", Boolean.FALSE);
+			if (replace) {
+				LOGGER.info(
+						"{}: new device credentials will replace already available ones. Use this only for development!",
+						domainEntry.getKey());
+			}
 
 			String deviceStore = configuration.getWithDefault(managementSection, "device_store", "devices.txt");
 			String deviceStorePw = configuration.getWithDefault(managementSection, "device_store_password64",
 					password64);
 
 			ResourceStore<DeviceParser> devices = domain.managementData != null
-					? new S3ResourceStore<>(factory, domain.managementData).setTag("S3 Devices ")
-					: new ResourceStore<>(factory).setTag("File Devices ");
+					? new S3ResourceStore<>(new DeviceParser(true, replace), domain.managementData)
+							.setTag("S3 Devices ")
+					: new ResourceStore<>(new DeviceParser(true, replace)).setTag("File Devices ");
 			devices.loadAndCreateMonitor(deviceStore, deviceStorePw, interval > 0);
 			monitors.addOptionalMonitor(devices.getTag() + domainEntry.getKey(), interval, TimeUnit.SECONDS,
 					devices.getMonitor());

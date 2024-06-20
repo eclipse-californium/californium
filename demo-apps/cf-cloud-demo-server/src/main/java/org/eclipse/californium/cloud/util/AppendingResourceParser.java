@@ -15,39 +15,35 @@
 package org.eclipse.californium.cloud.util;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.io.Writer;
 
-import javax.security.auth.Destroyable;
-
 /**
- * Resource parser.
+ * Appending resource parser.
  * 
- * @since 3.12
+ * Keeps new entries for appending.
+ * 
+ * @since 3.13
  */
-public interface ResourceParser<T extends ResourceParser<T>> extends Destroyable {
+public interface AppendingResourceParser<T extends AppendingResourceParser<T>> extends ResourceParser<T> {
 
 	/**
-	 * Write resource.
+	 * Number of new entries.
+	 * 
+	 * @return number of new entries
+	 */
+	int sizeNewEntries();
+
+	/**
+	 * Clear new entries.
+	 */
+	void clearNewEntries();
+
+	/**
+	 * Write new entries to resource.
 	 * 
 	 * @param writer writer to save resource
 	 * @throws IOException if an I/O error occurred
 	 */
-	void save(Writer writer) throws IOException;
+	void saveNewEntries(Writer writer) throws IOException;
 
-	/**
-	 * Load resource.
-	 * 
-	 * @param reader reader for configuration.
-	 * @return number of added entries.
-	 * @throws IOException if an I/O error occurred
-	 */
-	int load(Reader reader) throws IOException;
-
-	/**
-	 * Create resource parser.
-	 * 
-	 * @return created resource parser
-	 */
-	T create();
 }

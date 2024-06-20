@@ -69,9 +69,9 @@ Web-Browser application server diagnose page:
 
 - The footprint of the OS and Java VM, around 800 MB RAM, requires to use at least 2 GB RAM.
 - The maximum number of devices depends mainly on the available RAM. Per PSK around 3K, for certificate based devices 5K.
-- The maximum number of requests per second also depends on the available RAM and CPU for processing. Usually the backend slows down the processing a lot. Without backend, a 4x3GHz System runs 50000 requests/s. With backends, that’s usually much less.
+- The maximum number of requests per second also depends on the available RAM and CPU for processing. Usually the backend slows down the processing a lot. Without backend, a 4x3GHz System with 16 GB RAM runs 50000 requests/s. With backends, that’s usually much less.
 - If S3 is used as backend, usually the write preformance of S3 limits then the number of requests/s. 300 requests/s up to 3000 requests/s could be found.
-- The Javascript Web App is considered only for first steps, Therefore it may handle 100-200 device, it’s not expected to be used with more.    
+- The Javascript Web App is considered only for first steps, Therefore it may handle 100-200 device, it’s not expected to be used with more.
 
 ## General Usage
 
@@ -88,7 +88,8 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [--coaps-password64=<password64>]] [--device-file=<file>
                      [--device-file-password64=<password64>]]
                      [--store-file=<file> --store-max-age=<maxAge>
-                     [--store-password64=<password64>]] ([--domain-file=<file>
+                     [--store-password64=<password64>]] [--provisioning
+                     [--replace]] ([--domain-file=<file>
                      [--domain-file-password64=<password64>]] |
                      [[[--s3-endpoint=<endpoint>] [--s3-region=<region>]
                      [--s3-bucket=<bucket>] [--s3-acl=<acl>]
@@ -142,6 +143,10 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
       --[no-]ipv4            enable coap endpoints for ipv4.
       --[no-]ipv6            enable coap endpoints for ipv6.
       --[no-]loopback        enable coap endpoints on loopback network.
+      --provisioning         enable 'prov'-resource for auto-provisioning.
+      --replace              replaces previous device credentials entries with
+                               new entries. For use during development. Don't
+                               use it for production!
       --s3-access-key=<accessKey>
                              s3 access key.
       --s3-acl=<acl>         s3 canned acl. e.g. public-read
@@ -492,6 +497,8 @@ http_authentication = Bearer <token>
 # or
 http_authentication = <username>:<password>
 ```
+
+If `auto-provisioning` is enabled and a domain contains `auto-provisioning` credentials, then you may enable replacing previous device credentials entries with new entries. Add therefore `devices_replaced = true`, but only for development. Don't use that in production!
 
 Creating a device domain is for now not fully automated. The [installation script](./service/cloud-installs/deploy-dev.sh) offers two jobs for that, the "create-devdom" and "delete-devdom" (currently only ExoScale). Both requires to export the device-domain name set to `devicedomain` before calling the script.
 

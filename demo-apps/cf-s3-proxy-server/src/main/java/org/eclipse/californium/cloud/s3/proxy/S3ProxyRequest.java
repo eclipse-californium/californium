@@ -37,7 +37,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  * 
  * @since 3.12
  */
-public class S3ProxyRequest extends S3Request {
+public class S3ProxyRequest extends S3PutRequest {
 
 	/**
 	 * CoAP-request.
@@ -66,18 +66,6 @@ public class S3ProxyRequest extends S3Request {
 	 * List of coap-etags for GET requests.
 	 */
 	private final List<Option> etags;
-	/**
-	 * Content for POST requests.
-	 */
-	private final byte[] content;
-	/**
-	 * Content type for POST requests.
-	 */
-	private final String contentType;
-	/**
-	 * Timestamp for POST request.
-	 */
-	private final Long timestamp;
 
 	/**
 	 * Create S3 proxy request from coap-request.
@@ -97,10 +85,11 @@ public class S3ProxyRequest extends S3Request {
 	 * @param timestamp timestamp for PUT requests
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating.
+	 * @param force force mode. {@code true} to not use ETAGs.
 	 */
 	public S3ProxyRequest(Request request, String key, int pathStartIndex, int pathPrincipalIndex, String subPath,
-			List<Option> etags, byte[] content, String contentType, Long timestamp, Redirect redirect) {
-		super(key, redirect);
+			List<Option> etags, byte[] content, String contentType, Long timestamp, Redirect redirect, boolean force) {
+		super(key, content, contentType, timestamp, redirect, force);
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
 		}
@@ -109,9 +98,6 @@ public class S3ProxyRequest extends S3Request {
 		this.pathPrincipalIndex = pathPrincipalIndex;
 		this.subPath = subPath;
 		this.etags = etags;
-		this.content = content;
-		this.contentType = contentType;
-		this.timestamp = timestamp;
 	}
 
 	/**
@@ -205,33 +191,6 @@ public class S3ProxyRequest extends S3Request {
 	}
 
 	/**
-	 * Get content for PUT.
-	 * 
-	 * @return content for PUT.
-	 */
-	public byte[] getContent() {
-		return content;
-	}
-
-	/**
-	 * Get content type for PUT.
-	 * 
-	 * @return content type for PUT.
-	 */
-	public String getContentType() {
-		return contentType;
-	}
-
-	/**
-	 * Get timestamp for PUT.
-	 * 
-	 * @return timestamp for PUT.
-	 */
-	public Long getTimestamp() {
-		return timestamp;
-	}
-
-	/**
 	 * Get canned Access Control List for PUT.
 	 * 
 	 * @param request coap-request
@@ -278,7 +237,7 @@ public class S3ProxyRequest extends S3Request {
 	/**
 	 * S3-proxy-request-builder.
 	 */
-	public static class Builder extends S3Request.Builder {
+	public static class Builder extends S3PutRequest.Builder {
 
 		/**
 		 * Coap-request-
@@ -307,18 +266,6 @@ public class S3ProxyRequest extends S3Request {
 		 * List of coap-etags for GET request.
 		 */
 		private List<Option> etags;
-		/**
-		 * Content for PUT request.
-		 */
-		private byte[] content;
-		/**
-		 * Content-type for PUT request.
-		 */
-		private String contentType;
-		/**
-		 * Timestamp for PUT request.
-		 */
-		private Long timestamp;
 
 		/**
 		 * Create builder from coap-request.
@@ -341,9 +288,6 @@ public class S3ProxyRequest extends S3Request {
 			this.pathPrincipalIndex = request.pathPrincipalIndex;
 			this.subPath = request.subPath;
 			this.etags = request.etags;
-			this.content = request.content;
-			this.contentType = request.contentType;
-			this.timestamp = request.timestamp;
 		}
 
 		@Override
@@ -402,36 +346,21 @@ public class S3ProxyRequest extends S3Request {
 			return this;
 		}
 
-		/**
-		 * Set content for PUT request.
-		 * 
-		 * @param content content
-		 * @return builder for command chaining
-		 */
+		@Override
 		public Builder content(byte[] content) {
-			this.content = content;
+			super.content(content);
 			return this;
 		}
 
-		/**
-		 * Set content-type for PUT request.
-		 * 
-		 * @param contentType content-type for PUT request
-		 * @return builder for command chaining
-		 */
+		@Override
 		public Builder contentType(String contentType) {
-			this.contentType = contentType;
+			super.contentType(contentType);
 			return this;
 		}
 
-		/**
-		 * Set timestamp for PUT request.
-		 * 
-		 * @param timestamp timestamp
-		 * @return builder for command chaining
-		 */
+		@Override
 		public Builder timestamp(Long timestamp) {
-			this.timestamp = timestamp;
+			super.timestamp(timestamp);
 			return this;
 		}
 
@@ -461,7 +390,7 @@ public class S3ProxyRequest extends S3Request {
 				contentType = getContentType(request);
 			}
 			return new S3ProxyRequest(request, key, pathStartIndex, pathPrincipalIndex, subPath, etags, content,
-					contentType, timestamp, redirect);
+					contentType, timestamp, redirect, force);
 		}
 	}
 }

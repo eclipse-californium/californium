@@ -34,6 +34,8 @@ import org.eclipse.californium.cloud.util.DeviceManager;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.DeviceParser.Device;
 import org.eclipse.californium.cloud.util.ResourceStore;
+import org.eclipse.californium.cloud.util.ResultConsumer;
+import org.eclipse.californium.cloud.util.ResultConsumer.ResultCode;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
@@ -98,6 +100,21 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 	}
 
 	@Override
+	public void add(DeviceInfo info, long time, String data, ResultConsumer response) {
+		if (!(info instanceof DomainDeviceInfo)) {
+			response.results(ResultCode.SERVER_ERROR, "no DomainDeviceInfo.");
+			return;
+		}
+		String domain = ((DomainDeviceInfo) info).domain;
+		ResourceStore<DeviceParser> store = domains.get(domain);
+		if (store == null) {
+			response.results(ResultCode.SERVER_ERROR, "Domain " + domain + " not available.");
+			return;
+		}
+		add(store, info, time, data, response);
+	}
+
+	@Override
 	public AdvancedPskStore getPskStore() {
 		if (domains == null) {
 			return null;
@@ -158,6 +175,9 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 			info.put(INFO_NAME, device.name);
 			info.put(INFO_GROUP, device.group);
 			info.put(INFO_DOMAIN, domain);
+			if (device.provisioning) {
+				info.put(INFO_PROVISIONING, "1");
+			}
 			return AdditionalInfo.from(info);
 		}
 		return null;
@@ -291,7 +311,8 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 			if (name != null && !name.contains("/")) {
 				String group = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_GROUP, String.class);
 				String domain = extensiblePrincipal.getExtendedInfo().get(INFO_DOMAIN, String.class);
-				return new DomainDeviceInfo(domain, group, name);
+				String prov = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_PROVISIONING, String.class);
+				return new DomainDeviceInfo(domain, group, name, prov);
 			}
 		}
 		return null;
@@ -313,9 +334,11 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 		 * @param domain domain name of device
 		 * @param group group of device
 		 * @param name name of device
+		 * @param provisioning {@code "1"}, if credentials are used for auto
+		 *            provisioning, otherwise device credentials.
 		 */
-		protected DomainDeviceInfo(String domain, String group, String name) {
-			super(group, name);
+		protected DomainDeviceInfo(String domain, String group, String name, String provisioning) {
+			super(group, name, provisioning);
 			if (domain == null) {
 				domain = DEFAULT_DOMAIN;
 			}
@@ -324,7 +347,17 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 
 		@Override
 		public String toString() {
-			return name + "@" + domain + " (" + group + ")";
+			return name + "@" + domain + " (" + group + (provisioning ? ",prov)" : ")");
 		}
+	}
+
+	static {
+		setDeviceInfoProvider(new DeviceInfoProvider() {
+
+			@Override
+			public DeviceInfo getDeviceInfo(Principal principal) {
+				return DomainDeviceManager.getDeviceInfo(principal);
+			}
+		});
 	}
 }

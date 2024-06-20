@@ -18,6 +18,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JAVASCRIPT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
@@ -293,18 +294,18 @@ public class Devices extends CoapResource {
 			return;
 		}
 
-		final TimeOption timeOption = TimeOption.getMessageTime(request);
-		final long time = timeOption.getLongValue();
-		// respond with time?
-		Response response = new Response(CHANGED);
+		Response response;
 		Principal principal = request.getSourceContext().getPeerIdentity();
 		DeviceInfo info = DeviceManager.getDeviceInfo(principal);
-		String name = info != null ? info.name : null;
+		String name = (info != null && !info.provisioning) ? info.name : null;
 		if (name != null) {
+			final TimeOption timeOption = TimeOption.getMessageTime(request);
+			final long time = timeOption.getLongValue();
 			String log = null;
 			String position = null;
 			String timestamp = format(time);
 
+			response = new Response(CHANGED);
 			if (format == TEXT_PLAIN) {
 				String[] lines = request.getPayloadString().split("[\\n\\r]+");
 				for (String line : lines) {
@@ -355,10 +356,13 @@ public class Devices extends CoapResource {
 			} finally {
 				lock.unlock();
 			}
-		}
-		final TimeOption responseTimeOption = timeOption.adjust();
-		if (responseTimeOption != null) {
-			response.getOptions().addOtherOption(responseTimeOption);
+			// respond with time?
+			final TimeOption responseTimeOption = timeOption.adjust();
+			if (responseTimeOption != null) {
+				response.getOptions().addOtherOption(responseTimeOption);
+			}
+		} else {
+			response = new Response(FORBIDDEN);
 		}
 		exchange.respond(response);
 	}

@@ -14,14 +14,22 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.proxy;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 
 import javax.crypto.SecretKey;
 
+import org.eclipse.californium.cloud.util.AppendingResourceParser;
+import org.eclipse.californium.cloud.util.ResourceChangedHandler;
 import org.eclipse.californium.cloud.util.ResourceParser;
 import org.eclipse.californium.cloud.util.ResourceStore;
+import org.eclipse.californium.cloud.util.ResultConsumer;
+import org.eclipse.californium.cloud.util.ResultConsumer.ResultCode;
 import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceCheckReady;
 import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceMonitor;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -67,27 +75,7 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 	@Override
 	public SystemResourceMonitor createMonitor(final String key, final SecretKey password) {
 		if (key != null) {
-			monitor = new SystemResourceMonitor() {
-
-				SecretKey s3Password = SecretUtil.create(password);
-
-				@Override
-				public void checkForUpdate(SystemResourceCheckReady ready) {
-					LOGGER.debug("S3-resource {} check ...", key);
-					load(key, (in) -> {
-						if (in != null) {
-							if (s3Password != null) {
-								load(in, s3Password);
-								LOGGER.info("S3-encrypted-resource {} loaded.", key);
-							} else {
-								load(in);
-								LOGGER.info("S3-resource {} loaded.", key);
-							}
-						}
-						ready.ready(false);
-					}, false);
-				}
-			};
+			monitor = new AppendS3Monitor(key, password);
 		} else {
 			monitor = null;
 		}
@@ -127,9 +115,9 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 	 */
 	public void load(final String key, final Consumer<InputStream> handler, boolean wait) {
 		final CountDownLatch ready = new CountDownLatch(1);
-		s3Client.load(S3Request.builder().key(key).build(), (in) -> {
+		s3Client.load(S3Request.builder().key(key).build(), (response) -> {
 			try {
-				handler.accept(in);
+				handler.accept(response.getContentAsStream());
 			} finally {
 				ready.countDown();
 			}
@@ -141,4 +129,113 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 			}
 		}
 	}
+
+	public class AppendS3Monitor implements SystemResourceMonitor, ResourceChangedHandler {
+
+		private final String key;
+		private final SecretKey password;
+
+		public AppendS3Monitor(final String key, final SecretKey password) {
+			this.key = key;
+			this.password = SecretUtil.create(password);
+		}
+
+		@Override
+		public void checkForUpdate(SystemResourceCheckReady ready) {
+			Semaphore semaphore = getSemaphore();
+			if (semaphore.tryAcquire()) {
+				LOGGER.debug("S3-resource {} check ...", key);
+				try {
+					load(key, (in) -> {
+						if (in != null) {
+							if (password != null) {
+								load(in, password);
+								LOGGER.info("S3-encrypted-resource {} loaded.", key);
+							} else {
+								load(in);
+								LOGGER.info("S3-resource {} loaded.", key);
+							}
+						}
+						ready.ready(false);
+						getSemaphore().release();
+					}, false);
+					semaphore = null;
+				} finally {
+					if (semaphore != null) {
+						semaphore.release();
+					}
+				}
+			} else {
+				// schedule next check
+				ready.ready(false);
+			}
+		}
+
+		@Override
+		public void changed(ResultConsumer response) {
+			T currentResource = getResource();
+			String tag = getTag();
+			if (!(currentResource instanceof AppendingResourceParser)) {
+				response.results(ResultCode.SERVER_ERROR, "no AppendResourceParser.");
+				return;
+			}
+			final AppendingResourceParser<?> resource = (AppendingResourceParser<?>) currentResource;
+
+			s3Client.load(S3Request.builder().key(key).force(true).build(), (load) -> {
+				try {
+					if (load != null) {
+						int result = 0;
+						InputStream in = load.getContentAsStream();
+						ByteArrayOutputStream out = new ByteArrayOutputStream();
+						if (password != null) {
+							byte[] seed = encryptionUtility.readSeed(in);
+							try (InputStream inEncrypted = encryptionUtility.prepare(seed, in, password)) {
+								try (OutputStream outEncrypted = encryptionUtility.prepare(seed, out, password)) {
+									LOGGER.info("{}append encrypted {}.", tag, key);
+									result = appendNewEntries(resource, inEncrypted, outEncrypted);
+								}
+							} catch (IOException e) {
+								LOGGER.warn("{}append encrypted {}:", tag, key, e);
+								throw e;
+							}
+						} else {
+							try {
+								LOGGER.info("{}append {}.", tag, key);
+								result = appendNewEntries(resource, in, out);
+							} catch (IOException e) {
+								LOGGER.warn("{}append {}:", tag, key, e);
+								throw e;
+							}
+						}
+						if (result > 0) {
+							S3PutRequest.Builder builder = S3PutRequest.builder();
+							builder.key(key);
+							builder.content(out.toByteArray());
+							builder.contentType(load.getContentType());
+							final int r = result;
+							s3Client.save(builder.build(), (save) -> {
+								if (save.getHttpStatusCode() < 300) {
+									resource.clearNewEntries();
+									response.results(ResultCode.SUCCESS,
+											"successfully added " + r + " new entries.");
+								} else {
+									response.results(ResultCode.SERVER_ERROR,
+											"failed to save new entries to S3.");
+								}
+							});
+						} else {
+							response.results(ResultCode.SERVER_ERROR, "failed to append new entries.");
+						}
+					} else {
+						LOGGER.info("{}read {} failed!", tag, key);
+						response.results(ResultCode.SERVER_ERROR, "failed to read old entries.");
+					}
+				} catch (IOException e) {
+					LOGGER.info("{}read {} failed!", tag, key, e);
+					response.results(ResultCode.SERVER_ERROR, "failed to save new entries. " + e.getMessage());
+				}
+			});
+		}
+	}
+
 }

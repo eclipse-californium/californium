@@ -18,7 +18,6 @@ import java.io.File;
 
 import org.eclipse.californium.cloud.BaseServer.ServerConfig;
 import org.eclipse.californium.cloud.option.TimeOption;
-import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.config.Configuration;
@@ -32,7 +31,7 @@ import picocli.CommandLine.Command;
  * 
  * @since 3.12
  */
-public class DemoServer extends CoapServer {
+public class DemoServer {
 
 	private static final File CONFIG_FILE = new File("CaliforniumCloudDemo3.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Cloud-Demo Server";

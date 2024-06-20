@@ -23,7 +23,6 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.SERVICE_UNAVAI
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.VALID;
 
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
@@ -107,6 +106,10 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	 * certain time.
 	 */
 	private static final long REDIRECT_CHECK_INTERVAL = TimeUnit.HOURS.toNanos(1);
+
+	public static final String CONTENT_TYPE_TEXT = "text/plain; charset=utf-8";
+	public static final String CONTENT_TYPE_BINARY = "application/octet-stream";
+
 	/**
 	 * ETAG cache.
 	 */
@@ -185,7 +188,8 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 			AwsBasicCredentials credentials = AwsBasicCredentials.create(keyId, keySecret);
 			builder.credentialsProvider(StaticCredentialsProvider.create(credentials));
 		}
-		builder.overrideConfiguration(ClientOverrideConfiguration.builder().retryPolicy(RetryMode.ADAPTIVE).build());
+		builder.overrideConfiguration(
+				ClientOverrideConfiguration.builder().retryStrategy(RetryMode.ADAPTIVE_V2).build());
 		builder.httpClientBuilder(NettyNioAsyncHttpClient.builder().maxConcurrency(concurrency));
 		this.s3Client = builder.build();
 		this.bucket = bucket;
@@ -320,24 +324,28 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 								if (redirect != null) {
 									S3ProxyRequest redirectRequest = S3ProxyRequest.builder(request).redirect(redirect)
 											.build();
-									LOGGER.info(">S3-put: {} ({}ms) redirect {}", key, timeMillis, redirect);
+									LOGGER.info(">Ex./S3-put: {} ({}ms) redirect {}", key, timeMillis, redirect);
 									put(redirectRequest, handler);
 									return;
 								}
 							}
-							LOGGER.warn(">S3-put{}: {} ({}ms) {}", redirected, key, timeMillis, exception.getMessage());
-							response = getResponse(exception, null);
+							LOGGER.warn(">Ex./S3-put{}: {} ({}ms) {}", redirected, key, timeMillis,
+									exception.getMessage());
+							response = getCoapResponse(exception, null);
 						} else if (putResponse != null) {
 							LOGGER.info(">S3-put{}: {} ({}ms) {}", redirected, key, timeMillis, putResponse);
 							SdkHttpResponse httpResponse = putResponse.sdkHttpResponse();
 							if (httpResponse.isSuccessful()) {
 								response = new Response(CHANGED);
+								etags.remove(key);
 								success(s3Client);
 							} else {
-								response = getResponse(null, httpResponse);
+								response = getCoapResponse(null, httpResponse);
+								LOGGER.info(">S3-put{}: {} ({}ms) {} {}", redirected, key, timeMillis,
+										response.getCode(), response.getPayloadString());
 							}
 						} else {
-							LOGGER.warn(">S3-put{}: {} ({}ms) no response nor error!", redirected, key, timeMillis);
+							LOGGER.warn("S3-put{}: {} ({}ms) no response nor error!", redirected, key, timeMillis);
 						}
 						if (response == null) {
 							response = new Response(INTERNAL_SERVER_ERROR);
@@ -363,6 +371,90 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	@Override
+	public void save(S3PutRequest request, final Consumer<S3Response> handler) {
+		if (request == null) {
+			throw new NullPointerException("request must not be null!");
+		}
+		if (handler == null) {
+			throw new NullPointerException("handler must not be null!");
+		}
+		String responseText = "Authorization missing!";
+		S3Response.Builder responseBuilder = S3Response.builder().httpStatusCode(401);
+
+		final String key = request.getKey();
+		if (key != null) {
+			final S3AsyncClient s3Client = getClient(request.getRedirect());
+			if (s3Client == null) {
+				responseBuilder.httpStatusCode(500);
+				responseText = "Temporary Redirect";
+			} else {
+				final String redirected = s3Client == this.s3Client ? "" : "(redir.)";
+				try {
+					PutObjectRequest.Builder putBuilder = PutObjectRequest.builder().bucket(bucket).key(key);
+					byte[] content = request.getContent();
+					putBuilder.contentLength((long) content.length);
+					if (request.getContentType() != null) {
+						putBuilder.contentType(request.getContentType());
+					}
+					if (request.getTimestamp() != null) {
+						Map<String, String> meta = new HashMap<>();
+						meta.put(METADATA_TIME, Long.toString(request.getTimestamp()));
+						putBuilder.metadata(meta);
+					}
+					AsyncRequestBody body = AsyncRequestBody.fromBytes(content);
+					final long now = ClockUtil.nanoRealtime();
+					CompletableFuture<PutObjectResponse> future = s3Client.putObject(putBuilder.build(), body);
+					future.whenComplete((putResponse, exception) -> {
+						long timeMillis = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - now);
+						S3Response response = null;
+						if (exception != null) {
+							if (s3Client == this.s3Client && request.getRedirect() == null) {
+								Redirect redirect = getRedirect(exception);
+								if (redirect != null) {
+									S3PutRequest redirectRequest = S3PutRequest.builder(request).redirect(redirect)
+											.build();
+									LOGGER.info(">Ex./S3-save: {} ({}ms) redirect {}", key, timeMillis, redirect);
+									save(redirectRequest, handler);
+									return;
+								}
+							}
+							LOGGER.warn(">Ex./S3-save{}: {} ({}ms) {}", redirected, key, timeMillis,
+									exception.getMessage());
+							response = getS3Response(exception, null);
+						} else if (putResponse != null) {
+							LOGGER.info(">S3-save{}: {} ({}ms) {}", redirected, key, timeMillis, putResponse);
+							SdkHttpResponse httpResponse = putResponse.sdkHttpResponse();
+							if (httpResponse.isSuccessful()) {
+								etags.remove(key);
+								success(s3Client);
+							}
+							response = getS3Response(null, httpResponse);
+						} else {
+							LOGGER.warn(">S3-save{}: {} ({}ms) no response nor error!", redirected, key, timeMillis);
+						}
+						if (response == null) {
+							response = S3Response.builder().httpStatusCode(500).build();
+						}
+						handler.accept(response);
+					});
+					return;
+				} catch (S3Exception e) {
+					LOGGER.warn("S3-save{}: {}", redirected, key, e);
+					responseBuilder.httpStatusCode(500);
+					responseText = e.getMessage();
+				} catch (SdkException e) {
+					LOGGER.warn("S3-save{}: {}", redirected, key, e);
+					responseBuilder.httpStatusCode(500);
+					responseText = e.getMessage();
+				}
+			}
+		}
+		responseBuilder.contentType(CONTENT_TYPE_TEXT);
+		responseBuilder.content(responseText);
+		handler.accept(responseBuilder.build());
+	}
+
+	@Override
 	public void get(S3ProxyRequest request, final Consumer<Response> handler) {
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
@@ -383,15 +475,24 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 				final String redirected = s3Client == this.s3Client ? "" : "(redir.)";
 				try {
 					GetObjectRequest.Builder getBuilder = GetObjectRequest.builder().bucket(bucket).key(key);
-					EtagPair etagPair = etags.update(key);
-					if (etagPair != null) {
-						List<Option> coapETags = request.getETags();
-						for (Option etag : coapETags) {
-							if (etagPair.match(etag.getValue())) {
-								getBuilder.ifNoneMatch(etagPair.getS3Etag());
-								LOGGER.debug("S3-get: {} with ETAG {}", key, etagPair.getS3Etag());
-								break;
+					if (request.isForced()) {
+						LOGGER.debug("S3-get: {} (forced)", key);
+					} else {
+						boolean withEtag = false;
+						EtagPair etagPair = etags.update(key);
+						if (etagPair != null) {
+							List<Option> coapETags = request.getETags();
+							for (Option etag : coapETags) {
+								if (etagPair.match(etag.getValue())) {
+									getBuilder.ifNoneMatch(etagPair.getS3Etag());
+									withEtag = true;
+									LOGGER.debug("S3-get: {} with ETAG {}", key, etagPair.getS3Etag());
+									break;
+								}
 							}
+						}
+						if (!withEtag) {
+							LOGGER.debug("S3-get: {} without ETAG", key);
 						}
 					}
 					final long now = System.nanoTime();
@@ -406,21 +507,21 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 								if (redirect != null) {
 									S3ProxyRequest redirectRequest = S3ProxyRequest.builder(request).redirect(redirect)
 											.build();
-									LOGGER.info(">S3-get: {} ({}ms) redirect {}", key, timeMillis, redirect);
+									LOGGER.info(">Ex./S3-get: {} ({}ms) redirect {}", key, timeMillis, redirect);
 									get(redirectRequest, handler);
 									return;
 								}
 							}
-							response = getResponse(exception, null);
+							response = getCoapResponse(exception, null);
 							if (response != null && response.isSuccess()) {
 								if (response.getCode().equals(ResponseCode.VALID)) {
-									LOGGER.info(">S3-get{}: {} ({}ms) no change", redirected, key, timeMillis);
+									LOGGER.info(">Ex./S3-get{}: {} ({}ms) no change", redirected, key, timeMillis);
 								} else {
-									LOGGER.info(">S3-get{}: {} ({}ms) {}", redirected, key, timeMillis,
+									LOGGER.info(">Ex./S3-get{}: {} ({}ms) {}", redirected, key, timeMillis,
 											response.getCode());
 								}
 							} else {
-								LOGGER.warn(">S3-get{}: {} ({}ms) {}", redirected, key, timeMillis,
+								LOGGER.warn(">Ex./S3-get{}: {} ({}ms) {}", redirected, key, timeMillis,
 										exception.getMessage());
 							}
 						} else if (getResponse != null) {
@@ -452,7 +553,9 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 								}
 								success(s3Client);
 							} else {
-								response = getResponse(null, httpResponse);
+								response = getCoapResponse(null, httpResponse);
+								LOGGER.info(">S3-get{}: {} ({}ms) {} {}", redirected, key, timeMillis,
+										response.getCode(), response.getPayloadString());
 							}
 						} else {
 							LOGGER.warn(">S3-get{}: {} ({}ms) no response nor error!", redirected, key, timeMillis);
@@ -481,7 +584,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	@Override
-	public void load(S3Request request, final Consumer<InputStream> handler) {
+	public void load(S3Request request, final Consumer<S3Response> handler) {
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
 		}
@@ -498,37 +601,42 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 				final String redirected = s3Client == this.s3Client ? "" : "(redir.)";
 				try {
 					GetObjectRequest.Builder getBuilder = GetObjectRequest.builder().bucket(bucket).key(key);
-					EtagPair etagPair = etags.update(key);
-					if (etagPair != null) {
-						getBuilder.ifNoneMatch(etagPair.getS3Etag());
-						LOGGER.debug("S3-load: {} with ETAG {}", key, etagPair.getS3Etag());
+					if (request.isForced()) {
+						LOGGER.debug("S3-load: {} (forced)", key);
+					} else {
+						EtagPair etagPair = etags.update(key);
+						if (etagPair != null) {
+							getBuilder.ifNoneMatch(etagPair.getS3Etag());
+							LOGGER.debug("S3-load: {} with ETAG {}", key, etagPair.getS3Etag());
+						} else {
+							LOGGER.debug("S3-load: {} without ETAG", key);
+						}
 					}
+
 					final long now = System.nanoTime();
 					CompletableFuture<ResponseBytes<GetObjectResponse>> future = s3Client.getObject(getBuilder.build(),
 							AsyncResponseTransformer.toBytes());
 					future.whenComplete((getResponse, exception) -> {
 						long timeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - now);
-						Response response = null;
+						S3Response response = null;
 						if (exception != null) {
 							if (s3Client == this.s3Client && request.getRedirect() == null) {
 								Redirect redirect = getRedirect(exception);
 								if (redirect != null) {
 									S3Request redirectRequest = S3Request.builder(request).redirect(redirect).build();
-									LOGGER.info(">S3-load: {} ({}ms) redirect {}", key, timeMillis, redirect);
+									LOGGER.info(">Ex./S3-load: {} ({}ms) redirect {}", key, timeMillis, redirect);
 									load(redirectRequest, handler);
 									return;
 								}
 							}
-							response = getResponse(exception, null);
-							if (response != null && response.isSuccess()) {
-								if (response.getCode().equals(ResponseCode.VALID)) {
-									LOGGER.debug(">S3-load{}: {} ({}ms) no change", redirected, key, timeMillis);
-								} else {
-									LOGGER.info(">S3-load{}: {} ({}ms) {}", redirected, key, timeMillis,
-											response.getCode());
-								}
+							response = getS3Response(exception, null);
+							if (response.getHttpStatusCode() == 304) {
+								LOGGER.debug(">Ex./S3-load{}: {} ({}ms) no change", redirected, key, timeMillis);
+							} else if (response.getHttpStatusCode() < 300) {
+								LOGGER.info(">Ex./S3-load{}: {} ({}ms) {}", redirected, key, timeMillis,
+										response.getHttpStatusCode());
 							} else {
-								LOGGER.warn(">S3-load{}: {} ({}ms) {}", redirected, key, timeMillis,
+								LOGGER.warn(">Ex./S3-load{}: {} ({}ms) {}", redirected, key, timeMillis,
 										exception.getMessage());
 							}
 						} else if (getResponse != null) {
@@ -543,21 +651,27 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 									EtagPair pair = new EtagPair(etag);
 									etags.put(key, pair);
 								}
-
-								handler.accept(getResponse.asInputStream());
+								S3Response.Builder builder = S3Response.builder();
+								builder.httpStatusCode(httpResponse.statusCode());
+								builder.contentType(getObjectResponse.contentType());
+								builder.content(getResponse.asInputStream());
+								builder.timestamp(getObjectResponse.lastModified().getEpochSecond());
+								response = builder.build();
 								success(s3Client);
-								return;
 							} else if (httpResponse.statusCode() == 304) {
 								LOGGER.info(">S3-load{}: {} ({}ms) no change", redirected, key, timeMillis);
 							} else {
-								response = getResponse(null, httpResponse);
-								LOGGER.warn(">S3-load{}: {} ({}ms) {}", redirected, key, timeMillis,
-										response.getPayloadString());
+								response = getS3Response(null, httpResponse);
+								LOGGER.warn(">S3-load{}: {} ({}ms) {} {}", redirected, key, timeMillis,
+										response.getHttpStatusCode(), response.getContent());
 							}
 						} else {
 							LOGGER.warn(">S3-load{}: {} ({}ms) no response nor error!", redirected, key, timeMillis);
 						}
-						handler.accept(null);
+						if (response == null) {
+							response = S3Response.builder().httpStatusCode(500).build();
+						}
+						handler.accept(response);
 					});
 					return;
 				} catch (S3Exception e) {
@@ -612,7 +726,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	 * @param httpErrorResponse http error response for S3 request.
 	 * @return coap response
 	 */
-	public Response getResponse(Throwable exception, SdkHttpResponse httpErrorResponse) {
+	public Response getCoapResponse(Throwable exception, SdkHttpResponse httpErrorResponse) {
 		Response response = null;
 		if (httpErrorResponse == null) {
 			Throwable cause = exception;
@@ -630,11 +744,13 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 				return response;
 			}
 		}
-		Map<String, List<String>> headers = httpErrorResponse.headers();
-		List<String> headerNames = new ArrayList<>(headers.keySet());
-		headerNames.sort(null);
-		for (String name : headerNames) {
-			LOGGER.debug("{}: {}", name, headers.get(name));
+		if (LOGGER.isTraceEnabled()) {
+			Map<String, List<String>> headers = httpErrorResponse.headers();
+			List<String> headerNames = new ArrayList<>(headers.keySet());
+			headerNames.sort(null);
+			for (String name : headerNames) {
+				LOGGER.trace("   {}: {}", name, headers.get(name));
+			}
 		}
 		if (httpErrorResponse.statusCode() == 503) {
 			response = new Response(SERVICE_UNAVAILABLE);
@@ -668,6 +784,51 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 			response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		}
 		return response;
+	}
+
+	/**
+	 * Get S3 response.
+	 * 
+	 * @param exception exception while executing S3 request.
+	 * @param httpErrorResponse http error response for S3 request.
+	 * @return S3 response
+	 */
+	public S3Response getS3Response(Throwable exception, SdkHttpResponse httpErrorResponse) {
+		S3Response.Builder builder = S3Response.builder();
+		if (httpErrorResponse == null) {
+			Throwable cause = exception;
+			if (exception instanceof CompletionException) {
+				cause = exception.getCause();
+			}
+			if (cause instanceof S3Exception) {
+				AwsErrorDetails details = ((S3Exception) cause).awsErrorDetails();
+				httpErrorResponse = details.sdkHttpResponse();
+			}
+			if (httpErrorResponse == null) {
+				builder.httpStatusCode(500);
+				builder.content(exception.getMessage());
+				builder.contentType(CONTENT_TYPE_TEXT);
+				return builder.build();
+			}
+		}
+		if (LOGGER.isTraceEnabled()) {
+			Map<String, List<String>> headers = httpErrorResponse.headers();
+			List<String> headerNames = new ArrayList<>(headers.keySet());
+			headerNames.sort(null);
+			for (String name : headerNames) {
+				LOGGER.trace("   {}: {}", name, headers.get(name));
+			}
+		}
+		builder.httpStatusCode(httpErrorResponse.statusCode());
+		builder.contentType(CONTENT_TYPE_TEXT);
+		StringBuilder text = new StringBuilder();
+		text.append(httpErrorResponse.statusText().orElse(""));
+		String location = httpErrorResponse.firstMatchingHeader("Location").orElse(null);
+		if (location != null) {
+			text.append(" => ").append(location);
+		}
+		builder.content(text.toString());
+		return builder.build();
 	}
 
 	/**
@@ -950,8 +1111,8 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		/**
 		 * Enable redirect support for S3.
 		 * 
-		 * @param enable {@code true} to enable redirect support,
-		 *            {@code false}, if not.
+		 * @param enable {@code true} to enable redirect support, {@code false},
+		 *            if not.
 		 * @return builder for command chaining
 		 */
 		public Builder supportRedirect(boolean enable) {

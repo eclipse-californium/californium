@@ -165,10 +165,11 @@ public class LinuxConfigParser implements ResourceParser<LinuxConfigParser> {
 	 * </pre>
 	 * 
 	 * @param reader reader for configuration.
+	 * @return number of added entries.
 	 * @throws IOException if an I/O error occurred
 	 */
 	@Override
-	public void load(Reader reader) throws IOException {
+	public int load(Reader reader) throws IOException {
 		int values = 0;
 		BufferedReader lineReader = new BufferedReader(reader);
 		try {
@@ -234,6 +235,7 @@ public class LinuxConfigParser implements ResourceParser<LinuxConfigParser> {
 			}
 		}
 		LOGGER.info("read {} scopes, {} values.", size(), values);
+		return values;
 	}
 
 	@Override
