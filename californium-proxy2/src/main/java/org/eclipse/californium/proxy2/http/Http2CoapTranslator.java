@@ -337,7 +337,9 @@ public class Http2CoapTranslator {
 			if (httpEntity != null) {
 				// get the content-type from the entity and set the header
 				ContentType contentType = httpEntity.getContentType();
-				httpResponse.setHeader("content-type", contentType.toString());
+				if (contentType != null) {
+					httpResponse.setHeader("content-type", contentType.toString());
+				}
 			}
 		}
 		return new ProxyResponseProducer(httpResponse, ContentTypedEntity.createProducer(httpEntity));
