@@ -414,6 +414,16 @@ public class SystemResourceMonitors {
 		}
 
 		/**
+		 * Get file.
+		 * 
+		 * @return file
+		 * @since 3.13
+		 */
+		public File getFile() {
+			return file;
+		}
+
+		/**
 		 * Read monitored values.
 		 * 
 		 * @return monitored values.
@@ -451,6 +461,17 @@ public class SystemResourceMonitors {
 			if (values != null) {
 				this.values = values;
 			}
+		}
+
+		/**
+		 * Check for new monitored values.
+		 * 
+		 * @return new monitored values, or {@code null}, if not changed.
+		 * @since 3.13
+		 */
+		protected MonitoredValues checkMonitoredValues() {
+			MonitoredValues values = readMonitoredValues();
+			return this.values.check(values) ? values : null;
 		}
 
 		/**

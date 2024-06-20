@@ -14,6 +14,8 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.util;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.security.PrivateKey;
@@ -23,14 +25,18 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.cloud.util.DeviceParser.Device;
+import org.eclipse.californium.cloud.util.ResultConsumer.ResultCode;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
+import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceMonitor;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -60,7 +66,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.12
  */
-public class DeviceManager implements DeviceGredentialsProvider {
+public class DeviceManager implements DeviceGredentialsProvider, DeviceProvisioningConsumer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DeviceManager.class);
 
@@ -72,6 +78,18 @@ public class DeviceManager implements DeviceGredentialsProvider {
 	 * Key for configured device group in additional info.
 	 */
 	public static final String INFO_GROUP = "group";
+	/**
+	 * Key for configured device provisioning in additional info.
+	 */
+	public static final String INFO_PROVISIONING = "prov";
+	/**
+	 * Device info provider.
+	 * 
+	 * Get device info from additional info of the principal.
+	 * 
+	 * @since 3.13
+	 */
+	private static volatile DeviceInfoProvider provider;
 
 	/**
 	 * Resource store of device credentials.
@@ -134,6 +152,61 @@ public class DeviceManager implements DeviceGredentialsProvider {
 				return createAdditionalInfo(clientIdentity);
 			}
 		};
+	}
+
+	@Override
+	public void add(DeviceInfo info, long time, String data, final ResultConsumer response) {
+		add(devices, info, time, data, response);
+	}
+
+	protected void add(final ResourceStore<DeviceParser> devices, DeviceInfo info, long time, String data,
+			final ResultConsumer response) {
+		if (devices == null) {
+			response.results(ResultCode.SERVER_ERROR, "no credentials available.");
+			return;
+		}
+		SystemResourceMonitor monitor = devices.getMonitor();
+		if (!(monitor instanceof ResourceChangedHandler)) {
+			response.results(ResultCode.SERVER_ERROR, "no ResourceChangedHandler.");
+			return;
+		}
+		Semaphore semaphore = devices.getSemaphore();
+		try {
+			if (semaphore.tryAcquire(15000, TimeUnit.MILLISECONDS)) {
+				try (StringReader reader = new StringReader(data)) {
+					int result = devices.getResource().load(reader);
+					if (result > 0) {
+						((ResourceChangedHandler) monitor).changed(new ResultConsumer() {
+
+							@Override
+							public void results(ResultCode code, String message) {
+								try {
+									response.results(code, message);
+								} finally {
+									devices.getSemaphore().release();
+								}
+							}
+						});
+						semaphore = null;
+					} else {
+						LOGGER.info("no credentials added!");
+						response.results(ResultCode.PROVISIONING_ERROR, "no credentials added.");
+					}
+				} catch (IllegalArgumentException e) {
+					response.results(ResultCode.PROVISIONING_ERROR, e.getMessage());
+				} catch (IOException e) {
+					response.results(ResultCode.SERVER_ERROR, "failed to read new credentials. " + e.getMessage());
+				} finally {
+					if (semaphore != null) {
+						semaphore.release();
+					}
+				}
+			} else {
+				response.results(ResultCode.SERVER_ERROR, "Too busy.");
+			}
+		} catch (InterruptedException e) {
+			response.results(ResultCode.SERVER_ERROR, "Shutdown.");
+		}
 	}
 
 	@Override
@@ -211,6 +284,9 @@ public class DeviceManager implements DeviceGredentialsProvider {
 			Map<String, Object> info = new HashMap<>();
 			info.put(INFO_NAME, device.name);
 			info.put(INFO_GROUP, device.group);
+			if (device.provisioning) {
+				info.put(INFO_PROVISIONING, "1");
+			}
 			return AdditionalInfo.from(info);
 		}
 		return null;
@@ -338,16 +414,42 @@ public class DeviceManager implements DeviceGredentialsProvider {
 	 * @see EndpointContext#getPeerIdentity()
 	 */
 	public static DeviceInfo getDeviceInfo(Principal principal) {
+		DeviceInfoProvider provider = DeviceManager.provider;
+		if (provider != null) {
+			return provider.getDeviceInfo(principal);
+		}
 		if (principal instanceof ExtensiblePrincipal) {
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
 			String name = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_NAME, String.class);
 			if (name != null && !name.contains("/")) {
 				String group = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_GROUP, String.class);
-				return new DeviceInfo(group, name);
+				String prov = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_PROVISIONING, String.class);
+				return new DeviceInfo(group, name, prov);
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Set custom device info provider.
+	 * 
+	 * @param provider custom device info provider. {@code null} to reset for
+	 *            the default provider.
+	 * @since 3.13
+	 */
+	public static void setDeviceInfoProvider(DeviceInfoProvider provider) {
+		DeviceManager.provider = provider;
+	}
+
+	/**
+	 * Device info provider.
+	 * 
+	 * @since 3.13
+	 */
+	public interface DeviceInfoProvider {
+
+		DeviceInfo getDeviceInfo(Principal principal);
 	}
 
 	/**
@@ -363,21 +465,28 @@ public class DeviceManager implements DeviceGredentialsProvider {
 		 * Device group.
 		 */
 		public final String group;
+		/**
+		 * Device provisioning.
+		 */
+		public final boolean provisioning;
 
 		/**
 		 * Create device info
 		 * 
 		 * @param group group of device
 		 * @param name name of device
+		 * @param provisioning {@code "1"}, if credentials are used for auto
+		 *            provisioning, otherwise device credentials.
 		 */
-		protected DeviceInfo(String group, String name) {
+		protected DeviceInfo(String group, String name, String provisioning) {
 			this.name = name;
 			this.group = group;
+			this.provisioning = "1".equals(provisioning);
 		}
 
 		@Override
 		public String toString() {
-			return name + " (" + group + ")";
+			return name + " (" + group + (provisioning ? ",prov)" : ")");
 		}
 	}
 }

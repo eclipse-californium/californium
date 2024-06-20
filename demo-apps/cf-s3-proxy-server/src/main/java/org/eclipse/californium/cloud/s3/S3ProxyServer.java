@@ -35,6 +35,7 @@ import org.eclipse.californium.cloud.option.ReadResponseOption;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.resources.Diagnose;
 import org.eclipse.californium.cloud.resources.MyContext;
+import org.eclipse.californium.cloud.resources.Provisioning;
 import org.eclipse.californium.cloud.s3.http.AuthorizedCoapProxyHandler;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer;
 import org.eclipse.californium.cloud.s3.http.S3Login;
@@ -58,6 +59,7 @@ import org.eclipse.californium.cloud.s3.util.WebAppUserParser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserProvider;
 import org.eclipse.californium.cloud.util.DeviceManager;
 import org.eclipse.californium.cloud.util.DeviceParser;
+import org.eclipse.californium.cloud.util.DeviceProvisioningConsumer;
 import org.eclipse.californium.cloud.util.LinuxConfigParser;
 import org.eclipse.californium.cloud.util.ResourceStore;
 import org.eclipse.californium.core.CoapServer;
@@ -431,7 +433,12 @@ public class S3ProxyServer extends BaseServer {
 		ResourceStore<DeviceParser> devices = null;
 		if (cliArguments.deviceStore != null) {
 			long interval = getConfig().get(DEVICE_CREDENTIALS_RELOAD_INTERVAL, TimeUnit.SECONDS);
-			DeviceParser factory = new DeviceParser(true);
+			boolean replace = cliArguments.provisioning != null ? cliArguments.provisioning.replace : false;
+			if (replace) {
+				LOGGER.info(
+						"New device credentials will replace already available ones. Use this only for development!");
+			}
+			DeviceParser factory = new DeviceParser(true, replace);
 			final ResourceStore<DeviceParser> configResource = new ResourceStore<>(factory).setTag("Devices ");
 			configResource.loadAndCreateMonitor(cliArguments.deviceStore.file, cliArguments.deviceStore.password64,
 					interval > 0);
@@ -525,6 +532,10 @@ public class S3ProxyServer extends BaseServer {
 			add(new MyContext(MyContext.RESOURCE_NAME, CALIFORNIUM_BUILD_VERSION, false));
 			add(new S3Devices(getConfig(), s3clients, forward));
 			add(new S3ProxyResource("fw", 0, getConfig(), s3clients));
+			if (cliArguments.provisioning != null && cliArguments.provisioning.provisioning
+					&& deviceCredentials instanceof DeviceProvisioningConsumer) {
+				add(new Provisioning((DeviceProvisioningConsumer) deviceCredentials));
+			}
 		} else {
 			super.addResource(cliArguments, executor);
 		}

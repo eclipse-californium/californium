@@ -14,6 +14,7 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.util;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -24,11 +25,13 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.util.Arrays;
+import java.util.concurrent.Semaphore;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
+import org.eclipse.californium.cloud.util.ResultConsumer.ResultCode;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.EncryptedStreamUtil;
 import org.eclipse.californium.elements.util.StandardCharsets;
@@ -54,9 +57,15 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 	 */
 	private final T factory;
 	/**
+	 * Semaphore to protect access.
+	 * 
+	 * @since 3.13
+	 */
+	protected final Semaphore semaphore = new Semaphore(1);
+	/**
 	 * Encryption utility for encrypted resources.
 	 */
-	private final EncryptedStreamUtil encryptionUtility = new EncryptedStreamUtil();
+	protected final EncryptedStreamUtil encryptionUtility = new EncryptedStreamUtil();
 	/**
 	 * Observer for loaded {@link ResourceParser}.
 	 */
@@ -212,21 +221,7 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 	 */
 	public SystemResourceMonitor createMonitor(final String file, final SecretKey password) {
 		if (file != null) {
-			monitor = new FileMonitor(file) {
-
-				private SecretKey monitorPassword = SecretUtil.create(password);
-
-				@Override
-				protected void update(MonitoredValues values, SystemResourceCheckReady ready) {
-					if (monitorPassword != null) {
-						load(file, monitorPassword);
-					} else {
-						load(file);
-					}
-					ready(values);
-					ready.ready(false);
-				}
-			};
+			monitor = new AppendFileMonitor(file, password);
 		} else {
 			monitor = null;
 		}
@@ -349,6 +344,9 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 				destroyed = true;
 			}
 		} else {
+			if (newConfigurations instanceof AppendingResourceParser) {
+				((AppendingResourceParser<?>) newConfigurations).clearNewEntries();
+			}
 			Observer<T> observer = this.observer;
 			if (observer != null) {
 				observer.update(newConfigurations);
@@ -493,8 +491,138 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 		return destroyed;
 	}
 
+	/**
+	 * Get semaphore.
+	 * 
+	 * @return semaphore.
+	 * @since 3.13
+	 */
+	public Semaphore getSemaphore() {
+		return semaphore;
+	}
+
 	public interface Observer<T extends ResourceParser<T>> {
 
 		void update(T newT);
 	}
+
+	public class AppendFileMonitor extends FileMonitor implements ResourceChangedHandler {
+
+		private final String file;
+		private final SecretKey password;
+
+		public AppendFileMonitor(final String file, final SecretKey password) {
+			super(file);
+			this.file = file;
+			this.password = SecretUtil.create(password);
+		}
+
+		@Override
+		public void checkForUpdate(SystemResourceCheckReady ready) {
+			if (semaphore.tryAcquire()) {
+				try {
+					super.checkForUpdate(ready);
+				} finally {
+					semaphore.release();
+				}
+			} else {
+				// schedule next check
+				ready.ready(false);
+			}
+		}
+
+		@Override
+		protected void update(MonitoredValues values, SystemResourceCheckReady ready) {
+			if (password != null) {
+				load(file, password);
+			} else {
+				load(file);
+			}
+			ready(values);
+			ready.ready(false);
+		}
+
+		@Override
+		public void changed(ResultConsumer response) {
+			if (!(currentResource instanceof AppendingResourceParser)) {
+				response.results(ResultCode.SERVER_ERROR, "no AppendResourceParser.");
+				return;
+			}
+			AppendingResourceParser<?> resource =(AppendingResourceParser<?>) currentResource;
+			try {
+				int result = 0;
+				File temp = File.createTempFile(file, null);
+				if (password != null) {
+					try (InputStream in = new FileInputStream(file)) {
+						byte[] seed = encryptionUtility.readSeed(in);
+						try (InputStream inEncrypted = encryptionUtility.prepare(seed, in, password)) {
+							try (OutputStream out = new FileOutputStream(temp)) {
+								try (OutputStream outEncrypted = encryptionUtility.prepare(seed, out, password)) {
+									result = appendNewEntries(resource, inEncrypted, outEncrypted);
+								}
+							}
+						}
+					} catch (IOException e) {
+						LOGGER.warn("{}append encrypted {}:", tag, file, e);
+						throw e;
+					}
+				} else {
+					try (InputStream in = new FileInputStream(file)) {
+						try (OutputStream out = new FileOutputStream(temp)) {
+							result = appendNewEntries(resource, in, out);
+						}
+					} catch (IOException e) {
+						LOGGER.warn("{}append {}:", tag, file, e);
+						throw e;
+					}
+				}
+				if (result > 0) {
+					MonitoredValues values = checkMonitoredValues();
+					File currentFile = getFile();
+					currentFile.delete();
+					temp.renameTo(currentFile);
+					if (values == null) {
+						values = checkMonitoredValues();
+						ready(values);
+					}
+					resource.clearNewEntries();
+					response.results(ResultCode.SUCCESS, "successfully added " + result + " new entries.");
+				} else {
+					temp.delete();
+					response.results(ResultCode.SERVER_ERROR, "failed to append new entries.");
+				}
+			} catch (IOException e) {
+				LOGGER.warn("{}append {}:", tag, file, e);
+				response.results(ResultCode.SERVER_ERROR, "failed to save new entries. " + e.getMessage());
+			}
+		}
+	}
+
+	/**
+	 * Append new entries of resource.
+	 * 
+	 * @param resource resource to append new entries
+	 * @param in in stream to append new entries
+	 * @param out out stream to write appended result
+	 * @return number of written new entries.
+	 * @throws IOException if an i/o error occurred
+	 * @since 3.13
+	 */
+	protected static int appendNewEntries(AppendingResourceParser<?> resource, InputStream in, OutputStream out)
+			throws IOException {
+		int len;
+		int result = resource.sizeNewEntries();
+		byte[] buffer = new byte[8192];
+
+		while ((len = in.read(buffer)) >= 0) {
+			if (len > 0) {
+				out.write(buffer, 0, len);
+			}
+		}
+		try (Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+			resource.saveNewEntries(writer);
+		}
+		return result;
+	}
+
 }

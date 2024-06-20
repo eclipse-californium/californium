@@ -31,6 +31,12 @@ public class S3Request {
 	 * Redirect info, if S3 bucket is temporary redirected after creating.
 	 */
 	private final Redirect redirect;
+	/**
+	 * Forced request, don't use ETAGs.
+	 * 
+	 * @since 3.13
+	 */
+	private final boolean force;
 
 	/**
 	 * Create S3 request.
@@ -38,10 +44,12 @@ public class S3Request {
 	 * @param key S3 key
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating. Otherwise {@code null}.
+	 * @param force force mode. {@code true} to not use ETAGs.
 	 */
-	public S3Request(String key, Redirect redirect) {
+	public S3Request(String key, Redirect redirect, boolean force) {
 		this.key = key;
 		this.redirect = redirect;
+		this.force = force;
 	}
 
 	/**
@@ -64,6 +72,16 @@ public class S3Request {
 	 */
 	public Redirect getRedirect() {
 		return redirect;
+	}
+
+	/**
+	 * Check, if request is forced.
+	 * 
+	 * @return {@code true}, if request is forced and must not use ETAGs.
+	 * @since 3.13
+	 */
+	public boolean isForced() {
+		return force;
 	}
 
 	/**
@@ -131,6 +149,12 @@ public class S3Request {
 		 * Redirect info, if S3 bucket is temporary redirected after creating.
 		 */
 		protected Redirect redirect;
+		/**
+		 * Forced request, don't use ETAGs.
+		 * 
+		 * @since 3.13
+		 */
+		protected boolean force;
 
 		/**
 		 * Create S3-request-builder.
@@ -172,12 +196,24 @@ public class S3Request {
 		}
 
 		/**
+		 * Set force mode.
+		 * 
+		 * @param force force mode. {@code true} to not use ETAGs.
+		 * @return builder for command chaining
+		 * @since 3.13
+		 */
+		public Builder force(boolean force) {
+			this.force = force;
+			return this;
+		}
+
+		/**
 		 * Creates S3-request.
 		 * 
 		 * @return S3-request
 		 */
 		public S3Request build() {
-			return new S3Request(key, redirect);
+			return new S3Request(key, redirect, force);
 		}
 	}
 }

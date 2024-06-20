@@ -14,7 +14,6 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.proxy;
 
-import java.io.InputStream;
 import java.util.function.Consumer;
 
 import org.eclipse.californium.cloud.s3.http.ExternalEndpointProvider;
@@ -63,6 +62,14 @@ public interface S3ProxyClient extends ExternalEndpointProvider {
 	 * @param request GET request
 	 * @param handler callback for resource content
 	 */
-	void load(S3Request request, final Consumer<InputStream> handler);
+	void load(S3Request request, final Consumer<S3Response> handler);
+
+	/**
+	 * Execute S3 PUT request.
+	 * 
+	 * @param request PUT request
+	 * @param handler callback for resource content
+	 */
+	void save(S3PutRequest request, final Consumer<S3Response> handler);
 
 }

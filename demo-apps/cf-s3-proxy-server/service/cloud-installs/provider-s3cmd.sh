@@ -94,9 +94,10 @@ provider_create_s3_devicedomain_bucket() {
    
    sed "s!^\[\s*default\s*\]\$![${devicedomain}.data\]!" ${SERVICEPATH}/${devicedomain}/.s3cfg >>${SERVICEPATH}/${devicedomain}/domains.txt
 
+   echo "concurrency = 400" >> ${SERVICEPATH}/${devicedomain}/domains.txt
    echo "" >> ${SERVICEPATH}/${devicedomain}/domains.txt
 	    
-   sed "s!^\[\s*default\s*\]\$![${devicedomain}.management\]!" ${SERVICEPATH}/${devicedomain}/.s3cfg >>${SERVICEPATH}/${devicedomain}/domains.txt
+   sed "s!^\[\s*default\s*\]\$![${devicedomain}.management\]!" ${SERVICEPATH}/${devicedomain}/.s3cfg-mgmt >>${SERVICEPATH}/${devicedomain}/domains.txt
 
    echo "" >> ${SERVICEPATH}/${devicedomain}/domains.txt
 

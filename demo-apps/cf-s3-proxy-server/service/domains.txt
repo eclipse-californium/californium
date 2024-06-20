@@ -33,6 +33,7 @@
 # config_store_password64 = <config1-store-password-base64>
 # user_store = <user1-store>
 # user_store_password64 = <user1-store-password-base64>
+# devices_replaced = true|false
 # http_forward = https://<destination>
 # http_authentication = Bearer <token>
 # or
