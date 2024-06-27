@@ -150,19 +150,19 @@ public final class ClientHello extends HelloHandshakeMessage {
 			addExtension(SupportedPointFormatsExtension.DEFAULT_POINT_FORMATS_EXTENSION);
 		}
 
-		// the supported signature and hash algorithms
-		if (!supportedSignatureAndHashAlgorithms.isEmpty()) {
-			if (useCertificateTypeRawPublicKeyOnly(supportedClientCertificateTypes)
-					&& useCertificateTypeRawPublicKeyOnly(supportedServerCertificateTypes)) {
-				List<CertificateKeyAlgorithm> certificateKeyAlgorithms = CipherSuite
-						.getCertificateKeyAlgorithms(supportedCipherSuites);
-				supportedSignatureAndHashAlgorithms = SignatureAndHashAlgorithm.getCompatibleSignatureAlgorithms(
-						supportedSignatureAndHashAlgorithms, certificateKeyAlgorithms);
-			}
-			addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
-		}
-
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(supportedCipherSuites)) {
+			// the supported signature and hash algorithms
+			if (!supportedSignatureAndHashAlgorithms.isEmpty()) {
+				if (useCertificateTypeRawPublicKeyOnly(supportedClientCertificateTypes)
+						&& useCertificateTypeRawPublicKeyOnly(supportedServerCertificateTypes)) {
+					List<CertificateKeyAlgorithm> certificateKeyAlgorithms = CipherSuite
+							.getCertificateKeyAlgorithms(supportedCipherSuites);
+					supportedSignatureAndHashAlgorithms = SignatureAndHashAlgorithm.getCompatibleSignatureAlgorithms(
+							supportedSignatureAndHashAlgorithms, certificateKeyAlgorithms);
+				}
+				addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
+			}
+
 			// the certificate types the client is able to provide to the server
 			if (useCertificateTypeExtension(supportedClientCertificateTypes)) {
 				CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(
@@ -302,7 +302,8 @@ public final class ClientHello extends HelloHandshakeMessage {
 		// variable sizes: session ID, supported cipher suites, compression
 		// methods + extensions
 		return 39 + sessionId.length() + cookie.length
-				+ supportedCipherSuites.size() * CipherSuite.CIPHER_SUITE_BITS / Byte.SIZE + compressionMethods.size()
+				+ supportedCipherSuites.size() * CipherSuite.CIPHER_SUITE_BITS / Byte.SIZE 
+				+ compressionMethods.size()
 				+ extensions.getLength();
 	}
 
@@ -359,14 +360,10 @@ public final class ClientHello extends HelloHandshakeMessage {
 		byte[] rawMessage = toByteArray();
 		int head = sessionId.length() + RANDOM_BYTES
 				+ (VERSION_BITS + VERSION_BITS + SESSION_ID_LENGTH_BITS) / Byte.SIZE;
-		int tail = head + COOKIE_LENGTH_BITS / Byte.SIZE + MESSAGE_HEADER_LENGTH_BYTES;
-		if (cookie != null) {
-			tail += cookie.length;
-		}
-		int tailLength = (CIPHER_SUITES_LENGTH_BITS + CIPHER_SUITES_LENGTH_BITS
+		int tail = head + cookie.length + COOKIE_LENGTH_BITS / Byte.SIZE + MESSAGE_HEADER_LENGTH_BYTES;
+		int tailLength = (CIPHER_SUITES_LENGTH_BITS + COMPRESSION_METHODS_LENGTH_BITS
 				+ supportedCipherSuites.size() * CipherSuite.CIPHER_SUITE_BITS
 				+ compressionMethods.size() * CompressionMethod.COMPRESSION_METHOD_BITS) / Byte.SIZE;
-
 		hmac.update(rawMessage, MESSAGE_HEADER_LENGTH_BYTES, head);
 		hmac.update(rawMessage, tail, tailLength);
 	}
