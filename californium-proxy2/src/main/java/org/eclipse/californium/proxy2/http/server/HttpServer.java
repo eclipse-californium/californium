@@ -219,7 +219,7 @@ public class HttpServer {
 					try {
 						URI uri = request.getUri();
 						if (uri.getScheme() != null && !virtualHosts.contains(uri.getHost())) {
-							LOGGER.warn("proxy filter {}", uri);
+							LOGGER.info("proxy filter {}", uri);
 							return proxyServerFilter.handle(request, entityDetails, context, responseTrigger, chain);
 						}
 					} catch (URISyntaxException e) {

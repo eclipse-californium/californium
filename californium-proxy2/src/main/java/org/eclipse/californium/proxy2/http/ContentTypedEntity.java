@@ -43,6 +43,7 @@ public class ContentTypedEntity {
 	 * 
 	 * @param contentType content type
 	 * @param payload payload.
+	 * @throws NullPointerException if content type is {@code null}
 	 */
 	public ContentTypedEntity(ContentType contentType, byte[] payload) {
 		if (contentType == null) {
