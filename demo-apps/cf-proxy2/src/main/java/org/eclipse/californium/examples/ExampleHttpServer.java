@@ -22,11 +22,19 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.hc.core5.http.HttpException;
+import org.apache.hc.core5.http.HttpRequest;
+import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.Message;
+import org.apache.hc.core5.http.nio.support.AsyncResponseBuilder;
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
 import org.eclipse.californium.proxy2.config.Proxy2Config;
+import org.eclipse.californium.proxy2.http.ContentTypedEntity;
+import org.eclipse.californium.proxy2.http.server.ByteBufferAsyncServerRequestHandler;
 import org.eclipse.californium.proxy2.http.server.HttpServer;
 
 /**
@@ -49,6 +57,7 @@ public class ExampleHttpServer {
 
 	public static final int DEFAULT_PORT = 8000;
 	public static final String RESOURCE = "/http-target";
+	public static final String RESOURCE_EMPTY = "/http-empty";
 
 	static {
 		Proxy2Config.register();
@@ -61,6 +70,15 @@ public class ExampleHttpServer {
 	public ExampleHttpServer(Configuration config, final int httpPort) throws IOException {
 		HttpServer server = new HttpServer(config, httpPort);
 		server.setSimpleResource(RESOURCE, "Hi! I am the Http Server on %s. Request %d.", requestCounter);
+		server.register(RESOURCE_EMPTY, new ByteBufferAsyncServerRequestHandler() {
+
+			@Override
+			public void handle(Message<HttpRequest, ContentTypedEntity> requestObject, ResponseTrigger responseTrigger,
+					HttpContext context) throws HttpException, IOException {
+				responseTrigger.submitResponse(AsyncResponseBuilder.create(HttpStatus.SC_OK).build(), context);
+			}
+
+		});
 		server.start();
 		System.out.println("==================================================");
 		System.out.println("== Started HTTP server on port " + httpPort);

@@ -16,6 +16,7 @@
 package org.eclipse.californium.proxy2.http;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
@@ -102,6 +103,29 @@ public class Coap2HttpTranslatorTest {
 		assertThat(httpRequest.getMethod(), is("PUT"));
 		assertThat(httpRequest.getScheme(), is("http"));
 		assertThat(httpRequest.getPath(), is("/targetResource?v=a"));
+	}
+
+	@Test
+	public void testTranslateRequestWithoutPayload()
+			throws TranslationException, HttpException, IOException, URISyntaxException {
+
+		Request request = Request.newPut();
+		request.setDestinationContext(new AddressEndpointContext(new InetSocketAddress("localhost", 5684)));
+		request.setProxyScheme("http");
+		request.setURI("coap://localhost:5686/targetResource");
+
+		URI uri = translator.getDestinationURI(request, null);
+		ProxyRequestProducer translatedRequest = translator.getHttpRequest(uri, request);
+		HttpRequest httpRequest = translatedRequest.getHttpRequest();
+		TestRequestChannel channel = new TestRequestChannel();
+		translatedRequest.sendRequest(channel, null);
+		EntityDetails details = channel.getEntityDetails();
+		assertThat(details, is(nullValue()));
+
+		assertThat(httpRequest.getUri().toString(), is("http://localhost:5686/targetResource"));
+		assertThat(httpRequest.getMethod(), is("PUT"));
+		assertThat(httpRequest.getScheme(), is("http"));
+		assertThat(httpRequest.getPath(), is("/targetResource"));
 	}
 
 	@Test
