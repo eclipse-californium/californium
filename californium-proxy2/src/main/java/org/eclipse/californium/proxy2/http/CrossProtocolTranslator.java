@@ -691,7 +691,9 @@ public class CrossProtocolTranslator {
 				}
 			}
 			// create the entity
-			httpEntity = new ContentTypedEntity(contentType, payload);
+			if (contentType != null) {
+				httpEntity = new ContentTypedEntity(contentType, payload);
+			}
 		}
 
 		return httpEntity;

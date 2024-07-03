@@ -52,6 +52,7 @@ public class ExampleCoapServer {
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Proxy Demo-Server";
 
 	public static final String RESOURCE = "/coap-target";
+	public static final String RESOURCE_EMPTY = "/coap-empty";
 
 	public static final int DEFAULT_COAP_PORT = 5685;
 	public static final int DEFAULT_COAP_SECURE_PORT = 5686;
@@ -123,11 +124,26 @@ public class ExampleCoapServer {
 			}
 
 		});
+		path = RESOURCE_EMPTY;
+		if (path.startsWith("/")) {
+			path = path.substring(1);
+		}
+		coapServer.add(new CoapResource(path) {
+
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				exchange.respond(ResponseCode.CONTENT);
+			}
+
+		});
+
+		
 		coapServer.add(new MyIpResource(MyIpResource.RESOURCE_NAME, true));
 		coapServer.start();
 		System.out.println("==================================================");
 		System.out.println("== Started CoAP server on port " + port);
 		System.out.println("== Request: " + endpoint.getUri() + RESOURCE);
+		System.out.println("== Request: " + endpoint.getUri() + RESOURCE_EMPTY);
 		System.out.println("==================================================");
 	}
 

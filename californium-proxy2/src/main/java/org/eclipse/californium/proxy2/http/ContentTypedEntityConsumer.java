@@ -65,7 +65,11 @@ public class ContentTypedEntityConsumer extends AbstractBinAsyncEntityConsumer<C
 
 	@Override
 	protected ContentTypedEntity generateContent() throws IOException {
-		return new ContentTypedEntity(contentType, buffer.toByteArray());
+		if (contentType != null && !buffer.isEmpty()) {
+			return new ContentTypedEntity(contentType, buffer.toByteArray());
+		} else {
+			return null;
+		}
 	}
 
 	@Override

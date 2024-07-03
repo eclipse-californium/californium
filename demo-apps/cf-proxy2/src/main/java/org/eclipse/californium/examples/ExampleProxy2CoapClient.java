@@ -233,6 +233,16 @@ public class ExampleProxy2CoapClient {
 			e.printStackTrace();
 		}
 
+		client.setURI("http://localhost:8000/http-empty");
+		try {
+			CoapResponse response = client.get();
+			CoapResponsePrinter.printResponse(response);
+		} catch (ConnectorException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 		client.shutdown();
 	}
 }
