@@ -14,6 +14,8 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.util;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Map;
@@ -25,15 +27,17 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.cloud.BaseServer;
 import org.eclipse.californium.cloud.s3.S3ProxyServer;
 import org.eclipse.californium.cloud.s3.S3ProxyServer.S3ProxyConfig.S3Config;
-import org.eclipse.californium.cloud.s3.proxy.S3ResourceStore;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
-import org.eclipse.californium.cloud.util.ResourceStore;
+import org.eclipse.californium.cloud.s3.proxy.S3ResourceStore;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.LinuxConfigParser;
+import org.eclipse.californium.cloud.util.ResourceStore;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.SystemResourceMonitors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Domains.
@@ -53,6 +57,7 @@ import org.eclipse.californium.elements.util.SystemResourceMonitors;
  * {@code [host_bucket = <S3-host_bucket>]}
  * {@code [concurrency = <number-of-clients>]}
  * {@code [redirect = true|false]}
+ * {@code [max_devices = <max-number-of-devices>]}
  * 
  * {@code \[<domain>.management\]}
  * {@code [bucket = <S3-bucket-name>]}
@@ -70,6 +75,10 @@ import org.eclipse.californium.elements.util.SystemResourceMonitors;
  * {@code [config_store_password64 = <config-store-password-base64>]}
  * {@code [user_store = <user-store>]}
  * {@code [user_store_password64 = <user-store-password-base64>]}
+ * {@code [user_store_password64 = <user-store-password-base64>]}
+ * {@code [http_forward = <http forward destination>]}
+ * {@code [http_authentication = Bearer <token>]} or {@code [http_authentication = <username>:<password>]}
+ * {@code [http_device_identity_mode = NONE|HEADLINE|QUERY_PARAMETER]}
  * </pre>
  * 
  * The web application configuration {@code config_store} is defined using
@@ -122,7 +131,10 @@ import org.eclipse.californium.elements.util.SystemResourceMonitors;
  * 
  * @since 3.12
  */
-public class Domains implements S3ProxyClientProvider, WebAppUserProvider, WebAppConfigProvider {
+public class Domains
+		implements S3ProxyClientProvider, WebAppUserProvider, WebAppConfigProvider, HttpForwardDestinationProvider {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(Domains.class);
 
 	/**
 	 * Section suffix for device data section.
@@ -160,6 +172,16 @@ public class Domains implements S3ProxyClientProvider, WebAppUserProvider, WebAp
 		 * "Single Page Application" configuration store.
 		 */
 		private ResourceStore<LinuxConfigParser> configStore;
+		/**
+		 * Http forward destination.
+		 */
+		private URI httpDestination;
+		/**
+		 * Http forward authentication.
+		 */
+		private String httpAuthentication;
+
+		private DeviceIdentityMode deviceIdentityMode;
 
 		/**
 		 * Create domain instance.
@@ -211,6 +233,20 @@ public class Domains implements S3ProxyClientProvider, WebAppUserProvider, WebAp
 					s3Config.apply(domainDefinition, section);
 					int max = domainDefinition.getInteger(section, "max_devices", maxDevices);
 					domain.deviceData = S3ProxyServer.createS3Client(s3Config, staleDeviceThreshold, max);
+
+					String destination = domainDefinition.get(managementSection, "http_forward");
+					if (destination != null) {
+						try {
+							domain.httpDestination = new URI(destination);
+							domain.httpAuthentication = domainDefinition.get(managementSection, "http_authentication");
+							String value = domainDefinition.getWithDefault(managementSection,
+									"http_device_identity_mode", "NONE");
+							domain.deviceIdentityMode = DeviceIdentityMode.valueOf(value);
+							LOGGER.info("{}: http forward {}, {}", name, destination, domain.deviceIdentityMode);
+						} catch (URISyntaxException e) {
+							LOGGER.warn("Failed to configure http forward '{}' for domain {}.", destination, section);
+						}
+					}
 
 					s3Config = new S3Config();
 					s3Config.concurrency = 5;
@@ -358,6 +394,33 @@ public class Domains implements S3ProxyClientProvider, WebAppUserProvider, WebAp
 		Domain domain = domains.get(domainName);
 		if (domain != null) {
 			return domain.configStore.getResource().get(section, name);
+		}
+		return null;
+	}
+
+	@Override
+	public URI getDestination(String domainName) {
+		Domain domain = domains.get(domainName);
+		if (domain != null) {
+			return domain.httpDestination;
+		}
+		return null;
+	}
+
+	@Override
+	public String getAuthentication(String domainName) {
+		Domain domain = domains.get(domainName);
+		if (domain != null) {
+			return domain.httpAuthentication;
+		}
+		return null;
+	}
+
+	@Override
+	public DeviceIdentityMode getDeviceIdentityMode(String domainName) {
+		Domain domain = domains.get(domainName);
+		if (domain != null) {
+			return domain.deviceIdentityMode;
 		}
 		return null;
 	}

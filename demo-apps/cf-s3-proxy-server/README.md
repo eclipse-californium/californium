@@ -98,7 +98,10 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [--s3-access-key=<accessKey> --s3-secret=<secret>])]
                      [--user-file=<file> [--user-file-password64=<password64>]]
                      [--config-file=<file>
-                     [--config-file-password64=<password64>]]])
+                     [--config-file-password64=<password64>]]
+                     [--http-forward=<httpForward>
+                     [--http-authentication=<httpAuthentication>]
+                     [--http-device-identity-mode=<httpDeviceIdentityMode>]]])
                      [[--spa-script=<singlePageApplicationScript>]
                      [--spa-css=<singlePageApplicationCss>] [--spa-reload]
                      [--spa-s3]]
@@ -118,6 +121,13 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
       --domain-file-password64=<password64>
                              Password for domain-store. Base 64 encoded.
   -h, --help                 display a help message
+      --http-authentication=<httpAuthentication>
+                             Http authentication for forward coap-requests.
+      --http-device-identity-mode=<httpDeviceIdentityMode>
+                             Http device identity mode. Supported values: NONE,
+                               HEADLINE and QUERY_PARAMETER.
+      --http-forward=<httpForward>
+                             Http destination to forward coap-requests.
       --https-credentials=<credentials>
                              Folder containing https credentials in 'privkey.
                                pem' and 'fullchain.pem'.
@@ -474,7 +484,14 @@ config_store = configs.txt
 user_store = users.txt
 ```
 
-The data-section configures the S3-bucket the device data is forwarded to. It's also possible to host javascript- and css-files of the web application there using a `[web]` section, which defines the domain for that web resources. The management-section contains the file- or resource-names for the devices-definitions, the web-application-users and the web-application-configurations. It may also contain a S3 bucket definition. Without a S3 bucket definition in the management-section, the management files are read from the file-system instead of S3.
+The data-section configures the S3-bucket the device data is forwarded to. It's also possible to host javascript- and css-files of the web application there using a `[web]` section, which defines the domain for that web resources. The management-section contains the file- or resource-names for the devices-definitions, the web-application-users and the web-application-configurations. It may also contain a S3 bucket definition. Without a S3 bucket definition in the management-section, the management files are read from the file-system instead of S3. Additionally the destination of the CoAP-2-HTTP cross proxy and the authentication credentials for that are provided in the management-section by the values of `http_forward` and `http_authentication`.
+
+```
+http_forward = https://<destination>
+http_authentication = Bearer <token>
+# or
+http_authentication = <username>:<password>
+```
 
 Creating a device domain is for now not fully automated. The [installation script](./service/cloud-installs/deploy-dev.sh) offers two jobs for that, the "create-devdom" and "delete-devdom" (currently only ExoScale). Both requires to export the device-domain name set to `devicedomain` before calling the script.
 
@@ -500,7 +517,11 @@ A device POST its data to the "coaps://${host}/devices". Using query parameters 
 
     - **CUSTOM_OPTION_READ_ETAG** 65004: contains the ETAG from or for the piggybacked read. If the device receives a fresh content, then also a fresh ETAG is received. If that is used for further piggybacked reads, then only an updated content will be sent back.
 
-    - **CUSTOM_OPTION_READ_CODE** 65008: contains the response code for the piggybacked read.
+    - **CUSTOM_OPTION_READ_CODE** 65008: contains the response code of the piggybacked read.
+
+- **forward** forward the request using a CoAP-2-HTTP cross proxy. Requires the HTTP destination to be configured.
+
+    - **CUSTOM_OPTION_FORWARD_CODE** 65016: contains the response code of the forwarded HTTP request.
 
 - **CUSTOM_OPTION_TIME** 65000: in request, it contains the device time in milliseconds since 1970.1.1. If {@code 0}, the device has no system time yet. In response it contains the system time, also in milliseconds since 1970.1.1 of the server, if that differs for more than 5s. Intended to sync the device time with the server time, if RTT is small enough and no retransmission is used..
 

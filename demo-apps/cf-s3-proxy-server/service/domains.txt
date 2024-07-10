@@ -15,6 +15,7 @@
 # secret_key = <S3-access-key-secret1>
 # concurrency = <number of concurrent requests>
 # redirect = true|false
+# max_devices = <maxium number of devices>
 #
 # \[<domain1>.management\]
 # bucket = <name1>
@@ -32,6 +33,11 @@
 # config_store_password64 = <config1-store-password-base64>
 # user_store = <user1-store>
 # user_store_password64 = <user1-store-password-base64>
+# http_forward = https://<destination>
+# http_authentication = Bearer <token>
+# or
+# http_authentication = <username>:<password>
+# http_device_identity_mode = NONE|HEADLINE|QUERY_PARAMETER
 #
 
 [domain1.data]
