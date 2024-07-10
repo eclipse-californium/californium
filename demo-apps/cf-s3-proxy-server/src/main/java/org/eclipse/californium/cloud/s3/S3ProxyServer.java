@@ -18,6 +18,8 @@ import static org.eclipse.californium.cloud.s3.http.SinglePageApplication.HTTPS_
 import static org.eclipse.californium.cloud.s3.http.SinglePageApplication.S3_SCHEME;
 
 import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Collections;
@@ -37,20 +39,23 @@ import org.eclipse.californium.cloud.s3.http.AuthorizedCoapProxyHandler;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer;
 import org.eclipse.californium.cloud.s3.http.S3Login;
 import org.eclipse.californium.cloud.s3.http.SinglePageApplication;
+import org.eclipse.californium.cloud.s3.option.ForwardResponseOption;
 import org.eclipse.californium.cloud.s3.option.IntervalOption;
 import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.resources.S3Devices;
 import org.eclipse.californium.cloud.s3.resources.S3ProxyResource;
-import org.eclipse.californium.cloud.s3.util.WebAppConfigProvider;
 import org.eclipse.californium.cloud.s3.util.DeviceGroupProvider;
 import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
-import org.eclipse.californium.cloud.s3.util.WebAppDomainUser;
-import org.eclipse.californium.cloud.s3.util.WebAppUserProvider;
 import org.eclipse.californium.cloud.s3.util.Domains;
+import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider;
+import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider.DeviceIdentityMode;
+import org.eclipse.californium.cloud.s3.util.WebAppConfigProvider;
+import org.eclipse.californium.cloud.s3.util.WebAppDomainUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserParser;
+import org.eclipse.californium.cloud.s3.util.WebAppUserProvider;
 import org.eclipse.californium.cloud.util.DeviceManager;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.LinuxConfigParser;
@@ -62,6 +67,7 @@ import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.TimeDefinition;
+import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +85,8 @@ public class S3ProxyServer extends BaseServer {
 	private static final String LOGGER_CONFIG = "logback.configurationFile";
 
 	static {
+		Proxy2Config.register();
+
 		String property = System.getProperty(LOGGER_CONFIG);
 		if (property == null) {
 			String[] config = { "./logback.xml", "./src/main/resources/logback.xml" };
@@ -152,6 +160,18 @@ public class S3ProxyServer extends BaseServer {
 			public String password64;
 		}
 
+		public static class HttpForward {
+
+			@Option(names = "--http-forward", required = true, description = "Http destination to forward coap-requests.")
+			public String httpForward;
+
+			@Option(names = "--http-authentication", description = "Http authentication for forward coap-requests.")
+			public String httpAuthentication;
+
+			@Option(names = "--http-device-identity-mode", defaultValue = "NONE", description = "Http device identity mode. Supported values: NONE, HEADLINE and QUERY_PARAMETER. Default: ${DEFAULT-VALUE}")
+			public HttpForwardDestinationProvider.DeviceIdentityMode httpDeviceIdentityMode;
+		}
+
 		public static class Single {
 
 			@ArgGroup(exclusive = false)
@@ -162,6 +182,10 @@ public class S3ProxyServer extends BaseServer {
 
 			@ArgGroup(exclusive = false)
 			public ConfigStore configStore;
+
+			@ArgGroup(exclusive = false)
+			public HttpForward httpForward;
+
 		}
 
 		public static class S3Credentials {
@@ -326,7 +350,7 @@ public class S3ProxyServer extends BaseServer {
 	public static void main(String[] args) {
 		MapBasedOptionRegistry registry = new MapBasedOptionRegistry(StandardOptionRegistry.getDefaultOptionRegistry(),
 				TimeOption.DEFINITION, ReadEtagOption.DEFINITION, ReadResponseOption.DEFINITION,
-				IntervalOption.DEFINITION, TimeOption.DEPRECATED_DEFINITION);
+				IntervalOption.DEFINITION, ForwardResponseOption.DEFINITION, TimeOption.DEPRECATED_DEFINITION);
 		StandardOptionRegistry.setDefaultOptionRegistry(registry);
 
 		Configuration configuration = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
@@ -427,6 +451,7 @@ public class S3ProxyServer extends BaseServer {
 				public Set<String> getGroup(String domain, String group) {
 					return Collections.emptySet();
 				}
+
 			};
 		}
 
@@ -458,12 +483,47 @@ public class S3ProxyServer extends BaseServer {
 	@Override
 	public void addResource(ServerConfig cliArguments, ScheduledExecutorService executor) {
 		if (s3clients != null) {
+			S3ProxyConfig cliS3Arguments = (S3ProxyConfig) cliArguments;
 			// add resources to the server
 			if (cliArguments.diagnose) {
 				add(new Diagnose(this));
 			}
+			HttpForwardDestinationProvider forward = domains;
+			if (forward == null) {
+				if (cliS3Arguments.mode.single != null && cliS3Arguments.mode.single.httpForward != null) {
+					String forwardDestination = cliS3Arguments.mode.single.httpForward.httpForward;
+					if (forwardDestination != null) {
+						try {
+							final URI destination = new URI(forwardDestination);
+							final String authentication = cliS3Arguments.mode.single.httpForward.httpAuthentication;
+							final DeviceIdentityMode deviceIdentityMode = cliS3Arguments.mode.single.httpForward.httpDeviceIdentityMode;
+							LOGGER.info("http forward {}, {}", destination, deviceIdentityMode);
+							forward = new HttpForwardDestinationProvider() {
+
+								@Override
+								public URI getDestination(String domain) {
+									return destination;
+								}
+
+								@Override
+								public String getAuthentication(String domain) {
+									return authentication;
+								}
+
+								@Override
+								public DeviceIdentityMode getDeviceIdentityMode(String domain) {
+									return deviceIdentityMode;
+								}
+
+							};
+						} catch (URISyntaxException e) {
+							LOGGER.warn("Failed to configure http forward '{}'.", forwardDestination);
+						}
+					}
+				}
+			}
 			add(new MyContext(MyContext.RESOURCE_NAME, CALIFORNIUM_BUILD_VERSION, false));
-			add(new S3Devices(getConfig(), s3clients));
+			add(new S3Devices(getConfig(), s3clients, forward));
 			add(new S3ProxyResource("fw", 0, getConfig(), s3clients));
 		} else {
 			super.addResource(cliArguments, executor);
@@ -572,6 +632,7 @@ public class S3ProxyServer extends BaseServer {
 					}
 					return null;
 				}
+
 			};
 		}
 	}
