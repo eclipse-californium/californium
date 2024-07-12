@@ -48,6 +48,8 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.Principal;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import javax.crypto.SecretKey;
@@ -442,6 +444,21 @@ public final class DTLSSession implements Destroyable {
 	 */
 	public CipherSuite getCipherSuite() {
 		return cipherSuite;
+	}
+
+	/**
+	 * Gets the cipher suites to be used for resumption.
+	 * <p>
+	 * 
+	 * @return the cipher suites for resumption
+	 * @since 3.13
+	 */
+	public List<CipherSuite> getCipherSuitesForResumption() {
+		if (secureRenegotiation) {
+			return Arrays.asList(cipherSuite, CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV);
+		} else {
+			return Arrays.asList(cipherSuite);
+		}
 	}
 
 	/**

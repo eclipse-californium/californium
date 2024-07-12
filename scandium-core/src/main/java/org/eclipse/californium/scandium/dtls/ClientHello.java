@@ -122,7 +122,7 @@ public final class ClientHello extends HelloHandshakeMessage {
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes, List<SupportedGroup> supportedGroups) {
 
-		this(version, session.getSessionIdentifier(), Arrays.asList(session.getCipherSuite()),
+		this(version, session.getSessionIdentifier(), session.getCipherSuitesForResumption(),
 				supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes, supportedServerCertificateTypes,
 				supportedGroups);
 		addCompressionMethod(session.getCompressionMethod());
