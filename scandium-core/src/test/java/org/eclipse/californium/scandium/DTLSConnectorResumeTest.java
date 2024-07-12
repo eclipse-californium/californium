@@ -74,6 +74,7 @@ import org.eclipse.californium.scandium.ConnectorHelper.TestContext;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsSecureRenegotiation;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -904,6 +905,52 @@ public class DTLSConnectorResumeTest {
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		assertClientIdentity(clientPrincipalType);
 		assertThat(lastHandshakeTime, is(not(connection.getEstablishedDtlsContext().getLastHandshakeTime())));
+	}
+
+	@Test
+	public void testConnectorResumesSessionWithSecureRenegotiation() throws Exception {
+		// Setup client to force "secure renegotiation"
+		client.destroy();
+
+		DtlsConnectorConfig clientConfig = createClientConfigBuilder("client", null)
+				.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NEEDED)
+				.build();
+		clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client.setExecutor(executor);
+
+		// Do a first handshake
+		TestContext clientTestContext = serverHelper.givenAnEstablishedSession(client, true);
+		SessionId establishedSessionId = clientTestContext.getSessionIdentifier();
+
+		// Force a resume session the next time we send data
+		client.forceResumeSessionFor(serverHelper.serverEndpoint);
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(establishedSessionId));
+		client.start();
+
+		// save session
+		DTLSSession session = new DTLSSession(clientTestContext.getEstablishedServerSession());
+		// remove connection from server's connection store
+		serverHelper.remove(clientTestContext.getClientAddress(), true);
+		assertThat(serverHelper.serverTestSessionStore.get(establishedSessionId), is(nullValue()));
+		// add ticket to session cache to mimic a fail over from another node
+		serverHelper.serverTestSessionStore.put(session);
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		clientTestContext.setLatchCount(1);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null,
+				false);
+		client.send(data);
+		assertTrue("resumption failed", clientTestContext.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(establishedSessionId));
+		assertClientIdentity(clientPrincipalType);
 	}
 
 	@Test
