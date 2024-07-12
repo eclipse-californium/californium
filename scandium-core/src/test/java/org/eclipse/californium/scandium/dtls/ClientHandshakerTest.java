@@ -31,6 +31,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.security.GeneralSecurityException;
@@ -40,13 +41,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
+import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
@@ -230,6 +232,29 @@ public class ClientHandshakerTest {
 		}
 	}
 
+	@Test
+	public void testClientWithoutExtensionsReceivesServerHelloWithRenegotiationExtension() throws Exception {
+
+		givenAClientHandshakerWithoutExtension();
+
+		// WHEN a handshake is started
+		handshaker.startHandshake();
+
+		// THEN assert that the sent client hello contains an SNI extension
+		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
+		assertNotNull(clientHello);
+		assertTrue(clientHello.getExtensions().isEmpty());
+		CipherSuite cipherSuite = clientHello.getCipherSuites().get(0);
+		ServerHello serverHello = new ServerHello(clientHello.getProtocolVersion(), new SessionId(),
+				cipherSuite, CompressionMethod.NULL);
+		serverHello.addExtension(RenegotiationInfoExtension.INSTANCE);
+		Record record =  DtlsTestTools.getRecordForMessage(0, 1, serverHello);
+		record.decodeFragment(handshaker.getDtlsContext().getReadState());
+		handshaker.processMessage(record);
+		// succeeds
+		assertTrue(handshaker.getSession().useSecureRengotiation());
+	}
+
 	private void givenAClientHandshaker(final boolean configureTrustStore) throws Exception {
 		givenAClientHandshaker(null, configureTrustStore);
 	}
@@ -273,6 +298,27 @@ public class ClientHandshakerTest {
 		connection.setConnectionId(ConnectionId.EMPTY);
 		handshaker = new ClientHandshaker(
 				virtualHost,
+				recordLayer,
+				timer,
+				connection,
+				config,
+				false);
+		recordLayer.setHandshaker(handshaker);
+	}
+
+	private void givenAClientHandshakerWithoutExtension() throws Exception {
+
+		DtlsConnectorConfig.Builder builder = 
+				DtlsConnectorConfig.builder(network.createTestConfig())
+				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+					.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE);
+		builder.setAdvancedPskStore(new AdvancedSinglePskStore("me", "secret".getBytes()));
+		DtlsConnectorConfig config = builder.build();
+		Connection connection = new Connection(config.getAddress());
+		connection.setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null);
+//		connection.setConnectionId(ConnectionId.EMPTY);
+		handshaker = new ClientHandshaker(
+				null,
 				recordLayer,
 				timer,
 				connection,

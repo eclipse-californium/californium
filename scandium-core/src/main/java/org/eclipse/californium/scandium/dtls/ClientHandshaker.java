@@ -491,24 +491,19 @@ public class ClientHandshaker extends Handshaker {
 	protected void verifyServerHelloExtensions(ServerHello message) throws HandshakeException {
 		boolean hasRenegotiationInfoExtension = false;
 		HelloExtensions serverExtensions = message.getExtensions();
-		if (serverExtensions != null && !serverExtensions.isEmpty()) {
+		if (!serverExtensions.isEmpty()) {
 			HelloExtensions clientExtensions = clientHello.getExtensions();
-			if (clientExtensions == null || clientExtensions.isEmpty()) {
-				throw new HandshakeException("Server wants extensions, but client not!",
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION));
-			} else {
-				for (HelloExtension serverExtension : serverExtensions.getExtensions()) {
-					if (clientExtensions.getExtension(serverExtension.getType()) == null) {
-						if (serverExtension.getType() == HelloExtension.ExtensionType.RENEGOTIATION_INFO) {
-							hasRenegotiationInfoExtension = true;
-							if (secureRenegotiation != DtlsSecureRenegotiation.NONE) {
-								continue;
-							}
+			for (HelloExtension serverExtension : serverExtensions.getExtensions()) {
+				if (clientExtensions.getExtension(serverExtension.getType()) == null) {
+					if (serverExtension.getType() == HelloExtension.ExtensionType.RENEGOTIATION_INFO) {
+						hasRenegotiationInfoExtension = true;
+						if (secureRenegotiation != DtlsSecureRenegotiation.NONE) {
+							continue;
 						}
-						throw new HandshakeException(
-								"Server wants " + serverExtension.getType() + ", but client didn't propose it!",
-								new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION));
 					}
+					throw new HandshakeException(
+							"Server wants " + serverExtension.getType() + ", but client didn't propose it!",
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION));
 				}
 			}
 		}
