@@ -106,16 +106,22 @@
 	background: orange;
 }
 
-#devicelist button.tb1:focus,
-#devicelist button.tb1:hover {
-	box-shadow: .1em .1em 0.2em rgb(0 0 0 / .8) inset;
-}
-
 #diagnose button.tb1 {
 	background: lightgrey;
 	border-radius: 0.2em;
 	border: none;
 	font-size: x-small;
+}
+
+#diagnose tr.current button.tb1{
+	background: lightyellow;
+}
+
+#diagnose.button.tb1:focus,
+#diagnose button.tb1:hover,
+#devicelist button.tb1:focus,
+#devicelist button.tb1:hover {
+	box-shadow: .1em .1em 0.2em rgb(0 0 0 / .8) inset;
 }
 
 #error {

@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 0.17.0, 15. May 2024";
+const version = "Version 0.17.2, 17. July 2024";
 
 let timeShift = 0;
 
@@ -868,7 +868,7 @@ class DeviceData {
 				this.lastModified = DeviceData.getISODateFromKey(lastKey, false);
 			}
 		}
-		this.updated = last && this.lastModified && last != this.lastModified;
+		this.updated = last && last != this.lastModified;
 	}
 
 	async readStatus(key) {
@@ -1037,7 +1037,7 @@ class DeviceData {
 			download.text.split(/\r?\n/).forEach((l) => {
 				const isoTime = l.match(regexTimeHeader);
 				if (isoTime) {
-					let time = Date.parse(isoTime[0]);
+					const time = Date.parse(isoTime[0]);
 					if (time) {
 						let foundValue;
 						const line = Array();
@@ -1099,6 +1099,7 @@ class DeviceData {
 			if (allKeys.length > 0) {
 				let keys = allKeys;
 				if (allKeys.length > 1) {
+					// s3 start key
 					this.startKey = allKeys.at(-2);
 					const lastValues = DeviceData.getTimeFromKey(allKeys.at(-1)) ?? to;
 					if (lastValues + dayInMillis < to) {
@@ -1141,6 +1142,32 @@ class DeviceData {
 			this.rawStarts = starts;
 			this.rawEnds = ends;
 			console.log(this.allValues.length + " values");
+			if (this.allTimes.length > 1) {
+				let i = -1;
+				if (center) {
+					function timeCmp(x, y) {
+						return x[0] - y;
+					}
+					i = indexNearestItem(this.allTimes, center, timeCmp);
+					if (i == 0) {
+						++i;
+					}
+				}
+				const last = this.allTimes.at(i)[0];
+				const before = this.allTimes.at(i - 1)[0];
+				const seconds = Math.round((last - before) / 1000);
+				if (seconds < 55) {
+					this.lastInterval = `${seconds} sec`;
+				} else {
+					const minutes = Math.round(seconds / 60);
+					if (minutes > 50) {
+						const hours = Math.round(minutes / 60);
+						this.lastInterval = `${hours} h`;
+					} else {
+						this.lastInterval = `${minutes} min`;
+					}
+				}
+			}
 			if (this.allValues.length > 0) {
 				let rangeValues = this.allValues.filter((v) => from <= v[0] && v[0] <= to);
 				if (rangeValues.length > 0) {
@@ -1156,21 +1183,6 @@ class DeviceData {
 							}
 						}
 					});
-					if (rangeValues.length > 2) {
-						try {
-							const last = rangeValues.at(-1)[0]
-							const before = rangeValues.at(-2)[0];
-							const minutes = Math.round((last - before) / 60000);
-							if (minutes > 50) {
-								const hours = Math.round(minutes / 60);
-								this.lastInterval = `${hours} h`;
-							} else {
-								this.lastInterval = `${minutes} min`;
-							}
-						} catch (error) {
-							console.error(error.message);
-						}
-					}
 				}
 				this.rangeValues = rangeValues;
 			} else {
@@ -1920,19 +1932,19 @@ class UiList {
 			}
 			if (details.provider) {
 				++cols;
-				page += button("cmpPdn","Provider")
+				page += button("cmpPdn", "Provider")
 			}
 			if (details.operator) {
 				++cols;
-				page += button("cmpNetwork","Operator")
+				page += button("cmpNetwork", "Operator")
 			}
 			if (details.uptime) {
 				++cols;
-				page += button("cmpUptime","Uptime")
+				page += button("cmpUptime", "Uptime")
 			}
 			if (details.battery) {
 				++cols;
-				page += button("cmpBattery","Bat.")
+				page += button("cmpBattery", "Bat.")
 			}
 		}
 		page += `</tr></thead>
@@ -2059,12 +2071,13 @@ class UiDiagnose {
 			`<div id='diagnose'><table><tbody>
 <tr><td></td></tr>\n`;
 		for (let index = 0; index < list.length; ++index) {
-			let item = list.at(index);
-			let label = UiDiagnose.label(item);
-			page += `<tr><td><button class='tb1' onclick='ui.loadDiagnose("${item}")'>${label}</button></td></tr>\n`;
+			const item = list.at(index);
+			const label = UiDiagnose.label(item);
+			const cls = (this.item == item) ? "class='current'" : "";
+			page += `<tr ${cls}><td><button class='tb1' onclick='ui.loadDiagnose("${item}")'>${label}</button></td></tr>\n`;
 		}
 		page += `<tr><td></td></tr>`;
-		page += `<tr><td><button onclick='ui.loadDiagnose()'>refresh</button></td></tr>`;
+		page += `<tr><td><button class='tb1' onclick='ui.loadDiagnose()'>refresh</button></td></tr>`;
 		page += `<tr><td></td></tr>`;
 		page += `<tr><td><textarea tabindex="-1" readOnly rows='${rows}' cols='${cols}'>${this.diagnose}</textarea></td></tr>\n`;
 		page += `</tbody></table></div>\n`;
@@ -2143,12 +2156,14 @@ class UiManager {
 
 		this.resetConfig();
 
-		this.view = getElement(this.createTabView());
+		this.titleView = document.querySelector('#title');
+		this.logoView = document.querySelector('#logo');
+
 		this.footerView = getElement(this.createFooter());
 		this.progressView = this.footerView.querySelector('#loadview')
 		this.errorView = this.footerView.querySelector('#error')
-		this.titleView = document.querySelector('#title');
-		this.logoView = document.querySelector('#logo');
+
+		this.view = getElement(this.createTabView());
 
 		this.ui = document.querySelector('#app');
 		this.ui.parentElement.style.maxWidth = `${this.width}px`;
@@ -2677,12 +2692,12 @@ class UiManager {
 		const page =
 			`<div>
 <ul role="tablist" id="tablist">
-  <li id="login-tab" role="tab" aria-controls="login-panel" aria-selected="true" ${tabLogin}">Login</li>
-  <li id="list-tab" role="tab" aria-controls="list-panel" aria-selected="false" ${tabList}">List</li>
-  <li id="chart-tab" role="tab" aria-controls="chart-panel" aria-selected="false" ${tabChart}>Chart</li>
-  <li id="status-tab" role="tab" aria-controls="status-panel" aria-selected="false" ${tabDevice}>Status</li>
-  <li id="config-tab" role="tab" aria-controls="config-panel" aria-selected="false" ${tabConfig}>Configuration</li>
-  <li id="diagnose-tab" role="tab" aria-controls="diagnose-panel" aria-selected="false" ${tabDiagnose}>Diagnose</li>
+  <li id="login-tab" data-title="Login:" role="tab" aria-controls="login-panel" aria-selected="true" ${tabLogin}">Login</li>
+  <li id="list-tab" data-title="Devices:" role="tab" aria-controls="list-panel" aria-selected="false" ${tabList}">List</li>
+  <li id="chart-tab" data-title="Devices:" role="tab" aria-controls="chart-panel" aria-selected="false" ${tabChart}>Chart</li>
+  <li id="status-tab" data-title="Devices:" role="tab" aria-controls="status-panel" aria-selected="false" ${tabDevice}>Status</li>
+  <li id="config-tab" data-title="Devices:" role="tab" aria-controls="config-panel" aria-selected="false" ${tabConfig}>Configuration</li>
+  <li id="diagnose-tab" data-title="Diagnose:" role="tab" aria-controls="diagnose-panel" aria-selected="false" ${tabDiagnose}>Diagnose</li>
 </ul>
 <div id="tabcontent">
   <div id="login-panel" role="tabpanel" aria-labelledby="login-tab" aria-hidden="false">
@@ -2785,10 +2800,18 @@ class UiManager {
 	}
 
 	selectTab(view, tab) {
+
 		const selected = tab.getAttribute('aria-selected');
 		if (selected == null) {
 			console.log("no aria-target!");
 			return;
+		}
+		let title = tab.dataset.title;
+		if (title) {
+			if (title == "Devices:" && this.state.currentDevice) {
+				title = "Device " + this.state.currentDevice.label;
+			}
+			this.titleView.innerText = title;
 		}
 		if (selected === "true") {
 			console.log("already selected!");
@@ -2829,8 +2852,8 @@ class UiManager {
 		const tab5 = view.querySelector('#config-tab');
 		const tab6 = view.querySelector('#diagnose-tab');
 
-		const selectedTab = view.querySelector('[aria-selected="true"]');
 		if (dev && !this.showDeviceList && !this.showDiagnose) {
+			const selectedTab = view.querySelector('[aria-selected="true"]');
 			if (selectedTab != tab3 && selectedTab != tab4 &&
 				(!this.enableConfig || selectedTab != tab5)) {
 				if (withChart) {
@@ -2840,14 +2863,10 @@ class UiManager {
 				}
 			}
 		} else if (this.showDiagnose) {
-			if (selectedTab != tab6) {
-				this.selectTab(view, tab6);
-			}
+			this.selectTab(view, tab6);
 		} else if (this.showDeviceList) {
-			if (selectedTab != tab2) {
-				this.selectTab(view, tab2);
-			}
-		} else if (selectedTab != tab1) {
+			this.selectTab(view, tab2);
+		} else {
 			this.selectTab(view, tab1);
 		}
 	}
@@ -2925,17 +2944,8 @@ class UiManager {
 		try {
 			console.log(this.state);
 			if (!this.state.login) {
-				this.titleView.innerText = "Login:";
 				this.updateTabView(this.view, null, null);
 			} else {
-				if (this.state.currentDevice && !this.showDeviceList && !this.showDiagnose) {
-					const dev = this.state.currentDevice;
-					this.titleView.innerText = "Device " + dev.label;
-				} else if (this.showDiagnose) {
-					this.titleView.innerText = "Diagnose:";
-				} else if (this.state.deviceList) {
-					this.titleView.innerText = "Devices:";
-				}
 				this.updateTabView(this.view, this.state.deviceList, this.state.currentDevice)
 			}
 			let message = "";
