@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 0.17.2, 17. July 2024";
+const version = "Version 0.18, 29. July 2024";
 
 let timeShift = 0;
 
@@ -644,6 +644,7 @@ defaultProviderMap.set("em", "EMnify");
 defaultProviderMap.set("flolive.net", "Flo.Live");
 defaultProviderMap.set("gigsky-02", "Flo*Live");
 defaultProviderMap.set("globaldata.iot", "iBASIS");
+defaultProviderMap.set("global.melita.io", "gMelita");
 defaultProviderMap.set("ibasis.iot", "iBASIS");
 defaultProviderMap.set("internet.m2mportal.de", "DTAG");
 defaultProviderMap.set("iot.1nce.net", "1nce");
@@ -712,8 +713,10 @@ class DeviceData {
 		details.plmn = "";
 		details.type = "";
 		details.net = "";
+		details.band = "";
 		if (this.network) {
 			details.plmn = this.network.plmn;
+			details.band = this.network.band;
 			details.type = radioTypeMap.get(this.network.type) ?? this.network.type;
 			if (details.plmn || details.type) {
 				details.net = details.plmn + "/" + details.type;
@@ -1729,14 +1732,16 @@ class UiChart {
 			}
 		}
 
-		page += this.mark(dev.starts[0], x, y + ch);
-		let xm = ((cols / 4) * gw) + (dev.offsetX % gw);
-		page += this.mark(dev.starts[0] + (xm * deltaTime) / cw, Math.round(xm + x), y + ch);
-		xm = ((cols * 2 / 4) * gw) + (dev.offsetX % gw);
-		page += this.mark(dev.starts[0] + (xm * deltaTime) / cw, Math.round(xm + x), y + ch);
-		xm = ((cols * 3 / 4) * gw) + (dev.offsetX % gw);
-		page += this.mark(dev.starts[0] + (xm * deltaTime) / cw, Math.round(xm + x), y + ch);
-		page += this.mark(dev.ends[0], x + cw, y + ch);
+		if (dev.starts[0]) {
+			page += this.mark(dev.starts[0], x, y + ch);
+			let xm = ((cols / 4) * gw) + (dev.offsetX % gw);
+			page += this.mark(dev.starts[0] + (xm * deltaTime) / cw, Math.round(xm + x), y + ch);
+			xm = ((cols * 2 / 4) * gw) + (dev.offsetX % gw);
+			page += this.mark(dev.starts[0] + (xm * deltaTime) / cw, Math.round(xm + x), y + ch);
+			xm = ((cols * 3 / 4) * gw) + (dev.offsetX % gw);
+			page += this.mark(dev.starts[0] + (xm * deltaTime) / cw, Math.round(xm + x), y + ch);
+			page += this.mark(dev.ends[0], x + cw, y + ch);
+		}
 
 		let desc = this.getDaysDescription();
 		if (chartDays < this.getDays()) {
@@ -1858,6 +1863,12 @@ class UiList {
 		return compareItem(plmn1, plmn2);
 	}
 
+	cmpBand(dev1, dev2) {
+		const band1 = dev1.network ? dev1.network.band : "";
+		const band2 = dev2.network ? dev2.network.band : "";
+		return compareItem(band1, band2);
+	}
+
 	cmpUptime(dev1, dev2) {
 		return compareItem(dev1.uptime, dev2.uptime);
 	}
@@ -1938,6 +1949,10 @@ class UiList {
 				++cols;
 				page += button("cmpNetwork", "Operator")
 			}
+			if (details.band) {
+				++cols;
+				page += button("cmpBand", "Bd")
+			}
 			if (details.uptime) {
 				++cols;
 				page += button("cmpUptime", "Uptime")
@@ -1980,6 +1995,9 @@ class UiList {
 				}
 				if (details.operator) {
 					page += `<td>${info.net}</td>`;
+				}
+				if (details.band) {
+					page += `<td>${info.band}</td>`;
 				}
 				if (details.uptime) {
 					let uptime = info.uptime;
@@ -2137,7 +2155,7 @@ class UiLoadProgress {
 
 class UiManager {
 
-	width = 600;
+	width = 620;
 
 	constructor(devices) {
 		this.state = {
@@ -2355,6 +2373,7 @@ class UiManager {
 		} else if (lower == "all") {
 			details.provider = true;
 			details.operator = true;
+			details.band = true;
 			details.uptime = true;
 			details.battery = true;
 		} else {
@@ -2884,7 +2903,7 @@ class UiManager {
 		let panel5 = null;
 		let panel6 = null;
 		if (dev) {
-			const withChart = dev.starts[0] && dev.ends[0];
+			const withChart = dev.allValues.length > 0; //  dev.starts[0] && dev.ends[0];
 			panel3 = withChart ? this.deviceView(dev, 0) : null;
 			panel4 = this.deviceView(dev, 1);
 			if (this.enableConfig) {
