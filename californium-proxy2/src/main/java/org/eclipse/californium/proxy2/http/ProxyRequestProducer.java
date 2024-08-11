@@ -30,7 +30,9 @@ public class ProxyRequestProducer extends BasicRequestProducer {
 	/**
 	 * Http request.
 	 */
-	private HttpRequest httpRequest;
+	private final HttpRequest httpRequest;
+
+	private final AsyncEntityProducer httpEntity;
 
 	/**
 	 * Create instance of request producer.
@@ -41,6 +43,7 @@ public class ProxyRequestProducer extends BasicRequestProducer {
 	public ProxyRequestProducer(HttpRequest httpRequest, AsyncEntityProducer httpEntity) {
 		super(httpRequest, httpEntity);
 		this.httpRequest = httpRequest;
+		this.httpEntity = httpEntity;
 	}
 
 	/**
@@ -59,5 +62,19 @@ public class ProxyRequestProducer extends BasicRequestProducer {
 	 */
 	public RequestLine getRequestLine() {
 		return new RequestLine(httpRequest);
+	}
+
+	/**
+	 * Get content type.
+	 * 
+	 * @return content type, or {@code null}, if no content is available
+	 * @since 3.13
+	 */
+	public String getContentType() {
+		if (httpEntity != null) {
+			return httpEntity.getContentType();
+		} else {
+			return null;
+		}
 	}
 }

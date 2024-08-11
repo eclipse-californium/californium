@@ -19,8 +19,10 @@ import java.net.URI;
 import java.util.List;
 
 import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.Message;
+import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.BasicHttpRequest;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -95,6 +97,23 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 	 *             {@code null}.
 	 */
 	public ProxyRequestProducer getHttpRequest(URI uri, Request coapRequest) throws TranslationException {
+		return getHttpRequest(uri, null, coapRequest);
+	}
+
+	/**
+	 * Maps a coap-request into a http-request.
+	 * 
+	 * @param uri destination to use
+	 * @param bearerToken bearerToken. Maybe {@code null}.
+	 * @param coapRequest coap-request
+	 * @return http-request
+	 * @throws TranslationException if request could not be translated
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
+	 * @since 3.13
+	 */
+	public ProxyRequestProducer getHttpRequest(URI uri, String bearerToken, Request coapRequest)
+			throws TranslationException {
 		if (uri == null) {
 			throw new NullPointerException("URI must not be null!");
 		}
@@ -114,6 +133,12 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 		Header[] headers = httpTranslator.getHttpHeaders(coapRequest.getOptions().asSortedList(), etagTranslator);
 		for (Header header : headers) {
 			httpRequest.addHeader(header);
+			if (header.getName().equals(HttpHeaders.AUTHORIZATION)) {
+				bearerToken = null;
+			}
+		}
+		if (bearerToken != null) {
+			httpRequest.addHeader(new BasicHeader(HttpHeaders.AUTHORIZATION, bearerToken));
 		}
 
 		LOGGER.debug("Incoming request translated correctly");
