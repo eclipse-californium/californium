@@ -30,19 +30,30 @@ import org.eclipse.californium.elements.util.EncryptedStreamUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
- * Simple test NAT.
+ * Encryption utility.
  *
- * Supports interactive reassign of local mapped addresses.
+ * Encrypt and decrypt files.
  */
 public class Encrypt {
 
 	private static void usage() {
-		System.out.println("usage:  --password64 <password-base64> [--out <file>]");
-		System.out.println("        [(--encrypt [--cipher <cipher>]|--decrypt)] [--in] <file>");
+		String jceCipher = null;
+		try {
+			EncryptedStreamUtil util = new EncryptedStreamUtil();
+			jceCipher = "(\"" + util.getWriteCipher() + "\" is supported by this JCE.)";
+		} catch (Throwable t) {
+
+		}
+		System.out.println("usage:  --password64 <password-base64>");
+		System.out.println("        [(--encrypt [--cipher <cipher>]|--decrypt)]");
+		System.out.println("        [--out <file>] [--in] <file>");
 		System.out.println("       --password64   : password base 64 encoded");
-		System.out.println("       --encrypt      : encrypt file. Default.");
+		System.out.println("       --encrypt      : encrypt file. Default mode.");
 		System.out.println("         --cipher     : cipher to encrypt file. Default \"AES/GCM/128\" or ");
-		System.out.println("                        \"AES/CBC/128\", if GCM is not supported by the JCE;");
+		System.out.println("                        \"AES/CBC/128\", if GCM is not supported by the JCE.");
+		if (jceCipher != null) {
+			System.out.println("                        " + jceCipher);
+		}
 		System.out.println("       --decrypt      : decrypt file");
 		System.out.println("       --out          : output file name. Default replaces input file.");
 		System.out.println("       --in           : input file name.");
@@ -157,10 +168,10 @@ public class Encrypt {
 				}
 				return;
 			}
-		} catch (ArrayIndexOutOfBoundsException ex) {
+		} catch (ArrayIndexOutOfBoundsException x) {
 			System.err.println("Misssing parameter for " + args[args.length - 1]);
-		} catch (IllegalArgumentException ex) {
-			System.err.println(ex.getMessage());
+		} catch (IllegalArgumentException x) {
+			System.err.println(x.getMessage());
 		} catch (FileNotFoundException e) {
 			System.err.println(e.getMessage());
 		} catch (IOException e) {
