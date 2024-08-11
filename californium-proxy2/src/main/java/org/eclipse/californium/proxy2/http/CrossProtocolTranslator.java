@@ -263,8 +263,8 @@ public class CrossProtocolTranslator {
 				if (optionDefinition == null) {
 					continue;
 				}
-//				int optionNumber = coapOption;
-				// ignore the content-type, it will be handled within the payload
+				// ignore the content-type, it will be handled within the
+				// payload
 				if (optionDefinition.equals(StandardOptionRegistry.CONTENT_FORMAT)) {
 					continue;
 				}
@@ -417,10 +417,10 @@ public class CrossProtocolTranslator {
 						// get the charset for the http entity
 						Charset httpCharset = contentType.getCharset();
 
-						// check if the charset is UTF_8, the only supported by
-						// coap
+						// check if the charset is UTF-8,
+						// the only supported by coap
 						if (httpCharset != null && !httpCharset.equals(UTF_8)) {
-							// translate the payload to the utf-8 charset
+							// translate the payload to the UTF-8 charset
 							payload = convertCharset(payload, httpCharset, UTF_8);
 						}
 					} catch (UnsupportedCharsetException e) {
@@ -432,7 +432,8 @@ public class CrossProtocolTranslator {
 					if (coapMessage instanceof Response) {
 						if (!((Response) coapMessage).isSuccess()) {
 							if (ContentType.TEXT_HTML.getMimeType().equals(mimeType)) {
-								// blockwise is not supported for error responses
+								// blockwise is not supported for error
+								// responses
 								// https://github.com/core-wg/corrclar/issues/25
 								// reduce payload size
 								String page = new String(payload, UTF_8);
@@ -534,6 +535,26 @@ public class CrossProtocolTranslator {
 	}
 
 	/**
+	 * Get http conversion content-type from coap content-type.
+	 * 
+	 * Used to convert the charset, e.g. from UTF-8 (coap) to ISO-8859-1 (http).
+	 * 
+	 * @param coapContentType coap content-type
+	 * @return http content-type, or {@code null}, if not available.
+	 * @since 3.13
+	 */
+	public Charset getHttpCharset(int coapContentType) {
+		String charsetString = translationMapping.getHttpCharset(coapContentType);
+		if (charsetString != null && !charsetString.isEmpty()) {
+			try {
+				return Charset.forName(charsetString);
+			} catch (IllegalArgumentException e) {
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Gets the http headers from a list of CoAP options.
 	 * 
 	 * The method iterates over the list looking for a translation of each
@@ -556,8 +577,8 @@ public class CrossProtocolTranslator {
 		List<Header> headers = new LinkedList<Header>();
 		// iterate over each option
 		for (Option option : optionList) {
-			// skip content-type because it should be translated while handling
-			// the payload;
+			// skip content-type, it should be translated
+			// while handling the payload
 			OptionDefinition definition = option.getDefinition();
 			if (StandardOptionRegistry.CONTENT_FORMAT.equals(definition)) {
 				continue;
@@ -588,6 +609,9 @@ public class CrossProtocolTranslator {
 					} catch (TranslationException e) {
 						continue;
 					}
+				} else if (StandardOptionRegistry.MAX_AGE.equals(definition)) {
+					// format: cache-control: max-age=60
+					stringOptionValue = "max-age=" + Integer.toString(option.getIntegerValue());
 				} else if (optionFormat == OptionFormat.STRING) {
 					stringOptionValue = option.getStringValue();
 				} else if (optionFormat == OptionFormat.INTEGER) {
@@ -599,12 +623,6 @@ public class CrossProtocolTranslator {
 				} else {
 					// if the option is not formattable, skip it
 					continue;
-				}
-
-				// custom handling for max-age
-				// format: cache-control: max-age=60
-				if (StandardOptionRegistry.MAX_AGE.equals(definition)) {
-					stringOptionValue = "max-age=" + stringOptionValue;
 				}
 
 				Header header = new BasicHeader(headerName, stringOptionValue);
@@ -671,21 +689,21 @@ public class CrossProtocolTranslator {
 				if (MediaTypeRegistry.isCharsetConvertible(coapContentType)) {
 					// get the charset
 					Charset charset = contentType.getCharset();
+					Charset charsetTo = getHttpCharset(coapContentType);
+
 					// try to convert to http default ISO_8859_1
 					// Just for JSON, keep the original encoding
-					if (charset != null && !ISO_8859_1.equals(charset)) {
-						byte[] newPayload = convertCharset(payload, charset, ISO_8859_1);
+					if (charset != null && charsetTo != null && !charsetTo.equals(charset)) {
+						byte[] newPayload = convertCharset(payload, charset, charsetTo);
 						// since ISO-8859-1 is a subset of UTF-8, it is needed
-						// to
-						// check if the mapping could be accomplished, only if
-						// the
-						// operation is successful the payload and the charset
-						// should be changed
+						// to check, if the mapping could be accomplished.
+						// Only if the operation is successful the payload and
+						// the charset should be changed
 						if (newPayload != null) {
 							payload = newPayload;
-							// if the charset is changed, also the entire
-							// content-type must change
-							contentType = contentType.withCharset(ISO_8859_1);
+							// if the charset is changed, also the
+							// entire content-type must change
+							contentType = contentType.withCharset(charsetTo);
 						}
 					}
 				}

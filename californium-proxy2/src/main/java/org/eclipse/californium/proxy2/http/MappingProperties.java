@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.hc.core5.http.HttpStatus;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.elements.config.PropertiesUtility;
@@ -63,6 +62,7 @@ public class MappingProperties extends Properties {
 	protected static final String KEY_COAP_CODE = "coap.response.code.";
 	protected static final String KEY_COAP_OPTION = "coap.message.option.";
 	protected static final String KEY_COAP_MEDIA = "coap.message.media.";
+	protected static final String KEY_COAP_CONVERSION = "coap.message.conv.";
 	protected static final String KEY_HTTP_CODE = "http.response.code.";
 	protected static final String KEY_HTTP_METHOD = "http.request.method.";
 	protected static final String KEY_HTTP_HEADER = "http.message.header.";
@@ -77,6 +77,7 @@ public class MappingProperties extends Properties {
 	protected final Map<ResponseCode, Integer> coapResponseCodes = new ConcurrentHashMap<>();
 	protected final Map<String, Integer> httpMediaTypes = new ConcurrentHashMap<>();
 	protected final Map<Integer, String> coapMediaTypes = new ConcurrentHashMap<>();
+	protected final Map<Integer, String> coapMediaConversion = new ConcurrentHashMap<>();
 	protected final Map<String, Integer> httpHeaders = new ConcurrentHashMap<>();
 	protected final Map<Integer, String> coapOptions = new ConcurrentHashMap<>();
 
@@ -113,6 +114,7 @@ public class MappingProperties extends Properties {
 		coapResponseCodes.clear();
 		httpMediaTypes.clear();
 		coapMediaTypes.clear();
+		coapMediaConversion.clear();
 		httpHeaders.clear();
 		coapOptions.clear();
 	}
@@ -146,6 +148,8 @@ public class MappingProperties extends Properties {
 			initCoapMethod(key);
 		} else if (key.startsWith(KEY_COAP_MEDIA)) {
 			initCoapMediaType(key);
+		} else if (key.startsWith(KEY_COAP_CONVERSION)) {
+			initCoapMediaConversion(key);
 		} else if (key.startsWith(KEY_HTTP_CONTENT_TYPE)) {
 			initHttpMediaType(key);
 		} else if (key.startsWith(KEY_COAP_OPTION)) {
@@ -228,6 +232,20 @@ public class MappingProperties extends Properties {
 		Integer coapMediaType = getIntegerTag(KEY_COAP_MEDIA, key);
 		if (coapMediaType != null && httpMediaType != null) {
 			coapMediaTypes.put(coapMediaType, httpMediaType);
+		}
+	}
+
+	/**
+	 * Initialize {@link #coapMediaConversion} from raw property.
+	 * 
+	 * @param key key for entry to load
+	 * @since 3.13
+	 */
+	protected void initCoapMediaConversion(String key) {
+		String httpMediaConversion = getString(key);
+		Integer coapMediaType = getIntegerTag(KEY_COAP_CONVERSION, key);
+		if (coapMediaType != null && httpMediaConversion != null) {
+			coapMediaConversion.put(coapMediaType, httpMediaConversion);
 		}
 	}
 
@@ -369,12 +387,14 @@ public class MappingProperties extends Properties {
 		if (coapMethod == null) {
 			throw new NullPointerException("coap method must not be null!");
 		}
-		if (httpStatusCode == HttpStatus.SC_NO_CONTENT) {
-			// special mapping for http 2.04 using the coap request code
-			// RFC 7252 5.9.1.2 and 5.9.1.4
-			httpStatusCode += 10000 * coapMethod.value;
+		// special mapping for http 2.04 using the coap request code
+		// RFC 7252 5.9.1.2 and 5.9.1.4
+		int httpRequestAndStatusCode = 10000 * coapMethod.value + httpStatusCode;
+		ResponseCode code = httpStatusCodes.get(httpRequestAndStatusCode);
+		if (code == null) {
+			code = httpStatusCodes.get(httpStatusCode);
 		}
-		return httpStatusCodes.get(httpStatusCode);
+		return code;
 	}
 
 	/**
@@ -401,6 +421,19 @@ public class MappingProperties extends Properties {
 	 */
 	public String getHttpMimeType(Integer coapMediaType) {
 		return coapMediaTypes.get(coapMediaType);
+	}
+
+	/**
+	 * Get http charset for CoAP media type.
+	 * 
+	 * Used to convert the charset, e.g. from UTF-8 (coap) to ISO-8859-1 (http).
+	 * 
+	 * @param coapMediaType CoAP media type
+	 * @return charset, or {@code null}, if not available.
+	 * @since 3.13
+	 */
+	public String getHttpCharset(Integer coapMediaType) {
+		return coapMediaConversion.get(coapMediaType);
 	}
 
 	/**
@@ -630,11 +663,13 @@ public class MappingProperties extends Properties {
 		set(KEY_HTTP_CODE + "102", "5.02");
 
 		set(KEY_HTTP_CODE + "200", "2.05");
+		set(KEY_HTTP_CODE + "20200", "2.04"); // 2.04 for POST
 		set(KEY_HTTP_CODE + "201", "2.01");
 		set(KEY_HTTP_CODE + "202", "2.05");
+		set(KEY_HTTP_CODE + "20202", "2.04"); // 2.04 for POST
 		set(KEY_HTTP_CODE + "203", "2.05");
-		set(KEY_HTTP_CODE + "20204", "2.04"); // 2.04 for POST 0.02 * 10000
-		set(KEY_HTTP_CODE + "30204", "2.04"); // 2.04 for PUT 0.03 * 10000
+		set(KEY_HTTP_CODE + "20203", "2.04"); // 2.04 for POST
+		set(KEY_HTTP_CODE + "204", "2.04");
 		set(KEY_HTTP_CODE + "40204", "2.02"); // 2.02 for DELETE 0.04 * 10000
 		set(KEY_HTTP_CODE + "205", "2.05");
 		set(KEY_HTTP_CODE + "206", "2.05");
@@ -669,9 +704,10 @@ public class MappingProperties extends Properties {
 		set(KEY_HTTP_CODE + "418", "4.00");
 		set(KEY_HTTP_CODE + "419", "4.00");
 		set(KEY_HTTP_CODE + "420", "4.00");
-		set(KEY_HTTP_CODE + "422", "4.00");
+		set(KEY_HTTP_CODE + "422", "4.22");
 		set(KEY_HTTP_CODE + "423", "4.00");
 		set(KEY_HTTP_CODE + "424", "4.00");
+		set(KEY_HTTP_CODE + "429", "4.29");
 
 		set(KEY_HTTP_CODE + "500", "5.00");
 		set(KEY_HTTP_CODE + "501", "5.01");
@@ -745,6 +781,8 @@ public class MappingProperties extends Properties {
 		set(KEY_COAP_MEDIA + MediaTypeRegistry.APPLICATION_LINK_FORMAT, "application/link-format");
 		set(KEY_COAP_MEDIA + MediaTypeRegistry.APPLICATION_XML, "application/xml");
 		set(KEY_COAP_MEDIA + MediaTypeRegistry.APPLICATION_JSON, "application/json; charset=UTF-8");
+
+		set(KEY_COAP_CONVERSION + MediaTypeRegistry.TEXT_PLAIN, "ISO-8859-1");
 
 		if (initialized.get()) {
 			initMaps();

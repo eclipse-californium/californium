@@ -23,6 +23,7 @@ import java.util.Locale;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpRequest;
+import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.HttpVersion;
 import org.apache.hc.core5.http.Message;
 import org.apache.hc.core5.http.Method;
@@ -302,7 +303,9 @@ public class Http2CoapTranslator {
 		// get/set the response code
 		ResponseCode coapCode = coapResponse.getCode();
 		int httpCode = httpTranslator.getHttpCode(coapResponse.getCode());
-
+		if (httpCode == HttpStatus.SC_OK && coapResponse.getPayloadSize() == 0) {
+			httpCode = HttpStatus.SC_NO_CONTENT;
+		}
 		BasicHttpResponse httpResponse = new BasicHttpResponse(httpCode);
 		httpResponse.setVersion(HttpVersion.HTTP_1_1);
 		String reason = EnglishReasonPhraseCatalog.INSTANCE.getReason(httpCode, Locale.ENGLISH);
