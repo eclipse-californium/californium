@@ -20,7 +20,7 @@
 		credentials.</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.util.encrypt.Encrypt</assembly.mainClass>
+		<assembly.mainClass>org.eclipse.californium.util.encrypt.Utilities</assembly.mainClass>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.8</project.build.javaVersion>
 		<animal.sniffer.skip>true</animal.sniffer.skip>
