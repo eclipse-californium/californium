@@ -181,7 +181,7 @@ public class EncryptedStreamUtil {
 	 */
 	private static boolean addInternal(int id, String algorithm, int bits) {
 		CipherDefinition definition = new CipherDefinition(id, algorithm, bits);
-		CIPHER_DEFINITIONS.put(id, new CipherDefinition(id, algorithm, bits));
+		CIPHER_DEFINITIONS.put(id, definition);
 		return definition.supported;
 	}
 
