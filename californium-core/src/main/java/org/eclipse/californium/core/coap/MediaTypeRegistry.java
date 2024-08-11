@@ -508,7 +508,7 @@ public class MediaTypeRegistry {
 		}
 
 		/**
-		 * Create none-printable media-type-definition.
+		 * Create printable media-type-definition.
 		 * 
 		 * @param type IANA CoAP media type
 		 * @param mime MIME name
