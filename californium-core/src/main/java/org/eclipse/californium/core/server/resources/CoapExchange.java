@@ -30,6 +30,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.ResponseConsumer;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -42,8 +43,10 @@ import org.eclipse.californium.elements.UdpMulticastConnector;
  * The Class CoapExchange represents an exchange of a CoAP request and response
  * and provides a user-friendly API to subclasses of {@link CoapResource} for
  * responding to requests.
+ * 
+ * @since 3.13 implements {@link ResponseConsumer}
  */
-public class CoapExchange {
+public class CoapExchange implements ResponseConsumer {
 
 	/* The internal (advanced) exchange. */
 	private final Exchange exchange;
@@ -498,6 +501,7 @@ public class CoapExchange {
 	 * @since 2.3 error responses for multicast requests are not sent
 	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
+	@Override
 	public void respond(Response response) {
 		if (response == null) {
 			throw new NullPointerException("Response must not be null!");
