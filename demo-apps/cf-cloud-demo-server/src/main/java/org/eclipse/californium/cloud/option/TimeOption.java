@@ -14,6 +14,7 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.option;
 
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Message;
@@ -94,6 +95,15 @@ public class TimeOption extends Option {
 	 */
 	public TimeOption(byte[] value) {
 		super(DEFINITION, value);
+	}
+
+	@Override
+	public String toValueString() {
+		long time = getLongValue();
+		if (time > 0) {
+			return new Date(time).toString();
+		}
+		return "0";
 	}
 
 	/**
