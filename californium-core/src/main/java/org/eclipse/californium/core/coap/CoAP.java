@@ -149,6 +149,30 @@ public final class CoAP {
 	}
 
 	/**
+	 * Gets the display string representation of a CoAP code.
+	 * 
+	 * @param code the CoAP code.
+	 * @return a display string following the pattern C.DD/DESCRIPTION where C
+	 *         is the code class and DD is the code detail.
+	 * @since 3.13
+	 */
+	public static String toDisplayString(final int code) {
+		int codeClass = getCodeClass(code);
+		int codeDetail = getCodeDetail(code);
+		try {
+			if (codeClass == 0) {
+				Code request = Code.valueOf(code);
+				return request.text + "/" + request.name();
+			} else {
+				ResponseCode response = ResponseCode.valueOf(code);
+				return response.text + "/" + response.name();
+			}
+		} catch (MessageFormatException ex) {
+			return formatCode(codeClass, codeDetail) + "/UNKNOWN";
+		}
+	}
+
+	/**
 	 * Get scheme for protocol.
 	 * 
 	 * @param protocol protocol

@@ -14,6 +14,7 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.option;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
@@ -73,4 +74,8 @@ public class ReadResponseOption extends Option {
 		super(DEFINITION, value);
 	}
 
+	@Override
+	public String toValueString() {
+		return CoAP.toDisplayString(getIntegerValue());
+	}
 }
