@@ -24,6 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 import java.net.InetAddress;
@@ -44,20 +45,20 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Unit test cases validating behavior of the {@link Request} class.
  *
  */
 @Category(Small.class)
 public class RequestTest {
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(RequestTest.class);
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	/**
-	 * Verifies that a Request that is instantiated with a {@code null} CoAP.Code
-	 * (used for a CoAP ping) has a code value of 0.
+	 * Verifies that a Request that is instantiated with a {@code null}
+	 * CoAP.Code (used for a CoAP ping) has a code value of 0.
 	 */
 	@Test
 	public void testGetRawCodeReturnsZeroForNullCode() {
@@ -66,9 +67,11 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that the URI examples from <a href="https://tools.ietf.org/html/rfc7252#section-6.3" target="_blank">
-	 * RFC 7252, Section 6.3</a> result in the same option values.
-	 * @throws URISyntaxException 
+	 * Verifies that the URI examples from
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.3" target=
+	 * "_blank"> RFC 7252, Section 6.3</a> result in the same option values.
+	 * 
+	 * @throws URISyntaxException
 	 */
 	@Test
 	public void testSetOptionsCompliesWithRfcExample() throws URISyntaxException {
@@ -94,8 +97,8 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that non-ASCII characters in the URI components are
-	 * not escaped when being put to Uri options.
+	 * Verifies that non-ASCII characters in the URI components are not escaped
+	 * when being put to Uri options.
 	 */
 	@Test
 	public void testSetUriStringDoesNotEscapeNonUsAsciiChars() {
@@ -131,6 +134,12 @@ public class RequestTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testSetURIRejectsUnresolvableHost() {
+		try {
+			InetAddress.getByName("non-existing.eclipseprojects.io");
+			assumeFalse("non-existing.eclipseprojects.io exists?", true);
+		} catch (UnknownHostException e) {
+			// intended 
+		}
 		Request.newGet().setURI("coap://non-existing.eclipseprojects.io");
 	}
 
@@ -151,7 +160,8 @@ public class RequestTest {
 	public void testSetURISetsDestination() {
 		InetSocketAddress dest = InetSocketAddress.createUnresolved("192.168.0.1", 12000);
 		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
-		assertThat(req.getDestinationContext().getPeerAddress().getAddress().getHostAddress(), is(dest.getHostString()));
+		assertThat(req.getDestinationContext().getPeerAddress().getAddress().getHostAddress(),
+				is(dest.getHostString()));
 		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(dest.getPort()));
 	}
 
@@ -186,8 +196,8 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that a URI composed from options contains the literal destination IP address if
-	 * no Uri-Host option value is set.
+	 * Verifies that a URI composed from options contains the literal
+	 * destination IP address if no Uri-Host option value is set.
 	 */
 	@Test
 	public void testGetURIContainsLiteralIpAddressDestination() {
@@ -197,8 +207,10 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that the getURI method escapes non-ASCII characters contained in path and query.
-	 * @throws UnknownHostException 
+	 * Verifies that the getURI method escapes non-ASCII characters contained in
+	 * path and query.
+	 * 
+	 * @throws UnknownHostException
 	 */
 	@Test
 	public void testGetURIEscapesNonAsciiCharacters() throws UnknownHostException {
@@ -224,8 +236,7 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that the destination context contains the Uri-Host
-	 * option value.
+	 * Verifies that the destination context contains the Uri-Host option value.
 	 */
 	@Test
 	public void testSetURISetsVirtualHostOnDestinationContext() {
@@ -236,8 +247,8 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that the destination context does not contain a virtual
-	 * host if a literal IP address is used as the target.
+	 * Verifies that the destination context does not contain a virtual host if
+	 * a literal IP address is used as the target.
 	 */
 	@Test
 	public void testSetURIDoesNotSetVirtualHostOnDestinationContextForLiteralIP() {
@@ -274,7 +285,7 @@ public class RequestTest {
 		assertThat(req.getOptions().getUriPathString(), is("test2"));
 		assertThat(req.getOptions().getURIQueryCount(), is(0));
 
-		// since 3.3, a preset uri-query option is cleared by the URI  
+		// since 3.3, a preset uri-query option is cleared by the URI
 		req.getOptions().addUriQuery("param2");
 		req.setURI("coap://192.168.0.1/test2");
 		assertThat(req.getOptions().getUriPathString(), is("test2"));
@@ -298,12 +309,13 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that only GET requests can be marked for establishing an observe relation.
+	 * Verifies that only GET requests can be marked for establishing an observe
+	 * relation.
 	 */
 	@Test
 	public void setObserveFailsForNonGetRequest() {
 
-		Code[] illegalCodes = new Code[]{ Code.PATCH, Code.DELETE, Code.POST, Code.PUT };
+		Code[] illegalCodes = new Code[] { Code.PATCH, Code.DELETE, Code.POST, Code.PUT };
 
 		for (Code code : illegalCodes) {
 			try {
@@ -317,12 +329,13 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that only GET requests can be marked for canceling an observe relation.
+	 * Verifies that only GET requests can be marked for canceling an observe
+	 * relation.
 	 */
 	@Test
 	public void setObserveCancelFailsForNonGetRequest() {
 
-		Code[] illegalCodes = new Code[]{ Code.PATCH, Code.DELETE, Code.POST, Code.PUT };
+		Code[] illegalCodes = new Code[] { Code.PATCH, Code.DELETE, Code.POST, Code.PUT };
 
 		for (Code code : illegalCodes) {
 			try {
