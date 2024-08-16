@@ -56,6 +56,7 @@ import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
+import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest.Builder;
 import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
 import org.eclipse.californium.cloud.s3.util.DomainDeviceManager.DomainDeviceInfo;
 import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider;
@@ -393,7 +394,7 @@ public class S3Devices extends CoapResource {
 			String position = null;
 
 			LOGGER.info("S3: {}, {}", domain, s3Client.getExternalEndpoint());
-			write = replaceVars(write, timestamp);
+			String writeExpanded = replaceVars(write, timestamp);
 			if (format == TEXT_PLAIN && updateSeries) {
 				String[] lines = request.getPayloadString().split("[\\n\\r]+");
 				for (String line : lines) {
@@ -432,7 +433,7 @@ public class S3Devices extends CoapResource {
 						device = new Device(info.name);
 					}
 					device.setVisible(visible);
-					device.setPost(request, position, time, write);
+					device.setPost(request, position, time, writeExpanded);
 					// workaround for javascript dependency on "series-" file
 					series = device.appendSeries(log.toString(), timestamp);
 					if (device.getParent() == null) {
@@ -519,12 +520,14 @@ public class S3Devices extends CoapResource {
 				s3Client.get(s3ReadRequest, multi.create("read"));
 			}
 
-			if (write != null && !write.isEmpty()) {
+			if (writeExpanded != null && !writeExpanded.isEmpty()) {
 				final Consumer<Response> putResponseConsumer = multi.create("write");
 
-				S3ProxyRequest s3WriteRequest = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(write)
-						.build();
-				s3Client.put(s3WriteRequest, new Consumer<Response>() {
+				Builder builder = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(writeExpanded);
+				if (write.equals(writeExpanded)) {
+					builder.timestamp(time);
+				}
+				s3Client.put(builder.build(), new Consumer<Response>() {
 
 					@Override
 					public void accept(Response response) {
