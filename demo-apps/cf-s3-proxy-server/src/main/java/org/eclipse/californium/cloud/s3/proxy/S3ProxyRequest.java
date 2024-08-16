@@ -17,7 +17,9 @@ package org.eclipse.californium.cloud.s3.proxy;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import org.eclipse.californium.cloud.s3.option.IntervalOption;
 import org.eclipse.californium.cloud.s3.resources.S3Devices;
 import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
 import org.eclipse.californium.cloud.s3.util.DomainDeviceManager.DomainDeviceInfo;
@@ -38,6 +40,11 @@ import org.eclipse.californium.elements.util.StringUtil;
  * @since 3.12
  */
 public class S3ProxyRequest extends S3PutRequest {
+
+	/**
+	 * Name of time in metadata.
+	 */
+	public static final String METADATA_INTERVAL = "interval";
 
 	/**
 	 * CoAP-request.
@@ -66,6 +73,12 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * List of coap-etags for GET requests.
 	 */
 	private final List<Option> etags;
+	/**
+	 * Interval for S3 PUT request.
+	 * 
+	 * @since 3.13
+	 */
+	private final Long interval;
 
 	/**
 	 * Create S3 proxy request from coap-request.
@@ -83,12 +96,15 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * @param content content for PUT requests
 	 * @param contentType content type for PUT requests
 	 * @param timestamp timestamp for PUT requests
+	 * @param interval interval for PUT requests
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating.
 	 * @param force force mode. {@code true} to not use ETAGs.
+	 * @since 3.13 interval added
 	 */
 	public S3ProxyRequest(Request request, String key, int pathStartIndex, int pathPrincipalIndex, String subPath,
-			List<Option> etags, byte[] content, String contentType, Long timestamp, Redirect redirect, boolean force) {
+			List<Option> etags, byte[] content, String contentType, Long timestamp, Long interval, Redirect redirect,
+			boolean force) {
 		super(key, content, contentType, timestamp, redirect, force);
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
@@ -98,6 +114,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		this.pathPrincipalIndex = pathPrincipalIndex;
 		this.subPath = subPath;
 		this.etags = etags;
+		this.interval = interval;
 	}
 
 	/**
@@ -191,6 +208,31 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
+	 * Get interval for S3 PUT.
+	 * 
+	 * @return interval for S3 PUT.
+	 * @since 3.13
+	 */
+	public Long getInterval() {
+		return interval;
+	}
+
+	/**
+	 * Get metadata for S3 PUT.
+	 * 
+	 * @return metadata, maybe empty.
+	 * @since 3.13
+	 */
+	@Override
+	public Map<String, String> getMetadata() {
+		Map<String, String> meta = super.getMetadata();
+		if (interval != null) {
+			meta.put(METADATA_INTERVAL, Long.toString(interval));
+		}
+		return meta;
+	}
+
+	/**
 	 * Get canned Access Control List for PUT.
 	 * 
 	 * @param request coap-request
@@ -268,11 +310,22 @@ public class S3ProxyRequest extends S3PutRequest {
 		private List<Option> etags;
 
 		/**
+		 * Interval for S3 PUT request.
+		 * 
+		 * @since 3.13
+		 */
+		private Long interval;
+
+		/**
 		 * Create builder from coap-request.
 		 * 
 		 * @param request coap-request
+		 * @throws NullPointerException if request is {@code null}.
 		 */
 		private Builder(Request request) {
+			if (request == null) {
+				throw new NullPointerException("request must not be null!");
+			}
 			this.request = request;
 		}
 
@@ -346,6 +399,18 @@ public class S3ProxyRequest extends S3PutRequest {
 			return this;
 		}
 
+		/**
+		 * Interval for S3 PUT request.
+		 * 
+		 * @param interval expected interval in s.
+		 * @return builder for command chaining
+		 * @since 3.13
+		 */
+		public Builder interval(Long interval) {
+			this.interval = interval;
+			return this;
+		}
+
 		@Override
 		public Builder content(byte[] content) {
 			super.content(content);
@@ -389,8 +454,14 @@ public class S3ProxyRequest extends S3PutRequest {
 			if (contentType == null) {
 				contentType = getContentType(request);
 			}
+			if (interval == null) {
+				Option option = request.getOptions().getOtherOption(IntervalOption.DEFINITION);
+				if (option != null) {
+					interval = option.getLongValue();
+				}
+			}
 			return new S3ProxyRequest(request, key, pathStartIndex, pathPrincipalIndex, subPath, etags, content,
-					contentType, timestamp, redirect, force);
+					contentType, timestamp, interval, redirect, force);
 		}
 	}
 }

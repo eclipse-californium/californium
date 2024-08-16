@@ -14,12 +14,20 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.proxy;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * S3 PUT request.
  * 
  * @since 3.13
  */
 public class S3PutRequest extends S3Request {
+
+	/**
+	 * Name of time in metadata.
+	 */
+	public static final String METADATA_TIME = "time";
 
 	/**
 	 * Content for S3 PUT requests.
@@ -78,6 +86,20 @@ public class S3PutRequest extends S3Request {
 	 */
 	public Long getTimestamp() {
 		return timestamp;
+	}
+
+	/**
+	 * Get metadata for S3 PUT.
+	 * 
+	 * @return metadata, maybe empty.
+	 * @since 3.13
+	 */
+	public Map<String, String> getMetadata() {
+		Map<String, String> meta = new HashMap<>();
+		if (timestamp != null) {
+			meta.put(METADATA_TIME, Long.toString(timestamp));
+		}
+		return meta;
 	}
 
 	/**

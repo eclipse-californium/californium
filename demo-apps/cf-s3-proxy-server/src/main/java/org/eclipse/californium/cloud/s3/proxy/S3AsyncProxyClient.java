@@ -31,7 +31,6 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -92,10 +91,6 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	 * Default S3 bucket.
 	 */
 	public static final String DEFAULT_S3_BUCKET = "devices";
-	/**
-	 * Name of time in metadata.
-	 */
-	public static final String METADATA_TIME = "time";
 	/**
 	 * Default concurrency for S3 connections.
 	 */
@@ -307,9 +302,8 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 					if (acl != null) {
 						putBuilder.acl(acl);
 					}
-					if (request.getTimestamp() != null) {
-						Map<String, String> meta = new HashMap<>();
-						meta.put(METADATA_TIME, Long.toString(request.getTimestamp()));
+					Map<String, String> meta = request.getMetadata();
+					if (!meta.isEmpty()) {
 						putBuilder.metadata(meta);
 					}
 					AsyncRequestBody body = AsyncRequestBody.fromBytes(content);
@@ -396,9 +390,8 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 					if (request.getContentType() != null) {
 						putBuilder.contentType(request.getContentType());
 					}
-					if (request.getTimestamp() != null) {
-						Map<String, String> meta = new HashMap<>();
-						meta.put(METADATA_TIME, Long.toString(request.getTimestamp()));
+					Map<String, String> meta = request.getMetadata();
+					if (!meta.isEmpty()) {
 						putBuilder.metadata(meta);
 					}
 					AsyncRequestBody body = AsyncRequestBody.fromBytes(content);
@@ -839,7 +832,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	 */
 	public Long getTime(GetObjectResponse getObjectResponse) {
 		if (getObjectResponse.hasMetadata()) {
-			String timestamp = getObjectResponse.metadata().get(METADATA_TIME);
+			String timestamp = getObjectResponse.metadata().get(S3PutRequest.METADATA_TIME);
 			if (timestamp != null) {
 				try {
 					return Long.parseLong(timestamp);
