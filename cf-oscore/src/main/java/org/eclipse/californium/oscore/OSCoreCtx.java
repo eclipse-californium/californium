@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import javax.crypto.Mac;
@@ -28,13 +27,15 @@ import javax.crypto.spec.SecretKeySpec;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.cose.Attribute;
 import org.eclipse.californium.cose.CoseException;
+import org.eclipse.californium.cose.Encrypt0Message;
 import org.eclipse.californium.cose.EncryptCommon;
+import org.eclipse.californium.cose.HeaderKeys;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -695,14 +696,14 @@ public class OSCoreCtx {
 	private void setLengths() {
 		if (common_alg != null) {
 
-			iv_length = EncryptCommon.ivLength(common_alg);
+			iv_length = EncryptCommon.getIvLength(common_alg);
 			if (iv_length > 0) {
 				id_length = iv_length - 6; // RFC section 5.2
 				key_length = common_alg.getKeySize() / 8;
 
 			} else {
-				LOGGER.error("Unable to set lengths, since algorithm");
-				throw new RuntimeException("Unable to set lengths, since algorithm");
+				LOGGER.error("Requested AEAD algorithm is not supported: {}", common_alg);
+				throw new RuntimeException("AEAD algorithm not supported");
 			}
 
 		} else {
@@ -890,36 +891,30 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * Initializes the cipher object by calling CCMBlockCipher.encrypt with
-	 * dummy data. Doing this at creation of the OSCORE context reduces the
-	 * latency for the first request since it would otherwise happen then.
+	 * Initializes the cipher object by calling encrypt on an Encrypt0Message
+	 * object created with dummy data. Doing this at creation of the OSCORE
+	 * context reduces the latency for the first request since it would
+	 * otherwise happen then.
 	 * 
 	 * @param alg the encryption algorithm used
 	 */
 	private void initializeCipher(AlgorithmID alg) {
-		switch (alg) {
-		case AES_CCM_16_64_128:
-		case AES_CCM_16_128_128:
-		case AES_CCM_64_64_128:
-		case AES_CCM_64_128_128:
+		
+		byte[] key = Arrays.copyOf(sender_id, key_length);
+		byte[] iv = Arrays.copyOf(recipient_id, iv_length);
+		byte[] aad = new byte[10];
 
-			byte[] key = { (byte) 0xEB, (byte) 0xDE, (byte) 0xBC, (byte) 0x51, (byte) 0xF1, (byte) 0x03,
-					(byte) 0x79, (byte) 0x14, (byte) 0x14, (byte) 0x4F, (byte) 0xC3, (byte) 0xAC, (byte) 0x40,
-					(byte) 0x14, (byte) 0xD2, (byte) 0x4C };
-			byte[] nonce = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+		Encrypt0Message enc = new Encrypt0Message(false, true);
+		enc.SetContent("init");
+		enc.setExternal(aad);
 
-			try {
-				CCMBlockCipher.encrypt(new SecretKeySpec(key, "AES"), nonce, Bytes.EMPTY,
-						Bytes.EMPTY, 0);
-			} catch (GeneralSecurityException e) {
-				LOGGER.error("Failed to initialize cipher.");
-				throw new RuntimeException("Failed to initialize cipher.");
-			}
-
-			break;
-
-		default:
-			break;
+		try {
+			enc.addAttribute(HeaderKeys.IV, CBORObject.FromObject(iv), Attribute.DO_NOT_SEND);
+			enc.addAttribute(HeaderKeys.Algorithm, alg.AsCBOR(), Attribute.DO_NOT_SEND);
+			enc.encrypt(key);
+		} catch (IllegalStateException | CoseException e) {
+			LOGGER.error("Failed to initialize cipher for algorithm {}. Ensure that the JCE supports it.", alg);
+			throw new RuntimeException("Failed to initialize cipher");
 		}
 	}
 
