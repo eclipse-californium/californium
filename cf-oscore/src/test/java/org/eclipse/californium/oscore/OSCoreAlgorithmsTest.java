@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2020 RISE and others.
+ * Copyright (c) 2024 RISE and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -19,6 +19,12 @@ package org.eclipse.californium.oscore;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assume.assumeTrue;
+
+import java.security.NoSuchAlgorithmException;
+
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapServer;
@@ -35,6 +41,7 @@ import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
+import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -75,10 +82,34 @@ public class OSCoreAlgorithmsTest {
 	private final static byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
 	private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
+	private static boolean supportGcm;
+	private static boolean supportChaChaPoly;
+	private static boolean supportStrongCrypto;
+
 	@Before
 	public void initLogger() {
 		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 		EndpointManager.clear();
+	}
+
+	@BeforeClass
+	public static void init() {
+		JceProviderUtil.init();
+		supportStrongCrypto = JceProviderUtil.hasStrongEncryption();
+
+		try {
+			Cipher.getInstance("AES/GCM/NoPadding");
+			supportGcm = true;
+		} catch (NoSuchAlgorithmException e) {
+		} catch (NoSuchPaddingException e) {
+		}
+
+		try {
+			Cipher.getInstance("ChaCha20-Poly1305");
+			supportChaChaPoly = true;
+		} catch (NoSuchAlgorithmException e) {
+		} catch (NoSuchPaddingException e) {
+		}
 	}
 
 	// Use the OSCORE stack factory
@@ -115,16 +146,68 @@ public class OSCoreAlgorithmsTest {
 		sendRequest(AlgorithmID.AES_CCM_64_128_128);
 	}
 
+	@Test
+	public void test_AES_CCM_64_64_256() throws Exception {
+		assumeTrue("Requires strong encryption", supportStrongCrypto);
+		sendRequest(AlgorithmID.AES_CCM_64_64_256);
+	}
+
+	@Test
+	public void test_AES_CCM_16_64_256() throws Exception {
+		assumeTrue("Requires strong encryption", supportStrongCrypto);
+		sendRequest(AlgorithmID.AES_CCM_16_64_256);
+	}
+
+	@Test
+	public void test_AES_CCM_16_128_256() throws Exception {
+		assumeTrue("Requires strong encryption", supportStrongCrypto);
+		sendRequest(AlgorithmID.AES_CCM_16_128_256);
+	}
+
+	@Test
+	public void test_AES_CCM_64_128_256() throws Exception {
+		assumeTrue("Requires strong encryption", supportStrongCrypto);
+		sendRequest(AlgorithmID.AES_CCM_64_128_256);
+	}
+
+	@Test
+	public void test_AES_GCM_128() throws Exception {
+		assumeTrue("Requires GCM support by JCE", supportGcm);
+		sendRequest(AlgorithmID.AES_GCM_128);
+	}
+
+	@Test
+	public void test_AES_GCM_192() throws Exception {
+		assumeTrue("Requires GCM support by JCE", supportGcm);
+		assumeTrue("Requires strong encryption", supportStrongCrypto);
+		sendRequest(AlgorithmID.AES_GCM_192);
+	}
+
+	@Test
+	public void test_AES_GCM_256() throws Exception {
+		assumeTrue("Requires GCM support by JCE", supportGcm);
+		assumeTrue("Requires strong encryption", supportStrongCrypto);
+		sendRequest(AlgorithmID.AES_GCM_256);
+	}
+
+	@Test
+	public void test_CHACHA20_POLY1305() throws Exception {
+		assumeTrue("Requires ChaCha-Poly support by JCE", supportChaChaPoly);
+		assumeTrue("Requires strong encryption", supportStrongCrypto);
+		sendRequest(AlgorithmID.CHACHA20_POLY1305);
+	}
+
 	@Rule
 	public ExpectedException exceptionRule = ExpectedExceptionWrapper.none();
 
 	@Test
 	public void testNotSupported() throws Exception {
+		AlgorithmID alg = AlgorithmID.AES_CBC_MAC_256_128;
+
 		exceptionRule.expect(RuntimeException.class);
-		exceptionRule.expectMessage("Unable to set lengths, since algorithm");
+		exceptionRule.expectMessage("AEAD algorithm not supported");
 
-		sendRequest(AlgorithmID.AES_CCM_16_64_256);
-
+		sendRequest(alg);
 	}
 
 	/**

@@ -84,6 +84,8 @@ public enum AlgorithmID {
     ECDH_SS_HKDF_256_AES_KW_128(-32, 0, 0),
     ECDH_SS_HKDF_256_AES_KW_192(-33, 0, 0),
     ECDH_SS_HKDF_256_AES_KW_256(-34, 0, 0),
+    
+    CHACHA20_POLY1305(24, 256, 128),
     ;
  
     private final CBORObject value;
