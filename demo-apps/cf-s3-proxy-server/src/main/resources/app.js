@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 0.18, 29. July 2024";
+const version = "Version 0.18.1, 21. August 2024";
 
 let timeShift = 0;
 
@@ -652,6 +652,7 @@ defaultProviderMap.set("iot.melita.io", "Melita");
 defaultProviderMap.set("iot.truphone.com", "TruPhone");
 defaultProviderMap.set("onomondo", "Ono");
 defaultProviderMap.set("public4.m2minternet.com", "Spider");
+defaultProviderMap.set("soracom.io", "Soracom");
 
 const providerMap = new Map();
 
@@ -2155,7 +2156,7 @@ class UiLoadProgress {
 
 class UiManager {
 
-	width = 620;
+	width = 630;
 
 	constructor(devices) {
 		this.state = {
