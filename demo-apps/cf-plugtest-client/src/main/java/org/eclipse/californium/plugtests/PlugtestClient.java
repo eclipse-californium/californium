@@ -779,7 +779,7 @@ public class PlugtestClient {
 
 		System.out.println("===============\nOSCORE 04");
 		System.out.println("---------------\nPOST /oscore\n---------------");
-		r = Request.newPut();
+		r = Request.newPost();
 		r.setPayload("non-empty");
 		r.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		r.getOptions().setOscore(Bytes.EMPTY);
