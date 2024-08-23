@@ -218,17 +218,27 @@ ID Context:    0x37cbf3210017a2d3 (8 bytes)
 ```
 Note that the server supports running the Appendix B.2 context rederivation procedure. This is necessary as requests from new clients would otherwise be considered replays (as the server's replay window is filled up from earlier clients). To access this resource without using the Appendix B.2 procedure, an appropriate Sender Sequence Number to use and the current ID Context can be retrieved from the resource "/oscoreInfo" using plain CoAP.
 
-Currently Californium's OSCORE supports following algorithms:
+Currently Californium's OSCORE supports the following algorithms:
 
 OSCORE Encryption:
 - AES_CCM_16_64_128, id 10
 - AES_CCM_64_64_128, id 12
 - AES_CCM_16_128_128, id 30
 - AES_CCM_64_128_128, id 32
+- AES_CCM_16_64_256, id 11
+- AES_CCM_64_64_256, id 13
+- AES_CCM_16_128_256, id 31
+- AES_CCM_64_128_256, id 33
+- AES_GCM_128, id 1
+- AES_GCM_192, id 2
+- AES_GCM_256, id 3
+- CHACHA20_POLY1305, id 24
 
-OSCORE Key Rederivation:
+OSCORE Key Derivation:
 - HKDF_HMAC_SHA_256, id -10 
 - HKDF_HMAC_SHA_512, id -11
+
+For detailed information about the algorithms see the [COSE Algorithms IANA registry](https://www.iana.org/assignments/cose/cose.xhtml#algorithms).
 
 # Adapter Selection
 
