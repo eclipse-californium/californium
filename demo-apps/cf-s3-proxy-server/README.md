@@ -63,6 +63,8 @@ Web-Browser application server diagnose page:
 
 ![browser-diagnose](./docs/S3-proxy-diagnose.png)
 
+Some more details about the web-UI can be found in [web-UI documentation](./docu/web-ui.md).
+
 ## Performance and Resources
 
 [<img src="./docs/quadrant.svg" width="65%" />](./docs/quadrant.svg)
