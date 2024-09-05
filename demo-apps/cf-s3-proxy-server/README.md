@@ -51,11 +51,11 @@ Web-Browser application chart page:
 
 ![browser-chart](./docs/S3-proxy-chart.png)
 
-Web-Browser application device status page (from device):
+Web-Browser application device status page (data from device):
 
 ![browser-status](./docs/S3-proxy-status.png)
 
-Web-Browser application device configuration page (to device):
+Web-Browser application device configuration page (data to device):
 
 ![browser-config](./docs/S3-proxy-config.png)
 
@@ -63,7 +63,7 @@ Web-Browser application server diagnose page:
 
 ![browser-diagnose](./docs/S3-proxy-diagnose.png)
 
-Some more details about the web-UI can be found in [web-UI documentation](./docu/web-ui.md).
+Some more details about the web-UI can be found in [web-UI documentation](./docs/web-ui.md).
 
 ## Performance and Resources
 
