@@ -234,6 +234,8 @@ public class Diagnose extends CoapResource {
 			builder.append("since: ").append(TimeUnit.NANOSECONDS.toSeconds(lastTransfer)).append("s").append(eol);
 			int counter = 0;
 			for (CounterStatisticManager manager : healths) {
+				boolean counts = false;
+				int mark = builder.length();
 				String tag = manager.getTag();
 				if (tag != null && !tag.isEmpty()) {
 					builder.append(tag).append(eol);
@@ -247,7 +249,14 @@ public class Diagnose extends CoapResource {
 						long[] pair = statistic.getCountersPair();
 						builder.append(head).append(key).append(",").append(pair[0]).append(",").append(pair[1])
 								.append(eol);
+						if (pair[1] > 0) {
+							counts = true;
+						}
 					}
+				}
+				if (!counts) {
+					// no counts => reset to mark
+					builder.setLength(mark);
 				}
 			}
 		}
@@ -269,6 +278,7 @@ public class Diagnose extends CoapResource {
 			element.addProperty("since", TimeUnit.NANOSECONDS.toSeconds(lastTransfer) + "s");
 			int counter = 0;
 			for (CounterStatisticManager manager : healths) {
+				boolean counts = false;
 				JsonObject group = new JsonObject();
 				for (String key : manager.getKeys()) {
 					SimpleCounterStatistic statistic = manager.getByKey(key);
@@ -278,13 +288,18 @@ public class Diagnose extends CoapResource {
 						info.addProperty("cur", pair[0]);
 						info.addProperty("all", pair[1]);
 						group.add(key, info);
+						if (pair[1] > 0) {
+							counts = true;
+						}
 					}
 				}
-				String tag = manager.getTag();
-				if (tag != null && !tag.isEmpty()) {
-					element.add(tag, group);
-				} else {
-					element.add(Integer.toString(++counter), group);
+				if (counts) {
+					String tag = manager.getTag();
+					if (tag != null && !tag.isEmpty()) {
+						element.add(tag, group);
+					} else {
+						element.add(Integer.toString(++counter), group);
+					}
 				}
 			}
 		}
@@ -308,6 +323,7 @@ public class Diagnose extends CoapResource {
 			map.set("since", CBORObject.FromObject(TimeUnit.NANOSECONDS.toSeconds(lastTransfer) + "s"));
 			int counter = 0;
 			for (CounterStatisticManager manager : healths) {
+				boolean counts = false;
 				CBORObject group = CBORObject.NewOrderedMap();
 				for (String key : manager.getKeys()) {
 					SimpleCounterStatistic statistic = manager.getByKey(key);
@@ -317,13 +333,18 @@ public class Diagnose extends CoapResource {
 						info.set("cur", CBORObject.FromObject(pair[0]));
 						info.set("all", CBORObject.FromObject(pair[1]));
 						group.set(key, info);
+						if (pair[1] > 0) {
+							counts = true;
+						}
 					}
 				}
-				String tag = manager.getTag();
-				if (tag != null && !tag.isEmpty()) {
-					map.set(tag, group);
-				} else {
-					map.set(Integer.toString(++counter), group);
+				if (counts) {
+					String tag = manager.getTag();
+					if (tag != null && !tag.isEmpty()) {
+						map.set(tag, group);
+					} else {
+						map.set(Integer.toString(++counter), group);
+					}
 				}
 			}
 		}
