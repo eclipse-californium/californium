@@ -57,6 +57,7 @@ import org.eclipse.californium.cloud.s3.util.WebAppDomainUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserParser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserProvider;
+import org.eclipse.californium.cloud.util.DeviceIdentifier;
 import org.eclipse.californium.cloud.util.DeviceManager;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.DeviceProvisioningConsumer;
@@ -447,7 +448,7 @@ public class S3ProxyServer extends BaseServer {
 			deviceGroupProvider = new DeviceGroupProvider() {
 
 				@Override
-				public Set<String> getGroup(String domain, String group) {
+				public Set<DeviceIdentifier> getGroup(String domain, String group) {
 					return configResource.getResource().getGroup(group);
 				}
 			};
@@ -455,7 +456,7 @@ public class S3ProxyServer extends BaseServer {
 			deviceGroupProvider = new DeviceGroupProvider() {
 
 				@Override
-				public Set<String> getGroup(String domain, String group) {
+				public Set<DeviceIdentifier> getGroup(String domain, String group) {
 					return Collections.emptySet();
 				}
 
@@ -554,8 +555,8 @@ public class S3ProxyServer extends BaseServer {
 					setupSingleDomainHttpService(cliS3Arguments);
 				}
 				Aws4Authorizer aws4 = new Aws4Authorizer(domainUserProvider, S3ProxyClient.DEFAULT_REGION);
-				httpService.createContext("/login",
-						new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider));
+				httpService.createContext("/login", new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider));
+				httpService.createContext("/groups", new S3Login(aws4, deviceGroupProvider));
 				S3ProxyClient webClient = cliSpaArguments.s3 ? s3clients.getWebClient() : null;
 				SinglePageApplication spa = new SinglePageApplication("CloudCoap", webClient,
 						cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScript);

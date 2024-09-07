@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
-import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -37,8 +36,6 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.util.StandardCharsets;
-import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalMessageDigest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,14 +54,6 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 	 * Ban topic to report authorization failures.
 	 */
 	private static final String BAN = "HTTPS";
-	/**
-	 * Hash algorithm for ETAG.
-	 */
-	private static final String ETAG_ALGORITHM = "MD5";
-	/**
-	 * Thread local message digest for ETAG.
-	 */
-	private static final ThreadLocalMessageDigest ETAG = new ThreadLocalMessageDigest(ETAG_ALGORITHM);
 
 	/**
 	 * AWS4-HMAC-SHA256 authorizer.
@@ -187,8 +176,11 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 			throws IOException {
 		String dateTime = DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.now(ZoneId.of("GMT")));
 		httpExchange.getResponseHeaders().set("last-modified", dateTime);
-		setEtag(httpExchange, payload);
-		HttpService.respond(httpExchange, httpCode, contentType, payload);
+		if (EtagGenerator.setEtag(httpExchange, payload)) {
+			HttpService.respond(httpExchange, 304, contentType, null);
+		} else {
+			HttpService.respond(httpExchange, httpCode, contentType, payload);
+		}
 	}
 
 	@Override
@@ -361,18 +353,5 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 			return 0;
 		}
 		return Integer.valueOf(value);
-	}
-
-	/**
-	 * Set ETAG for http response.
-	 * 
-	 * @param exchange http exchange.
-	 * @param payload payload to calculate ETAG.
-	 */
-	public static void setEtag(HttpExchange exchange, byte[] payload) {
-		MessageDigest md = ETAG.current();
-		md.reset();
-		byte[] etag = md.digest(payload);
-		exchange.getResponseHeaders().set("ETag", StringUtil.byteArray2Hex(etag).toLowerCase());
 	}
 }

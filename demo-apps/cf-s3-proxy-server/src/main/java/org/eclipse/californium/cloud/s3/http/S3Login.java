@@ -18,7 +18,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +31,7 @@ import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.util.DeviceGroupProvider;
 import org.eclipse.californium.cloud.s3.util.WebAppConfigProvider;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
+import org.eclipse.californium.cloud.util.DeviceIdentifier;
 import org.eclipse.californium.cloud.util.Formatter;
 import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -96,6 +97,24 @@ public class S3Login implements HttpHandler {
 		this.clientProvider = clientProvider;
 	}
 
+	/**
+	 * Create http get groups.
+	 * 
+	 * @param authorizer AWS4-HMAC-SHA256 authorizer to check for valid
+	 *            credentials.
+	 * @param groups device groups provider
+	 * @since 3.13
+	 */
+	public S3Login(Aws4Authorizer authorizer, DeviceGroupProvider groups) {
+		if (authorizer == null) {
+			throw new NullPointerException("authorizer must not be null!");
+		}
+		this.authorizer = authorizer;
+		this.webAppConfigs = null;
+		this.groups = groups;
+		this.clientProvider = null;
+	}
+
 	@Override
 	public void handle(final HttpExchange httpExchange) throws IOException {
 		final URI uri = httpExchange.getRequestURI();
@@ -118,9 +137,17 @@ public class S3Login implements HttpHandler {
 				httpExchange.getResponseHeaders().add("x-amz-date", amzNow);
 				if (authorization.isInTime()) {
 					try {
-						payload = getLoginResponse(authorization);
-						contentType = "application/json; charset=utf-8";
 						httpCode = 200;
+						if (clientProvider == null) {
+							payload = getDeviceList(authorization);
+							if (EtagGenerator.setEtag(httpExchange, payload)) {
+								httpCode = 304;
+								payload = null;
+							}
+						} else {
+							payload = getLoginResponse(authorization);
+						}
+						contentType = "application/json; charset=utf-8";
 						httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
 					} catch (Throwable t) {
 						LOGGER.info("Login from {}:", logRemote, t);
@@ -197,16 +224,7 @@ public class S3Login implements HttpHandler {
 		}
 		formatter.add("base", externalEndpoint);
 		formatter.add("region", region);
-		if (groups != null && credentials.groups != null) {
-			Set<String> ids = new LinkedHashSet<>();
-			for (String group : credentials.groups) {
-				Set<String> devices = groups.getGroup(domain, group);
-				ids.addAll(devices);
-			}
-			if (!ids.isEmpty()) {
-				formatter.addList("groups", ids.toArray(new String[ids.size()]));
-			}
-		}
+		getDeviceList(authorization, formatter);
 		if (webAppConfigs != null && credentials.webAppConfig != null) {
 			Map<String, Map<String, String>> config = webAppConfigs.getSubSections(domain, credentials.webAppConfig);
 			for (String section : config.keySet()) {
@@ -218,4 +236,49 @@ public class S3Login implements HttpHandler {
 		}
 		return formatter.getPayload();
 	}
+
+	/**
+	 * Get device list response.
+	 * 
+	 * Creates response with:
+	 * 
+	 * <pre>
+	 * groups: list of device names
+	 * </pre>
+	 * 
+	 * @param authorization authorization
+	 * @return payload of response.
+	 * @since 3.13
+	 */
+	private byte[] getDeviceList(Authorization authorization) {
+		Formatter formatter = new Formatter.Json();
+		getDeviceList(authorization, formatter);
+		return formatter.getPayload();
+	}
+
+	/**
+	 * Append device list.
+	 * 
+	 * @param authorization authorization
+	 * @param formatter formatter for resulting list.
+	 * @since 3.13
+	 */
+	private void getDeviceList(Authorization authorization, Formatter formatter) {
+		WebAppUser credentials = authorization.getWebAppUser();
+		String domain = authorization.getDomain();
+		if (groups != null && credentials.groups != null) {
+			Map<String, String> allDevices = new HashMap<>();
+			for (String group : credentials.groups) {
+				Set<DeviceIdentifier> devices = groups.getGroup(domain, group);
+				for (DeviceIdentifier device : devices) {
+					String label = device.getLabel();
+					allDevices.put(device.getName(), label != null ? label : "");
+				}
+			}
+			if (!allDevices.isEmpty()) {
+				formatter.addMap("groups", allDevices);
+			}
+		}
+	}
+
 }

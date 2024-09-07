@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 25 17">
+
+<!-- 
+/*******************************************************************************
+ * Copyright (c) 2024 Contributors to the Eclipse Foundation.
+ * 
+ * See the NOTICE file(s) distributed with this work for additional
+ * information regarding copyright ownership.
+ * 
+ * This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ * 
+ ******************************************************************************/
+-->
+
+<symbol id="msgcoap"> 
+<rect stroke="black" fill="none" stroke-width="1" x="1" y="1" rx="2" ry="2" width="20" height="15" stroke-linejoin="round" />
+<path stroke="black" fill="none" stroke-width="1" d="M1,4 l10,3 10,-3" stroke-linecap="round" stroke-linejoin="round"/>
+<text id="coap" x="11" y="13" font-size="6px" text-anchor="middle">coap</text>
+</symbol>
+
+<use href="#msgcoap" x="0" y="0"/>
+
+<circle stroke="black" fill="none" stroke-width="1" cx="18" cy="8" r="3"/>
+<path stroke="black" fill="white" stroke-width="1" d="M20,11 l3,3 a1,1,0 0 0 1,-1 l-3,-3" stroke-linecap="round"/>
+
+</svg>

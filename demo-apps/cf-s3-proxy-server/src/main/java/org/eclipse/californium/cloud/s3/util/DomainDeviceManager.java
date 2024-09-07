@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentMap;
 import javax.crypto.SecretKey;
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.cloud.util.DeviceIdentifier;
 import org.eclipse.californium.cloud.util.DeviceManager;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.DeviceParser.Device;
@@ -180,18 +181,15 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 		if (device != null) {
 			Map<String, Object> info = new HashMap<>();
 			info.put(INFO_NAME, device.name);
-			info.put(INFO_GROUP, device.group);
 			info.put(INFO_DOMAIN, domain);
-			if (device.provisioning) {
-				info.put(INFO_PROVISIONING, "1");
-			}
+			info.put(INFO_MANAGER, this);
 			return AdditionalInfo.from(info);
 		}
 		return null;
 	}
 
 	@Override
-	public Set<String> getGroup(String domain, String group) {
+	public Set<DeviceIdentifier> getGroup(String domain, String group) {
 		ResourceStore<DeviceParser> resource = domains != null ? domains.get(domain) : null;
 		if (resource == null) {
 			return Collections.emptySet();
@@ -315,11 +313,19 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
 			String name = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_NAME, String.class);
-			if (name != null && !name.contains("/")) {
-				String group = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_GROUP, String.class);
-				String domain = extensiblePrincipal.getExtendedInfo().get(INFO_DOMAIN, String.class);
-				String prov = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_PROVISIONING, String.class);
-				return new DomainDeviceInfo(domain, group, name, prov);
+			String domain = extensiblePrincipal.getExtendedInfo().get(INFO_DOMAIN, String.class);
+			DomainDeviceManager manager = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_MANAGER,
+					DomainDeviceManager.class);
+			if (manager != null && domain != null && name != null && !name.contains("/")) {
+				if (manager.domains != null) {
+					ResourceStore<DeviceParser> deviceStore = manager.domains.get(domain);
+					if (deviceStore != null) {
+						Device device = deviceStore.getResource().get(name);
+						if (device != null) {
+							return new DomainDeviceInfo(domain, device.group, name, device.provisioning);
+						}
+					}
+				}
 			}
 		}
 		return null;
@@ -341,10 +347,10 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 		 * @param domain domain name of device
 		 * @param group group of device
 		 * @param name name of device
-		 * @param provisioning {@code "1"}, if credentials are used for auto
+		 * @param provisioning {@code true}, if credentials are used for auto
 		 *            provisioning, otherwise device credentials.
 		 */
-		protected DomainDeviceInfo(String domain, String group, String name, String provisioning) {
+		protected DomainDeviceInfo(String domain, String group, String name, boolean provisioning) {
 			super(group, name, provisioning);
 			if (domain == null) {
 				domain = DEFAULT_DOMAIN;
