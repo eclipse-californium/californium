@@ -100,18 +100,25 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 	}
 
 	@Override
-	public void add(DeviceInfo info, long time, String data, ResultConsumer response) {
+	public void add(DeviceInfo info, long time, String data, final ResultConsumer response) {
 		if (!(info instanceof DomainDeviceInfo)) {
 			response.results(ResultCode.SERVER_ERROR, "no DomainDeviceInfo.");
 			return;
 		}
-		String domain = ((DomainDeviceInfo) info).domain;
+		final String domain = ((DomainDeviceInfo) info).domain;
 		ResourceStore<DeviceParser> store = domains.get(domain);
 		if (store == null) {
 			response.results(ResultCode.SERVER_ERROR, "Domain " + domain + " not available.");
 			return;
 		}
-		add(store, info, time, data, response);
+		add(store, info, time, data, new ResultConsumer() {
+
+			@Override
+			public void results(ResultCode resultCode, String message) {
+				response.results(resultCode, domain + ": " + message);
+			}
+
+		});
 	}
 
 	@Override
