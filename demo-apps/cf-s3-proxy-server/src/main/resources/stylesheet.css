@@ -18,6 +18,12 @@
 	vertical-align: middle;
 }
 
+#logosvg {
+	height: 40px;
+	width: 40px;
+	padding-right: 0.3em;
+}
+
 #title {
 	display: inline-block;
 	vertical-align: middle;

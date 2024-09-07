@@ -75,13 +75,11 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	 */
 	public static final String INFO_NAME = "name";
 	/**
-	 * Key for configured device group in additional info.
+	 * Key for device manager in additional info.
+	 * 
+	 * @since 3.13
 	 */
-	public static final String INFO_GROUP = "group";
-	/**
-	 * Key for configured device provisioning in additional info.
-	 */
-	public static final String INFO_PROVISIONING = "prov";
+	public static final String INFO_MANAGER = "manager";
 	/**
 	 * Device info provider.
 	 * 
@@ -283,10 +281,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 		if (device != null) {
 			Map<String, Object> info = new HashMap<>();
 			info.put(INFO_NAME, device.name);
-			info.put(INFO_GROUP, device.group);
-			if (device.provisioning) {
-				info.put(INFO_PROVISIONING, "1");
-			}
+			info.put(INFO_MANAGER, this);
 			return AdditionalInfo.from(info);
 		}
 		return null;
@@ -422,10 +417,13 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
 			String name = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_NAME, String.class);
-			if (name != null && !name.contains("/")) {
-				String group = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_GROUP, String.class);
-				String prov = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_PROVISIONING, String.class);
-				return new DeviceInfo(group, name, prov);
+			DeviceManager manager = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_MANAGER,
+					DeviceManager.class);
+			if (manager != null && name != null && !name.contains("/")) {
+				Device device = manager.devices.getResource().get(name);
+				if (device != null) {
+					return new DeviceInfo(device.group, name, device.provisioning);
+				}
 			}
 		}
 		return null;
@@ -475,13 +473,13 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 		 * 
 		 * @param group group of device
 		 * @param name name of device
-		 * @param provisioning {@code "1"}, if credentials are used for auto
+		 * @param provisioning {@code true}, if credentials are used for auto
 		 *            provisioning, otherwise device credentials.
 		 */
-		protected DeviceInfo(String group, String name, String provisioning) {
+		protected DeviceInfo(String group, String name, boolean provisioning) {
 			this.name = name;
 			this.group = group;
-			this.provisioning = "1".equals(provisioning);
+			this.provisioning = provisioning;
 		}
 
 		@Override

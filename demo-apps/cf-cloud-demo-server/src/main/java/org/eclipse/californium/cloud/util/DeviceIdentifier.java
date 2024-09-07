@@ -12,28 +12,33 @@
  * 
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  ********************************************************************************/
-package org.eclipse.californium.cloud.s3.util;
-
-import java.util.Set;
-
-import org.eclipse.californium.cloud.util.DeviceIdentifier;
+package org.eclipse.californium.cloud.util;
 
 /**
- * Device groups provider.
+ * Device identifier.
  * 
- * Resolves domain-group name pairs to set of devices.
- * 
- * @since 3.12
+ * @since 3.13
  */
-public interface DeviceGroupProvider {
+public interface DeviceIdentifier {
 
 	/**
-	 * Get group of device names.
+	 * Get device name.
 	 * 
-	 * @param domain domain name
-	 * @param group group name
-	 * @return set of device identifiers.
-	 * @since 3.13 use DeviceIdentifier instead of String
+	 * The name is a fixed identifier for the device.
+	 * 
+	 * @return device name
 	 */
-	Set<DeviceIdentifier> getGroup(String domain, String group);
+	String getName();
+
+	/**
+	 * Get device label.
+	 * 
+	 * The label is displayed identifier, which may be adapted from time to
+	 * time.
+	 * 
+	 * @return label. {@code null}, if name should be used as displayed
+	 *         identifier
+	 */
+	String getLabel();
+
 }

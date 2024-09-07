@@ -148,18 +148,21 @@ In order to authenticate the devices, PSK (Pre-Shared-Key, [RFC4279](https://www
 ```
 # Device store for Cloud Demo
 
-Demo1=Thing
+Demo.10034780012=Thing
+.label=My Demo Weatherstation
 # default openssl PSK credentials
 .psk='Client_identity',c2VjcmV0UFNL
 # Californium demo-client RPK certificate
 .rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQxYO5/M5ie6+3QPOaAy5MD6CkFILZwIb2rOBCX/EWPaocX1H+eynUnaEEbmqxeN6rnI/pH19j4PtsegfHLrzzQ==
 
-Demo2=Thing
+Demo.10560970055=Thing
 .psk='cali.0012345','secretPSK'
 
 ```
 
 The format starts with a device definition, using the device `name`, followed by a '=' and the `group` the device belongs to. Each device belongs to one group and you may use a couple of groups to partition your devices. Currently the groups are only used by the [Californium (Cf) - Cloud CoAP-S3-Proxy Server](../cf-s3-proxy-server) to select the devices shown initial after login.
+
+It is recommended to use a long term stable and unique values for the `name`. Technical IDs are candidates for that, but they are bad for humans as identifiers. Therefore you may provide a human recognizable `label` to mitigate that.
 
 PSK credentials are provided with `[<name>].psk=<psk-identity>,<psk-secret>`. If the `name` is skipped, the name of the last device definition is used. If the `name` is provided, then it must match the name of the last device definition. The `psk-identity` is provided in UTF-8 and the `psk-secret` in base64. The `psk-identity` must be unique for each device of the system. If hexadecimal should be used, then provide it with preceding ":0x".
 
@@ -181,7 +184,7 @@ or
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out privkey.pem
 ```
 
-(The later command "supercedes" the first according the openssl documentation. The PEM created by that commands contains both, the private and the public key. Therefore you need only this one. Other formats or tools may have other results and you may need then two files, one `privkey.pem` and one `publickey.pem`.)
+(The later command "supersedes" the first according the openssl documentation. The PEM created by that commands contains both, the private and the public key. Therefore you need only this one. Other formats or tools may have other results and you may need then two files, one `privkey.pem` and one `publickey.pem`.)
 
 **Note:** the device credentials file is read using UTF-8 encoding, '=' are not supported for device names. Lines starting with '#' are skipped as comment, therefore a device name must not start with a '#'. Empty lines are also skipped.
 
@@ -199,7 +202,7 @@ Provisioning1=Admin
 .prov=1
 ```
 
-That's done by the entry above. It contains a name (`Provisioning1`), the `public key` from the `auto-provisioning key-pair` and the marker `.prov=2`. For now, only RPK is supported for `auto-provisioning`.
+That's done by the entry above. It contains a name (`Provisioning1`), the `public key` from the `auto-provisioning key-pair` and the marker `.prov=1`. For now, only RPK is supported for `auto-provisioning`.
 
 A device will provision its credentials by authenticate itself with the `auto-provisioning key-pair` and a `POST` request to resource `/prov` using the the intended device credentials as payload.
 

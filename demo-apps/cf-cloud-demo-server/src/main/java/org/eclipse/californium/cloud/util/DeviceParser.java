@@ -58,12 +58,18 @@ import org.slf4j.LoggerFactory;
  * <pre>
  * {@code # <comment>}
  * {@code <device-name>[.group]=<group>}
+ * {@code [[<device-name>].label=<label>]}
  * {@code [[<device-name>].psk=<identity>,<pre-shared-secret>]}
  * {@code [[<device-name>].rpk=<raw-public-key-certificate>]}
  * {@code [[<device-name>].sig=<signed raw-public-key-certificate>]}
+ * {@code [[<device-name>].prov=1]}
  * </pre>
  * 
- * The {@code identity} may be included in single- ({@code '}) or double-quotes
+ * The recommended "best practice" is to choose a long term stable and unique
+ * {@code device-name}. In many cases that will be a technical ID, which is hard
+ * to be used by humans to identify the device. Therefore an additional
+ * {@code label} is available to provide human recognizable identities. The PSK
+ * {@code identity} may be included in single- ({@code '}) or double-quotes
  * ({@code "}). The {@code pre-shared-secret} may be provided in base 64
  * encoding, in hexadecimal encoding with leading {@code :x0}, or as plain text
  * in single- ({@code '}) or double-quotes ({@code "}). The
@@ -102,6 +108,12 @@ import org.slf4j.LoggerFactory;
  * 
  * </pre>
  * 
+ * **Note:** the data associated for a {@code device-name} may change, but the
+ * {@code device-name} itself is considered to be stable. However, though during
+ * the DTLS handshake the credentials are used to identify the device, changing
+ * them here in the store must reflect a change on the device. Otherwise the
+ * device will not longer be assigend to the {@code device-name}.
+ * 
  * @since 3.12
  */
 public class DeviceParser implements AppendingResourceParser<DeviceParser> {
@@ -132,8 +144,10 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 	/**
 	 * Device credentials.
+	 * 
+	 * @since 3.13 implements DeviceIdentifier
 	 */
-	public static class Device {
+	public static class Device implements DeviceIdentifier {
 
 		/**
 		 * Comment.
@@ -143,6 +157,12 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 * Device name.
 		 */
 		public final String name;
+		/**
+		 * Device label.
+		 * 
+		 * @since 3.13
+		 */
+		public final String label;
 		/**
 		 * Device group.
 		 */
@@ -166,10 +186,14 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 * Signature as "proof of possession" of a {@link #publicKey} matching
 		 * private key. Only used, if {@link #publicKey} is provided. May be
 		 * {@code null}.
+		 * 
+		 * @since 3.13
 		 */
 		public final byte[] sign;
 		/**
 		 * Provisioning credentials.
+		 * 
+		 * @since 3.13
 		 */
 		public final boolean provisioning;
 
@@ -177,6 +201,8 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 * Create device credentials.
 		 * 
 		 * @param name name of device
+		 * @param label label of device. If {@code null}, the name is used as
+		 *            label.
 		 * @param comment leading comment. {@code null}, if not used.
 		 * @param group group of device
 		 * @param pskIdentity PreSharedKey identity. {@code null}, if no
@@ -194,8 +220,9 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 *             neither valid psk nor rpk credentials are provided.
 		 * @throws IllegalArgumentException if sign without public key is
 		 *             provided
+		 * @since 3.13 added label, sign and provisioning
 		 */
-		public Device(String name, String comment, String group, String pskIdentity, byte[] pskSecret,
+		public Device(String name, String label, String comment, String group, String pskIdentity, byte[] pskSecret,
 				PublicKey publicKey, byte[] sign, boolean provisioning) {
 			if (name == null) {
 				throw new NullPointerException("name must not be null!");
@@ -225,12 +252,23 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			}
 			this.comment = comment;
 			this.name = name;
+			this.label = label;
 			this.group = group;
 			this.pskIdentity = pskIdentity;
 			this.pskSecret = pskSecret;
 			this.publicKey = publicKey;
 			this.sign = sign;
 			this.provisioning = provisioning;
+		}
+
+		@Override
+		public String getName() {
+			return name;
+		}
+
+		@Override
+		public String getLabel() {
+			return label;
 		}
 
 		@Override
@@ -275,6 +313,12 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			 */
 			public String name;
 			/**
+			 * Device label.
+			 * 
+			 * @since 3.13
+			 */
+			public String label;
+			/**
 			 * Device group.
 			 */
 			public String group;
@@ -297,10 +341,14 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			 * Signature as "proof of possession" of a {@link #publicKey}
 			 * matching private key. Only used, if {@link #publicKey} is
 			 * provided. May be {@code null}.
+			 * 
+			 * @since 3.13
 			 */
 			public byte[] sign;
 			/**
 			 * Provisioning credentials.
+			 * 
+			 * @since 3.13
 			 */
 			public boolean provisioning;
 
@@ -317,15 +365,22 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			 * @return created device
 			 */
 			public Device build() {
-				return new Device(name, comment, group, pskIdentity, pskSecret, publicKey, sign, provisioning);
+				return new Device(name, label, comment, group, pskIdentity, pskSecret, publicKey, sign, provisioning);
 			}
 		}
+
 	}
 
 	/**
 	 * Postfix in header for group.
 	 */
 	public static final String GROUP_POSTFIX = ".group";
+	/**
+	 * Postfix in header for label.
+	 * 
+	 * @since 3.13
+	 */
+	public static final String LABEL_POSTFIX = ".label";
 	/**
 	 * Postfix in header for PreSharedKey credentials.
 	 */
@@ -336,10 +391,14 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	public static final String RPK_POSTFIX = ".rpk";
 	/**
 	 * Postfix in header for signature.
+	 * 
+	 * @since 3.13
 	 */
 	public static final String SIG_POSTFIX = ".sig";
 	/**
 	 * Postfix in header for provisioning credentials.
+	 * 
+	 * @since 3.13
 	 */
 	public static final String PROV_POSTFIX = ".prov";
 
@@ -364,9 +423,11 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	 */
 	private final ConcurrentMap<PublicKey, Device> rpk = new ConcurrentHashMap<>();
 	/**
-	 * Map of group names and sets of device names.
+	 * Map of group names and sets of device identifiers.
+	 * 
+	 * @since 3.13 use DeviceIdentifier instead of String
 	 */
-	private final ConcurrentMap<String, Set<String>> groups = new ConcurrentHashMap<>();
+	private final ConcurrentMap<String, Set<DeviceIdentifier>> groups = new ConcurrentHashMap<>();
 	/**
 	 * {@code true} to use case sensitive names, {@code false}, otherwise.
 	 */
@@ -544,12 +605,12 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			LOGGER.info("added {}{}{}{}{}", device.name, device.pskIdentity != null ? " psk" : "",
 					device.publicKey != null ? " rpk" : "", device.sign != null ? " (sign)" : "",
 					device.provisioning ? " prov" : "");
-			Set<String> group = new HashSet<>();
-			Set<String> prev = groups.putIfAbsent(device.group, group);
+			Set<DeviceIdentifier> group = new HashSet<>();
+			Set<DeviceIdentifier> prev = groups.putIfAbsent(device.group, group);
 			if (prev != null) {
 				group = prev;
 			}
-			group.add(device.name);
+			group.add(device);
 			newDevices.put(key, device);
 			return true;
 		} finally {
@@ -563,9 +624,9 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	 * @param group group
 	 * @return set of device names
 	 */
-	public Set<String> getGroup(String group) {
+	public Set<DeviceIdentifier> getGroup(String group) {
 
-		Set<String> devices = groups.get(group);
+		Set<DeviceIdentifier> devices = groups.get(group);
 		if (devices == null) {
 			devices = Collections.emptySet();
 		}
@@ -650,9 +711,9 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 				if (device.publicKey != null) {
 					rpk.remove(device.publicKey, device);
 				}
-				Set<String> group = groups.get(device.group);
+				Set<DeviceIdentifier> group = groups.get(device.group);
 				if (group != null) {
-					group.remove(device.name);
+					group.remove(device);
 				}
 				newDevices.remove(key, device);
 				return true;
@@ -723,6 +784,12 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 				writer.write('=');
 				writer.write(credentials.group);
 				writer.write(StringUtil.lineSeparator());
+				if (credentials.label != null) {
+					writer.write(LABEL_POSTFIX);
+					writer.write('=');
+					writer.write(credentials.label);
+					writer.write(StringUtil.lineSeparator());
+				}
 				if (credentials.pskIdentity != null && credentials.pskSecret != null) {
 					writer.write(PSK_POSTFIX);
 					writer.write('=');
@@ -821,6 +888,16 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 								builder.provisioning = true;
 								continue;
 							}
+							prefix = prefix(name, LABEL_POSTFIX);
+							if (prefix != name) {
+								if (values.length != 1) {
+									++errors;
+									LOGGER.warn("{}: '{}' invalid line!", lineNumber, line);
+								} else {
+									builder.label = decodeText(values[0]);
+								}
+								continue;
+							}
 							prefix = prefix(name, GROUP_POSTFIX);
 							if (prefix != name || isName(name)) {
 								if (builder.name != null) {
@@ -890,7 +967,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		} else {
 			LOGGER.info("read {} new device credentials (total {}).", entries, size());
 		}
-		if (errorMessage !=null) {
+		if (errorMessage != null) {
 			throw new IllegalArgumentException(errorMessage);
 		}
 		return entries;
