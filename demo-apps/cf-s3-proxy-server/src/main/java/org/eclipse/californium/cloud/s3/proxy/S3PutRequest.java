@@ -41,6 +41,10 @@ public class S3PutRequest extends S3Request {
 	 * Timestamp for S3 PUT request.
 	 */
 	private final Long timestamp;
+	/**
+	 * Map of meta data.
+	 */
+	private final Map<String, String> meta;
 
 	/**
 	 * Create S3 PUT request.
@@ -49,16 +53,18 @@ public class S3PutRequest extends S3Request {
 	 * @param content content for S3 PUT requests
 	 * @param contentType content type for S3 PUT requests
 	 * @param timestamp timestamp for S3 PUT requests
+	 * @param meta map of meta data
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating.
-	 * @param force force mode. {@code true} to not use ETAGs.
+	 * @param cacheMode cache mode.
 	 */
-	public S3PutRequest(String key, byte[] content, String contentType, Long timestamp, Redirect redirect,
-			boolean force) {
-		super(key, redirect, force);
+	public S3PutRequest(String key, byte[] content, String contentType, Long timestamp, Map<String, String> meta,
+			Redirect redirect, CacheMode cacheMode) {
+		super(key, redirect, cacheMode);
 		this.content = content;
 		this.contentType = contentType;
 		this.timestamp = timestamp;
+		this.meta = meta;
 	}
 
 	/**
@@ -96,6 +102,9 @@ public class S3PutRequest extends S3Request {
 	 */
 	public Map<String, String> getMetadata() {
 		Map<String, String> meta = new HashMap<>();
+		if (this.meta != null) {
+			meta.putAll(this.meta);
+		}
 		if (timestamp != null) {
 			meta.put(METADATA_TIME, Long.toString(timestamp));
 		}
@@ -138,6 +147,10 @@ public class S3PutRequest extends S3Request {
 		 * Timestamp for S3 PUT request.
 		 */
 		protected Long timestamp;
+		/**
+		 * Map of meta data.
+		 */
+		protected Map<String, String> meta;
 
 		/**
 		 * Create S3 PUT request builder.
@@ -196,6 +209,17 @@ public class S3PutRequest extends S3Request {
 			return this;
 		}
 
+		/**
+		 * Set map of meta data.
+		 * 
+		 * @param meta map of meta data.
+		 * @return builder for command chaining
+		 */
+		public Builder meta(Map<String, String> meta) {
+			this.meta = meta;
+			return this;
+		}
+
 		@Override
 		public Builder redirect(Redirect redirect) {
 			super.redirect(redirect);
@@ -208,7 +232,7 @@ public class S3PutRequest extends S3Request {
 		 * @return S3 PUT request
 		 */
 		public S3PutRequest build() {
-			return new S3PutRequest(key, content, contentType, timestamp, redirect, force);
+			return new S3PutRequest(key, content, contentType, timestamp, meta, redirect, cacheMode);
 		}
 	}
 }

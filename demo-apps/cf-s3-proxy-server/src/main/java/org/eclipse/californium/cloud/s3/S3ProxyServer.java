@@ -43,6 +43,8 @@ import org.eclipse.californium.cloud.s3.http.SinglePageApplication;
 import org.eclipse.californium.cloud.s3.option.ForwardResponseOption;
 import org.eclipse.californium.cloud.s3.option.IntervalOption;
 import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
+import org.eclipse.californium.cloud.s3.proxy.S3Processor;
+import org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealthLogger;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.resources.S3Devices;
@@ -340,6 +342,24 @@ public class S3ProxyServer extends BaseServer {
 	public static final TimeDefinition USER_CREDENTIALS_RELOAD_INTERVAL = new TimeDefinition(
 			"USER_CREDENTIALS_RELOAD_INTERVAL",
 			"Reload user credentials interval. 0 to load credentials only on startup.", 30, TimeUnit.SECONDS);
+	/**
+	 * Initial delay of S3 processing.
+	 */
+	public static final TimeDefinition S3_PROCESSING_INITIAL_DELAY = new TimeDefinition("S3_PROCESSING_INITIAL_DELAY",
+			"S3 processing initial delay. S3 processing combines the messages of the last day into a weeks archive file.",
+			0, TimeUnit.SECONDS);
+	/**
+	 * Interval for S3 processing.
+	 */
+	public static final TimeDefinition S3_PROCESSING_INTERVAL = new TimeDefinition("S3_PROCESSING_INTERVAL",
+			"S3 processing interval. S3 processing combines the messages of the last day into a weeks archive file. Usually run once a day. 0 to disable S3 processing.",
+			24, TimeUnit.HOURS);
+	/**
+	 * Daily time for S3 processing.
+	 */
+	public static final TimeDefinition S3_PROCESSING_DAILY_TIME = new TimeDefinition("S3_PROCESSING_DAILY_TIME",
+			"S3 processing daily time after UTC midnight. S3 processing combines the messages of the last day into a weeks archive file. Usually run once a day. 0 to disable S3 processing.",
+			5, TimeUnit.MINUTES);
 
 	public static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
@@ -347,6 +367,9 @@ public class S3ProxyServer extends BaseServer {
 		public void applyDefinitions(Configuration config) {
 			BaseServer.DEFAULTS.applyDefinitions(config);
 			config.set(USER_CREDENTIALS_RELOAD_INTERVAL, 30, TimeUnit.SECONDS);
+			config.set(S3_PROCESSING_INITIAL_DELAY, 20, TimeUnit.SECONDS);
+			config.set(S3_PROCESSING_INTERVAL, 0, TimeUnit.HOURS);
+			config.set(S3_PROCESSING_DAILY_TIME, 5, TimeUnit.MINUTES);
 		}
 	};
 
@@ -390,6 +413,10 @@ public class S3ProxyServer extends BaseServer {
 	 */
 	private S3ProxyClientProvider s3clients;
 	/**
+	 * S3 processor.
+	 */
+	private S3Processor s3processor;
+	/**
 	 * Device group provider.
 	 */
 	private DeviceGroupProvider deviceGroupProvider;
@@ -410,6 +437,22 @@ public class S3ProxyServer extends BaseServer {
 	public S3ProxyServer(Configuration config) {
 		super(config);
 		setTag("S3-Proxy");
+	}
+
+	@Override
+	public void start() {
+		super.start();
+		if (s3processor != null) {
+			s3processor.start();
+		}
+	}
+
+	@Override
+	public void stop() {
+		super.stop();
+		if (s3processor != null) {
+			s3processor.stop();
+		}
 	}
 
 	@Override
@@ -555,7 +598,8 @@ public class S3ProxyServer extends BaseServer {
 					setupSingleDomainHttpService(cliS3Arguments);
 				}
 				Aws4Authorizer aws4 = new Aws4Authorizer(domainUserProvider, S3ProxyClient.DEFAULT_REGION);
-				httpService.createContext("/login", new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider));
+				httpService.createContext("/login",
+						new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider));
 				httpService.createContext("/groups", new S3Login(aws4, deviceGroupProvider));
 				S3ProxyClient webClient = cliSpaArguments.s3 ? s3clients.getWebClient() : null;
 				SinglePageApplication spa = new SinglePageApplication("CloudCoap", webClient,
@@ -674,6 +718,13 @@ public class S3ProxyServer extends BaseServer {
 			final S3ProxyClient s3Client = createS3Client(s3Arguments, minutes, maxDevices);
 			s3clients = new S3ProxyClientProvider() {
 
+				private final Set<String> DEFAULT = Collections.singleton("default");
+
+				@Override
+				public Set<String> getDomains() {
+					return DEFAULT;
+				}
+
 				@Override
 				public S3ProxyClient getProxyClient(String domain) {
 					return s3Client;
@@ -730,5 +781,16 @@ public class S3ProxyServer extends BaseServer {
 			return builder.build();
 		}
 		return null;
+	}
+
+	@Override
+	public void setupProcessors(ScheduledExecutorService secondaryExecutor) {
+		if (s3clients != null) {
+			S3ProcessorHealthLogger health = new S3ProcessorHealthLogger(getTag(), s3clients.getDomains());
+			s3processor = new S3Processor(getConfig(), s3clients, health, secondaryExecutor);
+			if (health.isEnabled()) {
+				addServerStatistic(health);
+			}
+		}
 	}
 }

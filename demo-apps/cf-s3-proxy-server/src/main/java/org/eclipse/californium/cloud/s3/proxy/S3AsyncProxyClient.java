@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.eclipse.californium.cloud.option.TimeOption;
+import org.eclipse.californium.cloud.s3.proxy.S3Request.CacheMode;
 import org.eclipse.californium.cloud.s3.proxy.S3Request.Redirect;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -66,11 +67,17 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
  * S3 asynchronous proxy client.
@@ -216,10 +223,10 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	/**
-	 * Get S3 client considering the redirect information.
+	 * Get effective S3 client considering the redirect information.
 	 * 
 	 * @param redirect redirect information, or {@code null}, if not used.
-	 * @return S3 client
+	 * @return effective S3 client
 	 */
 	private S3AsyncClient getClient(Redirect redirect) {
 		if (redirect != null) {
@@ -413,7 +420,8 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 							}
 							LOGGER.warn(">Ex./S3-save{}: {} ({}ms) {}", redirected, key, timeMillis,
 									exception.getMessage());
-							response = getS3Response(exception, null);
+							setS3Response(S3Response.builder(), exception, null);
+							response = setS3Response(S3Response.builder(), exception, null).build();
 						} else if (putResponse != null) {
 							LOGGER.info(">S3-save{}: {} ({}ms) {}", redirected, key, timeMillis, putResponse);
 							SdkHttpResponse httpResponse = putResponse.sdkHttpResponse();
@@ -421,7 +429,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 								etags.remove(key);
 								success(s3Client);
 							}
-							response = getS3Response(null, httpResponse);
+							response = setS3Response(S3Response.builder(), null, httpResponse).build();
 						} else {
 							LOGGER.warn(">S3-save{}: {} ({}ms) no response nor error!", redirected, key, timeMillis);
 						}
@@ -468,9 +476,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 				final String redirected = s3Client == this.s3Client ? "" : "(redir.)";
 				try {
 					GetObjectRequest.Builder getBuilder = GetObjectRequest.builder().bucket(bucket).key(key);
-					if (request.isForced()) {
-						LOGGER.debug("S3-get: {} (forced)", key);
-					} else {
+					if (request.getCacheMode() == CacheMode.CACHE) {
 						boolean withEtag = false;
 						EtagPair etagPair = etags.update(key);
 						if (etagPair != null) {
@@ -487,6 +493,8 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 						if (!withEtag) {
 							LOGGER.debug("S3-get: {} without ETAG", key);
 						}
+					} else {
+						LOGGER.debug("S3-get: {} {}", key, request.getCacheMode());
 					}
 					final long now = System.nanoTime();
 					CompletableFuture<ResponseBytes<GetObjectResponse>> future = s3Client.getObject(getBuilder.build(),
@@ -521,7 +529,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 							GetObjectResponse getObjectResponse = getResponse.response();
 							SdkHttpResponse httpResponse = getObjectResponse.sdkHttpResponse();
 							if (httpResponse.isSuccessful()) {
-								String etag = getObjectResponse.eTag();
+								String etag = request.getCacheMode() != CacheMode.NONE ? getObjectResponse.eTag() : "";
 								LOGGER.info(">S3-get{}: {} ({}ms) {} {}", redirected, key, timeMillis,
 										httpResponse.statusCode(), etag);
 								response = new Response(CONTENT);
@@ -538,7 +546,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 									TimeOption timeOption = new TimeOption(time);
 									response.getOptions().addOtherOption(timeOption);
 								}
-								if (etag != null) {
+								if (!etag.isEmpty()) {
 									LOGGER.debug("S3-get: {} add ETAG {}", key, etag);
 									EtagPair pair = new EtagPair(etag);
 									etags.put(key, pair);
@@ -594,9 +602,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 				final String redirected = s3Client == this.s3Client ? "" : "(redir.)";
 				try {
 					GetObjectRequest.Builder getBuilder = GetObjectRequest.builder().bucket(bucket).key(key);
-					if (request.isForced()) {
-						LOGGER.debug("S3-load: {} (forced)", key);
-					} else {
+					if (request.getCacheMode() == CacheMode.CACHE) {
 						EtagPair etagPair = etags.update(key);
 						if (etagPair != null) {
 							getBuilder.ifNoneMatch(etagPair.getS3Etag());
@@ -604,6 +610,8 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 						} else {
 							LOGGER.debug("S3-load: {} without ETAG", key);
 						}
+					} else {
+						LOGGER.debug("S3-load: {} {}", key, request.getCacheMode());
 					}
 
 					final long now = System.nanoTime();
@@ -622,7 +630,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 									return;
 								}
 							}
-							response = getS3Response(exception, null);
+							response = setS3Response(S3Response.builder(), exception, null).build();
 							if (response.getHttpStatusCode() == 304) {
 								LOGGER.debug(">Ex./S3-load{}: {} ({}ms) no change", redirected, key, timeMillis);
 							} else if (response.getHttpStatusCode() < 300) {
@@ -636,10 +644,15 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 							GetObjectResponse getObjectResponse = getResponse.response();
 							SdkHttpResponse httpResponse = getObjectResponse.sdkHttpResponse();
 							if (httpResponse.isSuccessful()) {
-								String etag = getObjectResponse.eTag();
-								LOGGER.info(">S3-load{}: {} ({}ms) {} {}", redirected, key, timeMillis,
-										httpResponse.statusCode(), etag);
-								if (etag != null) {
+								String etag = request.getCacheMode() != CacheMode.NONE ? getObjectResponse.eTag() : "";
+								if (LOGGER.isDebugEnabled()) {
+									LOGGER.debug(">S3-load{}: {} ({}ms) {} {}", redirected, key, timeMillis,
+											httpResponse.statusCode(), etag);
+								} else {
+									LOGGER.info(">S3-load{}: {} ({}ms) {}", redirected, key, timeMillis,
+											httpResponse.statusCode());
+								}
+								if (!etag.isEmpty()) {
 									LOGGER.debug("S3-load: {} add ETAG {}", key, etag);
 									EtagPair pair = new EtagPair(etag);
 									etags.put(key, pair);
@@ -647,14 +660,20 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 								S3Response.Builder builder = S3Response.builder();
 								builder.httpStatusCode(httpResponse.statusCode());
 								builder.contentType(getObjectResponse.contentType());
+								builder.contentLength(getObjectResponse.contentLength());
 								builder.content(getResponse.asInputStream());
 								builder.timestamp(getObjectResponse.lastModified().getEpochSecond());
+								builder.meta(getObjectResponse.metadata());
 								response = builder.build();
 								success(s3Client);
 							} else if (httpResponse.statusCode() == 304) {
 								LOGGER.info(">S3-load{}: {} ({}ms) no change", redirected, key, timeMillis);
+								S3Response.Builder builder = S3Response.builder();
+								builder.httpStatusCode(httpResponse.statusCode());
+								response = builder.build();
+								success(s3Client);
 							} else {
-								response = getS3Response(null, httpResponse);
+								response = setS3Response(S3Response.builder(), null, httpResponse).build();
 								LOGGER.warn(">S3-load{}: {} ({}ms) {} {}", redirected, key, timeMillis,
 										response.getHttpStatusCode(), response.getContent());
 							}
@@ -675,6 +694,173 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 			}
 		}
 		LOGGER.info("S3-load: key missing!");
+		handler.accept(null);
+	}
+
+	@Override
+	public void list(S3ListRequest request, final Consumer<S3ListResponse> handler) {
+		if (request == null) {
+			throw new NullPointerException("request must not be null!");
+		}
+		if (handler == null) {
+			throw new NullPointerException("handler must not be null!");
+		}
+		final String key = request.getKey();
+		if (key != null) {
+			final S3AsyncClient s3Client = getClient(request.getRedirect());
+			if (s3Client == null) {
+				LOGGER.info("S3-list: Temporary Redirect");
+			} else {
+				final String redirected = s3Client == this.s3Client ? "" : "(redir.)";
+				try {
+					ListObjectsV2Request.Builder listBuilder = ListObjectsV2Request.builder().bucket(bucket)
+							.prefix(key);
+					if (request.getDelimiter() != null) {
+						listBuilder.delimiter(request.getDelimiter());
+					}
+					if (request.getStartAfter() != null) {
+						listBuilder.startAfter(request.getStartAfter());
+					}
+					if (request.getMaximumKeys() != null) {
+						listBuilder.maxKeys(request.getMaximumKeys());
+					}
+					LOGGER.debug("S3-list: {}", key);
+
+					final long now = System.nanoTime();
+					CompletableFuture<ListObjectsV2Response> future = s3Client.listObjectsV2(listBuilder.build());
+					future.whenComplete((listResponse, exception) -> {
+						long timeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - now);
+						S3ListResponse response = null;
+						if (exception != null) {
+							if (s3Client == this.s3Client && request.getRedirect() == null) {
+								Redirect redirect = getRedirect(exception);
+								if (redirect != null) {
+									S3ListRequest redirectRequest = S3ListRequest.builder(request).redirect(redirect)
+											.build();
+									LOGGER.info(">Ex./S3-list: {} ({}ms) redirect {}", key, timeMillis, redirect);
+									list(redirectRequest, handler);
+									return;
+								}
+							}
+							response = setS3Response(S3ListResponse.builder(), exception, null).build();
+							if (response.getHttpStatusCode() == 304) {
+								LOGGER.debug(">Ex./S3-list{}: {} ({}ms) no change", redirected, key, timeMillis);
+							} else if (response.getHttpStatusCode() < 300) {
+								LOGGER.info(">Ex./S3-list{}: {} ({}ms) {}", redirected, key, timeMillis,
+										response.getHttpStatusCode());
+							} else {
+								LOGGER.warn(">Ex./S3-list{}: {} ({}ms) {}", redirected, key, timeMillis,
+										exception.getMessage());
+							}
+						} else if (listResponse != null) {
+							LOGGER.info(">S3-list{}: {} ({}ms)", redirected, key, timeMillis);
+
+							S3ListResponse.Builder builder = S3ListResponse.builder();
+							List<String> prefixes = new ArrayList<>();
+							List<CommonPrefix> commonPrefixes = listResponse.commonPrefixes();
+							for (CommonPrefix prefix : commonPrefixes) {
+								LOGGER.trace(">S3-list{}-prefix: {}", redirected, prefix.prefix());
+								prefixes.add(prefix.prefix());
+							}
+							builder.prefixes(prefixes);
+
+							List<S3ListResponse.S3Object> objects = new ArrayList<>();
+							List<S3Object> list = listResponse.contents();
+							for (S3Object s3Object : list) {
+								LOGGER.trace(">S3-list{}: {}", redirected, s3Object.key());
+								objects.add(new S3ListResponse.S3Object(s3Object.key(), s3Object.eTag()));
+							}
+							builder.objects(objects);
+
+							response = builder.build();
+							success(s3Client);
+						} else {
+							LOGGER.warn(">S3-list{}: {} ({}ms) no response nor error!", redirected, key, timeMillis);
+						}
+						if (response == null) {
+							response = S3ListResponse.builder().httpStatusCode(500).build();
+						}
+						handler.accept(response);
+					});
+					return;
+				} catch (S3Exception e) {
+					LOGGER.warn("S3-list{}: {}", redirected, key, e);
+				} catch (SdkException e) {
+					LOGGER.warn("S3-list{}: {}", redirected, key, e);
+				}
+			}
+		}
+		LOGGER.info("S3-list: key missing!");
+		handler.accept(null);
+	}
+
+	@Override
+	public void delete(S3Request request, final Consumer<S3Response> handler) {
+		if (request == null) {
+			throw new NullPointerException("request must not be null!");
+		}
+		if (handler == null) {
+			throw new NullPointerException("handler must not be null!");
+		}
+		final String key = request.getKey();
+		if (key != null) {
+			final S3AsyncClient s3Client = getClient(request.getRedirect());
+			if (s3Client == null) {
+				LOGGER.info("S3-delete: Temporary Redirect");
+			} else {
+				final String redirected = s3Client == this.s3Client ? "" : "(redir.)";
+				try {
+					DeleteObjectRequest.Builder deleteBuilder = DeleteObjectRequest.builder().bucket(bucket).key(key);
+					LOGGER.debug("S3-list: {}", key);
+
+					final long now = System.nanoTime();
+					CompletableFuture<DeleteObjectResponse> future = s3Client.deleteObject(deleteBuilder.build());
+					future.whenComplete((delResponse, exception) -> {
+						long timeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - now);
+						S3Response response = null;
+						if (exception != null) {
+							if (s3Client == this.s3Client && request.getRedirect() == null) {
+								Redirect redirect = getRedirect(exception);
+								if (redirect != null) {
+									S3Request redirectRequest = S3Request.builder(request).redirect(redirect).build();
+									LOGGER.info(">Ex./S3-delete: {} ({}ms) redirect {}", key, timeMillis, redirect);
+									delete(redirectRequest, handler);
+									return;
+								}
+							}
+							response = setS3Response(S3Response.builder(), exception, null).build();
+							if (response.getHttpStatusCode() == 304) {
+								LOGGER.debug(">Ex./S3-delete{}: {} ({}ms) no change", redirected, key, timeMillis);
+							} else if (response.getHttpStatusCode() < 300) {
+								LOGGER.info(">Ex./S3-delete{}: {} ({}ms) {}", redirected, key, timeMillis,
+										response.getHttpStatusCode());
+							} else {
+								LOGGER.warn(">Ex./S3-delete{}: {} ({}ms) {}", redirected, key, timeMillis,
+										exception.getMessage());
+							}
+						} else if (delResponse != null) {
+							LOGGER.info(">S3-delete{}: {} ({}ms)", redirected, key, timeMillis);
+							S3Response.Builder builder = S3Response.builder();
+							builder.httpStatusCode(204);
+							response = builder.build();
+							success(s3Client);
+						} else {
+							LOGGER.warn(">S3-delete{}: {} ({}ms) no response nor error!", redirected, key, timeMillis);
+						}
+						if (response == null) {
+							response = S3Response.builder().httpStatusCode(500).build();
+						}
+						handler.accept(response);
+					});
+					return;
+				} catch (S3Exception e) {
+					LOGGER.warn("S3-delete{}: {}", redirected, key, e);
+				} catch (SdkException e) {
+					LOGGER.warn("S3-delete{}: {}", redirected, key, e);
+				}
+			}
+		}
+		LOGGER.info("S3-delete: key missing!");
 		handler.accept(null);
 	}
 
@@ -780,14 +966,16 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	/**
-	 * Get S3 response.
+	 * Set S3 response.
 	 * 
+	 * @param <B> S3 response builder type.
+	 * @param builder S3 response builder to set response to.
 	 * @param exception exception while executing S3 request.
 	 * @param httpErrorResponse http error response for S3 request.
-	 * @return S3 response
+	 * @return S3 response builder for queuing.
 	 */
-	public S3Response getS3Response(Throwable exception, SdkHttpResponse httpErrorResponse) {
-		S3Response.Builder builder = S3Response.builder();
+	public <B extends S3Response.Builder> B setS3Response(B builder, Throwable exception,
+			SdkHttpResponse httpErrorResponse) {
 		if (httpErrorResponse == null) {
 			Throwable cause = exception;
 			if (exception instanceof CompletionException) {
@@ -801,7 +989,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 				builder.httpStatusCode(500);
 				builder.content(exception.getMessage());
 				builder.contentType(CONTENT_TYPE_TEXT);
-				return builder.build();
+				return builder;
 			}
 		}
 		if (LOGGER.isTraceEnabled()) {
@@ -821,7 +1009,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 			text.append(" => ").append(location);
 		}
 		builder.content(text.toString());
-		return builder.build();
+		return builder;
 	}
 
 	/**

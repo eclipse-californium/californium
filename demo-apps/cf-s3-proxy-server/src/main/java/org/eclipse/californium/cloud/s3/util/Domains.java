@@ -20,6 +20,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -342,6 +343,11 @@ public class Domains
 			monitors.addOptionalMonitor(domain.userStore.getTag() + domainEntry.getKey(), interval, TimeUnit.SECONDS,
 					domain.userStore.getMonitor());
 		}
+	}
+
+	@Override
+	public Set<String> getDomains() {
+		return domains.keySet();
 	}
 
 	@Override

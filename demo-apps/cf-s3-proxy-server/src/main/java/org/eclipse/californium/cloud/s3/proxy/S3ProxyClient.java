@@ -57,6 +57,15 @@ public interface S3ProxyClient extends ExternalEndpointProvider {
 	void get(S3ProxyRequest request, Consumer<Response> handler);
 
 	/**
+	 * Execute S3 PUT request.
+	 * 
+	 * @param request PUT request
+	 * @param handler callback for resource content
+	 * @since 3.13
+	 */
+	void save(S3PutRequest request, final Consumer<S3Response> handler);
+
+	/**
 	 * Execute S3 GET request.
 	 * 
 	 * @param request GET request
@@ -65,11 +74,21 @@ public interface S3ProxyClient extends ExternalEndpointProvider {
 	void load(S3Request request, final Consumer<S3Response> handler);
 
 	/**
-	 * Execute S3 PUT request.
+	 * Execute S3 LIST request.
 	 * 
-	 * @param request PUT request
-	 * @param handler callback for resource content
+	 * @param request LIST request
+	 * @param handler callback for list response
+	 * @since 3.13
 	 */
-	void save(S3PutRequest request, final Consumer<S3Response> handler);
+	void list(S3ListRequest request, final Consumer<S3ListResponse> handler);
+
+	/**
+	 * Execute S3 delete request.
+	 * 
+	 * @param request delete request
+	 * @param handler callback for delete response
+	 * @since 3.13
+	 */
+	void delete(S3Request request, final Consumer<S3Response> handler);
 
 }

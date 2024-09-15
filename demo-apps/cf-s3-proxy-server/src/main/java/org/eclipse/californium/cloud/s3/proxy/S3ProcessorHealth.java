@@ -14,36 +14,27 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.proxy;
 
-import java.util.Set;
-
 /**
- * S3 proxy client provider.
+ * S3 processor health.
  * 
- * @since 3.12
+ * @since 3.13
  */
-public interface S3ProxyClientProvider {
+public interface S3ProcessorHealth {
 
 	/**
-	 * Get domains.
-	 * 
-	 * @return set of domain names.
-	 * @since 3.13
-	 */
-	Set<String> getDomains();
-
-	/**
-	 * Get S3 proxy client for domain.
+	 * Report processed days or failures.
 	 * 
 	 * @param domain domain name
-	 * @return S3 proxy client, or {@code null}, if not available.
+	 * @param days number of processed days, or {@code -1} on failure
 	 */
-	S3ProxyClient getProxyClient(String domain);
+	void processedDay(String domain, int days);
 
 	/**
-	 * Get S3 proxy client for web resources.
+	 * Report device currently pending processing.
 	 * 
-	 * @return S3 proxy client for web resources
+	 * @param domain domain name
+	 * @param devices number of pending devices
 	 */
-	S3ProxyClient getWebClient();
+	void processingDevices(String domain, int devices);
 
 }

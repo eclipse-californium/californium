@@ -25,7 +25,6 @@ import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
 import org.eclipse.californium.cloud.s3.util.DomainDeviceManager.DomainDeviceInfo;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MediaTypeRegistry.MediaTypeDefintion;
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
@@ -45,6 +44,10 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * Name of time in metadata.
 	 */
 	public static final String METADATA_INTERVAL = "interval";
+	/**
+	 * Name of coap content type in metadata.
+	 */
+	public static final String METADATA_COAP_CONTENT_TYPE = "coap-ct";
 
 	/**
 	 * CoAP-request.
@@ -78,7 +81,13 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * 
 	 * @since 3.13
 	 */
-	private final Long interval;
+	private final Integer interval;
+	/**
+	 * Coap content-type for S3 PUT request.
+	 * 
+	 * @since 3.13
+	 */
+	private final Integer coapContentType;
 
 	/**
 	 * Create S3 proxy request from coap-request.
@@ -97,15 +106,18 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * @param contentType content type for PUT requests
 	 * @param timestamp timestamp for PUT requests
 	 * @param interval interval for PUT requests
+	 * @param coapContentType content-type of coap-request
+	 * @param meta map of metadata
+	 * @param cacheMode cache mode.
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating.
-	 * @param force force mode. {@code true} to not use ETAGs.
+	 * @param cacheMode cache mode.
 	 * @since 3.13 interval added
 	 */
 	public S3ProxyRequest(Request request, String key, int pathStartIndex, int pathPrincipalIndex, String subPath,
-			List<Option> etags, byte[] content, String contentType, Long timestamp, Long interval, Redirect redirect,
-			boolean force) {
-		super(key, content, contentType, timestamp, redirect, force);
+			List<Option> etags, byte[] content, String contentType, Long timestamp, Integer interval,
+			Integer coapContentType, Map<String, String> meta, Redirect redirect, CacheMode cacheMode) {
+		super(key, content, contentType, timestamp, meta, redirect, cacheMode);
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
 		}
@@ -115,6 +127,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		this.subPath = subPath;
 		this.etags = etags;
 		this.interval = interval;
+		this.coapContentType = coapContentType;
 	}
 
 	/**
@@ -213,8 +226,18 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * @return interval for S3 PUT.
 	 * @since 3.13
 	 */
-	public Long getInterval() {
+	public Integer getInterval() {
 		return interval;
+	}
+
+	/**
+	 * Get coap content-type for S3 PUT.
+	 * 
+	 * @return coap content-type for S3 PUT.
+	 * @since 3.13
+	 */
+	public Integer getCoapContentType() {
+		return coapContentType;
 	}
 
 	/**
@@ -226,8 +249,11 @@ public class S3ProxyRequest extends S3PutRequest {
 	@Override
 	public Map<String, String> getMetadata() {
 		Map<String, String> meta = super.getMetadata();
+		if (coapContentType != null) {
+			meta.put(METADATA_COAP_CONTENT_TYPE, coapContentType.toString());
+		}
 		if (interval != null) {
-			meta.put(METADATA_INTERVAL, Long.toString(interval));
+			meta.put(METADATA_INTERVAL, interval.toString());
 		}
 		return meta;
 	}
@@ -241,19 +267,6 @@ public class S3ProxyRequest extends S3PutRequest {
 	 */
 	public static String getAcl(Request request, String defaultAcl) {
 		return request.getOptions().getUriQueryParameter().getArgument(S3Devices.URI_QUERY_OPTION_ACL, defaultAcl);
-	}
-
-	/**
-	 * Get content type from coap-message.
-	 * 
-	 * @param message coap-message
-	 * @return content type.
-	 * @see MediaTypeRegistry
-	 */
-	public static String getContentType(Message message) {
-		int format = message.getOptions().getContentFormat();
-		MediaTypeDefintion mediaType = MediaTypeRegistry.getDefinition(format);
-		return mediaType != null ? mediaType.getMime() : null;
 	}
 
 	/**
@@ -314,7 +327,13 @@ public class S3ProxyRequest extends S3PutRequest {
 		 * 
 		 * @since 3.13
 		 */
-		private Long interval;
+		private Integer interval;
+		/**
+		 * Coap content-type for S3 PUT request.
+		 * 
+		 * @since 3.13
+		 */
+		private Integer coapContentType;
 
 		/**
 		 * Create builder from coap-request.
@@ -406,8 +425,20 @@ public class S3ProxyRequest extends S3PutRequest {
 		 * @return builder for command chaining
 		 * @since 3.13
 		 */
-		public Builder interval(Long interval) {
+		public Builder interval(Integer interval) {
 			this.interval = interval;
+			return this;
+		}
+
+		/**
+		 * coap content-type for S3 PUT request.
+		 * 
+		 * @param coapContentType coap content-type .
+		 * @return builder for command chaining
+		 * @since 3.13
+		 */
+		public Builder coapContentType(Integer coapContentType) {
+			this.coapContentType = coapContentType;
 			return this;
 		}
 
@@ -426,6 +457,12 @@ public class S3ProxyRequest extends S3PutRequest {
 		@Override
 		public Builder timestamp(Long timestamp) {
 			super.timestamp(timestamp);
+			return this;
+		}
+
+		@Override
+		public Builder meta(Map<String, String> meta) {
+			super.meta(meta);
 			return this;
 		}
 
@@ -451,17 +488,26 @@ public class S3ProxyRequest extends S3PutRequest {
 			if (content == null) {
 				content = request.getPayload();
 			}
-			if (contentType == null) {
-				contentType = getContentType(request);
+			if (coapContentType == null) {
+				int type = request.getOptions().getContentFormat();
+				if (type != MediaTypeRegistry.UNDEFINED) {
+					coapContentType = type;
+				}
+			}
+			if (contentType == null && coapContentType != null) {
+				MediaTypeDefintion mediaType = MediaTypeRegistry.getDefinition(coapContentType);
+				if (mediaType != null) {
+					contentType = mediaType.getMime();
+				}
 			}
 			if (interval == null) {
 				Option option = request.getOptions().getOtherOption(IntervalOption.DEFINITION);
 				if (option != null) {
-					interval = option.getLongValue();
+					interval = option.getIntegerValue();
 				}
 			}
 			return new S3ProxyRequest(request, key, pathStartIndex, pathPrincipalIndex, subPath, etags, content,
-					contentType, timestamp, interval, redirect, force);
+					contentType, timestamp, interval, coapContentType, meta, redirect, cacheMode);
 		}
 	}
 }

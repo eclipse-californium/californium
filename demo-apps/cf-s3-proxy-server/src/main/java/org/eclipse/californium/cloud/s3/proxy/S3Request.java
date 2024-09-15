@@ -24,6 +24,26 @@ import java.net.URI;
 public class S3Request {
 
 	/**
+	 * Cache/ETAG mode.
+	 * 
+	 * @since 3.13
+	 */
+	public enum CacheMode {
+		/**
+		 * Don't use ETAG.
+		 */
+		NONE,
+		/**
+		 * Use ETAG and cache response.
+		 */
+		CACHE,
+		/**
+		 * Force read and cache response.
+		 */
+		FORCE
+	}
+
+	/**
 	 * Key.
 	 */
 	private final String key;
@@ -32,11 +52,11 @@ public class S3Request {
 	 */
 	private final Redirect redirect;
 	/**
-	 * Forced request, don't use ETAGs.
+	 * Cache/ETAG mode.
 	 * 
 	 * @since 3.13
 	 */
-	private final boolean force;
+	private final CacheMode cacheMode;
 
 	/**
 	 * Create S3 request.
@@ -44,12 +64,12 @@ public class S3Request {
 	 * @param key S3 key
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating. Otherwise {@code null}.
-	 * @param force force mode. {@code true} to not use ETAGs.
+	 * @param cacheMode cache mode.
 	 */
-	public S3Request(String key, Redirect redirect, boolean force) {
+	public S3Request(String key, Redirect redirect, CacheMode cacheMode) {
 		this.key = key;
 		this.redirect = redirect;
-		this.force = force;
+		this.cacheMode = cacheMode;
 	}
 
 	/**
@@ -75,13 +95,13 @@ public class S3Request {
 	}
 
 	/**
-	 * Check, if request is forced.
+	 * Get cache/ETAG mode.
 	 * 
-	 * @return {@code true}, if request is forced and must not use ETAGs.
+	 * @return cache/ETAG mode.
 	 * @since 3.13
 	 */
-	public boolean isForced() {
-		return force;
+	public CacheMode getCacheMode() {
+		return cacheMode;
 	}
 
 	/**
@@ -150,11 +170,11 @@ public class S3Request {
 		 */
 		protected Redirect redirect;
 		/**
-		 * Forced request, don't use ETAGs.
+		 * Cache/ETAG mode.
 		 * 
 		 * @since 3.13
 		 */
-		protected boolean force;
+		protected CacheMode cacheMode = CacheMode.CACHE;
 
 		/**
 		 * Create S3-request-builder.
@@ -170,6 +190,7 @@ public class S3Request {
 		protected Builder(S3Request request) {
 			this.key = request.key;
 			this.redirect = request.redirect;
+			this.cacheMode = request.cacheMode;
 		}
 
 		/**
@@ -196,14 +217,14 @@ public class S3Request {
 		}
 
 		/**
-		 * Set force mode.
+		 * Set cache/ETAG mode.
 		 * 
-		 * @param force force mode. {@code true} to not use ETAGs.
+		 * @param cacheMode cache/ETAG modes.
 		 * @return builder for command chaining
 		 * @since 3.13
 		 */
-		public Builder force(boolean force) {
-			this.force = force;
+		public Builder cacheMode(CacheMode cacheMode) {
+			this.cacheMode = cacheMode;
 			return this;
 		}
 
@@ -213,7 +234,7 @@ public class S3Request {
 		 * @return S3-request
 		 */
 		public S3Request build() {
-			return new S3Request(key, redirect, force);
+			return new S3Request(key, redirect, cacheMode);
 		}
 	}
 }

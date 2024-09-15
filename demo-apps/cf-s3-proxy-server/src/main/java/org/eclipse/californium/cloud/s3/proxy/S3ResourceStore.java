@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 
 import javax.crypto.SecretKey;
 
+import org.eclipse.californium.cloud.s3.proxy.S3Request.CacheMode;
 import org.eclipse.californium.cloud.util.AppendingResourceParser;
 import org.eclipse.californium.cloud.util.ResourceChangedHandler;
 import org.eclipse.californium.cloud.util.ResourceParser;
@@ -181,7 +182,7 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 			}
 			final AppendingResourceParser<?> resource = (AppendingResourceParser<?>) currentResource;
 
-			s3Client.load(S3Request.builder().key(key).force(true).build(), (load) -> {
+			s3Client.load(S3Request.builder().key(key).cacheMode(CacheMode.FORCE).build(), (load) -> {
 				try {
 					if (load != null) {
 						int result = 0;
@@ -214,13 +215,11 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 							builder.contentType(load.getContentType());
 							final int r = result;
 							s3Client.save(builder.build(), (save) -> {
-								if (save.getHttpStatusCode() < 300) {
+								if (save != null && save.getHttpStatusCode() < 300) {
 									resource.clearNewEntries();
-									response.results(ResultCode.SUCCESS,
-											"successfully added " + r + " new entries.");
+									response.results(ResultCode.SUCCESS, "successfully added " + r + " new entries.");
 								} else {
-									response.results(ResultCode.SERVER_ERROR,
-											"failed to save new entries to S3.");
+									response.results(ResultCode.SERVER_ERROR, "failed to save new entries to S3.");
 								}
 							});
 						} else {

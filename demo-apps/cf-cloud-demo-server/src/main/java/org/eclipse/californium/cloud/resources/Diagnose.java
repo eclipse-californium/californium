@@ -136,7 +136,7 @@ public class Diagnose extends CoapResource {
 		String key = protocol + ":" + StringUtil.toString(local);
 		CounterStatisticManager statistic = EndpointNetSocketObserver.getDtlsStatisticManager(endpoint);
 		if (statistic != null) {
-			health.add((CounterStatisticManager) statistic);
+			health.add( statistic);
 		}
 		for (MessageInterceptor interceptor : endpoint.getInterceptors()) {
 			if (interceptor instanceof CounterStatisticManager) {
