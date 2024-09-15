@@ -510,6 +510,8 @@ public class BaseServer extends CoapServer {
 
 	protected DeviceGredentialsProvider deviceCredentials;
 
+	protected List<CounterStatisticManager> diagnoseStatistics = new ArrayList<>();
+
 	public BaseServer(Configuration config) {
 		super(config);
 		setVersion(CALIFORNIUM_BUILD_VERSION);
@@ -521,7 +523,9 @@ public class BaseServer extends CoapServer {
 		if (!getEndpoints().isEmpty()) {
 			super.start();
 		}
-		monitors.start();
+		if (monitors != null) {
+			monitors.start();
+		}
 	}
 
 	@Override
@@ -529,7 +533,9 @@ public class BaseServer extends CoapServer {
 		if (!getEndpoints().isEmpty()) {
 			super.stop();
 		}
-		monitors.stop();
+		if (monitors != null) {
+			monitors.stop();
+		}
 	}
 
 	/**
@@ -563,6 +569,7 @@ public class BaseServer extends CoapServer {
 			setupObserveHealthLogger();
 		}
 		setupHttpService(cliArguments);
+		setupProcessors(secondaryExecutor);
 
 		LOGGER.info("{} initialized.", getTag());
 	}
@@ -625,7 +632,8 @@ public class BaseServer extends CoapServer {
 			long interval = getConfig().get(DEVICE_CREDENTIALS_RELOAD_INTERVAL, TimeUnit.SECONDS);
 			boolean replace = cliArguments.provisioning != null ? cliArguments.provisioning.replace : false;
 			if (replace) {
-				LOGGER.info("New device credentials will replace already available ones. Use this only for development!");
+				LOGGER.info(
+						"New device credentials will replace already available ones. Use this only for development!");
 			}
 			DeviceParser factory = new DeviceParser(true, replace);
 			ResourceStore<DeviceParser> deviceCredentialsResource = new ResourceStore<>(factory).setTag("Devices ");
@@ -795,14 +803,9 @@ public class BaseServer extends CoapServer {
 	public void setupObserveHealthLogger() {
 		ObserveStatisticLogger obsStatLogger = new ObserveStatisticLogger(getTag());
 		if (obsStatLogger.isEnabled()) {
-			add(obsStatLogger);
 			setObserveHealth(obsStatLogger);
-			List<CounterStatisticManager> statistics = new ArrayList<>();
-			statistics.add(obsStatLogger);
-			Resource child = getRoot().getChild(Diagnose.RESOURCE_NAME);
-			if (child instanceof Diagnose) {
-				((Diagnose) child).update(statistics);
-			}
+			add(obsStatLogger);
+			addServerStatistic(obsStatLogger);
 		}
 	}
 
@@ -825,5 +828,24 @@ public class BaseServer extends CoapServer {
 		EncryptedPersistentComponentUtil serialization = new EncryptedPersistentComponentUtil();
 		serialization.addProvider(this);
 		serialization.loadAndRegisterShutdown(store.file, password64, TimeUnit.HOURS.toSeconds(store.maxAge), hook);
+	}
+
+	/**
+	 * Setup processors.
+	 * 
+	 * @param secondaryExecutor secondary executor for slow interval jobs
+	 */
+	public void setupProcessors(ScheduledExecutorService secondaryExecutor) {
+	}
+
+	protected void addServerStatistic(CounterStatisticManager health) {
+		diagnoseStatistics.add(health);
+		Resource child = getRoot().getChild(Diagnose.RESOURCE_NAME);
+		if (child instanceof Diagnose) {
+			((Diagnose) child).update(diagnoseStatistics);
+			LOGGER.info("{} {} added to diagnose.", health.getTag(), health.getClass().getSimpleName());
+		} else {
+			LOGGER.info("{} {} not added to diagnose.", health.getTag(), health.getClass().getSimpleName());
+		}
 	}
 }

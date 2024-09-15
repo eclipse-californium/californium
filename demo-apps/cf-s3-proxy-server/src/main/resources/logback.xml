@@ -70,6 +70,9 @@
 	<logger name="org.eclipse.californium.core.observe.ObserveStatisticLogger" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealthLogger" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.unixhealth" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>

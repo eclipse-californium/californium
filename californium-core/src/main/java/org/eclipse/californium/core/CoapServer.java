@@ -577,14 +577,31 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 		}
 	}
 
+	/**
+	 * Add statistics.
+	 * 
+	 * Calls {@link CounterStatisticManager#dump()} on {@link #dump()}.
+	 * 
+	 * @param statistic statistic to add.
+	 */
 	public void add(CounterStatisticManager statistic) {
 		statistics.add(statistic);
 	}
 
+	/**
+	 * Remove statistics
+	 * 
+	 * @param statistic statistic to remove
+	 */
 	public void remove(CounterStatisticManager statistic) {
 		statistics.remove(statistic);
 	}
 
+	/**
+	 * Dump all added statistics.
+	 * 
+	 * @see CounterStatisticManager#dump
+	 */
 	public void dump() {
 		for (CounterStatisticManager statistic : statistics) {
 			statistic.dump();
