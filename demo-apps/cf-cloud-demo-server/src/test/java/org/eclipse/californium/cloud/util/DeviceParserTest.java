@@ -48,7 +48,7 @@ public final class DeviceParserTest {
 
 	@Before
 	public void setup() throws IOException {
-		String init = "test=tester\n.psk='test','secret'\ntest2=tester\n"
+		String init = "test=tester\n.label='extra'\n.psk='test','secret'\ntest2=tester\n"
 				+ ".rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEo0msWyi2DwpS39sf8Wnv6lk+wune"
 				+ "tleRJfIxxG8KFOoqrhK7Acweg+1BQo+ApFFabYNZfzu/tUIC2laB398n5g==\n" + ".prov=1\n";
 
@@ -64,6 +64,19 @@ public final class DeviceParserTest {
 
 	@Test
 	public void testAppendDevice() throws IOException {
+		String append = "test=tester\n.label='added'\n.psk='test2','secret'\n";
+		Reader data = new StringReader(append);
+		int count = parserAppend.load(data);
+		data.close();
+		assertThat(count, is(1));
+		Device device = parserAppend.get("test");
+		assertThat(device, is(notNullValue()));
+		assertThat(device.pskIdentity, is("test2"));
+		assertThat(device.label, is("added"));
+	}
+
+	@Test
+	public void testAppendDeviceKeepingLabel() throws IOException {
 		String append = "test=tester\n.psk='test2','secret'\n";
 		Reader data = new StringReader(append);
 		int count = parserAppend.load(data);
@@ -72,6 +85,7 @@ public final class DeviceParserTest {
 		Device device = parserAppend.get("test");
 		assertThat(device, is(notNullValue()));
 		assertThat(device.pskIdentity, is("test2"));
+		assertThat(device.label, is("extra"));
 	}
 
 	@Test

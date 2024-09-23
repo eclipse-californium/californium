@@ -261,6 +261,25 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			this.provisioning = provisioning;
 		}
 
+		/**
+		 * Create device credentials from device with additional label.
+		 * 
+		 * @param device device
+		 * @param label additional label
+		 * @since 3.13
+		 */
+		public Device(Device device, String label) {
+			this.comment = device.comment;
+			this.name = device.name;
+			this.label = label;
+			this.group = device.group;
+			this.pskIdentity = device.pskIdentity;
+			this.pskSecret = device.pskSecret;
+			this.publicKey = device.publicKey;
+			this.sign = device.sign;
+			this.provisioning = device.provisioning;
+		}
+
 		@Override
 		public String getName() {
 			return name;
@@ -579,6 +598,9 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			Device replaced = map.putIfAbsent(key, device);
 			if (replaced != null) {
 				if (replace && !replaced.provisioning) {
+					if (device.label == null && replaced.label != null) {
+						device = new Device(device, replaced.label);
+					}
 					remove(replaced);
 					map.putIfAbsent(key, device);
 				} else {
