@@ -69,7 +69,7 @@ public class Diagnose extends CoapResource {
 	public static final String RESOURCE_NAME = "diagnose";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Diagnose.class);
-	private static final SimpleDateFormat ISO = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSSXXX");
+	private static final SimpleDateFormat ISO = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
 
 	private static final String START_TIME = ISO.format(new Date());
 
@@ -249,7 +249,7 @@ public class Diagnose extends CoapResource {
 						long[] pair = statistic.getCountersPair();
 						builder.append(head).append(key).append(",").append(pair[0]).append(",").append(pair[1])
 								.append(eol);
-						if (pair[1] > 0) {
+						if (pair[1] > 0 || pair[0] > 0) {
 							counts = true;
 						}
 					}
