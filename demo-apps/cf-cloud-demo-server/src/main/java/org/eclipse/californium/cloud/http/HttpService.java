@@ -379,6 +379,30 @@ public class HttpService {
 	public static void respond(HttpExchange httpExchange, int httpCode, String contentType, byte[] payload)
 			throws IOException {
 		try {
+			if (payload == null) {
+				switch (httpCode) {
+				case 401:
+					payload = "<h1>401 - Unauthorized!</h1>".getBytes(StandardCharsets.UTF_8);
+					break;
+				case 403:
+					payload = "<h1>403 - Forbidden!</h1>".getBytes(StandardCharsets.UTF_8);
+					break;
+				case 404:
+					payload = "<h1>404 - Not found!</h1>".getBytes(StandardCharsets.UTF_8);
+					break;
+				case 405:
+					payload = "<h1>405 - Method not allowed!</h1>".getBytes(StandardCharsets.UTF_8);
+					break;
+				case 500:
+					payload = "<h1>500 - Internal Server Error</h1>".getBytes(StandardCharsets.UTF_8);
+					break;
+				default:
+					break;
+				}
+				if (payload != null) {
+					contentType = "text/html; charset=utf-8";
+				}
+			}
 			long length = payload != null && payload.length > 0 ? payload.length : -1;
 			if (contentType != null) {
 				httpExchange.getResponseHeaders().set("Content-Type", contentType);
@@ -415,6 +439,12 @@ public class HttpService {
 		}
 	}
 
+	public static boolean strictPathCheck(HttpExchange httpExchange) {
+		URI uri = httpExchange.getRequestURI();
+		String path = httpExchange.getHttpContext().getPath();
+		return path.equals(uri.getPath());
+	}
+
 	/**
 	 * HTTP handler to forward request.
 	 */
@@ -441,14 +471,14 @@ public class HttpService {
 			String contentType = "text/html; charset=utf-8";
 			byte[] payload = null;
 			int httpCode = 405;
-
 			if (method.equals("GET")) {
 				String page = HtmlGenerator.createForwardPage(forwardLink, forwardTitle);
 				httpCode = 200;
 				payload = page.toString().getBytes(StandardCharsets.UTF_8);
 			} else if (method.equals("HEAD")) {
-			} else {
-				payload = "<h1>405 - Method not allowed!</h1>".getBytes(StandardCharsets.UTF_8);
+				String page = HtmlGenerator.createForwardPage(forwardLink, forwardTitle);
+				httpCode = 200;
+				payload = page.toString().getBytes(StandardCharsets.UTF_8);
 			}
 			respond(httpExchange, httpCode, contentType, payload);
 		}
@@ -543,23 +573,31 @@ public class HttpService {
 		public void handle(final HttpExchange httpExchange) throws IOException {
 			final URI uri = httpExchange.getRequestURI();
 			LOGGER.info("file-request: {} {}", httpExchange.getRequestMethod(), uri);
-			String method = httpExchange.getRequestMethod();
-			String contentType = "text/html; charset=utf-8";
+			String contentType = null;
 			byte[] payload = null;
-			int httpCode = 405;
-			if (method.equals("GET")) {
-				if (reload) {
-					load();
+			int httpCode = 404;
+			if (strictPathCheck(httpExchange)) {
+				String method = httpExchange.getRequestMethod();
+				if (method.equals("GET")) {
+					if (reload) {
+						load();
+					}
+					httpCode = 200;
+					payload = data;
+					contentType = this.contentType;
+					if (reload) {
+						httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
+					}
+				} else if (method.equals("HEAD")) {
+					contentType = this.contentType;
+					payload = data;
+					httpCode = 200;
+					if (reload) {
+						httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
+					}
+				} else {
+					httpCode = 405;
 				}
-				httpCode = 200;
-				payload = data;
-				contentType = this.contentType;
-				if (reload) {
-					httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
-				}
-			} else if (method.equals("HEAD")) {
-			} else {
-				payload = "<h1>405 - Method not allowed!</h1>".getBytes(StandardCharsets.UTF_8);
 			}
 			respond(httpExchange, httpCode, contentType, payload);
 		}
@@ -655,9 +693,7 @@ public class HttpService {
 				messageDeliverer.deliverRequest(coapExchange);
 			} else {
 				int httpCode = 404;
-				String contentType = "text/html; charset=utf-8";
-				byte[] payload = "<h1>404 - Not found!</h1>".getBytes(StandardCharsets.UTF_8);
-				respond(httpExchange, httpCode, contentType, payload);
+				respond(httpExchange, httpCode, null, null);
 				updateBan(httpExchange);
 			}
 		}
@@ -665,7 +701,7 @@ public class HttpService {
 		public boolean respond(HttpExchange httpExchange, Response response) {
 			LOGGER.info("CoAP response: {}", response);
 			final URI uri = httpExchange.getRequestURI();
-			String contentType = "text/html; charset=utf-8";
+			String contentType = null;
 			byte[] payload = response.getPayload();
 			int httpCode = 200;
 			if (response.isSuccess()) {
@@ -680,6 +716,7 @@ public class HttpService {
 					}
 					String page = HtmlGenerator.createListPage(path, "", title, links, null, Devices.ATTRIBUTE_TIME);
 					payload = page.getBytes(StandardCharsets.UTF_8);
+					contentType = "text/html; charset=utf-8";
 				} else {
 					contentType = "text/plain; charset=utf-8";
 				}
@@ -689,18 +726,16 @@ public class HttpService {
 					httpExchange.getResponseHeaders().set("ETag", StringUtil.byteArray2Hex(etag));
 				}
 			} else {
+				payload = null;
 				switch (response.getCode()) {
 				case NOT_FOUND:
 					httpCode = 404;
-					payload = "<h1>404 - Not found!</h1>".getBytes(StandardCharsets.UTF_8);
 					break;
 				case METHOD_NOT_ALLOWED:
 					httpCode = 405;
-					payload = "<h1>405 - Method not allowed!</h1>".getBytes(StandardCharsets.UTF_8);
 					break;
 				default:
 					httpCode = 500;
-					payload = "<h1>500 - Internal server error!</h1>".getBytes(StandardCharsets.UTF_8);
 					break;
 				}
 			}

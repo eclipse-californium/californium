@@ -315,6 +315,9 @@ public class S3ProxyServer extends BaseServer {
 			@Option(names = "--spa-s3", description = "Single-Page-Application in S3.")
 			public boolean s3;
 
+			@Option(names = "--spa-script-v2", description = "Single-Page-Application script v2.")
+			public String singlePageApplicationScriptV2;
+
 		}
 
 		@Option(names = "--no-coap", negatable = true, description = "Disable coap endpoints.")
@@ -602,15 +605,29 @@ public class S3ProxyServer extends BaseServer {
 						new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider));
 				httpService.createContext("/groups", new S3Login(aws4, deviceGroupProvider));
 				S3ProxyClient webClient = cliSpaArguments.s3 ? s3clients.getWebClient() : null;
+
 				SinglePageApplication spa = new SinglePageApplication("CloudCoap", webClient,
 						cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScript);
 				httpService.createContext("/", spa);
-				String defaultScheme = cliSpaArguments.s3 ? S3_SCHEME : HTTPS_SCHEME;
 
+				if (cliSpaArguments.singlePageApplicationScriptV2 != null) {
+					SinglePageApplication spaV2 = new SinglePageApplication("CloudCoap V2", webClient,
+							cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScriptV2);
+					httpService.createContext("/v2", spaV2);
+				}
+
+				String defaultScheme = cliSpaArguments.s3 ? S3_SCHEME : HTTPS_SCHEME;
 				if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationScript, defaultScheme)
 						.equals(HTTPS_SCHEME)) {
 					httpService.createFileHandler(cliSpaArguments.singlePageApplicationScript,
 							"text/javascript; charset=utf-8", cliSpaArguments.singlePageApplicationReload);
+				}
+				if (cliSpaArguments.singlePageApplicationScriptV2 != null) {
+					if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationScriptV2, defaultScheme)
+							.equals(HTTPS_SCHEME)) {
+						httpService.createFileHandler(cliSpaArguments.singlePageApplicationScriptV2,
+								"text/javascript; charset=utf-8", cliSpaArguments.singlePageApplicationReload);
+					}
 				}
 				if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationCss, defaultScheme)
 						.equals(HTTPS_SCHEME)) {

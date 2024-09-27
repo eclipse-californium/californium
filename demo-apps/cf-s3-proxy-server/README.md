@@ -37,7 +37,7 @@ Last calibration: A 2024-02-28T20:10:11Z, B 2024-02-28T20:19:55Z
 !26 C
 ```
 
-**Note:** the current implementation uses the lines starting with an `!` for a accumulated data file named "series-data-time.txt". That will change in one of the next versions.
+**Note:** the previous implementation uses the lines starting with an `!` for a accumulated data file named "series-date-time". That has changed and the current version accumulates the complete data into a "arch-date" file obsoleting the leading `!`. Use "https://<hostname>/v2" to use the web UI with the archive files.
 
 Web-Browser application login page:
 
@@ -70,14 +70,14 @@ Some more details about the web-UI can be found in [web-UI documentation](./docs
 [<img src="./docs/quadrant.svg" width="65%" />](./docs/quadrant.svg)
 
 - The footprint of the OS and Java VM, around 800 MB RAM, requires to use at least 2 GB RAM.
-- The maximum number of devices depends mainly on the available RAM. Per PSK around 3K, for certificate based devices 5K.
+- The maximum number of devices depends mainly on the available RAM. Per PSK around 3K per device, for certificate based devices 5K per device.
 - The maximum number of requests per second also depends on the available RAM and CPU for processing. Usually the backend slows down the processing a lot. Without backend, a 4x3GHz System with 16 GB RAM runs 50000 requests/s. With backends, that’s usually much less.
 - If S3 is used as backend, usually the write preformance of S3 limits then the number of requests/s. 300 requests/s up to 3000 requests/s could be found.
 - The Javascript Web App is considered only for first steps, Therefore it may handle 100-200 device, it’s not expected to be used with more.
 
 ## General Usage
 
-Start the cf-s3-proxy-server-3.12.0.jar with:
+Start the cf-s3-proxy-server-3.13.0.jar with:
 
 ```
 Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
@@ -107,7 +107,8 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [--http-device-identity-mode=<httpDeviceIdentityMode>]]])
                      [[--spa-script=<singlePageApplicationScript>]
                      [--spa-css=<singlePageApplicationCss>] [--spa-reload]
-                     [--spa-s3]]
+                     [--spa-s3]
+                     [--spa-script-v2=<singlePageApplicationScriptV2>]]
       --coaps-credentials=<credentials>
                              Folder containing coaps credentials in 'privkey.
                                pem' and 'pubkey.pem'
@@ -128,7 +129,7 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                              Http authentication for forward coap-requests.
       --http-device-identity-mode=<httpDeviceIdentityMode>
                              Http device identity mode. Supported values: NONE,
-                               HEADLINE and QUERY_PARAMETER.
+                               HEADLINE and QUERY_PARAMETER. Default: NONE
       --http-forward=<httpForward>
                              Http destination to forward coap-requests.
       --https-credentials=<credentials>
@@ -176,6 +177,8 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
       --spa-s3               Single-Page-Application in S3.
       --spa-script=<singlePageApplicationScript>
                              Single-Page-Application script. Default app.js
+      --spa-script-v2=<singlePageApplicationScriptV2>
+                             Single-Page-Application script v2.
       --store-file=<file>    file-store for dtls state.
       --store-max-age=<maxAge>
                              maximum age of connections in hours to store dtls
@@ -206,7 +209,7 @@ When the server is started the first time, it creates the "CaliforniumS3Proxy.pr
 
 ```
 # Californium CoAP Properties file for S3 Proxy Server
-# Fri Apr 05 18:16:24 CEST 2024
+# Mon Sep 30 17:45:25 CEST 2024
 #
 # Cache maximum devices.
 # Default: 5000
@@ -223,6 +226,26 @@ DEVICE_CREDENTIALS_RELOAD_INTERVAL=30[s]
 # Reload HTTPS credentials interval. 0 to load credentials only on startup.
 # Default: 30[min]
 HTTPS_CREDENTIALS_RELOAD_INTERVAL=30[min]
+# Maximum size of device configuration.
+# Default: 1024
+MAX_DEVICE_CONFIG_SIZE=1024
+# S3 processing daily time after UTC midnight. S3 processing combines
+# the messages of the last day into a weeks archive file. Usually run
+# once a day. 0 to disable S3 processing.
+# Default: 5[min]
+S3_PROCESSING_DAILY_TIME=0[min]
+# S3 processing initial delay. S3 processing combines the messages of
+# the last day into a weeks archive file.
+# Default: 20[s]
+S3_PROCESSING_INITIAL_DELAY=20[s]
+# S3 processing interval. S3 processing combines the messages of the
+# last day into a weeks archive file. Usually run once a day. 0 to disable
+# S3 processing.
+# Default: 1[d]
+S3_PROCESSING_INTERVAL=0[ms]
+# Interval to read UDP drops from OS (currently only Linux).
+# Default: 2[s]
+UDP_DROPS_READ_INTERVAL=2[s]
 # Reload user credentials interval. 0 to load credentials only on startup.
 # Default: 30[s]
 USER_CREDENTIALS_RELOAD_INTERVAL=30[s]
@@ -304,11 +327,10 @@ The default configuration uses a simple layout:
 FILE s3://<bucket>/app.js
 FILE s3://<bucket>/logo.svg
 FILE s3://<bucket>/stylesheet.css
-DIR  s3://<bucket>/devices/BeeHiveScale-04/
-DIR  s3://<bucket>/devices/Car-Battery-1/
-DIR  s3://<bucket>/devices/cali.352656101079724/
-DIR  s3://<bucket>/devices/nRF9160-DK/
-DIR  s3://<bucket>/devices/nRF9161-DK/
+DIR  s3://<bucket>/devices/cali.350457790054702/
+DIR  s3://<bucket>/devices/cali.350457794634418/
+DIR  s3://<bucket>/devices/cali.350457798680862/
+DIR  s3://<bucket>/devices/cali.350457798680938/
 ```
 
 And for each device:
@@ -317,13 +339,20 @@ And for each device:
 Format:
 FILE s3://<bucket>/devices/<device>/<date>/<time>
 FILE s3://<bucket>/devices/<device>/series-<date>T<time>Z
+FILE s3://<bucket>/devices/<device>/arch-<date>
 
 Example:
-FILE s3://<bucket>/devices/Car-Battery-1/2024-04-17/12:29:22.507
-FILE s3://<bucket>/devices/Car-Battery-1/series-2024-04-17T00:29:20.465Z
+FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/20:49:53.249
+FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/21:49:47.530
+FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/22:49:47.551
+FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-09-24
+FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-10-01
+FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-24T14:42:47.950Z
+FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-25T00:37:59.798Z
+FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-26T00:11:02.989Z
 ```
 
-(Currently the series file accumulates all lines starting with '!'. This requires the payload as plain-text. It will be replaced in a follow up release with something supporting other formats and just accumulates all the payload, regardless of the content-type.)
+(The previous version only supported the series file accumulates all lines starting with '!'. This requires the payload as plain-text. The current version replaced that with an archive file supporting other formats and just accumulates all the payload, regardless of the content-type.)
 
 In order to have the permission for accessing that S3 device data, so called api-keys are required. It depends on the S3 provider, which granularity for that permissions are provided. Some (e.g. Digital Ocean) only support a key for general S3 access, others offer to grant read or write on a specific bucket. If supported, it's recommended to use 3 api-keys following this patter.
 
@@ -351,6 +380,8 @@ If you create the S3 bucket on your own, then you need to setup [CORSConfigurati
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>*</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>x-amz-meta-interval</ExposeHeader>
+    <ExposeHeader>x-amz-meta-coap-ct</ExposeHeader>
   </CORSRule>
   <CORSRule>
     <AllowedOrigin>https://localhost:8080</AllowedOrigin>
@@ -359,6 +390,8 @@ If you create the S3 bucket on your own, then you need to setup [CORSConfigurati
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>*</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>x-amz-meta-interval</ExposeHeader>
+    <ExposeHeader>x-amz-meta-coap-ct</ExposeHeader>
   </CORSRule>
 </CORSConfiguration>
 ```
@@ -381,7 +414,7 @@ s3cmd put -P -m "text/css; charset=utf-8" --add-header "Cache-Control:no-cache" 
 
 ## Systemd service
 
-**Note:** The installation contains "secrets", e.g. to store the DTLS state or to read the  device and user credentials. Therefore a dedicated cloud-VM must be used and the access to that cloud-VM must be protected! This basic/simple setup also uses the "root" user. Please replace/add a different user according your security policy.
+**Note:** The installation contains "secrets", e.g. to store the DTLS state or to read the device and user credentials. Therefore a dedicated cloud-VM must be used and the access to that cloud-VM must be protected! This basic/simple setup also uses the "root" user. Please replace/add a different user according your security policy.
 
 **Note:** the Cloud CoAP-S3-Proxy server is not released! It requires a [Build using Maven](../../README.md#build-using-maven) before usage.
 
@@ -520,7 +553,7 @@ A device POST its data to the "coaps://${host}/devices". Using query parameters 
 
 - **write** writes the payload of the request to S3. Path is "s3://${devicedomain}/devices/${devicename}/". The subpath may be provided as argument. A "${now}", "${date}" and "${time}" will be replaced with the requests time. The default subpath is "${date}/${time}", which results in "s3://${devicedomain}/devices/${devicename}/${date}/${time}" as S3 path for each payload.
 
-- **series** write all lines of the payload starting with "!" concated to a single line to a series resource "s3://${devicedomain}/devices/${devicename}/series-${now-at-start}". Will be replaced in a future release.
+- **series** write all lines of the payload starting with "!" concated to a single line to a series resource "s3://${devicedomain}/devices/${devicename}/series-${now-at-start}". Thus function is now obsoleted by the archive file.
 
 - **read** piggybacks a S3 read operation to a POST request. Default subpath is "config", which results in "s3://${devicedomain}/devices/${devicename}/config". ETAGs are supported to reduce the amount of data preventing transmission of a non-changed config twice. Read [S3Devices - Javadoc](src/main/java/org/eclipse/californium/cloud/s3/resources/S3Devices.java) for details. This function is intended to efficiently provide configuration to the device with the next request.
 
@@ -532,7 +565,9 @@ A device POST its data to the "coaps://${host}/devices". Using query parameters 
 
     - **CUSTOM_OPTION_FORWARD_CODE** 65016: contains the response code of the forwarded HTTP request.
 
-- **CUSTOM_OPTION_TIME** 65000: in request, it contains the device time in milliseconds since 1970.1.1. If {@code 0}, the device has no system time yet. In response it contains the system time, also in milliseconds since 1970.1.1 of the server, if that differs for more than 5s. Intended to sync the device time with the server time, if RTT is small enough and no retransmission is used..
+- **CUSTOM_OPTION_TIME** 65000: in request, it contains the device time in milliseconds since 1970.1.1. If {@code 0}, the device has no system time yet. In response it contains the system time, also in milliseconds since 1970.1.1 of the server, if that differs for more than 5s. Intended to sync the device time with the server time, if RTT is small enough and no retransmission is used.
+
+- **CUSTOM_OPTION_INTERVAL** 65012: used in request, contains the expected sedn interval in seconds. If available, used to detect device with currently missing messages.
 
 Examples using coap-client of libcoap:
 
@@ -543,7 +578,7 @@ May 15 14:57:45.080 INFO Identity Hint '' provided
 v:1 t:ACK c:2.04 i:a06f {} [ 65008:\x84 ]
 ```
 
-(**Note:** the "\\&" is required to escape the shell interpretation of a "&".)
+(**Note:** the "\\&" is required to escape the shell interpretation of a "&". If a "%" is used in the payload, then this must be escape  with "%25", as used later below.)
 
 Sends the payload "test 1234" to be written into the s3-bucket of the device-domain with "s3://${domainbucket}/devices/Client_identity/${date}/${time}" and reads piggybacked from "s3://${domainbucket}/devices/Client_identity/config". The custom option 65008 contains the response code of the piggybacked read, 0x84 => `0b 100 00100`, so it's `4.04` NOT FOUND.
 
@@ -614,28 +649,53 @@ The data may then be shows using the javascript browser app, or read by an other
 
 ### CoAP API - coaps://devices - Charts support.
 
-**Note:** the way how charts are generated for now will change in a future version.
+The javascript browser app displays data as chart. In the previous version it was required to use the "series" file. To add data to that, it was required to place the data in ASCII with lines starting with "!". Also an additional query parameters "series" was required to copy these lines into the "series" file. The current version comes with support for "arch" files, which obsoletes that.
 
-The javascript browser app displays data as chart. In order to do so, the data must be given in ASCII with lines starting with "!". Also an additional query parameters "series" is required to copy these lines into the "series" file. 
-
-Example:
+Deprecated example:
 
 ```sh
-coap-client -v 6 -m POST -e "!4237 mV" -u Client_identity -k secretPSK coaps://${host}/devices?write\&read\&series
-v:1 t:CON c:POST i:a06f {} [ Uri-Host:${host}, Uri-Path:devices, Uri-Query:write, Uri-Query:read ] :: '! 4237 mV'
-May 15 14:57:45.080 INFO Identity Hint '' provided
-v:1 t:ACK c:2.04 i:a06f {} [ 65008:\x84 ]
+coap-client -v 6 -m POST -e '!4237 mV 98%25' -t 0 -u Client_identity -k secretPSK coaps://${host}/devices?write\&read\&series
+v:1 t:CON c:POST i:c9f6 {} [ Uri-Host:${host}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read, Uri-Query:series ] :: '!4237 mV 98%'
+Oct 04 07:49:11.854 INFO Identity Hint '' provided
+v:1 t:ACK c:2.04 i:c9f6 {} [ Content-Format:text/plain, 65004:\x30\xA4\xBE\x81\x48\x34, 65008:\x45 ]
 ```
 
 Writes
 
 ```
-2024-05-15T14:57:45.180Z: 4237 mV
+2024-10-04T05:49:11.890Z: 4237 mV 98%
 ```
 
 to "series".
 
-The javascript browser app extracts the values for the chart from the lines of that file with regular expressions:
+(**Note:** as mentioned above, a "%" in the payload must be escaped with "%25" and a "&" in the query-parameters must be escaped with "\\&". "-t 0" indicates, that the content is in "text/plain".)
+
+With the introduction of the archive files, that has changed. The archive file accumulates all payloads of several days into a single file without using "!" lines (therefore works also for other content types) and without the "series" query parameter. The messages are accumulated once a day and appended to the archive file. To read the data, read to related archive files and the left messages of the current day.
+
+Example:
+
+```sh
+coap-client -v 6 -m POST -e '4104 mV 96%25' -t 0 -u Client_identity -k secretPSK coaps://${host}/devices?write\&read
+v:1 t:CON c:POST i:a2f2 {} [ Uri-Host:${host}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read ] :: '4104 mV 96%'
+Oct 04 07:55:25.098 INFO Identity Hint '' provided
+v:1 t:ACK c:2.04 i:a2f2 {} [ Content-Format:text/plain, 65004:\x30\xA4\xBE\x81\x48\x34, 65008:\x45 ]
+```
+
+Writes, when processed
+
+```
+##L12#D2024-10-04T05:49:11.890Z#C0#
+!4237 mV 98%
+##L11#D2024-10-04T05:50:07.838Z#C0#
+4104 mV 96%
+...
+```
+
+to the archive file. The first message is from the previous example and shows, that "!" lines also works for archive files, even if that is not longer required.
+
+(**Note:** the messages are accumulated usually once a day and so it will take some time until the messages are appended.)
+
+The javascript browser app extracts the values for the chart from the lines of that files with regular expressions:
 
 [javascript - chartConfig](src/main/resources/app.js#L610-L626)
 
@@ -643,38 +703,38 @@ The javascript browser app extracts the values for the chart from the lines of t
 const chartConfig = [
 	new ChartConfig(/\s([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, 1000),
 	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100),
-	new ChartConfig(/,\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40),
-	new ChartConfig(/,\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80),
-	new ChartConfig(/,\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100),
-	new ChartConfig(/,\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500),
-	new ChartConfig(/,\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75),
-	new ChartConfig(/,\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15),
-	new ChartConfig(/,\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400),
-	new ChartConfig(/,\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400),
-	new ChartConfig(/,\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50),
-	new ChartConfig(/,\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50),
-	new ChartConfig(/,\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, 1000),
-	new ChartConfig(/,\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, 0),
-	new ChartConfig(/,\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, 1000),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75),
+	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15),
+	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400),
+	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, 1000),
 ];
 ```
 
 If you want to add an different sensor value, add a `ChartConfig`to that table. You will also need to adapt the chart-view
 
-[javascript - side rules](src/main/resources/app.js#L1625-L1634)
+[javascript - side rules](src/main/resources/app.js#L1779-L1788)
 
 and, if required, also the info shown with the marker
 
-[javascript - marker](src/main/resources/app.js#L1266-L1282)
+[javascript - marker](src/main/resources/app.js#L1420-L1436)
 
 ### CoAP API - coaps://fw
 
-A device GET shared data from S3. Intended for firmware. Currently using the pattern "s3://${devicedomain}/fw/${type}/${version}", e.g. "s3://${devicedomain}/fw/box/0.4.100+0" for the "box" firmware, version "0.4.100+0".
+A device may GET shared data from S3. This is mainly intended for firmware. Currently using the pattern "s3://${devicedomain}/fw/${type}/${version}", e.g. "s3://${devicedomain}/fw/box/0.11.107+0" for the device type "box" firmware, version "0.11.107+0".
 
 Example:
 
 ```sh
-coap-client -v 6 -m GET -u Client_Identity -k secretPSK coaps://${host}/fw/box/0.4.100+0
+coap-client -v 6 -m GET -u Client_identity -k secretPSK coaps://${host}/fw/box/0.11.107+0
 ```
 
 Will read that firmware from S3. Requires support for [RFC 7959](https://www.rfc-editor.org/rfc/rfc7959) (CoAP blockwise transfer).
