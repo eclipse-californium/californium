@@ -163,7 +163,7 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 			super.handle(httpExchange);
 		} else {
 			if (httpExchange.getResponseCode() == -1) {
-				authorizer.respondUnauthorized(httpExchange);
+				HttpService.respond(httpExchange, 401, null, null);
 			}
 			if (!authorizer.updateBan(httpExchange)) {
 				HttpService.ban(httpExchange, BAN);

@@ -13,7 +13,9 @@
             "https://localhost:8080"
         ],
         "ExposeHeaders": [
-            "ETag"
+            "ETag",
+            "x-amz-meta-interval",
+            "x-amz-meta-coap-ct"
         ]
     }
 ]

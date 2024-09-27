@@ -441,8 +441,7 @@ public class Aws4Authorizer {
 	 */
 	public Authorization checkSignature(final HttpExchange httpExchange, String banTag) throws IOException {
 		Authorization authorization = null;
-		byte[] payload = "<h1>401 - Unauthorized</h1>".getBytes(StandardCharsets.UTF_8);
-		String contentType = "text/html; charset=utf-8";
+		boolean verified = false;
 		int httpCode = 401;
 		try {
 			LOGGER.debug("{} {} {}", banTag, httpExchange.getRequestMethod(), httpExchange.getRequestURI());
@@ -461,7 +460,7 @@ public class Aws4Authorizer {
 						}
 						authorization.webAppUser = domainUser.user;
 						authorization.domain = domainUser.domain;
-						payload = null;
+						verified = true;
 						LOGGER.debug("key {} verified.", name);
 					} else {
 						LOGGER.warn("key {}", name);
@@ -473,11 +472,10 @@ public class Aws4Authorizer {
 		} catch (Throwable t) {
 			LOGGER.warn("AWS4", t);
 			httpCode = 500;
-			payload = "<h1>500 - Internal Server Error</h1>".getBytes(StandardCharsets.UTF_8);
 			HttpService.ban(httpExchange, banTag);
 		}
-		if (payload != null) {
-			HttpService.respond(httpExchange, httpCode, contentType, payload);
+		if (!verified) {
+			HttpService.respond(httpExchange, httpCode, null, null);
 		}
 		return authorization;
 	}
@@ -512,19 +510,6 @@ public class Aws4Authorizer {
 			}
 		}
 		return true;
-	}
-
-	/**
-	 * Http respond with unauthorized.
-	 * 
-	 * @param httpExchange http exchange
-	 * @throws IOException if an i/o error occurs on sending a response
-	 */
-	public void respondUnauthorized(final HttpExchange httpExchange) throws IOException {
-		int httpCode = 401;
-		byte[] payload = "<h1>401 - Unauthorized</h1>".getBytes(StandardCharsets.UTF_8);
-		String contentType = "text/html; charset=utf-8";
-		HttpService.respond(httpExchange, httpCode, contentType, payload);
 	}
 
 	/**
@@ -762,7 +747,7 @@ public class Aws4Authorizer {
 	 * Format date and time
 	 * 
 	 * @param millis milliseconds of epoch
-	 * @return date and time in ISO ("yyyymmddThhMMssZ").
+	 * @return date and time in ISO ("yyyymmddTHHMMssZ").
 	 */
 	public static String formatDateTime(long millis) {
 		String date = DateTimeFormatter.ISO_INSTANT

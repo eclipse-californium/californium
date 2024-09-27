@@ -7,6 +7,8 @@
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>*</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>x-amz-meta-interval</ExposeHeader>
+    <ExposeHeader>x-amz-meta-coap-ct</ExposeHeader>
   </CORSRule>
   <CORSRule>
     <AllowedOrigin>https://localhost:8080</AllowedOrigin>
@@ -15,6 +17,8 @@
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>*</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>x-amz-meta-interval</ExposeHeader>
+    <ExposeHeader>x-amz-meta-coap-ct</ExposeHeader>
   </CORSRule>
 </CORSConfiguration>
 

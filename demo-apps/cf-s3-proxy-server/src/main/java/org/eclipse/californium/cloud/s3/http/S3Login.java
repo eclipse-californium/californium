@@ -33,7 +33,6 @@ import org.eclipse.californium.cloud.s3.util.WebAppConfigProvider;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
 import org.eclipse.californium.cloud.util.DeviceIdentifier;
 import org.eclipse.californium.cloud.util.Formatter;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,48 +119,51 @@ public class S3Login implements HttpHandler {
 		final URI uri = httpExchange.getRequestURI();
 		final Object logRemote = StringUtil.toLog(httpExchange.getRemoteAddress());
 		LOGGER.info("login-request: {} {} from {}", httpExchange.getRequestMethod(), uri, logRemote);
-		String method = httpExchange.getRequestMethod();
-		String contentType = "text/html; charset=utf-8";
+		String contentType = null;
 		byte[] payload = null;
-		int httpCode = 405;
-		if (method.equals("GET")) {
-			if (!authorizer.precheckBan(httpExchange)) {
-				return;
-			}
-			httpCode = 401;
-			payload = "<h1>401 - Unauthorized</h1>".getBytes(StandardCharsets.UTF_8);
-			Authorization authorization = authorizer.checkSignature(httpExchange, BAN);
-			if (authorization != null && authorization.isVerified()) {
-				String amzNow = Aws4Authorizer.formatDateTime(System.currentTimeMillis());
-				LOGGER.info("Response, x-amz-date: {}", amzNow);
-				httpExchange.getResponseHeaders().add("x-amz-date", amzNow);
-				if (authorization.isInTime()) {
-					try {
-						httpCode = 200;
-						if (clientProvider == null) {
-							payload = getDeviceList(authorization);
-							if (EtagGenerator.setEtag(httpExchange, payload)) {
-								httpCode = 304;
-								payload = null;
+		int httpCode = 404;
+		if (HttpService.strictPathCheck(httpExchange)) {
+			String method = httpExchange.getRequestMethod();
+			if (method.equals("GET")) {
+				if (!authorizer.precheckBan(httpExchange)) {
+					return;
+				}
+				httpCode = 401;
+				Authorization authorization = authorizer.checkSignature(httpExchange, BAN);
+				if (authorization != null && authorization.isVerified()) {
+					String amzNow = Aws4Authorizer.formatDateTime(System.currentTimeMillis());
+					LOGGER.info("Response, x-amz-date: {}", amzNow);
+					httpExchange.getResponseHeaders().add("x-amz-date", amzNow);
+					if (authorization.isInTime()) {
+						try {
+							httpCode = 200;
+							if (clientProvider == null) {
+								payload = getDeviceList(authorization);
+								if (EtagGenerator.setEtag(httpExchange, payload)) {
+									httpCode = 304;
+									payload = null;
+								}
+							} else {
+								payload = getLoginResponse(authorization);
 							}
-						} else {
-							payload = getLoginResponse(authorization);
+							contentType = "application/json; charset=utf-8";
+							httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
+						} catch (Throwable t) {
+							LOGGER.info("Login from {}:", logRemote, t);
+							httpCode = 500;
+							HttpService.ban(httpExchange, BAN);
 						}
-						contentType = "application/json; charset=utf-8";
-						httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
-					} catch (Throwable t) {
-						LOGGER.info("Login from {}:", logRemote, t);
-						httpCode = 500;
-						payload = "<h1>500 - Internal Server Error</h1>".getBytes(StandardCharsets.UTF_8);
-						HttpService.ban(httpExchange, BAN);
 					}
 				}
+				LOGGER.info("login-response: {} {} from {}", httpCode,
+						authorization == null ? "" : authorization.getName(), logRemote);
+			} else if (method.equals("HEAD")) {
+				if (!authorizer.precheckBan(httpExchange)) {
+					return;
+				}
+			} else {
+				httpCode = 405;
 			}
-			LOGGER.info("login-response: {} {} from {}", httpCode, authorization == null ? "" : authorization.getName(),
-					logRemote);
-		} else if (method.equals("HEAD")) {
-		} else {
-			payload = "<h1>405 - Method not allowed</h1>".getBytes(StandardCharsets.UTF_8);
 		}
 		if (httpExchange.getResponseCode() == -1) {
 			HttpService.respond(httpExchange, httpCode, contentType, payload);

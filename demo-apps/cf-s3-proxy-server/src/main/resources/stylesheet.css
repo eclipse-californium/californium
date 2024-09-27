@@ -104,6 +104,14 @@
 	background-color: yellow;
 }
 
+#devicelist tr.warn {
+	background-color: LightSalmon;
+}
+
+#devicelist tr.miss {
+	background-color: red;
+}
+
 #devicelist tr.changed button.tb1 {
 	background: Khaki;
 }

@@ -40,6 +40,7 @@ provider_create_s3_access_keys() {
     {"action":"allow","expression":"operation == 'get-object'"},
     {"action":"allow","expression":"operation == 'list-objects'"},
     {"action":"allow","expression":"operation == 'put-object'"},
+    {"action":"allow","expression":"operation == 'delete-object'"},
     {"action":"deny","expression":"true"}
    ]
   }
