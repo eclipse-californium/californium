@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -246,6 +247,19 @@ abstract public class CounterStatisticManager {
 	 * @since 3.1
 	 */
 	public List<String> getKeys() {
+		return Collections.unmodifiableList(orderedKeys);
+	}
+
+	/**
+	 * Get ordered list of selected keys by principal.
+	 * 
+	 * Intended to be overwritten, if principal specific selection is intended.
+	 * 
+	 * @param principal principal. May be {@code null}.
+	 * @return ordered list of selected keys.
+	 * @since 3.13
+	 */
+	public List<String> getKeys(Principal principal) {
 		return Collections.unmodifiableList(orderedKeys);
 	}
 

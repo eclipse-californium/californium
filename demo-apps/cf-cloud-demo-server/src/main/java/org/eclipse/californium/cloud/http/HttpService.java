@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.GeneralSecurityException;
+import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.List;
@@ -53,6 +54,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
@@ -118,6 +120,13 @@ public class HttpService {
 	 * Name of full chain file.
 	 */
 	private static final String HTTPS_FULL_CHAIN = "fullchain.pem";
+	/**
+	 * Name of {@link javax.xml.ws.spi.http.HttpExchange} attribute for
+	 * application {@link Principal}.
+	 * 
+	 * @since 3.13
+	 */
+	public static final String ATTRIBUTE_PRINCIPAL = "principal";
 	/**
 	 * Service instance.
 	 */
@@ -648,12 +657,18 @@ public class HttpService {
 			final String method = httpExchange.getRequestMethod();
 			final Headers headers = httpExchange.getRequestHeaders();
 			Request request = null;
-
+			Principal principal = httpExchange.getPrincipal();
+			Object attribute = httpExchange.getAttribute(ATTRIBUTE_PRINCIPAL);
+			if (attribute instanceof Principal) {
+				principal = (Principal) attribute;
+			}
 			LOGGER.info("http-request: {} {}", method, uri);
 			logHeaders("request", headers);
 
 			if (method.equals("GET") || method.equals("HEAD")) {
 				request = Request.newGet();
+				AddressEndpointContext context = new AddressEndpointContext(httpExchange.getRemoteAddress(), principal);
+				request.setSourceContext(context);
 			} else {
 				// use ping to fail ...
 				request = Request.newPing();

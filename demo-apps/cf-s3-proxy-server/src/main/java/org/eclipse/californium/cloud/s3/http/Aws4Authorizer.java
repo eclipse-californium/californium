@@ -22,6 +22,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
+import java.security.Principal;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -131,7 +132,7 @@ public class Aws4Authorizer {
 	/**
 	 * Web application authorization.
 	 */
-	public static class Authorization {
+	public static class Authorization implements Principal {
 
 		/**
 		 * Name from http Credential attribute. (Access API key ID).
@@ -241,8 +242,45 @@ public class Aws4Authorizer {
 		 * 
 		 * @return name from http Credential attribute
 		 */
+		@Override
 		public String getName() {
 			return name;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((domain == null) ? 0 : domain.hashCode());
+			result = prime * result + ((name == null) ? 0 : name.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			Authorization other = (Authorization) obj;
+			if (domain == null) {
+				if (other.domain != null)
+					return false;
+			} else if (!domain.equals(other.domain))
+				return false;
+			if (name == null) {
+				if (other.name != null)
+					return false;
+			} else if (!name.equals(other.name))
+				return false;
+			return true;
+		}
+
+		@Override
+		public String toString() {
+			return name + "@" + domain;
 		}
 
 		/**
