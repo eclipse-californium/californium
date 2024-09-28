@@ -18,10 +18,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cloud.http.HttpService;
@@ -31,7 +29,6 @@ import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.util.DeviceGroupProvider;
 import org.eclipse.californium.cloud.s3.util.WebAppConfigProvider;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
-import org.eclipse.californium.cloud.util.DeviceIdentifier;
 import org.eclipse.californium.cloud.util.Formatter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -55,23 +52,23 @@ public class S3Login implements HttpHandler {
 	/**
 	 * Ban topic to report authorization failures.
 	 */
-	private static final String BAN = "LOGIN";
+	protected static final String BAN = "LOGIN";
 	/**
 	 * AWS4-HMAC-SHA256 authorizer.
 	 */
-	private final Aws4Authorizer authorizer;
+	protected final Aws4Authorizer authorizer;
 	/**
 	 * Web application configuration provider.
 	 */
-	private final WebAppConfigProvider webAppConfigs;
+	protected final WebAppConfigProvider webAppConfigs;
 	/**
 	 * Device groups.
 	 */
-	private final DeviceGroupProvider groups;
+	protected final DeviceGroupProvider groups;
 	/**
 	 * S3 client provider.
 	 */
-	private final S3ProxyClientProvider clientProvider;
+	protected final S3ProxyClientProvider clientProvider;
 
 	/**
 	 * Create http S3 Login.
@@ -94,24 +91,6 @@ public class S3Login implements HttpHandler {
 		this.webAppConfigs = webAppConfigs;
 		this.groups = groups;
 		this.clientProvider = clientProvider;
-	}
-
-	/**
-	 * Create http get groups.
-	 * 
-	 * @param authorizer AWS4-HMAC-SHA256 authorizer to check for valid
-	 *            credentials.
-	 * @param groups device groups provider
-	 * @since 3.13
-	 */
-	public S3Login(Aws4Authorizer authorizer, DeviceGroupProvider groups) {
-		if (authorizer == null) {
-			throw new NullPointerException("authorizer must not be null!");
-		}
-		this.authorizer = authorizer;
-		this.webAppConfigs = null;
-		this.groups = groups;
-		this.clientProvider = null;
 	}
 
 	@Override
@@ -137,19 +116,11 @@ public class S3Login implements HttpHandler {
 					if (authorization.isInTime()) {
 						try {
 							httpCode = 200;
-							if (clientProvider == null) {
-								payload = getDeviceList(authorization);
-								if (EtagGenerator.setEtag(httpExchange, payload)) {
-									httpCode = 304;
-									payload = null;
-								}
-							} else {
-								payload = getLoginResponse(authorization);
-							}
+							payload = getLoginResponse(authorization);
 							contentType = "application/json; charset=utf-8";
 							httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
 						} catch (Throwable t) {
-							LOGGER.info("Login from {}:", logRemote, t);
+							LOGGER.info("login from {}:", logRemote, t);
 							httpCode = 500;
 							HttpService.ban(httpExchange, BAN);
 						}
@@ -226,7 +197,7 @@ public class S3Login implements HttpHandler {
 		}
 		formatter.add("base", externalEndpoint);
 		formatter.add("region", region);
-		getDeviceList(authorization, formatter);
+		GroupsHandler.getDeviceList(authorization, groups, formatter);
 		if (webAppConfigs != null && credentials.webAppConfig != null) {
 			Map<String, Map<String, String>> config = webAppConfigs.getSubSections(domain, credentials.webAppConfig);
 			for (String section : config.keySet()) {
@@ -238,49 +209,4 @@ public class S3Login implements HttpHandler {
 		}
 		return formatter.getPayload();
 	}
-
-	/**
-	 * Get device list response.
-	 * 
-	 * Creates response with:
-	 * 
-	 * <pre>
-	 * groups: list of device names
-	 * </pre>
-	 * 
-	 * @param authorization authorization
-	 * @return payload of response.
-	 * @since 3.13
-	 */
-	private byte[] getDeviceList(Authorization authorization) {
-		Formatter formatter = new Formatter.Json();
-		getDeviceList(authorization, formatter);
-		return formatter.getPayload();
-	}
-
-	/**
-	 * Append device list.
-	 * 
-	 * @param authorization authorization
-	 * @param formatter formatter for resulting list.
-	 * @since 3.13
-	 */
-	private void getDeviceList(Authorization authorization, Formatter formatter) {
-		WebAppUser credentials = authorization.getWebAppUser();
-		String domain = authorization.getDomain();
-		if (groups != null && credentials.groups != null) {
-			Map<String, String> allDevices = new HashMap<>();
-			for (String group : credentials.groups) {
-				Set<DeviceIdentifier> devices = groups.getGroup(domain, group);
-				for (DeviceIdentifier device : devices) {
-					String label = device.getLabel();
-					allDevices.put(device.getName(), label != null ? label : "");
-				}
-			}
-			if (!allDevices.isEmpty()) {
-				formatter.addMap("groups", allDevices);
-			}
-		}
-	}
-
 }
