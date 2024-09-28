@@ -137,7 +137,7 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 			final String method = httpExchange.getRequestMethod();
 			final URI uri = httpExchange.getRequestURI();
 			LOGGER.info("http-proxy-request: {} {}", method, uri);
-
+			httpExchange.setAttribute(HttpService.ATTRIBUTE_PRINCIPAL, authorization);
 			if (method.equals("GET") || method.equals("HEAD")) {
 				URI requestURI = httpExchange.getRequestURI();
 				String path = requestURI.getPath();
