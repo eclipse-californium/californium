@@ -38,6 +38,8 @@ import org.eclipse.californium.cloud.resources.MyContext;
 import org.eclipse.californium.cloud.resources.Provisioning;
 import org.eclipse.californium.cloud.s3.http.AuthorizedCoapProxyHandler;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer;
+import org.eclipse.californium.cloud.s3.http.ConfigHandler;
+import org.eclipse.californium.cloud.s3.http.GroupsHandler;
 import org.eclipse.californium.cloud.s3.http.S3Login;
 import org.eclipse.californium.cloud.s3.http.SinglePageApplication;
 import org.eclipse.californium.cloud.s3.option.ForwardResponseOption;
@@ -70,6 +72,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.proxy2.config.Proxy2Config;
@@ -350,7 +353,7 @@ public class S3ProxyServer extends BaseServer {
 	 */
 	public static final TimeDefinition S3_PROCESSING_INITIAL_DELAY = new TimeDefinition("S3_PROCESSING_INITIAL_DELAY",
 			"S3 processing initial delay. S3 processing combines the messages of the last day into a weeks archive file.",
-			0, TimeUnit.SECONDS);
+			20, TimeUnit.SECONDS);
 	/**
 	 * Interval for S3 processing.
 	 */
@@ -363,6 +366,11 @@ public class S3ProxyServer extends BaseServer {
 	public static final TimeDefinition S3_PROCESSING_DAILY_TIME = new TimeDefinition("S3_PROCESSING_DAILY_TIME",
 			"S3 processing daily time after UTC midnight. S3 processing combines the messages of the last day into a weeks archive file. Usually run once a day. 0 to disable S3 processing.",
 			5, TimeUnit.MINUTES);
+	/**
+	 * Maximum device in cache.
+	 */
+	public static final IntegerDefinition MAX_DEVICE_CONFIG_SIZE = new IntegerDefinition("MAX_DEVICE_CONFIG_SIZE",
+			"Maximum size of device configuration.", 1024);
 
 	public static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
@@ -373,6 +381,7 @@ public class S3ProxyServer extends BaseServer {
 			config.set(S3_PROCESSING_INITIAL_DELAY, 20, TimeUnit.SECONDS);
 			config.set(S3_PROCESSING_INTERVAL, 0, TimeUnit.HOURS);
 			config.set(S3_PROCESSING_DAILY_TIME, 5, TimeUnit.MINUTES);
+			config.set(MAX_DEVICE_CONFIG_SIZE, 1024);
 		}
 	};
 
@@ -603,7 +612,14 @@ public class S3ProxyServer extends BaseServer {
 				Aws4Authorizer aws4 = new Aws4Authorizer(domainUserProvider, S3ProxyClient.DEFAULT_REGION);
 				httpService.createContext("/login",
 						new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider));
-				httpService.createContext("/groups", new S3Login(aws4, deviceGroupProvider));
+				if (deviceGroupProvider != null) {
+					httpService.createContext("/groups", new GroupsHandler(aws4, deviceGroupProvider));
+					Integer maxDeviceConfigSize = getConfig().get(MAX_DEVICE_CONFIG_SIZE);
+					if (maxDeviceConfigSize > 0) {
+						httpService.createContext("/config/", new ConfigHandler(maxDeviceConfigSize, aws4, s3clients,
+								webAppConfigProvider, deviceGroupProvider));
+					}
+				}
 				S3ProxyClient webClient = cliSpaArguments.s3 ? s3clients.getWebClient() : null;
 
 				SinglePageApplication spa = new SinglePageApplication("CloudCoap", webClient,

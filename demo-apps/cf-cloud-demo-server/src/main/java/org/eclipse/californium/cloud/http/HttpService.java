@@ -402,6 +402,9 @@ public class HttpService {
 				case 405:
 					payload = "<h1>405 - Method not allowed!</h1>".getBytes(StandardCharsets.UTF_8);
 					break;
+				case 413:
+					payload = "<h1>413 - Payload too large!</h1>".getBytes(StandardCharsets.UTF_8);
+					break;
 				case 500:
 					payload = "<h1>500 - Internal Server Error</h1>".getBytes(StandardCharsets.UTF_8);
 					break;
