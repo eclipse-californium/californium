@@ -160,6 +160,7 @@ public class InMemoryReadWriteLockConnectionStore implements ReadWriteLockConnec
 							removeByAddressConnections(staleConnection);
 							removeByEstablishedSessions(staleConnection.getEstablishedSessionIdentifier(),
 									staleConnection);
+							removeByPrincipal(staleConnection.getEstablishedPeerIdentity(), staleConnection);
 							ConnectionListener listener = connectionListener;
 							if (listener != null) {
 								listener.onConnectionRemoved(staleConnection);
