@@ -274,7 +274,7 @@ Thingy:91='cloudcoap'
 ThingsAdmin='cloudcoap-secret'
 .groups=Thing,Monitor
 .config=Admin
-*.s3='<write-S3-access-key-id>','<write-S3-access-key-secret>'
+*.s3='<personal-S3-access-key-id>','<personal-S3-access-key-secret>'
 ```
 
 The format uses the user `name`, followed by a '=' and the `<password>`, either in plain-text enclosed in single- `'` or double-`"` quotes, or in base64 without quotes. The `config`uration of the web application for the user is the provided also as plain-text, either with or without single- `'` or double-`"` quotes. The device `groups` for the users are also plain-text, either with or without single- `'` or double-`"` quotes. Each `group` is the separated by a comma `,`. The `groups` are used to select the initial displayed devices after login. Check your [demo-devices.txt](./service/demo-devices.txt) for the available groups. If the user is using it's own `S3-access-key` then the values may be provided in base64 or as plain-text enclosed in single- `'` or double-`"` quotes.
@@ -299,7 +299,7 @@ ConfigWrite=false
 period=64
 ```
 
-The values are mainly passed to the java script application on login. Only `Diagnose=true` is also used as permission to read the `diagnose` resource via https.
+The values are mainly passed to the java script application on login. Only `Diagnose=true` is also used as permission to read the `diagnose` resource via https and the `ConfigWrite=true` enables to write a device configuration to the `config` resource via https .
 
 ## DTLS Graceful Restart
 
@@ -359,10 +359,9 @@ In order to have the permission for accessing that S3 device data, so called api
 | API-Key | Permissions |
 |---------|-------------|
 | S3-coap-proxy-key | read/write |
-| S3-web-admin-key | read/write |
 | S3-web-user-key | read only |
 
-The `S3-coap-proxy-key` is used by the proxy to forward device data to and to read the device configuration from the S3 bucket. Similar the `S3-web-admin-key` is used by the web application to read the device data from and to write the device configuration  to the S3 bucket. And finally the `S3-web-user-key` with read only permissions are used by the web application for limited read access.
+The `S3-coap-proxy-key` is used by the proxy to forward the data from the device to the S3 bucket and the configuration for the device from https to the s3 bucket. It is also used to read the device data and configuration from the S3 bucket back. Similar the `S3-web-user-key` with read only permissions are used by the web application for limited read access directly to S3.
 
 To create and prepare the S3 bucket, [s3cmd](https://s3tools.org/s3cmd) is used. This requires also some api-key in a `.s3cfg` file, here we need also the permission to create a S3 bucket.
 

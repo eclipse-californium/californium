@@ -25,5 +25,4 @@ Thingy:91='cloudcoap'
 ThingsAdmin='cloudcoap-secret'
 .groups=Thing,Monitor
 .config=Admin
-.s3='<write-S3-access-key-id>','<write-S3-access-key-secret>'
 

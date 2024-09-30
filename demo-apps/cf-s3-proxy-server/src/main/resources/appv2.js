@@ -26,6 +26,13 @@ function strip(value, head) {
 	return null;
 }
 
+function trunc(value, tail) {
+	if (value && value.endsWith(tail)) {
+		return value.slice(0, -tail.length);
+	}
+	return null;
+}
+
 function conv(value, hexLen) {
 	if (hexLen) {
 		if (value && value.match(/^[0-9a-fA-F]+$/)) {
@@ -162,6 +169,15 @@ class S3Request {
 		this.login = login;
 		this.stateHandler = stateHandler;
 		this.startGroups = 0;
+	}
+
+	reset() {
+		this.id = null;
+		this.key = null;
+		this.region = null;
+		this.endpoint = null;
+		this.login = null;
+		this.stateHandler = null;
 	}
 
 	static hexDigit(c) {
@@ -1557,10 +1573,14 @@ class DeviceData {
 
 	async writeConfig(newConfig) {
 		const utf8Content = new TextEncoder().encode(newConfig);
-		const put = s3.putContent(this.key + "config", utf8Content);
-		s3.allStarted();
+		let key = this.key.replace("devices", "config")
+		key = trunc(key, "/") ?? key;
+		console.log("config: " + key + ", " + utf8Content.byteLength + " bytes");
+		const put = s3HttpHost.putContent(key, utf8Content);
+		s3HttpHost.allStarted();
 		const result = await put;
 		if (result && result.text == "") {
+			console.log("read config back");
 			await this.readConfig();
 		}
 		return result;
@@ -1915,11 +1935,15 @@ class DeviceData {
 
 class DeviceGroups {
 
-	constructor(login, groups, etag) {
-		this.request = login;
+	constructor(groups, etag) {
+		this.filter = true;
 		this.groups = groups;
 		this.etag = etag;
 		this.lastRefresh = Date.now();
+	}
+
+	toggleFilter() {
+		this.filter = !this.filter;
 	}
 
 	async refresh(force) {
@@ -1933,7 +1957,7 @@ class DeviceGroups {
 				console.log("Refresh groups");
 			}
 			try {
-				const response = await this.request.fetchJson("groups", this.etag, true);
+				const response = await s3HttpHost.fetchJson("groups", this.etag, true);
 				if (response.error) {
 					console.log("Failed to update groups: " + response.error.message)
 				} else if (response.status == 304) {
@@ -1979,7 +2003,7 @@ class DeviceGroups {
 	includes(dev) {
 		const label = this.groups[dev.plainKey];
 		if (label == undefined) {
-			return false;
+			return !this.filter;
 		} else if (label) {
 			dev.label = label;
 		}
@@ -1989,7 +2013,6 @@ class DeviceGroups {
 
 	reset() {
 		this.groups = null;
-		this.request = null;
 		this.etag = null;
 		this.lastRefresh = 0;
 	}
@@ -2840,12 +2863,16 @@ class UiDiagnose {
 		this.reset();
 	}
 
-	reset() {
+	reset(all) {
 		this.list = [];
 		this.item = "";
 		this.etag = null;
 		this.diagnose = "";
 		this.lines = 0;
+		if (all && this.s3diagnose) {
+			this.s3diagnose.reset();
+			this.s3diagnose = null;
+		}
 	}
 
 	static label(key) {
@@ -2930,14 +2957,16 @@ class UiLoadProgress {
 	}
 
 	setProgress(set, start, finished, bytes) {
-		this.max += start;
-		this.current += finished;
-		this.bytes += bytes;
-		this.set = this.set || set;
-		if (this.set) {
-			if (this.current == this.max) {
-				this.ready = true;
-				this.loadTime = Date.now() - this.start;
+		if (!this.ready) {
+			this.max += start;
+			this.current += finished;
+			this.bytes += bytes;
+			this.set = this.set || set;
+			if (this.set) {
+				if (this.current == this.max) {
+					this.ready = true;
+					this.loadTime = Date.now() - this.start;
+				}
 			}
 		}
 		return this.ready;
@@ -3001,7 +3030,6 @@ class UiManager {
 	}
 
 	resetConfig() {
-		this.groups = true;
 		if (this.deviceGroups) {
 			this.deviceGroups.reset();
 			this.deviceGroups = null;
@@ -3011,10 +3039,21 @@ class UiManager {
 		this.enableConfig = true;
 		this.enableConfigWrite = false;
 		this.userTitle = null;
-		this.diagnoseUi = null;
+		if (this.diagnoseUi) {
+			this.diagnoseUi.reset(true)
+			this.diagnoseUi = null;
+		}
 		this.showDiagnose = false;
 		this.showDeviceList = false;
 		this.download = defaultLoadMode;
+		if (s3) {
+			s3.reset();
+			s3 = null;
+		}
+		if (s3HttpHost) {
+			s3HttpHost.reset();
+			s3HttpHost = null;
+		}
 	}
 
 	setState(state) {
@@ -3109,7 +3148,7 @@ class UiManager {
 	async loadDeviceList() {
 		this.resetProgress("Load");
 		this.uiChart.getCenter(true)
-		const groups = this.groups ? this.deviceGroups : null;
+		const groups = this.deviceGroups;
 		let allDevices = this.state.allDevicesList;
 		if (groups) {
 			allDevices.forEach((dev) => dev.fit = false);
@@ -3119,9 +3158,13 @@ class UiManager {
 			if (await groups.refresh(result.newDevice)) {
 				groups.update(allDevices);
 			}
-			allDevices = allDevices.filter((dev) => dev.fit);
-		} else {
-			allDevices = allDevices.filter((dev) => true);
+			if (groups.filter) {
+				allDevices = allDevices.filter((dev) => dev.fit);
+			}
+		}
+		if (allDevices === this.state.allDevicesList) {
+			// copy for sorting in view
+			allDevices = Array.from(allDevices);
 		}
 		this.showDiagnose = false;
 		this.showDeviceList = true;
@@ -3302,8 +3345,11 @@ class UiManager {
 					} else {
 						providerMapInit(defaultProviderMap);
 					}
+					s3HttpHost = new S3Request(name.value, pw.value, null, null, null, this.setRequestState.bind(this));
+					s3 = new S3Request(json.id, null, json.region, json.base, json, this.setRequestState.bind(this));
+
 					if (json.groups) {
-						this.deviceGroups = new DeviceGroups(new S3Request(name.value, pw.value), json.groups, login.headers.get("etag"));
+						this.deviceGroups = new DeviceGroups(json.groups, login.headers.get("etag"));
 						console.log(json.groups);
 					} else {
 						console.log("no groups");
@@ -3319,7 +3365,6 @@ class UiManager {
 					const body = document.querySelector('html>body');
 					body.appendChild(insert);*/
 
-					s3 = new S3Request(json.id, null, json.region, json.base, json, this.setRequestState.bind(this));
 					if (logo && this.logoView) {
 						const logoSvg = await s3.fetchXml(json.base + logo, null, true);
 						if (logoSvg && logoSvg.xml) {
@@ -3413,7 +3458,9 @@ class UiManager {
 	}
 
 	onClickGroups() {
-		this.groups = !this.groups;
+		if (this.deviceGroups) {
+			this.deviceGroups.toggleFilter();
+		}
 		this.uiList.previousList = null;
 		this.uiList.currentList = null;
 		this.state.deviceList = null;
@@ -3561,7 +3608,7 @@ class UiManager {
 		}
 		page += `<tr><td colspan='2'><button onclick='ui.loadDeviceData("${dev.key}", true)'>refresh/most recent</button>`;
 		if (pageMode == 2 && this.enableConfig) {
-			const writeMode = this.enableConfigWrite ? "" : " disabled";
+			const writeMode = this.enableConfigWrite && dev.fit ? "" : " disabled";
 			page += ` <button onclick='ui.writeDeviceConfig()'${writeMode}>write</button>`;
 		}
 		page += `</td></tr>\n</tbody></table>`;
@@ -3793,7 +3840,8 @@ class UiManager {
 		}
 		if (this.uiList.update) {
 			if (list) {
-				panel2 = this.uiList.view(this.groups, this.details);
+				const groups = this.deviceGroups ? this.deviceGroups.filter : false;
+				panel2 = this.uiList.view(groups, this.details);
 			}
 			this.updateTabAndPanel(view, tab2, panel2);
 			this.uiList.update = false;
@@ -3871,6 +3919,7 @@ class UiManager {
 	}
 }
 
+let s3HttpHost = null;
 let s3 = null;
 let ui = null;
 
