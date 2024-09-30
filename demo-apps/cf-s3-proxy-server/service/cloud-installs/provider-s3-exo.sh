@@ -83,11 +83,6 @@ S3CFG
 }
 POLICY
 
-      s3_access_key=$(exo iam api-key create s3-$1-webadmin s3-$1-write -O text --output-template '{{ .Key }},{{ .Secret }}')
-      s3_web_admin_access_key_id=$(echo $s3_access_key | cut -d ',' -f1)
-      s3_web_admin_access_key_secret=$(echo $s3_access_key | cut -d ',' -f2)
-      echo "$s3_web_admin_access_key_id $s3_web_admin_access_key_secret"
-
       s3_access_key=$(exo iam api-key create s3-$1-webuser s3-$1-read -O text --output-template '{{ .Key }},{{ .Secret }}')
       s3_web_user_access_key_id=$(echo $s3_access_key | cut -d ',' -f1)
       s3_web_user_access_key_secret=$(echo $s3_access_key | cut -d ',' -f2)
@@ -95,7 +90,6 @@ POLICY
 
       # adjust S3 credentials in users.txt
       sed "s!^\*\.s3=.*!*.s3='${s3_web_user_access_key_id}','${s3_web_user_access_key_secret}'!" ${SERVICEPATH}/users.txt >${SERVICEPATH}/users.txt.e 
-      sed -i "s!^\.s3=.*!.s3='${s3_web_admin_access_key_id}','${s3_web_admin_access_key_secret}'!g" ${SERVICEPATH}/users.txt.e
    
    fi
 }
@@ -103,7 +97,6 @@ POLICY
 provider_delete_s3_access_keys() {
    if [ -n "$2" ]  ; then
 # only for buckets with web access   
-      exo iam api-key delete s3-$1-webadmin
       exo iam api-key delete s3-$1-webuser
       exo iam role delete s3-$1-read   
    fi
