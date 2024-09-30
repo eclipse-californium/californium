@@ -9,10 +9,10 @@
 	</appender>
 
 	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>logs/anonymorigin.log</file>
+		<file>logs/app.log</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
 			<!-- roll-over monthly, or if filesize exceeds -->
-			<fileNamePattern>logs/anonymorigin-%d{yyyy-MM}.%i.log</fileNamePattern>
+			<fileNamePattern>logs/app-%d{yyyy-MM}.%i.log</fileNamePattern>
 			<!-- each file should be at most 10MB, keep 200 files worth of history, but at most 2GB -->
 			<maxFileSize>5MB</maxFileSize>
 			<maxHistory>200</maxHistory>
