@@ -21,11 +21,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.security.Principal;
 import java.util.Random;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -39,22 +41,28 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class DTLSContextTest {
 
-	static final int DEFAULT_MAX_FRAGMENT_LENGTH = 16384; //2^14 as defined in DTLS 1.2 spec
+	// 2^14 as defined in DTLS 1.2 spec
+	static final int DEFAULT_MAX_FRAGMENT_LENGTH = 16384;
+
+	public static final Principal PRINCIPAL1 = new PreSharedKeyIdentity("test1");
+	public static final Principal PRINCIPAL2 = new PreSharedKeyIdentity("test2");
+
 	private static final Random RANDOM = new Random();
 	DTLSContext context;
 
 	@Before
 	public void setUp() throws Exception {
-		context = newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.X_509);
+		context = newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.X_509,
+				PRINCIPAL1);
 	}
 
-	@Test (expected = IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testRecordFromPreviousEpochIsDiscarded() {
 		context.setReadEpoch(1);
 		context.isRecordProcessable(0, 15, 0);
 	}
 
-	@Test (expected = IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testRecordFromFutureEpochIsDiscarded() {
 		context.setReadEpoch(1);
 		context.isRecordProcessable(2, 15, 0);
@@ -64,7 +72,7 @@ public class DTLSContextTest {
 	public void testRecordShiftsReceiveWindow() {
 		int epoch = 0;
 		context.setReadEpoch(epoch);
-		//session.markRecordAsRead(epoch, 0);
+		// session.markRecordAsRead(epoch, 0);
 		context.markRecordAsRead(epoch, 2);
 		assertTrue(context.isRecordProcessable(0, 0, 0));
 		assertTrue(context.isRecordProcessable(0, 1, 0));
@@ -86,7 +94,7 @@ public class DTLSContextTest {
 	public void testRecordShiftsReceiveWindowUsingWindowFilter() {
 		int epoch = 0;
 		context.setReadEpoch(epoch);
-		//session.markRecordAsRead(epoch, 0);
+		// session.markRecordAsRead(epoch, 0);
 		context.markRecordAsRead(epoch, 2);
 		assertTrue(context.isRecordProcessable(0, 0, -1));
 		assertTrue(context.isRecordProcessable(0, 1, -1));
@@ -110,7 +118,7 @@ public class DTLSContextTest {
 	public void testRecordShiftsReceiveWindowUsingExtendedWindowFilter() {
 		int epoch = 0;
 		context.setReadEpoch(epoch);
-		//session.markRecordAsRead(epoch, 0);
+		// session.markRecordAsRead(epoch, 0);
 		context.markRecordAsRead(epoch, 2);
 		assertTrue(context.isRecordProcessable(0, 0, 8));
 		assertTrue(context.isRecordProcessable(0, 1, 8));
@@ -173,14 +181,14 @@ public class DTLSContextTest {
 		assertFalse(context.markRecordAsRead(epoch, 2));
 	}
 
-	@Test (expected = IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testHigherEpochFails() {
 		int epoch = context.getReadEpoch();
 		context.markRecordAsRead(epoch, 2);
 		context.markRecordAsRead(epoch + 1, 0);
 	}
 
-	@Test (expected = IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testLowerEpochFails() {
 		int epoch = context.getReadEpoch();
 		context.markRecordAsRead(epoch, 0);
@@ -189,9 +197,11 @@ public class DTLSContextTest {
 
 	@Test
 	public void testConstructorEnforcesMaxSequenceNo() {
-		context = new DTLSContext(Record.MAX_SEQUENCE_NO, false); // intended to succeed
+		// intended to succeed
+		context = new DTLSContext(Record.MAX_SEQUENCE_NO, false);
 		try {
-			context = new DTLSContext(Record.MAX_SEQUENCE_NO + 1, false); // intended to fail
+			// intended to fail
+			context = new DTLSContext(Record.MAX_SEQUENCE_NO + 1, false);
 			fail("DTLSSession constructor should have refused initial sequence number > 2^48 - 1");
 		} catch (IllegalArgumentException e) {
 			// ok
@@ -205,7 +215,8 @@ public class DTLSContextTest {
 		context.getNextSequenceNumber(); // should throw exception
 	}
 
-	public static DTLSContext newEstablishedServerDtlsContext(CipherSuite cipherSuite, CertificateType type) {
+	public static DTLSContext newEstablishedServerDtlsContext(CipherSuite cipherSuite, CertificateType type,
+			Principal principal) {
 		SecretKey macKey = null;
 		if (cipherSuite.getMacKeyLength() > 0) {
 			macKey = new SecretKeySpec(getRandomBytes(cipherSuite.getMacKeyLength()), "AES");
@@ -214,6 +225,7 @@ public class DTLSContextTest {
 		SecretIvParameterSpec iv = new SecretIvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
 
 		DTLSSession session = DTLSSessionTest.newEstablishedServerSession(cipherSuite, type);
+		session.setPeerIdentity(principal);
 		DTLSContext context = new DTLSContext(0, false);
 		context.getSession().set(session);
 		SecretUtil.destroy(session);
@@ -236,5 +248,5 @@ public class DTLSContextTest {
 		RANDOM.nextBytes(result);
 		return result;
 	}
-	
+
 }
