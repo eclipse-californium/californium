@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.californium.cloud.http.EtagGenerator;
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
 import org.eclipse.californium.cloud.s3.util.DeviceGroupProvider;
