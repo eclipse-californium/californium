@@ -594,8 +594,12 @@ public class HttpService {
 					if (reload) {
 						load();
 					}
-					httpCode = 200;
-					payload = data;
+					if (EtagGenerator.setEtag(httpExchange, data)) {
+						httpCode = 304;
+					} else {
+						httpCode = 200;
+						payload = data;
+					}
 					contentType = this.contentType;
 					if (reload) {
 						httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");

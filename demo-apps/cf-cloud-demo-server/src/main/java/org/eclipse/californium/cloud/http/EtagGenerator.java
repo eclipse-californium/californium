@@ -12,7 +12,7 @@
  * 
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  ********************************************************************************/
-package org.eclipse.californium.cloud.s3.http;
+package org.eclipse.californium.cloud.http;
 
 import java.security.MessageDigest;
 import java.util.List;

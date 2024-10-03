@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
+import org.eclipse.californium.cloud.http.EtagGenerator;
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.http.HttpService.CoapProxyHandler;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;

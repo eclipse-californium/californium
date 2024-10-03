@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 0.23.0, 2. October 2024";
+const version = "Version 0.24.0, 7. October 2024";
 
 let timeShift = 0;
 
@@ -2342,6 +2342,7 @@ class UiManager {
 		this.footerView = getElement(this.createFooter());
 		this.progressView = this.footerView.querySelector('#loadview')
 		this.errorView = this.footerView.querySelector('#error')
+		this.versionView = this.footerView.querySelector('#version')
 
 		this.view = getElement(this.createTabView());
 
@@ -2350,6 +2351,16 @@ class UiManager {
 		this.ui.parentElement.style.minWidth = `${this.width}px`;
 		this.ui.replaceChildren(this.view);
 		this.ui.insertAdjacentElement('afterend', this.footerView);
+
+		const scripts = document.querySelectorAll("script[src]");
+		if (scripts) {
+			this.sources = new Map();
+			scripts.forEach((s) => {
+				console.log("Add URL " + s.src);
+				this.sources.set(s.src, "")
+			});
+			this.checkSources();
+		}
 	}
 
 	resetConfig() {
@@ -2618,6 +2629,7 @@ class UiManager {
 							console.log("timeshift " + timeShift);
 						}
 					}
+					this.checkSources();
 					console.log(login);
 					const json = login.json;
 					for (let item in json) {
@@ -3200,6 +3212,41 @@ class UiManager {
 			this.titleView.innerText = "Error:";
 			const view = getElement(this.errorPageView(error));
 			this.ui.replaceChildren(view);
+		}
+	}
+
+	async checkSources() {
+		if (this.sources && this.versionView) {
+			this.sources.forEach((etag, url, map) => {
+				const request = new Request(url, {
+					method: 'GET',
+					headers: {
+					},
+					mode: 'cors',
+					cache: 'no-cache',
+				});
+				if (etag) {
+					request.headers.set("If-None-Match", etag);
+				}
+				fetch(request).then((response) => {
+					const newEtag = response.headers.get("etag");
+					if (newEtag) {
+						if (etag) {
+							if (etag != newEtag) {
+								console.log("ETAG '" + etag + "' != '" + newEtag + "'");
+								this.versionView.innerText = version + " (Please refresh page, update available!)"
+								this.versionView = null;
+							} else {
+								console.log("ETAG '" + newEtag + "' not changed!");
+							}
+						} else {
+							console.log("ETAG '" + newEtag + "' " + url)
+							map.set(url, newEtag);
+						}
+					}
+				});
+
+			})
 		}
 	}
 }
