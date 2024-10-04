@@ -2,6 +2,8 @@
 
 # Californium (Cf) - Cloud CoAP-S3-Proxy Server
 
+## SCADA (supervisory control and data acquisition)
+
 ## - Reliable - Efficient - Encrypted -
 
 ![coap-s3-proxy](./docs/coap-s3.svg)
@@ -566,7 +568,7 @@ A device POST its data to the "coaps://${host}/devices". Using query parameters 
 
 - **CUSTOM_OPTION_TIME** 65000: in request, it contains the device time in milliseconds since 1970.1.1. If {@code 0}, the device has no system time yet. In response it contains the system time, also in milliseconds since 1970.1.1 of the server, if that differs for more than 5s. Intended to sync the device time with the server time, if RTT is small enough and no retransmission is used.
 
-- **CUSTOM_OPTION_INTERVAL** 65012: used in request, contains the expected sedn interval in seconds. If available, used to detect device with currently missing messages.
+- **CUSTOM_OPTION_INTERVAL** 65012: used in request. It contains the time in seconds to the next regular message (send interval). If available, used to detect device with missing regular messages.
 
 Examples using coap-client of libcoap:
 
