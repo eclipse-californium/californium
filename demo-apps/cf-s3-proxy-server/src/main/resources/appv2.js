@@ -230,7 +230,7 @@ class S3Request {
 
 	static async hmac256(key, data) {
 		const hmackey = await window.crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-		return await window.crypto.subtle.sign("HMAC", hmackey, new TextEncoder().encode(data));
+		return window.crypto.subtle.sign("HMAC", hmackey, new TextEncoder().encode(data));
 	}
 
 	static isSignableHeader(key) {
@@ -338,9 +338,9 @@ class S3Request {
 
 	async getSigningKey(date) {
 		if (this.login) {
-			const key = this.login[date];
-			if (key) {
-				return key;
+			const signKey = this.login[date];
+			if (signKey) {
+				return signKey;
 			}
 		}
 		if (!this.key) {
@@ -353,13 +353,26 @@ class S3Request {
 			error.login = 0;
 			throw error;
 		}
-		const key = new TextEncoder().encode("AWS4" + this.key);
-		const keyDate = await S3Request.hmac256(key, date);
-		const keyRegion = await S3Request.hmac256(keyDate, this.region);
-		const keyService = await S3Request.hmac256(keyRegion, "s3");
-		this.login = new Object();
-		this.login[date] = await S3Request.hmac256(keyService, "aws4_request")
-		return this.login[date];
+		let calc = this.calculate;
+		if (!calc) {
+			this.calculate = new Promise((resolve) => {
+				const key = new TextEncoder().encode("AWS4" + this.key);
+				S3Request.hmac256(key, date).
+					then((keyDate) => S3Request.hmac256(keyDate, this.region)).
+					then((keyRegion) => S3Request.hmac256(keyRegion, "s3")).
+					then((keyService) => S3Request.hmac256(keyService, "aws4_request")).
+					then((signKey) => {
+						const login = new Object();
+						login[date] = signKey;
+						this.login = login;
+						resolve(signKey);
+					});
+			});
+			calc = this.calculate;
+		}
+		const skey = await calc;
+		this.calculate = null;
+		return skey;
 	}
 
 	async signedRequest(request, body) {
