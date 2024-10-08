@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 0.24.0, 7. October 2024";
+const version = "Version 0.24.0, 8. October 2024";
 
 let timeShift = 0;
 
@@ -2088,7 +2088,6 @@ class UiList {
 		const previousList = this.previousList;
 		const list = this.currentList;
 		const now = new Date(Date.now() - timeShift).toUTCString();
-		function find(key) { return previousList.find((dev) => dev.key == key) };
 		const sort = this.position ? "tb1d" : "tb1";
 		const nosort = this.position ? "tb2d" : "tb2";
 		let cols = 5;
@@ -2138,7 +2137,7 @@ class UiList {
 			let mark = "";
 			let prev = null;
 			if (previousList) {
-				prev = find(item.key);
+				const prev = previousList.find((dev) => dev.key == item.key);
 				if (prev) {
 					if (item.updated) {
 						mark = "*";

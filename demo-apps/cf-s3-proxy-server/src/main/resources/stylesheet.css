@@ -97,7 +97,7 @@
 }
 
 #devicelist tr.changed {
-	background-color: lightyellow;
+	background-color: LightYellow;
 }
 
 #devicelist tr.new {

@@ -2694,6 +2694,10 @@ class UiList {
 		return compareItem(dev1.lastModifiedDateTime, dev2.lastModifiedDateTime);
 	}
 
+	cmpState(dev1, dev2) {
+		return compareItem(this.getViewState(dev1).order, this.getViewState(dev2).order);
+	}
+
 	cmpPdn(dev1, dev2) {
 		return compareItem(dev1.getDetail("pdn"), dev2.getDetail("pdn"));
 	}
@@ -2724,7 +2728,7 @@ class UiList {
 		if (this.position) {
 			return false;
 		}
-		const cmp = this[mode];
+		const cmp = this[mode].bind(this);
 		if (this.getSortDirection(mode)) {
 			this.currentSortFn = function(item1, item2) { return cmp(item2, item1); }
 		} else {
@@ -2752,13 +2756,10 @@ class UiList {
 	}
 
 	view(groups, details) {
-		const previousList = this.previousList;
 		const list = this.currentList;
 		const now = Date.now() - timeShift;
 		const nowDateTime = new Date(now).toUTCString();
-		function find(key) { return previousList.find((dev) => dev.key == key) };
 		const sort = this.position ? "tb1d" : "tb1";
-		const nosort = this.position ? "tb2d" : "tb2";
 		let cols = 5;
 
 		let page =
@@ -2768,7 +2769,7 @@ class UiList {
 <table><thead><tr>
 <th colspan='2'><button class='${sort}' onclick='ui.onClickSortList("cmpLabel")'>Device</button></th>
 <th colspan='2'><button class='${sort}' onclick='ui.onClickSortList("cmpLastUpdate")'>Last Update</button></th>
-<th width='8em'><button class='${nosort}'>&nbsp;</button></th>`;
+<th width='8em'><button class='${sort}' onclick='ui.onClickSortList("cmpState")'>&nbsp;</button></th>`;
 		if (details) {
 			function button(cmp, label) {
 				return `<th><button class='${sort}' onclick='ui.onClickSortList("${cmp}")'>${label}</button></th>\n`;
@@ -2803,34 +2804,10 @@ class UiList {
 		for (; index < list.length && index < end; ++index) {
 			const device = list.at(index);
 			const info = device.getDetails();
-			let cls = "";
-			let mark = "";
-			if (previousList) {
-				const prev = find(device.key);
-				if (prev) {
-					if (device.updated) {
-						mark = "*";
-						cls = "class='changed'";
-					}
-				} else {
-					mark = "+";
-					cls = "class='new'";
-				}
-			}
-			if (this.currentTime && device.lastModifiedTime && info && info.interval) {
-				if (device.lastModifiedTime + (info.interval * 10000) <= this.currentTime) {
-					mark = "!";
-				} else if (device.lastModifiedTime + (info.interval * 2000) + 30000 <= this.currentTime) {
-					mark = "!!";
-					cls = "class='miss'";
-				} else if (device.lastModifiedTime + (info.interval * 1000) + 30000 <= this.currentTime) {
-					mark = "!";
-					cls = "class='warn'";
-				}
-			}
-			page += `<tr ${cls}><td colspan='2'><button class='tb1' onclick='ui.loadDeviceData("${device.key}")'>${device.label}</button></td>`;
+			const viewState = this.getViewState(device);
+			page += `<tr ${viewState.cls}><td colspan='2'><button class='tb1' onclick='ui.loadDeviceData("${device.key}")'>${device.label}</button></td>`;
 			const lm = device.lastModifiedDateTime ?? "";
-			page += `<td colspan='2'>${lm}</td><td>${mark}</td>`;
+			page += `<td colspan='2'>${lm}</td><td>${viewState.mark}</td>`;
 			if (details && info) {
 				if (details.provider) {
 					page += `<td>${info.pdn}</td>`;
@@ -2869,6 +2846,51 @@ class UiList {
 		page += `</tbody></table></div>\n`;
 
 		return page;
+	}
+
+	getViewState(device) {
+		const state = {
+			mark: "",
+			cls: "",
+			order: 0
+		};
+
+		const info = device.getDetails();
+		if (this.currentTime && device.lastModifiedTime && info && info.interval) {
+			const intervalMillis = info.interval * 1000;
+			const extraMillis = 30000;
+			const delta = this.currentTime - device.lastModifiedTime;
+			if ((intervalMillis * 10) <= delta) {
+				state.mark = "-";
+				state.cls = "";
+				state.order = -1;
+			} else if ((intervalMillis * 2) + extraMillis <= delta) {
+				state.mark = "!!";
+				state.cls = "class='miss'";
+				state.order = 100;
+			} else if (intervalMillis + extraMillis <= delta) {
+				state.mark = "!";
+				state.cls = "class='warn'";
+				state.order = 90;
+			}
+		}
+
+		if (!state.order && this.previousList) {
+			const prev = this.previousList.find((dev) => dev.key == device.key);
+			if (prev) {
+				if (device.updated) {
+					state.mark = "*";
+					state.cls = "class='changed'";
+					state.order = 70;
+				}
+			} else {
+				state.mark = "+";
+				state.cls = "class='new'";
+				state.order = 80;
+			}
+		}
+
+		return state;
 	}
 }
 
