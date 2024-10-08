@@ -347,8 +347,8 @@ Example:
 FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/20:49:53.249
 FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/21:49:47.530
 FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/22:49:47.551
-FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-09-24
-FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-10-01
+FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-09-22Z
+FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-09-29+2
 FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-24T14:42:47.950Z
 FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-25T00:37:59.798Z
 FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-26T00:11:02.989Z
@@ -363,7 +363,7 @@ In order to have the permission for accessing that S3 device data, so called api
 | S3-coap-proxy-key | read/write |
 | S3-web-user-key | read only |
 
-The `S3-coap-proxy-key` is used by the proxy to forward the data from the device to the S3 bucket and the configuration for the device from https to the s3 bucket. It is also used to read the device data and configuration from the S3 bucket back. Similar the `S3-web-user-key` with read only permissions are used by the web application for limited read access directly to S3.
+The `S3-coap-proxy-key` is used by the proxy to forward the data from the device to the S3 bucket and the configuration for the device from https to the s3 bucket. It is also used to read the device data and configuration from the S3 bucket back. It is used to accumulate the device data into `arch-${date}`. As long as not all days for an archive are available, the number of the current days is appended with `arch-${date}+${days}`. The next run will the create a new arch file with one more day, or if ready, with `arch-${date}Z`. The previous archive with `arch-${date}+${days}` will be deleted, when the new one is successfully written. Similar the `S3-web-user-key` with read only permissions are used by the web application for limited read access directly to S3.
 
 To create and prepare the S3 bucket, [s3cmd](https://s3tools.org/s3cmd) is used. This requires also some api-key in a `.s3cfg` file, here we need also the permission to create a S3 bucket.
 
