@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 2 0.24.0, 7. October 2024";
+const version = "Version 2 0.24.0, 8. October 2024";
 
 let timeShift = 0;
 
@@ -2627,6 +2627,7 @@ class UiList {
 
 	reset() {
 		this.currentList = null;
+		this.currentTime = 0;
 		this.previousList = null;
 		this.deviceListEnd = 0;
 		this.position = 0;
@@ -2637,6 +2638,7 @@ class UiList {
 
 	setDeviceList(list) {
 		if (list) {
+			this.currentTime = Date.now();
 			this.previousList = this.currentList;
 			this.currentList = list;
 			if (this.currentSortFn) {
@@ -2655,6 +2657,7 @@ class UiList {
 			this.currentList = null;
 			this.deviceListEnd = 0;
 			this.position = 0;
+			this.currentTime = 0;
 		}
 		this.update = true;
 	}
@@ -2814,13 +2817,13 @@ class UiList {
 					cls = "class='new'";
 				}
 			}
-			if (device.lastModifiedTime && info && info.interval) {
-				if (device.lastModifiedTime + (info.interval * 10000) <= now) {
+			if (this.currentTime && device.lastModifiedTime && info && info.interval) {
+				if (device.lastModifiedTime + (info.interval * 10000) <= this.currentTime) {
 					mark = "!";
-				} else if (device.lastModifiedTime + (info.interval * 2000) + 30000 <= now) {
+				} else if (device.lastModifiedTime + (info.interval * 2000) + 30000 <= this.currentTime) {
 					mark = "!!";
 					cls = "class='miss'";
-				} else if (device.lastModifiedTime + (info.interval * 1000) + 30000 <= now) {
+				} else if (device.lastModifiedTime + (info.interval * 1000) + 30000 <= this.currentTime) {
 					mark = "!";
 					cls = "class='warn'";
 				}
