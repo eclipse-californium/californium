@@ -430,18 +430,6 @@ public class MultiPskFileStore implements AdvancedPskStore, Destroyable {
 	}
 
 	/**
-	 * Set algorithm and key size.
-	 * 
-	 * @param cipherAlgorithm cipher algorithm
-	 * @param keySizeBits key size in bits
-	 * @deprecated use {@link #setWriteCipher(String, int)} instead
-	 */
-	@Deprecated
-	public void setCipher(String cipherAlgorithm, int keySizeBits) {
-		encryptionUtility.setCipher(cipherAlgorithm, keySizeBits);
-	}
-
-	/**
 	 * Set cipher to default cipher.
 	 * 
 	 * @see EncryptedStreamUtil#setDefaultWriteCipher()

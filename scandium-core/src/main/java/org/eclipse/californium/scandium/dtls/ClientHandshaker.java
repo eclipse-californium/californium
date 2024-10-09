@@ -252,14 +252,6 @@ public class ClientHandshaker extends Handshaker {
 	protected final List<CertificateType> supportedServerCertificateTypes;
 
 	/**
-	 * Use the deprecated CID extension before version 9 of <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-	 * target="_blank">Draft dtls-connection-id</a>.
-	 * 
-	 * @since 3.0
-	 */
-	private final Integer useDeprecatedCid;
-	/**
 	 * Verify the server certificate's subject.
 	 * 
 	 * @see DtlsConfig#DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT
@@ -290,7 +282,6 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws NullPointerException if any of the provided parameter is
 	 *             {@code null}, except the hostname.
 	 */
-	@SuppressWarnings("deprecation")
 	public ClientHandshaker(String hostname, RecordLayer recordLayer, ScheduledExecutorService timer,
 			Connection connection, DtlsConnectorConfig config, boolean probe) {
 		super(0, 0, recordLayer, timer, connection, config);
@@ -313,7 +304,6 @@ public class ClientHandshaker extends Handshaker {
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAlgorithms = config.getSupportedSignatureAlgorithms();
-		this.useDeprecatedCid = config.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
 		this.verifyServerCertificatesSubject = config.get(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
 		this.probe = probe;
 		getSession().setHostName(hostname);
@@ -973,13 +963,7 @@ public class ClientHandshaker extends Handshaker {
 				// use empty cid
 				connectionId = ConnectionId.EMPTY;
 			}
-			ExtensionType cidType;
-			if (useDeprecatedCid  != null) {
-				cidType = ExtensionType.getExtensionTypeById(useDeprecatedCid);
-			} else {
-				cidType = ExtensionType.CONNECTION_ID;
-			}
-			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId, cidType);
+			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId, ExtensionType.CONNECTION_ID);
 			helloMessage.addExtension(extension);
 		}
 	}

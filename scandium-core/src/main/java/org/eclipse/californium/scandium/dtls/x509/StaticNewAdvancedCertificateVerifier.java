@@ -65,11 +65,8 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
+	private final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	/**
 	 * Trusted x509 certificates.
