@@ -38,9 +38,11 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
+import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -476,13 +478,15 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 
 		public ClusterManagementDtlsConnector(DtlsConnectorConfig configuration) {
 			super(configuration);
-		}
+			addSessionListener(new SessionAdapter() {
 
-		@Override
-		protected void onInitializeHandshaker(final Handshaker handshaker) {
-			if (useClusterMac) {
-				handshaker.setGenerateClusterMacKeys(useClusterMac);
-			}
+				@Override
+				public void handshakeStarted(Handshaker handshaker) throws HandshakeException {
+					if (useClusterMac) {
+						handshaker.setGenerateClusterMacKeys(useClusterMac);
+					}
+				}
+			});
 		}
 
 		@Override

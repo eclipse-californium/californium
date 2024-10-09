@@ -161,28 +161,6 @@ public final class DTLSContext implements Destroyable {
 	 *            <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1"
 	 *            target="_blank"> section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for
 	 *            details)
-	 * @throws IllegalArgumentException if sequence number is out of the valid
-	 *             range {@code [0...2^48)}.
-	 *             @deprecated use {@link #DTLSContext(long, boolean)} instead.
-	 */
-	@Deprecated
-	DTLSContext(long initialRecordSequenceNo) {
-		this(initialRecordSequenceNo, false);
-	}
-
-	/**
-	 * Creates a new DTLS context initialized with a given record sequence
-	 * number.
-	 *
-	 * @param initialRecordSequenceNo the initial record sequence number to
-	 *            start from in epoch 0. When starting a new handshake with a
-	 *            client that has successfully exchanged a cookie with the
-	 *            server, the sequence number to use in the SERVER_HELLO record
-	 *            MUST be the same as the one from the successfully validated
-	 *            CLIENT_HELLO record (see
-	 *            <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1"
-	 *            target="_blank"> section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for
-	 *            details)
 	 * @param supportExport {@code true}, if
 	 *            {@link DtlsConfig#DTLS_SUPPORT_KEY_MATERIAL_EXPORT} is
 	 *            enabled.

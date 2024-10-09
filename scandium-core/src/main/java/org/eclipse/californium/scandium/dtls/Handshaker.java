@@ -129,11 +129,8 @@ public abstract class Handshaker implements Destroyable {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
+	private final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	protected Random clientRandom;
 	protected Random serverRandom;

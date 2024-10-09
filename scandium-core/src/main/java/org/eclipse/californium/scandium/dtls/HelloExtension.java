@@ -24,8 +24,6 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An abstract class representing the functionality for all possible defined
@@ -51,13 +49,6 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 public abstract class HelloExtension {
-	/**
-	 * The logger.
-	 * 
-	 * @deprecated to be removed.
-	 */
-	@Deprecated
-	protected static final Logger LOGGER = LoggerFactory.getLogger(HelloExtension.class);
 
 	public static final int TYPE_BITS = 16;
 

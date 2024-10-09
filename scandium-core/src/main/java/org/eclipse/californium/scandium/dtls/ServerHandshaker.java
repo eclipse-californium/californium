@@ -151,8 +151,6 @@ public class ServerHandshaker extends Handshaker {
 
 	/** Is the client's address verified? */
 	private final boolean useHelloVerifyRequest;
-	/** Is the client's address verified for PSK? */
-	private final boolean useHelloVerifyRequestForPsk;
 
 	/**
 	 * Cipher suite selector.
@@ -208,15 +206,6 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private final List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms;
 
-	/**
-	 * Support the deprecated CID extension before version 9 of <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-	 * target="_blank">Draft dtls-connection-id</a>.
-	 * 
-	 * @since 3.0
-	 */
-	private final boolean supportDeprecatedCid;
-
 	private CipherSuiteParameters cipherSuiteParameters;
 
 	/**
@@ -258,7 +247,6 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws NullPointerException if any of the provided parameter is
 	 *             {@code null}
 	 */
-	@SuppressWarnings("deprecation")
 	public ServerHandshaker(long initialRecordSequenceNo, int initialMessageSequenceNo, RecordLayer recordLayer,
 			ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
 		super(initialRecordSequenceNo, initialMessageSequenceNo, recordLayer, timer, connection, config);
@@ -271,14 +259,12 @@ public class ServerHandshaker extends Handshaker {
 		this.clientAuthenticationMode = config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE);
 		this.useSessionId = config.get(DtlsConfig.DTLS_SERVER_USE_SESSION_ID);
 		this.useHelloVerifyRequest = config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST);
-		this.useHelloVerifyRequestForPsk = this.useHelloVerifyRequest && config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK);
 
 		// the server handshake uses the config with exchanged roles!
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAndHashAlgorithms = config.getSupportedSignatureAlgorithms();
 		this.supportedCertificateKeyAlgorithms = config.getSupportedCertificateKeyAlgorithm();
-		this.supportDeprecatedCid = config.get(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID);
 		setExpectedStates(CLIENT_HELLO);
 	}
 
@@ -510,7 +496,7 @@ public class ServerHandshaker extends Handshaker {
 			throw new HandshakeException("Client does not propose a common cipher suite",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
-		if (useHelloVerifyRequest && !useHelloVerifyRequestForPsk && !clientHello.hasCookie()) {
+		if (useHelloVerifyRequest && !clientHello.hasCookie()) {
 			SessionId sessionId = getSession().getSessionIdentifier();
 			if (sessionId.isEmpty() || !sessionId.equals(clientHello.getSessionId())) {
 				// no cookie, no resumption => only PSK to reduce amplification
@@ -905,7 +891,7 @@ public class ServerHandshaker extends Handshaker {
 			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
 			if (connectionIdExtension != null) {
 				boolean useDeprecatedCid = connectionIdExtension.useDeprecatedCid();
-				if (!useDeprecatedCid || supportDeprecatedCid) {
+				if (!useDeprecatedCid) {
 					ConnectionId connectionId = getReadConnectionId();
 					ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId,
 							connectionIdExtension.getType());

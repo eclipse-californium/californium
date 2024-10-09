@@ -592,28 +592,6 @@ public class DtlsConnectorConfigTest {
 		StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates);
 	}
 
-	@SuppressWarnings("deprecation")
-	@Test
-	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite() {
-		exception.expect(IllegalStateException.class);
-		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST disabled for PSK, requires at least one PSK cipher suite!"));
-		builder.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, false);
-		builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build());
-		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()));
-		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
-	}
-
-	@SuppressWarnings("deprecation")
-	@Test
-	public void testDisableHelloVerifyRequestForPskWithoutPskCiperSuite2() {
-		exception.expect(IllegalStateException.class);
-		exception.expectMessage(containsString("HELLO_VERIFY_REQUEST disabled"));
-		builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()));
-		builder.set(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, false);
-		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
-		builder.build();
-	}
-
 	@Test
 	public void testDisableHelloVerifyRequestWithoutPskCiperSuite() {
 		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);

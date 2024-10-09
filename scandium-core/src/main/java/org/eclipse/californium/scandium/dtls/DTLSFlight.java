@@ -48,7 +48,6 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.slf4j.Logger;
@@ -69,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * Scandium offers also the possibility to stop the retransmission with
  * receiving the first response message instead of the complete flight. That is
  * currently configurable using
- * {@link DtlsConnectorConfig#useEarlyStopRetransmission()}. Only for the flight
+ * {@link DtlsConfig#DTLS_USE_EARLY_STOP_RETRANSMISSION}. Only for the flight
  * before the very last flight of a handshake, it must be ensured, that the
  * retransmission is only stopped, after that very last flight is received
  * completely. Though the very last flight in DTLS 1.2 is always a flight with
