@@ -2109,7 +2109,6 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 
 				// application data may be deferred again until the session is
 				// really established
-				record.setDeprecatedMac(context.useDeprecatedCid());
 				record.decodeFragment(context.getReadState());
 			}
 

@@ -723,7 +723,8 @@ public final class DtlsConfig {
 	 *      Peer Address Update</a>
 	 */
 	public static final BooleanDefinition DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS = new BooleanDefinition(
-			MODULE + "UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS", "DTLS update address using CID on newer records.",
+			MODULE + "UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS",
+			"DTLS update address using CID only on newer records. Without any CID record may update the address.",
 			true);
 
 	/**
