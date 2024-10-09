@@ -144,11 +144,8 @@ public class SslContextUtil {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	public static final Logger LOGGER = LoggerFactory.getLogger(SslContextUtil.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(SslContextUtil.class);
 
 	/**
 	 * Scheme for key store URI. Used to load the key stores from classpath.
