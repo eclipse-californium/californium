@@ -5,9 +5,8 @@
 
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
-		<artifactId>cf-bom</artifactId>
+		<artifactId>demo-apps</artifactId>
 		<version>4.0.0-SNAPSHOT</version>
-		<relativePath>../../bom</relativePath>
 	</parent>
 	<artifactId>cf-s3-proxy-server</artifactId>
 	<packaging>jar</packaging>
@@ -22,9 +21,6 @@
 		<maven.javadoc.skip>false</maven.javadoc.skip>
 		<animal.sniffer.skip>true</animal.sniffer.skip>
 		<revapi.skip>true</revapi.skip>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.build.javaVersion>1.8</project.build.javaVersion>
-		<maven.compiler.release>8</maven.compiler.release>
 		<aws.sdk.version>2.27.5</aws.sdk.version>
 	</properties>
 

@@ -108,8 +108,8 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.build.javaVersion>1.7</project.build.javaVersion>
-		<maven.compiler.release>7</maven.compiler.release>
+		<project.build.javaVersion>1.8</project.build.javaVersion>
+		<maven.compiler.release>8</maven.compiler.release>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 		<javadoc.doclint>none</javadoc.doclint>
 		<revapi.previous.version>RELEASE</revapi.previous.version>
@@ -258,8 +258,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.22.2</version>
-					<!-- version 3.1.2 requires java 8 -->
+					<version>3.5.1</version>
 					<configuration>
 						<useSystemClassLoader>false</useSystemClassLoader>
 					</configuration>
@@ -351,13 +350,12 @@
 				<plugin>
 					<groupId>org.eclipse.cbi.maven.plugins</groupId>
 					<artifactId>eclipse-jarsigner-plugin</artifactId>
-					<version>1.3.5</version>
-					<!-- version 1.4.2 requires java 8 -->
+					<version>1.5.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>animal-sniffer-maven-plugin</artifactId>
-					<version>1.23</version>
+					<version>1.24</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
@@ -559,6 +557,7 @@
 										version!
 									</justification>
 								</item>
+								<!--
 								<item>
 									<regex>true</regex>
 									<code>java.class.externalClassExposedInAPI</code>
@@ -567,6 +566,7 @@
 										Californium uses classes of slf4j in some case with scope protected.
 									</justification>
 								</item>
+								-->
 								<item>
 									<code>java.field.enumConstantOrderChanged</code>
 									<class>org.eclipse.californium.scandium.dtls.cipher.CipherSuite</class>
