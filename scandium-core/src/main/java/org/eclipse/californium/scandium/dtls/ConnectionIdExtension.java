@@ -32,7 +32,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * used as extension ID along with a different calculated MAC.
  * 
  * @see ExtensionType#CONNECTION_ID
- * @see ExtensionType#CONNECTION_ID_DEPRECATED
  */
 public final class ConnectionIdExtension extends HelloExtension {
 
@@ -51,12 +50,9 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension.
 	 * 
 	 * @param id connection id
-	 * @param type {@link ExtensionType#CONNECTION_ID}, or a type, with that as
-	 *            {@link ExtensionType#getReplacementType()}.
-	 * @since 3.0 (added parameter deprecatedCid)
 	 */
-	private ConnectionIdExtension(ConnectionId id, ExtensionType type) {
-		super(type);
+	private ConnectionIdExtension(ConnectionId id) {
+		super(ExtensionType.CONNECTION_ID);
 		this.id = id;
 	}
 
@@ -67,24 +63,6 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 */
 	public ConnectionId getConnectionId() {
 		return id;
-	}
-
-	/**
-	 * Usage of deprecated definitions.
-	 * 
-	 * During the specification of
-	 * <a href= "https://www.rfc-editor.org/rfc/rfc9146.html" target
-	 * ="_blank">RFC 9146, Connection Identifier for DTLS 1.2</a> a deprecated
-	 * MAC calculation was used along with a also deprecated IANA code point
-	 * (53) was used before version 09. To support the deprecated version as
-	 * well, the return value indicates, which MAC variant must be used.
-	 * 
-	 * @return {@code true}, if not the current extension ID {@code 54} along
-	 *         with the new MAC calculation is used, {@code false}, otherwise.
-	 * @since 3.0
-	 */
-	public boolean useDeprecatedCid() {
-		return getType() != ExtensionType.CONNECTION_ID;
 	}
 
 	@Override
@@ -110,59 +88,28 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension from connection id.
 	 * 
 	 * @param cid connection id
-	 * @param type extension type. Must be of type
-	 *            {@link ExtensionType#CONNECTION_ID} or the
-	 *            {@link ExtensionType#getReplacementType()} must be
-	 *            {@link ExtensionType#CONNECTION_ID}.
 	 * @return created connection id extension
-	 * @throws NullPointerException if cid or type is {@code null}
-	 * @throws IllegalArgumentException if type is not
-	 *             {@link ExtensionType#CONNECTION_ID} and
-	 *             {@link ExtensionType#getReplacementType()} is also not
-	 *             {@link ExtensionType#CONNECTION_ID}.
-	 * @since 3.0 (added parameter type to support deprecated cid code points
-	 *        and MAC calculation)
+	 * @throws NullPointerException if cid is {@code null}
 	 */
-	public static ConnectionIdExtension fromConnectionId(ConnectionId cid, ExtensionType type) {
+	public static ConnectionIdExtension fromConnectionId(ConnectionId cid) {
 		if (cid == null) {
 			throw new NullPointerException("cid must not be null!");
 		}
-		if (type == null) {
-			throw new NullPointerException("type must not be null!");
-		}
-		if (type != ExtensionType.CONNECTION_ID && type.getReplacementType() != ExtensionType.CONNECTION_ID) {
-			throw new IllegalArgumentException(type + " type is not supported as Connection ID!");
-		}
-		return new ConnectionIdExtension(cid, type);
+		return new ConnectionIdExtension(cid);
 	}
 
 	/**
 	 * Create connection id extension from extensions data bytes.
 	 * 
 	 * @param extensionDataReader extension data bytes
-	 * @param type extension type. Must be of type
-	 *            {@link ExtensionType#CONNECTION_ID} or the
-	 *            {@link ExtensionType#getReplacementType()} must be
-	 *            {@link ExtensionType#CONNECTION_ID}.
 	 * @return created connection id extension
-	 * @throws NullPointerException if extensionData or type is {@code null}
-	 * @throws IllegalArgumentException if type is not
-	 *             {@link ExtensionType#CONNECTION_ID} and
-	 *             {@link ExtensionType#getReplacementType()} is also not
-	 *             {@link ExtensionType#CONNECTION_ID}.
+	 * @throws NullPointerException if extensionData is {@code null}
 	 * @throws HandshakeException if the extension data could not be decoded
-	 * @since 3.0 (added parameter deprecatedCid)
 	 */
-	public static ConnectionIdExtension fromExtensionDataReader(DatagramReader extensionDataReader, ExtensionType type)
+	public static ConnectionIdExtension fromExtensionDataReader(DatagramReader extensionDataReader)
 			throws HandshakeException {
 		if (extensionDataReader == null) {
 			throw new NullPointerException("cid must not be null!");
-		}
-		if (type == null) {
-			throw new NullPointerException("type must not be null!");
-		}
-		if (type != ExtensionType.CONNECTION_ID && type.getReplacementType() != ExtensionType.CONNECTION_ID) {
-			throw new IllegalArgumentException(type + " type is not supported as Connection ID!");
 		}
 		int availableBytes = extensionDataReader.bitsLeft() / Byte.SIZE;
 		if (availableBytes == 0) {
@@ -178,10 +125,10 @@ public final class ConnectionIdExtension extends HelloExtension {
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 		if (len == 0) {
-			return new ConnectionIdExtension(ConnectionId.EMPTY, type);
+			return new ConnectionIdExtension(ConnectionId.EMPTY);
 		} else {
 			byte[] cid = extensionDataReader.readBytes(len);
-			return new ConnectionIdExtension(new ConnectionId(cid), type);
+			return new ConnectionIdExtension(new ConnectionId(cid));
 		}
 	}
 }

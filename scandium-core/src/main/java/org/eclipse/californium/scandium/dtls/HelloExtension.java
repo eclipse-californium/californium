@@ -194,15 +194,12 @@ public abstract class HelloExtension {
 				extension = ExtendedMasterSecretExtension.fromExtensionDataReader(extensionDataReader);
 				break;
 			case CONNECTION_ID:
-				extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, type);
+				extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader);
 				break;
 			case RENEGOTIATION_INFO:
 				extension = RenegotiationInfoExtension.fromExtensionDataReader(extensionDataReader);
 				break;
 			default:
-				if (type.replacement == ExtensionType.CONNECTION_ID) {
-					extension = ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, type);
-				}
 				break;
 			}
 		}
@@ -345,28 +342,6 @@ public abstract class HelloExtension {
 		CONNECTION_ID(54, "Connection ID"),
 
 		/**
-		 * See <a href= "https://www.rfc-editor.org/rfc/rfc9146.html" target
-		 * ="_blank">RFC 9146, Connection Identifier for DTLS 1.2</a> and
-		 * <a href=
-		 * "https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY"
-		 * target="_blank">IANA code point assignment</a>
-		 * 
-		 * <b>Note:</b> Before version 09 of the specification, the value 53 was
-		 * used for the extension along with a different calculated MAC.
-		 * 
-		 * <b>Note:</b> to support other, proprietary code points, just clone
-		 * this, using the proprietary code points, a different description and
-		 * a different name, e.g.:
-		 * 
-		 * <pre>
-		 * CONNECTION_ID_MEDTLS(254, "Connection ID (mbedtls)", CONNECTION_ID),
-		 * </pre>
-		 * 
-		 * @since 3.0
-		 **/
-		CONNECTION_ID_DEPRECATED(53, "Connection ID (deprecated)", CONNECTION_ID),
-
-		/**
 		 * See <a href="https://www.iana.org/go/rfc5746" target="_blank">RFC
 		 * 5746</a>
 		 **/
@@ -374,17 +349,10 @@ public abstract class HelloExtension {
 
 		private int id;
 		private String name;
-		private ExtensionType replacement;
 
 		ExtensionType(int id, String name) {
 			this.id = id;
 			this.name = name;
-		}
-
-		ExtensionType(int id, String name, ExtensionType replacement) {
-			this.id = id;
-			this.name = name;
-			this.replacement = replacement;
 		}
 
 		/**
@@ -419,17 +387,5 @@ public abstract class HelloExtension {
 			return id;
 		}
 
-		/**
-		 * Get replacement type.
-		 * 
-		 * Only used, if code point are changing during the development of a RFC
-		 * or to support early implementations.
-		 * 
-		 * @return replacement type, or {@code null}, if no such type exists.
-		 * @since 3.0
-		 */
-		public ExtensionType getReplacementType() {
-			return replacement;
-		}
 	}
 }

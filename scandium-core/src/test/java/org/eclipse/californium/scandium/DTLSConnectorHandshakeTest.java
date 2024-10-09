@@ -436,11 +436,10 @@ public class DTLSConnectorHandshakeTest {
 		ConnectorHelper.assertPrincipalHasAdditionalInfo(clientIdentity, KEY_DEVICE_ID, DEVICE_ID);
 	}
 
-	private void assertCidVariant(EndpointContext endpointContext, boolean deprecatedCid, int readCidlength, int writeCidlength) {
+	private void assertCidVariant(EndpointContext endpointContext, int readCidlength, int writeCidlength) {
 		Connection connection = serverHelper.serverConnectionStore.get(endpointContext.getPeerAddress());
 		assertThat(connection, is(notNullValue()));
 		assertThat(connection.getEstablishedDtlsContext(), is(notNullValue()));
-		assertThat(connection.getEstablishedDtlsContext().useDeprecatedCid(), is(deprecatedCid));
 
 		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(notNullValue()));
 		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID).length(), is(readCidlength));
@@ -1183,7 +1182,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertCidVariant(endpointContext, false, 6, 4);
+		assertCidVariant(endpointContext, 6, 4);
 	}
 
 	@Test
@@ -1199,7 +1198,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertCidVariant(endpointContext, false, 6, 0);
+		assertCidVariant(endpointContext, 6, 0);
 	}
 
 	@Test
@@ -1215,7 +1214,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertCidVariant(endpointContext, false, 0, 4);
+		assertCidVariant(endpointContext, 0, 4);
 	}
 
 	@Test
