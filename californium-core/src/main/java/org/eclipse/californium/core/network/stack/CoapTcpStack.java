@@ -96,20 +96,4 @@ public class CoapTcpStack extends BaseCoapStack {
 
 		// make sure the endpoint sets a MessageDeliverer
 	}
-
-	/**
-	 * Creates a new stack using TCP as the transport.
-	 * 
-	 * @param tag logging tag
-	 * @param config The configuration values to use.
-	 * @param outbox The adapter for submitting outbound messages to the
-	 *            transport.
-	 * @deprecated use
-	 *             {@link #CoapTcpStack(String, Configuration, EndpointContextMatcher, Outbox)}
-	 *             instead.
-	 * @since 3.0 (logging tag added and changed parameter to Configuration)
-	 */
-	public CoapTcpStack(String tag, Configuration config, Outbox outbox) {
-		this(tag, config, null, outbox);
-	}
 }

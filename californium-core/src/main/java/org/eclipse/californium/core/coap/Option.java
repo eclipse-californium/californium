@@ -116,30 +116,6 @@ public class Option implements Comparable<Option> {
 	 * Instantiates a new option with the specified option number.
 	 * 
 	 * Note: The value must be set using one of the setters or other
-	 * constructors. Since 3.0, the value will be validated. Using
-	 * {@code Bytes.EMPTY} as default would fail in too many cases.
-	 * 
-	 * @param number the option number
-	 * @throws IllegalArgumentException if option number is not supported by
-	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()}.
-	 * @see #setValue(byte[])
-	 * @see #setStringValue(String)
-	 * @see #setIntegerValue(int)
-	 * @see #setLongValue(long)
-	 * @deprecated use an {@link #Option(OptionDefinition)}
-	 */
-	@Deprecated
-	public Option(int number) {
-		definition = StandardOptionRegistry.getDefaultOptionRegistry().getDefinitionByNumber(number);
-		if (definition == null) {
-			throw new IllegalArgumentException("Unkonwn " + number + " not supported!");
-		}
-	}
-
-	/**
-	 * Instantiates a new option with the specified option number.
-	 * 
-	 * Note: The value must be set using one of the setters or other
 	 * constructors. Using {@code Bytes.EMPTY} as default fails in too many
 	 * cases.
 	 * 
@@ -229,79 +205,6 @@ public class Option implements Comparable<Option> {
 	public Option(IntegerOptionDefinition definition, long value) {
 		this.definition = definition;
 		setLongValue(value);
-	}
-
-	/**
-	 * Instantiates a new option with the specified option number and encodes
-	 * the specified string as option value.
-	 * 
-	 * @param number the number
-	 * @param value the option value as string
-	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if option number is not supported by
-	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()} or
-	 *             the value doesn't match the option definition.
-	 * @since 3.0 validate the value and throws exception on mismatch
-	 * @deprecated use {@link #Option(StringOptionDefinition, String)}
-	 */
-	@Deprecated
-	public Option(int number, String value) {
-		this(number);
-		setStringValue(value);
-	}
-
-	/**
-	 * Instantiates a new option with the specified option number and encodes
-	 * the specified integer as option value.
-	 *
-	 * @param number the option number
-	 * @param val the option value as integer
-	 * @throws IllegalArgumentException if option number is not supported by
-	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()} or
-	 *             the value doesn't match the option definition.
-	 * @since 3.0 validate the value and throws exception on mismatch
-	 * @deprecated use {@link #Option(IntegerOptionDefinition, int)}
-	 */
-	@Deprecated
-	public Option(int number, int val) {
-		this(number);
-		setIntegerValue(val);
-	}
-
-	/**
-	 * Instantiates a new option with the specified option number and encodes
-	 * the specified long as option value.
-	 *
-	 * @param number the option number
-	 * @param val the option value as long
-	 * @throws IllegalArgumentException if option number is not supported by
-	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()} or
-	 *             the value doesn't match the option definition.
-	 * @since 3.0 validate the value and throws exception on mismatch
-	 * @deprecated use {@link #Option(IntegerOptionDefinition, long)}
-	 */
-	@Deprecated
-	public Option(int number, long val) {
-		this(number);
-		setLongValue(val);
-	}
-
-	/**
-	 * Instantiates a new option with an arbitrary byte array as value.
-	 *
-	 * @param number the option number
-	 * @param opaque the option value in bytes
-	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if option number is not supported by
-	 *             {@link StandardOptionRegistry#getDefaultOptionRegistry()} or
-	 *             the value doesn't match the option definition.
-	 * @since 3.0 validate the value and throws exception on mismatch
-	 * @deprecated use {@link #Option(OptionDefinition, byte[])}
-	 */
-	@Deprecated
-	public Option(int number, byte[] opaque) {
-		this(number);
-		setValue(opaque);
 	}
 
 	// Getter and Setter

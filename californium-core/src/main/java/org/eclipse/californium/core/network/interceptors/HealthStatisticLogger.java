@@ -15,9 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.interceptors;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
@@ -82,30 +79,6 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Ma
 	 */
 	public HealthStatisticLogger(String tag, boolean udp) {
 		super(tag);
-		this.udp = udp;
-		init();
-	}
-
-	/**
-	 * Create active health logger.
-	 * 
-	 * {@link #dump()} is called repeated with configurable interval.
-	 * 
-	 * @param tag logging tag
-	 * @param udp {@code true} dump statistic for udp, {@code false}, dump
-	 *            statistic for tcp.
-	 * @param interval interval. {@code 0} to disable active logging.
-	 * @param unit time unit of interval
-	 * @param executor executor executor to schedule active logging.
-	 * @throws NullPointerException if executor is {@code null}
-	 * @since 3.0 (added unit)
-	 * @deprecated use
-	 *             {@link HealthStatisticLogger#HealthStatisticLogger(String, boolean)}
-	 *             instead and call {@link #dump()} externally.
-	 */
-	public HealthStatisticLogger(String tag, boolean udp, long interval, TimeUnit unit,
-			ScheduledExecutorService executor) {
-		super(tag, interval, unit, executor);
 		this.udp = udp;
 		init();
 	}

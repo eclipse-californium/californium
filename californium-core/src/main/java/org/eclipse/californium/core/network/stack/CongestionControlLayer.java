@@ -47,6 +47,7 @@ import org.eclipse.californium.core.network.stack.congestioncontrol.PeakhopperRt
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,9 +122,11 @@ import org.slf4j.LoggerFactory;
 public abstract class CongestionControlLayer extends ReliabilityLayer {
 
 	/**
+	 * LOGGER.
+	 * 
 	 * @since 3.10
 	 */
-	private static final Logger LOG = LoggerFactory.getLogger(CongestionControlLayer.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(CongestionControlLayer.class);
 
 	// An upper limit for the queue size of confirmables
 	// and non-confirmables (separate queues)
@@ -157,7 +160,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	/**
 	 * Statistic logger for congestion.
 	 */
-	private CongestionStatisticLogger statistic;
+	private volatile CongestionStatisticLogger statistic;
 
 	/**
 	 * Constructs a new congestion control layer.
@@ -177,21 +180,29 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		setDithering(false);
 	}
 
-	@Override
-	@SuppressWarnings("deprecation")
-	public void start() {
-		statistic = new CongestionStatisticLogger(tag, 5000, TimeUnit.MILLISECONDS, executor);
-		statistic.start();
+	/**
+	 * Enable statistic logger for congestion control.
+	 * 
+	 * @return statistic logger
+	 * @since 4.0.0
+	 */
+	public CounterStatisticManager enableStatistic() {
+		CongestionStatisticLogger statistic = this.statistic;
+		if (statistic == null) {
+			this.statistic = new CongestionStatisticLogger(tag);
+		}
+		return this.statistic;
 	}
 
-	@Override
-	@SuppressWarnings("deprecation")
-	public void destroy() {
+	/**
+	 * Disable statistic logger for congestion control.
+	 * 
+	 * @since 4.0.0
+	 */
+	public void disableStatistic() {
 		CongestionStatisticLogger statistic = this.statistic;
 		if (statistic != null) {
-			if (statistic.stop()) {
-				statistic.dump();
-			}
+			statistic.dump();
 			this.statistic = null;
 		}
 	}
@@ -314,7 +325,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			}
 		}
 		if (size >= EXCHANGELIMIT) {
-			LOG.debug("{}drop outgoing notify, queue full {}", tag, size);
+			LOGGER.debug("{}drop outgoing notify, queue full {}", tag, size);
 		} else {
 			if (start) {
 				executor.execute(new BucketTask(endpoint));
@@ -362,17 +373,19 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		}
 		if (send) {
 			message.addMessageObserver(new TimeoutTask(endpoint, exchange));
-			LOG.trace("{}send {}{}", tag, messageType, message.getType());
+			LOGGER.trace("{}send {}{}", tag, messageType, message.getType());
+			CongestionStatisticLogger statistic = this.statistic;
 			if (statistic != null) {
 				statistic.sendRequest();
 			}
 			return true;
 		} else if (queued) {
+			CongestionStatisticLogger statistic = this.statistic;
 			if (statistic != null) {
 				statistic.queueRequest();
 			}
 		} else {
-			LOG.debug("{}drop {}{}, queue full {}", tag, messageType, message.getType(), size);
+			LOGGER.debug("{}drop {}{}, queue full {}", tag, messageType, message.getType(), size);
 		}
 		return false;
 	}
@@ -432,7 +445,10 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			}
 		}
 		if (nextExchange != null) {
-			statistic.dequeueRequest();
+			CongestionStatisticLogger statistic = this.statistic;
+			if (statistic != null) {
+				statistic.dequeueRequest();
+			}
 			final Exchange exchange = nextExchange;
 			Type type;
 			String messageType;
@@ -446,7 +462,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 				type = exchange.getCurrentResponse().getType();
 				size = endpoint.getResponseQueue().size();
 			}
-			LOG.trace("{}send from queue {}{}, queue left {}", tag, messageType, type, size);
+			LOGGER.trace("{}send from queue {}{}, queue left {}", tag, messageType, type, size);
 			exchange.execute(new Runnable() {
 
 				@Override
@@ -479,7 +495,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	@Override
 	public void sendRequest(Exchange exchange, Request request) {
 		if (exchange.getFailedTransmissionCount() > 0) {
-			LOG.warn("{}retransmission in sendRequest", tag, new Throwable("retransmission"));
+			LOGGER.warn("{}retransmission in sendRequest", tag, new Throwable("retransmission"));
 			return;
 		}
 		// process ReliabilityLayer
@@ -488,9 +504,9 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		exchange.setCurrentRequest(request);
 		if (checkNSTART(endpoint, exchange)) {
 			endpoint.checkAging();
-			LOG.debug("{}send request", tag);
+			LOGGER.debug("{}send request", tag);
 			if (!endpoint.inFlightExchange(exchange)) {
-				LOG.warn("{}unregistered request", tag, new Throwable("unregistered request"));
+				LOGGER.warn("{}unregistered request", tag, new Throwable("unregistered request"));
 			}
 			lower().sendRequest(exchange, request);
 		}
@@ -513,7 +529,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			if (response.isNotification()) {
 				lower().sendResponse(exchange, response);
 			} else {
-				LOG.warn("{}retransmission in sendResponse", tag, new Throwable("retransmission"));
+				LOGGER.warn("{}retransmission in sendResponse", tag, new Throwable("retransmission"));
 			}
 		} else if (processResponse(endpoint, exchange, response)) {
 			endpoint.checkAging();
@@ -552,9 +568,10 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 
 	@Override
 	public void receiveResponse(Exchange exchange, Response response) {
-		LOG.debug("{}receive response", tag);
+		LOGGER.debug("{}receive response", tag);
 		if (processResponse(exchange, response)) {
 			processRttMeasurement(exchange);
+			CongestionStatisticLogger statistic = this.statistic;
 			if (statistic != null) {
 				statistic.receiveResponse(response);
 			}
@@ -598,7 +615,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			}
 			if (exchange != null) {
 				final long rto = endpoint.getRTO();
-				LOG.trace("{}send notify from queue, left {}, next {} ms", tag, size, rto);
+				LOGGER.trace("{}send notify from queue, left {}, next {} ms", tag, size, rto);
 				exchange.exchange.execute(new Runnable() {
 
 					@Override
@@ -616,9 +633,9 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 								Response response = exchange.exchange.getCurrentResponse();
 								if (exchange.message != response) {
 									if (response.isNotification()) {
-										LOG.warn("{} notify changed!", tag);
+										LOGGER.warn("{} notify changed!", tag);
 									} else {
-										LOG.warn("{} notification finished!", tag);
+										LOGGER.warn("{} notification finished!", tag);
 									}
 									return;
 								}
@@ -638,7 +655,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 				});
 			} else {
 				int jobs = count.getAndSet(0);
-				LOG.debug("{}queue for outgoing notify stopped after {} jobs!", tag, jobs);
+				LOGGER.debug("{}queue for outgoing notify stopped after {} jobs!", tag, jobs);
 			}
 		}
 	}
@@ -719,7 +736,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		}
 		if (layer != null) {
 			if (mode != CongestionControlMode.NULL) {
-				LOG.info("Enabling congestion control: {}", layer.getClass().getSimpleName());
+				LOGGER.info("Enabling congestion control: {}", layer.getClass().getSimpleName());
 			}
 			return layer;
 		}

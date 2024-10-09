@@ -39,21 +39,6 @@ public final class TestOption {
 	/**
 	 * Create option with unchecked value.
 	 * 
-	 * @param number option number
-	 * @param length value length
-	 * @return created option
-	 * @deprecated use {@link #newOption(OptionDefinition, int)} instead
-	 */
-	@Deprecated
-	public static Option newOption(int number, int length) {
-		byte[] value = new byte[length];
-		Arrays.fill(value, (byte) 'p');
-		return new Option(number).setValueUnchecked(value);
-	}
-
-	/**
-	 * Create option with unchecked value.
-	 * 
 	 * @param defintion option definition.
 	 * @param length value length
 	 * @return created option

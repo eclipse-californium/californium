@@ -46,21 +46,6 @@ public final class KeyUri {
 	 * @param requestUri The URI of the requested resource.
 	 * @param peersIdentity peer's identity. Usually that's the peer's
 	 *            {@link InetSocketAddress}.
-	 * @throws NullPointerException if uri or address is {@code null}
-	 * @since 3.0
-	 * @deprecated use KeyUri(String, Object, Code) instead
-	 */
-	@Deprecated
-	public KeyUri(String requestUri, Object peersIdentity) {
-		this(requestUri, peersIdentity, null);
-	}
-
-	/**
-	 * Creates a new key for a URI scoped to an endpoint address.
-	 * 
-	 * @param requestUri The URI of the requested resource.
-	 * @param peersIdentity peer's identity. Usually that's the peer's
-	 *            {@link InetSocketAddress}.
 	 * @param code message code. {@code null} for ping request.
 	 * @throws NullPointerException if uri or address is {@code null}
 	 * @since 3.9

@@ -21,7 +21,6 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.util.PublicAPIExtension;
 
 /**
  * Factory for CoapStack supporting blockwise follow-up request matching.
@@ -31,9 +30,7 @@ import org.eclipse.californium.elements.util.PublicAPIExtension;
  * 
  * @since 3.1
  */
-@SuppressWarnings("deprecation")
-@PublicAPIExtension(type = CoapStackFactory.class)
-public interface ExtendedCoapStackFactory extends CoapStackFactory {
+public interface ExtendedCoapStackFactory {
 
 	/**
 	 * Create CoapStack.

@@ -103,15 +103,4 @@ public interface OptionDefinition {
 	 */
 	void assertValue(byte[] value);
 
-	/**
-	 * Get value length of custom option.
-	 * 
-	 * @return array with minimum and maximum length of values. If both are
-	 *         equal, the array may contain only one length. If {@code null} is
-	 *         returned, the default lengths of values is used.
-	 * @deprecated obsolete, use {@link OptionDefinition#assertValue(byte[])}
-	 */
-	@Deprecated
-	int[] getValueLengths();
-
 }

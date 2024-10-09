@@ -55,12 +55,6 @@ public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 		}
 	}
 
-	@Override
-	public CoapStack createCoapStack(String protocol, String tag, Configuration config, Outbox outbox,
-			Object customStackArgument) {
-		return createCoapStack(protocol, tag, config, null, outbox, customStackArgument);
-	}
-
 	/**
 	 * Use {@link OSCoreUdpStack} or {@link OSCoreTcpStack} as default for
 	 * {@link CoapEndpoint}.

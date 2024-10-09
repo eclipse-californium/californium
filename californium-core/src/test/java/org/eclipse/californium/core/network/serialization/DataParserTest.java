@@ -42,17 +42,14 @@ import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Option;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
-import org.eclipse.californium.core.coap.OptionNumberRegistry.CustomOptionNumberRegistry;
-import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.option.StringOptionDefinition;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
@@ -71,127 +68,69 @@ import org.junit.runners.Parameterized;
  */
 @Category(Small.class)
 @RunWith(Parameterized.class)
-@SuppressWarnings("deprecation")
 public class DataParserTest {
+
 	private static final InetSocketAddress CONNECTOR = new InetSocketAddress(InetAddress.getLoopbackAddress(), 3000);
 
-	private static final EndpointContext ENDPOINT_CONTEXT = new AddressEndpointContext(InetAddress.getLoopbackAddress(), 1000);
+	private static final EndpointContext ENDPOINT_CONTEXT = new AddressEndpointContext(InetAddress.getLoopbackAddress(),
+			1000);
 
 	private static final int CUSTOM_OPTION_1 = 57453;
 	private static final int CUSTOM_OPTION_2 = 19205;
-	private static final int[] CRITICAL_CUSTOM_OPTIONS = { CUSTOM_OPTION_1, CUSTOM_OPTION_2 };
-	private static final CustomOptionNumberRegistry CUSTOM = new CustomOptionNumberRegistry() {
-		
-		@Override
-		public String toString(int optionNumber) {
-			switch (optionNumber) {
-			case CUSTOM_OPTION_1 :
-				return "custom1";
-			case CUSTOM_OPTION_2 :
-				return "custom2";
-			}
-			return null;
-		}
-		
-		@Override
-		public int toNumber(String name) {
-			if ("custom1".equals(name)) {
-				return CUSTOM_OPTION_1;
-			} else if ("custom2".equals(name)) {
-				return CUSTOM_OPTION_2;
-			}
-			return OptionNumberRegistry.UNKNOWN;
-		}
-		
-		@Override
-		public boolean isSingleValue(int optionNumber) {
-			return optionNumber != CUSTOM_OPTION_2;
-		}
-		
-		@Override
-		public OptionFormat getFormatByNr(int optionNumber) {
-			switch (optionNumber) {
-			case CUSTOM_OPTION_1 :
-				return OptionFormat.INTEGER;
-			case CUSTOM_OPTION_2 :
-				return OptionFormat.STRING;
-			}
-			return null;
-		}
-		
-		@Override
-		public int[] getCriticalCustomOptions() {
-			return CRITICAL_CUSTOM_OPTIONS;
-		}
-		
-		@Override
-		public int[] getValueLengths(int optionNumber) {
-			switch (optionNumber) {
-			case CUSTOM_OPTION_1 :
-				return new int[] {0, 4};
-			case CUSTOM_OPTION_2 :
-				return new int[] {0, 64};
-			}
-			return null;
-		}
-		
-		@Override
-		public void assertValue(int optionNumber, long value) {
-		}
-	};
 
-	private static final IntegerOptionDefinition CUSTOM_1 = new IntegerOptionDefinition(CUSTOM_OPTION_1, "custom1", true, 0, 4);
-	private static final StringOptionDefinition CUSTOM_2 = new StringOptionDefinition(CUSTOM_OPTION_2, "custom2", false, 0, 64);
-
+	private static final IntegerOptionDefinition CUSTOM_1 = new IntegerOptionDefinition(CUSTOM_OPTION_1, "custom1",
+			true, 0, 4);
+	private static final StringOptionDefinition CUSTOM_2 = new StringOptionDefinition(CUSTOM_OPTION_2, "custom2", false,
+			0, 64);
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	private final DataSerializer serializer;
 	private final DataParser parser;
-	private final OptionRegistry registry;
 	private final boolean tcp;
 	private final boolean strictEmpty;
 	private final int expectedMid;
 
-	public DataParserTest(DataSerializer serializer, DataParser parser, OptionRegistry registry, boolean tcp, boolean strictEmpty) {
+	public DataParserTest(DataSerializer serializer, DataParser parser, OptionRegistry registry, boolean tcp,
+			boolean strictEmpty) {
 		this.serializer = serializer;
 		this.parser = parser;
-		this.registry = registry;
 		this.tcp = tcp;
 		this.strictEmpty = strictEmpty;
-		this.expectedMid = tcp ? Message.NONE : 13 ;
-		if (registry == null) {
-			OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
-		}
+		this.expectedMid = tcp ? Message.NONE : 13;
+		StandardOptionRegistry.setDefaultOptionRegistry(registry);
+
 	}
 
 	@After
 	public void tearDown() {
-		((CustomDataParser)parser).setIgnoreOptionError(false);
-		((CustomDataParser)parser).setOptionException(null);
-		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
+		((CustomDataParser) parser).setIgnoreOptionError(false);
+		((CustomDataParser) parser).setOptionException(null);
 		StandardOptionRegistry.setDefaultOptionRegistry(null);
 	}
 
-	@Parameterized.Parameters public static List<Object[]> parameters() {
+	@Parameterized.Parameters
+	public static List<Object[]> parameters() {
 
-		// Default, if "criticalCustomOptions" is "null"
-		OptionNumberRegistry.setCustomOptionNumberRegistry(CUSTOM);
-
-		List<Object[]> parameters = new ArrayList<>();
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, CRITICAL_CUSTOM_OPTIONS), null, false, true });
-		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(CRITICAL_CUSTOM_OPTIONS), null, true, false });
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true), null, false, true });
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(false), null, false, false });
-		OptionNumberRegistry.setCustomOptionNumberRegistry(null);
+		// Default, if "registry" is "null"
 		MapBasedOptionRegistry registry = new MapBasedOptionRegistry(StandardOptionRegistry.getDefaultOptionRegistry(),
 				CUSTOM_1, CUSTOM_2);
-		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, registry), registry, false, true });
+		StandardOptionRegistry.setDefaultOptionRegistry(registry);
+
+		List<Object[]> parameters = new ArrayList<>();
+		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(), null, true, false });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true), null, false, true });
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(false), null, false, false });
+
+		parameters.add(new Object[] { new UdpDataSerializer(), new CustomUdpDataParser(true, registry), registry, false,
+				true });
+		parameters.add(new Object[] { new TcpDataSerializer(), new CustomTcpDataParser(), registry, true, false });
 		return parameters;
 	}
 
-	@Test public void testRequestParsing() {
+	@Test
+	public void testRequestParsing() {
 		Request request = new Request(Code.POST);
 		request.setDestinationContext(ENDPOINT_CONTEXT);
 		request.setType(Type.NON);
@@ -209,10 +148,11 @@ public class DataParserTest {
 		assertEquals(request.getOptions().asSortedList(), result.getOptions().asSortedList());
 	}
 
-	@Test public void testParseMessageDetectsIllegalCodeClass() {
+	@Test
+	public void testParseMessageDetectsIllegalCodeClass() {
 		// GIVEN a message with a class code of 1, i.e. not a request
-		byte[] malformedRequest = new byte[] { 
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token
+															// length: 0
 				0b00100001, // code: 1.01 -> class 1 is reserved
 				0x00, 0x10 // message ID
 		};
@@ -228,13 +168,13 @@ public class DataParserTest {
 		}
 	}
 
-	@Test public void testParseMessageDetectsIllegalCode() {
+	@Test
+	public void testParseMessageDetectsIllegalCode() {
 		byte code = 0b00001000; // 0.08 is currently unassigned
 		// GIVEN a message with a class code of 0.07, i.e. not a request
-		byte[] malformedRequest = new byte[] { 
-				0b01000000, // ver 1, CON, token length: 0
-				code,
-				0x00, 0x10 // message ID
+		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token
+															// length: 0
+				code, 0x00, 0x10 // message ID
 		};
 
 		// WHEN parsing the request
@@ -248,14 +188,14 @@ public class DataParserTest {
 		}
 	}
 
-	@Test public void testParseMessageDetectsMalformedRst() {
+	@Test
+	public void testParseMessageDetectsMalformedRst() {
 		assumeFalse(tcp);
-		int code = CoAP.ResponseCode.UNAUTHORIZED.value; // 4.01 
+		int code = CoAP.ResponseCode.UNAUTHORIZED.value; // 4.01
 		// GIVEN a message with a class code of 0.07, i.e. not a request
-		byte[] malformedRequest = new byte[] { 
-				0b01110000, // ver 1, RST, token length: 0
-				(byte) code,
-				0x00, 0x10 // message ID
+		byte[] malformedRequest = new byte[] { 0b01110000, // ver 1, RST, token
+															// length: 0
+				(byte) code, 0x00, 0x10 // message ID
 		};
 
 		// WHEN parsing the request
@@ -266,7 +206,7 @@ public class DataParserTest {
 			}
 		} catch (CoAPMessageFormatException e) {
 			if (!strictEmpty) {
-				fail("Parser should have ignored that RST is not empty");				
+				fail("Parser should have ignored that RST is not empty");
 			}
 			assertEquals(code, e.getCode());
 			assertEquals(false, e.isConfirmable());
@@ -274,17 +214,19 @@ public class DataParserTest {
 		}
 	}
 
-	@Test public void testParseMessageDetectsMalformedOption() {
+	@Test
+	public void testParseMessageDetectsMalformedOption() {
 		// GIVEN a request with an option value shorter than specified
-		byte[] malformedGetRequest = new byte[] { 
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON,
+																// token length:
+																// 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				0x24, // option number 2, length: 4
 				0x01, 0x02, 0x03 // option value is one byte too short
 		};
 		if (tcp) {
-			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token 
+			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token
 		}
 
 		// WHEN parsing the request
@@ -298,17 +240,19 @@ public class DataParserTest {
 		}
 	}
 
-	@Test public void testParseMessageDetectsBadOption() {
+	@Test
+	public void testParseMessageDetectsBadOption() {
 		// GIVEN a request with an option value shorter than specified
-		byte[] malformedGetRequest = new byte[] { 
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON,
+																// token length:
+																// 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				0x74, // option number 7 (uri port), length: 4
 				0x01, 0x02, 0x03, 0x04 // option value is too large
 		};
 		if (tcp) {
-			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token 
+			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token
 		}
 
 		// WHEN parsing the request
@@ -322,17 +266,19 @@ public class DataParserTest {
 		}
 	}
 
-	@Test public void testParseMessageIgnoresBadOption() {
+	@Test
+	public void testParseMessageIgnoresBadOption() {
 		// GIVEN a request with an option value shorter than specified
-		byte[] malformedGetRequest = new byte[] { 
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON,
+																// token length:
+																// 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				0x74, // option number 7 (uri port), length: 4
 				0x01, 0x02, 0x03, 0x04 // option value is too large
 		};
 		if (tcp) {
-			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token 
+			malformedGetRequest[0] = 0x42; // cheat, mid => 2 bytes token
 		}
 
 		// WHEN parsing the request
@@ -341,18 +287,21 @@ public class DataParserTest {
 		assertFalse(message.getOptions().hasUriPort());
 	}
 
-	@Test public void testParseMessageDetectsUnknownCriticalOption() {
+	@Test
+	public void testParseMessageDetectsUnknownCriticalOption() {
 
 		// GIVEN a request with an option value shorter than specified
-		byte[] malformedGetRequest = new byte[] { 
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON,
+																// token length:
+																// 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				(byte) 0xd1, 0x0c, // option number 25, length: 1
 				0x64 // option value
 		};
 		if (tcp) {
-			malformedGetRequest[0] = 0x32;  // cheat, 2 bytes mid => 2 bytes token
+			malformedGetRequest[0] = 0x32; // cheat, 2 bytes mid => 2 bytes
+											// token
 		}
 
 		// WHEN parsing the request
@@ -367,10 +316,12 @@ public class DataParserTest {
 		}
 	}
 
-	@Test public void testParseMessageDetectsMalformedToken() {
+	@Test
+	public void testParseMessageDetectsMalformedToken() {
 		// GIVEN a request with an option value shorter than specified
-		byte[] malformedGetRequest = new byte[] { 
-				0b01001000, // ver 1, CON, token length: 8
+		byte[] malformedGetRequest = new byte[] { 0b01001000, // ver 1, CON,
+																// token length:
+																// 8
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				0x24, // option number 2, length: 4
@@ -392,10 +343,12 @@ public class DataParserTest {
 		}
 	}
 
-	@Test public void testParseMessageDetectsMissingPayload() {
+	@Test
+	public void testParseMessageDetectsMissingPayload() {
 		// GIVEN a request with a payload delimiter but empty payload
-		byte[] malformedGetRequest = new byte[] { 
-				0b01000000, // ver 1, CON, token length: 0
+		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON,
+																// token length:
+																// 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
@@ -412,23 +365,17 @@ public class DataParserTest {
 		}
 	}
 
-	@Test public void testResponseParsing() {
+	@Test
+	public void testResponseParsing() {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setDestinationContext(ENDPOINT_CONTEXT);
 		response.setType(Type.NON);
 		response.setMID(expectedMid);
 		response.setToken(new byte[] { 22, -1, 0, 78, 100, 22 });
-		if (registry != null) {
-			response.getOptions().addETag(new byte[] { 1, 0, 0, 0, 0, 1 })
+		response.getOptions().addETag(new byte[] { 1, 0, 0, 0, 0, 1 })
 				.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten")
 				.addOption(new Option(CUSTOM_1, 1234567)).addOption(new Option(CUSTOM_2, "Arbitrary1"))
 				.addOption(new Option(CUSTOM_2, "Arbitrary2")).addOption(new Option(CUSTOM_2, "Arbitrary3"));
-		} else {
-			response.getOptions().addETag(new byte[] { 1, 0, 0, 0, 0, 1 })
-				.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten")
-				.addOption(new Option(CUSTOM_OPTION_1, 1234567)).addOption(new Option(CUSTOM_OPTION_2, "Arbitrary1"))
-				.addOption(new Option(CUSTOM_OPTION_2, "Arbitrary2")).addOption(new Option(CUSTOM_OPTION_2, "Arbitrary3"));
-		}
 
 		RawData rawData = serializer.serializeResponse(response);
 		rawData = receive(rawData, CONNECTOR);
@@ -441,7 +388,8 @@ public class DataParserTest {
 		assertEquals(response.getOptions().asSortedList(), result.getOptions().asSortedList());
 	}
 
-	@Test public void testUTF8Encoding() {
+	@Test
+	public void testUTF8Encoding() {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setDestinationContext(ENDPOINT_CONTEXT);
 		response.setType(Type.NON);
@@ -467,19 +415,19 @@ public class DataParserTest {
 	}
 
 	public interface CustomDataParser {
+
 		void setIgnoreOptionError(boolean ignore);
+
 		void setOptionException(RuntimeException optionError);
 	}
+
 	public static class CustomUdpDataParser extends UdpDataParser implements CustomDataParser {
+
 		private boolean ignoreOptionError;
 		private RuntimeException optionError;
 
 		public CustomUdpDataParser(boolean strictEmptyMessageFormat) {
 			super(strictEmptyMessageFormat, (OptionRegistry) null);
-		}
-
-		public CustomUdpDataParser(boolean strictEmptyMessageFormat, int[] criticalCustomOptions) {
-			super(strictEmptyMessageFormat, criticalCustomOptions);
 		}
 
 		public CustomUdpDataParser(boolean strictEmptyMessageFormat, OptionRegistry optionRegistry) {
@@ -490,6 +438,7 @@ public class DataParserTest {
 		public void setIgnoreOptionError(boolean ignore) {
 			this.ignoreOptionError = ignore;
 		}
+
 		@Override
 		public void setOptionException(RuntimeException optionError) {
 			this.optionError = optionError;
@@ -512,12 +461,15 @@ public class DataParserTest {
 		}
 	}
 
-	private static class CustomTcpDataParser extends TcpDataParser implements CustomDataParser{
+	private static class CustomTcpDataParser extends TcpDataParser implements CustomDataParser {
+
 		private boolean ignoreOptionError;
 		private RuntimeException optionError;
-		private CustomTcpDataParser(int[] criticalCustomOptions) {
-			super(criticalCustomOptions);
+
+		private CustomTcpDataParser() {
+			super();
 		}
+
 		@Override
 		public void setIgnoreOptionError(boolean ignore) {
 			this.ignoreOptionError = ignore;

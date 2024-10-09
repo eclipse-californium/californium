@@ -167,11 +167,7 @@ public class MapBasedOptionRegistry implements OptionRegistry {
 	@Override
 	public OptionDefinition getDefinitionByNumber(int code, int optionNumber) {
 		int key = getExtendedNumber(code, optionNumber);
-		OptionDefinition defintion = getInternal(key);
-		if (defintion == null && key == optionNumber) {
-			defintion = getCustomDefinition(optionNumber);
-		}
-		return defintion;
+		return getInternal(key);
 	}
 
 	/**
@@ -186,26 +182,7 @@ public class MapBasedOptionRegistry implements OptionRegistry {
 	@Override
 	public OptionDefinition getDefinitionByNumber(int optionNumber) {
 		int key = getExtendedNumber(0, optionNumber);
-		OptionDefinition defintion = getInternal(key);
-		if (defintion == null) {
-			defintion = getCustomDefinition(optionNumber);
-		}
-		return defintion;
-	}
-
-	/**
-	 * Get custom definition.
-	 * 
-	 * Intended to be overwritten, if legacy support for custom definitions is
-	 * required.
-	 * 
-	 * @param optionNumber option number
-	 * @return option definition
-	 * @deprecated please add used option definition before using it
-	 */
-	@Deprecated
-	protected OptionDefinition getCustomDefinition(int optionNumber) {
-		return null;
+		return getInternal(key);
 	}
 
 	/**

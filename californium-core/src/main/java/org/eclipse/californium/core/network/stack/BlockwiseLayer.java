@@ -296,56 +296,6 @@ public class BlockwiseLayer extends AbstractLayer {
 	 *            {@link CoapConfig#TCP_NUMBER_OF_BULK_BLOCKS} is larger than
 	 *            {@code 1}. {@code false} disable it.
 	 * @param config The configuration values to use.
-	 * @deprecated use
-	 *             {@link BlockwiseLayer#BlockwiseLayer(String, boolean, Configuration, EndpointContextMatcher)}
-	 *             instead
-	 * @since 3.0 (logging tag added and changed parameter to Configuration)
-	 */
-	public BlockwiseLayer(String tag, boolean enableBert, Configuration config) {
-		this(tag, enableBert, config, null);
-	}
-
-	/**
-	 * Creates a new blockwise layer for a configuration.
-	 * <p>
-	 * The following configuration properties are used:
-	 * <ul>
-	 * <li>{@link CoapConfig#MAX_MESSAGE_SIZE} - This value is used as the
-	 * threshold for determining whether an inbound or outbound message's body
-	 * needs to be transferred blockwise. If not set, a default value of 4096
-	 * bytes is used.</li>
-	 * 
-	 * <li>{@link CoapConfig#PREFERRED_BLOCK_SIZE} - This value is used as the
-	 * value proposed to a peer when doing a transparent blockwise transfer. The
-	 * value indicates the number of bytes, not the szx code. If not set, a
-	 * default value of 1024 bytes is used.</li>
-	 * 
-	 * <li>{@link CoapConfig#MAX_RESOURCE_BODY_SIZE} - This value (in bytes) is
-	 * used as the upper limit for the size of the buffer used for assembling
-	 * blocks of a transparent blockwise transfer. Resource bodies larger than
-	 * this value can only be transferred in a manually managed blockwise
-	 * transfer. Setting this value to 0 disables transparent blockwise handling
-	 * altogether, i.e. all messages will simply be forwarded directly up and
-	 * down to the next layer. If not set, a default value of 8192 bytes is
-	 * used.</li>
-	 * 
-	 * <li>{@link CoapConfig#BLOCKWISE_STATUS_LIFETIME} - The maximum amount of
-	 * time (in milliseconds) allowed between transfers of individual blocks
-	 * before the blockwise transfer state is discarded. If not set, a default
-	 * value of 30 seconds is used.</li>
-	 * 
-	 * <li>{@link CoapConfig#BLOCKWISE_STRICT_BLOCK2_OPTION} - This value is
-	 * used to indicate if the response should always include the Block2 option
-	 * when client request early blockwise negociation but the response can be
-	 * sent on one packet.</li>
-	 * </ul>
-	 * 
-	 * @param tag logging tag
-	 * @param enableBert {@code true}, enable TCP/BERT support, if the
-	 *            configured value for
-	 *            {@link CoapConfig#TCP_NUMBER_OF_BULK_BLOCKS} is larger than
-	 *            {@code 1}. {@code false} disable it.
-	 * @param config The configuration values to use.
 	 * @param matchingStrategy endpoint context matcher to relate responses with
 	 *            requests
 	 * @since 3.1
