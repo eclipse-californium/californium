@@ -19,6 +19,14 @@ If a 3.0.0 or newer is used, it's recommended to update first to 3.13.0 and clea
 
 Some of the configuration properties are not longer supported (they have been marked as deprecated) and it is recommended to generate new property files and compare the content with the ones previous in use.
 
+## Base Lines
+
+The plan is still to be able to use Californium with java 8. 
+That requires also to use Android 8, API level 26. According a discussion, it is possible to [desugaring](https://github.com/eclipse-californium/californium/issues/1664#issuecomment-1893991987) java 8 back to Android versions before
+
+For a local build new Java versions will be required. For now I would consider to
+support java 17 as minimum version to build Californium.
+
 ## Noteworthy Behavior Changes
 
 ### Element-Connector:

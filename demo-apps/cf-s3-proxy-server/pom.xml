@@ -5,9 +5,8 @@
 
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
-		<artifactId>cf-bom</artifactId>
+		<artifactId>demo-apps</artifactId>
 		<version>4.0.0-SNAPSHOT</version>
-		<relativePath>../../bom</relativePath>
 	</parent>
 	<artifactId>cf-s3-proxy-server</artifactId>
 	<packaging>jar</packaging>
@@ -20,51 +19,13 @@
 		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
 		<skipStaging>false</skipStaging>
 		<maven.javadoc.skip>false</maven.javadoc.skip>
-		<animal.sniffer.skip>true</animal.sniffer.skip>
-		<revapi.skip>true</revapi.skip>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.build.javaVersion>1.8</project.build.javaVersion>
-		<maven.compiler.release>8</maven.compiler.release>
-		<aws.sdk.version>2.27.5</aws.sdk.version>
+		<aws.sdk.version>2.27.24</aws.sdk.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>californium-legal</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>californium-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-proxy2</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>scandium</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>cf-unix-health</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>info.picocli</groupId>
-			<artifactId>picocli</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.upokecenter</groupId>
-			<artifactId>cbor</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.google.code.gson</groupId>
-			<artifactId>gson</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -84,16 +45,6 @@
 		</dependency>
 
 		<!-- runtime dependencies -->
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>demo-certs</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>ch.qos.logback</groupId>
-			<artifactId>logback-classic</artifactId>
-			<scope>runtime</scope>
-		</dependency>
 		<dependency>
 			<artifactId>netty-nio-client</artifactId>
 			<groupId>software.amazon.awssdk</groupId>
@@ -136,11 +87,6 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<descriptorRefs>
-						<descriptorRef>enhanced-jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>
