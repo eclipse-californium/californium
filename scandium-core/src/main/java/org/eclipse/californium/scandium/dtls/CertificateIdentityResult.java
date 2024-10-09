@@ -20,7 +20,6 @@ import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
-import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 
 /**
@@ -34,87 +33,6 @@ public final class CertificateIdentityResult extends HandshakeResult {
 	private final PrivateKey privateKey;
 	private final PublicKey publicKey;
 	private final List<X509Certificate> certificateChain;
-
-	/**
-	 * Create result with {@link X509Certificate}.
-	 * 
-	 * @param cid connection id
-	 * @param privateKey private key of identity.
-	 * @param certificateChain certificate chain for identity
-	 * @param customArgument custom argument. May be {@code null}. Passed to
-	 *            {@link ApplicationLevelInfoSupplier} by the
-	 *            {@link Handshaker}, if a {@link ApplicationLevelInfoSupplier}
-	 *            is available. 
-	 * @throws NullPointerException if cid, private key, or chain is
-	 *             {@code null}.
-	 * @throws IllegalArgumentException if chain is empty.
-	 * @deprecated obsolete, customArgument is not used
-	 */
-	@Deprecated
-	public CertificateIdentityResult(ConnectionId cid, PrivateKey privateKey, List<X509Certificate> certificateChain,
-			Object customArgument) {
-		super(cid, customArgument);
-		if (privateKey == null) {
-			throw new NullPointerException("Private key must not be null!");
-		}
-		if (certificateChain == null) {
-			throw new NullPointerException("Certificate chain must not be null!");
-		}
-		if (certificateChain.isEmpty()) {
-			throw new IllegalArgumentException("Certificate chain must not be empty!");
-		}
-		this.privateKey = privateKey;
-		this.publicKey = certificateChain.get(0).getPublicKey();
-		this.certificateChain = certificateChain;
-	}
-
-	/**
-	 * Create result with RawPublicKey.
-	 * 
-	 * @param cid connection id
-	 * @param privateKey private key of identity.
-	 * @param publicKey public key for identity
-	 * @param customArgument custom argument. May be {@code null}. Passed to
-	 *            {@link ApplicationLevelInfoSupplier} by the
-	 *            {@link Handshaker}, if a {@link ApplicationLevelInfoSupplier}
-	 *            is available.
-	 * @throws NullPointerException if cid, private key, or public key is
-	 *             {@code null}.
-	 * @deprecated obsolete, customArgument is not used
-	 */
-	@Deprecated
-	public CertificateIdentityResult(ConnectionId cid, PrivateKey privateKey, PublicKey publicKey,
-			Object customArgument) {
-		super(cid, customArgument);
-		if (privateKey == null) {
-			throw new NullPointerException("Private key must not be null!");
-		}
-		if (publicKey == null) {
-			throw new NullPointerException("Public key must not be null!");
-		}
-		this.privateKey = privateKey;
-		this.publicKey = publicKey;
-		this.certificateChain = null;
-	}
-
-	/**
-	 * Create result without matching identity.
-	 * 
-	 * @param cid connection id
-	 * @param customArgument custom argument. May be {@code null}. Passed to
-	 *            {@link ApplicationLevelInfoSupplier} by the
-	 *            {@link Handshaker}, if a {@link ApplicationLevelInfoSupplier}
-	 *            is available.
-	 * @throws NullPointerException if cid is {@code null}.
-	 * @deprecated obsolete, customArgument is not used
-	 */
-	@Deprecated
-	public CertificateIdentityResult(ConnectionId cid, Object customArgument) {
-		super(cid, customArgument);
-		this.privateKey = null;
-		this.publicKey = null;
-		this.certificateChain = null;
-	}
 
 	/**
 	 * Create result with {@link X509Certificate}.

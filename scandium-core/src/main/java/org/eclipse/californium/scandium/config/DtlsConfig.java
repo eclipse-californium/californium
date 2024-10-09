@@ -38,7 +38,6 @@ import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.ValueException;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DtlsDatagramFilter;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -51,7 +50,6 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 
 /**
  * Configuration definitions for DTLS.
@@ -224,14 +222,6 @@ public final class DtlsConfig {
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS = 30 * 60;
 	/**
-	 * The default value for the {@link #DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE}
-	 * property.
-	 * 
-	 * @deprecated use {@link #DEFAULT_MAX_PENDING_OUTBOUND_JOBS} instead
-	 */
-	@Deprecated
-	public static final int DEFAULT_MAX_PENDING_OUTBOUND_MESSAGES = 100000;
-	/**
 	 * The default value for the {@link #DTLS_MAX_PENDING_OUTBOUND_JOBS}
 	 * property.
 	 * 
@@ -262,13 +252,6 @@ public final class DtlsConfig {
 	 * property.
 	 */
 	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE = 8192;
-	/**
-	 * The default value for the
-	 * {@link #DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} property in percent.
-	 * @deprecated use the general {@link #DTLS_USE_HELLO_VERIFY_REQUEST} instead.
-	 */
-	@Deprecated
-	public static final int DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT = 30;
 	/**
 	 * The default value for the {@link #DTLS_SECURE_RENEGOTIATION}.
 	 * 
@@ -572,16 +555,6 @@ public final class DtlsConfig {
 			DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS, TimeUnit.SECONDS);
 
 	/**
-	 * Specify the number of outbound messages that can be buffered in memory
-	 * before dropping messages.
-	 * 
-	 * @deprecated use {link {@link #DTLS_MAX_PENDING_OUTBOUND_JOBS} instead.
-	 */
-	@Deprecated
-	public static final IntegerDefinition DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE = new IntegerDefinition(
-			MODULE + "OUTBOUND_MESSAGE_BUFFER_SIZE", "DTLS buffer size for outbound messages");
-
-	/**
 	 * Specify the number of pending outbound jobs that can be queued before
 	 * dropping new job.
 	 * 
@@ -695,68 +668,6 @@ public final class DtlsConfig {
 			ExtendedMasterSecretMode.ENABLED, ExtendedMasterSecretMode.values());
 
 	/**
-	 * Threshold of pending handshakes without verified peer for session
-	 * resumption in percent of {@link #DTLS_MAX_CONNECTIONS}. If more such
-	 * handshakes are pending, then use a verify request to ensure, that the
-	 * used client hello is not spoofed.
-	 * 
-	 * <pre>
-	 * 0 := always use a HELLO_VERIFY_REQUEST
-	 * 1 ... 100 := dynamically determine to use a HELLO_VERIFY_REQUEST.
-	 * </pre>
-	 * 
-	 * Peers are identified by their endpoint (ip-address and port). To protect
-	 * the server from congestion by address spoofing, a HELLO_VERIFY_REQUEST is
-	 * used. That adds one exchange and with that, additional latency. In cases
-	 * of session resumption, the server may also use the dtls session ID as a
-	 * weaker proof of a valid client. Unfortunately there are several
-	 * elaborated attacks to that (e.g. on-path-attacker may alter the
-	 * source-address). To mitigate this vulnerability, this threshold defines a
-	 * maximum percentage of handshakes without HELLO_VERIFY_REQUEST. If more
-	 * resumption handshakes without verified peers are pending than this
-	 * threshold, then a HELLO_VERIFY_REQUEST is used again. Additionally, if a
-	 * peer resumes a session (by id), but a different session is related to its
-	 * endpoint, then a verify request is used to ensure, that the peer really
-	 * owns that endpoint.
-	 * <p>
-	 * <b>Note:</b> a value larger than 0 will call the
-	 * {@link ResumptionVerifier}. If that implementation is expensive, please
-	 * ensure, that this value is configured with {@code 0}. Otherwise,
-	 * CLIENT_HELLOs with invalid session IDs may be spoofed and gets too
-	 * expensive.
-	 * </p>
-	 * <p>
-	 * <b>Note:</b> if spoofing is considered to be relevant for the used
-	 * network environment, please set this to {@code 0} using
-	 * {@link Builder#set} with
-	 * {@link DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} in order to
-	 * disable this function.
-	 * </p>
-	 * Default {@link #DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}.
-	 * @deprecated use the general {@link #DTLS_USE_HELLO_VERIFY_REQUEST} instead.
-	 */
-	@Deprecated
-	public static final IntegerDefinition DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD = new IntegerDefinition(
-			MODULE + "VERIFY_PEERS_ON_RESUMPTION_THRESHOLD", "DTLS verify peers on resumption threshold in percent.",
-			DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT, 0);
-	/**
-	 * Enable/Disable the server's HELLO_VERIFY_REQUEST, if peers shares at
-	 * least one PSK based cipher suite.
-	 * <p>
-	 * <b>Note:</b> it is not recommended to disable the HELLO_VERIFY_REQUEST!
-	 * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
-	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
-	 * </p>
-	 * To limit the amplification, the peers must share PSK cipher suites to by
-	 * pass that check. If only certificate based cipher suites are shared, the
-	 * HELLO_VERIFY_REQUEST will still be used.
-	 * @deprecated use the general {@link #DTLS_USE_HELLO_VERIFY_REQUEST} instead.
-	 */
-	@Deprecated
-	public static final BooleanDefinition DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK = new BooleanDefinition(
-			MODULE + "USE_HELLO_VERIFY_REQUEST_FOR_PSK",
-			"DTLS use a HELLO_VERIFY_REQUEST for PSK cipher suites to protect against spoofing.", true);
-	/**
 	 * Generally enable/disable the server's HELLO_VERIFY_REQUEST.
 	 * <p>
 	 * <b>Note:</b> it is strongly not recommended to disable the
@@ -777,14 +688,6 @@ public final class DtlsConfig {
 	 */
 	public static final BooleanDefinition DTLS_USE_ANTI_REPLAY_FILTER = new BooleanDefinition(
 			MODULE + "USE_ANTI_REPLAY_FILTER", "DTLS use the anti-replay-filter.", true);
-
-	/**
-	 * Use anti replay filter with typo in name.
-	 * @deprecated
-	 */
-	@Deprecated
-	private static final BooleanDefinition DTLS_USE_USE_ANTI_REPLAY_FILTER = new BooleanDefinition(
-			MODULE + "USE_USE_ANTI_REPLAY_FILTER", "DTLS use the anti-replay-filter.", true);
 
 	/**
 	 * Use disabled window for anti replay filter.
@@ -920,25 +823,6 @@ public final class DtlsConfig {
 			new CertificateKeyAlgorithm[] { CertificateKeyAlgorithm.EC, CipherSuite.CertificateKeyAlgorithm.RSA });
 
 	/**
-	 * Specify the usage of DTLS CID before version 09 of <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-	 * target="_blank">Draft dtls-connection-id</a> for the client side.
-	 * @deprecated do not longer use deprecated CID definitions! 
-	 */
-	@Deprecated
-	public static final IntegerDefinition DTLS_USE_DEPRECATED_CID = new IntegerDefinition(MODULE + "USE_DEPRECATED_CID",
-			"DTLS use deprecated CID extension code point for client (before version 09 of RFC-CID).", null, 53);
-	/**
-	 * Specify the support of DTLS CID before version 9 of <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-	 * target="_blank">Draft dtls-connection-id</a> for the server side.
-	 * @deprecated do not longer use deprecated CID definitions! 
-	 */
-	@Deprecated
-	public static final BooleanDefinition DTLS_SUPPORT_DEPRECATED_CID = new BooleanDefinition(
-			MODULE + "SUPPORT_DEPRECATED_CID", "DTLS support deprecated CID for server (before version 9).", false);
-
-	/**
 	 * Use default DTLS record filter.
 	 * 
 	 * @see DtlsDatagramFilter
@@ -951,7 +835,7 @@ public final class DtlsConfig {
 	 * Enable removing of stale connections, if the principal has also a newer
 	 * connection. Intended to free heap earlier for dynamic shared systems,
 	 * mainly useful with newer GC, as ZGC of java 17. Requires to have unique
-	 * principals and enabled {@link #DTLS_READ_WRITE_LOCK_CONNECTION_STORE}.
+	 * principals.
 	 * 
 	 * @since 3.5
 	 */
@@ -960,16 +844,6 @@ public final class DtlsConfig {
 			"Remove stale double principals.\n" + 
 			"Requires unique principals and a read-write-lock connection store.",
 			false);
-
-	/**
-	 * Use read-write-lock connection store.
-	 * 
-	 * @since 3.5
-	 * @deprecated please use only the new read-write-lock connection store
-	 */
-	@Deprecated
-	public static final BooleanDefinition DTLS_READ_WRITE_LOCK_CONNECTION_STORE = new BooleanDefinition(
-			MODULE + "READ_WRITE_LOCK_CONNECTION_STORE", "Use read-write-lock connection store.", true);
 
 	/**
 	 * Quiet time for DTLS MAC error filter.
@@ -1101,7 +975,6 @@ public final class DtlsConfig {
 			config.set(DTLS_DEFAULT_HANDSHAKE_MODE, null);
 			config.set(DTLS_MAX_CONNECTIONS, DEFAULT_MAX_CONNECTIONS);
 			config.set(DTLS_STALE_CONNECTION_THRESHOLD, DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS, TimeUnit.SECONDS);
-			config.setDeprecated(DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE, DTLS_MAX_PENDING_OUTBOUND_JOBS);
 			config.set(DTLS_MAX_PENDING_OUTBOUND_JOBS, DEFAULT_MAX_PENDING_OUTBOUND_JOBS);
 			config.set(DTLS_MAX_PENDING_INBOUND_JOBS, DEFAULT_MAX_PENDING_INBOUND_JOBS);
 			config.set(DTLS_MAX_PENDING_HANDSHAKE_RESULT_JOBS, DEFAULT_MAX_PENDING_HANDSHAKE_RESULT_JOBS);
@@ -1115,11 +988,7 @@ public final class DtlsConfig {
 			config.set(DTLS_SEND_BUFFER_SIZE, null);
 			config.set(DTLS_USE_SERVER_NAME_INDICATION, false);
 			config.set(DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED);
-			config.set(DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD,
-					DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT);
 			config.set(DTLS_USE_HELLO_VERIFY_REQUEST, true);
-			config.set(DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK, true);
-			config.setDeprecated(DTLS_USE_USE_ANTI_REPLAY_FILTER, DTLS_USE_ANTI_REPLAY_FILTER);
 			config.set(DTLS_USE_ANTI_REPLAY_FILTER, true);
 			config.set(DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER, 0);
 			config.set(DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS, true);
@@ -1134,11 +1003,8 @@ public final class DtlsConfig {
 			config.set(DTLS_CURVES, null);
 			config.set(DTLS_SIGNATURE_AND_HASH_ALGORITHMS, null);
 			config.set(DTLS_CERTIFICATE_KEY_ALGORITHMS, null);
-			config.set(DTLS_USE_DEPRECATED_CID, null);
-			config.set(DTLS_SUPPORT_DEPRECATED_CID, false);
 			config.set(DTLS_USE_DEFAULT_RECORD_FILTER, true);
 			config.set(DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, false);
-			config.set(DTLS_READ_WRITE_LOCK_CONNECTION_STORE, true);
 			config.set(DTLS_MAC_ERROR_FILTER_QUIET_TIME, 0, TimeUnit.SECONDS);
 			config.set(DTLS_MAC_ERROR_FILTER_THRESHOLD, 0);
 			config.set(DTLS_SECURE_RENEGOTIATION, DEFAULT_SECURE_RENEGOTIATION);

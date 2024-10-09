@@ -48,9 +48,7 @@ import org.eclipse.californium.elements.config.BasicDefinition;
 import org.eclipse.californium.elements.config.BasicListDefinition;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
-import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -59,16 +57,12 @@ import org.eclipse.californium.scandium.DtlsDatagramFilter;
 import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
-import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.ConnectionIdExtension;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
@@ -76,7 +70,6 @@ import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -396,186 +389,6 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets record size limit.
-	 * 
-	 * Included in the CLIENT_HELLO and SERVER_HELLO to negotiate the record
-	 * size limit.
-	 * 
-	 * @return record size limit, or {@code null}, if not used.
-	 * @see DtlsConfig#DTLS_RECORD_SIZE_LIMIT
-	 * @since 2.4
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_RECORD_SIZE_LIMIT} instead
-	 */
-	@Deprecated
-	public Integer getRecordSizeLimit() {
-		return configuration.get(DtlsConfig.DTLS_RECORD_SIZE_LIMIT);
-	}
-
-	/**
-	 * Gets the maximum amount of message payload data that this connector can
-	 * receive in a single DTLS record.
-	 * <p>
-	 * The code returned is either {@code null} or one of the following:
-	 * <ul>
-	 * <li>1 - 2^9 bytes</li>
-	 * <li>2 - 2^10 bytes</li>
-	 * <li>3 - 2^11 bytes</li>
-	 * <li>4 - 2^12 bytes</li>
-	 * </ul>
-	 * 
-	 * @return the code indicating the maximum payload length, or {@code null}.
-	 * @see DtlsConfig#DTLS_MAX_FRAGMENT_LENGTH
-	 * @since 3.0 (changed name and return type)
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH} instead
-	 */
-	@Deprecated
-	public Length getMaxFragmentLength() {
-		return configuration.get(DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH);
-	}
-
-	/**
-	 * Gets the maximum length of a single reassembled fragmented handshake
-	 * message.
-	 * 
-	 * @return maximum length, or {@code null}.
-	 * @see DtlsConfig#DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH} instead
-	 */
-	@Deprecated
-	public Integer getMaxFragmentedHandshakeMessageLength() {
-		return configuration.get(DtlsConfig.DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH);
-	}
-
-	/**
-	 * Gets enable to use UDP messages with multiple dtls records.
-	 * 
-	 * Default behavior enables the usage of multiple records, but disables it
-	 * as back off after two retransmissions.
-	 * 
-	 * @return {@code true}, if enabled, {@code false}, otherwise. {@code null}
-	 *         for default behavior.
-	 * @see DtlsConfig#DTLS_USE_MULTI_RECORD_MESSAGES
-	 * @since 2.4
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES} instead
-	 */
-	@Deprecated
-	public Boolean useMultiRecordMessages() {
-		return configuration.get(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES);
-	}
-
-	/**
-	 * Enable to use dtls records with multiple handshake messages.
-	 * 
-	 * Default behavior disables the usage on the server side, and enables the
-	 * usage of multiple handshake messages on the client side, if the server
-	 * send such dtls records.
-	 * 
-	 * @return {@code true}, if enabled, {@code false}, otherwise. {@code null}
-	 *         for default behavior.
-	 * @see DtlsConfig#DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS
-	 * @since 2.4
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS} instead
-	 */
-	@Deprecated
-	public Boolean useMultiHandshakeMessageRecords() {
-		return configuration.get(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS);
-	}
-
-	/**
-	 * Gets the (initial) time to wait before a handshake flight of messages
-	 * gets re-transmitted.
-	 * 
-	 * This timeout gets adjusted during the course of repeated re-transmission
-	 * of a flight. The DTLS spec suggests an exponential back-off strategy,
-	 * i.e. after each re-transmission the timeout value is doubled.
-	 * 
-	 * @return the (initial) time to wait in milliseconds
-	 * @see DtlsConfig#DTLS_RETRANSMISSION_TIMEOUT
-	 * @deprecated use {@link #getTimeAsInt(TimeDefinition, TimeUnit)} with
-	 *             {@code DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT} instead
-	 */
-	@Deprecated
-	public int getRetransmissionTimeout() {
-		return configuration.getTimeAsInt(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS);
-	}
-
-	/**
-	 * Gets the maximum time to wait before a handshake flight of messages gets
-	 * re-transmitted.
-	 * 
-	 * @return the maximum time to wait in milliseconds
-	 * @see DtlsConfig#DTLS_MAX_RETRANSMISSION_TIMEOUT
-	 * @since 3.0
-	 * @deprecated use {@link #getTimeAsInt(TimeDefinition, TimeUnit)} with
-	 *             {@code DtlsConfig.DTLS_MAX_RETRANSMISSION_TIMEOUT} instead
-	 */
-	@Deprecated
-	public Integer getMaxRetransmissionTimeout() {
-		return configuration.getTimeAsInt(DtlsConfig.DTLS_MAX_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS);
-	}
-
-	/**
-	 * Gets the random factor for the initial retransmission timeout.
-	 * 
-	 * @return the random factor for the initial retransmission timeout. Values
-	 *         range [1.0 - 2.0]
-	 * @see DtlsConfig#DTLS_RETRANSMISSION_INIT_RANDOM
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM} instead
-	 */
-	@Deprecated
-	public Float getRetransmissionRandomFactor() {
-		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM);
-	}
-
-	/**
-	 * Gets the scale factor for retransmission timeouts back-off.
-	 * 
-	 * @return the scale factor for retransmission timeout. Values range [1.0 -
-	 *         2.0]
-	 * @see DtlsConfig#DTLS_RETRANSMISSION_TIMEOUT_SCALE
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE} instead
-	 */
-	@Deprecated
-	public Float getRetransmissionTimeoutScale() {
-		return configuration.get(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE);
-	}
-
-	/**
-	 * Gets the additional (initial) time to wait before a handshake flight of
-	 * messages gets re-transmitted, when the other peer is expected to perform
-	 * ECC calculations.
-	 * 
-	 * ECC calculations may be time intensive, especially for smaller
-	 * micro-controllers without ecc-hardware support. The additional timeout
-	 * prevents Californium from resending a flight too early. The extra time is
-	 * used for the DTLS-client, if a ECDSA or ECDHE cipher suite is proposed,
-	 * and for the DTLS-server, if a ECDSA or ECDHE cipher suite is selected.
-	 * 
-	 * This timeout is added to {@link #getRetransmissionTimeout()} and on each
-	 * retransmission, the resulting time is doubled.
-	 * 
-	 * @return the additional (initial) time to wait in milliseconds. Default is
-	 *         {@link DtlsConfig#DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_IN_MILLISECONDS}.
-	 * @see DtlsConfig#DTLS_ADDITIONAL_ECC_TIMEOUT
-	 * @since 3.0
-	 * @deprecated use {@link #getTimeAsInt(TimeDefinition, TimeUnit)} with
-	 *             {@code DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT} instead
-	 */
-	@Deprecated
-	public int getAdditionalTimeoutForEcc() {
-		return configuration.getTimeAsInt(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, TimeUnit.MILLISECONDS);
-	}
-
-	/**
 	 * Number of retransmissions before the attempt to transmit a flight in
 	 * back-off mode.
 	 * 
@@ -609,95 +422,6 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the maximum number of times a flight of handshake messages gets
-	 * re-transmitted to a peer.
-	 * 
-	 * @return the maximum number of re-transmissions
-	 * @see DtlsConfig#DTLS_MAX_RETRANSMISSIONS
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_MAX_RETRANSMISSIONS} instead
-	 */
-	@Deprecated
-	public Integer getMaxRetransmissions() {
-		return configuration.get(DtlsConfig.DTLS_MAX_RETRANSMISSIONS);
-	}
-
-	/**
-	 * Gets the maximum number of deferred processed outgoing application data
-	 * messages.
-	 * 
-	 * @return the maximum number of deferred processed outgoing application
-	 *         data messages
-	 * @see DtlsConfig#DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES} instead
-	 */
-	@Deprecated
-	public Integer getMaxDeferredProcessedOutgoingApplicationDataMessages() {
-		return configuration.get(DtlsConfig.DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES);
-	}
-
-	/**
-	 * Gets the maximum size of all deferred processed incoming records.
-	 * 
-	 * @return the maximum size of all deferred processed incoming records
-	 * @see DtlsConfig#DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE} instead
-	 */
-	@Deprecated
-	public Integer getMaxDeferredProcessedIncomingRecordsSize() {
-		return configuration.get(DtlsConfig.DTLS_MAX_DEFERRED_INBOUND_RECORDS_SIZE);
-	}
-
-	/**
-	 * Gets the maximum transmission unit.
-	 * 
-	 * Maximum number of bytes sent in one transmission.
-	 * 
-	 * @return maximum transmission unit
-	 * @see DtlsConfig#DTLS_MAX_TRANSMISSION_UNIT
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT} instead
-	 */
-	@Deprecated
-	public Integer getMaxTransmissionUnit() {
-		return configuration.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT);
-	}
-
-	/**
-	 * Gets the maximum transmission unit limit for auto detection.
-	 * 
-	 * Limit Maximum number of bytes sent in one transmission.
-	 * 
-	 * @return maximum transmission unit limit. Default
-	 *         {@link DtlsConfig#DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}.
-	 * @see DtlsConfig#DTLS_MAX_TRANSMISSION_UNIT_LIMIT
-	 * @since 2.3
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT} instead
-	 */
-	@Deprecated
-	public Integer getMaxTransmissionUnitLimit() {
-		return configuration.get(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT_LIMIT);
-	}
-
-	/**
-	 * Enable to stop retransmission early.
-	 * 
-	 * @return {@code true} if retransmissions should be stopped as soon as we
-	 *         receive handshake message
-	 * @see DtlsConfig#DTLS_USE_EARLY_STOP_RETRANSMISSION
-	 * @since 3.0 (renamed, was isEarlyStopRetransmission)
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION} instead
-	 */
-	@Deprecated
-	public Boolean useEarlyStopRetransmission() {
-		return configuration.get(DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION);
-	}
-
-	/**
 	 * Enable address to be reusable.
 	 * 
 	 * Mainly used for unit tests.
@@ -709,156 +433,6 @@ public final class DtlsConnectorConfig {
 	 */
 	public Boolean useReuseAddress() {
 		return useReuseAddress;
-	}
-
-	/**
-	 * Checks whether the connector should support the use of the TLS
-	 * <a href="https://tools.ietf.org/html/rfc6066#section-3" target="_blank">
-	 * Server Name Indication extension</a> in the DTLS handshake.
-	 * <p>
-	 * If enabled, the client side should send a server name extension, if the
-	 * server is specified with hostname rather then with a raw ip-address. The
-	 * server side support currently includes a server name specific PSK secret
-	 * lookup and a forwarding of the server name to the CoAP stack in the
-	 * {@link DtlsEndpointContext}. The x509 or RPK credentials lookup is
-	 * currently not server name specific, therefore the server's certificate
-	 * will be the same, regardless of the indicated server name.
-	 * <p>
-	 * The default value of this property is {@code null}. If this property is
-	 * not set explicitly using {@link Builder#setReuseAddress(boolean)}, then
-	 * the {@link Builder#build()} method will set it to {@code false}.
-	 * 
-	 * @return {@code true}, if SNI should be used.
-	 * @see DtlsConfig#DTLS_USE_SERVER_NAME_INDICATION
-	 * @since 3.0 (renamed, was isSniEnabled)
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION} instead
-	 */
-	@Deprecated
-	public Boolean useServerNameIndication() {
-		return configuration.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION);
-	}
-
-	/**
-	 * Gets the <em>Extended Master Secret</em> TLS extension mode.
-	 * 
-	 * <p>
-	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">
-	 * RFC7627, Extended Master Secret extension</a> and
-	 * {@link ExtendedMasterSecretMode} for details.
-	 * </p>
-	 * 
-	 * @return the extended master secret mode.
-	 * @see DtlsConfig#DTLS_EXTENDED_MASTER_SECRET_MODE
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE} instead
-	 */
-	@Deprecated
-	public ExtendedMasterSecretMode getExtendedMasterSecretMode() {
-		return configuration.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
-	}
-
-	/**
-	 * Threshold to use a HELLO_VERIFY_REQUEST also for session resumption in
-	 * percent of {@link DtlsConfig#DTLS_MAX_CONNECTIONS}. Though a CLIENT_HELLO with an
-	 * session id is used in session resumption, that session ID could be used
-	 * as weaker verification, that the peer controls the source address.
-	 * 
-	 * <pre>
-	 * Value 
-	 * 0 : always use a verify request.
-	 * 1 ... 100 : dynamically use a verify request.
-	 * </pre>
-	 * 
-	 * Peers are identified by their endpoint (ip-address and port). To protect
-	 * the server from congestion by address spoofing, a HELLO_VERIFY_REQUEST is
-	 * used. That adds one exchange and with that, additional latency. In cases
-	 * of session resumption, the server may also use the dtls session ID as a
-	 * weaker proof of a valid client. Unfortunately there are several
-	 * elaborated attacks to that (e.g. on-path-attacker may alter the
-	 * source-address). To mitigate this vulnerability, this threshold defines a
-	 * maximum percentage of handshakes without HELLO_VERIFY_REQUEST. If more
-	 * resumption handshakes without verified peers are pending than this
-	 * threshold, then a HELLO_VERIFY_REQUEST is used again. Additionally, if a
-	 * peer resumes a session (by id), but a different session is related to its
-	 * endpoint, then a verify request is used to ensure, that the peer really
-	 * owns that endpoint.
-	 * <p>
-	 * <b>Note:</b> a value larger than 0 will call the
-	 * {@link ResumptionVerifier}. If that implementation is expensive, please
-	 * ensure, that this value is configured with {@code 0}. Otherwise,
-	 * CLIENT_HELLOs with invalid session IDs may be spoofed and gets too
-	 * expensive.
-	 * </p>
-	 * <p>
-	 * <b>Note:</b> if spoofing is considered to be relevant for the used
-	 * network environment, please set this to {@code 0} using
-	 * {@link Builder#set} with
-	 * {@link DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} in order to
-	 * disable this function.
-	 * </p>
-	 * 
-	 * @return threshold handshakes without verified peer in percent of
-	 *         {@link #getMaxConnections()}.
-	 * @see HelloVerifyRequest
-	 * @see DtlsConfig#DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD} instead
-	 */
-	@Deprecated
-	public Integer getVerifyPeersOnResumptionThreshold() {
-		return configuration.get(DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD);
-	}
-
-	/**
-	 * Enable/disable the server's HELLO_VERIFY_REQUEST, if peers shares at
-	 * least one PSK based cipher suite.
-	 * <p>
-	 * <b>Note:</b> it is not recommended to disable the HELLO_VERIFY_REQUEST!
-	 * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
-	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
-	 * </p>
-	 * To limit the amplification, the peers must share PSK cipher suites to by
-	 * pass that check. If only certificate based cipher suites are shared, the
-	 * HELLO_VERIFY_REQUEST will still be used.
-	 * 
-	 * @return {@code true}, if a HELLO_VERIFY_REQUEST should be send to the
-	 *         client, {@code false}, if no HELLO_VERIFY_REQUEST is used.
-	 * @see HelloVerifyRequest
-	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST
-	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK} instead
-	 */
-	@Deprecated
-	public Boolean useHelloVerifyRequestForPsk() {
-		return configuration.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK);
-	}
-
-	/**
-	 * Generally enable/disable the server's HELLO_VERIFY_REQUEST.
-	 * <p>
-	 * <b>Note:</b> it is strongly not recommended to disable the
-	 * HELLO_VERIFY_REQUEST for certificates! That creates a large
-	 * amplification! See
-	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target=
-	 * "_blank">RFC 6347, 4.2.1. Denial-of-Service Countermeasures</a>.
-	 * </p>
-	 * 
-	 * @return {@code true}, if a HELLO_VERIFY_REQUEST should be send to the
-	 *         client, {@code false}, if no HELLO_VERIFY_REQUEST is used.
-	 * @see HelloVerifyRequest
-	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK
-	 * @see DtlsConfig#DTLS_USE_HELLO_VERIFY_REQUEST
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST} instead
-	 */
-	@Deprecated
-	public Boolean useHelloVerifyRequest() {
-		return configuration.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST);
 	}
 
 	/**
@@ -884,61 +458,6 @@ public final class DtlsConnectorConfig {
 	 */
 	public ConnectionIdGenerator getConnectionIdGenerator() {
 		return connectionIdGenerator;
-	}
-
-	/**
-	 * Enable/disable the use of the deprecated CID before version 9 of <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-	 * target="_blank">Draft dtls-connection-id</a> for the client.
-	 * 
-	 * @return cid extension code point to use along with the deprecated MAC
-	 *         calculation, or, {@code null}, if final extension code point 54
-	 *         and MAC calculation should be used otherwise.
-	 * @see ConnectionIdExtension
-	 * @see DtlsConfig#DTLS_USE_DEPRECATED_CID
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_DEPRECATED_CID} instead
-	 */
-	@Deprecated
-	public Integer useDeprecatedCid() {
-		return configuration.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
-	}
-
-	/**
-	 * Enable/disable the support for the deprecated CID before version 9 of
-	 * <a href=
-	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/"
-	 * target="_blank">Draft dtls-connection-id</a> for the server.
-	 * 
-	 * If enabled, the server will also accept the deprecated value {@code 53}
-	 * for the connection id extension and use the old MAC definition, if so.
-	 * 
-	 * @return {@code true}, for support the deprecated extension ID 53 along
-	 *         with the deprecated MAC calculation, {@code false}, otherwise.
-	 * @see ConnectionIdExtension
-	 * @see DtlsConfig#DTLS_SUPPORT_DEPRECATED_CID
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID} instead
-	 */
-	@Deprecated
-	public Boolean supportsDeprecatedCid() {
-		return configuration.get(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID);
-	}
-
-	/**
-	 * Gets the number of outbound messages that can be buffered in memory
-	 * before messages are dropped.
-	 * 
-	 * @return the number of messages
-	 * @see DtlsConfig#DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE} instead
-	 */
-	@Deprecated
-	public Integer getOutboundMessageBufferSize() {
-		return configuration.get(DtlsConfig.DTLS_OUTBOUND_MESSAGE_BUFFER_SIZE);
 	}
 
 	/**
@@ -978,29 +497,6 @@ public final class DtlsConnectorConfig {
 		return cipherSuiteSelector;
 	}
 
-	/**
-	 * Gets the preselected cipher suites.
-	 * 
-	 * If no supported cipher suites are provided in the configuration for
-	 * {@link DtlsConfig#DTLS_CIPHER_SUITES}, consider only this subset of
-	 * {@link CipherSuite} to be automatically selected as supported cipher
-	 * suites depending on other setting (e.g. if settings allow only PSK, only
-	 * PSK compatible cipher suite from this list will be selected).
-	 * 
-	 * Not used, if supported cipher suites are provided.
-	 * 
-	 * @return the preselected cipher suites
-	 * @see #getSupportedCipherSuites()
-	 * @see Builder#setAsList(BasicListDefinition, Object...)
-	 * @see DtlsConfig#DTLS_PRESELECTED_CIPHER_SUITES
-	 * @since 2.5
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES} instead
-	 */
-	@Deprecated
-	public List<CipherSuite> getPreselectedCipherSuites() {
-		return configuration.get(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES);
-	}
 
 	/**
 	 * Gets the supported certificate key algorithms.
@@ -1025,7 +521,7 @@ public final class DtlsConnectorConfig {
 	 * If not provided in the configuration for
 	 * {@link DtlsConfig#DTLS_CIPHER_SUITES}, the supported cipher suites are
 	 * are setup according the type of the provided credentials and
-	 * {@link #getPreselectedCipherSuites()}.
+	 * {@link DtlsConfig#DTLS_PRESELECTED_CIPHER_SUITES}.
 	 * <p>
 	 * The connector will use these cipher suites (in exactly the same order)
 	 * during the DTLS handshake when negotiating a cipher suite with a peer. if
@@ -1037,9 +533,9 @@ public final class DtlsConnectorConfig {
 	 * </ul>
 	 * 
 	 * @return the supported cipher suites (ordered by preference)
-	 * @see #getPreselectedCipherSuites()
 	 * @see Builder#setAsList(BasicListDefinition, Object...)
 	 * @see DtlsConfig#DTLS_CIPHER_SUITES
+	 * @see DtlsConfig#DTLS_PRESELECTED_CIPHER_SUITES
 	 */
 	public List<CipherSuite> getSupportedCipherSuites() {
 		return supportedCipherSuites;
@@ -1121,57 +617,6 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets whether the connector wants (requests) DTLS x509/RPK clients to
-	 * authenticate during the handshake. The handshake doesn't fail, if the
-	 * client didn't authenticate itself during the handshake. That mostly
-	 * requires the client to use a proprietary mechanism to authenticate itself
-	 * on the application layer (e.g. username/password). It's mainly used, if
-	 * the implementation of the other peer has no PSK cipher suite and client
-	 * certificate should not be used for some reason.
-	 * 
-	 * Only used by the DTLS server side.
-	 * 
-	 * @return client authentication mode
-	 * @see DtlsConfig#DTLS_CLIENT_AUTHENTICATION_MODE
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE} instead
-	 */
-	@Deprecated
-	public CertificateAuthenticationMode getCertificateAuthenticationMode() {
-		return configuration.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE);
-	}
-
-	/**
-	 * Verify the server certificate's subject.
-	 * 
-	 * @return {@code true}, to the server certificate's subject, {@code false},
-	 *         to not verify it
-	 * @see DtlsConfig#DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT} instead
-	 */
-	@Deprecated
-	public Boolean verifyServerCertificatesSubject() {
-		return configuration.get(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
-	}
-
-	/**
-	 * Gets the DTLS role the connector acts as.
-	 * 
-	 * @return role the connector acts as
-	 * @see DtlsConfig#DTLS_ROLE
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_ROLE} instead
-	 */
-	@Deprecated
-	public DtlsRole getDtlsRole() {
-		return configuration.get(DtlsConfig.DTLS_ROLE);
-	}
-
-	/**
 	 * Get the default handshake mode.
 	 * 
 	 * Used, if no handshake mode is provided in the endpoint context, see
@@ -1231,99 +676,6 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the maximum number of (active) connections the connector will
-	 * support.
-	 * <p>
-	 * Once this limit is reached, new connections will only be accepted if
-	 * <em>stale</em> connections exist. A stale connection is one that hasn't
-	 * been used for at least <em>staleConnectionThreshold</em> seconds.
-	 * 
-	 * @return The maximum number of active connections supported.
-	 * @see DtlsConfig#DTLS_MAX_CONNECTIONS
-	 * @see DtlsConfig#DTLS_STALE_CONNECTION_THRESHOLD
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_MAX_CONNECTIONS} instead
-	 */
-	@Deprecated
-	public Integer getMaxConnections() {
-		return configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
-	}
-
-	/**
-	 * Gets the maximum number of seconds within which some records need to be
-	 * exchanged over a connection before it is considered <em>stale</em>.
-	 * <p>
-	 * Once a connection becomes stale, it may be removed for new connections.
-	 * 
-	 * @return The number of seconds.
-	 * @see DtlsConfig#DTLS_STALE_CONNECTION_THRESHOLD
-	 * @see DtlsConfig#DTLS_MAX_CONNECTIONS
-	 * @since 3.0 (renamed, was getStaleConnectionThreshold)
-	 * @deprecated use {@link #get(TimeDefinition, TimeUnit)} with
-	 *             {@code DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD} instead
-	 */
-	@Deprecated
-	public Long getStaleConnectionThresholdSeconds() {
-		return configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS);
-	}
-
-	/**
-	 * Gets the number of threads which should be use to handle DTLS connection.
-	 * 
-	 * @return the number of threads.
-	 * @see DtlsConfig#DTLS_CONNECTOR_THREAD_COUNT
-	 * @since 3.0 (renamed, was getConnectionThreadCount)
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT} instead
-	 */
-	@Deprecated
-	public Integer getConnectorThreadCount() {
-		return configuration.get(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT);
-	}
-
-	/**
-	 * Gets the number of threads which should be use to receive datagrams from
-	 * the socket.
-	 * 
-	 * @return the number of threads.
-	 * @see DtlsConfig#DTLS_RECEIVER_THREAD_COUNT
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_RECEIVER_THREAD_COUNT} instead
-	 */
-	@Deprecated
-	public Integer getReceiverThreadCount() {
-		return configuration.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
-	}
-
-	/**
-	 * Gets size of the socket receive buffer.
-	 * 
-	 * @return the socket receive buffer in bytes, or {@code null}, to use the
-	 *         OS default.
-	 * @see DtlsConfig#DTLS_RECEIVE_BUFFER_SIZE
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE} instead
-	 */
-	@Deprecated
-	public Integer getSocketReceiveBufferSize() {
-		return configuration.get(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE);
-	}
-
-	/**
-	 * Gets size of the socket send buffer.
-	 * 
-	 * @return the socket send buffer in bytes, or {@code null}, to use the OS
-	 *         default.
-	 * @see DtlsConfig#DTLS_SEND_BUFFER_SIZE
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_SEND_BUFFER_SIZE} instead
-	 */
-	@Deprecated
-	public Integer getSocketSendBufferSize() {
-		return configuration.get(DtlsConfig.DTLS_SEND_BUFFER_SIZE);
-	}
-
-	/**
 	 * Get the timeout for automatic handshakes.
 	 * 
 	 * If no messages are exchanged for this timeout, the next message will
@@ -1343,126 +695,6 @@ public final class DtlsConnectorConfig {
 			timeout = null;
 		}
 		return timeout;
-	}
-
-	/**
-	 * Indicates, that session id is used by this server and so session are
-	 * cached by this server and can be resumed.
-	 * 
-	 * @return {@code true}, if session id is used by this server,
-	 *         {@code false}, if no session id us used by this server and
-	 *         therefore the session can not be resumed. Default {@code true}.
-	 * @see DtlsConfig#DTLS_SERVER_USE_SESSION_ID
-	 * @since 3.0 (was useNoServerSessionId with inverse logic)
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_SERVER_USE_SESSION_ID} instead
-	 */
-	@Deprecated
-	public Boolean useServerSessionId() {
-		return configuration.get(DtlsConfig.DTLS_SERVER_USE_SESSION_ID);
-	}
-
-	/**
-	 * Use anti replay filter.
-	 * 
-	 * @return {@code true}, apply anti replay filter
-	 * @see <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6"
-	 *      target= "_blank">RFC6347 4.1.2.6. Anti-Replay</a>
-	 * @see DtlsConfig#DTLS_USE_ANTI_REPLAY_FILTER
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER} instead
-	 */
-	@Deprecated
-	public Boolean useAntiReplayFilter() {
-		return configuration.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
-	}
-
-	/**
-	 * Use disabled window for anti replay filter.
-	 * 
-	 * Californium uses the "sliding receive window" approach mentioned in
-	 * <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6" target=
-	 * "_blank">RFC6347 4.1.2.6. Anti-Replay</a>. That causes trouble, if some
-	 * records are sent on postponed routes (e.g. SMS). That would make it more
-	 * probable, that the record is to old for the receive window. In order not
-	 * to discard such records, this values defines a "disabled window", that
-	 * allows record to pass the filter, even if the records are too old for the
-	 * current receive window.
-	 * 
-	 * The value will be subtracted from to lower receive window boundary. A
-	 * value of {@code -1} will set that calculated lower boundary to {@code 0}.
-	 * Messages between lower receive window boundary and that calculated value
-	 * will pass the filter, for other messages the filter is applied.
-	 * 
-	 * @return value to extend lower receive window boundary, {@code -1}, to
-	 *         extend lower boundary to {@code 0}, {@code 0} to disable extended
-	 *         window filter.
-	 * @see <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6"
-	 *      target= "_blank">RFC6347 4.1.2.6. Anti-Replay</a>
-	 * @see DtlsConfig#DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER
-	 * @since 2.4
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER} instead
-	 */
-	@Deprecated
-	public Integer useDisabledWindowFilter() {
-		return configuration.get(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER);
-	}
-
-	/**
-	 * Update the ip-address from DTLS 1.2 CID records only for newer records
-	 * based on epoch/sequence_number.
-	 * 
-	 * The MAC filter must always be passed.
-	 * 
-	 * @return {@code true}, update ip-address only for newer records,
-	 *         {@code false}, update ip-address for records passing the
-	 *         anti-replay-filter.
-	 * @see DtlsConfig#DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS
-	 * @since 3.0 (renamed, was useCidUpdateAddressOnNewerRecordFilter)
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS} instead
-	 */
-	@Deprecated
-	public Boolean useUpdateAddressUsingCidOnNewerRecords() {
-		return configuration.get(DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS);
-	}
-
-	/**
-	 * Use truncated certificate paths for client's certificate message.
-	 * 
-	 * Truncate certificate path according the received certificate authorities
-	 * in the {@link CertificateRequest} for the client's
-	 * {@link CertificateMessage}.
-	 * 
-	 * @return {@code true}, if path should be truncated for client's
-	 *         certificate message.
-	 * @see DtlsConfig#DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH
-	 * @since 2.1
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH} instead
-	 */
-	@Deprecated
-	public Boolean useTruncatedCertificatePathForClientsCertificateMessage() {
-		return configuration.get(DtlsConfig.DTLS_TRUNCATE_CLIENT_CERTIFICATE_PATH);
-	}
-
-	/**
-	 * Use truncated certificate paths for validation.
-	 * 
-	 * Truncate certificate path according the available trusted certificates
-	 * before validation.
-	 * 
-	 * @return {@code true}, if path should be truncated at available trust
-	 *         anchors for validation
-	 * @see DtlsConfig#DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION
-	 * @since 2.1
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION} instead
-	 */
-	@Deprecated
-	public Boolean useTruncatedCertificatePathForValidation() {
-		return configuration.get(DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION);
 	}
 
 	/**
@@ -1566,21 +798,6 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets health status interval.
-	 * 
-	 * @return health status interval in milliseconds. {@code 0} for disabled.
-	 * @see SystemConfig#HEALTH_STATUS_INTERVAL
-	 * @since 3.0 (renamed, was getHealthStatusInterval, changed return type to
-	 *        {@code int} and returns milliseconds instead of seconds)
-	 * @deprecated pass in {@link DtlsHealth} and call
-	 *             {@link CounterStatisticManager#dump()} externally.
-	 */
-	@Deprecated
-	public int getHealthStatusIntervalMilliseconds() {
-		return configuration.getTimeAsInt(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
-	}
-
-	/**
 	 * Gets health handler.
 	 * 
 	 * @return health handler.
@@ -1588,50 +805,6 @@ public final class DtlsConnectorConfig {
 	 */
 	public DtlsHealth getHealthHandler() {
 		return healthHandler;
-	}
-
-	/**
-	 * Check, if only recommended cipher suite are to be used.
-	 * 
-	 * @return {@code true}, if only recommended cipher suites are used.
-	 * @see DtlsConfig#DTLS_RECOMMENDED_CIPHER_SUITES_ONLY
-	 * @since 3.0 (renamed, was isRecommendedCipherSuitesOnly)
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY} instead
-	 */
-	@Deprecated
-	public Boolean useRecommendedCipherSuitesOnly() {
-		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY);
-	}
-
-	/**
-	 * Check, if only recommended supported curves are to be used.
-	 * 
-	 * @return {@code true}, if only recommended supported groups (curves) are
-	 *         used.
-	 * @see DtlsConfig#DTLS_RECOMMENDED_CURVES_ONLY
-	 * @since 3.0 (renamed, was isRecommendedSupportedGroupsOnly)
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY} instead
-	 */
-	@Deprecated
-	public Boolean useRecommendedSupportedGroupsOnly() {
-		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_CURVES_ONLY);
-	}
-
-	/**
-	 * Check, if only recommended signature and hash algorithms are used.
-	 * 
-	 * @return {@code true}, if only recommended signature and hash algorithms
-	 *         are used.
-	 * @see DtlsConfig#DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY
-	 * @since 3.0
-	 * @deprecated use {@link #get(BasicDefinition)} with
-	 *             {@code DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY} instead
-	 */
-	@Deprecated
-	public Boolean useRecommendedSignatureAndHashAlgorithmsOnly() {
-		return configuration.get(DtlsConfig.DTLS_RECOMMENDED_SIGNATURE_AND_HASH_ALGORITHMS_ONLY);
 	}
 
 	/**
@@ -2186,7 +1359,6 @@ public final class DtlsConnectorConfig {
 		 * @return the configuration object
 		 * @throws IllegalStateException if the configuration is inconsistent
 		 */
-		@SuppressWarnings("deprecation")
 		public DtlsConnectorConfig build() {
 			// set default values
 			config.loggingTag = StringUtil.normalizeLoggingTag(config.loggingTag);
@@ -2261,12 +1433,6 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			if (config.get(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS)
-					&& !config.get(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE)) {
-				throw new IllegalStateException(
-						"Removing stale double principals requires the read-write-lock connection store!!");
-			}
-
 			long quietTime = config.get(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, TimeUnit.NANOSECONDS);
 			int threshold = config.get(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD);
 			if (quietTime == 0 ^ threshold == 0) {
@@ -2278,19 +1444,6 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.datagramFilter == null && threshold > 0) {
 				throw new IllegalStateException("Enabled DTLS MAC error filter requires a record-filter!");
-			}
-
-			Integer cidCodePoint = config.get(DtlsConfig.DTLS_USE_DEPRECATED_CID);
-			if (cidCodePoint != null) {
-				ExtensionType cidType = ExtensionType.getExtensionTypeById(cidCodePoint);
-				if (cidType == null) {
-					throw new IllegalStateException(cidCodePoint + " code point is not supported for extensions!");
-				}
-				if (cidType != ExtensionType.CONNECTION_ID
-						&& cidType.getReplacementType() != ExtensionType.CONNECTION_ID) {
-					throw new IllegalStateException(
-							cidCodePoint + " (" + cidType + ") is no supported CID extension code point!");
-				}
 			}
 
 			config.supportedGroups = config.configuration.get(DtlsConfig.DTLS_CURVES);
@@ -2448,11 +1601,6 @@ public final class DtlsConnectorConfig {
 						}
 					}
 				}
-			}
-			if (config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST) && !config.get(DtlsConfig.DTLS_USE_HELLO_VERIFY_REQUEST_FOR_PSK)
-					&& !CipherSuite.containsPskBasedCipherSuite(config.supportedCipherSuites)) {
-				throw new IllegalStateException(
-						"HELLO_VERIFY_REQUEST disabled for PSK, requires at least one PSK cipher suite!");
 			}
 			config.supportedCertificatekeyAlgorithms = ListUtils.init(config.supportedCertificatekeyAlgorithms);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);
