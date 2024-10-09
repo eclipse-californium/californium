@@ -12,7 +12,8 @@
 	<packaging>pom</packaging>
 
 	<name>Californium (Cf) Parent</name>
-	<description>Common definitions and configuration for all Californium (Cf) components</description>
+	<description>Common definitions and configuration for all Californium (Cf)
+		components</description>
 	<url>https://eclipse.dev/californium/</url>
 	<organization>
 		<name>Eclipse Foundation</name>
@@ -29,7 +30,8 @@
 		</license>
 	</licenses>
 	<scm>
-		<developerConnection>scm:git:ssh://git@github.com/eclipse-californium/californium.git</developerConnection>
+		<developerConnection>
+			scm:git:ssh://git@github.com/eclipse-californium/californium.git</developerConnection>
 		<url>https://github.com/eclipse-californium/californium</url>
 		<tag>HEAD</tag>
 	</scm>
@@ -108,8 +110,8 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.build.javaVersion>1.7</project.build.javaVersion>
-		<maven.compiler.release>7</maven.compiler.release>
+		<project.build.javaVersion>1.8</project.build.javaVersion>
+		<maven.compiler.release>8</maven.compiler.release>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
 		<javadoc.doclint>none</javadoc.doclint>
 		<revapi.previous.version>RELEASE</revapi.previous.version>
@@ -119,19 +121,22 @@
 		<repository>
 			<id>repo.eclipse.org</id>
 			<name>Californium Repository - Releases</name>
-			<url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
+			<url>
+				https://repo.eclipse.org/content/repositories/californium-releases/</url>
 		</repository>
 		<snapshotRepository>
 			<id>repo.eclipse.org</id>
 			<name>Californium Repository - Snapshots</name>
-			<url>https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
+			<url>
+				https://repo.eclipse.org/content/repositories/californium-snapshots/</url>
 		</snapshotRepository>
 	</distributionManagement>
 
 	<pluginRepositories>
 		<pluginRepository>
 			<id>dash-licenses-snapshots</id>
-			<url>https://repo.eclipse.org/content/repositories/dash-licenses-snapshots/</url>
+			<url>
+				https://repo.eclipse.org/content/repositories/dash-licenses-snapshots/</url>
 			<snapshots>
 				<enabled>true</enabled>
 			</snapshots>
@@ -139,7 +144,8 @@
 		<pluginRepository>
 			<id>repo.eclipse.org</id>
 			<name>Californium Repository - Releases</name>
-			<url>https://repo.eclipse.org/content/repositories/californium-releases/</url>
+			<url>
+				https://repo.eclipse.org/content/repositories/californium-releases/</url>
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
@@ -190,15 +196,15 @@
 			<plugins>
 				<plugin>
 					<artifactId>maven-clean-plugin</artifactId>
-					<version>3.1.0</version>
+					<version>3.4.0</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-deploy-plugin</artifactId>
-					<version>2.8.2</version>
+					<version>3.1.3</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-install-plugin</artifactId>
-					<version>3.1.1</version>
+					<version>3.1.3</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-resources-plugin</artifactId>
@@ -206,16 +212,16 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-site-plugin</artifactId>
-					<version>3.9.1</version>
+					<version>3.20.0</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-dependency-plugin</artifactId>
-					<version>3.6.0</version>
+					<version>3.8.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-toolchains-plugin</artifactId>
-					<version>3.1.0</version>
+					<version>3.2.0</version>
 					<executions>
 						<execution>
 							<goals>
@@ -234,7 +240,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.11.0</version>
+					<version>3.13.0</version>
 					<configuration>
 						<encoding>${project.build.sourceEncoding}</encoding>
 						<compilerArgs>
@@ -244,7 +250,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-source-plugin</artifactId>
-					<version>3.3.0</version>
+					<version>3.3.1</version>
 					<executions>
 						<execution>
 							<id>attach-sources</id>
@@ -258,8 +264,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.22.2</version>
-					<!-- version 3.1.2 requires java 8 -->
+					<version>3.5.1</version>
 					<configuration>
 						<useSystemClassLoader>false</useSystemClassLoader>
 					</configuration>
@@ -281,7 +286,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>3.6.0</version>
+					<version>3.10.1</version>
 					<executions>
 						<execution>
 							<id>attach-javadocs</id>
@@ -297,7 +302,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-assembly-plugin</artifactId>
-					<version>3.6.0</version>
+					<version>3.7.1</version>
 					<inherited>true</inherited>
 					<dependencies>
 						<dependency>
@@ -328,7 +333,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-jar-plugin</artifactId>
-					<version>3.3.0</version>
+					<version>3.4.2</version>
 					<configuration>
 						<excludes>
 							<exclude>**/logback-test.xml</exclude>
@@ -337,32 +342,31 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>3.4.1</version>
+					<version>3.5.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.sonatype.plugins</groupId>
 					<artifactId>nexus-staging-maven-plugin</artifactId>
-					<version>1.6.13</version>
+					<version>1.7.0</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-gpg-plugin</artifactId>
-					<version>3.1.0</version>
+					<version>3.2.7</version>
 				</plugin>
 				<plugin>
 					<groupId>org.eclipse.cbi.maven.plugins</groupId>
 					<artifactId>eclipse-jarsigner-plugin</artifactId>
-					<version>1.3.5</version>
-					<!-- version 1.4.2 requires java 8 -->
+					<version>1.5.2</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>animal-sniffer-maven-plugin</artifactId>
-					<version>1.23</version>
+					<version>1.24</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>license-maven-plugin</artifactId>
-					<version>2.0.0</version>
+					<version>2.4.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.revapi</groupId>
@@ -379,7 +383,7 @@
 				<plugin>
 					<groupId>org.eclipse.dash</groupId>
 					<artifactId>license-tool-plugin</artifactId>
-					<version>0.0.1-SNAPSHOT</version>
+					<version>1.1.0</version>
 					<executions>
 						<execution>
 							<id>license-check</id>
@@ -389,6 +393,11 @@
 							</goals>
 						</execution>
 					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>build-helper-maven-plugin</artifactId>
+					<version>3.6.0</version>
 				</plugin>
 			</plugins>
 		</pluginManagement>
@@ -404,7 +413,8 @@
 					<excludes>
 						<exclude>**/*$*</exclude>
 					</excludes>
-					<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+					<excludedGroups>
+						org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 				</configuration>
 				<executions>
 					<execution>
@@ -414,8 +424,10 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
-							<groups>org.eclipse.californium.elements.category.Small</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+							<groups>
+								org.eclipse.californium.elements.category.Small</groups>
+							<excludedGroups>
+								org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 						</configuration>
 					</execution>
 					<execution>
@@ -425,8 +437,10 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
-							<groups>org.eclipse.californium.elements.category.Medium</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+							<groups>
+								org.eclipse.californium.elements.category.Medium</groups>
+							<excludedGroups>
+								org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 						</configuration>
 					</execution>
 					<execution>
@@ -436,8 +450,10 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
-							<groups>org.eclipse.californium.elements.category.Large</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+							<groups>
+								org.eclipse.californium.elements.category.Large</groups>
+							<excludedGroups>
+								org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 						</configuration>
 					</execution>
 					<execution>
@@ -450,8 +466,10 @@
 							<systemPropertyVariables>
 								<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
 							</systemPropertyVariables>
-							<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
+							<groups>
+								org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
+							<excludedGroups>
+								org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
 						</configuration>
 					</execution>
 				</executions>
@@ -468,13 +486,14 @@
 							<rules>
 								<dependencyConvergence />
 								<requireMavenVersion>
-									<version>3.2.5</version>
+									<version>3.6.3</version>
 								</requireMavenVersion>
 							</rules>
 						</configuration>
 					</execution>
 					<execution>
-						<!-- Make sure that only non-snapshot versions are used for the dependencies. 
+						<!-- Make sure that only non-snapshot versions are used
+						for the dependencies. 
 							Only active when property 'snapshotDependencyAllowed' is false. -->
 						<id>enforce-no-snapshots</id>
 						<goals>
@@ -502,14 +521,17 @@
 				<artifactId>license-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
-				<!-- Use the Nexus Staging plugin as a full replacement for the standard 
-					Maven Deploy plugin. See https://github.com/sonatype/nexus-maven-plugins/tree/master/staging/maven-plugin 
+				<!-- Use the Nexus Staging plugin as a full replacement for the
+				standard 
+					Maven Deploy plugin. See
+				https://github.com/sonatype/nexus-maven-plugins/tree/master/staging/maven-plugin 
 					why this makes sense :-) We can control whether we want to deploy to the 
 					Eclipse repo or Maven Central by a combination of the version being a SNAPHOT 
 					or release version and property skipStaging=true/false. In any case we can 
 					take advantage of the plugin's "deferred deploy" feature which makes sure 
 					that all artifacts of a multi-module project are deployed as a whole at the 
-					end of the build process instead of deploying each module's artifacts individually 
+					end of the build process instead of deploying each module's artifacts
+				individually 
 					as part of building the module. -->
 				<groupId>org.sonatype.plugins</groupId>
 				<artifactId>nexus-staging-maven-plugin</artifactId>
@@ -523,7 +545,6 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>3.4.0</version>
 				<executions>
 					<execution>
 						<id>parse-version</id>
@@ -553,12 +574,16 @@
 									<code>java.class.externalClassExposedInAPI</code>
 									<package>org\.eclipse\.californium\..*</package>
 									<justification>
-										Californium uses classes of other californium modules
-										very frequently in the APIs. It's considered, that
-										always all used californium modules must have the same
+										Californium uses classes of other
+										californium modules
+										very frequently in the APIs. It's
+										considered, that
+										always all used californium modules must
+										have the same
 										version!
 									</justification>
 								</item>
+								<!--
 								<item>
 									<regex>true</regex>
 									<code>java.class.externalClassExposedInAPI</code>
@@ -567,11 +592,14 @@
 										Californium uses classes of slf4j in some case with scope protected.
 									</justification>
 								</item>
+								-->
 								<item>
 									<code>java.field.enumConstantOrderChanged</code>
-									<class>org.eclipse.californium.scandium.dtls.cipher.CipherSuite</class>
+									<class>
+										org.eclipse.californium.scandium.dtls.cipher.CipherSuite</class>
 									<justification>
-										Order in CipherSuite reflects the preference by intention.
+										Order in CipherSuite reflects the
+										preference by intention.
 										ordinal() must not be used.
 									</justification>
 								</item>
@@ -582,11 +610,13 @@
 								<exclude>
 									<item>
 										<matcher>java</matcher>
-										<match>@org.eclipse.californium.elements.util.NoPublicAPI ^*;</match>
+										<match>@org.eclipse.californium.elements.util.NoPublicAPI
+											^*;</match>
 									</item>
 									<item>
 										<matcher>java</matcher>
-										<match>@org.eclipse.californium.elements.util.WipAPI ^*;</match>
+										<match>@org.eclipse.californium.elements.util.WipAPI
+											^*;</match>
 									</item>
 								</exclude>
 							</elements>
@@ -597,7 +627,8 @@
 						<configurationFile>
 							<path>api-changes.json</path>
 							<roots>
-								<root>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</root>
+								<root>
+									${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</root>
 							</roots>
 						</configurationFile>
 					</analysisConfigurationFiles>
@@ -617,11 +648,13 @@
 				<configuration>
 					<signature>
 						<groupId>net.sf.androidscents.signature</groupId>
-						<artifactId>android-api-level-19</artifactId>
-						<version>4.4.2_r4</version>
+						<!-- Android 8 -->
+						<artifactId>android-api-level-26</artifactId>
+						<version>8.0.0_r2</version>
 					</signature>
 					<annotations>
-						<annotation>org.eclipse.californium.elements.util.NotForAndroid</annotation>
+						<annotation>
+							org.eclipse.californium.elements.util.NotForAndroid</annotation>
 					</annotations>
 				</configuration>
 			</plugin>
@@ -765,7 +798,8 @@
 			</build>
 		</profile>
 		<profile>
-			<!-- This profile activate the usage of toolchain to compile using JDK 
+			<!-- This profile activate the usage of toolchain to compile using
+			JDK 
 				1.7 -->
 			<id>useToolchain</id>
 			<activation>
@@ -792,7 +826,8 @@
 			</build>
 		</profile>
 		<profile>
-			<!-- This profile activate the usage of toolchain to compile and javadoc 
+			<!-- This profile activate the usage of toolchain to compile and
+			javadoc 
 				using JDK 1.7 -->
 			<id>toolchain-javadoc</id>
 			<activation>
@@ -875,8 +910,8 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.version>1.77</bc.version>
-				<slf4j.version>1.7.36</slf4j.version>
+				<bc.version>1.78.1</bc.version>
+				<slf4j.version>2.0.16</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>
@@ -930,8 +965,8 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<properties>
-				<bc.version>1.77</bc.version>
-				<slf4j.version>1.7.36</slf4j.version>
+				<bc.version>1.78.1</bc.version>
+				<slf4j.version>2.0.16</slf4j.version>
 			</properties>
 			<dependencies>
 				<dependency>
@@ -980,7 +1015,8 @@
 			</build>
 		</profile>
 		<profile>
-			<!-- this profile signs artifacts so that they can be deployed to repo.eclipse.org -->
+			<!-- this profile signs artifacts so that they can be deployed to
+			repo.eclipse.org -->
 			<id>eclipse_jar_signing</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
@@ -998,7 +1034,8 @@
 					<snapshots>
 						<enabled>false</enabled>
 					</snapshots>
-					<url>https://repo.eclipse.org/content/repositories/cbi-releases/</url>
+					<url>
+						https://repo.eclipse.org/content/repositories/cbi-releases/</url>
 				</pluginRepository>
 			</pluginRepositories>
 			<build>
