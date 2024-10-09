@@ -283,47 +283,6 @@ public class LinkFormat {
 	}
 
 	/**
-	 * Serialize tree of provided resource into the buffer.
-	 * 
-	 * The provided resource and all children are serialized. The children are
-	 * listed ordered by their name.
-	 * 
-	 * @param resource resource to serialize
-	 * @param queries The list of queries to match the resource with. A empty
-	 *            list or {@code null} matches all resources.
-	 * @param buffer buffer to serialize the (sub-)tree of the provided
-	 *            resource. Ends with {@code ","}.
-	 * @deprecated use {@link #getSubTree(Resource, List)} and
-	 *             {@link #serialize(Set, StringBuilder)} instead. The
-	 *             {@code ","} at the end must be added, if required.
-	 */
-	@Deprecated
-	public static void serializeTree(Resource resource, List<String> queries, StringBuilder buffer) {
-		// add the current resource to the buffer
-		Set<WebLink> subTree = getSubTree(resource, queries);
-		serialize(subTree, buffer);
-		buffer.append(',');
-	}
-
-	/**
-	 * Serialize provided resource.
-	 * 
-	 * @param resource resource to serialize
-	 * @return serialized resource. Ends with {@code ","}.
-	 * @deprecated use {@link #createWebLink(Resource)} and
-	 *             {@link #serialize(WebLink)} instead. The {@code ","} at the
-	 *             end must be added, if required.
-	 */
-	@Deprecated
-	public static StringBuilder serializeResource(Resource resource) {
-		WebLink webLink = createWebLink(resource);
-		StringBuilder builder = new StringBuilder();
-		serialize(webLink, builder);
-		builder.append(",");
-		return builder;
-	}
-
-	/**
 	 * Serialize resource path into provided builder.
 	 * 
 	 * Apply URL encoding for the single elements.
@@ -467,42 +426,6 @@ public class LinkFormat {
 	}
 
 	/**
-	 * Check whether the given resource matches the given list of queries.
-	 *
-	 * Queries are interpreted according to
-	 * <a href="https://tools.ietf.org/html/rfc6690#section-4.1" target=
-	 * "_blank">RFC 6690</a>, section 4.1, with the important difference that
-	 * more than one query can be passed to the function. The resource only
-	 * matches the list of queries if the resource matches every query in the
-	 * list. This functionality is required to implement resource directory
-	 * filtering according to the <a href=
-	 * "https://tools.ietf.org/html/draft-ietf-core-resource-directory-11#section-7"
-	 * target="_blank">Resource directory</a> draft, which requires support for
-	 * matching multiple attributes.
-	 *
-	 * @param resource The resource to match.
-	 * @param queries The list of queries to match the resource with. A empty
-	 *            list or {@code null} matches all resources.
-	 * @return {@code true}, if the resource matches all queries, {@code false}
-	 *         otherwise.
-	 * @see #matches(WebLink, List)
-	 * @deprecated use {@link #createWebLink(Resource)} and
-	 *             {@link #matches(WebLink, List)} instead.
-	 */
-	@Deprecated
-	public static boolean matches(Resource resource, List<String> queries) {
-
-		if (resource == null) {
-			return false;
-		}
-		if (queries == null || queries.isEmpty()) {
-			return true;
-		}
-
-		return matches(createWebLink(resource), queries);
-	}
-
-	/**
 	 * Check whether the given web-link matches the given list of queries.
 	 *
 	 * Queries are interpreted according to
@@ -521,7 +444,6 @@ public class LinkFormat {
 	 *            list or {@code null} matches all resources.
 	 * @return {@code true}, if the web-link matches all queries, {@code false}
 	 *         otherwise.
-	 * @see #matches(Resource, List)
 	 * @since 3.3
 	 */
 	public static boolean matches(WebLink link, List<String> queries) {

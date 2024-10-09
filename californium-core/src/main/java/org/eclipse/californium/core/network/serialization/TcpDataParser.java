@@ -23,16 +23,17 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.CODE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.LENGTH_NIBBLE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_BITS;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.DatagramReader;
-
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 /**
  * A parser for messages encoded following the encoding defined by the
@@ -49,24 +50,6 @@ public class TcpDataParser extends DataParser {
 	 */
 	public TcpDataParser() {
 		super();
-	}
-
-	/**
-	 * Create TCP data parser with support for critical custom options.
-	 * 
-	 * @param criticalCustomOptions Array of critical custom options. Empty to
-	 *            fail on custom critical options. {@code null} to use
-	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *            default to check for critical custom options.
-	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
-	 *        as default option registry.
-	 * @deprecated please use {@link OptionRegistry} with
-	 *             {@link #TcpDataParser(OptionRegistry)}.
-	 */
-	@Deprecated
-	public TcpDataParser(int[] criticalCustomOptions) {
-		super(criticalCustomOptions);
 	}
 
 	/**

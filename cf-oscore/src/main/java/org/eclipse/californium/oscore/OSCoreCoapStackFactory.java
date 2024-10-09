@@ -55,12 +55,6 @@ public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 		}
 	}
 
-	@Override
-	public CoapStack createCoapStack(String protocol, String tag, Configuration config, Outbox outbox,
-			Object customStackArgument) {
-		return createCoapStack(protocol, tag, config, null, outbox, customStackArgument);
-	}
-
 	/**
 	 * Use {@link OSCoreUdpStack} or {@link OSCoreTcpStack} as default for
 	 * {@link CoapEndpoint}.
@@ -71,7 +65,7 @@ public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 	 * @param defaultCtxDb default context DB. Passed in as default argument for
 	 *            {@link OSCoreUdpStack} and {@link OSCoreTcpStack}
 	 * 
-	 * @see CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)
+	 * @see CoapEndpoint#setDefaultCoapStackFactory(ExtendedCoapStackFactory)
 	 */
 	public static void useAsDefault(OSCoreCtxDB defaultCtxDb) {
 		if (init.compareAndSet(false, true)) {

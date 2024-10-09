@@ -22,7 +22,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
@@ -218,30 +217,6 @@ public final class BlockOption {
 	 */
 	public int getOffset() {
 		return num * szx2Size(szx);
-	}
-
-	/**
-	 * Convert to generic {@link Option}.
-	 * 
-	 * @param number either {@link OptionNumberRegistry#BLOCK1} or
-	 *            {@link OptionNumberRegistry#BLOCK2}.
-	 * @return generic option.
-	 * @throws IllegalArgumentException if number is neither
-	 *             {@link OptionNumberRegistry#BLOCK1} nor
-	 *             {@link OptionNumberRegistry#BLOCK2}.
-	 * @deprecated obsolete
-	 * @since 3.0
-	 */
-	@Deprecated
-	public Option toOption(int number) {
-		if (StandardOptionRegistry.BLOCK1.getNumber() == number) {
-			return StandardOptionRegistry.BLOCK1.create(getValue());
-		} else if (StandardOptionRegistry.BLOCK2.getNumber() == number) {
-			return StandardOptionRegistry.BLOCK2.create(getValue());
-		}
-		throw new IllegalArgumentException(
-				"Block Option must be either block1(" + StandardOptionRegistry.BLOCK1.getNumber() + ") or block2("
-						+ StandardOptionRegistry.BLOCK2.getNumber() + "), not " + number + "!");
 	}
 
 	@Override

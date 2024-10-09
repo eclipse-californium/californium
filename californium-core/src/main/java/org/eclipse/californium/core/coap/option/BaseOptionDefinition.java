@@ -109,11 +109,6 @@ public abstract class BaseOptionDefinition implements OptionDefinition {
 	}
 
 	@Override
-	public final int[] getValueLengths() {
-		return lengths;
-	}
-
-	@Override
 	public void assertValue(byte[] value) {
 		int min = lengths[0];
 		int max = lengths[1];

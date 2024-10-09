@@ -24,8 +24,6 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.eclipse.californium.core.coap.Token;
-
 /**
  * This class represents an observing endpoint. It holds all observe relations
  * that the endpoint has to this server. If a confirmable notification timeouts
@@ -91,25 +89,6 @@ public class ObservingEndpoint {
 	 */
 	public InetSocketAddress getAddress() {
 		return address;
-	}
-
-	/**
-	 * Get observer relation for provided token.
-	 * 
-	 * @param token observe request's token
-	 * @return observe relation, or {@code null}, if not available.
-	 * @deprecated obsolete
-	 */
-	@Deprecated
-	public ObserveRelation getObserveRelation(Token token) {
-		if (token != null) {
-			for (ObserveRelation relation : relations) {
-				if (token.equals(relation.getExchange().getRequest().getToken())) {
-					return relation;
-				}
-			}
-		}
-		return null;
 	}
 
 	public boolean isEmpty() {

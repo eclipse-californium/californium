@@ -386,10 +386,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 *             but the connector is not a {@link UDPConnector}
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	@SuppressWarnings("deprecation")
 	protected CoapEndpoint(Connector connector, Configuration config, TokenGenerator tokenGenerator,
 			ObservationStore store, MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher,
-			DataSerializer serializer, DataParser parser, String loggingTag, CoapStackFactory coapStackFactory,
+			DataSerializer serializer, DataParser parser, String loggingTag, ExtendedCoapStackFactory coapStackFactory,
 			Object customStackArgument) {
 		if (LOGGER_BAN.isInfoEnabled() && LOGGER_BAN_STARTED.compareAndSet(false, true)) {
 			LOGGER_BAN.info("Started.");
@@ -420,16 +419,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{}{} uses {}", tag, getClass().getSimpleName(), endpointContextMatcher.getName());
 
-		if (coapStackFactory instanceof ExtendedCoapStackFactory) {
-			// use the new factory to pass in the matcher (since 3.1)
-			this.coapstack = ((ExtendedCoapStackFactory) coapStackFactory).createCoapStack(connector.getProtocol(),
-					this.tag, config, endpointContextMatcher, new OutboxImpl(), customStackArgument);
-		} else {
-			// use the old factory without protection for blockwise follow up requests
-			// deprecated, will be removed with 4.0
-			this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), this.tag, config,
-					new OutboxImpl(), customStackArgument);
-		}
+		// use the new factory to pass in the matcher (since 3.1)
+		this.coapstack = ((ExtendedCoapStackFactory) coapStackFactory).createCoapStack(connector.getProtocol(),
+				this.tag, config, endpointContextMatcher, new OutboxImpl(), customStackArgument);
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.useRequestOffloading = false; // no deduplication
@@ -1108,7 +1100,8 @@ public class CoapEndpoint implements Endpoint, Executor {
 								e.getMessage());
 					}
 				} else {
-					// ignore erroneous messages that are not transmitted reliably
+					// ignore erroneous messages that are not transmitted
+					// reliably
 					LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, context, e.getMessage());
 				}
 			} catch (MessageFormatException e) {
@@ -1140,7 +1133,8 @@ public class CoapEndpoint implements Endpoint, Executor {
 			}
 		}
 
-		private void responseToMalformedRequest(final EndpointContext destination, final CoAPMessageFormatException cause) {
+		private void responseToMalformedRequest(final EndpointContext destination,
+				final CoAPMessageFormatException cause) {
 			Response response = new Response(cause.getErrorCode(), true);
 			response.setDestinationContext(destination);
 			response.setToken(cause.getToken());
@@ -1436,8 +1430,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		/**
 		 * Coap-stack-factory to create coap-stack.
 		 */
-		@SuppressWarnings("deprecation")
-		private CoapStackFactory coapStackFactory;
+		private ExtendedCoapStackFactory coapStackFactory;
 		/**
 		 * Serializer to convert messages to datagrams.
 		 */
@@ -1446,21 +1439,6 @@ public class CoapEndpoint implements Endpoint, Executor {
 		 * Parser to convert datagrams to messages.
 		 */
 		private DataParser parser;
-		/**
-		 * Array of critical custom options.
-		 * 
-		 * Only used, if {@link CoapEndpoint#parser} is not set with
-		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)} nor a
-		 * {@link OptionRegistry} is provided with
-		 * {@link #setOptionRegistry(OptionRegistry)}.
-		 * {@code null}, to not check for critical custom options, empty to fail
-		 * on critical custom options. Default empty.
-		 * 
-		 * @since 3.4
-		 * @deprecated use {@link #optionRegistry} instead.
-		 */
-		@Deprecated
-		private int[] criticalCustomOptions = new int[0];
 		/**
 		 * Option registry for endpoint parser.
 		 * 
@@ -1664,16 +1642,13 @@ public class CoapEndpoint implements Endpoint, Executor {
 		 * @return this
 		 * @see #coapStackFactory
 		 */
-		@SuppressWarnings("deprecation")
-		public Builder setCoapStackFactory(CoapStackFactory coapStackFactory) {
+		public Builder setCoapStackFactory(ExtendedCoapStackFactory coapStackFactory) {
 			this.coapStackFactory = coapStackFactory;
 			return this;
 		}
 
 		/**
 		 * Set custom data serializer and parser.
-		 * 
-		 * Doesn't consider {@link #setCriticalCustomOptions(int[])}.
 		 * 
 		 * @param serializer custom data serializer
 		 * @param parser custom data parser
@@ -1683,31 +1658,6 @@ public class CoapEndpoint implements Endpoint, Executor {
 		public Builder setDataSerializerAndParser(DataSerializer serializer, DataParser parser) {
 			this.serializer = serializer;
 			this.parser = parser;
-			return this;
-		}
-
-		/**
-		 * Set critical custom options.
-		 * 
-		 * Only used, if {@link CoapEndpoint#parser} is not set with
-		 * {@link #setDataSerializerAndParser(DataSerializer, DataParser)} nor a
-		 * {@link OptionRegistry} is provided with
-		 * {@link #setOptionRegistry(OptionRegistry)}.
-		 * 
-		 * @param criticalCustomOptions Array of critical custom options.
-		 *            {@code null}, to not check for critical custom options,
-		 *            empty to fail on custom critical options. Default empty.
-		 * @return this
-		 * @since 3.4
-		 * @deprecated use {@link #setOptionRegistry(OptionRegistry)} instead
-		 */
-		@Deprecated
-		public Builder setCriticalCustomOptions(int[] criticalCustomOptions) {
-			if (criticalCustomOptions != null) {
-				this.criticalCustomOptions = criticalCustomOptions.clone();
-			} else {
-				this.criticalCustomOptions = null;
-			}
 			return this;
 		}
 
@@ -1758,7 +1708,6 @@ public class CoapEndpoint implements Endpoint, Executor {
 		 * 
 		 * @return new endpoint
 		 */
-		@SuppressWarnings("deprecation")
 		public CoapEndpoint build() {
 			if (config == null) {
 				config = Configuration.getStandard();
@@ -1792,21 +1741,13 @@ public class CoapEndpoint implements Endpoint, Executor {
 			}
 			if (parser == null) {
 				if (CoAP.isTcpProtocol(connector.getProtocol())) {
-					if (optionRegistry != null) {
-						parser = new TcpDataParser(optionRegistry);
-					} else {
-						parser = new TcpDataParser(criticalCustomOptions);
-					}
+					parser = new TcpDataParser(optionRegistry);
 					if (store != null) {
 						store.setDeduplicator(new NoDeduplicator());
 					}
 				} else {
 					boolean strictEmptyMessageFormat = config.get(CoapConfig.STRICT_EMPTY_MESSAGE_FORMAT);
-					if (optionRegistry != null) {
-						parser = new UdpDataParser(strictEmptyMessageFormat, optionRegistry);
-					} else {
-						parser = new UdpDataParser(strictEmptyMessageFormat, criticalCustomOptions);
-					}
+					parser = new UdpDataParser(strictEmptyMessageFormat, optionRegistry);
 				}
 			}
 			return new CoapEndpoint(connector, config, tokenGenerator, observationStore, exchangeStore,
@@ -1818,15 +1759,14 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * Standard coap-stack-factory.
 	 * 
 	 * This will be also the default, if no other default gets provided with
-	 * {@link #setDefaultCoapStackFactory(CoapStackFactory)}. If an other
+	 * {@link #setDefaultCoapStackFactory(ExtendedCoapStackFactory)}. If an other
 	 * default factory is used, this one may be used to build a standard
 	 * coap-stack on demand.
 	 * 
 	 * Note: since 3.1 this is a {@link ExtendedCoapStackFactory} in order to
 	 * support to match blockwise follow-up requests.
 	 */
-	@SuppressWarnings("deprecation")
-	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new ExtendedCoapStackFactory() {
+	public static final ExtendedCoapStackFactory STANDARD_COAP_STACK_FACTORY = new ExtendedCoapStackFactory() {
 
 		@Override
 		public CoapStack createCoapStack(String protocol, String tag, Configuration config,
@@ -1837,19 +1777,12 @@ public class CoapEndpoint implements Endpoint, Executor {
 				return new CoapUdpStack(tag, config, matchingStrategy, outbox);
 			}
 		}
-
-		@Override
-		public CoapStack createCoapStack(String protocol, String tag, Configuration config, Outbox outbox,
-				Object customStackArgument) {
-			return createCoapStack(protocol, tag, config, null, outbox, customStackArgument);
-		}
 	};
 
 	/**
 	 * Default coap-stack-factory. Intended to be set only once.
 	 */
-	@SuppressWarnings("deprecation")
-	private static CoapStackFactory defaultCoapStackFactory;
+	private static ExtendedCoapStackFactory defaultCoapStackFactory;
 
 	/**
 	 * Get default coap-stack-factory. Setup default implementation, if factory
@@ -1857,8 +1790,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * 
 	 * @return default coap-stack-factory
 	 */
-	@SuppressWarnings("deprecation")
-	private static synchronized CoapStackFactory getDefaultCoapStackFactory() {
+	private static synchronized ExtendedCoapStackFactory getDefaultCoapStackFactory() {
 		if (defaultCoapStackFactory == null) {
 			defaultCoapStackFactory = STANDARD_COAP_STACK_FACTORY;
 		}
@@ -1875,8 +1807,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * @throws NullPointerException if new factory is {@code null}
 	 * @throws IllegalStateException if factory is already set.
 	 */
-	@SuppressWarnings("deprecation")
-	public static synchronized void setDefaultCoapStackFactory(CoapStackFactory newFactory) {
+	public static synchronized void setDefaultCoapStackFactory(ExtendedCoapStackFactory newFactory) {
 		if (defaultCoapStackFactory != null) {
 			throw new IllegalStateException("Default coap-stack-factory already set!");
 		}

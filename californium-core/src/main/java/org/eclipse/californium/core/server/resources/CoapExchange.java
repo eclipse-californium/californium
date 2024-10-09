@@ -59,22 +59,6 @@ public class CoapExchange implements ResponseConsumer {
 	private byte[] eTag = null;
 
 	/**
-	 * Creates a new CoAP Exchange object for an exchange and resource.
-	 * 
-	 * @param exchange The message exchange.
-	 * @param resource The resource.
-	 * @throws NullPointerException if any of the parameters is {@code null}.
-	 * @deprecated use {@link #CoapExchange(Exchange)} instead
-	 */
-	@Deprecated
-	public CoapExchange(final Exchange exchange, final CoapResource resource) {
-		this(exchange);
-		if (resource == null) {
-			throw new NullPointerException("resource must not be null");
-		}
-	}
-
-	/**
 	 * Creates a new CoAP Exchange object for an exchange.
 	 * 
 	 * @param exchange The message exchange.

@@ -15,11 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack.congestioncontrol;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -51,25 +47,6 @@ public class CongestionStatisticLogger extends CounterStatisticManager {
 	 */
 	public CongestionStatisticLogger(String tag) {
 		super(tag);
-		init();
-	}
-
-	/**
-	 * Create active congestion logger.
-	 * 
-	 * {@link #dump()} is called repeated with configurable interval.
-	 * 
-	 * @param tag logging tag
-	 * @param interval interval. {@code 0} to disable active logging.
-	 * @param executor executor executor to schedule active logging.
-	 * @param unit time unit of interval
-	 * @throws NullPointerException if executor is {@code null}
-	 * @since 3.0 (added unit)
-	 * @deprecated use {@link HealthStatisticLogger#HealthStatisticLogger(String, boolean)}
-	 *             instead and call {@link #dump()} externally.
-	 */
-	public CongestionStatisticLogger(String tag, int interval, TimeUnit unit, ScheduledExecutorService executor) {
-		super(tag, interval, unit, executor);
 		init();
 	}
 

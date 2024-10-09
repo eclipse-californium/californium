@@ -30,10 +30,6 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKE
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.option.LegacyMapBasedOptionRegistry;
-import org.eclipse.californium.core.coap.option.OptionDefinition;
-import org.eclipse.californium.core.coap.option.OptionRegistry;
-import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.CoAPOptionException;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -44,6 +40,9 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
@@ -51,7 +50,6 @@ import org.eclipse.californium.elements.util.DatagramReader;
 /**
  * A base class for parsing CoAP messages from a byte array.
  */
-@SuppressWarnings("deprecation")
 public abstract class DataParser {
 
 	protected final OptionRegistry optionRegistry;
@@ -64,28 +62,6 @@ public abstract class DataParser {
 	 */
 	protected DataParser() {
 		optionRegistry = StandardOptionRegistry.getDefaultOptionRegistry();
-	}
-
-	/**
-	 * Create data parser with support for critical custom options.
-	 * 
-	 * @param criticalCustomOptions Array of critical custom options. Empty to
-	 *            fail on custom critical options. {@code null} to use
-	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *            default to check for critical custom options.
-	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
-	 *        as default option registry.
-	 * @deprecated please use {@link OptionRegistry} with
-	 *             {@link #DataParser(OptionRegistry)}.
-	 */
-	@Deprecated
-	protected DataParser(int[] criticalCustomOptions) {
-		if (criticalCustomOptions == null) {
-			criticalCustomOptions = OptionNumberRegistry.getCriticalCustomOptions();
-		}
-		this.optionRegistry = new LegacyMapBasedOptionRegistry(true, criticalCustomOptions,
-				StandardOptionRegistry.getDefaultOptionRegistry());
 	}
 
 	/**
@@ -209,20 +185,6 @@ public abstract class DataParser {
 	 */
 	protected void assertValidOptions(OptionSet options) {
 		// empty default implementation
-	}
-
-	/**
-	 * Check, if option number is a (supported) critical custom option.
-	 * 
-	 * @param optionNumber option number to check
-	 * @return {@code true}, if option number is a critical custom option,
-	 *         {@code false}, if not.
-	 * @since 3.4
-	 * @deprecated
-	 */
-	@Deprecated
-	protected boolean isCiriticalCustomOption(int optionNumber) {
-		return false;
 	}
 
 	/**

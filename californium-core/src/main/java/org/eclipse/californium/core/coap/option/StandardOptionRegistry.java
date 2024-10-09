@@ -194,7 +194,8 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	 *      target= "_blank">RFC9175 3.2.1. Request-Tag Option Format </a>
 	 * @since 3.9
 	 */
-	public static final OpaqueOptionDefinition REQUEST_TAG = new OpaqueOptionDefinition(292, "Request-Tag", false, 0, 8);
+	public static final OpaqueOptionDefinition REQUEST_TAG = new OpaqueOptionDefinition(292, "Request-Tag", false, 0,
+			8);
 
 	/**
 	 * Registry with all standard options.
@@ -228,22 +229,14 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	/**
 	 * Set default option registry
 	 * 
-	 * Note: it is not intended to use a mixture of custom
-	 * {@link OptionDefinition}s and a
-	 * {@link OptionNumberRegistry#setCustomOptionNumberRegistry(CustomOptionNumberRegistry)}
-	 * simultaneously! Please migrate your custom option to
-	 * {@link OptionDefinition}s.
-	 * 
 	 * @param registry default option registry. If {@code null}, use the
 	 *            implementation default.
 	 * @return previous default option registry.
 	 */
-	@SuppressWarnings("deprecation")
 	public static OptionRegistry setDefaultOptionRegistry(OptionRegistry registry) {
 		OptionRegistry previous = defaultRegistry;
 		if (registry == null) {
-			defaultRegistry = new LegacyMapBasedOptionRegistry(true,
-					OptionNumberRegistry.getCustomOptionNumberRegistry(), StandardOptionRegistry.STANDARD_OPTIONS);
+			defaultRegistry = STANDARD_OPTIONS;
 		} else {
 			defaultRegistry = registry;
 		}

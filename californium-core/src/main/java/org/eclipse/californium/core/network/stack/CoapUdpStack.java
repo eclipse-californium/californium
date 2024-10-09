@@ -74,10 +74,6 @@ import org.eclipse.californium.elements.config.Configuration;
  * +--------------------------+
  * </pre></blockquote><hr>
  * 
- * Note: since 3.1 the create-layer methods have been deprecated. If your usage
- * requires to have custom layers, please implement a own {@link CoapStack} and
- * use the {@link ExtendedCoapStackFactory} to provide instances of that custom
- * implementation.
  */
 public class CoapUdpStack extends BaseCoapStack {
 
@@ -104,75 +100,5 @@ public class CoapUdpStack extends BaseCoapStack {
 				new BlockwiseLayer(tag, false, config, matchingStrategy),
 				CongestionControlLayer.newImplementation(tag, config) };
 		setLayers(layers);
-	}
-
-	/**
-	 * Creates a new stack for UDP as the transport.
-	 * 
-	 * @param tag logging tag
-	 * @param config The configuration values to use.
-	 * @param outbox The adapter for submitting outbound messages to the
-	 *            transport.
-	 * @deprecated use
-	 *             {@link #CoapUdpStack(String, Configuration, EndpointContextMatcher, Outbox)}
-	 *             instead
-	 * @since 3.0 (logging tag added and changed parameter to Configuration)
-	 */
-	public CoapUdpStack(String tag, Configuration config, Outbox outbox) {
-		super(outbox);
-		Layer layers[] = new Layer[] { createExchangeCleanupLayer(config), createObserveLayer(config),
-				createBlockwiseLayer(tag, config), createReliabilityLayer(tag, config) };
-
-		setLayers(layers);
-	}
-
-	/**
-	 * Create exchange cleanup layer.
-	 * 
-	 * @param config configuration
-	 * @return exchange cleanup layer
-	 * @deprecated use a custom implementation of the {@link CoapStack} and the
-	 *             {@link ExtendedCoapStackFactory} instead.
-	 */
-	protected Layer createExchangeCleanupLayer(Configuration config) {
-		return new ExchangeCleanupLayer(config);
-	}
-
-	/**
-	 * Create observe layer.
-	 * 
-	 * @param config configuration
-	 * @return observe layer
-	 * @deprecated use a custom implementation of the {@link CoapStack} and the
-	 *             {@link ExtendedCoapStackFactory} instead.
-	 */
-	protected Layer createObserveLayer(Configuration config) {
-		return new ObserveLayer(config);
-	}
-
-	/**
-	 * Create blockwise layer.
-	 * 
-	 * @param tag logging tag
-	 * @param config configuration
-	 * @return blockwise layer
-	 * @deprecated use a custom implementation of the {@link CoapStack} and the
-	 *             {@link ExtendedCoapStackFactory} instead.
-	 */
-	protected Layer createBlockwiseLayer(String tag, Configuration config) {
-		return new BlockwiseLayer(tag, false, config);
-	}
-
-	/**
-	 * Create reliability layer.
-	 * 
-	 * @param tag logging tag
-	 * @param config configuration
-	 * @return reliability layer
-	 * @deprecated use a custom implementation of the {@link CoapStack} and the
-	 *             {@link ExtendedCoapStackFactory} instead.
-	 */
-	protected Layer createReliabilityLayer(String tag, Configuration config) {
-		return CongestionControlLayer.newImplementation(tag, config);
 	}
 }
