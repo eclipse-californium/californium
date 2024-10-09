@@ -51,12 +51,6 @@ public final class DTLSContext implements Destroyable {
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 
 	/**
-	 * Use deprecated MAC for CID.
-	 * 
-	 * @since 3.0
-	 */
-	private boolean useDeprecatedCid;
-	/**
 	 * Connection id used for all outbound records.
 	 */
 	private ConnectionId writeConnectionId = null;
@@ -209,30 +203,6 @@ public final class DTLSContext implements Destroyable {
 	 */
 	public DTLSSession getSession() {
 		return session;
-	}
-
-	/**
-	 * Use deprecated definitions for extension ID and MAC calculation.
-	 * 
-	 * @return {@code true}, if the deprecated extension ID {@code 53} along
-	 *         with the deprecated MAC calculation is used, {@code false},
-	 *         otherwise.
-	 * @since 3.0
-	 */
-	public boolean useDeprecatedCid() {
-		return useDeprecatedCid;
-	}
-
-	/**
-	 * Set usage of deprecated definitions for extension ID and MAC calculation.
-	 * 
-	 * @param useDeprecatedCid {@code true}, if the deprecated extension ID
-	 *            {@code 53} along with the deprecated MAC calculation is used,
-	 *            {@code false}, otherwise.
-	 * @since 3.0
-	 */
-	void setDeprecatedCid(boolean useDeprecatedCid) {
-		this.useDeprecatedCid = useDeprecatedCid;
 	}
 
 	/**
@@ -812,7 +782,6 @@ public final class DTLSContext implements Destroyable {
 		result = prime * result + (int) (receivedRecordsVector ^ (receivedRecordsVector >>> 32));
 		result = prime * result + ((readConnectionId == null) ? 0 : readConnectionId.hashCode());
 		result = prime * result + ((writeConnectionId == null) ? 0 : writeConnectionId.hashCode());
-		result = prime * result + ((useDeprecatedCid) ? 1 : 0);
 		result = prime * result + effectiveMaxMessageSize;
 		result = prime * result + session.hashCode();
 		return result;
@@ -868,9 +837,6 @@ public final class DTLSContext implements Destroyable {
 			return false;
 		}
 		if (sequenceNumbers[writeEpoch] != other.sequenceNumbers[writeEpoch]) {
-			return false;
-		}
-		if (useDeprecatedCid != other.useDeprecatedCid) {
 			return false;
 		}
 		if (effectiveMaxMessageSize != other.effectiveMaxMessageSize) {
@@ -957,8 +923,8 @@ public final class DTLSContext implements Destroyable {
 		}
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
 		writeSequenceNumbers(writer);
-		// after deprecation
-		writer.writeByte(useDeprecatedCid ? (byte) 1 : (byte) 0);
+		// after deprecation dummy for "deprecated cid"
+		writer.writeByte((byte) 0);
 		writer.write(effectiveMaxMessageSize, Short.SIZE);
 		// after deprecation_2
 		writer.writeByte(supportExport ? (byte) 1 : (byte) 0);
@@ -1020,15 +986,14 @@ public final class DTLSContext implements Destroyable {
 		}
 		readSequenceNumbers(reader);
 		if (version == VERSION_DEPRECATED) {
-			useDeprecatedCid = true;
 			effectiveMaxMessageSize = 0;
 			supportExport = false;
 		} else if (version == VERSION_DEPRECATED_2) {
-			useDeprecatedCid = reader.readNextByte() == 1;
+			reader.readNextByte();
 			effectiveMaxMessageSize = reader.read(Short.SIZE);
 			supportExport = false;
 		} else if (version == VERSION) {
-			useDeprecatedCid = reader.readNextByte() == 1;
+			reader.readNextByte();
 			effectiveMaxMessageSize = reader.read(Short.SIZE);
 			supportExport = reader.readNextByte() == 1;
 			if (supportExport) {

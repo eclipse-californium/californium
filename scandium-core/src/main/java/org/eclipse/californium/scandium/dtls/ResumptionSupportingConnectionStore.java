@@ -71,7 +71,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 * @return number of save connections.
 	 * @throws IOException if an io-error occurred
 	 * @throws IllegalStateException if connector is running
-	 * @since 3.4 (overrides the deprecated interface method)
+	 * @since 3.4
 	 */
 	int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException;
 
@@ -92,7 +92,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 * @throws IllegalArgumentException if an reading error occurred. Continue
 	 *             to load other connection-stores may work, that may be not
 	 *             affected by this error.
-	 * @since 3.4 (overrides the deprecated interface method)
+	 * @since 3.4
 	 */
 	int loadConnections(InputStream in, long delta) throws IOException;
 
