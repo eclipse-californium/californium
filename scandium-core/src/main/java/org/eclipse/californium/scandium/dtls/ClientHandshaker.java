@@ -62,7 +62,6 @@ import org.eclipse.californium.scandium.config.DtlsConfig.DtlsSecureRenegotiatio
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -466,7 +465,6 @@ public class ClientHandshaker extends Handshaker {
 			DTLSContext context = getDtlsContext();
 			context.setWriteConnectionId(connectionId);
 			context.setReadConnectionId(getReadConnectionId());
-			context.setDeprecatedCid(extension.useDeprecatedCid());
 		}
 	}
 
@@ -963,7 +961,7 @@ public class ClientHandshaker extends Handshaker {
 				// use empty cid
 				connectionId = ConnectionId.EMPTY;
 			}
-			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId, ExtensionType.CONNECTION_ID);
+			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
 			helloMessage.addExtension(extension);
 		}
 	}

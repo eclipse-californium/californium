@@ -890,17 +890,12 @@ public class ServerHandshaker extends Handshaker {
 		if (supportsConnectionId()) {
 			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
 			if (connectionIdExtension != null) {
-				boolean useDeprecatedCid = connectionIdExtension.useDeprecatedCid();
-				if (!useDeprecatedCid) {
-					ConnectionId connectionId = getReadConnectionId();
-					ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId,
-							connectionIdExtension.getType());
-					serverHello.addExtension(extension);
-					DTLSContext context = getDtlsContext();
-					context.setWriteConnectionId(connectionIdExtension.getConnectionId());
-					context.setReadConnectionId(connectionId);
-					context.setDeprecatedCid(useDeprecatedCid);
-				}
+				ConnectionId connectionId = getReadConnectionId();
+				ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
+				serverHello.addExtension(extension);
+				DTLSContext context = getDtlsContext();
+				context.setWriteConnectionId(connectionIdExtension.getConnectionId());
+				context.setReadConnectionId(connectionId);
 			}
 		}
 	}
