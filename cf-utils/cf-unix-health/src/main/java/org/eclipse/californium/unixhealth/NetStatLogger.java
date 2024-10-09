@@ -20,8 +20,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.NotForAndroid;
@@ -43,11 +41,8 @@ public class NetStatLogger extends CounterStatisticManager {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	protected static final Logger LOGGER = LoggerFactory.getLogger(NetStatLogger.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(NetStatLogger.class);
 
 	// Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors
 	// InCsumErrors IgnoredMulti
@@ -73,19 +68,6 @@ public class NetStatLogger extends CounterStatisticManager {
 	private final Parser parser;
 
 	/**
-	 * Create passive netstat logger for IPv4.
-	 * 
-	 * {@link #dump()} is intended to be called externally.
-	 * 
-	 * @param tag logging tag
-	 * @deprecated use {@link NetStatLogger#NetStatLogger(String, boolean)}
-	 *             instead
-	 */
-	public NetStatLogger(String tag) {
-		this(tag, false);
-	}
-
-	/**
 	 * Create passive netstat logger.
 	 * 
 	 * {@link #dump()} is intended to be called externally.
@@ -98,30 +80,6 @@ public class NetStatLogger extends CounterStatisticManager {
 		super(tag);
 		this.parser = ipv6 ? new SnmpIPv6Parser() : new SnmpIPv4Parser();
 		this.file = getFile(ipv6);
-		if (isEnabled()) {
-			init();
-		}
-	}
-
-	/**
-	 * Create active netstat logger for IPv4.
-	 * 
-	 * {@link #dump()} is called repeated with configurable interval after
-	 * {@link #start()} is called.
-	 * 
-	 * @param tag logging tag
-	 * @param interval interval. {@code 0} to disable active logging.
-	 * @param unit time unit of interval
-	 * @param executor executor executor to schedule active logging.
-	 * @throws NullPointerException if executor is {@code null}
-	 * @since 3.0 (added unit)
-	 * @deprecated use {@link NetStatLogger#NetStatLogger(String, boolean)}
-	 *             instead and call {@link #dump()} externally.
-	 */
-	public NetStatLogger(String tag, int interval, TimeUnit unit, ScheduledExecutorService executor) {
-		super(tag, interval, unit, executor);
-		this.parser = new SnmpIPv4Parser();
-		this.file = getFile(false);
 		if (isEnabled()) {
 			init();
 		}
