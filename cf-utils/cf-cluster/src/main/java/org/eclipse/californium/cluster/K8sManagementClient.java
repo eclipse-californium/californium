@@ -109,11 +109,8 @@ public abstract class K8sManagementClient {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	protected static final Logger LOGGER = LoggerFactory.getLogger(K8sManagementClient.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(K8sManagementClient.class);
 	/**
 	 * Hostname.
 	 */
