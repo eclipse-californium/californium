@@ -525,7 +525,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			}
 
 			PlugtestServer.add(server);
-			PlugtestServer.load(config);
+			PlugtestServer.setupPersistence(config);
 
 			// start standard plugtest server and shutdown
 			CoapServer plugtestServer = PlugtestServer.start(executor, secondaryExecutor, config, configuration,

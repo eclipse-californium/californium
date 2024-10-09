@@ -22,20 +22,22 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.coap.option.OptionRegistry;
-import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
-import org.eclipse.californium.core.coap.CoAPMessageFormatException;
-import org.eclipse.californium.core.coap.MessageFormatException;
-import org.eclipse.californium.core.coap.OptionNumberRegistry;
-import org.eclipse.californium.core.coap.OptionSet;
-import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.elements.util.DatagramReader;
-
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.CODE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.MESSAGE_ID_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TYPE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION_BITS;
 
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.CoAPMessageFormatException;
+import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 /**
  * A parser for messages encoded following the standard CoAP encoding.
@@ -52,57 +54,6 @@ public class UdpDataParser extends DataParser {
 	 */
 	public UdpDataParser() {
 		this(false, StandardOptionRegistry.getDefaultOptionRegistry());
-	}
-
-	/**
-	 * Create UDP data parser with support for critical custom options.
-	 * 
-	 * @param criticalCustomOptions Array of critical custom options. Empty to
-	 *            fail on custom critical options. {@code null} to use
-	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *            default to check for critical custom options.
-	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
-	 *        as default option registry.
-	 * @deprecated please use {@link OptionRegistry} with
-	 *             {@link #UdpDataParser(boolean, OptionRegistry)}.
-	 */
-	@Deprecated
-	public UdpDataParser(int[] criticalCustomOptions) {
-		this(false, criticalCustomOptions);
-	}
-
-	/**
-	 * Create UDP data parser with support for critical custom options and
-	 * provided strictness for empty message format.
-	 * 
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.1"
-	 * target="_blank">RFC7252, Section 4.1</a> defines:
-	 * 
-	 * <pre>
-	 * An Empty message has the Code field set to 0.00.  The Token Length
-	 * field MUST be set to 0 and bytes of data MUST NOT be present after
-	 * the Message ID field.  If there are any bytes, they MUST be processed
-	 * as a message format error.
-	 * </pre>
-	 * 
-	 * @param strictEmptyMessageFormat {@code true}, to process messages with
-	 *            code {@code 0} strictly according RFC7252, 4.1.,
-	 *            {@code false}, to relax the MUST in a not compliant way!
-	 * @param criticalCustomOptions Array of critical custom options. Empty to
-	 *            fail on custom critical options. {@code null} to use
-	 *            {@link OptionNumberRegistry#getCriticalCustomOptions()} as
-	 *            default to check for critical custom options.
-	 * @see OptionNumberRegistry#getCriticalCustomOptions()
-	 * @since 3.8 Use {@link StandardOptionRegistry#getDefaultOptionRegistry()}
-	 *        as default option registry.
-	 * @deprecated please use {@link OptionRegistry} with
-	 *             {@link #UdpDataParser(boolean, OptionRegistry)}.
-	 */
-	@Deprecated
-	public UdpDataParser(boolean strictEmptyMessageFormat, int[] criticalCustomOptions) {
-		super(criticalCustomOptions);
-		this.strictEmptyMessageFormat = strictEmptyMessageFormat;
 	}
 
 	/**

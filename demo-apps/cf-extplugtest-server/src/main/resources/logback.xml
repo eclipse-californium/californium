@@ -147,9 +147,6 @@
 	<logger name="org.eclipse.californium.core.CoapServer" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
-	<logger name="org.eclipse.californium.core.server.ServersSerializationUtil" level="INFO" additivity="false">
-		<appender-ref ref="STDOUT" />
-	</logger>
 	<logger name="org.eclipse.californium.elements.util.PersistentComponentUtil" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>

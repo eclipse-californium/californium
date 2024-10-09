@@ -59,19 +59,6 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * resources rooted at the specified root.
 	 * 
 	 * @param root the root resource
-	 * @deprecated use {@link #ServerMessageDeliverer(Resource, Configuration)}
-	 *             instead
-	 */
-	@Deprecated
-	public ServerMessageDeliverer(Resource root) {
-		this(root, null);
-	}
-
-	/**
-	 * Constructs a default message deliverer that delivers requests to the
-	 * resources rooted at the specified root.
-	 * 
-	 * @param root the root resource
 	 * @param config the configuration
 	 * @since 3.6
 	 */
