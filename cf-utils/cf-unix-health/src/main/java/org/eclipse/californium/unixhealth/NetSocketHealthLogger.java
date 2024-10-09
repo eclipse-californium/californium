@@ -50,11 +50,8 @@ public class NetSocketHealthLogger extends CounterStatisticManager {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	protected static final Logger LOGGER = LoggerFactory.getLogger(NetSocketHealthLogger.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(NetSocketHealthLogger.class);
 
 	/**
 	 * IPv4 file to read.
