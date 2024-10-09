@@ -123,28 +123,6 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	 *            used to determine this destination scheme for forward-proxy
 	 *            implementations. The translator may return {@code null} to
 	 *            bypass the forward-proxy processing for a request.
-	 * @deprecated use
-	 *             {@link #ForwardProxyMessageDeliverer(Resource, CoapUriTranslator, Configuration)}
-	 *             instead
-	 */
-	@Deprecated
-	public ForwardProxyMessageDeliverer(Resource root, CoapUriTranslator translator) {
-		this(root, translator, null);
-	}
-
-	/**
-	 * Create message deliverer with forward-proxy support.
-	 * 
-	 * @param root root resource of coap-proxy-server. Used for mixed proxies or
-	 *            coap servers, if requests are intended to be also delivered
-	 *            according their uri-path. May be {@code null}, if only used
-	 *            for a forward proxy and requests are no intended to be
-	 *            delivered using their uri path.
-	 * @param translator translator for destination-scheme.
-	 *            {@link CoapUriTranslator#getDestinationScheme(Request)} is
-	 *            used to determine this destination scheme for forward-proxy
-	 *            implementations. The translator may return {@code null} to
-	 *            bypass the forward-proxy processing for a request.
 	 * @param config configuration.
 	 * @since 3.6
 	 */
