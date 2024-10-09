@@ -16,8 +16,6 @@
 package org.eclipse.californium.elements.config;
 
 import org.eclipse.californium.elements.Definition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Definition of configuration value.
@@ -26,13 +24,6 @@ import org.slf4j.LoggerFactory;
  * @since 3.0
  */
 public abstract class DocumentedDefinition<T> extends Definition<T> {
-	/**
-	 * The logger.
-	 * 
-	 * @deprecated to be removed.
-	 */
-	@Deprecated
-	protected static final Logger LOGGER = LoggerFactory.getLogger(DocumentedDefinition.class);
 
 	/**
 	 * Documentation for properties.

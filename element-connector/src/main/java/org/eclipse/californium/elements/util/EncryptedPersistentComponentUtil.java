@@ -46,26 +46,6 @@ import org.slf4j.LoggerFactory;
  */
 public class EncryptedPersistentComponentUtil extends PersistentComponentUtil {
 
-	/**
-	 * Default cipher.
-	 * 
-	 * Mandatory supported by Java 7. Know attacks, e.g. "lucky 13" are based on
-	 * timing and 13 bytes "additional data" for the MAC. Both doesn't apply
-	 * here.
-	 * 
-	 * @deprecated use {@link EncryptedStreamUtil#DEFAULT_CIPHER_ALGORITHM}
-	 *             instead
-	 */
-	@Deprecated
-	public static final String DEFAULT_CIPHER_ALGORITHM = EncryptedStreamUtil.DEFAULT_CIPHER_ALGORITHM;
-	/**
-	 * Default key size in bits.
-	 * 
-	 * @deprecated use {@link EncryptedStreamUtil#DEFAULT_KEY_SIZE_BITS} instead
-	 */
-	@Deprecated
-	public static final int DEFAULT_KEY_SIZE_BITS = EncryptedStreamUtil.DEFAULT_KEY_SIZE_BITS;
-
 	private static final Logger LOGGER = LoggerFactory.getLogger(EncryptedPersistentComponentUtil.class);
 
 	private final EncryptedStreamUtil encryptionUtility = new EncryptedStreamUtil();
@@ -119,18 +99,6 @@ public class EncryptedPersistentComponentUtil extends PersistentComponentUtil {
 	 */
 	public String getReadCipher() {
 		return encryptionUtility.getReadCipher();
-	}
-
-	/**
-	 * Set algorithm and key size.
-	 * 
-	 * @param cipherAlgorithm cipher algorithm
-	 * @param keySizeBits key size in bits
-	 * @deprecated use {@link #setWriteCipher(String, int)} instead
-	 */
-	@Deprecated
-	public void setCipher(String cipherAlgorithm, int keySizeBits) {
-		encryptionUtility.setCipher(cipherAlgorithm, keySizeBits);
 	}
 
 	/**

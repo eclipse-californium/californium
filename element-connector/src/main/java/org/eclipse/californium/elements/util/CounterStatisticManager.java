@@ -21,10 +21,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -35,9 +31,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * Since 3.1: {@link #isEnabled()} is now coupled to the logger info level, if a
  * logger is assigned. In order to write the statistic, the logger must have at
  * least level debug. That enables to collect statistics without writing them.
- * The support for timer interval based and processing is deprecated. A external
- * view may get unclear, if the contained statistics are dumped at different
- * times.
  * 
  * @since 2.1
  */
@@ -65,29 +58,7 @@ abstract public class CounterStatisticManager {
 	 * Tag to describe the information.
 	 */
 	protected final String tag;
-	/**
-	 * Executor for active repeated {@link #dump()}, {@code null}, if
-	 * {@link #dump()} is called externally.
-	 */
-	private final ScheduledExecutorService executor;
-	/**
-	 * Interval to call {@link #dump()}.
-	 * 
-	 * {@code 0} to disable active calls of {@link #dump()}.
-	 */
-	private final long interval;
-	/**
-	 * TimeUnit of Interval.
-	 */
-	private final TimeUnit unit;
-	/**
-	 * Handle of scheduled task.
-	 */
-	private ScheduledFuture<?> taskHandle;
-	/**
-	 * Check, if manager was {@link #start()}ed or {@link #stop()}ped.
-	 */
-	private AtomicBoolean running = new AtomicBoolean();
+
 	/**
 	 * The nano-realtime of the last transfer.
 	 * 
@@ -105,41 +76,6 @@ abstract public class CounterStatisticManager {
 	 */
 	protected CounterStatisticManager(String tag) {
 		this.tag = StringUtil.normalizeLoggingTag(tag);
-		this.interval = 0;
-		this.unit = null;
-		this.executor = null;
-	}
-
-	/**
-	 * Create active statistic manager.
-	 * 
-	 * {@link #dump()} is called repeated with configurable interval.
-	 * 
-	 * @param tag describing information
-	 * @param interval interval. {@code 0} to disable actively calling
-	 *            {@link #dump()}.
-	 * @param unit time unit of interval
-	 * @param executor executor to schedule active calls of {@link #dump()}.
-	 * @throws NullPointerException if executor is {@code null}
-	 * @since 3.0 (added unit)
-	 * @deprecated use
-	 *             {@link CounterStatisticManager#CounterStatisticManager(String)}
-	 *             instead and call {@link #dump()} externally.
-	 */
-	protected CounterStatisticManager(String tag, long interval, TimeUnit unit, ScheduledExecutorService executor) {
-		if (executor == null) {
-			throw new NullPointerException("executor must not be null!");
-		}
-		this.tag = StringUtil.normalizeLoggingTag(tag);
-		if (isEnabled()) {
-			this.interval = interval;
-			this.unit = unit;
-			this.executor = interval > 0 ? executor : null;
-		} else {
-			this.interval = 0;
-			this.unit = null;
-			this.executor = null;
-		}
 	}
 
 	/**
@@ -214,20 +150,6 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Get {@link SimpleCounterStatistic} by name.
-	 * 
-	 * <b>Note:</b> this function is equivalent to {@link #getByKey(String)} but
-	 * has a misleading name and documentation.
-	 * 
-	 * @param name name of counter statistic
-	 * @return the counter statistic, or {@code null}, if not available.
-	 * @deprecated use {@link #getByKey(String)} instead.
-	 */
-	protected SimpleCounterStatistic get(String name) {
-		return statistics.get(name);
-	}
-
-	/**
 	 * Get {@link SimpleCounterStatistic} by key.
 	 * 
 	 * @param key key the map
@@ -272,48 +194,7 @@ abstract public class CounterStatisticManager {
 	public abstract boolean isEnabled();
 
 	/**
-	 * Start active calls of {@link #dump()}.
-	 * 
-	 * @deprecated call {@link #dump()} externally instead
-	 */
-	public synchronized void start() {
-		if (executor != null && taskHandle == null) {
-			running.set(true);
-			taskHandle = executor.scheduleAtFixedRate(new Runnable() {
-
-				@Override
-				public void run() {
-					if (running.get()) {
-						dump();
-					}
-				}
-
-			}, interval, interval, unit);
-		}
-	}
-
-	/**
-	 * Stop active calls of {@link #dump()}.
-	 * 
-	 * @return {@code true}, if stopped, {@code false}, if was already stopped.
-	 * @since 3.0 (added return value)
-	 * @deprecated call {@link #dump()} externally instead
-	 */
-	public synchronized boolean stop() {
-		if (taskHandle != null) {
-			running.set(false);
-			taskHandle.cancel(false);
-			taskHandle = null;
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	/**
-	 * Dump statistic. Either called active, for
-	 * {@link #CounterStatisticManager(String, long, TimeUnit, ScheduledExecutorService)},
-	 * or externally.
+	 * Dump statistic.
 	 */
 	public abstract void dump();
 
@@ -350,23 +231,6 @@ abstract public class CounterStatisticManager {
 			statistic.reset();
 		}
 		lastTransfer.set(ClockUtil.nanoRealtime());
-	}
-
-	/**
-	 * Get counter of {@link SimpleCounterStatistic}.
-	 * 
-	 * <b>Note:</b> this function is equivalent to
-	 * {@link #getCounterByKey(String)} but has a misleading name and
-	 * documentation.
-	 * 
-	 * @param name name to lookup. Created using {@code head} and append
-	 *            {@link SimpleCounterStatistic#getName()}.
-	 * @return counter of {@link SimpleCounterStatistic}.
-	 * @see #add(String, SimpleCounterStatistic)
-	 * @deprecated use {@link #getCounterByKey(String)} instead
-	 */
-	public long getCounter(String name) {
-		return getByKey(name).getCounter();
 	}
 
 	/**

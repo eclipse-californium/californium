@@ -45,162 +45,6 @@ import java.util.List;
 public class Asn1DerDecoder {
 
 	/**
-	 * Key algorithm EC to be used by KeyFactory.
-	 * 
-	 * @deprecated use {@link JceNames#EC} instead
-	 */
-	@Deprecated
-	public static final String EC = JceNames.EC;
-	/**
-	 * Key algorithm RSA to be used by KeyFactory.
-	 * 
-	 * @deprecated use {@link JceNames#RSA} instead
-	 */
-	@Deprecated
-	public static final String RSA = JceNames.RSA;
-	/**
-	 * Key algorithm DSA to be used by KeyFactory.
-	 * 
-	 * @deprecated use {@link JceNames#DSA} instead
-	 */
-	@Deprecated
-	public static final String DSA = "DSA";
-	/**
-	 * Key algorithm DH to be used by KeyFactory.
-	 * 
-	 * @deprecated use {@link JceNames#DH} instead
-	 */
-	@Deprecated
-	public static final String DH = "DH";
-	/**
-	 * Key algorithm EC v2 (RFC 5958), not to be used by KeyFactory.
-	 * 
-	 * @see #readEcPrivateKeyV2(byte[])
-	 * @deprecated use {@link JceNames#ECv2} instead
-	 */
-	@Deprecated
-	public static final String ECv2 = JceNames.ECv2;
-	/**
-	 * Key algorithm ED25519 (RFC 8422).
-	 * 
-	 * @deprecated use {@link JceNames#ED25519} instead
-	 * @since 2.4
-	 */
-	@Deprecated
-	public static final String ED25519 = JceNames.ED25519;
-	/**
-	 * Key algorithm Ed25519 v2 (RFC 8410), not to be used by KeyFactory.
-	 * 
-	 * @see #readEdDsaPrivateKeyV2(byte[])
-	 * 
-	 * @deprecated use {@link JceNames#ED25519v2} instead
-	 * @since 3.0
-	 */
-	@Deprecated
-	public static final String ED25519v2 = JceNames.ED25519v2;
-	/**
-	 * Key algorithm ED448 (RFC 8422).
-	 * 
-	 * @deprecated use {@link JceNames#ED448} instead
-	 * @since 2.4
-	 */
-	@Deprecated
-	public static final String ED448 = JceNames.ED448;
-	/**
-	 * Key algorithm Ed448 v2 (RFC 8410), not to be used by KeyFactory.
-	 * 
-	 * @see #readEdDsaPrivateKeyV2(byte[])
-	 * 
-	 * @deprecated use {@link JceNames#ED448v2} instead
-	 * @since 3.0
-	 */
-	@Deprecated
-	public static final String ED448v2 = JceNames.ED448v2;
-	/**
-	 * Key algorithm X25519 (RFC 8422).
-	 * 
-	 * @deprecated use {@link JceNames#X25519} instead
-	 * @since 3.0
-	 */
-	@Deprecated
-	public static final String X25519 = JceNames.X25519;
-	/**
-	 * Key algorithm X25519 v2 (RFC 8410), not to be used by KeyFactory.
-	 * 
-	 * @deprecated use {@link JceNames#X25519v2} instead
-	 * @since 3.0
-	 */
-	@Deprecated
-	public static final String X25519v2 = JceNames.X25519v2;
-	/**
-	 * Key algorithm X448 (RFC 8422).
-	 * 
-	 * @deprecated use {@link JceNames#X448} instead
-	 * @since 3.0
-	 */
-	@Deprecated
-	public static final String X448 = JceNames.X448;
-	/**
-	 * Key algorithm X448 v2 (RFC 8410), not to be used by KeyFactory.
-	 * 
-	 * @deprecated use {@link JceNames#X448v2} instead
-	 * @since 3.0
-	 */
-	@Deprecated
-	public static final String X448v2 = JceNames.X448v2;
-	/**
-	 * OID key algorithm X25519
-	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
-	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
-	 * Identifiers</a>).
-	 * 
-	 * @deprecated use {@link JceNames#OID_X25519} instead
-	 * @since 3.0
-	 */
-	@Deprecated
-	public static final String OID_X25519 = JceNames.OID_X25519;
-	/**
-	 * OID key algorithm X448
-	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
-	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
-	 * Identifiers</a>).
-	 * 
-	 * @deprecated use {@link JceNames#OID_X448} instead
-	 * @since 3.0
-	 */
-	@Deprecated
-	public static final String OID_XD448 = JceNames.OID_X448;
-	/**
-	 * OID key algorithm ED25519
-	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
-	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
-	 * Identifiers</a>).
-	 * 
-	 * @deprecated use {@link JceNames#OID_ED25519} instead
-	 * @since 2.4
-	 */
-	@Deprecated
-	public static final String OID_ED25519 = JceNames.OID_ED25519;
-	/**
-	 * OID key algorithm ED448
-	 * (<a href="https://datatracker.ietf.org/doc/html/rfc8410#section-3" target
-	 * ="_blank"> RFC 8410, 3. Curve25519 and Curve448 Algorithm
-	 * Identifiers</a>).
-	 * 
-	 * @deprecated use {@link JceNames#OID_ED448} instead
-	 * @since 2.4
-	 */
-	@Deprecated
-	public static final String OID_ED448 = JceNames.OID_ED448;
-	/**
-	 * Key algorithm EdDSA (RFC 8422).
-	 * 
-	 * @deprecated use {@link JceNames#EDDSA} instead
-	 * @since 2.4
-	 */
-	@Deprecated
-	public static final String EDDSA = JceNames.EDDSA;
-	/**
 	 * ECPoint uncompressed.
 	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target=
 	 * "_blank">RFC 5480, Section 2.2</a>
@@ -481,7 +325,7 @@ public class Asn1DerDecoder {
 		if (JceNames.EC.equalsIgnoreCase(algorithm)) {
 			return true;
 		} else {
-			return getEdDsaStandardAlgorithmName(algorithm, null) != null;
+			return JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, null) != null;
 		}
 	}
 
@@ -1088,22 +932,6 @@ public class Asn1DerDecoder {
 	}
 
 	/**
-	 * Check for equal key algorithm synonyms.
-	 * 
-	 * @param keyAlgorithm1 key algorithm 1
-	 * @param keyAlgorithm2 key algorithm 2
-	 * @return {@code true}, if the key algorithms are equal or synonyms,
-	 *         {@code false}, otherwise.
-	 * @deprecated use
-	 *             {@link JceProviderUtil#equalKeyAlgorithmSynonyms(String, String)}
-	 *             instead
-	 */
-	@Deprecated
-	public static boolean equalKeyAlgorithmSynonyms(String keyAlgorithm1, String keyAlgorithm2) {
-		return JceProviderUtil.equalKeyAlgorithmSynonyms(keyAlgorithm1, keyAlgorithm2);
-	}
-
-	/**
 	 * Get EC parameter spec for named curve.
 	 * 
 	 * Creates key pair to access the resulting EC parameter spec.
@@ -1117,26 +945,6 @@ public class Asn1DerDecoder {
 		keyPairGenerator.initialize(new ECGenParameterSpec(oid));
 		ECPublicKey apub = (ECPublicKey) keyPairGenerator.generateKeyPair().getPublic();
 		return apub.getParams();
-	}
-
-	/**
-	 * Get EdDSA standard algorithm name.
-	 * 
-	 * Supports {@link JceNames#ED25519v2} and {@link JceNames#ED448v2} as well.
-	 * 
-	 * @param algorithm algorithm
-	 * @param def default algorithm
-	 * @return Either {@link JceNames#OID_ED25519}, {@link JceNames#OID_ED448},
-	 *         {@link JceNames#EDDSA}, or the provided default algorithm
-	 * @see JceProviderUtil#getEdDsaStandardAlgorithmName(String, String)
-	 * @deprecated use
-	 *             {@link JceProviderUtil#getEdDsaStandardAlgorithmName(String, String)}
-	 *             instead
-	 * @since 2.4
-	 */
-	@Deprecated
-	public static String getEdDsaStandardAlgorithmName(String algorithm, String def) {
-		return JceProviderUtil.getEdDsaStandardAlgorithmName(algorithm, def);
 	}
 
 	/**

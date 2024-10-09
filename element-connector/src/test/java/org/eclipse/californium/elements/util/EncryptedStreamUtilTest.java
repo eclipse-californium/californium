@@ -210,14 +210,6 @@ public class EncryptedStreamUtilTest {
 		util.setWriteCipher("AES/CBC/512");
 	}
 
-	@SuppressWarnings("deprecation")
-	@Test
-	public void testSetCipherFails() throws IOException {
-		String cipher = util.getWriteCipher();
-		util.setCipher("AES/CBC/PKCS5Padding", 512);
-		assertThat(util.getWriteCipher(), is(cipher));
-	}
-
 	@Test
 	public void testGetReadCipher() throws IOException {
 		String cipher = util.getWriteCipher();
