@@ -23,7 +23,6 @@ package org.eclipse.californium.core.observe;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyToken;
@@ -78,16 +77,6 @@ public class ObserveManager {
 	/**
 	 * Constructs a new ObserveManager for this server.
 	 * 
-	 * @deprecated use {@link #ObserveManager(Configuration)} instead
-	 */
-	@Deprecated
-	public ObserveManager() {
-		this(null);
-	}
-
-	/**
-	 * Constructs a new ObserveManager for this server.
-	 * 
 	 * @param config configuration.  May be {@code null}.
 	 * @since 3.6
 	 */
@@ -110,23 +99,6 @@ public class ObserveManager {
 	 */
 	public void setObserveHealth(ObserveHealth observeHealth) {
 		this.observeHealth = observeHealth;
-	}
-
-	/**
-	 * Find the ObservingEndpoint for the specified endpoint address or create a
-	 * new one if none exists yet. Does not return {@code null}.
-	 * 
-	 * @param address the address
-	 * @return the ObservingEndpoint for the address
-	 * @deprecated obsolete
-	 */
-	@Deprecated
-	public ObservingEndpoint findObservingEndpoint(InetSocketAddress address) {
-		ObservingEndpoint ep = endpoints.get(address);
-		if (ep == null) {
-			ep = createObservingEndpoint(address);
-		}
-		return ep;
 	}
 
 	/**
@@ -260,57 +232,4 @@ public class ObserveManager {
 	public boolean isFull() {
 		return maxObserves > 0 && relations.size() >= maxObserves;
 	}
-
-	/**
-	 * Return the ObservingEndpoint for the specified endpoint address or
-	 * {@code null}, if none exists.
-	 * 
-	 * @param address the address
-	 * @return the ObservingEndpoint or {@code null}
-	 * @deprecated obsolete
-	 */
-	@Deprecated
-	public ObservingEndpoint getObservingEndpoint(InetSocketAddress address) {
-		return endpoints.get(address);
-	}
-
-	/**
-	 * Atomically creates a new ObservingEndpoint for the specified address.
-	 * 
-	 * @param address the address
-	 * @return the ObservingEndpoint
-	 * @deprecated obsolete
-	 */
-	@Deprecated
-	private ObservingEndpoint createObservingEndpoint(InetSocketAddress address) {
-		ObservingEndpoint ep = new ObservingEndpoint(address);
-
-		// Make sure, there is exactly one ep with the specified address (atomic
-		// creation)
-		ObservingEndpoint previous = endpoints.putIfAbsent(address, ep);
-		if (previous != null) {
-			return previous; // and forget ep again
-		} else {
-			return ep;
-		}
-	}
-
-	/**
-	 * Get observe relation.
-	 * 
-	 * @param address the address
-	 * @param token token of relation
-	 * @return the observe relation, or {@code null}, if not available
-	 * @deprecated obsolete
-	 */
-	@Deprecated
-	public ObserveRelation getRelation(InetSocketAddress address, Token token) {
-		ObservingEndpoint remote = getObservingEndpoint(address);
-		if (remote != null) {
-			return remote.getObserveRelation(token);
-		} else {
-			return null;
-		}
-	}
-
 }

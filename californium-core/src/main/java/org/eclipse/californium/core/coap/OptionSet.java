@@ -1575,21 +1575,6 @@ public final class OptionSet {
 	 * Note: implementation uses {@link #asSortedList()} and is therefore not
 	 * recommended to be called too frequently.
 	 * 
-	 * @param number the option number
-	 * @return {@code true}, if present
-	 * @deprecated use {@link #hasOption(OptionDefinition)} instead
-	 */
-	@Deprecated
-	public boolean hasOption(int number) {
-		return Collections.binarySearch(asSortedList(), new Option(number)) >= 0;
-	}
-
-	/**
-	 * Checks, if an arbitrary option is present.
-	 * 
-	 * Note: implementation uses {@link #asSortedList()} and is therefore not
-	 * recommended to be called too frequently.
-	 * 
 	 * @param definition the option definition
 	 * @return {@code true}, if present
 	 */
@@ -1622,36 +1607,6 @@ public final class OptionSet {
 	/**
 	 * Gets list of other options.
 	 * 
-	 * @param number other option
-	 * @return an unmodifiable and unsorted list of other options with the
-	 *         provided number.
-	 * @since 3.7
-	 * @deprecated use {@link #getOthers(OptionDefinition)} instead
-	 */
-	@Deprecated
-	public List<Option> getOthers(int number) {
-		List<Option> options = null;
-		List<Option> others = this.others;
-		if (others != null) {
-			for (Option option : others) {
-				if (option.getNumber() == number) {
-					if (options == null) {
-						options = new ArrayList<>();
-					}
-					options.add(option);
-				}
-			}
-		}
-		if (options == null) {
-			return Collections.emptyList();
-		} else {
-			return Collections.unmodifiableList(options);
-		}
-	}
-
-	/**
-	 * Gets list of other options.
-	 * 
 	 * @param definition other option definition
 	 * @return an unmodifiable and unsorted list of other options with the
 	 *         provided definition.
@@ -1675,29 +1630,6 @@ public final class OptionSet {
 		} else {
 			return Collections.unmodifiableList(options);
 		}
-	}
-
-	/**
-	 * Gets other option.
-	 * 
-	 * If the other option is contained more than once, return the first.
-	 * 
-	 * @param number other option
-	 * @return other option, or {@code null}, if not available.
-	 * @since 3.7
-	 * @deprecated use {@link #getOtherOption(OptionDefinition)} instead
-	 */
-	@Deprecated
-	public Option getOtherOption(int number) {
-		List<Option> others = this.others;
-		if (others != null) {
-			for (Option option : others) {
-				if (option.getNumber() == number) {
-					return option;
-				}
-			}
-		}
-		return null;
 	}
 
 	/**
@@ -1949,7 +1881,6 @@ public final class OptionSet {
 	 * @param option other option
 	 * @return this OptionSet for a fluent API.
 	 * @throws NullPointerException if option is {@code null}.
-	 * @see #clearOtherOption(int)
 	 * @since 3.7
 	 */
 	public OptionSet clearOtherOption(Option option) {
@@ -1960,30 +1891,6 @@ public final class OptionSet {
 		while (iterator.hasNext()) {
 			Option currentOption = iterator.next();
 			if (currentOption.equals(option)) {
-				iterator.remove();
-			}
-		}
-		return this;
-	}
-
-	/**
-	 * Clear other option by number.
-	 * 
-	 * Note: the removing is based on {@link Option#getNumber()}. For repeatable
-	 * options all are removed, if the number is matching.
-	 * 
-	 * @param number other option number
-	 * @return this OptionSet for a fluent API.
-	 * @see #clearOtherOption(Option)
-	 * @since 3.7
-	 * @deprecated use {@link #clearOtherOption(OptionDefinition)} instead.
-	 */
-	@Deprecated
-	public OptionSet clearOtherOption(int number) {
-		Iterator<Option> iterator = getOthersInternal().iterator();
-		while (iterator.hasNext()) {
-			Option currentOption = iterator.next();
-			if (currentOption.getNumber() == number) {
 				iterator.remove();
 			}
 		}

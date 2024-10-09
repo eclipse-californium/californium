@@ -49,9 +49,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.core.observe.ObserveRelation;
-import org.eclipse.californium.core.observe.ObserveRelationContainer;
 import org.eclipse.californium.core.observe.ObserveRelationFilter;
-import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.ObservableResource;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -133,16 +131,12 @@ import org.slf4j.LoggerFactory;
  * when a child resource is added or removed or when a CoAP observe relation is
  * added or canceled.
  */
-@SuppressWarnings("deprecation")
 public class CoapResource implements Resource, ObservableResource {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private
 	 */
-	@Deprecated
-	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class);
+	private final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class);
 
 	/**
 	 * The attributes of this resource.
@@ -188,8 +182,7 @@ public class CoapResource implements Resource, ObservableResource {
 	/**
 	 * The the list of CoAP observe relations.
 	 * 
-	 * @since 3.6 adapted to a list of observe relations and obsoletes
-	 *        {@link ObserveRelationContainer}.
+	 * @since 3.6 adapted to a list of observe relations.
 	 */
 	private final List<ObserveRelation> observeRelations;
 
@@ -378,28 +371,6 @@ public class CoapResource implements Resource, ObservableResource {
 	@Override
 	public int getNotificationSequenceNumber() {
 		return notificationOrderer.getCurrent();
-	}
-
-	/**
-	 * This method is used to apply resource-specific knowledge on the exchange.
-	 * If the request was successful, it sets the Observe option for the
-	 * response. It is important to use the notificationOrderer of the resource
-	 * here. Further down the layer, race conditions could cause local
-	 * reordering of notifications. If the response has an error code, no
-	 * observe relation can be established and if there was one previously it is
-	 * canceled. When this resource allows to be observed by clients and the
-	 * request is a GET request with an observe option, the
-	 * {@link ServerMessageDeliverer} already created the relation, as it
-	 * manages the observing endpoints globally.
-	 * 
-	 * @param exchange the exchange
-	 * @param response the response
-	 * @deprecated moved to
-	 *             {@link ObserveRelation#onResponse(ObserveRelation, Response)}
-	 */
-	@Deprecated
-	public void checkObserveRelation(Exchange exchange, Response response) {
-		ObserveRelation.onResponse(exchange.getRelation(), response);
 	}
 
 	/*
