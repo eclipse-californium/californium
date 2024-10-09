@@ -34,7 +34,6 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.security.Principal;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -58,12 +57,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(Parameterized.class)
 @Category(Medium.class)
 public class InMemoryConnectionStoreTest {
 
@@ -73,14 +67,6 @@ public class InMemoryConnectionStoreTest {
 
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
-
-	@Parameter(0)
-	public boolean readWriteLockStore;
-
-	@Parameters
-	public static List<Boolean> parameters() {
-		return Arrays.asList(Boolean.TRUE, Boolean.FALSE);
-	}
 
 	@Rule
 	public ThreadsRule cleanup = new ThreadsRule();
@@ -92,12 +78,10 @@ public class InMemoryConnectionStoreTest {
 	Connection con;
 	SessionId sessionId;
 
-	@SuppressWarnings("deprecation")
 	@Before
 	public void setUp() throws Exception {
 		Configuration config = network.createTestConfig().set(DtlsConfig.DTLS_MAX_CONNECTIONS, INITIAL_CAPACITY)
-				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 1000, TimeUnit.SECONDS)
-				.set(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE, readWriteLockStore);
+				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 1000, TimeUnit.SECONDS);
 		store = ConnectorHelper.createDebugConnectionStore(config, null);
 		store.attach(null);
 		con = newConnection(50L, PRINCIPAL1);
@@ -149,7 +133,6 @@ public class InMemoryConnectionStoreTest {
 		assertThat(session, is(con.getEstablishedSession()));
 	}
 
-	@SuppressWarnings("deprecation")
 	@Test
 	public void testFindRetrievesSharedConnection() {
 
@@ -157,9 +140,7 @@ public class InMemoryConnectionStoreTest {
 		// another node
 		SessionStore sessionStore = new TestInMemorySessionStore(true);
 		sessionStore.put(con.getEstablishedSession());
-		store = readWriteLockStore
-				? new InMemoryReadWriteLockConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true)
-				: new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
+		store = new InMemoryReadWriteLockConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true);
 		store.attach(null);
 
 		// WHEN retrieving the connection for the given peer
@@ -170,7 +151,6 @@ public class InMemoryConnectionStoreTest {
 		assertThat(resumeSession.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
 	}
 
-	@SuppressWarnings("deprecation")
 	@Test
 	public void testFindRemovesStaleConnectionFromStore() {
 
@@ -178,9 +158,7 @@ public class InMemoryConnectionStoreTest {
 		// and a (local) connection based on this session
 		SessionStore sessionStore = new TestInMemorySessionStore(true);
 		sessionStore.put(con.getEstablishedSession());
-		store = readWriteLockStore
-				? new InMemoryReadWriteLockConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true)
-				: new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
+		store = new InMemoryReadWriteLockConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true);
 		store.attach(null);
 		store.put(con);
 
@@ -360,11 +338,9 @@ public class InMemoryConnectionStoreTest {
 		assertThat(resumeSession, is(con2.getEstablishedSession()));
 	}
 
-	@SuppressWarnings("deprecation")
 	@Test
 	public void testPutEvictsStaleOldConnection() throws Exception {
-		store = readWriteLockStore ? new InMemoryReadWriteLockConnectionStore(2, 1, null, true)
-				: new InMemoryConnectionStore(2, 1, null);
+		store = new InMemoryReadWriteLockConnectionStore(2, 1, null, true);
 		store.attach(null);
 
 		// given an empty connection store
@@ -433,10 +409,9 @@ public class InMemoryConnectionStoreTest {
 		assertThat(conLoaded2, is(con2));
 	}
 
-	@SuppressWarnings("deprecation")
 	@Test
 	public void testSaveAndLoadMaliciousConnections() throws Exception {
-		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class, InMemoryReadWriteLockConnectionStore.class);
+		logging.setLoggingLevel("ERROR", InMemoryReadWriteLockConnectionStore.class);
 
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 		assertTrue(store.put(con));

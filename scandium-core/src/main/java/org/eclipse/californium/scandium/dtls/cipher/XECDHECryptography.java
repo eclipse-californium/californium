@@ -115,11 +115,8 @@ public final class XECDHECryptography implements Destroyable {
 	// Logging ////////////////////////////////////////////////////////
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	protected static final Logger LOGGER = LoggerFactory.getLogger(XECDHECryptography.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(XECDHECryptography.class);
 
 	// Static members /////////////////////////////////////////////////
 

@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.util.CounterStatisticManager;
@@ -78,24 +76,6 @@ public class DtlsHealthLogger extends CounterStatisticManager
 	 */
 	public DtlsHealthLogger(String tag) {
 		super(tag);
-		init();
-	}
-
-	/**
-	 * Create active dtls health logger with logging tag.
-	 * 
-	 * @param tag logging tag
-	 * @param interval interval. {@code 0} to disable actively calling
-	 *            {@link #dump()}.
-	 * @param unit time unit of interval
-	 * @param executor executor to schedule active calls of {@link #dump()}.
-	 * @throws NullPointerException if executor is {@code null}
-	 * @since 3.0 (added unit)
-	 * @deprecated use {@link DtlsHealthLogger#DtlsHealthLogger(String)} instead
-	 *             and call {@link #dump()} externally.
-	 */
-	public DtlsHealthLogger(String tag, int interval, TimeUnit unit, ScheduledExecutorService executor) {
-		super(tag, interval, unit, executor);
 		init();
 	}
 

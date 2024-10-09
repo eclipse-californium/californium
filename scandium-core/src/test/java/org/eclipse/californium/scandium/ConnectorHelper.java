@@ -88,7 +88,6 @@ import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.DebugReadWriteLockConnectionStore;
-import org.eclipse.californium.scandium.dtls.DebugSynchronizedConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -424,19 +423,11 @@ public class ConnectorHelper {
 		return store;
 	}
 
-	@SuppressWarnings("deprecation")
 	public static DebugConnectionStore createDebugConnectionStore(Configuration configuration,
 			SessionStore sessionStore) {
-		DebugConnectionStore store;
-		if (configuration.get(DtlsConfig.DTLS_READ_WRITE_LOCK_CONNECTION_STORE)) {
-			store = new DebugReadWriteLockConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
+		return new DebugReadWriteLockConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
 					configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS), sessionStore,
 					configuration.get(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS));
-		} else {
-			store = new DebugSynchronizedConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
-					configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS), sessionStore);
-		}
-		return store;
 	}
 
 	public static class TestContext {
@@ -869,14 +860,27 @@ public class ConnectorHelper {
 
 		DtlsTestConnector(DtlsConnectorConfig configuration) {
 			super(configuration);
+			addSessionListener(new SessionAdapter() {
+
+				@Override
+				public void handshakeStarted(Handshaker handshaker) throws HandshakeException {
+					onInitializeHandshaker(handshaker);
+				}
+			});
 		}
 
 		DtlsTestConnector(DtlsConnectorConfig configuration, ResumptionSupportingConnectionStore connectionStore) {
 			super(configuration, connectionStore);
+			addSessionListener(new SessionAdapter() {
+
+				@Override
+				public void handshakeStarted(Handshaker handshaker) throws HandshakeException {
+					onInitializeHandshaker(handshaker);
+				}
+			});
 		}
 
-		@Override
-		protected void onInitializeHandshaker(final Handshaker handshaker) {
+		protected void onInitializeHandshaker(Handshaker handshaker) {
 			LatchSessionListener listener = new LatchSessionListener();
 			handshaker.addSessionListener(listener);
 			sessionListenerMap.put(handshaker.getPeerAddress(), listener);

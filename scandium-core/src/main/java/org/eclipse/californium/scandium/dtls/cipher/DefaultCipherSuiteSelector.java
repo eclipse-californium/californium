@@ -24,8 +24,6 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAl
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters.CertificateBasedMismatch;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters.GeneralMismatch;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Default cipher suite selector.
@@ -36,15 +34,6 @@ import org.slf4j.LoggerFactory;
  * @since 2.3
  */
 public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
-
-	// Logging ////////////////////////////////////////////////////////
-	/**
-	 * The logger.
-	 * 
-	 * @deprecated to be removed.
-	 */
-	@Deprecated
-	protected static final Logger LOGGER = LoggerFactory.getLogger(DefaultCipherSuiteSelector.class);
 
 	@Override
 	public boolean select(CipherSuiteParameters parameters) {

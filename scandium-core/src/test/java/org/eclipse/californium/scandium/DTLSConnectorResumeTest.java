@@ -84,7 +84,6 @@ import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.TestInMemorySessionStore;
-import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
@@ -206,7 +205,6 @@ public class DTLSConnectorResumeTest {
 				return PreSharedKeyIdentity.class;
 			}
 
-			@SuppressWarnings("deprecation")
 			@Override
 			public void setup(Builder builder) {
 				clientPskStore.setDelay(100);
@@ -216,7 +214,6 @@ public class DTLSConnectorResumeTest {
 				serverResumptionVerifier.setDelay(100);
 				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
 						.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
-						.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, ExtensionType.CONNECTION_ID_DEPRECATED.getId())
 						.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}
@@ -420,7 +417,6 @@ public class DTLSConnectorResumeTest {
 	 * 
 	 * @throws Exception if the connector cannot be started.
 	 */
-	@SuppressWarnings("deprecation")
 	@BeforeClass
 	public static void startServer() throws Exception {
 
@@ -448,7 +444,6 @@ public class DTLSConnectorResumeTest {
 
 		serverHelper.serverBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
 				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6)
-				.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true)
 				.setSessionStore(new TestInMemorySessionStore(false))
 				.setApplicationLevelInfoSupplier(supplier)
 				.setAdvancedCertificateVerifier(serverCertificateVerifier)
@@ -591,7 +586,7 @@ public class DTLSConnectorResumeTest {
 		long time = connection.getEstablishedSession().getCreationTime();
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		client.saveConnections(out, 1000);
+		client.save(out, 1000);
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
 		// create a new client with different inetAddress but with the same
 		// session store.
@@ -601,7 +596,7 @@ public class DTLSConnectorResumeTest {
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientRawDataChannel);
-		client.loadConnections(in, 0);
+		client.load(in, 0);
 		client.start();
 
 		// Prepare message sending
