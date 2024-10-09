@@ -62,16 +62,6 @@ import org.slf4j.LoggerFactory;
 public class EncryptedStreamUtil {
 
 	/**
-	 * Default cipher.
-	 * 
-	 * Since 3.9, the default cipher is "AES/GCM/NoPadding", if supported by the
-	 * JCE, otherwise "AES/CBC/PKCS5Padding" (mandatory supported by Java 7).
-	 * 
-	 * @deprecated use {@link #setDefaultWriteCipher()}
-	 */
-	@Deprecated
-	public static final String DEFAULT_CIPHER_ALGORITHM = "AES/CBC/PKCS5Padding";
-	/**
 	 * Default key size in bits.
 	 */
 	public static final int DEFAULT_KEY_SIZE_BITS = 128;
@@ -339,22 +329,6 @@ public class EncryptedStreamUtil {
 	 */
 	public String getReadCipher() {
 		return readCipherDefinition == null ? null : readCipherDefinition.spec;
-	}
-
-	/**
-	 * Set algorithm and key size.
-	 * 
-	 * @param cipherAlgorithm cipher algorithm
-	 * @param keySizeBits key size in bits
-	 * @deprecated use {@link #setWriteCipher(String, int)} instead
-	 */
-	@Deprecated
-	public void setCipher(String cipherAlgorithm, int keySizeBits) {
-		try {
-			setWriteCipher(cipherAlgorithm, keySizeBits);
-		} catch (IllegalArgumentException ex) {
-
-		}
 	}
 
 	/**
