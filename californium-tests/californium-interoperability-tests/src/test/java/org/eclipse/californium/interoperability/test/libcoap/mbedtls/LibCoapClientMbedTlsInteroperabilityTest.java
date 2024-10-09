@@ -78,7 +78,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 		ProcessResult result = processUtil.prepareLibCoapClientMbedTls(TIMEOUT_MILLIS);
 		assumeNotNull(result);
 		processUtil.assumeMinVersion("4.3.0");
-		processUtil.assumeMinDtlsVersion("2.16.5");
+		processUtil.assumeMinDtlsVersion("3.2.");
 		californiumUtil = new CaliforniumUtil(false);
 	}
 
@@ -92,19 +92,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	@Before
 	public void start() {
 		processUtil.setTag(name.getName());
-		// mbedtls v2.27 still supports only the deprecated MAC calculation.
-		// Ensure/adjust the extension id in mbedtls - include/mbedtls/ssl.h
-		// for compatibility to 53
-		// 
-		// #define MBEDTLS_TLS_EXT_CID                        53
-		// 
-		// For libcoap enable the passive use of CID in src/coap_mbedtls.c,
-		// coap_dtls_new_mbedtls_env, before mbedtls_ssl_set_bio with
-		// 
-		// mbedtls_ssl_set_cid(&m_env->ssl, MBEDTLS_SSL_CID_ENABLED, NULL, 0);
-
-		builder = DtlsConnectorConfig.builder(new Configuration())
-				.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true);
+		builder = DtlsConnectorConfig.builder(new Configuration());
 	}
 
 	@After
