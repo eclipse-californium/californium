@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.ExtendedCoapStackFactory;
+import org.eclipse.californium.core.network.CoapStackFactory;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.elements.EndpointContextMatcher;
@@ -30,7 +30,7 @@ import org.eclipse.californium.elements.config.Configuration;
  * Coap stack factory creating a {@link OSCoreUdpStack} or
  * {@link OSCoreTcpStack} including a {@link ObjectSecurityLayer}.
  */
-public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
+public class OSCoreCoapStackFactory implements CoapStackFactory {
 
 	private static AtomicBoolean init = new AtomicBoolean();
 	private static volatile OSCoreCtxDB defaultCtxDb;
@@ -65,7 +65,7 @@ public class OSCoreCoapStackFactory implements ExtendedCoapStackFactory {
 	 * @param defaultCtxDb default context DB. Passed in as default argument for
 	 *            {@link OSCoreUdpStack} and {@link OSCoreTcpStack}
 	 * 
-	 * @see CoapEndpoint#setDefaultCoapStackFactory(ExtendedCoapStackFactory)
+	 * @see CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)
 	 */
 	public static void useAsDefault(OSCoreCtxDB defaultCtxDb) {
 		if (init.compareAndSet(false, true)) {

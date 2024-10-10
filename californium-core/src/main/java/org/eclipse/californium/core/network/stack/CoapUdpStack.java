@@ -24,7 +24,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.network.ExtendedCoapStackFactory;
+import org.eclipse.californium.core.network.CoapStackFactory;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
@@ -83,7 +83,7 @@ public class CoapUdpStack extends BaseCoapStack {
 	 * Note: in order to match blockwise follow up requests, this constructor is
 	 * required. It doesn't longer call the create-layer functions. If that is
 	 * required, please use a own custom implementation of the {@link CoapStack}
-	 * and the {@link ExtendedCoapStackFactory} to provide instances of that
+	 * and the {@link CoapStackFactory} to provide instances of that
 	 * custom implementation.
 	 * 
 	 * @param tag logging tag
