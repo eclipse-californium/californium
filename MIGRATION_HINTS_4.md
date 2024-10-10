@@ -65,5 +65,8 @@ The functions of the obsolete and removed `DatagramFilterExtended` are moved int
 
 ### Californium-Core:
 
+The functions of the obsolete and removed `ExtendedCoapStack` are moved into
+`CoapStack`.
+
 ### Californium-Proxy2:
 
