@@ -1069,10 +1069,6 @@ public class ObserveClientSideTest {
 
 		assertTrue("ObservationStore must be empty", client.getObservationStore().isEmpty());
 
-		// TODO we want to check is ExchangeStore is empty but currently
-		// Deduplicator is not empty after cancel.
-		// assertTrue("ExchangeStore must be empty", clientExchangeStore.isEmpty());
-
 		assertAllEndpointExchangesAreCompleted(client);
 	}
 
