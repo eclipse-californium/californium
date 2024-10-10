@@ -300,9 +300,9 @@ public class DTLSFlight {
 	 * @param epochMessage dtls message and epoch
 	 * @throws HandshakeException if the message could not be encrypted using
 	 *             the session's current security parameters
-	 * @since 2.4
+	 * @since 4.0 (changed scope to private)
 	 */
-	protected final void wrapMessage(EpochMessage epochMessage) throws HandshakeException {
+	private final void wrapMessage(EpochMessage epochMessage) throws HandshakeException {
 
 		try {
 			DTLSMessage message = epochMessage.message;
