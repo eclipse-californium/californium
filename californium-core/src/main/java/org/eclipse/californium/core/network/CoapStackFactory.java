@@ -30,7 +30,7 @@ import org.eclipse.californium.elements.config.Configuration;
  * 
  * @since 3.1
  */
-public interface ExtendedCoapStackFactory {
+public interface CoapStackFactory {
 
 	/**
 	 * Create CoapStack.
