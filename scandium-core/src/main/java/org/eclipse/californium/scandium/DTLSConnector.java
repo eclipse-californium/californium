@@ -734,35 +734,32 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	/**
 	 * Update health statistic.
 	 * 
-	 * Update {@link DtlsHealthExtended#setConnections(int)},
-	 * {@link DtlsHealthExtended2#setPendingIncomingJobs(int)},
-	 * {@link DtlsHealthExtended2#setPendingOutgoingJobs(int)}, and
-	 * {@link DtlsHealthExtended2#setPendingHandshakeJobs(int)}.
+	 * Update {@link DtlsHealth#setConnections(int)},
+	 * {@link DtlsHealth#setPendingIncomingJobs(int)},
+	 * {@link DtlsHealth#setPendingOutgoingJobs(int)}, and
+	 * {@link DtlsHealth#setPendingHandshakeJobs(int)}.
 	 * 
 	 * @return {@code true}, if some pending jobs left, {@code false}, if not.
 	 * @since 3.7
 	 */
 	public boolean updateHealth() {
 		boolean pending = false;
-		if (health instanceof DtlsHealthExtended) {
-			((DtlsHealthExtended) health).setConnections(maxConnections - connectionStore.remainingCapacity());
-		}
-		if (health instanceof DtlsHealthExtended2) {
-			DtlsHealthExtended2 health2 = (DtlsHealthExtended2) health;
+		if (health != null) {
+			health.setConnections(maxConnections - connectionStore.remainingCapacity());
 			int jobs = maxPendingOutboundJobs - pendingOutboundJobsCountdown.get();
-			health2.setPendingOutgoingJobs(jobs);
+			health.setPendingOutgoingJobs(jobs);
 			if (jobs > 0) {
 				LOGGER.debug("Pending out jobs {}", jobs);
 			}
 			pending = jobs > 0;
 			jobs = maxPendingInboundJobs - pendingInboundJobsCountdown.get();
-			health2.setPendingIncomingJobs(jobs);
+			health.setPendingIncomingJobs(jobs);
 			if (jobs > 0) {
 				LOGGER.debug("Pending in jobs {}", jobs);
 			}
 			pending |= jobs > 0;
 			jobs = maxPendingHandshakeResultJobs - pendingHandshakeResultJobsCountdown.get();
-			health2.setPendingHandshakeJobs(jobs);
+			health.setPendingHandshakeJobs(jobs);
 			if (jobs > 0) {
 				LOGGER.debug("Pending handshake jobs {}", jobs);
 			}
@@ -1272,13 +1269,11 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					TimeUnit.MILLISECONDS);
 			// check either for interval or DtlsHealthExtended
 			long intervalMillis = healthStatusIntervalMillis;
-			if (health instanceof DtlsHealthExtended) {
 				// schedule more frequent updates for updating the number of
-				// connections in the DtlsHealthExtended
+				// connections in the DtlsHealth
 				if (healthStatusIntervalMillis == 0 || healthStatusIntervalMillis > 2000) {
 					intervalMillis = 2000;
 				}
-			}
 			if (intervalMillis > 0) {
 				statusLogger = timer.scheduleAtFixedRate(new Runnable() {
 
@@ -2167,11 +2162,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					StringUtil.toLog(record.getPeerAddress()), details);
 			informListenerOfRecordDrop(record);
 			if (health != null) {
-				if (health instanceof DtlsHealthExtended2) {
-					((DtlsHealthExtended2) health).receivingMacError();
-				} else {
-					health.receivingRecord(true);
-				}
+				health.receivingMacError();
 			}
 		} catch (GeneralSecurityException e) {
 			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}", record.getType(),
