@@ -63,6 +63,8 @@ The functions of the obsolete and removed `DtlsHealthExtended` and `DtlsHealthEx
 The functions of the obsolete and removed `DatagramFilterExtended` are moved into
 `DatagramFilter`.
 
+Change scope of `DTLSFlight.wrapMessage` to `private`.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into
