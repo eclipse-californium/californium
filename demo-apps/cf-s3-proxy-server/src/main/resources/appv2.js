@@ -1071,7 +1071,8 @@ class DeviceMessage {
 					if (pdn) {
 						const parts = pdn.split(/,/);
 						if (parts.length > 1) {
-							status.pdn = providerMap.get(parts[0]) ?? parts[0];
+							const apn = parts[0].trim();
+							status.pdn = providerMap.get(apn) ?? apn;
 						}
 						return;
 					}
