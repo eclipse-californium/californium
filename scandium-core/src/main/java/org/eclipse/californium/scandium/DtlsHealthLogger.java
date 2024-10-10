@@ -127,7 +127,7 @@ public class DtlsHealthLogger extends CounterStatisticManager
 		}
 	}
 
-	public void dump(String tag, int maxConnections, int remainingCapacity, int pendingWithoutVerify) {
+	public void dump(String tag, int maxConnections, int remainingCapacity) {
 		try {
 			if (isEnabled()) {
 				connections.transferCounter();
@@ -147,7 +147,6 @@ public class DtlsHealthLogger extends CounterStatisticManager
 					log.append(" (").append(remainingCapacity).append(" remaining capacity).").append(eol);
 					msg = SimpleCounterStatistic.format(align.getAlign(), handshakes, pendingHandshakes.get());
 					log.append(head).append(msg);
-					log.append(" (").append(pendingWithoutVerify).append(" without verify).").append(eol);
 					log.append(head).append(succeededHandshakes).append(eol);
 					log.append(head).append(failedHandshakes).append(eol);
 					log.append(head).append(sentRecords).append(eol);
