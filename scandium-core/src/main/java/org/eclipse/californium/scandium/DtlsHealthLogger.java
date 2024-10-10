@@ -28,8 +28,7 @@ import org.slf4j.LoggerFactory;
  * Health implementation using counter and logging for results.
  */
 @NoPublicAPI
-public class DtlsHealthLogger extends CounterStatisticManager
-		implements DtlsHealth, DtlsHealthExtended, DtlsHealthExtended2 {
+public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHealth {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName() + ".health");
