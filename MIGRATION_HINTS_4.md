@@ -31,8 +31,6 @@ The functions to reduce the HelloVerifyRequests for specific cases, PSK (`DTLS_U
 
 The functions to handle the "deprecated CID" definition in the drafts before the RFC9146 have been removed. If still used in some other implementations, please update those other implementations to the final RFC.
 
-The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.
-
 ### Element-Connector-TCP-Netty:
 
 ### Californium-Core:
@@ -42,6 +40,12 @@ The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` s
 ## Noteworthy API Changes
 
 ### Element-Connector:
+
+### Scandium:
+
+The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.
+
+Removing the HelloVerifyRequests for specific cases obsoletes also `ResumptionVerifier.skipRequestHelloVerify` and `ExtendedResumptionVerifier`. Also the last parameter of `DtlsHealth.dump` is removed.
 
 ### Californium-Core:
 
