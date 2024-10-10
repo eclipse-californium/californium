@@ -92,7 +92,6 @@ public class HandshakerTest {
 	FragmentedHandshakeMessage[] handshakeMessageFragments;
 	SimpleRecordLayer recordLayer;
 	CertificateMessage message;
-	// TODO: check usage
 	PublicKey serverPublicKey;
 	ScheduledExecutorService timer;
 
