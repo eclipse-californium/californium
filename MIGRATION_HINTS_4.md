@@ -57,6 +57,9 @@ The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` s
 
 Removing the HelloVerifyRequests for specific cases obsoletes also `ResumptionVerifier.skipRequestHelloVerify` and `ExtendedResumptionVerifier`. Also the last parameter of `DtlsHealth.dump` is removed.
 
+The functions of the obsolete and removed `DtlsHealthExtended` and `DtlsHealthExtended2` are moved into
+`DtlsHealth`.
+
 ### Californium-Core:
 
 ### Californium-Proxy2:
