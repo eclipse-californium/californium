@@ -32,21 +32,9 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * The default verifier will just checks, if a DTLS session with that session id
  * is available in the {@link ResumptionSupportingConnectionStore}.
  * 
- * @since 3.0
+ * @since 4.0 (removed skipRequestHelloVerify)
  */
 public interface ResumptionVerifier {
-
-	/**
-	 * Checks, if the session id is matching and the client hello may bypass the
-	 * cookie validation without using a hello verify request.
-	 * 
-	 * Note: this function must return immediately.
-	 * 
-	 * @param sessionId session id
-	 * @return {@code true}, if valid and no hello verify request is required,
-	 *         {@code false}, otherwise.
-	 */
-	boolean skipRequestHelloVerify(SessionId sessionId);
 
 	/**
 	 * Verify resumption request.

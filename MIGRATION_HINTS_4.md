@@ -51,6 +51,12 @@ The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` s
 
 ### Element-Connector:
 
+### Scandium:
+
+The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.
+
+Removing the HelloVerifyRequests for specific cases obsoletes also `ResumptionVerifier.skipRequestHelloVerify` and `ExtendedResumptionVerifier`. Also the last parameter of `DtlsHealth.dump` is removed.
+
 ### Californium-Core:
 
 ### Californium-Proxy2:

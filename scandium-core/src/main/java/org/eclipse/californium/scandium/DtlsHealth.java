@@ -26,9 +26,8 @@ public interface DtlsHealth {
 	 * @param tag logging tag
 	 * @param maxConnections maximum number of connections
 	 * @param remainingCapacity remaining capacity for connections
-	 * @param pendingWithoutVerify pending handshakes without verification
 	 */
-	void dump(String tag, int maxConnections, int remainingCapacity, int pendingWithoutVerify);
+	void dump(String tag, int maxConnections, int remainingCapacity);
 
 	/**
 	 * Check, if collecting health data is enabled.
