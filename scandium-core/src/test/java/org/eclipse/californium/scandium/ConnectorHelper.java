@@ -1017,7 +1017,7 @@ public class ConnectorHelper {
 		}
 	}
 
-	public static class DropCatcher extends Catcher<Record> implements DatagramFilterExtended, DatagramFilter {
+	public static class DropCatcher extends Catcher<Record> implements DatagramFilter {
 
 		@Override
 		public void onDrop(DatagramPacket packet) {

@@ -1786,8 +1786,8 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			// other information. If not used, a value of zero is inserted.
 			DROP_LOGGER.trace("Discarding record with {} bytes from [{}] without source-port", packet.getLength(),
 					StringUtil.toLog(peerAddress));
-			if (datagramFilter instanceof DatagramFilterExtended) {
-				((DatagramFilterExtended) datagramFilter).onDrop(packet);
+			if (datagramFilter != null) {
+				datagramFilter.onDrop(packet);
 			}
 			if (health != null) {
 				health.receivingRecord(true);
@@ -1798,9 +1798,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			if (!datagramFilter.onReceiving(packet)) {
 				DROP_LOGGER.trace("Filter out packet with {} bytes from [{}]", packet.getLength(),
 						StringUtil.toLog(peerAddress));
-				if (datagramFilter instanceof DatagramFilterExtended) {
-					((DatagramFilterExtended) datagramFilter).onDrop(packet);
-				}
+				datagramFilter.onDrop(packet);
 				if (health != null) {
 					health.receivingRecord(true);
 				}
@@ -1815,8 +1813,8 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 		if (records.isEmpty()) {
 			DROP_LOGGER.trace("Discarding malicious record with {} bytes from [{}]", packet.getLength(),
 					StringUtil.toLog(peerAddress));
-			if (datagramFilter instanceof DatagramFilterExtended) {
-				((DatagramFilterExtended) datagramFilter).onDrop(packet);
+			if (datagramFilter != null) {
+				datagramFilter.onDrop(packet);
 			}
 			if (health != null) {
 				health.receivingRecord(true);
@@ -1829,8 +1827,8 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					records.get(0).getType(), StringUtil.toLog(peerAddress));
 			LOGGER.debug("Execution shutdown while processing incoming records from peer: {}",
 					StringUtil.toLog(peerAddress));
-			if (datagramFilter instanceof DatagramFilterExtended) {
-				((DatagramFilterExtended) datagramFilter).onDrop(packet);
+			if (datagramFilter != null) {
+				datagramFilter.onDrop(packet);
 			}
 			if (health != null) {
 				health.receivingRecord(true);
@@ -3832,8 +3830,8 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	}
 
 	private void informListenerOfRecordDrop(Record droppedRecord) {
-		if (datagramFilter instanceof DatagramFilterExtended) {
-			((DatagramFilterExtended) datagramFilter).onDrop(droppedRecord);
+		if (datagramFilter != null) {
+			datagramFilter.onDrop(droppedRecord);
 		}
 	}
 
