@@ -191,4 +191,14 @@ public class DtlsDatagramFilter implements DatagramFilter {
 		}
 
 	}
+
+	@Override
+	public void onDrop(DatagramPacket packet) {
+		// empty by intention
+	}
+
+	@Override
+	public void onDrop(Record record) {
+		// empty by intention
+	}
 }

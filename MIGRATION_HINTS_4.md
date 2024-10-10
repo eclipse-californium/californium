@@ -60,6 +60,9 @@ Removing the HelloVerifyRequests for specific cases obsoletes also `ResumptionVe
 The functions of the obsolete and removed `DtlsHealthExtended` and `DtlsHealthExtended2` are moved into
 `DtlsHealth`.
 
+The functions of the obsolete and removed `DatagramFilterExtended` are moved into
+`DatagramFilter`.
+
 ### Californium-Core:
 
 ### Californium-Proxy2:
