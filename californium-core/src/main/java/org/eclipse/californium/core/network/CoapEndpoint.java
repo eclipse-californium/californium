@@ -388,7 +388,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 */
 	protected CoapEndpoint(Connector connector, Configuration config, TokenGenerator tokenGenerator,
 			ObservationStore store, MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher,
-			DataSerializer serializer, DataParser parser, String loggingTag, ExtendedCoapStackFactory coapStackFactory,
+			DataSerializer serializer, DataParser parser, String loggingTag, CoapStackFactory coapStackFactory,
 			Object customStackArgument) {
 		if (LOGGER_BAN.isInfoEnabled() && LOGGER_BAN_STARTED.compareAndSet(false, true)) {
 			LOGGER_BAN.info("Started.");
@@ -420,7 +420,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		LOGGER.info("{}{} uses {}", tag, getClass().getSimpleName(), endpointContextMatcher.getName());
 
 		// use the new factory to pass in the matcher (since 3.1)
-		this.coapstack = ((ExtendedCoapStackFactory) coapStackFactory).createCoapStack(connector.getProtocol(),
+		this.coapstack = ((CoapStackFactory) coapStackFactory).createCoapStack(connector.getProtocol(),
 				this.tag, config, endpointContextMatcher, new OutboxImpl(), customStackArgument);
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
@@ -1430,7 +1430,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		/**
 		 * Coap-stack-factory to create coap-stack.
 		 */
-		private ExtendedCoapStackFactory coapStackFactory;
+		private CoapStackFactory coapStackFactory;
 		/**
 		 * Serializer to convert messages to datagrams.
 		 */
@@ -1642,7 +1642,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		 * @return this
 		 * @see #coapStackFactory
 		 */
-		public Builder setCoapStackFactory(ExtendedCoapStackFactory coapStackFactory) {
+		public Builder setCoapStackFactory(CoapStackFactory coapStackFactory) {
 			this.coapStackFactory = coapStackFactory;
 			return this;
 		}
@@ -1759,14 +1759,14 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * Standard coap-stack-factory.
 	 * 
 	 * This will be also the default, if no other default gets provided with
-	 * {@link #setDefaultCoapStackFactory(ExtendedCoapStackFactory)}. If an other
+	 * {@link #setDefaultCoapStackFactory(CoapStackFactory)}. If an other
 	 * default factory is used, this one may be used to build a standard
 	 * coap-stack on demand.
 	 * 
-	 * Note: since 3.1 this is a {@link ExtendedCoapStackFactory} in order to
+	 * Note: since 3.1 this is a {@link CoapStackFactory} in order to
 	 * support to match blockwise follow-up requests.
 	 */
-	public static final ExtendedCoapStackFactory STANDARD_COAP_STACK_FACTORY = new ExtendedCoapStackFactory() {
+	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new CoapStackFactory() {
 
 		@Override
 		public CoapStack createCoapStack(String protocol, String tag, Configuration config,
@@ -1782,7 +1782,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	/**
 	 * Default coap-stack-factory. Intended to be set only once.
 	 */
-	private static ExtendedCoapStackFactory defaultCoapStackFactory;
+	private static CoapStackFactory defaultCoapStackFactory;
 
 	/**
 	 * Get default coap-stack-factory. Setup default implementation, if factory
@@ -1790,7 +1790,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * 
 	 * @return default coap-stack-factory
 	 */
-	private static synchronized ExtendedCoapStackFactory getDefaultCoapStackFactory() {
+	private static synchronized CoapStackFactory getDefaultCoapStackFactory() {
 		if (defaultCoapStackFactory == null) {
 			defaultCoapStackFactory = STANDARD_COAP_STACK_FACTORY;
 		}
@@ -1807,7 +1807,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * @throws NullPointerException if new factory is {@code null}
 	 * @throws IllegalStateException if factory is already set.
 	 */
-	public static synchronized void setDefaultCoapStackFactory(ExtendedCoapStackFactory newFactory) {
+	public static synchronized void setDefaultCoapStackFactory(CoapStackFactory newFactory) {
 		if (defaultCoapStackFactory != null) {
 			throw new IllegalStateException("Default coap-stack-factory already set!");
 		}

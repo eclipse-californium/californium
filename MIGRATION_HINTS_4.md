@@ -68,5 +68,7 @@ The functions of the obsolete and removed `DatagramFilterExtended` are moved int
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into
 `CoapStack`.
 
+Rename `ExtendedCoapStackFactory` into `CoapStackFactory`.
+
 ### Californium-Proxy2:
 
