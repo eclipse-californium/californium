@@ -38,7 +38,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
-import org.eclipse.californium.core.network.stack.ExtendedCoapStack;
+import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
@@ -209,8 +209,8 @@ public class MessageExchangeStoreTool {
 			return observationStore;
 		}
 
-		public ExtendedCoapStack getStack() {
-			return (ExtendedCoapStack) coapstack;
+		public CoapStack getStack() {
+			return (CoapStack) coapstack;
 		}
 
 		public boolean isEmpty() {
