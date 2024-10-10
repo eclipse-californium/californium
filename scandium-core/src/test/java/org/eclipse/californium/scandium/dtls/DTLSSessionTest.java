@@ -17,6 +17,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assume.assumeTrue;
 
 import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
@@ -175,8 +176,7 @@ public class DTLSSessionTest {
 					generator.initialize(new ECGenParameterSpec("secp256r1"));
 					peer = generator.generateKeyPair().getPublic();
 				} catch (InvalidAlgorithmParameterException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					assumeTrue("secp256r1 must be supported!", false);
 				}
 				session.setPeerIdentity(new RawPublicKeyIdentity(peer));
 			} else {
