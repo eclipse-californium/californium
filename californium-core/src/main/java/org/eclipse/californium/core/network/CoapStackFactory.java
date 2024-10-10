@@ -26,11 +26,11 @@ import org.eclipse.californium.elements.config.Configuration;
  * Factory for CoapStack supporting blockwise follow-up request matching.
  * 
  * Either provided to the {@link CoapEndpoint.Builder} or set as
- * default {@link CoapEndpoint#setDefaultCoapStackFactory(ExtendedCoapStackFactory)}.
+ * default {@link CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)}.
  * 
  * @since 3.1
  */
-public interface ExtendedCoapStackFactory {
+public interface CoapStackFactory {
 
 	/**
 	 * Create CoapStack.
