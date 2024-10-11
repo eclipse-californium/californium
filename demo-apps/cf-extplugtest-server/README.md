@@ -521,7 +521,7 @@ java -jar cf-nat-<version>.jar :5784 <host>:15784 <host>:25784 <host>:35784
 Start nodes in a container using port `5784`, and `<any>:5884` as own cluster-management-interface. Additionally provide the external port of the cluster-management-interface also with `5884`.
 
 ```
-CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "/opt/app/cf-extplugtest-server-3.12.0.jar", "--no-plugtest", "--no-tcp", "--diagnose", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884"]
+CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "/opt/app/cf-extplugtest-server-<version>.jar", "--no-plugtest", "--no-tcp", "--diagnose", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884"]
 ```
 
 Example `CMD` statement for docker (":5884" for "<any>:5884", "5884" for just port 5884, see [Dockerfile](service/Dockerfile)).
@@ -620,7 +620,7 @@ java -jar cf-client-<version>.jar --method GET coaps://<nat>:5784/mycontext
 
 ### Test the dtls-cid-cluster with Cf-NAT 
 
-To test, that the dtls-cid-cluster even works, if the client's address is changed, such a address change can be simulated using [Cf-NAT](https://github.com/eclipse/californium/tree/main/cf-utils/cf-nat) (download available in the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/3.12.0/cf-nat-3.12.0.jar)).
+To test, that the dtls-cid-cluster even works, if the client's address is changed, such a address change can be simulated using [Cf-NAT](https://github.com/eclipse/californium/tree/main/cf-utils/cf-nat) (download available in the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/3.13.0/cf-nat-3.13.0.jar)).
 
 ```sh
 java -jar cf-nat-<version>.jar :5784 <host>:30784
@@ -641,7 +641,7 @@ remove <host:port> - remove destination from load balancer
 reverse (on|off) - enable/disable reverse address updates.
 ```
 
-Start two [cf-browser-3.12.0](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/3.12.0/cf-browser-3.12.0.jar) instances. Enter as destination `coaps://<nat-host>:5784/mycontext` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium3.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
+Start two [cf-browser](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/3.13.0/cf-browser-3.13.0.jar) instances. Enter as destination `coaps://<nat-host>:5784/mycontext` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium3.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
 
 ```
 ip: ?.?.?.?

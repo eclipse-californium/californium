@@ -119,7 +119,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>scandium</artifactId>
-            <version>3.12.0</version>
+            <version>3.13.0</version>
     </dependency>
     ...
   </dependencies>
@@ -321,7 +321,7 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 </dependencies>
 ```
 
-(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72, with 3.9 it is 1.74, and with 3.10 it is 1.77).
+(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72, with 3.9 it is 1.74, with 3.10 it is 1.77, and with 4.0.0 it is 1.78.1).
 
 And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
 
