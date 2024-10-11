@@ -197,8 +197,7 @@ public class CaliforniumUtil extends ConnectorUtil {
 					Response response = new Response(ResponseCode.CHANGED);
 					response.setPayload("Custom Greetings!");
 					response.getOptions().setContentFormat(MediaTypeRegistry.MAX_TYPE - 10);
-					Option custom = OPTION_TRACE_CONTEXT.create(new byte[] { 0x1 });
-					custom.setStringValue("test");
+					Option custom = OPTION_TRACE_CONTEXT.create("test".getBytes());
 					response.getOptions().addOption(custom);
 					response.getOptions().setContentFormat(MediaTypeRegistry.MAX_TYPE - 10);
 					exchange.respond(response);

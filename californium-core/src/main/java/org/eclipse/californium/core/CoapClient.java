@@ -1536,7 +1536,7 @@ public class CoapClient {
 	 */
 	protected Request send(Request request, Endpoint outEndpoint) {
 		if (blockwise != 0) {
-			request.getOptions().setBlock2(new BlockOption(BlockOption.size2Szx(this.blockwise), false, 0));
+			request.getOptions().setBlock2(BlockOption.size2Szx(this.blockwise), false, 0);
 		}
 
 		outEndpoint.sendRequest(request);

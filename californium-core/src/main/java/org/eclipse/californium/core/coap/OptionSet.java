@@ -540,6 +540,8 @@ public final class OptionSet {
 
 	/**
 	 * Gets the Location-Path options as relative URI string.
+	 * <p>
+	 * To ease splitting, it omits the leading slash.
 	 * 
 	 * @return the Location-Path as string
 	 */
@@ -1579,7 +1581,7 @@ public final class OptionSet {
 	 * @return {@code true}, if present
 	 */
 	public boolean hasOption(OptionDefinition definition) {
-		return Collections.binarySearch(asSortedList(), new Option(definition)) >= 0;
+		return Collections.binarySearch(asSortedList(), definition) >= 0;
 	}
 
 	private List<Option> getOthersInternal() {
@@ -1850,7 +1852,7 @@ public final class OptionSet {
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
 	 * @throws NullPointerException if option is {@code null}.
-	 * @see Option#setValueUnchecked(byte[])
+	 * @see Option#Option(OptionDefinition, byte[], boolean)
 	 * @since 3.7 (throws NullPointerException)
 	 */
 	public OptionSet addOtherOption(Option option) {
