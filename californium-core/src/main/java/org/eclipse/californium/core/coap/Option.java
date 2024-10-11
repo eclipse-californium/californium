@@ -26,7 +26,6 @@ import java.util.Arrays;
 
 import org.eclipse.californium.core.coap.option.EmptyOptionDefinition;
 import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
-import org.eclipse.californium.core.coap.option.OpaqueOptionDefinition;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.option.StringOptionDefinition;
@@ -38,23 +37,36 @@ import org.eclipse.californium.elements.util.StringUtil;
  * 
  * An option number is constructed with a bit mask to indicate if an option is
  * Critical/Elective, Unsafe/Safe and in the case of Safe, also a Cache-Key
- * indication. See <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.6"
- * target= "_blank">RFC7252 5.4.6. Option Numbers</a>.
+ * indication. See
+ * <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.6" target=
+ * "_blank">RFC7252 5.4.6. Option Numbers</a>.
  * 
- * <hr><blockquote><pre>
+ * <hr>
+ * <blockquote>
+ * 
+ * <pre>
  *   0   1   2   3   4   5   6   7
  * +---+---+---+---+---+---+---+---+
  * |           | NoCacheKey| U | C |
  * +---+---+---+---+---+---+---+---+
- * </pre></blockquote><hr>
+ * </pre>
+ * 
+ * </blockquote>
+ * <hr>
  * 
  * For a given option number {@code onum} we can compute
  * 
- * <hr><blockquote><pre>
+ * <hr>
+ * <blockquote>
+ * 
+ * <pre>
  * Critical = (onum &amp; 1);
  * UnSafe = (onum &amp; 2);
  * NoCacheKey = ((onum &amp; 0x1e) == 0x1c);
- * </pre></blockquote><hr>
+ * </pre>
+ * 
+ * </blockquote>
+ * <hr>
  *
  * {@code CoAP} defines several option numbers detailed in
  * {@link OptionNumberRegistry}.
@@ -100,37 +112,27 @@ public class Option implements Comparable<Option> {
 	private final OptionDefinition definition;
 
 	/** The value as byte array. */
-	private byte[] value; // not null
-
-	/**
-	 * Instantiates a new empty option.
-	 */
-	public Option() {
-		this.definition = new OpaqueOptionDefinition(OptionNumberRegistry.RESERVED_0, "Reserved 0");
-		setValue(Bytes.EMPTY);
-	}
+	private final byte[] value; // not null
 
 	// Constructors
 
 	/**
 	 * Instantiates a new option with the specified option number.
 	 * 
-	 * Note: The value must be set using one of the setters or other
-	 * constructors. Using {@code Bytes.EMPTY} as default fails in too many
-	 * cases.
+	 * For unit tests only!
 	 * 
 	 * @param definition the option definition
-	 * @see #setValue(byte[])
-	 * @see #setStringValue(String)
-	 * @see #setIntegerValue(int)
-	 * @see #setLongValue(long)
-	 * @since 3.8
+	 * @param value value to set unchecked
+	 * @param unchecked unused parameter to overload standard checked
+	 *            constructor
+	 * @since 4.0
 	 */
-	public Option(OptionDefinition definition) {
+	Option(OptionDefinition definition, byte[] value, boolean unchecked) {
 		if (definition == null) {
 			throw new NullPointerException("Definition must not be null!");
 		}
 		this.definition = definition;
+		this.value = value;
 	}
 
 	/**
@@ -142,7 +144,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public Option(EmptyOptionDefinition definition) {
 		this.definition = definition;
-		setValue(Bytes.EMPTY);
+		this.value = Bytes.EMPTY;
 	}
 
 	/**
@@ -157,8 +159,12 @@ public class Option implements Comparable<Option> {
 	 * @since 3.8
 	 */
 	public Option(OptionDefinition definition, byte[] value) {
+		if (value == null) {
+			throw new NullPointerException(definition.getName() + " option value must not be null!");
+		}
+		definition.assertValue(value);
 		this.definition = definition;
-		setValue(value);
+		this.value = value;
 	}
 
 	/**
@@ -173,8 +179,7 @@ public class Option implements Comparable<Option> {
 	 * @since 3.8
 	 */
 	public Option(StringOptionDefinition definition, String value) {
-		this.definition = definition;
-		setStringValue(value);
+		this(definition, StringOptionDefinition.setStringValue(value));
 	}
 
 	/**
@@ -188,8 +193,7 @@ public class Option implements Comparable<Option> {
 	 * @since 3.8
 	 */
 	public Option(IntegerOptionDefinition definition, int value) {
-		this.definition = definition;
-		setIntegerValue(value);
+		this(definition, IntegerOptionDefinition.setIntegerValue(value));
 	}
 
 	/**
@@ -203,8 +207,7 @@ public class Option implements Comparable<Option> {
 	 * @since 3.8
 	 */
 	public Option(IntegerOptionDefinition definition, long value) {
-		this.definition = definition;
-		setLongValue(value);
+		this(definition, IntegerOptionDefinition.setLongValue(value));
 	}
 
 	// Getter and Setter
@@ -285,61 +288,6 @@ public class Option implements Comparable<Option> {
 	 */
 	public long getLongValue() {
 		return IntegerOptionDefinition.getLongValue(getValue());
-	}
-
-	/**
-	 * Sets the option value.
-	 *
-	 * @param value the new value
-	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if value doesn't match the option
-	 *             definition.
-	 * @see OptionDefinition#assertValue(byte[])
-	 * @since 3.0 validate the value and throws exception on mismatch
-	 */
-	public void setValue(byte[] value) {
-		if (value == null) {
-			throw new NullPointerException(definition.getName() + " option value must not be null!");
-		}
-		definition.assertValue(value);
-		this.value = value;
-	}
-
-	/**
-	 * Sets the option value from a string.
-	 *
-	 * @param str the new option value as string
-	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if value doesn't match the option
-	 *             definition.
-	 * @since 3.0 validate the value and throws exception on mismatch
-	 */
-	public void setStringValue(String str) {
-		setValue(StringOptionDefinition.setStringValue(str));
-	}
-
-	/**
-	 * Sets the option value from an integer.
-	 *
-	 * @param val the new option value as integer
-	 * @throws IllegalArgumentException if value doesn't match the option
-	 *             definition.
-	 * @since 3.0 validate the value and throws exception on mismatch
-	 */
-	public void setIntegerValue(int val) {
-		setValue(IntegerOptionDefinition.setIntegerValue(val));
-	}
-
-	/**
-	 * Sets the option value from a long.
-	 *
-	 * @param val the new option value as long
-	 * @throws IllegalArgumentException if value doesn't match the option
-	 *             definition.
-	 * @since 3.0 validate the value and throws exception on mismatch
-	 */
-	public void setLongValue(long val) {
-		setValue(IntegerOptionDefinition.setLongValue(val));
 	}
 
 	/**
@@ -454,19 +402,4 @@ public class Option implements Comparable<Option> {
 			return "0x" + StringUtil.byteArray2Hex(value);
 		}
 	}
-
-	/**
-	 * Sets the option value unchecked.
-	 *
-	 * For unit tests only!
-	 * 
-	 * @param value the new value
-	 * @return this option
-	 * @since 3.0
-	 */
-	Option setValueUnchecked(byte[] value) {
-		this.value = value;
-		return this;
-	}
-
 }
