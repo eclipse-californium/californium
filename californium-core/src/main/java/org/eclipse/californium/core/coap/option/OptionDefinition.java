@@ -24,17 +24,7 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
  * 
  * @since 3.8
  */
-public interface OptionDefinition {
-
-	/**
-	 * Returns the option number.
-	 * 
-	 * @return the option number
-	 * 
-	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.6"
-	 *      target= "_blank">RFC7252 5.4.6. Option Numbers</a>
-	 */
-	int getNumber();
+public interface OptionDefinition extends OptionNumber {
 
 	/**
 	 * Get name of option.

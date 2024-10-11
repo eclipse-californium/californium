@@ -45,6 +45,8 @@ The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` s
 
 ### Californium-Core:
 
+The `Option` is changed to be immutable, remove the setters.
+
 ### Californium-Proxy2:
 
 The apache http libraries haven been update to http-client 5.4 and http-core 5.3. The previous version used a pre-processing filter to implement a generic proxy (catch all), which added the path "proxy" to the incoming request. With this update the `RequestRouter` is used and so the routing may have changed slightly according the details. The proxy handler is now called with the original path without additional "proxy".
@@ -77,6 +79,9 @@ The functions of the obsolete and removed `ExtendedCoapStack` are moved into
 `CoapStack`.
 
 Rename `ExtendedCoapStackFactory` into `CoapStackFactory`.
+
+Remove setters from `Option`. 
+Introduce `OptionNumber` to compare `Option` and `OptionDefintion` based on their `number`.
 
 ### Californium-Proxy2:
 
