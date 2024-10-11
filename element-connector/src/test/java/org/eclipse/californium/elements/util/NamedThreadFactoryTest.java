@@ -21,6 +21,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -42,6 +43,7 @@ public class NamedThreadFactoryTest {
 
 	@Test
 	public void testDaemonThreadGroup() throws Exception {
+		assumeTrue(System.getProperty("java.version").compareTo("21.") < 0);
 		ThreadGroup group = new ThreadGroup("test-group");
 		group.setDaemon(true);
 		createAndStopThread(group);
