@@ -361,20 +361,20 @@ public class CrossProtocolTranslator {
 					}
 				} else {
 					// create the option
-					Option option = new Option(optionDefinition);
+					Option option;
 					switch (optionDefinition.getFormat()) {
 					case INTEGER:
-						option.setIntegerValue(Integer.parseInt(headerValue));
+						option = optionDefinition.create(Long.parseLong(headerValue));
 						break;
 					case OPAQUE:
-						option.setValue(headerValue.getBytes(ISO_8859_1));
+						option = optionDefinition.create(headerValue.getBytes(ISO_8859_1));
 						break;
 					case EMPTY:
-						option.setValue(Bytes.EMPTY);
+						option = optionDefinition.create(Bytes.EMPTY);
 						break;
 					case STRING:
 					default:
-						option.setStringValue(headerValue);
+						option = optionDefinition.create(headerValue);
 						break;
 					}
 					optionList.add(option);
