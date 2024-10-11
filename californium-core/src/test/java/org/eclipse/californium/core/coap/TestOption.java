@@ -39,7 +39,7 @@ public final class TestOption {
 	/**
 	 * Create option with unchecked value.
 	 * 
-	 * @param defintion option definition.
+	 * @param definition option definition.
 	 * @param length value length
 	 * @return created option
 	 * @since 3.8
@@ -47,7 +47,7 @@ public final class TestOption {
 	public static Option newOption(OptionDefinition definition, int length) {
 		byte[] value = new byte[length];
 		Arrays.fill(value, (byte) 'p');
-		return new Option(definition).setValueUnchecked(value);
+		return new Option(definition, value, true);
 	}
 
 	/**
