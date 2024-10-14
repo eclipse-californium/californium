@@ -226,6 +226,12 @@ public class S3PutRequest extends S3Request {
 			return this;
 		}
 
+		@Override
+		public Builder cacheMode(CacheMode cacheMode) {
+			super.cacheMode(cacheMode);
+			return this;
+		}
+
 		/**
 		 * Creates S3 PUT request.
 		 * 
