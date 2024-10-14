@@ -472,6 +472,12 @@ public class S3ProxyRequest extends S3PutRequest {
 			return this;
 		}
 
+		@Override
+		public Builder cacheMode(CacheMode cacheMode) {
+			super.cacheMode(cacheMode);
+			return this;
+		}
+
 		/**
 		 * Creates S3-proxy-request.
 		 * 
