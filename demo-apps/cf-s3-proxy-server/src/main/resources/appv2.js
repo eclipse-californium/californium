@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 2 0.24.0, 8. October 2024";
+const version = "Version 2 0.24.1, 17. October 2024";
 
 let timeShift = 0;
 
@@ -249,7 +249,7 @@ class S3Request {
 
 	static uriEncode(value, keepSlash) {
 		const h = '0123456789ABCDEF';
-		let encoder;
+		const encoder = new TextEncoder();
 		let result = "";
 		for (let i = 0; i < value.length; i++) {
 			const c = value.charCodeAt(i);
@@ -277,12 +277,15 @@ class S3Request {
 					result += "%" + h[c >> 4] + h[c & 15];
 				}
 			} else {
-				encoder ??= new TextEncoder();
 				const bytes = encoder.encode(s);
 				result += S3Request.bufferToHex(bytes, h, "%");
 			}
 		}
 		return result;
+	}
+
+	static s3KeyEncode(key, keepSlash) {
+		return S3Request.uriEncode(key.replaceAll("%", "%25"), keepSlash);
 	}
 
 	static uriEncodeQueryParameter(parameter) {
@@ -505,12 +508,12 @@ class S3Request {
 		return null;
 	}
 
-	async fetch(url, now, etag) {
+	async fetchUrl(url, now, etag) {
 		const stateHandler = this.stateHandler;
 		if (stateHandler) stateHandler(false, 1, 0, 0);
 		try {
 			if (!(now)) {
-				now = new Date(Date.now() - timeShift).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+				now = new Date(Date.now() - timeShift).toISOString().replaceAll(/[-:]/g, '').replace(/\.\d+/, '');
 			}
 			const request = new Request(url, {
 				method: 'GET',
@@ -518,7 +521,7 @@ class S3Request {
 					"x-amz-date": now,
 				},
 				mode: 'cors',
-				cache: 'no-cache',
+				cache: 'no-store',
 			});
 			if (etag) {
 				request.headers.set("If-None-Match", etag);
@@ -539,23 +542,23 @@ class S3Request {
 		}
 	}
 
-	async fetchText(url, etag, optional) {
-		const response = await this.fetch(url, null, etag);
+	async fetchUrlText(url, etag, optional) {
+		const response = await this.fetchUrl(url, null, etag);
 		return this.getText(response, url, optional);
 	}
 
-	async fetchJson(url, etag, optional) {
-		const response = await this.fetch(url, null, etag);
+	async fetchUrlJson(url, etag, optional) {
+		const response = await this.fetchUrl(url, null, etag);
 		return this.getJson(response, url, optional);
 	}
 
-	async fetchXml(url, etag, optional) {
-		const response = await this.fetch(url, null, etag);
+	async fetchUrlXml(url, etag, optional) {
+		const response = await this.fetchUrl(url, null, etag);
 		return this.getXml(response, url, optional);
 	}
 
-	async fetchBytes(url, etag, optional) {
-		const response = await this.fetch(url, null, etag);
+	async fetchUrlBytes(url, etag, optional) {
+		const response = await this.fetchUrl(url, null, etag);
 		return this.getBytes(response, url, optional);
 	}
 
@@ -569,28 +572,28 @@ class S3Request {
 
 	async fetchXmlList(key, startAfterKey, maxKeys) {
 		if (key) {
-			let uri = this.endpoint + "?list-type=2&prefix=" + key + "&delimiter=%2F";
+			let uri = this.endpoint + "?list-type=2&prefix=" + S3Request.s3KeyEncode(key) + "&delimiter=%2F";
 			if (startAfterKey) {
 				uri += "&start-after=" + startAfterKey;
 			}
 			if (maxKeys) {
 				uri += "&max-keys=" + maxKeys;
 			}
-			return this.fetchXml(uri);
+			return this.fetchUrlXml(uri);
 		}
 		return null;
 	}
 
 	async fetchXmlListNoDelimiter(key, startAfterKey, maxKeys) {
 		if (key) {
-			let uri = this.endpoint + "?list-type=2&prefix=" + key;
+			let uri = this.endpoint + "?list-type=2&prefix=" + S3Request.s3KeyEncode(key);
 			if (startAfterKey) {
 				uri += "&start-after=" + startAfterKey;
 			}
 			if (maxKeys) {
 				uri += "&max-keys=" + maxKeys;
 			}
-			return this.fetchXml(uri);
+			return this.fetchUrlXml(uri);
 		}
 		return null;
 	}
@@ -602,7 +605,7 @@ class S3Request {
 
 	async fetchContent(key, etag, optional) {
 		if (key) {
-			return this.fetchText(this.endpoint + key, etag, optional);
+			return this.fetchUrlText(this.endpoint + S3Request.s3KeyEncode(key, true), etag, optional);
 		} else {
 			return null;
 		}
@@ -610,18 +613,18 @@ class S3Request {
 
 	async fetchContentBytes(key, etag, optional) {
 		if (key) {
-			return this.fetchBytes(this.endpoint + key, etag, optional);
+			return this.fetchUrlBytes(this.endpoint + S3Request.s3KeyEncode(key, true), etag, optional);
 		} else {
 			return null;
 		}
 	}
 
-	async put(url, body, now) {
+	async putUrl(url, body, now) {
 		const stateHandler = this.stateHandler;
 		if (stateHandler) stateHandler(false, 1, 0, 0);
 		try {
 			if (!(now)) {
-				now = new Date(Date.now() - timeShift).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+				now = new Date(Date.now() - timeShift).toISOString().replaceAll(/[-:]/g, '').replace(/\.\d+/, '');
 			}
 			const request = new Request(url, {
 				method: 'PUT',
@@ -645,8 +648,8 @@ class S3Request {
 	}
 
 	async putContent(key, content, now) {
-		const url = this.endpoint + key;
-		const response = await this.put(url, content, now);
+		const url = this.endpoint + S3Request.s3KeyEncode(key, true);
+		const response = await this.putUrl(url, content, now);
 		this.stateHandler(false, 0, 0, content.length);
 		const result = new Object();
 		if (await this.getContent(response, url, false, result)) {
@@ -877,7 +880,7 @@ class DeviceMessage {
 	static presIndex = getChartConfigIndex("hPa");
 
 	static parseValueSet(line, values) {
-		let foundValue = false;
+		let foundValues = 0;
 		for (let i = 0; i < chartConfig.length; ++i) {
 			if (values[i] == undefined) {
 				const found = line.match(chartConfig[i].regex);
@@ -885,32 +888,47 @@ class DeviceMessage {
 					const n = conv(found[1]);
 					if (n !== undefined) {
 						values[i] = n;
-						foundValue = true;
+						++foundValues;
 					}
 				}
 			}
 		}
-		return foundValue;
+		return foundValues;
+	}
+
+	static removeSensor(line, index) {
+		if (line[index] != null) {
+			line[index] = null;
+			return true;
+		}
+		return false;
 	}
 
 	static checkSensors(line) {
-		// index before unshift time
-		// modem temperature only
-		let environmentValid = line[DeviceMessage.tempIndex] != null && line[DeviceMessage.humIndex] == null && line[DeviceMessage.presIndex] == null;
-		// check environment values for sensor starts
-		if (!environmentValid && !DeviceMessage.isTempValue(line[DeviceMessage.tempIndex]) &&
-			!DeviceMessage.isValue(line[DeviceMessage.humIndex]) &&
-			!DeviceMessage.isValue(line[DeviceMessage.presIndex])) {
-			if (DeviceMessage.isValue(line[DeviceMessage.volIndex])) {
-				// delete partitial environment values
-				line[DeviceMessage.tempIndex] = null;
-				line[DeviceMessage.humIndex] = null;
-				line[DeviceMessage.presIndex] = null;
-			} else {
-				return false;
-			}
+		let sensors = 0;
+
+		if (DeviceMessage.isValue(line[DeviceMessage.humIndex])) {
+			++sensors;
 		}
-		return true;
+		if (DeviceMessage.isValue(line[DeviceMessage.presIndex])) {
+			++sensors;
+		}
+		if (DeviceMessage.isTempValue(line[DeviceMessage.tempIndex])) {
+			++sensors;
+		}
+		if (sensors == 0) {
+			if (DeviceMessage.removeSensor(line, DeviceMessage.humIndex)) {
+				++sensors;
+			}
+			if (DeviceMessage.removeSensor(line, DeviceMessage.presIndex)) {
+				++sensors;
+			}
+			if (DeviceMessage.removeSensor(line, DeviceMessage.tempIndex)) {
+				++sensors;
+			}
+			return sensors;
+		}
+		return 0;
 	}
 
 	static createMessage(msgKey, download) {
@@ -945,10 +963,14 @@ class DeviceMessage {
 		const message = new DeviceMessage();
 		message.time = time;
 		const values = Array(chartConfig.length);
-		if (DeviceMessage.parseValueSet(line, values) &&
-			DeviceMessage.checkSensors(values)) {
+		const foundValues = DeviceMessage.parseValueSet(line, values);
+		const leftValues = foundValues ? foundValues - DeviceMessage.checkSensors(values) : foundValues;
+		if (leftValues) {
 			values.unshift(time);
 			message.values = values;
+			console.log("series add " + leftValues + " values");
+		} else {
+			console.log("series " + foundValues + " values");
 		}
 		return message;
 	}
@@ -966,19 +988,19 @@ class DeviceMessage {
 			if (this.value == undefined && this.contentType == 0) {
 				const text = new TextDecoder().decode(this.payload);
 				const values = Array(chartConfig.length);
-				let foundValue = false;
+				let foundValues = 0;
 				const lines = text.split(/\r?\n/);
 				lines.forEach((line) => {
-					if (DeviceMessage.parseValueSet(line, values)) {
-						foundValue = true;
-					}
+					foundValues += DeviceMessage.parseValueSet(line, values);
 				});
-
-				if (foundValue && DeviceMessage.checkSensors(values)) {
+				const leftValues = foundValues ? foundValues - DeviceMessage.checkSensors(values) : foundValues;
+				if (leftValues) {
 					values.unshift(this.time);
 					this.values = values;
+					console.log("arch add " + leftValues + " values");
 				} else {
 					this.values = null;
+					console.log("arch " + foundValues + " values");
 				}
 			}
 		} catch (e) {
@@ -1002,7 +1024,7 @@ class DeviceMessage {
 				const status = new Object();
 				status.text = text;
 				const lines = text.split(/\r?\n/);
-				const m = lines[0].match(/^((\d+)-)?(.*)(v(\d+\.\d+\.\d+[^,]*))/);
+				const m = lines[0].match(/^((\d+)-)?(.*\[d-hh:mm:ss\].*)(v(\d+\.\d+\.\d+[^,]*))/);
 				if (m) {
 					if (m[2]) {
 						status.uptime = conv(m[2]);
@@ -1295,6 +1317,7 @@ class DeviceData {
 	config = null;
 	configTime = null;
 
+	lastArchDayMessage = null;
 	lastArchMessage = null;
 
 	loaded = new Map();
@@ -1625,8 +1648,9 @@ class DeviceData {
 						message = message.addTo(this.allMessages);
 						message.parseValues();
 						if (arch) {
-							if (!this.lastArchMessage || this.lastArchMessage.time < message.time) {
-								this.lastArchMessage = message;
+							if (!this.lastArchDayMessage || this.lastArchDayMessage.time < message.time) {
+								this.lastArchDayMessage = message;
+								this.lastArchDayMessage.key = msgKey;
 							}
 						}
 					}
@@ -1643,35 +1667,59 @@ class DeviceData {
 		return message;
 	}
 
-	async downloadArchDay(tag, date, allJobs) {
-		console.log("Append " + tag + date)
-		let list = await s3.fetchXmlList(this.key + date + "/");
+	async downloadArchDay(tag, date, lastKey, allJobs) {
+		if (lastKey) {
+			console.log("Append " + tag + date + " after " + lastKey.slice(-12));
+		} else {
+			console.log("Append " + tag + date)
+		}
+		let list = await s3.fetchXmlList(this.key + date + "/", lastKey);
 		list.xml.querySelectorAll("Contents>Key").forEach((e) => {
 			allJobs.push(this.downloadMessage(e.textContent, true));
 		});
 	}
 
-	async downloadArchDays(to, lastMessage, allJobs) {
-		if (lastMessage) {
-			const jobs = new Array();
-			let i = 1;
-			let last = lastMessage.time;
-			while (last < to && i < 8) {
-				last += dayInMillis;
-				const date = new Date(last).toISOString().slice(0, 10);
-				const tag = i <= 1 ? "day " : i + ". day ";
-				jobs.push(this.downloadArchDay(tag, date, allJobs));
-				++i;
-			}
-			await Promise.allSettled(jobs);
-			console.log("arch loaded " + jobs.length + " days.");
-		} else {
-			let time = Date.now();
-			let date = new Date(time).toISOString().slice(0, 10);
-			await this.downloadArchDay("day ", date, allJobs);
-			date = new Date(time -= dayInMillis).toISOString().slice(0, 10);
-			await this.downloadArchDay("2. day ", date, allJobs);
+	async downloadArchDays(to, allJobs) {
+		let lastKey = null;
+		let last = 0;
+		if (this.lastArchDayMessage) {
+			last = this.lastArchDayMessage.time;
+			lastKey = this.lastArchDayMessage.key;
 		}
+		if (this.lastArchMessage) {
+			const lastDay = new Date(this.lastArchMessage.time);
+			lastDay.setUTCHours(0);
+			lastDay.setUTCMinutes(0);
+			lastDay.setUTCSeconds(0);
+			lastDay.setUTCMilliseconds(0);
+			const nextDay = lastDay.getTime() + dayInMillis;
+			if (last < nextDay) {
+				last = nextDay;
+				lastKey = null;
+			}
+		}
+		if (!last) {
+			to ??= Date.now();
+			const lastDay = new Date(to);
+			lastDay.setUTCHours(0);
+			lastDay.setUTCMinutes(0);
+			lastDay.setUTCSeconds(0);
+			lastDay.setUTCMilliseconds(0);
+			last = lastDay.getTime() - (dayInMillis * 3);
+		}
+		console.log("Days from " + new Date(last).toISOString() + " to " + new Date(to).toISOString());
+		const jobs = new Array();
+		let i = 1;
+		while (last <= to && i < 8) {
+			const date = new Date(last).toISOString().slice(0, 10);
+			const tag = i <= 1 ? "day " : i + ". day ";
+			jobs.push(this.downloadArchDay(tag, date, lastKey, allJobs));
+			last += dayInMillis;
+			lastKey = null;
+			++i;
+		}
+		await Promise.allSettled(jobs);
+		console.log("arch loaded " + jobs.length + " days.");
 	}
 
 	async downloadArch(archKey, force, to, allJobs) {
@@ -1701,18 +1749,20 @@ class DeviceData {
 				}
 				const newEtag = download.headers.get("etag") ?? (etag ?? "");
 				this.loaded.set(archKey, newEtag);
-
-				if (to) {
-					let start = newMessages.at(-1);
-					if (this.lastArchMessage) {
-						if (!start || start.time < this.lastArchMessage.time) {
-							start = this.lastArchMessage
+				if (newMessages) {
+					const last = newMessages.at(-1);
+					if (last) {
+						if (!this.lastArchMessage || this.lastArchMessage.time < last.time) {
+							this.lastArchMessage = last;
 						}
 					}
-					await this.downloadArchDays(to, start, allJobs);
 				}
 			} else if (download.status != 304) {
 				console.log("Missing payload " + archKey);
+				to = false;
+			}
+			if (to) {
+				await this.downloadArchDays(to, allJobs);
 			}
 		} else {
 			console.log("Cache " + archKey + " " + etag);
@@ -1938,7 +1988,7 @@ class DeviceData {
 				}
 			} else {
 				range = new DateRange(null, lastValues, center, days, true);
-				await this.downloadArchDays(range.to, null, allJobs);
+				await this.downloadArchDays(range.to, allJobs);
 			}
 			return this.loadData(allJobs, range, readConfig);
 		} else {
@@ -1971,7 +2021,7 @@ class DeviceGroups {
 				console.log("Refresh groups");
 			}
 			try {
-				const response = await s3HttpHost.fetchJson("groups", this.etag, true);
+				const response = await s3HttpHost.fetchUrlJson("groups", this.etag, true);
 				if (response.error) {
 					console.log("Failed to update groups: " + response.error.message)
 				} else if (response.status == 304) {
@@ -2926,15 +2976,14 @@ class UiDiagnose {
 	async fetch(init, item) {
 		item = item ?? this.item;
 		this.reset();
-		let listRequest = this.s3diagnose.fetchXmlList("diagnose%2F");
+		const listRequest = this.s3diagnose.fetchXmlList("diagnose/");
 		if (item) {
 			if (item != this.item) {
 				this.etag = null;
 			}
-			let key = S3Request.uriEncode(item.replaceAll("%", "%25"), true);
-			let request = this.s3diagnose.fetchContent(key, this.etag);
+			const request = this.s3diagnose.fetchContent(item, this.etag);
 			this.s3diagnose.allStarted();
-			let response = await request;
+			const response = await request;
 			if (response.status == 304) {
 				// no refresh
 			} else {
@@ -2951,7 +3000,9 @@ class UiDiagnose {
 			this.s3diagnose.allStarted();
 		}
 		const response = await listRequest;
-		response.xml.querySelectorAll("Contents>Key").forEach((e) => insertItem(this.list, e.textContent));
+		if (response) {
+			response.xml.querySelectorAll("Contents>Key").forEach((e) => insertItem(this.list, e.textContent));
+		}
 	}
 
 	view() {
@@ -3080,6 +3131,7 @@ class UiManager {
 	}
 
 	resetConfig() {
+		console.log("reset config");
 		if (this.deviceGroups) {
 			this.deviceGroups.reset();
 			this.deviceGroups = null;
@@ -3235,6 +3287,8 @@ class UiManager {
 				const config = document.querySelector('#deviceconfig');
 				const dev = this.state.currentDevice;
 				if (config && dev) {
+					this.showDiagnose = false;
+					this.showDeviceList = false;
 					const newConfig = config.value;
 					const oldConfig = dev.config ?? "";
 					if (oldConfig == newConfig) {
@@ -3332,7 +3386,7 @@ class UiManager {
 				timeShift = 0;
 				const s3login = new S3Request(name.value, pw.value, null, null, null, this.setRequestState.bind(this));
 				let now = Date.now();
-				let response = await s3login.fetch("login");
+				let response = await s3login.fetchUrl("login");
 				// now + RTT / 2
 				let time = Date.now() - now;
 				const amzDate = response.headers.get("x-amz-date");
@@ -3340,7 +3394,7 @@ class UiManager {
 					// retry with server time 
 					s3login.ignoreResponse();
 					now = Date.now();
-					response = await s3login.fetch("login", amzDate);
+					response = await s3login.fetchUrl("login", amzDate);
 					time = Date.now() - now;
 				}
 				const login = await s3login.getJson(response);
@@ -3398,6 +3452,7 @@ class UiManager {
 					}
 					s3HttpHost = new S3Request(name.value, pw.value, null, null, null, this.setRequestState.bind(this));
 					s3 = new S3Request(json.id, null, json.region, json.base, json, this.setRequestState.bind(this));
+					this.state.login = 1;
 
 					if (json.groups) {
 						this.deviceGroups = new DeviceGroups(json.groups, login.headers.get("etag"));
@@ -3417,14 +3472,18 @@ class UiManager {
 					body.appendChild(insert);*/
 
 					if (logo && this.logoView) {
-						const logoSvg = await s3.fetchXml(json.base + logo, null, true);
-						if (logoSvg && logoSvg.xml) {
-							const svg = logoSvg.xml.querySelector("svg");
-							if (svg) {
-								svg.setAttribute("id", "logosvg");
-								this.logoView.replaceChildren(svg);
-								console.log("logo: " + logo);
+						try {
+							const logoSvg = await s3.fetchUrlXml(json.base + S3Request.s3KeyEncode(logo, true), null, true);
+							if (logoSvg && logoSvg.xml) {
+								const svg = logoSvg.xml.querySelector("svg");
+								if (svg) {
+									svg.setAttribute("id", "logosvg");
+									this.logoView.replaceChildren(svg);
+									console.log("logo: " + logo);
+								}
 							}
+						} catch (error) {
+							console.log("fetch logo failed: " + error.message);
 						}
 					}
 					if (this.enableDiagnose) {
@@ -3432,7 +3491,6 @@ class UiManager {
 						this.diagnoseUi = new UiDiagnose(s3diagnose);
 						this.diagnoseUi.fetch(true);
 					}
-					this.state.login = 1;
 					this.loadDeviceList();
 					return;
 				}
