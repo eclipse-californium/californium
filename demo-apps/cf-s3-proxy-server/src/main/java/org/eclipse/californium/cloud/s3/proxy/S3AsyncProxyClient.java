@@ -305,6 +305,9 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 					if (request.getContentType() != null) {
 						putBuilder.contentType(request.getContentType());
 					}
+					if (request.getCacheMode() == CacheMode.NONE) {
+						putBuilder.cacheControl("no-store");
+					}
 					String acl = request.getAcl(this.acl);
 					if (acl != null) {
 						putBuilder.acl(acl);
@@ -396,6 +399,9 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 					putBuilder.contentLength((long) content.length);
 					if (request.getContentType() != null) {
 						putBuilder.contentType(request.getContentType());
+					}
+					if (request.getCacheMode() == CacheMode.NONE) {
+						putBuilder.cacheControl("no-store");
 					}
 					Map<String, String> meta = request.getMetadata();
 					if (!meta.isEmpty()) {

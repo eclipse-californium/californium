@@ -26,6 +26,7 @@ import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3PutRequest;
+import org.eclipse.californium.cloud.s3.proxy.S3Request.CacheMode;
 import org.eclipse.californium.cloud.s3.proxy.S3Response;
 import org.eclipse.californium.cloud.s3.util.DeviceGroupProvider;
 import org.eclipse.californium.cloud.s3.util.WebAppConfigProvider;
@@ -159,6 +160,7 @@ public class ConfigHandler extends S3Login {
 		}
 		S3ProxyClient proxyClient = clientProvider.getProxyClient(authorization.getDomain());
 		S3PutRequest s3PutRequest = S3PutRequest.builder().key("devices/" + configDevice + "/config")
+				.cacheMode(CacheMode.NONE)
 				.content(out.toByteArray()).contentType(contentType).build();
 		proxyClient.save(s3PutRequest, (res) -> ready(httpExchange, res));
 	}
