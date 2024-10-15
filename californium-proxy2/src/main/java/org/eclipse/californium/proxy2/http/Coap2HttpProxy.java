@@ -19,15 +19,18 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.ContextBuilder;
+import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.auth.CredentialsProviderBuilder;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.Message;
+import org.apache.hc.core5.http.ProtocolException;
 import org.apache.hc.core5.http.message.StatusLine;
 import org.apache.hc.core5.http.nio.support.BasicResponseConsumer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -53,6 +56,9 @@ public class Coap2HttpProxy {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Coap2HttpProxy.class);
 
+	private static final String AUTH_BEARER = "Bearer ";
+	private static final String AUTH_PREEMPTIVE_BASIC = "PreBasic ";
+
 	/**
 	 * DefaultHttpClient is thread safe. It is recommended that the same
 	 * instance of this class is reused for multiple request executions.
@@ -77,7 +83,50 @@ public class Coap2HttpProxy {
 	}
 
 	/**
+	 * Parse credentials from authentication.
+	 * 
+	 * @param authentication authentication as string. Expects
+	 *            {@code <username>:<password>}
+	 * @param offset offset to parse the credentials.
+	 * @return UsernamePasswordCredentials on success, {@code null}, if parsing
+	 *         the credentials fails.
+	 * @since 4.0
+	 */
+	private UsernamePasswordCredentials parseCredentials(String authentication, int offset) {
+		int index = authentication.indexOf(':', offset);
+		if (index > 0) {
+			char[] pw = authentication.toCharArray();
+			pw = Arrays.copyOfRange(pw, index + 1, pw.length);
+
+			return new UsernamePasswordCredentials(authentication.substring(offset, index).trim(), pw);
+		}
+		return null;
+	}
+
+	/**
+	 * Create target host from destination URI.
+	 * 
+	 * @param destination destination URI
+	 * @return target host
+	 * @since 4.0
+	 */
+	private HttpHost getTargetHost(URI destination) {
+		return new HttpHost(destination.getScheme(), destination.getHost(), destination.getPort());
+	}
+
+	/**
 	 * Handle http-forward request.
+	 * 
+	 * Several authentication options are supported.
+	 * 
+	 * <dl>
+	 * <dt>Bearer {@code <access-token>}</dt>
+	 * <dd>adds the {@code <access-token>} preemptive to the reqeust's headers</dd>
+	 * <dt>PreBasic {@code <username:password>}</dt>
+	 * <dd>Uses BASIC authentication preemptive</dd>
+	 * <dt>{@code <username:password>}</dt>
+	 * <dd>Prepares to respond to a {@code WWW-Authenticate} challenge from the server.</dd>
+	 * </dl>
 	 * 
 	 * @param destination http destination
 	 * @param authentication http authentication. Maybe {@code null}.
@@ -90,18 +139,23 @@ public class Coap2HttpProxy {
 		HttpClientContext context = null;
 
 		if (authentication != null) {
-			if (authentication.startsWith("Bearer ")) {
+			if (authentication.regionMatches(true, 0, AUTH_BEARER, 0, AUTH_BEARER.length())) {
 				// pass to translator
+			} else if (authentication.regionMatches(true, 0, AUTH_PREEMPTIVE_BASIC, 0,
+					AUTH_PREEMPTIVE_BASIC.length())) {
+				UsernamePasswordCredentials credentials = parseCredentials(authentication,
+						AUTH_PREEMPTIVE_BASIC.length());
+				if (credentials != null) {
+					context = ContextBuilder.create().preemptiveBasicAuth(getTargetHost(destination), credentials)
+							.build();
+				}
+				authentication = null;
 			} else {
-				int index = authentication.indexOf(':');
-				if (index > 0) {
-					BasicCredentialsProvider provider = new BasicCredentialsProvider();
-					char[] pw = authentication.toCharArray();
-					pw = Arrays.copyOfRange(pw, index + 1, pw.length);
-					provider.setCredentials(new AuthScope(null, -1),
-							new UsernamePasswordCredentials(authentication.substring(0, index), pw));
-					context = HttpClientContext.create();
-					context.setCredentialsProvider(provider);
+				UsernamePasswordCredentials credentials = parseCredentials(authentication, 0);
+				if (credentials != null) {
+					CredentialsProvider credentialsProvider = CredentialsProviderBuilder.create()
+							.add(getTargetHost(destination), credentials).build();
+					context = ContextBuilder.create().useCredentialsProvider(credentialsProvider).build();
 				}
 				authentication = null;
 			}
@@ -189,12 +243,17 @@ public class Coap2HttpProxy {
 						LOGGER.debug("Failed to get the http response: {}", ex.getMessage(), ex);
 						if (ex instanceof SocketTimeoutException) {
 							onResponse.respond(new Response(ResponseCode.GATEWAY_TIMEOUT));
-						} else {
-							Response response = new Response(ResponseCode.BAD_GATEWAY);
-							response.setPayload(ex.getMessage());
-							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-							onResponse.respond(response);
+							return;
 						}
+						Response response;
+						if (ex instanceof ProtocolException) {
+							response = new Response(ResponseCode.BAD_REQUEST);
+						} else {
+							response = new Response(ResponseCode.BAD_GATEWAY);
+						}
+						response.setPayload(ex.getMessage());
+						response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+						onResponse.respond(response);
 					}
 
 					@Override

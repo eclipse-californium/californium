@@ -19,12 +19,12 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.config.DefinitionUtils;
-import org.eclipse.californium.elements.config.SystemConfig;
-import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.config.Configuration.ModuleDefinitionsProvider;
+import org.eclipse.californium.elements.config.DefinitionUtils;
 import org.eclipse.californium.elements.config.EnumDefinition;
 import org.eclipse.californium.elements.config.IntegerDefinition;
+import org.eclipse.californium.elements.config.SystemConfig;
+import org.eclipse.californium.elements.config.TimeDefinition;
 
 /**
  * Configuration definitions for proxy2.

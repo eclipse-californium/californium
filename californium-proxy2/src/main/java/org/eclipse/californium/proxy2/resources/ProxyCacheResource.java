@@ -187,7 +187,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 			if (all) {
 				URI uri = cacheKey.getUri();
 				if (response.getOptions().getLocationPathCount() > 0) {
-					String locationPath = response.getOptions().getLocationPathString();
+					String locationPath = response.getOptions().getLocationString();
 					uri = getResourceUri(uri, locationPath);
 				} else {
 					uri = getResourceUri(uri);

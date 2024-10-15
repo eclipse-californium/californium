@@ -154,6 +154,11 @@ public class Http2CoapTranslator {
 		if (!httpResource.startsWith("/")) {
 			httpResource = "/" + httpResource;
 		}
+		String httpResourcePrefix = httpResource;
+		if (httpResourcePrefix.length() == 1 || !httpResourcePrefix.endsWith("/")) {
+			httpResourcePrefix = httpResourcePrefix + "/";
+		}
+
 		// if the uri contains the proxy resource name, the request should be
 		// forwarded and it is needed to get the real requested coap server's
 		// uri e.g.:
@@ -163,8 +168,8 @@ public class Http2CoapTranslator {
 		// coap resource: helloWorld
 		String path = uri.getPath();
 		LOGGER.debug("URI path => '{}'", path);
-		if (path.startsWith(httpResource + "/")) {
-			path = path.substring(httpResource.length() + 1);
+		if (path.startsWith(httpResourcePrefix)) {
+			path = path.substring(httpResourcePrefix.length());
 			String target = path;
 			if (uri.getQuery() != null) {
 				target = path + "?" + uri.getQuery();
@@ -302,7 +307,14 @@ public class Http2CoapTranslator {
 
 		// get/set the response code
 		ResponseCode coapCode = coapResponse.getCode();
-		int httpCode = httpTranslator.getHttpCode(coapResponse.getCode());
+		boolean content = coapCode.equals(ResponseCode.CONTENT);
+		if (coapCode.equals(ResponseCode.CHANGED) && coapResponse.getPayloadSize() > 0) {
+			coapCode = ResponseCode.CONTENT;
+		} else if (content && coapResponse.getPayloadSize() == 0) {
+			coapCode = ResponseCode.CHANGED;
+		}
+
+		int httpCode = httpTranslator.getHttpCode(coapCode);
 		if (httpCode == HttpStatus.SC_OK && coapResponse.getPayloadSize() == 0) {
 			httpCode = HttpStatus.SC_NO_CONTENT;
 		}
@@ -315,8 +327,8 @@ public class Http2CoapTranslator {
 		Header[] headers = httpTranslator.getHttpHeaders(coapResponse.getOptions().asSortedList(), etagTranslator);
 		httpResponse.setHeaders(headers);
 
-		// set max-age if not already set
-		if (!httpResponse.containsHeader("cache-control")) {
+		// set max-age, if not already set
+		if (content && !httpResponse.containsHeader("cache-control")) {
 			httpResponse.setHeader("cache-control", "max-age=" + OptionNumberRegistry.Defaults.MAX_AGE);
 		}
 

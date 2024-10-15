@@ -611,7 +611,12 @@ public class CrossProtocolTranslator {
 					}
 				} else if (StandardOptionRegistry.MAX_AGE.equals(definition)) {
 					// format: cache-control: max-age=60
-					stringOptionValue = "max-age=" + Integer.toString(option.getIntegerValue());
+					int maxAge = option.getIntegerValue();
+					if (maxAge > 0) {
+						stringOptionValue = "max-age=" + Integer.toString(option.getIntegerValue());
+					} else {
+						stringOptionValue = "no-cache";
+					}
 				} else if (optionFormat == OptionFormat.STRING) {
 					stringOptionValue = option.getStringValue();
 				} else if (optionFormat == OptionFormat.INTEGER) {
