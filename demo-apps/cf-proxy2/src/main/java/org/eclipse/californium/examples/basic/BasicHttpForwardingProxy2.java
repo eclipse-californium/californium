@@ -119,6 +119,6 @@ public class BasicHttpForwardingProxy2 {
 	public static void main(String args[]) throws IOException {
 		Configuration proxyConfig = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		BasicHttpForwardingProxy2 proxy = new BasicHttpForwardingProxy2(proxyConfig);
-		System.out.println(BasicHttpForwardingProxy2.class.getSimpleName() + " started.");
+		System.out.println(proxy.getClass().getSimpleName() + " started.");
 	}
 }

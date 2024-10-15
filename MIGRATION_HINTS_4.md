@@ -47,6 +47,10 @@ The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` s
 
 ### Californium-Proxy2:
 
+The apache http libraries haven been update to http-client 5.4 and http-core 5.3. The previous version used a pre-processing filter to implement a generic proxy (catch all), which added the path "proxy" to the incoming request. With this update the `RequestRouter` is used and so the routing may have changed slightly according the details. The proxy handler is now called with the original path without additional "proxy".
+
+The http-client 5.4 follows [RFC 7540, 8.1.2.3, Request Pseudo-Header Fields](https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.3) and deprecates the use of a "userinfo" field. Such request will fail.
+
 ## Noteworthy API Changes
 
 ### Element-Connector:
@@ -75,4 +79,6 @@ The functions of the obsolete and removed `ExtendedCoapStack` are moved into
 Rename `ExtendedCoapStackFactory` into `CoapStackFactory`.
 
 ### Californium-Proxy2:
+
+Rename `HttpServer.registerVirtual` into `register`.
 

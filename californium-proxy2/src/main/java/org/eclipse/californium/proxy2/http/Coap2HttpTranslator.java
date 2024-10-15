@@ -104,7 +104,7 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 	 * Maps a coap-request into a http-request.
 	 * 
 	 * @param uri destination to use
-	 * @param bearerToken bearerToken. Maybe {@code null}.
+	 * @param authorization authorization. Maybe {@code null}.
 	 * @param coapRequest coap-request
 	 * @return http-request
 	 * @throws TranslationException if request could not be translated
@@ -112,7 +112,7 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 	 *             {@code null}.
 	 * @since 3.13
 	 */
-	public ProxyRequestProducer getHttpRequest(URI uri, String bearerToken, Request coapRequest)
+	public ProxyRequestProducer getHttpRequest(URI uri, String authorization, Request coapRequest)
 			throws TranslationException {
 		if (uri == null) {
 			throw new NullPointerException("URI must not be null!");
@@ -134,11 +134,11 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 		for (Header header : headers) {
 			httpRequest.addHeader(header);
 			if (header.getName().equals(HttpHeaders.AUTHORIZATION)) {
-				bearerToken = null;
+				authorization = null;
 			}
 		}
-		if (bearerToken != null) {
-			httpRequest.addHeader(new BasicHeader(HttpHeaders.AUTHORIZATION, bearerToken));
+		if (authorization != null) {
+			httpRequest.addHeader(new BasicHeader(HttpHeaders.AUTHORIZATION, authorization));
 		}
 
 		LOGGER.debug("Incoming request translated correctly");
