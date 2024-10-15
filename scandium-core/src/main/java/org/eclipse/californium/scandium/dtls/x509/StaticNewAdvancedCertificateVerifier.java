@@ -278,7 +278,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		String literalIp = null;
 		String hostname = null;
 		if (peer != null) {
-			hostname = StringUtil.toHostString(peer);
+			hostname = peer.getHostString();
 			InetAddress destination = peer.getAddress();
 			if (destination != null) {
 				literalIp = destination.getHostAddress();
