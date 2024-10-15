@@ -23,6 +23,7 @@ import java.util.Set;
 
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
+import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.WebAppAuthorization;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3PutRequest;
@@ -84,11 +85,11 @@ public class ConfigHandler extends S3Login {
 			}
 			httpCode = 401;
 			Authorization authorization = authorizer.checkSignature(httpExchange, BAN);
-			if (authorization != null && authorization.isVerified() && authorization.isInTime()) {
+			if (authorization instanceof WebAppAuthorization && authorization.isInTime()) {
 				try {
-					httpCode = checkPermissions(authorization, httpExchange);
+					httpCode = checkPermissions((WebAppAuthorization) authorization, httpExchange);
 					if (httpCode == 200) {
-						writeConfig(authorization, httpExchange);
+						writeConfig((WebAppAuthorization) authorization, httpExchange);
 						return;
 					}
 				} catch (Throwable t) {
@@ -110,7 +111,8 @@ public class ConfigHandler extends S3Login {
 		}
 	}
 
-	private int checkPermissions(Authorization authorization, HttpExchange httpExchange) throws InvalidKeyException {
+	private int checkPermissions(WebAppAuthorization authorization, HttpExchange httpExchange)
+			throws InvalidKeyException {
 		WebAppUser credentials = authorization.getWebAppUser();
 		String domain = authorization.getDomain();
 		String value = webAppConfigs.get(domain, credentials.webAppConfig + ".config", "ConfigWrite");
@@ -135,7 +137,8 @@ public class ConfigHandler extends S3Login {
 		return 500;
 	}
 
-	private void writeConfig(Authorization authorization, final HttpExchange httpExchange) throws InvalidKeyException {
+	private void writeConfig(WebAppAuthorization authorization, final HttpExchange httpExchange)
+			throws InvalidKeyException {
 		String contextPath = httpExchange.getHttpContext().getPath();
 		String configDevice = httpExchange.getRequestURI().getPath().substring(contextPath.length());
 		String contentType = httpExchange.getRequestHeaders().getFirst("Content-Type");
@@ -160,8 +163,7 @@ public class ConfigHandler extends S3Login {
 		}
 		S3ProxyClient proxyClient = clientProvider.getProxyClient(authorization.getDomain());
 		S3PutRequest s3PutRequest = S3PutRequest.builder().key("devices/" + configDevice + "/config")
-				.cacheMode(CacheMode.NONE)
-				.content(out.toByteArray()).contentType(contentType).build();
+				.cacheMode(CacheMode.NONE).content(out.toByteArray()).contentType(contentType).build();
 		proxyClient.save(s3PutRequest, (res) -> ready(httpExchange, res));
 	}
 

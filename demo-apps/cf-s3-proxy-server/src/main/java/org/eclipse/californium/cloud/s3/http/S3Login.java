@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
+import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.WebAppAuthorization;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.util.DeviceGroupProvider;
@@ -109,14 +110,14 @@ public class S3Login implements HttpHandler {
 				}
 				httpCode = 401;
 				Authorization authorization = authorizer.checkSignature(httpExchange, BAN);
-				if (authorization != null && authorization.isVerified()) {
+				if (authorization instanceof WebAppAuthorization) {
 					String amzNow = Aws4Authorizer.formatDateTime(System.currentTimeMillis());
 					LOGGER.info("Response, x-amz-date: {}", amzNow);
 					httpExchange.getResponseHeaders().add("x-amz-date", amzNow);
 					if (authorization.isInTime()) {
 						try {
 							httpCode = 200;
-							payload = getLoginResponse(authorization);
+							payload = getLoginResponse((WebAppAuthorization) authorization);
 							contentType = "application/json; charset=utf-8";
 							httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
 						} catch (Throwable t) {
@@ -164,7 +165,7 @@ public class S3Login implements HttpHandler {
 	 * @return payload of response.
 	 * @throws InvalidKeyException if generated signature key is inappropriate.
 	 */
-	private byte[] getLoginResponse(Authorization authorization) throws InvalidKeyException {
+	private byte[] getLoginResponse(WebAppAuthorization authorization) throws InvalidKeyException {
 		long now = System.currentTimeMillis();
 		String date = Aws4Authorizer.formatDate(now);
 		String date2 = Aws4Authorizer.formatDate(now + TimeUnit.HOURS.toMillis(1));

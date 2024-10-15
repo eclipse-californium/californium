@@ -35,10 +35,17 @@ public class WebAppDomainUser {
 	/**
 	 * Create domain user.
 	 * 
-	 * @param domain domain name
+	 * @param domain domain name.
 	 * @param user user
+	 * @throws NullPointerException if domain or user is {@code null}
 	 */
 	public WebAppDomainUser(String domain, WebAppUser user) {
+		if (domain == null) {
+			throw new NullPointerException("domain must not be null!");
+		}
+		if (user == null) {
+			throw new NullPointerException("user must not be null!");
+		}
 		this.domain = domain;
 		this.user = user;
 	}

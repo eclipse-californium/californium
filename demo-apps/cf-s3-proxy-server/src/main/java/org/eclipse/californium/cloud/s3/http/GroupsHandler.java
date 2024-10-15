@@ -23,6 +23,7 @@ import java.util.Set;
 import org.eclipse.californium.cloud.http.EtagGenerator;
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
+import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.WebAppAuthorization;
 import org.eclipse.californium.cloud.s3.util.DeviceGroupProvider;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
 import org.eclipse.californium.cloud.util.DeviceIdentifier;
@@ -93,10 +94,10 @@ public class GroupsHandler implements HttpHandler {
 				}
 				httpCode = 401;
 				Authorization authorization = authorizer.checkSignature(httpExchange, BAN);
-				if (authorization != null && authorization.isVerified() && authorization.isInTime()) {
+				if (authorization instanceof WebAppAuthorization && authorization.isInTime()) {
 					try {
 						httpCode = 200;
-						payload = getDeviceList(authorization);
+						payload = getDeviceList((WebAppAuthorization) authorization);
 						if (EtagGenerator.setEtag(httpExchange, payload)) {
 							httpCode = 304;
 							payload = null;
@@ -139,7 +140,7 @@ public class GroupsHandler implements HttpHandler {
 	 * @param authorization authorization
 	 * @return payload of response.
 	 */
-	private byte[] getDeviceList(Authorization authorization) {
+	private byte[] getDeviceList(WebAppAuthorization authorization) {
 		Formatter formatter = new Formatter.Json();
 		getDeviceList(authorization, groups, formatter);
 		return formatter.getPayload();
@@ -152,11 +153,12 @@ public class GroupsHandler implements HttpHandler {
 	 * @param groups device groups provider
 	 * @param formatter formatter for resulting list.
 	 */
-	public static void getDeviceList(Authorization authorization, DeviceGroupProvider groups, Formatter formatter) {
+	public static void getDeviceList(WebAppAuthorization authorization, DeviceGroupProvider groups,
+			Formatter formatter) {
 		if (groups != null) {
 			WebAppUser credentials = authorization.getWebAppUser();
 			String domain = authorization.getDomain();
-			if (credentials.groups != null) {
+			if (credentials.groups != null && domain != null) {
 				Map<String, String> allDevices = new HashMap<>();
 				for (String group : credentials.groups) {
 					Set<DeviceIdentifier> devices = groups.getGroup(domain, group);

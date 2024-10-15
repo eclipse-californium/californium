@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
+import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.WebAppAuthorization;
 import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -111,8 +111,8 @@ public class S3ProcessorHealthLogger extends CounterStatisticManager implements 
 	@Override
 	public List<String> getKeys(Principal principal) {
 		List<String> list = new ArrayList<>();
-		if (principal instanceof Authorization) {
-			Authorization authorization = (Authorization) principal;
+		if (principal instanceof WebAppAuthorization) {
+			WebAppAuthorization authorization = (WebAppAuthorization) principal;
 			String domain = authorization.getDomain() + "-";
 			for (String key : super.getKeys(principal)) {
 				if (key.startsWith(domain)) {

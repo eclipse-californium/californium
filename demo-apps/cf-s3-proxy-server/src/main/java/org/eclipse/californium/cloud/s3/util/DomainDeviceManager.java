@@ -93,10 +93,14 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 	 *            RawPublicKey credentials
 	 * @param privateKey private key of DTLS 1.2 server for device communication
 	 * @param publicKey public key of DTLS 1.2 server for device communication
+	 * @throws NullPointerException if domains is {@code null}
 	 */
 	public DomainDeviceManager(ConcurrentMap<String, ResourceStore<DeviceParser>> domains, PrivateKey privateKey,
 			PublicKey publicKey) {
 		super(null, privateKey, publicKey);
+		if (domains == null) {
+			throw new NullPointerException("domains must not be null!");
+		}
 		this.domains = domains;
 	}
 
@@ -124,9 +128,6 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 
 	@Override
 	public AdvancedPskStore getPskStore() {
-		if (domains == null) {
-			return null;
-		}
 		if (pskStore == null) {
 			pskStore = new DevicePskStore();
 		}
@@ -135,7 +136,7 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 
 	@Override
 	public NewAdvancedCertificateVerifier getCertificateVerifier() {
-		if (domains == null || publicKey == null || privateKey == null) {
+		if (publicKey == null || privateKey == null) {
 			return null;
 		}
 		if (certificateVerifier == null) {
@@ -146,7 +147,7 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 
 	@Override
 	public CertificateProvider getCertificateProvider() {
-		if (domains == null || publicKey == null || privateKey == null) {
+		if (publicKey == null || privateKey == null) {
 			return null;
 		}
 		if (certificateProvider == null) {
@@ -157,9 +158,6 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 
 	@Override
 	public AdditionalInfo createAdditionalInfo(Principal clientIdentity) {
-		if (domains == null) {
-			return null;
-		}
 		for (Entry<String, ResourceStore<DeviceParser>> domain : domains.entrySet()) {
 			Device device = domain.getValue().getResource().getByPrincipal(clientIdentity);
 			if (device != null) {
@@ -190,7 +188,7 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 
 	@Override
 	public Set<DeviceIdentifier> getGroup(String domain, String group) {
-		ResourceStore<DeviceParser> resource = domains != null ? domains.get(domain) : null;
+		ResourceStore<DeviceParser> resource = domains.get(domain);
 		if (resource == null) {
 			return Collections.emptySet();
 		} else {
@@ -317,13 +315,11 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 			DomainDeviceManager manager = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_MANAGER,
 					DomainDeviceManager.class);
 			if (manager != null && domain != null && name != null && !name.contains("/")) {
-				if (manager.domains != null) {
-					ResourceStore<DeviceParser> deviceStore = manager.domains.get(domain);
-					if (deviceStore != null) {
-						Device device = deviceStore.getResource().get(name);
-						if (device != null) {
-							return new DomainDeviceInfo(domain, device.group, name, device.provisioning);
-						}
+				ResourceStore<DeviceParser> deviceStore = manager.domains.get(domain);
+				if (deviceStore != null) {
+					Device device = deviceStore.getResource().get(name);
+					if (device != null) {
+						return new DomainDeviceInfo(domain, device.group, name, device.provisioning);
 					}
 				}
 			}
