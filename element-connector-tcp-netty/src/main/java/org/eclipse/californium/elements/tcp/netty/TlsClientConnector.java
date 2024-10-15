@@ -224,7 +224,7 @@ public class TlsClientConnector extends TcpClientConnector {
 				literalIp = destination.getHostAddress();
 			}
 			if (hostname == null) {
-				hostname = StringUtil.toHostString(peer);
+				hostname = peer.getHostString();
 			}
 		}
 		if (hostname != null && hostname.equals(literalIp)) {
