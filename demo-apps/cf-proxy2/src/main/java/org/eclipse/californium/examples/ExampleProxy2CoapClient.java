@@ -38,10 +38,13 @@ import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
  * {@link ProxyHttpClientResource} to get the response from HttpServer.
  * 
  * For testing Coap2Http:
+ * 
  * <pre>
  * Destination: localhost:5683 (proxy's address)
  * Coap Uri: {@code coap://localhost:8000/http-target}
- * Proxy Scheme: {@code http}
+ * Proxy Scheme: {@code
+ * http
+ * }
  * </pre>
  * 
  * or
@@ -52,18 +55,21 @@ import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
  * </pre>
  * 
  * For testing Coap2coap:
+ * 
  * <pre>
  * Destination: localhost:5683 (proxy's address)
  * Coap Uri: {@code coap://localhost:5685/coap-target}
  * </pre>
  * 
  * Deprecated modes:
+ * 
  * <pre>
  * Uri: {@code coap://localhost:8000/coap2http}
  * Proxy Uri: {@code http://localhost:8000/http-target}
  * </pre>
  * 
  * For testing Coap2coap:
+ * 
  * <pre>
  * Uri: {@code coap://localhost:5683/coap2coap}
  * Proxy Uri: {@code coap://localhost:5685/coap-target}
@@ -88,6 +94,24 @@ public class ExampleProxy2CoapClient {
 		}
 	}
 
+	private static void post(CoapClient client, String payload) {
+		try {
+			CoapResponse response = client.post(payload, MediaTypeRegistry.TEXT_PLAIN);
+			CoapResponsePrinter.printResponse(response);
+		} catch (ConnectorException | IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static void get(CoapClient client) {
+		try {
+			CoapResponse response = client.get();
+			CoapResponsePrinter.printResponse(response);
+		} catch (ConnectorException | IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public static void main(String[] args) {
 
 		CoapClient client = new CoapClient();
@@ -96,7 +120,7 @@ public class ExampleProxy2CoapClient {
 		request.setURI("coap://localhost:" + PROXY_PORT + "/coap2http");
 		// set proxy URI in option set to bypass the CoAP/proxy URI exclusion
 		request.getOptions().setProxyUri("http://localhost:8000/http-target");
-		System.out.println("Proxy-URI: " + request.getOptions().getProxyUri());
+		System.out.println("Proxy-URI GET: " + request.getOptions().getProxyUri());
 		request(client, request);
 
 		// deprecated proxy request - use CoAP and Proxy URI together
@@ -104,7 +128,7 @@ public class ExampleProxy2CoapClient {
 		request.setURI("coap://localhost:" + PROXY_PORT + "/coap2coap");
 		// set proxy URI in option set to bypass the CoAP/proxy URI exclusion
 		request.getOptions().setProxyUri("coap://localhost:5685/coap-target");
-		System.out.println("Proxy-URI: " + request.getOptions().getProxyUri());
+		System.out.println("Proxy-URI GET: " + request.getOptions().getProxyUri());
 		request(client, request);
 
 		AddressEndpointContext proxy = new AddressEndpointContext("localhost", PROXY_PORT);
@@ -116,7 +140,7 @@ public class ExampleProxy2CoapClient {
 		// (e.g. 127.0.0.1) as final destination is not recommended!
 		request.setURI("coap://localhost:8000/http-target");
 		request.setProxyScheme("http");
-		System.out.println("Proxy-Scheme: " + request.getOptions().getProxyScheme() + ": " + request.getURI());
+		System.out.println("Proxy-Scheme GET: " + request.getOptions().getProxyScheme() + ": " + request.getURI());
 		request(client, request);
 
 		// RFC7252 proxy request - use CoAP-URI, and destination to proxy
@@ -125,7 +149,7 @@ public class ExampleProxy2CoapClient {
 		// using a proxy-destination, a literal-ip address
 		// (e.g. 127.0.0.1) as final destination is not recommended!
 		request.setURI("coap://localhost:5685/coap-target");
-		System.out.println("Proxy: " + request.getURI());
+		System.out.println("Proxy GET: " + request.getURI());
 		request(client, request);
 
 		request = Request.newGet();
@@ -134,25 +158,27 @@ public class ExampleProxy2CoapClient {
 		// (e.g. 127.0.0.1) as final destination is not recommended!
 		// May result in error response
 		request.setURI("coap://127.0.0.1:5685/coap-target");
-		System.out.println("Proxy: " + request.getURI());
+		System.out.println("Proxy GET: " + request.getURI());
 		request(client, request);
 
 		request = Request.newGet();
 		request.setDestinationContext(proxy);
 		// if using a proxy-destination, and a literal-ip address
-		// (e.g. 127.0.0.1) as final destination is required,
+		// (e.g. 127.0.0.1) as final destination,
 		// please add the URI host explicitly!
 		request.setURI("coap://127.0.0.1:5685/coap-target");
 		request.getOptions().setUriHost("127.0.0.1");
-		System.out.println("Proxy: " + request.getURI());
+		System.out.println("Proxy GET: " + request.getURI());
 		request(client, request);
 
 		// RFC7252 proxy request - use Proxy-URI, and destination to proxy
+		// => 4.00/BAD_REQUEST, deprecated userinfo component
 		request = Request.newGet();
 		request.setDestinationContext(proxy);
 		request.setProxyUri("http://user@localhost:8000/http-target");
 		request.setType(Type.NON);
-		System.out.println("Proxy-URI: " + request.getOptions().getProxyUri());
+		System.out.println("Proxy-URI GET: " + request.getOptions().getProxyUri() + " => 4.00/BAD_REQUEST");
+		System.out.println("   => 'Request URI authority contains deprecated userinfo component'");
 		request(client, request);
 
 		// RFC7252 proxy request - use CoAP-URI, and destination to proxy
@@ -162,18 +188,18 @@ public class ExampleProxy2CoapClient {
 		// using a proxy-destination and a literal-ip address
 		// (e.g. 127.0.0.1) as final destination is not recommended!
 		request.setURI("coap://localhost:5683/coap-target");
-		System.out.println("Proxy: " + request.getURI() + " => 4.04/NOT_FOUND");
+		System.out.println("Proxy GET: " + request.getURI() + " => 4.04/NOT_FOUND");
 		request(client, request);
 
 		// RFC7252 reverse proxy request
 		request = Request.newGet();
 		request.setURI("coap://localhost:5683/targets/destination1");
-		System.out.println("Reverse-Proxy: " + request.getURI());
+		System.out.println("Reverse-Proxy GET: " + request.getURI());
 		request(client, request);
 
 		request = Request.newGet();
 		request.setURI("coap://localhost:5683/targets/destination2");
-		System.out.println("Reverse-Proxy: " + request.getURI());
+		System.out.println("Reverse-Proxy GET: " + request.getURI());
 		request(client, request);
 
 		System.out.println("CoapClient using Proxy:");
@@ -185,14 +211,9 @@ public class ExampleProxy2CoapClient {
 		request.setURI("coap://localhost:8000/http-target");
 		request.setProxyScheme("http");
 		request.setPayload("coap-client");
-		try {
-			CoapResponse response = client.advanced(request);
-			CoapResponsePrinter.printResponse(response);
-		} catch (ConnectorException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+		System.out.println("CoapClient Proxy POST: " + request.getURI());
+		request(client, request);
 
 		// using CoapClient with proxy
 		client.enableProxy(true);
@@ -200,48 +221,30 @@ public class ExampleProxy2CoapClient {
 		// using a proxy-destination and a literal-ip address
 		// (e.g. 127.0.0.1) as final destination is not recommended!
 		client.setURI("coap://localhost:5685/coap-target");
-		try {
-			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
-			CoapResponsePrinter.printResponse(response);
-		} catch (ConnectorException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		System.out.println("CoapClient Proxy POST: " + client.getURI());
+		post(client, "coap-client");
+
 		client.setProxyScheme("http");
 		// using a proxy-destination and a literal-ip address
 		// (e.g. 127.0.0.1) as final destination is not recommended!
 		client.setURI("coap://localhost:8000/http-target");
-		try {
-			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
-			CoapResponsePrinter.printResponse(response);
-		} catch (ConnectorException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		System.out.println("CoapClient Proxy POST: " + client.getURI());
+		post(client, "coap-client");
+
 		client.setProxyScheme(null);
 		// using a proxy-destination and a literal-ip address
 		// (e.g. 127.0.0.1) as final destination is not recommended!
 		client.setURI("http://localhost:8000/http-target");
-		try {
-			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
-			CoapResponsePrinter.printResponse(response);
-		} catch (ConnectorException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		System.out.println("CoapClient Proxy POST: " + client.getURI());
+		post(client, "coap-client");
+
+		client.setURI("http://localhost:8000/http-target");
+		System.out.println("CoapClient Proxy GET: " + client.getURI());
+		get(client);
 
 		client.setURI("http://localhost:8000/http-empty");
-		try {
-			CoapResponse response = client.get();
-			CoapResponsePrinter.printResponse(response);
-		} catch (ConnectorException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		System.out.println("CoapClient Proxy GET: " + client.getURI());
+		get(client);
 
 		client.shutdown();
 	}

@@ -46,7 +46,7 @@ import org.eclipse.californium.proxy2.http.server.ProxyHttpServer;
  */
 public class ExampleProxy2HttpClient {
 
-	private static void printResponse(HttpResponse response) throws ParseException, IOException {
+	private static int printResponse(HttpResponse response) throws ParseException, IOException {
 		System.out.println(new StatusLine(response));
 		Header[] headers = response.getHeaders();
 		for (Header header : headers) {
@@ -60,59 +60,62 @@ public class ExampleProxy2HttpClient {
 				System.out.println("<empty>");
 			}
 		}
+		return response.getCode();
 	}
 
 	private static void requestGet(HttpClient client, String uri) {
 		try {
 			System.out.println("=== GET " + uri + " ===");
 			HttpGet request = new HttpGet(uri);
-			HttpResponse response = client.execute(request);
-			printResponse(response);
+			client.execute(request, (res) -> {
+				return printResponse(res);
+			});
 		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (ParseException e) {
 			e.printStackTrace();
 		}
 	}
 
 	private static void requestPut(HttpClient client, String uri, String payload) {
 		try {
-			System.out.println("=== PUT " + uri + " ===");
+			String p = payload != null ? "'" + payload + "'" : "(no payload)";
+			System.out.println("=== PUT " + uri + " === " + p);
 			HttpPut request = new HttpPut(uri);
 			if (payload != null) {
 				HttpEntity entity = new StringEntity(payload);
 				request.setEntity(entity);
 			}
-			HttpResponse response = client.execute(request);
-			printResponse(response);
+			client.execute(request, (res) -> {
+				return printResponse(res);
+			});
 		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (ParseException e) {
 			e.printStackTrace();
 		}
 	}
 
 	private static void requestPost(HttpClient client, String uri, String payload) {
 		try {
-			System.out.println("=== POST " + uri + " ===");
+			String p = payload != null ? "'" + payload + "'" : "(no payload)";
+			System.out.println("=== POST " + uri + " === " + p);
 			HttpPost request = new HttpPost(uri);
 			if (payload != null) {
 				HttpEntity entity = new StringEntity(payload);
 				request.setEntity(entity);
 			}
-			HttpResponse response = client.execute(request);
-			printResponse(response);
+			client.execute(request, (res) -> {
+				return printResponse(res);
+			});
 		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (ParseException e) {
 			e.printStackTrace();
 		}
 	}
 
+	private static final String EXTERNAL_HOST = "californium.eclipseprojects.io:5683";
+
 	public static void main(String[] args) {
+		String externalHost = args.length > 0 ? args[0] : EXTERNAL_HOST;
 		HttpClient client = HttpClientBuilder.create().build();
 
-		// simple request to proxy as httpp-server (no proxy function)
+		// simple request to proxy as http-server (no proxy function)
 		requestGet(client, "http://localhost:8080");
 
 		requestGet(client, "http://localhost:8080/proxy/coap://localhost:5685/coap-target");
@@ -133,11 +136,23 @@ public class ExampleProxy2HttpClient {
 		requestGet(client, "http://localhost:5685/coap-target/coap:");
 		requestGet(client, "http://localhost:5685/coap-empty/coap:");
 
-		requestGet(client, "http://californium.eclipseprojects.io:5683/test/coap:");
-		requestPut(client, "http://californium.eclipseprojects.io:5683/test/coap:", null);
-		requestPut(client, "http://californium.eclipseprojects.io:5683/test/coap:", "");
+		requestGet(client, "http://" + externalHost + "/test/coap:");
+		requestPut(client, "http://" + externalHost + "/test/coap:", null);
+		requestPut(client, "http://" + externalHost + "/test/coap:", "");
+		requestPut(client, "http://" + externalHost + "/test/coap:", "1234");
 
-		requestPost(client, "http://californium.eclipseprojects.io:5683/echo/coap:?id=me&keep", "");
+		requestPost(client, "http://" + externalHost + "/echo/coap:?id=me&keep", "");
+		requestGet(client, "http://" + externalHost + "/echo/me/coap:");
+
+		requestPost(client, "http://" + externalHost + "/echo/coap:?id=me&keep", "123");
+		requestGet(client, "http://" + externalHost + "/echo/me/coap:");
+	}
+
+	public static void main1(String[] args) {
+		HttpHost proxy = new HttpHost("http", "localhost", 8080);
+		HttpClient client = HttpClientBuilder.create().setProxy(proxy).build();
+
+		requestPost(client, "http://californium.eclipseprojects.io:5683/echo/coap:?id=me&keep", "123");
 		requestGet(client, "http://californium.eclipseprojects.io:5683/echo/me/coap:");
 	}
 }

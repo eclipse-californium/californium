@@ -79,6 +79,7 @@ public class ExampleHttpServer {
 			}
 
 		});
+		server.setSimpleResource("*", "Example Http server on %s.", null);
 		server.start();
 		System.out.println("==================================================");
 		System.out.println("== Started HTTP server on port " + httpPort);
