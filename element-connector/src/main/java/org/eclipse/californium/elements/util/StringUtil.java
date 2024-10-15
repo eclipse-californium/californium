@@ -23,7 +23,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -70,11 +69,6 @@ public class StringUtil {
 	public static final String lineSeparator = System.getProperty("line.separator");
 
 	/**
-	 * Flag indicating, that InetSocketAddress supports "getHostString".
-	 */
-	public static final boolean SUPPORT_HOST_STRING;
-
-	/**
 	 * Californium version. {@code null}, if not available.
 	 * 
 	 * @since 2.2
@@ -102,14 +96,6 @@ public class StringUtil {
 			TABS[i] = tab;
 			tab += "\t";
 		}
-		boolean support = false;
-		try {
-			Method method = InetSocketAddress.class.getMethod("getHostString");
-			support = method != null;
-		} catch (NoSuchMethodException e) {
-			// android before API 18
-		}
-		SUPPORT_HOST_STRING = support;
 		String version = null;
 		Package pack = StringUtil.class.getPackage();
 		if (pack != null) {
@@ -121,33 +107,6 @@ public class StringUtil {
 			}
 		}
 		CALIFORNIUM_VERSION = version;
-	}
-
-	/**
-	 * Get host string of inet socket address.
-	 * 
-	 * @param socketAddress inet socket address.
-	 * @return host string
-	 * @since 3.0 (changed scope to public)
-	 */
-	public static String toHostString(InetSocketAddress socketAddress) {
-		if (SUPPORT_HOST_STRING) {
-			return socketAddress.getHostString();
-		} else {
-			InetAddress address = socketAddress.getAddress();
-			if (address != null) {
-				String textAddress = address.toString();
-				if (textAddress.startsWith("/")) {
-					// unresolved, return literal IP
-					return textAddress.substring(1);
-				} else {
-					// resolved, safe to call getHostName
-					return address.getHostName();
-				}
-			} else {
-				return socketAddress.getHostName();
-			}
-		}
 	}
 
 	/**
@@ -720,17 +679,7 @@ public class StringUtil {
 		if (address == null) {
 			return null;
 		}
-		String host;
-		if (SUPPORT_HOST_STRING) {
-			host = toHostString(address);
-		} else {
-			InetAddress addr = address.getAddress();
-			if (addr != null) {
-				host = toString(addr);
-			} else {
-				host = "<unresolved>";
-			}
-		}
+		String host = address.getHostString();
 		if (address.getAddress() instanceof Inet6Address) {
 			return "[" + host + "]:" + address.getPort();
 		} else {
@@ -775,7 +724,7 @@ public class StringUtil {
 		if (addr != null && addr.isAnyLocalAddress()) {
 			return "port " + address.getPort();
 		}
-		String name = SUPPORT_HOST_STRING ? toHostString(address) : "";
+		String name = address.getHostString();
 		String host = (addr != null) ? toString(addr) : "<unresolved>";
 		if (name.equals(host)) {
 			name = "";
