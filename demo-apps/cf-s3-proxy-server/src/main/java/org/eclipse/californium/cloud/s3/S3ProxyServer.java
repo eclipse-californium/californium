@@ -25,6 +25,8 @@ import java.security.PublicKey;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -61,8 +63,6 @@ import org.eclipse.californium.cloud.s3.util.WebAppDomainUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserParser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserProvider;
-import org.eclipse.californium.cloud.util.DeviceIdentifier;
-import org.eclipse.californium.cloud.util.DeviceManager;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.DeviceProvisioningConsumer;
 import org.eclipse.californium.cloud.util.LinuxConfigParser;
@@ -486,7 +486,9 @@ public class S3ProxyServer extends BaseServer {
 	 */
 	public void setupSingleDomainDeviceCredentials(S3ProxyConfig cliArguments, PrivateKey privateKey,
 			PublicKey publicKey) {
-		ResourceStore<DeviceParser> devices = null;
+
+		ConcurrentMap<String, ResourceStore<DeviceParser>> singleDomain = new ConcurrentHashMap<>();
+
 		if (cliArguments.deviceStore != null) {
 			long interval = getConfig().get(DEVICE_CREDENTIALS_RELOAD_INTERVAL, TimeUnit.SECONDS);
 			boolean replace = cliArguments.provisioning != null ? cliArguments.provisioning.replace : false;
@@ -499,27 +501,14 @@ public class S3ProxyServer extends BaseServer {
 			configResource.loadAndCreateMonitor(cliArguments.deviceStore.file, cliArguments.deviceStore.password64,
 					interval > 0);
 			monitors.addOptionalMonitor("Devices", interval, TimeUnit.SECONDS, configResource.getMonitor());
-			devices = configResource;
-			deviceGroupProvider = new DeviceGroupProvider() {
-
-				@Override
-				public Set<DeviceIdentifier> getGroup(String domain, String group) {
-					return configResource.getResource().getGroup(group);
-				}
-			};
-		} else {
-			deviceGroupProvider = new DeviceGroupProvider() {
-
-				@Override
-				public Set<DeviceIdentifier> getGroup(String domain, String group) {
-					return Collections.emptySet();
-				}
-
-			};
+			singleDomain.put(DEFAULT_DOMAIN, configResource);
 		}
 
+		DomainDeviceManager deviceManager = new DomainDeviceManager(singleDomain, privateKey, publicKey);
+		deviceGroupProvider = deviceManager;
+		deviceCredentials = deviceManager;
+
 		createS3Client(cliArguments.mode.single.s3Config);
-		deviceCredentials = new DeviceManager(devices, privateKey, publicKey);
 	}
 
 	/**

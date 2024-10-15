@@ -371,6 +371,9 @@ public class Domains
 			Domain domain = domains.get(domainName);
 			if (domain != null) {
 				user = domain.userStore.getResource().get(userName);
+				if (user != null) {
+					return new WebAppDomainUser(domainName, user);
+				}
 			}
 		} else {
 			for (Entry<String, Domain> domain : domains.entrySet()) {
@@ -386,9 +389,9 @@ public class Domains
 					}
 				}
 			}
-		}
-		if (user != null) {
-			return new WebAppDomainUser(domainName, user);
+			if (user != null && domainName != null) {
+				return new WebAppDomainUser(domainName, user);
+			}
 		}
 		return null;
 	}
