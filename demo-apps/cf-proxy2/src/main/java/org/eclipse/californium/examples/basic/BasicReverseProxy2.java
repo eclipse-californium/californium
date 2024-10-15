@@ -118,6 +118,6 @@ public class BasicReverseProxy2 {
 	public static void main(String args[]) throws IOException, URISyntaxException {
 		Configuration proxyConfig = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		BasicReverseProxy2 proxy = new BasicReverseProxy2(proxyConfig);
-		System.out.println(BasicReverseProxy2.class.getSimpleName() + " started.");
+		System.out.println(proxy.getClass().getSimpleName() + " started.");
 	}
 }

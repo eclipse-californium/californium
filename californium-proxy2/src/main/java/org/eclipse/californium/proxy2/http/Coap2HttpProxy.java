@@ -28,6 +28,7 @@ import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.Message;
+import org.apache.hc.core5.http.ProtocolException;
 import org.apache.hc.core5.http.message.StatusLine;
 import org.apache.hc.core5.http.nio.support.BasicResponseConsumer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -189,12 +190,17 @@ public class Coap2HttpProxy {
 						LOGGER.debug("Failed to get the http response: {}", ex.getMessage(), ex);
 						if (ex instanceof SocketTimeoutException) {
 							onResponse.respond(new Response(ResponseCode.GATEWAY_TIMEOUT));
-						} else {
-							Response response = new Response(ResponseCode.BAD_GATEWAY);
-							response.setPayload(ex.getMessage());
-							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-							onResponse.respond(response);
+							return;
 						}
+						Response response;
+						if (ex instanceof ProtocolException) {
+							response = new Response(ResponseCode.BAD_REQUEST);
+						} else {
+							response = new Response(ResponseCode.BAD_GATEWAY);
+						}
+						response.setPayload(ex.getMessage());
+						response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+						onResponse.respond(response);
 					}
 
 					@Override

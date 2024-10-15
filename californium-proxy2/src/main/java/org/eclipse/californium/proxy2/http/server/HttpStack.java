@@ -56,7 +56,8 @@ import org.slf4j.LoggerFactory;
  * thread that it is always blocked on the listen primitive. For each connection
  * this thread creates a new thread that handles the client/server dialog.
  * 
- * <a href="https://tools.ietf.org/html/rfc8075" target="_blank">RFC8075 - HTTP2CoAP</a>
+ * <a href="https://tools.ietf.org/html/rfc8075" target="_blank">RFC8075 -
+ * HTTP2CoAP</a>
  */
 public class HttpStack {
 
@@ -100,7 +101,8 @@ public class HttpStack {
 	 * @throws IOException Signals that an I/O exception has occurred.
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public HttpStack(Configuration config, Executor executor, InetSocketAddress httpInterface, Http2CoapTranslator translator, MessageDeliverer requestDeliverer) throws IOException {
+	public HttpStack(Configuration config, Executor executor, InetSocketAddress httpInterface,
+			Http2CoapTranslator translator, MessageDeliverer requestDeliverer) throws IOException {
 		server = new HttpServer(config, httpInterface);
 		this.executor = executor;
 		this.translator = translator;
@@ -157,9 +159,9 @@ public class HttpStack {
 	 * {@code "http://<destination>:<port>/<destination-uri>/<destination-scheme>:"}.
 	 */
 	void registerHttpProxyRequestHandler() {
-		String name = "/" + PROXY_RESOURCE_NAME;
+		String name = "/";
 		// register the handler for proxy coap resources
-		server.registerProxy(new ProxyAsyncRequestHandler(name, true));
+		server.registerProxy("/*", new ProxyAsyncRequestHandler(name, true));
 	}
 
 	/**
@@ -202,7 +204,8 @@ public class HttpStack {
 		 * Instantiates a new proxy request handler.
 		 * 
 		 * @param resourceName the http resource name
-		 * @param proxyingEnabled {@code true}, enable proxy, {@code false}, otherwise.
+		 * @param proxyingEnabled {@code true}, enable proxy, {@code false},
+		 *            otherwise.
 		 */
 		public ProxyAsyncRequestHandler(String resourceName, boolean proxyingEnabled) {
 			this.resourceName = resourceName;
@@ -213,7 +216,7 @@ public class HttpStack {
 		public void handle(final Message<HttpRequest, ContentTypedEntity> message,
 				final ResponseTrigger responseTrigger, final HttpContext context) throws HttpException, IOException {
 
-			final HttpCoreContext coreContext = HttpCoreContext.adapt(context);
+			final HttpCoreContext coreContext = HttpCoreContext.cast(context);
 			final EndpointDetails connection = coreContext.getEndpointDetails();
 			final HttpRequest request = message.getHead();
 			InetSocketAddress endpoint = (InetSocketAddress) connection.getLocalAddress();
