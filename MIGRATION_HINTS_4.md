@@ -51,6 +51,8 @@ The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` s
 
 ### Element-Connector:
 
+Removed `StringUtil.toHostString()` (support Java 6). Java 8 is the minimum supported version for runtime, therefore use `InetSocketAddress.getHostString()` directly.
+
 ### Scandium:
 
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.
