@@ -164,14 +164,6 @@ public class Aws4Authorizer {
 		 * same as the calculated one.
 		 */
 		private boolean verified;
-		/**
-		 * The domain name of the associated web application user.
-		 */
-		private String domain;
-		/**
-		 * The web application user.
-		 */
-		private WebAppUser webAppUser;
 
 		/**
 		 * Create authorization instance from http exchange.
@@ -238,6 +230,24 @@ public class Aws4Authorizer {
 		}
 
 		/**
+		 * Initialize instance from other instance.
+		 * 
+		 * @param authorization other instance to copy fields
+		 * @throws NullPointerException if authorization is {@code null}
+		 */
+		protected Authorization(Authorization authorization) {
+			if (authorization == null) {
+				throw new NullPointerException("authorization must not be null!");
+			}
+			this.name = authorization.name;
+			this.scope = authorization.scope;
+			this.signedHeaders = authorization.signedHeaders;
+			this.signature = authorization.signature;
+			this.dateTime = authorization.dateTime;
+			this.inTime = authorization.inTime;
+		}
+
+		/**
 		 * Get name from http Credential attribute.
 		 * 
 		 * @return name from http Credential attribute
@@ -249,11 +259,7 @@ public class Aws4Authorizer {
 
 		@Override
 		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + ((domain == null) ? 0 : domain.hashCode());
-			result = prime * result + ((name == null) ? 0 : name.hashCode());
-			return result;
+			return name.hashCode();
 		}
 
 		@Override
@@ -265,11 +271,6 @@ public class Aws4Authorizer {
 			if (getClass() != obj.getClass())
 				return false;
 			Authorization other = (Authorization) obj;
-			if (domain == null) {
-				if (other.domain != null)
-					return false;
-			} else if (!domain.equals(other.domain))
-				return false;
 			if (name == null) {
 				if (other.name != null)
 					return false;
@@ -280,7 +281,7 @@ public class Aws4Authorizer {
 
 		@Override
 		public String toString() {
-			return name + "@" + domain;
+			return name;
 		}
 
 		/**
@@ -290,24 +291,6 @@ public class Aws4Authorizer {
 		 */
 		public String getSignature() {
 			return signature;
-		}
-
-		/**
-		 * Get web application user.
-		 * 
-		 * @return web application user
-		 */
-		public WebAppUser getWebAppUser() {
-			return webAppUser;
-		}
-
-		/**
-		 * Get domain name of the associated web application user.
-		 * 
-		 * @return domain name of the associated web application user
-		 */
-		public String getDomain() {
-			return domain;
 		}
 
 		/**
@@ -400,6 +383,89 @@ public class Aws4Authorizer {
 			return signedHeaders;
 		}
 
+		public WebAppAuthorization createWebAppAuthorization(String domain, WebAppUser webAppUser) {
+			return new WebAppAuthorization(this, domain, webAppUser);
+		}
+	}
+
+	/**
+	 * Web application authorization.
+	 */
+	public static class WebAppAuthorization extends Authorization {
+
+		/**
+		 * The domain name of the associated web application user.
+		 */
+		private String domain;
+		/**
+		 * The web application user.
+		 */
+		private WebAppUser webAppUser;
+
+		/**
+		 * Create web application authorization instance.
+		 * 
+		 * @param authorization http authorization
+		 * @param domain domain name
+		 * @param webAppUser web application user
+		 * @throws NullPointerException if any parameter is {@code null}
+		 */
+		public WebAppAuthorization(Authorization authorization, String domain, WebAppUser webAppUser) {
+			super(authorization);
+			if (domain == null) {
+				throw new NullPointerException("domain must not be null!");
+			}
+			if (webAppUser == null) {
+				throw new NullPointerException("webAppUser must not be null!");
+			}
+			this.domain = domain;
+			this.webAppUser = webAppUser;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = super.hashCode();
+			result = prime * result + ((domain == null) ? 0 : domain.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (!super.equals(obj)) {
+				return false;
+			}
+			WebAppAuthorization other = (WebAppAuthorization) obj;
+			if (domain == null) {
+				if (other.domain != null)
+					return false;
+			} else if (!domain.equals(other.domain))
+				return false;
+			return true;
+		}
+
+		@Override
+		public String toString() {
+			return super.toString() + "@" + domain;
+		}
+
+		/**
+		 * Get web application user.
+		 * 
+		 * @return web application user
+		 */
+		public WebAppUser getWebAppUser() {
+			return webAppUser;
+		}
+
+		/**
+		 * Get domain name of the associated web application user.
+		 * 
+		 * @return domain name of the associated web application user
+		 */
+		public String getDomain() {
+			return domain;
+		}
 	}
 
 	/**
@@ -479,7 +545,6 @@ public class Aws4Authorizer {
 	 */
 	public Authorization checkSignature(final HttpExchange httpExchange, String banTag) throws IOException {
 		Authorization authorization = null;
-		boolean verified = false;
 		int httpCode = 401;
 		try {
 			LOGGER.debug("{} {} {}", banTag, httpExchange.getRequestMethod(), httpExchange.getRequestURI());
@@ -496,10 +561,8 @@ public class Aws4Authorizer {
 						if (authorization.isInTime()) {
 							banStore.remove(httpExchange.getRemoteAddress().getAddress());
 						}
-						authorization.webAppUser = domainUser.user;
-						authorization.domain = domainUser.domain;
-						verified = true;
 						LOGGER.debug("key {} verified.", name);
+						return authorization.createWebAppAuthorization(domainUser.domain, domainUser.user);
 					} else {
 						LOGGER.warn("key {}", name);
 						LOGGER.warn("{}", requestSignature);
@@ -512,9 +575,7 @@ public class Aws4Authorizer {
 			httpCode = 500;
 			HttpService.ban(httpExchange, banTag);
 		}
-		if (!verified) {
-			HttpService.respond(httpExchange, httpCode, null, null);
-		}
+		HttpService.respond(httpExchange, httpCode, null, null);
 		return authorization;
 	}
 

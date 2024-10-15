@@ -628,6 +628,7 @@ public class BaseServer extends CoapServer {
 	 * @param publicKey public key for DTLS 1.2 device communication.
 	 */
 	public void setupDeviceCredentials(ServerConfig cliArguments, PrivateKey privateKey, PublicKey publicKey) {
+		ResourceStore<DeviceParser> deviceCredentialsResource = null;
 		if (cliArguments.deviceStore != null) {
 			long interval = getConfig().get(DEVICE_CREDENTIALS_RELOAD_INTERVAL, TimeUnit.SECONDS);
 			boolean replace = cliArguments.provisioning != null ? cliArguments.provisioning.replace : false;
@@ -636,14 +637,12 @@ public class BaseServer extends CoapServer {
 						"New device credentials will replace already available ones. Use this only for development!");
 			}
 			DeviceParser factory = new DeviceParser(true, replace);
-			ResourceStore<DeviceParser> deviceCredentialsResource = new ResourceStore<>(factory).setTag("Devices ");
+			deviceCredentialsResource = new ResourceStore<>(factory).setTag("Devices ");
 			deviceCredentialsResource.loadAndCreateMonitor(cliArguments.deviceStore.file,
 					cliArguments.deviceStore.password64, interval > 0);
 			monitors.addMonitor("Devices", interval, TimeUnit.SECONDS, deviceCredentialsResource.getMonitor());
-			deviceCredentials = new DeviceManager(deviceCredentialsResource, privateKey, publicKey);
-		} else {
-			deviceCredentials = new DeviceManager(null, privateKey, publicKey);
 		}
+		deviceCredentials = new DeviceManager(deviceCredentialsResource, privateKey, publicKey);
 	}
 
 	/**
