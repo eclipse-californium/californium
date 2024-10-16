@@ -20,8 +20,10 @@ import org.eclipse.californium.cloud.BaseServer.ServerConfig;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.coap.option.TransmissionCountOption;
 import org.eclipse.californium.elements.config.Configuration;
 
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 
 /**
@@ -50,6 +52,17 @@ public class DemoServer {
 			"     are skipped when saving.)",
 			"", })
 	public static class Config extends ServerConfig {
+
+		@ArgGroup(exclusive = false)
+		public HttpsConfig https;
+
+		@Override
+		public void defaults() {
+			super.defaults();
+			if (https != null) {
+				super.https = https;
+			}
+		}
 
 	}
 

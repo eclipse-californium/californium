@@ -174,13 +174,17 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
       --s3-secret=<secret>   s3 secret access key.
       --spa-css=<singlePageApplicationCss>
                              Single-Page-Application Cascading Style Sheets.
-                               Default stylesheet.css
+                               See applied search path below. Default
+                               stylesheet.css
       --spa-reload           Reload Single-Page-Application script.
-      --spa-s3               Single-Page-Application in S3.
+      --spa-s3               Single-Page-Application in S3. Load scipts and ccs
+                               from S3.
       --spa-script=<singlePageApplicationScript>
-                             Single-Page-Application script. Default app.js
+                             Single-Page-Application script. See applied search
+                               path below. Default app.js
       --spa-script-v2=<singlePageApplicationScriptV2>
-                             Single-Page-Application script v2.
+                             Single-Page-Application script v2. See applied
+                               search path below.
       --store-file=<file>    file-store for dtls state.
       --store-max-age=<maxAge>
                              maximum age of connections in hours to store dtls
@@ -203,6 +207,18 @@ Examples:
     (S3ProxyServer with device credentials and web application user.
      from file and dtls-graceful restart. Devices/sessions with no
      exchange for more then a week (168 hours) are skipped when saving.)
+
+Search path for '--spa-css', '--spa-script', and '--spa-script-v2':
+  If the provided path starts with 'http:' or 'https:' then the path
+  is used for the web app unmodified as provided.
+  If '--spa-s3' is used, the paths are translated into external S3 paths.
+  Otherwise, if the provided path starts with 'classpath://', then the
+  resource is loaded from that classpath.
+  If none of the above rule applies, then the local file system is used
+  to locate the path. If it's not found in the current directory, the
+  common maven path for resources 'src/main/resources/<path>' is used
+  as prefix. If it's also not found there, then it's searched in the
+  classpath even without the prefix 'classpath://'.
 ```
 
 To see the set of options and arguments.

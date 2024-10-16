@@ -132,8 +132,9 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 		Authorization authorization = authorizer.checkSignature(httpExchange, BAN);
 		if (authorization instanceof WebAppAuthorization && authorization.isInTime()) {
 			WebAppAuthorization web = (WebAppAuthorization) authorization;
-			String value = webAppConfigs.get(web.getDomain(), web.getWebAppUser().webAppConfig + ".config", "diagnose");
-			permission = value != null && !value.equalsIgnoreCase("false") && !value.equals("0");
+			permission = webAppConfigs.isEnabled(web.getDomain(),
+					web.getWebAppUser().webAppConfig + WebAppConfigProvider.CONFIGURATION_PREFIX,
+					WebAppConfigProvider.DIAGNOSE_NAME);
 		}
 		if (permission) {
 			final String method = httpExchange.getRequestMethod();

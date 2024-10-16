@@ -221,7 +221,7 @@ public class BaseServer extends CoapServer {
 
 		public static class NetworkConfig {
 
-			@Option(names = "--wildcard-interface", description = "Use local wildcard-address for coap endpoints.")
+			@Option(names = "--wildcard-interface", description = "Use local wildcard-address for coap endpoints. Default mode.")
 			public boolean wildcard;
 
 			@ArgGroup(exclusive = false)
@@ -254,21 +254,6 @@ public class BaseServer extends CoapServer {
 					return new SimpleInetAddressFilter(tag, external, loopback, ipv4, ipv6, patterns);
 				}
 			}
-		}
-
-		@ArgGroup(exclusive = false)
-		public HttpsConfig https;
-
-		public static class HttpsConfig {
-
-			@Option(names = "--https-port", required = true, description = "Port of https service.")
-			public int port;
-
-			@Option(names = "--https-credentials", required = true, description = "Folder containing https credentials in 'privkey.pem' and 'fullchain.pem'.")
-			public String credentials;
-
-			@Option(names = "--https-password64", description = "Folder containing https credentials in 'privkey.pem' and 'fullchain.pem'.")
-			public String password64;
 		}
 
 		@ArgGroup(exclusive = false)
@@ -329,6 +314,20 @@ public class BaseServer extends CoapServer {
 		}
 
 		public boolean noCoap;
+
+		public HttpsConfig https;
+
+		public static class HttpsConfig {
+
+			@Option(names = "--https-port", required = true, description = "Port of https service.")
+			public int port;
+
+			@Option(names = "--https-credentials", required = true, description = "Folder containing https credentials in 'privkey.pem' and 'fullchain.pem'.")
+			public String credentials;
+
+			@Option(names = "--https-password64", description = "Folder containing https credentials in 'privkey.pem' and 'fullchain.pem'.")
+			public String password64;
+		}
 
 		/**
 		 * Setup dependent defaults.
@@ -669,8 +668,10 @@ public class BaseServer extends CoapServer {
 
 		// explore network interfaces
 		Collection<InetAddress> localAddresses;
+		String serializationLabel = null; 
 		if (cliArguments.network.wildcard) {
 			localAddresses = Collections.singleton(new InetSocketAddress(0).getAddress());
+			serializationLabel = "*";
 		} else {
 			localAddresses = NetworkInterfacesUtil
 					.getNetworkInterfaces(cliArguments.network.selectInterfaces.getFilter(getTag()));
@@ -682,6 +683,9 @@ public class BaseServer extends CoapServer {
 			dtlsConfigBuilder.setAddress(bindToAddress);
 			String tag = "dtls:" + StringUtil.toString(bindToAddress);
 			dtlsConfigBuilder.setLoggingTag(tag);
+			if (serializationLabel != null) {
+				dtlsConfigBuilder.setSerializationLabel(serializationLabel);
+			}
 			AdvancedPskStore pskStore = deviceCredentials.getPskStore();
 			if (pskStore != null) {
 				dtlsConfigBuilder.setAdvancedPskStore(pskStore);

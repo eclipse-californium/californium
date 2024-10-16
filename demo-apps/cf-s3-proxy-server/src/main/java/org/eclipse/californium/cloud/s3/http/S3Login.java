@@ -72,6 +72,13 @@ public class S3Login implements HttpHandler {
 	protected final S3ProxyClientProvider clientProvider;
 
 	/**
+	 * Indicates to forward the diagnose configuration.
+	 * 
+	 * @since 4.0
+	 */
+	private final boolean withDiagnose;
+
+	/**
 	 * Create http S3 Login.
 	 * 
 	 * @param authorizer AWS4-HMAC-SHA256 authorizer to check for valid
@@ -81,7 +88,7 @@ public class S3Login implements HttpHandler {
 	 * @param groups device groups provider
 	 */
 	public S3Login(Aws4Authorizer authorizer, S3ProxyClientProvider clientProvider, WebAppConfigProvider webAppConfigs,
-			DeviceGroupProvider groups) {
+			DeviceGroupProvider groups, boolean withDiagnose) {
 		if (authorizer == null) {
 			throw new NullPointerException("authorizer must not be null!");
 		}
@@ -92,6 +99,7 @@ public class S3Login implements HttpHandler {
 		this.webAppConfigs = webAppConfigs;
 		this.groups = groups;
 		this.clientProvider = clientProvider;
+		this.withDiagnose = withDiagnose;
 	}
 
 	@Override
@@ -187,11 +195,14 @@ public class S3Login implements HttpHandler {
 		}
 		scope.set(0, date);
 		scope.set(1, region);
+		// create the signing key for access the S3 bucket by this user
+		// uses the assigned API key, secret, and region the S3 bucket
 		byte[] skey = Aws4Authorizer.getSigningKey(credentials.accessKeySecret, scope);
 		Formatter formatter = new Formatter.Json();
 		formatter.add("id", credentials.accessKeyId);
 		formatter.add(date, StringUtil.byteArray2Hex(skey));
 		if (!date.equals(date2)) {
+			// day switch, create the signing key for the next day
 			scope.set(0, date2);
 			byte[] skey2 = Aws4Authorizer.getSigningKey(credentials.accessKeySecret, scope);
 			formatter.add(date2, StringUtil.byteArray2Hex(skey2));
@@ -200,6 +211,11 @@ public class S3Login implements HttpHandler {
 		formatter.add("region", region);
 		GroupsHandler.getDeviceList(authorization, groups, formatter);
 		if (webAppConfigs != null && credentials.webAppConfig != null) {
+			if (!withDiagnose) {
+				// remove diagnose configuration.
+				webAppConfigs.remove(domain, credentials.webAppConfig + WebAppConfigProvider.CONFIGURATION_PREFIX,
+						WebAppConfigProvider.DIAGNOSE_NAME);
+			}
 			Map<String, Map<String, String>> config = webAppConfigs.getSubSections(domain, credentials.webAppConfig);
 			for (String section : config.keySet()) {
 				Map<String, String> values = config.get(section);

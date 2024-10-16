@@ -72,8 +72,8 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
+import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.slf4j.Logger;
@@ -124,7 +124,21 @@ public class S3ProxyServer extends BaseServer {
 			"                --device-file devices.txt --user-file users.txt", "",
 			"    (S3ProxyServer with device credentials and web application user.",
 			"     from file and dtls-graceful restart. Devices/sessions with no",
-			"     exchange for more then a week (168 hours) are skipped when saving.)", "", })
+			"     exchange for more then a week (168 hours) are skipped when saving.)", "",
+			"Currently two variants for the '--http-authentication' are supported:",
+			"  'Bearer <token>' or '<username>:<password>'.",
+			"",
+			"Search path for '--spa-css', '--spa-script', and '--spa-script-v2':",
+			"  If the provided path starts with 'http:' or 'https:' then the path",
+			"  is used for the web app unmodified as provided.",
+			"  If '--spa-s3' is used, the paths are translated into external S3 paths.",
+			"  Otherwise, if the provided path starts with 'classpath://', then the",
+			"  resource is loaded from that classpath.",
+			"  If none of the above rule applies, then the local file system is used",
+			"  to locate the path. If it's not found in the current directory, the",
+			"  common maven path for resources 'src/main/resources/<path>' is used",
+			"  as prefix. If it's also not found there, then it's searched in the",
+			"  classpath even without the prefix 'classpath://'.", })
 	public static class S3ProxyConfig extends ServerConfig {
 
 		@ArgGroup(exclusive = true, multiplicity = "1")
@@ -304,21 +318,21 @@ public class S3ProxyServer extends BaseServer {
 		@ArgGroup(exclusive = false)
 		public SinglePageApplication spa;
 
-		public static class SinglePageApplication {
+		public static class SinglePageApplication extends HttpsConfig {
 
-			@Option(names = "--spa-script", defaultValue = "app.js", required = true, description = "Single-Page-Application script. Default ${DEFAULT-VALUE}")
+			@Option(names = "--spa-script", defaultValue = "app.js", description = "Single-Page-Application script. See applied search path below. Default ${DEFAULT-VALUE}")
 			public String singlePageApplicationScript;
 
-			@Option(names = "--spa-css", defaultValue = "stylesheet.css", required = true, description = "Single-Page-Application Cascading Style Sheets. Default ${DEFAULT-VALUE}")
+			@Option(names = "--spa-css", defaultValue = "stylesheet.css", description = "Single-Page-Application Cascading Style Sheets. See applied search path below. Default ${DEFAULT-VALUE}")
 			public String singlePageApplicationCss;
 
 			@Option(names = "--spa-reload", description = "Reload Single-Page-Application script.")
 			public boolean singlePageApplicationReload;
 
-			@Option(names = "--spa-s3", description = "Single-Page-Application in S3.")
+			@Option(names = "--spa-s3", description = "Single-Page-Application in S3. Load scripts and ccs from S3.")
 			public boolean s3;
 
-			@Option(names = "--spa-script-v2", description = "Single-Page-Application script v2.")
+			@Option(names = "--spa-script-v2", description = "Single-Page-Application script v2. See applied search path below.")
 			public String singlePageApplicationScriptV2;
 
 		}
@@ -326,9 +340,6 @@ public class S3ProxyServer extends BaseServer {
 		@Option(names = "--no-coap", negatable = true, description = "Disable coap endpoints.")
 		public boolean coap = true;
 
-		/**
-		 * Setup dependent defaults.
-		 */
 		@Override
 		public void defaults() {
 			super.defaults();
@@ -338,6 +349,9 @@ public class S3ProxyServer extends BaseServer {
 				if (s3Config != null) {
 					s3Config.defaults();
 				}
+			}
+			if (spa != null) {
+				super.https = spa;
 			}
 		}
 	}
@@ -592,15 +606,26 @@ public class S3ProxyServer extends BaseServer {
 		if (httpService != null) {
 			S3ProxyConfig cliS3Arguments = ((S3ProxyConfig) cliArguments);
 			S3ProxyConfig.SinglePageApplication cliSpaArguments = cliS3Arguments.spa;
+			if (cliSpaArguments == null) {
+				throw new RuntimeException("http-service requires one of the '--spa-???' parameter.");
+			}
 			if (cliSpaArguments != null) {
+				LOGGER.info("Create Single Page Application.");
+				boolean withDiagnose = false;
 				if (domains != null) {
 					setupMultiDomainHttpService(cliS3Arguments);
 				} else {
 					setupSingleDomainHttpService(cliS3Arguments);
 				}
 				Aws4Authorizer aws4 = new Aws4Authorizer(domainUserProvider, S3ProxyClient.DEFAULT_REGION);
+				if (cliArguments.diagnose && !cliArguments.noCoap) {
+					AuthorizedCoapProxyHandler proxy = new AuthorizedCoapProxyHandler("proxy", aws4,
+							webAppConfigProvider, this, httpService.getExecutor(), "/" + Diagnose.RESOURCE_NAME);
+					httpService.createContext("/proxy", proxy);
+					withDiagnose = true;
+				}
 				httpService.createContext("/login",
-						new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider));
+						new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider, withDiagnose));
 				if (deviceGroupProvider != null) {
 					httpService.createContext("/groups", new GroupsHandler(aws4, deviceGroupProvider));
 					Integer maxDeviceConfigSize = getConfig().get(MAX_DEVICE_CONFIG_SIZE);
@@ -639,13 +664,6 @@ public class S3ProxyServer extends BaseServer {
 					httpService.createFileHandler(cliSpaArguments.singlePageApplicationCss, "text/css; charset=utf-8",
 							cliSpaArguments.singlePageApplicationReload);
 				}
-				if (cliArguments.diagnose && !cliArguments.noCoap) {
-					AuthorizedCoapProxyHandler proxy = new AuthorizedCoapProxyHandler("proxy", aws4,
-							webAppConfigProvider, this, httpService.getExecutor(), "/" + Diagnose.RESOURCE_NAME);
-					httpService.createContext("/proxy", proxy);
-				}
-			} else {
-				super.setupHttpService(cliS3Arguments);
 			}
 		}
 	}
@@ -676,6 +694,7 @@ public class S3ProxyServer extends BaseServer {
 				builder.accessKeyId = s3Arguments.accessKey;
 				builder.accessKeySecret = s3Arguments.secret;
 				userStore.getResource().add(builder.build());
+				LOGGER.warn("Using the default user is not recommended! Please provide a '--user-file'.");
 			}
 
 			if (cliArguments.mode.single.configStore != null) {
@@ -696,6 +715,11 @@ public class S3ProxyServer extends BaseServer {
 					public String get(String domain, String section, String name) {
 						return configStore.getResource().get(section, name);
 					}
+
+					@Override
+					public String remove(String domain, String section, String name) {
+						return configStore.getResource().remove(section, name);
+					}
 				};
 			}
 			domainUserProvider = new WebAppUserProvider() {
@@ -712,6 +736,8 @@ public class S3ProxyServer extends BaseServer {
 				}
 
 			};
+		} else {
+			throw new RuntimeException("http-service requires '--s3-external-endpoint'.");
 		}
 	}
 
