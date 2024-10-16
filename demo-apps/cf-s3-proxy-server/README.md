@@ -12,7 +12,7 @@ Cloud CoAP-S3-Proxy Server for device communication with CoAP/DTLS 1.2 CID. Base
 
     Fill the missing link between the device and cloud.
 
-The server supports DTLS 1.2 CID with **P**re**S**hared**K**ey (similar to username/password) and **R**aw**P**ublic**Key** (a public key without additional information like subject or validity as certificate) authentication for device communication. X509 certificate based device authentication may be added to the cloud deom server in the future. Californium (Cf) itself does already support it.
+The server supports DTLS 1.2 CID with **P**re**S**hared**K**ey (similar to username/password) and **R**aw**P**ublic**Key** (a public key as certificate without additional information like subject or validity) authentication for device communication. X509 certificate based device authentication may be added to the cloud demo server in the future. Californium (Cf) itself does already support it.
 
 The sent data is forwarded with the proxy function to a **S**imple**S**torage**S**ervice (**S3**) to persist it. Your backend may either fetch the data from that S3 or you may use a included simple Web-Browser javascript **S**ingle**P**age**A**pplication to display the data and to visualize that in simple charts.
 
@@ -39,7 +39,7 @@ Last calibration: A 2024-02-28T20:10:11Z, B 2024-02-28T20:19:55Z
 !26 C
 ```
 
-**Note:** the previous implementation uses the lines starting with an `!` for a accumulated data file named "series-date-time". That has changed and the current version accumulates the complete data into a "arch-date" file obsoleting the leading `!`. Use "https://<hostname>/v2" to use the web UI with the archive files.
+**Note:** the previous implementation uses the lines starting with an `!` for a accumulated data file named "series-date-time". That has changed and the current version accumulates the complete data into a "arch-date" file obsoleting the leading `!`. Use "`https://<hostname>/v2`" to use the web UI with the archive files.
 
 Web-Browser application login page:
 
@@ -79,15 +79,17 @@ Some more details about the web-UI can be found in [web-UI documentation](./docs
 
 ## General Usage
 
-Start the cf-s3-proxy-server-3.13.0.jar with:
+Cloud CoAP-S3-Proxy Server is available at the eclipse repository and can be downloaded [cf-s3-proxy-server-3.13.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-s3-proxy-server/3.13.0/cf-s3-proxy-server-3.13.0.jar).
+
+Start the cf-s3-proxy-server with:
 
 ```
+java -jar cf-s3-proxy-server-4.0.0-SNAPSHOT.jar -h
+
 Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [[--[no-]loopback] [--[no-]external] [--[no-]ipv4] [--[no-]
                      ipv6] [--interfaces-pattern=<interfacePatterns>[,
-                     <interfacePatterns>...]]...]] [--https-port=<port>
-                     --https-credentials=<credentials>
-                     [--https-password64=<password64>]]
+                     <interfacePatterns>...]]...]]
                      [--coaps-credentials=<credentials>
                      [--coaps-password64=<password64>]] [--device-file=<file>
                      [--device-file-password64=<password64>]]
@@ -107,7 +109,9 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [--http-forward=<httpForward>
                      [--http-authentication=<httpAuthentication>]
                      [--http-device-identity-mode=<httpDeviceIdentityMode>]]])
-                     [[--spa-script=<singlePageApplicationScript>]
+                     [[--https-port=<port>] --https-credentials=<credentials>
+                     [--https-password64=<password64>]
+                     [--spa-script=<singlePageApplicationScript>]
                      [--spa-css=<singlePageApplicationCss>] [--spa-reload]
                      [--spa-s3]
                      [--spa-script-v2=<singlePageApplicationScriptV2>]]
@@ -128,19 +132,23 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                              Password for domain-store. Base 64 encoded.
   -h, --help                 display a help message
       --http-authentication=<httpAuthentication>
-                             Http authentication for forward coap-requests.
+                             Http authentication for forward device data
+                               (coap-requests). Supports 'Bearer
+                               <access-token>', 'PreBasic <username:password'
+                               and '<username:password>'
       --http-device-identity-mode=<httpDeviceIdentityMode>
-                             Http device identity mode. Supported values: NONE,
+                             Http device identity mode for forwarding device
+                               data (coap-requests) . Supported values: NONE,
                                HEADLINE and QUERY_PARAMETER. Default: NONE
       --http-forward=<httpForward>
-                             Http destination to forward coap-requests.
+                             Http destination to forward device data
+                               (coap-requests).
       --https-credentials=<credentials>
                              Folder containing https credentials in 'privkey.
                                pem' and 'fullchain.pem'.
       --https-password64=<password64>
-                             Folder containing https credentials in 'privkey.
-                               pem' and 'fullchain.pem'.
-      --https-port=<port>    Port of https service.
+                             Password for https credentials. Base 64 encoded.
+      --https-port=<port>    Port of https service. Default: 8080
       --interfaces-pattern=<interfacePatterns>[,<interfacePatterns>...]
                              interface regex patterns for coap endpoints.
       --[no-]coap            Disable coap endpoints.
@@ -177,8 +185,8 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                                See applied search path below. Default
                                stylesheet.css
       --spa-reload           Reload Single-Page-Application script.
-      --spa-s3               Single-Page-Application in S3. Load scipts and ccs
-                               from S3.
+      --spa-s3               Single-Page-Application in S3. Load scripts and
+                               ccs from S3.
       --spa-script=<singlePageApplicationScript>
                              Single-Page-Application script. See applied search
                                path below. Default app.js
@@ -195,18 +203,41 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
       --user-file-password64=<password64>
                              Password for user-store. Base 64 encoded.
       --wildcard-interface   Use local wildcard-address for coap endpoints.
+                               Default mode.
 
 Examples:
-  S3ProxyServer --no-loopback
+  S3ProxyServer --no-loopback --device-file devices.txt \
+                --s3-config ~/.s3cfg
     (S3ProxyServer listening only on external network interfaces.)
 
   S3ProxyServer --store-file dtls.bin --store-max-age 168 \
                 --store-password64 ZVhiRW5pdkx1RUs2dmVoZg== \
-                --device-file devices.txt --user-file users.txt
+                --device-file devices.txt --user-file users.txt \
+                --s3-config ~/.s3cfg
 
-    (S3ProxyServer with device credentials and web application user.
+    (S3ProxyServer with device credentials and web application user
      from file and dtls-graceful restart. Devices/sessions with no
      exchange for more then a week (168 hours) are skipped when saving.)
+
+  S3ProxyServer --store-file dtls.bin --store-max-age 168 \
+                --store-password64 ZVhiRW5pdkx1RUs2dmVoZg== \
+                --device-file devices.txt --user-file users.txt \
+                --https-credentials . --s3-config ~/.s3cfg
+
+    (S3ProxyServer with device credentials and web application user
+     from file and dtls-graceful restart. The Web-Login HTTP server
+     is started at port 8080 using the x509 certificates from the
+     current directory (certificate is required to be provided).
+     Devices/sessions with no exchange for more then a week
+     (168 hours) are skipped when saving.)
+
+For device data forwarding via http currently three variants for the
+  '--http-authentication' are supported: 'Bearer <token>',
+  'PreBasic <username>:<password>', or '<username>:<password>'.
+  The 'Bearer' and 'PreBasic' authentication data will be send
+  without challenge from the server. The '<username>:<password>'
+  variant will be used on challenge by the server and supports
+  BASIC and DIGEST.
 
 Search path for '--spa-css', '--spa-script', and '--spa-script-v2':
   If the provided path starts with 'http:' or 'https:' then the path
@@ -270,7 +301,7 @@ USER_CREDENTIALS_RELOAD_INTERVAL=30[s]
 ...
 ```
 
-**Note:** to use encrypted device, config, user, or domain files, please use the [cf-encrypt](../../cf-utils/cf-encrypt/README.md) utility. Same applies for the https and coaps credentials, encrypted PKCS #8 is not supported, you must use PKCS #8 without encryption and apply that `cf-encrypt` utility.
+**Note:** to use encrypted `device`, `config`, `user`, or `domain` files, please use the [cf-encrypt](../../cf-utils/cf-encrypt/README.md) utility. Same applies for the https and coaps credentials, encrypted PKCS #8 is not supported, you must use PKCS #8 without encryption and apply that `cf-encrypt` utility.
 
 ## Device Credentials
 
@@ -278,7 +309,7 @@ Please see [Californium (Cf) - Cloud Demo Server - Device Credentials](../cf-clo
 
 ## Web Application User
 
-The users of the web application are stored in a [text-file, e.g. users.txt](./service/users.txt) in the local file system of the cloud VM.
+The users of the web application are stored in a text-file, e.g. [users.txt](./service/users.txt) in the local file system of the cloud VM.
 
 ```
 # Web Application Users
@@ -295,11 +326,11 @@ ThingsAdmin='cloudcoap-secret'
 *.s3='<personal-S3-access-key-id>','<personal-S3-access-key-secret>'
 ```
 
-The format uses the user `name`, followed by a '=' and the `<password>`, either in plain-text enclosed in single- `'` or double-`"` quotes, or in base64 without quotes. The `config`uration of the web application for the user is the provided also as plain-text, either with or without single- `'` or double-`"` quotes. The device `groups` for the users are also plain-text, either with or without single- `'` or double-`"` quotes. Each `group` is the separated by a comma `,`. The `groups` are used to select the initial displayed devices after login. Check your [demo-devices.txt](./service/demo-devices.txt) for the available groups. If the user is using it's own `S3-access-key` then the values may be provided in base64 or as plain-text enclosed in single- `'` or double-`"` quotes.
+The format uses the user `name`, followed by a '=' and the `<password>`, either in plain-text enclosed in single- `'` or double-`"` quotes, or in base64 without quotes. The `config` defines the configuration of the web application for the user. It is provided also as plain-text, either with or without single- `'` or double-`"` quotes. The device `groups` for the users are also plain-text, either with or without single- `'` or double-`"` quotes. Each `group` is the separated by a comma `,`. The `groups` are used to select the initial displayed devices after login and to grant write permission, if the configuration contain that permission. Check your [demo-devices.txt](./service/demo-devices.txt) for the available groups. If the user is using it's own `S3-access-key` then the values may be provided in base64 or as plain-text enclosed in single- `'` or double-`"` quotes.
 
 ## Web Application Configuration
 
-The configurations of the web application are stored in a [text-file, e.g. configs.txt](./service/configs.txt) in the local file system of the cloud VM.
+The configurations of the web application are stored in a text-file, e.g. [configs.txt](./service/configs.txt) in the local file system of the cloud VM.
 
 ```
 [Admin.config]
@@ -317,15 +348,19 @@ ConfigWrite=false
 period=64
 ```
 
-The values are mainly passed to the java script application on login. Only `Diagnose=true` is also used as permission to read the `diagnose` resource via https and the `ConfigWrite=true` enables to write a device configuration to the `config` resource via https .
+The values are mainly passed to the java script application on login. Only `Diagnose=true` is also used as permission to read the `diagnose` resource via https and the `ConfigWrite=true` enables to write a device configuration to the `config` resource via https for the devices in the `groups`ot the user.
 
 ## DTLS Graceful Restart
 
 Please see [Californium (Cf) - Cloud Demo Server - DTLS Graceful Restart](../cf-cloud-demo-server#dtls-graceful-restart).
 
-## HTTPS forwarding
+## DTLS Graceful Restart - Server Updates
 
-Please see [Californium (Cf) - Cloud Demo Server - HTTPS forwarding](../cf-cloud-demo-server#https-forwarding).
+Please see [Californium (Cf) - Cloud Demo Server - DTLS Graceful Restart - Server Updates](../cf-cloud-demo-server#dtls-graceful-restart---server-updates).
+
+## Web HTTPS forwarding
+
+Please see [Californium (Cf) - Cloud Demo Server - Web HTTPS forwarding](../cf-cloud-demo-server#web-https-forwarding).
 
 ## HTTPS x509 certificate
 
@@ -357,7 +392,8 @@ And for each device:
 Format:
 FILE s3://<bucket>/devices/<device>/<date>/<time>
 FILE s3://<bucket>/devices/<device>/series-<date>T<time>Z
-FILE s3://<bucket>/devices/<device>/arch-<date>
+FILE s3://<bucket>/devices/<device>/arch-<date>Z
+FILE s3://<bucket>/devices/<device>/arch-<date>+<days>
 
 Example:
 FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/20:49:53.249
@@ -379,7 +415,7 @@ In order to have the permission for accessing that S3 device data, so called api
 | S3-coap-proxy-key | read/write |
 | S3-web-user-key | read only |
 
-The `S3-coap-proxy-key` is used by the proxy to forward the data from the device to the S3 bucket and the configuration for the device from https to the s3 bucket. It is also used to read the device data and configuration from the S3 bucket back. It is used to accumulate the device data into `arch-${date}`. As long as not all days for an archive are available, the number of the current days is appended with `arch-${date}+${days}`. The next run will the create a new arch file with one more day, or if ready, with `arch-${date}Z`. The previous archive with `arch-${date}+${days}` will be deleted, when the new one is successfully written. Similar the `S3-web-user-key` with read only permissions are used by the web application for limited read access directly to S3.
+The `S3-coap-proxy-key` is used by the proxy to forward the data from the device to the S3 bucket and to read the configuration from s3 bucket to send it as response to the device back. It is also used to write the device configuration via the https service to the S3 bucket. Additionally it is used to accumulate the device data into `arch-${date}`. As long as not all days for an archive are available, the number of the current days is appended with `arch-${date}+${days}`. The next run will the create a new arch file with one more day, or if ready, with `arch-${date}Z`. The previous archive with `arch-${date}+${days}` will be deleted, when the new one is successfully written. Similar the `S3-web-user-key` with read only permissions are used by the web application for limited read access directly to S3.
 
 To create and prepare the S3 bucket, [s3cmd](https://s3tools.org/s3cmd) is used. This requires also some api-key in a `.s3cfg` file, here we need also the permission to create a S3 bucket.
 
@@ -425,28 +461,65 @@ bucket=<bucket-name>
 s3cmd put -P -m "text/javascript; charset=utf-8" --add-header "Cache-Control:no-cache" src/main/resources/app.js s3://${bucket}/app.js
 
 s3cmd put -P -m "text/css; charset=utf-8" --add-header "Cache-Control:no-cache" src/main/resources/stylesheet.css s3://${bucket}/stylesheet.css
+
+s3cmd put -m "image/svg+xml" docs/coap.svg s3://${bucket}/logo.svg
 ```
 
 (Replace the `<bucket-name>` by your bucket's name.)
 
-## Systemd service
+If you want to use a [logo](./docs/coap.svg), copy that as well to the S3 bucket. This file we be loaded authorized by the javascrip app and doesn't require public read access.
+
+## HTTP forwarding
+
+Though the Web App is only a verify simple and limited application, it's possible to forward the data further to a backend service, which offers more functions, but no CoAP/DTLS 1.2 CID interface.
+
+This feature is currently in a early stage and just demonstrates, that it is possible to forward the device data via http.
+
+To use it, provide the destination with `--http-forward=<httpForward>`. If that destination API requires authentication, `--http-authentication` supports either `Bearer <token>`, `PreBasic <username>:<password>` or `<username>:<password>`. `Bearer` and `PreBasic` will send the credentials without challenge from the server, plain `<username>:<password>` will send the credentials as response to such a server challenge, supporting `BASIC` and `DIGEST` authentication. For now, it is only possible to authenticate the proxy itself (sometimes called "gateway mode"), but not the individual devices. Finally, if the payload doesn't contain the device identity, then it is possible to add that to the forwarded request either as new headline in the payload, or as additional query-parameter "id=<device-id>". That is selected with `--http-device-identity-mode`.
+
+```sh
+java -jar cf-s3-proxy-server-4.0.0-SNAPSHOT.jar ... \
+   --http-destination https://<my-server>/coap-devices \
+   --http-authentication proxy:<password> \
+   --http-device-identity-mode QUERY_PARAMETER
+```
+
+Each device then decides in its request, if that request is intended to be forwarded by adding the query option "forward". 
+
+```sh
+coap-client -v 6 -m POST -e '3652 mV 32%25' -t 0 -u Client_identity -k secretPSK coaps://<s3proxy>/devices?write\&read\&forward
+```
+
+Results in an http POST to the destination with the same payload similar to:
+
+```sh
+curl --data-ascii '3652 mV 32%' -u 'proxy:<password>' -H 'Content-Type: text/plain; charset=ISO-8859-1' https://<my-server>/coap-devices?id=Client_identity
+```
+
+The response from the http server will then be sent back to the device, if the http status code indicates success and the payload is not empty (nor `ack`). Otherwise the http status code will be converted into a custom coap option (**CUSTOM_OPTION_FORWARD_CODE** 65016, for more details see [below, CoAP API - coaps://devices](./#coap-api---coapsdevices) ).
+
+## Systemd Service
 
 **Note:** The installation contains "secrets", e.g. to store the DTLS state or to read the device and user credentials. Therefore a dedicated cloud-VM must be used and the access to that cloud-VM must be protected! This basic/simple setup also uses the "root" user. Please replace/add a different user according your security policy.
 
-**Note:** the Cloud CoAP-S3-Proxy server is not released! It requires a [Build using Maven](../../README.md#build-using-maven) before usage.
+This instructions assumes to be already common with tools used around "headless compute units" and "cloud computing". It does not contain the basic instruction for using them. For some more details, see the script's [README](./service/cloud-installs/README.md)
+
+Cloud CoAP-S3-Proxy Server is available at the eclipse repository and can be downloaded [cf-s3-proxy-server-3.13.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-s3-proxy-server/3.13.0/cf-s3-proxy-server-3.13.0.jar).
 
 The server runs as [systemd service](./service/cali.service). It may be installed either manually or using the [installation script](./service/cloud-installs/deploy-dev.sh). 
 
-Manual installation follows the [cf-unix-setup](../cf-unix-setup). It requires also to add the [HTTPS forwarding](#https-forwarding) and to create the https x509 credentials as [described in Californium (Cf) - Cloud Demo Server - HTTPS x509 certificate](../cf-cloud-demo-server#https-x509-certificate). That approach doesn't require specific scripts and should fit for any cloud, which supports "compute instance" with UDP support and S3.
+Manual installation follows the [cf-unix-setup](../cf-unix-setup). It requires also to add the [Web HTTPS forwarding](#web-https-forwarding) and to create the https x509 credentials as [described in Californium (Cf) - Cloud Demo Server - HTTPS x509 certificate](../cf-cloud-demo-server#https-x509-certificate). That approach doesn't require specific scripts and should fit for any cloud, which supports "compute instance" with UDP support and S3. It will come with costs!
 
-The [installation script](./service/cloud-installs/deploy-dev.sh) is based on the [Californium (Cf) - Cloud Demo Server - installation script](../cf-cloud-demo-server/service/cloud-installs/deploy-dev.sh) and supports also the [ExoScale](https://www.exoscale.com/), [DigitalOcean](https://cloud.digitalocean.com), and [AWS](https://aws.amazon.com) as well. It requires an account at that provider, to download and install the provider's CLI tools and it comes with costs! See [ExoScale Script](../cf-cloud-demo-server/service/cloud-installs/provider-exo.sh), [DigitalOcean Script](../cf-cloud-demo-server/service/cloud-installs/provider-do.sh) and [AWS Script](../cf-cloud-demo-server/service/cloud-installs/provider-aws.sh) for more details and requirements.
+The [installation script](./service/cloud-installs/deploy-dev.sh) is based on the [Californium (Cf) - Cloud Demo Server - installation script](../cf-cloud-demo-server/service/cloud-installs/deploy-dev.sh), which it includes, and supports also the [ExoScale](https://www.exoscale.com/), [DigitalOcean](https://cloud.digitalocean.com), and [AWS](https://aws.amazon.com) as well. It requires an account at that provider and to download and install the provider's CLI tools. It comes also with costs! See [ExoScale Script](../cf-cloud-demo-server/service/cloud-installs/provider-exo.sh), [DigitalOcean Script](../cf-cloud-demo-server/service/cloud-installs/provider-do.sh) and [AWS Script](../cf-cloud-demo-server/service/cloud-installs/provider-aws.sh) for more details and requirements.
 
-The script provides jobs to "create" (create cloud VM/EC2 instance), "create-bucket" (create S3 bucket), "install" (install cloud CoAP-S3-proxy server service from local sources and builds, along with fail2ban, https-forwarding and preparation for `certbot`), "update" (Update cloud CoAP-S3-proxy server service from local sources and builds), "login" (ssh login into cloud-VM), "delete" (delete cloud-VM), and "delete-bucket" (delete S3 bucket). It is currently configured to use a [Ubuntu 22.04 LTS Server](https://ubuntu.com/download/server) image, but you may adapt that in the scripts.
+The install script also requires to build the Cloud CoAP-S3-Proxy Server locally, please follow [Build using Maven](../../README.md#build-using-maven).
+
+The script provides jobs to "create" (create cloud VM/EC2 instance), "create-bucket" (create S3 bucket), "install" (install cloud CoAP-S3-proxy server service from local sources and builds, along with fail2ban, web-https-forwarding and preparation for `certbot`), "update" (Update cloud CoAP-S3-proxy server service from local sources and builds), "login" (ssh login into cloud-VM), "delete" (delete cloud-VM), and "delete-bucket" (delete S3 bucket). It is currently configured to use a [Ubuntu 22.04 LTS Server](https://ubuntu.com/download/server) image, but you may adapt that in the scripts.
 
 Usage:
 
 ```sh
-./deploy-dev.sh <bucket> exo create create-bucket install
+./deploy-dev.sh <domain> exo create create-bucket install
 ```
 
 Creates a ExoScale cloud-VM and installs the cloud CoAP-S3-Proxy-server. On finish, the installation is completed by a reboot. Initially the default openssl PSK device credentials are provided (identity: Client_identity, shared key: secretPSK). That is intended to be replaced by you soon.
@@ -485,16 +558,18 @@ Finally it restarts the service
 That's it for the web application. After a couple of seconds try to test the coaps-server using:
 
 ```sh
-coap-client -v 6 -m POST -e "test 1234" -u Client_identity -k secretPSK coaps://<domain>:5684/devices
+coap-client -v 6 -m POST -e '4137 mV 98%25' -t 0 -u Client_identity -k secretPSK coaps://<domain>/devices?write\&read
 ```
 
 and the https-server using a web-browser and `https://<domain>`. If both test are succeed, then your cloud CoAP-S3-Proxy server is installed well.
+
+**Note:** Please enclose the payload in `'` (single quotes). A "%" in the payload must be escaped with "%25". "-t 0" indicates, that the content is in "text/plain". The "\\&" is required to escape the shell interpretation of a "&".
 
 ## Using Multiple S3 Buckets For Multiple Domains
 
 In same case it may be preferable to run only one Cloud CoAP-S3-Proxy Server for a couple of small separated projects. That may be done using specific S3 access keys per project, but in quite a lot of cases, S3 doesn't offer the granularity for that isolation. Therefore the proxy supports also multiple device-domains mapped to separate S3 buckets.
 
-The multiple domains are defined in a [text-file, e.g. domains.txt](./service/domains.txt), which contains a data-section and a management-section per domain.
+The multiple domains are defined in a text-file, e.g. [domains.txt](./service/domains.txt), which contains a data-section and a management-section per domain.
 
 ```
 [web]
@@ -589,47 +664,44 @@ A device POST its data to the "coaps://${host}/devices". Using query parameters 
 Examples using coap-client of libcoap:
 
 ```sh
-coap-client -v 6 -m POST -e "test 1234" -u Client_identity -k secretPSK coaps://${host}/devices?write\&read
-v:1 t:CON c:POST i:a06f {} [ Uri-Host:${host}, Uri-Path:devices, Uri-Query:write, Uri-Query:read ] :: 'test 1234'
-May 15 14:57:45.080 INFO Identity Hint '' provided
-v:1 t:ACK c:2.04 i:a06f {} [ 65008:\x84 ]
+coap-client -v 6 -m POST -e '3765 mV 50%25' -t 0 -u Client_identity -k secretPSK coaps://${s3proxy}:5684/devices?write\&read
+v:1 t:CON c:POST i:aa01 {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read ] :: '3765 mV 50%'
+INFO Identity Hint '' provided
+v:1 t:ACK c:2.04 i:aa01 {} [ 65008:\x84 ]
 ```
 
-(**Note:** the "\\&" is required to escape the shell interpretation of a "&". If a "%" is used in the payload, then this must be escape  with "%25", as used later below.)
-
-Sends the payload "test 1234" to be written into the s3-bucket of the device-domain with "s3://${domainbucket}/devices/Client_identity/${date}/${time}" and reads piggybacked from "s3://${domainbucket}/devices/Client_identity/config". The custom option 65008 contains the response code of the piggybacked read, 0x84 => `0b 100 00100`, so it's `4.04` NOT FOUND.
+Sends the payload "3765mV 50%" to be written into the s3-bucket of the device-domain with "s3://${domainbucket}/devices/Client_identity/${date}/${time}" and reads piggybacked from "s3://${domainbucket}/devices/Client_identity/config". The custom option 65008 contains the response code of the piggybacked read, 0x84 => `0b 100 00100`, so it's `4.04` NOT FOUND.
 
 The example assumes, that the device name is the same as the PSK identity. It's also possible to use different device names.
-
-```sh
-```
 
 ```sh
 echo "config abcd" > config.txt
 s3cmd put -m "text/plain; charset=utf-8" --add-header "Cache-Control:no-cache" config.txt s3://${domainbucket}/devices/Client_identity/config
 ```
 
-Writes device configuration with `s3cmd`.
+This writes device configuration with `s3cmd` into the s3 bucket.
 
 ```sh
-coap-client -v 6 -m POST -e "test 12345" -u Client_identity -k secretPSK coaps://${host}/devices?write\&read
-v:1 t:CON c:POST i:071e {} [ Uri-Host:${host}, Uri-Path:devices, Uri-Query:write, Uri-Query:read ] :: 'test 12345'
-May 15 14:59:17.512 INFO Identity Hint '' provided
-v:1 t:ACK c:2.04 i:071e {} [ Content-Format:text/plain, 65004:\xFC\x74\x60\x4D\x95\xA8, 65008:\x45 ] :: 'config abcd\x0A'
+coap-client -v 6 -m POST -e '3760 mV 50%25' -t 0 -u Client_identity -k secretPSK coaps://${s3proxy}:5684/devices?write\&read
+v:1 t:CON c:POST i:759f {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read ] :: '3760 mV 50%'
+INFO Identity Hint '' provided
+v:1 t:ACK c:2.04 i:759f {} [ Content-Format:text/plain, 65004:\x56\xA4\x67\x8E\xFF\x1D, 65008:\x45 ] :: 'config abcd'
 config abcd
 ```
 
-Sends the next payload "test 12345" with a piggybacked read. The custom option 65008 contains now the new response code of the piggybacked read, 0x45 => `0b 010 01001`, so it's `2.05` CONTENT, which is "config abcd". And the custom option 65004 contains the ETAG for the piggybacked read content.
+Sends the next payload "3760mV 50%" with a piggybacked read. The custom option 65008 contains now the new response code of the piggybacked read, 0x45 => `0b 010 01001`, so it's `2.05` CONTENT, which is "config abcd". And the custom option 65004 contains the ETAG for the piggybacked read content.
 
 ```sh
-coap-client -v 6 -m POST -e "test 123456" -u Client_identity -k secretPSK -O 65004,0xFC74604D95A8 coaps://${host}/devices?write\&read
-v:1 t:CON c:POST i:50b7 {} [ Uri-Host:${host}, Uri-Path:devices, Uri-Query:write, Uri-Query:read, 65004:\xFC\x74\x60\x4D\x95\xA8 ] :: 'test 123456'
-May 15 15:02:05.643 INFO Identity Hint '' provided
-v:1 t:ACK c:2.04 i:50b7 {} [ 65008:\x43 ]
+coap-client -v 6 -m POST -e '3755 mV 50%25' -t 0 -u Client_identity -k secretPSK -O 65004,0x56A4678EFF1D coaps://${s3proxy}:5684/devices?write\&read
+v:1 t:CON c:POST i:5a72 {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read, 65004:\x56\xA4\x67\x8E\xFF\x1D ] :: '3755 mV 50%'
+INFO Identity Hint '' provided
+v:1 t:ACK c:2.04 i:5a72 {} [ 65008:\x43 ]
 ```
 
-Sends the next payload "test 123456" with a piggybacked read and the custom option 65004 with the previous received ETAG. That results then in the piggybacked response code 0x43 => `0b 010 00011`, that's `2.03` VALID without payload. Only if the content of "config" is changed, a new content together with a new ETAG will be received.
+Sends the next payload "3755mV 50%" with a piggybacked read and the custom option 65004 with the previous received ETAG. That results then in the piggybacked response code 0x43 => `0b 010 00011`, that's `2.03` VALID without payload. Only if the content of "config" is changed, a new content together with a new ETAG will be received.
 
+You may use the web UI and the configuration tab, if your user has the permission to write it. Or again
+ 
 ```sh
 echo "config abcde" > config.txt
 s3cmd put -m "text/plain; charset=utf-8" --add-header "Cache-Control:no-cache" config.txt s3://${domainbucket}/devices/Client_identity/config
@@ -638,22 +710,23 @@ s3cmd put -m "text/plain; charset=utf-8" --add-header "Cache-Control:no-cache" c
 Writes a changed device configuration with `s3cmd`.
 
 ```sh
-coap-client -v 6 -m POST -e "test 1234567" -u Client_identity -k secretPSK -O 65004,0xFC74604D95A8 coaps://${host}/devices?write\&read
-v:1 t:CON c:POST i:7f97 {} [ Uri-Host:${host}, Uri-Path:devices, Uri-Query:write, Uri-Query:read, 65004:\xFC\x74\x60\x4D\x95\xA8 ] :: 'test 1234567'
-May 15 15:03:16.051 INFO Identity Hint '' provided
-v:1 t:ACK c:2.04 i:7f97 {} [ Content-Format:text/plain, 65004:\x0E\xE6\xB8\x06\x97\x5D, 65008:\x45 ] :: 'config abcde\x0A'
+coap-client -v 6 -m POST -e '3755 mV 50%25' -t 0 -u Client_identity -k secretPSK -O 65004,0x56A4678EFF1D coaps://${s3proxy}:5684/devices?write\&read
+v:1 t:CON c:POST i:d277 {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read, 65004:\x56\xA4\x67\x8E\xFF\x1D ] :: '3755 mV 50%'
+INFO Identity Hint '' provided
+v:1 t:ACK c:2.04 i:d277 {} [ Content-Format:text/plain, 65004:\x32\x93\x7B\x74\x4C\x76, 65008:\x45 ] :: 'config abcde'
 config abcde
 ```
 
-Sends the next payload "test 1234567" with a piggybacked read and the custom option 65004 with the previous received ETAG. Though the "config" has changed, that results in the piggybacked response code 0x45 => `0b 010 01001`, that's `2.05` CONTENT with the new payload and new ETAG.
+Sends the next payload "3755mV 50%25" with a piggybacked read and the custom option 65004 with the previous received ETAG. Though the "config" has changed, that results in the piggybacked response code 0x45 => `0b 010 01001`, that's `2.05` CONTENT with the new payload and new ETAG.
 
 ```sh
 s3cmd ls s3://${domainbucket}/devices/Client_identity/
                           DIR  s3://${domainbucket}/devices/Client_identity/2024-05-15/
 2024-05-15 13:02           13  s3://${domainbucket}/devices/Client_identity/config
-2024-05-15 13:03          107  s3://${domainbucket}/devices/Client_identity/series-2024-05-15T12:57:45.097Z
+2024-05-15 13:03          107  s3://${domainbucket}/devices/Client_identity/arch-2024-05-14+1
 
 s3cmd ls s3://${domainbucket}/devices/Client_identity/2024-05-15/
+2024-05-14 23:57           11  s3://${domainbucket}/devices/Client_identity/2024-05-14/23:57:05.134
 2024-05-15 12:57            9  s3://${domainbucket}/devices/Client_identity/2024-05-15/12:57:45.097
 2024-05-15 12:59           10  s3://${domainbucket}/devices/Client_identity/2024-05-15/12:59:17.513
 2024-05-15 13:02           11  s3://${domainbucket}/devices/Client_identity/2024-05-15/13:02:05.645
@@ -671,9 +744,9 @@ The javascript browser app displays data as chart. In the previous version it wa
 Deprecated example:
 
 ```sh
-coap-client -v 6 -m POST -e '!4237 mV 98%25' -t 0 -u Client_identity -k secretPSK coaps://${host}/devices?write\&read\&series
-v:1 t:CON c:POST i:c9f6 {} [ Uri-Host:${host}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read, Uri-Query:series ] :: '!4237 mV 98%'
-Oct 04 07:49:11.854 INFO Identity Hint '' provided
+coap-client -v 6 -m POST -e '!4237 mV 98%25' -t 0 -u Client_identity -k secretPSK coaps://${s3proxy}/devices?write\&read\&series
+v:1 t:CON c:POST i:c9f6 {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read, Uri-Query:series ] :: '!4237 mV 98%'
+INFO Identity Hint '' provided
 v:1 t:ACK c:2.04 i:c9f6 {} [ Content-Format:text/plain, 65004:\x30\xA4\xBE\x81\x48\x34, 65008:\x45 ]
 ```
 
@@ -685,16 +758,14 @@ Writes
 
 to "series".
 
-(**Note:** as mentioned above, a "%" in the payload must be escaped with "%25" and a "&" in the query-parameters must be escaped with "\\&". "-t 0" indicates, that the content is in "text/plain".)
-
 With the introduction of the archive files, that has changed. The archive file accumulates all payloads of several days into a single file without using "!" lines (therefore works also for other content types) and without the "series" query parameter. The messages are accumulated once a day and appended to the archive file. To read the data, read to related archive files and the left messages of the current day.
 
 Example:
 
 ```sh
-coap-client -v 6 -m POST -e '4104 mV 96%25' -t 0 -u Client_identity -k secretPSK coaps://${host}/devices?write\&read
-v:1 t:CON c:POST i:a2f2 {} [ Uri-Host:${host}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read ] :: '4104 mV 96%'
-Oct 04 07:55:25.098 INFO Identity Hint '' provided
+coap-client -v 6 -m POST -e '4104 mV 96%25' -t 0 -u Client_identity -k secretPSK coaps://${s3proxy}/devices?write\&read
+v:1 t:CON c:POST i:a2f2 {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read ] :: '4104 mV 96%'
+INFO Identity Hint '' provided
 v:1 t:ACK c:2.04 i:a2f2 {} [ Content-Format:text/plain, 65004:\x30\xA4\xBE\x81\x48\x34, 65008:\x45 ]
 ```
 
@@ -718,7 +789,7 @@ The javascript browser app extracts the values for the chart from the lines of t
 
 ```
 const chartConfig = [
-	new ChartConfig(/\s([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, 1000),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, 1000),
 	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100),
 	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40),
 	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80),
@@ -751,7 +822,7 @@ A device may GET shared data from S3. This is mainly intended for firmware. Curr
 Example:
 
 ```sh
-coap-client -v 6 -m GET -u Client_identity -k secretPSK coaps://${host}/fw/box/0.11.107+0
+coap-client -v 6 -m GET -u Client_identity -k secretPSK coaps://${s3proxy}/fw/box/0.11.107+0
 ```
 
 Will read that firmware from S3. Requires support for [RFC 7959](https://www.rfc-editor.org/rfc/rfc7959) (CoAP blockwise transfer).

@@ -10,25 +10,26 @@ Simple cloud demo server for device communication with CoAP/DTLS 1.2 CID . Based
 
     Kickstart your UDP experience
 
-The server supports DTLS 1.2 CID with **P**re**S**hared**K**ey (similar to username/password) and **R**aw**P**ublic**Key** (a public key without additional information like subject or validity as certificate) authentication for device communication. X509 certificate based device authentication may be added to the cloud deom server in the future. Californium (Cf) itself does already support x509.
+The server supports DTLS 1.2 CID with **P**re**S**hared**K**ey (similar to username/password) and **R**aw**P**ublic**Key** (a public key as certificate without additional information like subject or validity) authentication for device communication. X509 certificate based device authentication may be added to the cloud deom server in the future. Californium (Cf) itself does already support x509.
 
 Supports resource "devices":
 
 ```sh
-coap-client -v 6 -m POST -e "test 1234" -u Client_identity -k secretPSK coaps://<destination>:5684/devices
-v:1 t:CON c:POST i:307a {01} [ Uri-Path:devices ] :: 'test 1234'
+coap-client -v 6 -m POST -e 'test 1234 50%25' -t 0 -u Client_identity -k secretPSK coaps://<destination>:5684/devices
+v:1 t:CON c:POST i:d93a {} [ Uri-Host:aws.coaps.net, Uri-Path:devices, Content-Format:text/plain ] :: 'test 1234 50%'
 INFO Identity Hint '' provided
-v:1 t:ACK c:2.04 i:307a {01} [ ]
-INFO *  <source>:33681 <-> <destination>:5684 DTLS: SSL3 alert write:warning:close notify
+v:1 t:ACK c:2.04 i:d93a {} [ ]
 ```
+
+**Note:** Please enclose the payload in `'` (single quotes). A "%" in the payload must be escaped with "%25". "-t 0" indicates, that the content is in "text/plain".
 
 ```sh
 coap-client -v 6 -m GET -u Client_identity -k secretPSK coaps://<destination>:5684/devices/Client_identity
 v:1 t:CON c:GET i:7fcf {01} [ Uri-Path:devices, Uri-Path:Client_identity ]
 INFO Identity Hint '' provided
-v:1 t:ACK c:2.05 i:7fcf {01} [ Content-Format:application/octet-stream ] :: binary data length 9
-<<746573742031323334>>
-<<t e s t   1 2 3 4 >>
+v:1 t:ACK c:2.05 i:7fcf {01} [ Content-Format:application/octet-stream ] :: binary data length 13
+<<74657374203132333420353025>>
+<<t e s t   1 2 3 4   5 0 % >>
 INFO *  <source>:60667 <-> <destination>:5684 DTLS: SSL3 alert write:warning:close notify
 ```
 
@@ -48,23 +49,25 @@ It includes also an optional `diagnose` resource. That records the number of mes
 
 ## General Usage
 
-**Note:** the Cloud Demo Server is not released! It requires a [Build using Maven](../../README.md#build-using-maven) before usage.
+The Cloud Demo Server is available at the eclipse repository and can be downloaded [cf-cloud-demo-server-3.13.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-cloud-demo-server/3.13.0/cf-cloud-demo-server-3.13.0.jar).
 
-Start the cf-cloud-demo-server-3.12.0.jar with:
+Start the cf-cloud-demo-server-3.13.0.jar with:
 
 ```sh
+java -jar cf-cloud-demo-server-3.13.0.jar -h
+
 Usage: CloudDemoServer [-h] [--diagnose] [--wildcard-interface | [[--[no-]
                        loopback] [--[no-]external] [--[no-]ipv4] [--[no-]ipv6]
                        [--interfaces-pattern=<interfacePatterns>[,
-                       <interfacePatterns>...]]...]] [--https-port=<port>
-                       --https-credentials=<credentials>
-                       [--https-password64=<password64>]]
+                       <interfacePatterns>...]]...]]
                        [--coaps-credentials=<credentials>
                        [--coaps-password64=<password64>]] [--device-file=<file>
                        [--device-file-password64=<password64>]]
                        [--store-file=<file> --store-max-age=<maxAge>
                        [--store-password64=<password64>]] [--provisioning
-                       [--replace]]
+                       [--replace]] [[--https-port=<port>]
+                       --https-credentials=<credentials>
+                       [--https-password64=<password64>]]
       --coaps-credentials=<credentials>
                              Folder containing coaps credentials in 'privkey.
                                pem' and 'pubkey.pem'
@@ -79,9 +82,8 @@ Usage: CloudDemoServer [-h] [--diagnose] [--wildcard-interface | [[--[no-]
                              Folder containing https credentials in 'privkey.
                                pem' and 'fullchain.pem'.
       --https-password64=<password64>
-                             Folder containing https credentials in 'privkey.
-                               pem' and 'fullchain.pem'.
-      --https-port=<port>    Port of https service.
+                             Password for https credentials. Base 64 encoded.
+      --https-port=<port>    Port of https service. Default: 8080
       --interfaces-pattern=<interfacePatterns>[,<interfacePatterns>...]
                              interface regex patterns for coap endpoints.
       --[no-]external        enable coap endpoints on external network.
@@ -99,9 +101,10 @@ Usage: CloudDemoServer [-h] [--diagnose] [--wildcard-interface | [[--[no-]
       --store-password64=<password64>
                              password to store dtls state. Base 64 encoded.
       --wildcard-interface   Use local wildcard-address for coap endpoints.
+                               Default mode.
 
 Examples:
-  DemoServer --no-loopback
+  DemoServer --no-loopback --device-file devices.txt
     (DemoServer listening only on external network interfaces.)
 
   DemoServer --store-file dtls.bin --store-max-age 168 \
@@ -109,8 +112,18 @@ Examples:
                 --device-file devices.txt
 
     (DemoServer with device credentials from file and dtls-graceful restart.
-     Devices/sessions with no exchange for more then a week (168 hours)
-     are skipped when saving.)
+     Devices/sessions with no exchange for more then a week (168 hours) are
+     skipped when saving.)
+
+  DemoServer --store-file dtls.bin --store-max-age 168 \
+                --store-password64 ZVhiRW5pdkx1RUs2dmVoZg== \
+                --device-file devices.txt --https-credenitals .
+
+    (DemoServer with device credentials from file and dtls-graceful restart.
+     A simple HTTP server is started at port 8080 using the x509 certificates
+     from the current directory (certificate is required to be provided).
+     Devices/sessions with no exchange for more then a week (168 hours) are
+     skipped when saving.)
 ```
 
 to see the set of options and arguments.
@@ -170,9 +183,64 @@ PSK credentials are provided with `[<name>].psk=<psk-identity>,<psk-secret>`. If
 # default openssl PSK credentials
 .psk='Client_identity',:0x73656372657450534B
 ```
-RPK credentials are provided similar with `[<name>].rpk=<public-key>`. The `public-key` is in base64 or with ":0x" in hexadecimal. That `public-key` must also be unique for each device, which will be natural, if a fresh key-pair is generated for each device. RPK requires the server also to load it's private and public key with `--coaps-credentials <dir>`. The directory must contain a `privkey.pem`, and, if that doesn't contain the public key as well, a  `publickey.pem`.
 
-You may either provide that server key pair on your own or create a new one using `openssl` with:
+RPK credentials are provided similar with `[<name>].rpk=<public-key>`. The `public-key` is in base64 or with ":0x" in hexadecimal.
+
+```
+# Californium demo-client RPK certificate
+.rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQxYO5/M5ie6+3QPOaAy5MD6CkFILZwIb2rOBCX/EWPaocX1H+eynUnaEEbmqxeN6rnI/pH19j4PtsegfHLrzzQ==
+```
+
+That `public-key` must also be unique for each device, which will be natural, if a fresh key-pair is generated for each device. How that fresh device `key-pair` is generated depends on the device. If that supports also to import a device `key-pair`, then you may use `openssl` to create a `key-pair`.
+
+```sh
+openssl ecparam -genkey -name prime256v1 -noout -out device1-key.pem
+```
+
+or
+
+```sh
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out device1-key.pem
+```
+
+(The later command "supersedes" the first according the openssl documentation. The PEM created by that commands contains both, the private and the public key.)
+
+To add this device to the credentials, export the `public key` with
+
+```sh
+openssl pkey -pubout -in device1-key.pem
+
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENTGXGkhc7gL614R4HBOkXoESM98Y
+IXP3yts4VG7wpRlsIxYFFXVez3I3VE7oGaOpLlAMMhFa4Myq/4OIRMvauQ==
+-----END PUBLIC KEY-----
+```
+
+and copy the base 64 part of the result to the credentials file (one line, no "----" lines).
+
+```
+Demo.device1=Thing
+.rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENTGXGkhc7gL614R4HBOkXoESM98YIXP3yts4VG7wpRlsIxYFFXVez3I3VE7oGaOpLlAMMhFa4Myq/4OIRMvauQ==
+```
+
+The device will need the `private key` of this pair. How that is done, depends on the device. If that requires the `private key` in base64 pem, then export it with:
+
+```sh
+openssl ec -no_public -in device1-key.pem
+
+read EC key
+writing EC key
+-----BEGIN EC PRIVATE KEY-----
+MDECAQEEIMjsiXRzR3OYtELs+9tWYHB4/nT9x3LAXFzA8ezR8iVLoAoGCCqGSM49
+AwEH
+-----END EC PRIVATE KEY-----
+```
+
+and provide the base 64 part to the device.
+
+RPK requires the server also to authenticate itself using a `key-pair`. To load the server's `key-pair` use `--coaps-credentials <directory>`. The directory must contain a `privkey.pem`, and, if that doesn't contain the public key as well, a  `publickey.pem`.
+
+You may either provide that server's `key pair` on your own or create a new one using `openssl` with:
 
 ```sh
 openssl ecparam -genkey -name prime256v1 -noout -out privkey.pem
@@ -184,9 +252,15 @@ or
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out privkey.pem
 ```
 
-(The later command "supersedes" the first according the openssl documentation. The PEM created by that commands contains both, the private and the public key. Therefore you need only this one. Other formats or tools may have other results and you may need then two files, one `privkey.pem` and one `publickey.pem`.)
+as already introduced above.
 
-**Note:** the device credentials file is read using UTF-8 encoding, '=' are not supported for device names. Lines starting with '#' are skipped as comment, therefore a device name must not start with a '#'. Empty lines are also skipped.
+(The PEM created by that commands contains both, the private and the public key. Therefore the server needs only this one. Other formats or tools may have other results and you may need then two files, one `privkey.pem` and one `publickey.pem`.)
+
+The `public key` of that server pair must be provided to devices, which then use that to trust this server. How the `public key` is provided depends on the device. If that requires the `public key` in base64 pem, then export it as show above for the device's `key-pair`.
+
+Otherwise follow the instruction of the device how to supply the server `public key`. And don't mix it up with x509, RPK doesn't match for that.
+
+**Note:** the server's device credentials file is read using UTF-8 encoding, '=' are not supported for device names. Lines starting with '#' are skipped as comment, therefore a device name must not start with a '#'. Empty lines are also skipped.
 
 The cloud demo server checks frequently, if the file has changed and automatically reloads the device credentials.
 
@@ -194,7 +268,7 @@ Devices already connected with removed credentials are kept connected but on the
 
 ## Device Credentials - Auto-Provisioning
 
-In order to provision device efficiently, an auto-provisioning function can be used. This requires to enable `auto-provisioning` via the cli option (`--auto-provisioning`) and to add `auto-provisioning-credentials` to the device store.
+In order to provision devices efficiently, an auto-provisioning function can be used. This requires to enable `auto-provisioning` via the cli option (`--auto-provisioning`) and to add `auto-provisioning-credentials` to the device store.
 
 ```
 Provisioning1=Admin
@@ -202,22 +276,14 @@ Provisioning1=Admin
 .prov=1
 ```
 
-That's done by the entry above. It contains a name (`Provisioning1`), the `public key` from the `auto-provisioning key-pair` and the marker `.prov=1`. For now, only RPK is supported for `auto-provisioning`.
+That's done by the entry above. It contains a name (`Provisioning1`), the `public key` from the `auto-provisioning key-pair` and the marker `.prov=1`. For now, only RPK is supported for authentication `auto-provisioning`. Such a `auto-provisioning key-pair` is a **shared** device `key-pair`. A bulk of device may use the same to execute the provisioning. It's only supported to be used for that `auto-provisioning` and in a sequential mode, device by device. Sending other data will not work, sending parallel request with the same `auto-provisioning key-pair` may fail. You may use the approach using openssl described [above](#device-credentials) to create such a `auto-provisioning key-pair`.
 
-A device will provision its credentials by authenticate itself with the `auto-provisioning key-pair` and a `POST` request to resource `/prov` using the the intended device credentials as payload.
-
-```
-my-device-id=Thing
-.rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEe7jf4/mFVId9GnUfFdV1XQVUAn4fAKsctXYfLnrcvKMXAPAKe6mLPNMNxXf/+TsDQDXEcamWAcjDUFVc/9pIeQ==
-.sig=BAMARzBFAiEAkL9amzTcqBrovw3EPeUJ+iB/NhiEhgS603VBGDx6UUMCIDNfKVwOG7aCQVnsL7mDqgQZhXW7XrCMEKp0hAk7wGac
-```
-
-For production it's only successful, if the `my-device-id` is not already used. For development, this may be overwritten, if `--replace` is passed as cli option. On success, the entry is added to the device credentials.
+For production it's only successful, if the `device-id` is not already used. For development, this may be overwritten, if `--replace` is passed as cli option. On success, the entry is added to the device credentials.
 
 ```
 ...
 # added 2024-08-11T07:00:19Z by Provisioning1
-my-device-id=Thing
+device-id=Thing
 .rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEe7jf4/mFVId9GnUfFdV1XQVUAn4fAKsctXYfLnrcvKMXAPAKe6mLPNMNxXf/+TsDQDXEcamWAcjDUFVc/9pIeQ==
 .sig=BAMARzBFAiEAkL9amzTcqBrovw3EPeUJ+iB/NhiEhgS603VBGDx6UUMCIDNfKVwOG7aCQVnsL7mDqgQZhXW7XrCMEKp0hAk7wGac
 ```
@@ -228,11 +294,21 @@ The cloud demo server supports to save the DTLS connection state and load it aga
 
 Stop the server and start it again using the same `--store-file` and `--store-password64` as before and also provide the `--store-max-age`.
 
-**Note:** if it takes too long between stopping and restart, the clients will detect a timeout and trigger new handshakes. So just pause a small couple of seconds!
+**Note:** if it takes too long between stopping and restart, the clients will detect a timeout and may trigger new handshakes. So just pause a small couple of seconds!
 
 **Note:** only the DTLS state is persisted. To use this feature, the client is intended to use mainly CON request and the server then uses piggybacked responses. Neither DTLS handshakes, separate responses, observe/notifies, nor blockwise transfers are supported to span a restart.
 
-## HTTPS forwarding
+## DTLS Graceful Restart - Server Updates
+
+Save and (re-)load the DTLS state makes a server update also seamless for the devices. Stop the old and start the new server jar usually takes only a few seconds and the most devices will not be affected at all. Only a few may send messages during the restart and without response they will just resend it short afterwards again. And at that time, the server is usually running again.
+
+There is small pitfall with this approach: if you write the new jar in place over the currently executed one, then the shutdown may fail with errors caused by that changed jar. Therefore a second jar is used to place the update and on restart that update jar is copied to the executed on. The [Systemd Service](./#systemd-service) described below handles that by:
+
+```
+ExecStartPre=/bin/cp -u cf-cloud-demo-server-update.jar ${JAR}
+```
+
+## Web HTTPS forwarding
 
 The server runs as user "cali" and therefore requires to forward TCP:443 to a user service port (8080). Copy [iptables service](./service/iptables.service) into `/etc/systemd/system` and [iptables-firewall.sh](./service/iptables-firewall.sh) into `sbin` and make that file executable.
 
@@ -389,19 +465,23 @@ Status for the jail: cali-https
    `- Banned IP list:	
 ```
 
-## Systemd service
+## Systemd Service
 
-**Note:** The installation contains "secrets", e.g. to store the DTLS state or to read the  device credentials. Therefore a dedicated cloud-VM must be used and the access to that cloud-VM must be protected! This basic/simple setup also uses the "root" user. Please replace/add a different user according your security policy.
+**Note:** The installation contains "secrets", e.g. to store the DTLS state or to read the device credentials. Therefore a dedicated cloud-VM must be used and the access to that cloud-VM must be protected! This basic/simple setup also uses the "root" user. Please replace/add a different user according your security policy.
 
-**Note:** the Cloud Demo Server is not released! It requires a [Build using Maven](../../README.md#build-using-maven) before usage.
+This instructions assumes to be already common with tools used around "headless compute units" and "cloud computing". It does not contain the basic instruction for using them. For some more details, see the script's [README](./service/cloud-installs/README.md)
 
-The server runs as [systemd service](./service/cali.service). It may be installed either manually or using the [installation script](./service/cloud-installs/deploy-dev.sh).
+The Cloud Demo Server is available at the eclipse repository and can be downloaded [cf-cloud-demo-server-3.13.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-cloud-demo-server/3.13.0/cf-cloud-demo-server-3.13.0.jar).
 
-Manual installation follows the [cf-unix-setup](../cf-unix-setup). It requires also to add the [HTTPS forwarding](#https-forwarding) and to create the https x509 credentials as [described above](#https-x509-certificate). That approach doesn't require specific scripts and should fit for any cloud, which supports "compute instance" with UDP support.
+The server runs as [systemd service](./service/cali.service). It may be installed either manually or using the [installation script](./service/cloud-installs/deploy-dev.sh). In order to be able to apply updates to the server software, the `systemd service` uses a second jar with "update" in its name, that will be copied to the executed jar before starting the execution.
 
-The alternative is to use the [installation script](./service/cloud-installs/deploy-dev.sh), which supports the [ExoScale](https://www.exoscale.com/), [DigitalOcean](https://cloud.digitalocean.com), and [AWS](https://aws.amazon.com). It requires an account at that provider, to download and install the provider's CLI tools and it comes with costs! See [ExoScale Script](./service/cloud-installs/provider-exo.sh), [DigitalOcean Script](./service/cloud-installs/provider-do.sh) and [AWS Script](./service/cloud-installs/provider-aws.sh) for more details and requirements.
+Manual installation follows the [cf-unix-setup](../cf-unix-setup). It requires also to add the [Web HTTPS forwarding](#web-https-forwarding) and to create the https x509 credentials as [described above](#https-x509-certificate). That approach doesn't require specific scripts and should fit for any cloud, which supports "compute instance" with UDP support. It will come with costs!
 
-The script provides jobs to "create" (create cloud VM/EC2 instance), "install" (install cloud demo server service from local sources and builds, along with fail2ban, https-forwarding and preparation for `certbot`), "update" (Update cloud demo server service from local sources and builds), "login" (ssh login into cloud-VM), and "delete" (delete cloud-VM). It is currently configured to use a [Ubuntu 22.04 LTS Server](https://ubuntu.com/download/server) image, but you may adapt that in the scripts.
+The alternative is to use the [installation script](./service/cloud-installs/deploy-dev.sh), which supports the [ExoScale](https://www.exoscale.com/), [DigitalOcean](https://cloud.digitalocean.com), and [AWS](https://aws.amazon.com). It requires an account at that provider and to download and install the provider's CLI tools. It also comes with costs! See [ExoScale Script](./service/cloud-installs/provider-exo.sh), [DigitalOcean Script](./service/cloud-installs/provider-do.sh) and [AWS Script](./service/cloud-installs/provider-aws.sh) for more details and requirements.
+
+The install script also requires to build the Cloud Demo Server locally, please follow [Build using Maven](../../README.md#build-using-maven).
+
+The script provides jobs to "create" (create cloud VM/EC2 instance), "install" (install cloud demo server service from local sources and builds, along with fail2ban, web-https-forwarding and preparation for `certbot`), "update" (Update cloud demo server service from local sources and builds), "login" (ssh login into cloud-VM), and "delete" (delete cloud-VM). It is currently configured to use a [Ubuntu 22.04 LTS Server](https://ubuntu.com/download/server) image, but you may adapt that in the scripts.
 
 Usage:
 
@@ -413,7 +493,7 @@ Creates a ExoScale cloud-VM and installs the cloud-demo-server including generat
 
 Initially the default openssl PSK device credentials are provided (identity: Client_identity, shared key: secretPSK). That is intended to be replaced by you soon by editing the "/home/cali/demo-devices.txt" file.
 
-To enable the simple web read access, a x509 certificate is required. As mentioned [above](#https-x509-certificate---lets-encrypt), this requires to redirect the intended DNS-domain to the ip-address of the create cloud VM. The ip-address is shown at the end of the installation:
+To enable the simple web read access, a x509 certificate is required. As mentioned [above](./#https-x509-certificate---lets-encrypt), this requires to redirect the intended DNS-domain to the ip-address of the create cloud VM. The ip-address is shown at the end of the installation:
 
 ```sh
 ...
@@ -446,7 +526,7 @@ Finally it restarts the service
 That's it for the web application. After a couple of seconds try to test the coaps-server using:
 
 ```sh
-coap-client -v 6 -m POST -e "test 1234" -u Client_identity -k secretPSK coaps://<dns-domain>:5684/devices
+coap-client -v 6 -m POST -e 'test 1234 50%25' -t 0 -u Client_identity -k secretPSK coaps://<dns-domain>:5684/devices
 ```
 
 and the https-server using a web-browser and `https://<dns-domain>`. If both test are succeed, then your cloud demo server is installed well.

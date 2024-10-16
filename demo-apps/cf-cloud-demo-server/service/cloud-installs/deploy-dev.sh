@@ -48,10 +48,12 @@
 #
 # if head or base64 are not available, you may export SECRET to prevent errors.
 #
-# The script uses "cali-demo" as service name, and the "cali" as ssh-key-id.
-# To change that export "name" and/or "ssh_key_id":
+# The script uses "cali-demo" as service name, and the "cali" as ssh-key-id 
+# (cloud side key name). Locally the default ssh keys are used.
+# To change that export "name", "ssh_key_id" and/or "ssh_key_file", e.g:
 #
 # export name=coaps-s3
+# export ssh_key_file=~/.ssh/my-keys.pem
 #
 # Required sh commands for do (Digital Ocean) only:
 # - grep
@@ -59,13 +61,13 @@
 #
 
 # Name of cloud VM
-if [ -z "$name" ]  ; then
+if [ -z "${name}" ]  ; then
    export name=cali-demo
 fi
 
 # Ensure, your ssh keys are already uploaded to your provider with name "cali"!
 # See "provider_???.sh" for some instructions.
-if [ -z "$ssh_key_id" ]  ; then
+if [ -z "${ssh_key_id}" ]  ; then
    export ssh_key_id="cali"
 fi
 
@@ -90,12 +92,33 @@ if [ -z "${SERVICEPATH}" ]  ; then
    SERVICEPATH=${SETUPPATH}
 fi
 
-if [ -z "$cloud_config" ]  ; then
+if [ -z "${cloud_config}" ]  ; then
    export cloud_config=${INCPATH}/cloud-config-dev.yaml
 fi
 
+if [ -z "${sshkeys}" ] && [ -n "${ssh_key_file}" ]  ; then
+   if [ ! -e "${ssh_key_file}" ] ; then
+      echo "ssh key-file: ${ssh_key_file} doesn't exist."   	
+      exit -2;
+   fi
+   if [ ! -s "${ssh_key_file}" ] ; then
+      echo "ssh key-file: ${ssh_key_file} is empty."   	
+      exit -2;
+   fi
+   if [ ! -r "${ssh_key_file}" ] ; then
+      echo "ssh key-file: ${ssh_key_file} is not readable."   	
+      exit -2;
+   fi
+   if [ ! -O "${ssh_key_file}" ] ; then
+      echo "ssh key-file: ${ssh_key_file} is not owned by user."   	
+      exit -2;
+   fi
+   export sshkeys=" -i ${ssh_key_file}"
+fi
+
+
 # Version to deploy
-: "${CALI_VERSION=3.12.0-SNAPSHOT}"
+: "${CALI_VERSION=4.0.0-SNAPSHOT}"
 
 # ssh login user
 : "${user=root}"
@@ -104,12 +127,12 @@ fi
 : "${run_jobs=1}"
 
 wait_cloud_init_ready () {
-   status=$(ssh -o "StrictHostKeyChecking=accept-new" ${user}@${ip} "cloud-init status")
+   status=$(ssh ${sshkeys} -o "StrictHostKeyChecking=accept-new" ${user}@${ip} "cloud-init status")
 
    while [ "${status}" != "status: done" ] ; do
       echo "cloud-init: ${status}, waiting for done"
       sleep 10
-      status=$(ssh -o "StrictHostKeyChecking=accept-new" ${user}@${ip} "cloud-init status")
+      status=$(ssh ${sshkeys} -o "StrictHostKeyChecking=accept-new" ${user}@${ip} "cloud-init status")
    done
    echo "cloud-init: ${status}"
 }
@@ -118,25 +141,25 @@ install_cloud_vm_base () {
 
    get_ip
 
-   ssh -o "StrictHostKeyChecking=accept-new" ${user}@${ip} "exit"
+   ssh ${sshkeys} -o "StrictHostKeyChecking=accept-new" ${user}@${ip} "exit"
 
    # firewall & forward
-   scp ${SETUPPATH}/iptables.service ${user}@${ip}:/etc/systemd/system
-   scp ${SETUPPATH}/iptables-firewall.sh ${user}@${ip}:/sbin
-   ssh ${user}@${ip} "chmod u+x /sbin/iptables-firewall.sh; systemctl enable iptables"
+   scp ${sshkeys} ${SETUPPATH}/iptables.service ${user}@${ip}:/etc/systemd/system
+   scp ${sshkeys} ${SETUPPATH}/iptables-firewall.sh ${user}@${ip}:/sbin
+   ssh ${sshkeys} ${user}@${ip} "chmod u+x /sbin/iptables-firewall.sh; systemctl enable iptables"
 
    # let's encrypt
-   scp ${SETUPPATH}/letsencrypt.sh ${user}@${ip}:.
+   scp ${sshkeys} ${SETUPPATH}/letsencrypt.sh ${user}@${ip}:.
 
    # fail2ban
-   scp ${FAIL2BANPATH}/cali2fail.conf ${user}@${ip}:/etc/fail2ban/jail.d
-   scp ${FAIL2BANPATH}/calidtls.conf ${user}@${ip}:/etc/fail2ban/filter.d
-   scp ${FAIL2BANPATH}/calihttps.conf ${user}@${ip}:/etc/fail2ban/filter.d
-   scp ${FAIL2BANPATH}/calilogin.conf ${user}@${ip}:/etc/fail2ban/filter.d
+   scp ${sshkeys} ${FAIL2BANPATH}/cali2fail.conf ${user}@${ip}:/etc/fail2ban/jail.d
+   scp ${sshkeys} ${FAIL2BANPATH}/calidtls.conf ${user}@${ip}:/etc/fail2ban/filter.d
+   scp ${sshkeys} ${FAIL2BANPATH}/calihttps.conf ${user}@${ip}:/etc/fail2ban/filter.d
+   scp ${sshkeys} ${FAIL2BANPATH}/calilogin.conf ${user}@${ip}:/etc/fail2ban/filter.d
 
-   ssh ${user}@${ip} "su cali -c 'mkdir /home/cali/logs; touch /home/cali/logs/ban.log'"
+   ssh ${sshkeys} ${user}@${ip} "su cali -c 'mkdir /home/cali/logs; touch /home/cali/logs/ban.log'"
 
-   ssh ${user}@${ip} "systemctl enable fail2ban"
+   ssh ${sshkeys} ${user}@${ip} "systemctl enable fail2ban"
 
    # random secret for dtls graceful restart
    if [ -z "${SECRET}" ]  ; then
@@ -154,23 +177,23 @@ install_cloud_vm () {
    sed "s!--store-password64=[^\"\t ]*!--store-password64=${SECRET}!" ${SERVICEPATH}/cali.service >${SERVICEPATH}/cali.service.e 
 
    # service (includes credentials!)
-   scp ${SERVICEPATH}/cali.service.e ${user}@${ip}:/etc/systemd/system/cali.service
-   scp ${SERVICEPATH}/../target/cf-cloud-demo-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-cloud-demo-server-update.jar
-   scp ${SERVICEPATH}/../src/main/resources/logback.xml ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/cali.service.e ${user}@${ip}:/etc/systemd/system/cali.service
+   scp ${sshkeys} ${SERVICEPATH}/../target/cf-cloud-demo-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-cloud-demo-server-update.jar
+   scp ${sshkeys} ${SERVICEPATH}/../src/main/resources/logback.xml ${user}@${ip}:/home/cali
 
-   scp ${SERVICEPATH}/demo-devices.txt ${user}@${ip}:/home/cali
-   scp ${SERVICEPATH}/permissions.sh ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/demo-devices.txt ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/permissions.sh ${user}@${ip}:/home/cali
 
    # create coap ec-key-pair and apply permissions 
-   ssh ${user}@${ip} "openssl ecparam -genkey -name prime256v1 -noout -out /home/cali/privkey.pem; sh /home/cali/permissions.sh"
+   ssh ${sshkeys} ${user}@${ip} "openssl ecparam -genkey -name prime256v1 -noout -out /home/cali/privkey.pem; sh /home/cali/permissions.sh"
 
-   ssh ${user}@${ip} "systemctl enable cali"
+   ssh ${sshkeys} ${user}@${ip} "systemctl enable cali"
 
-   ssh ${user}@${ip} "systemctl reboot"
+   ssh ${sshkeys} ${user}@${ip} "systemctl reboot"
 
    echo "Reboot cloud VM."
 
-   echo "use: ssh ${user}@${ip} to login!"
+   echo "use: ssh${sshkeys} ${user}@${ip} to login!"
 }
 
 update_cloud_vm () {
@@ -186,13 +209,13 @@ update_cloud_vm () {
    sed "s!--store-password64=[^\"\t ]*!--store-password64=${SECRET}!" ${SERVICEPATH}/cali.service >${SERVICEPATH}/cali.service.e 
 
    # update service (includes credentials!)
-   scp ${SERVICEPATH}/cali.service.e ${user}@${ip}:/etc/systemd/system/cali.service
-   scp ${SERVICEPATH}/../target/cf-cloud-demo-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-cloud-demo-server-update.jar
-   scp ${SERVICEPATH}/../src/main/resources/logback.xml ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/cali.service.e ${user}@${ip}:/etc/systemd/system/cali.service
+   scp ${sshkeys} ${SERVICEPATH}/../target/cf-cloud-demo-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-cloud-demo-server-update.jar
+   scp ${sshkeys} ${SERVICEPATH}/../src/main/resources/logback.xml ${user}@${ip}:/home/cali
 
-   ssh ${user}@${ip} "sh /home/cali/permissions.sh; systemctl daemon-reload; systemctl restart cali;"
+   ssh ${sshkeys} ${user}@${ip} "sh /home/cali/permissions.sh; systemctl daemon-reload; systemctl restart cali;"
 
-   echo "use: ssh ${user}@${ip} to login!"
+   echo "use: ssh${sshkeys} ${user}@${ip} to login!"
 }
 
 update_app () {
@@ -200,11 +223,11 @@ update_app () {
 
    get_ip
 
-   scp ${SERVICEPATH}/../target/cf-cloud-demo-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-cloud-demo-server-update.jar
+   scp ${sshkeys} ${SERVICEPATH}/../target/cf-cloud-demo-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-cloud-demo-server-update.jar
 
-   ssh ${user}@${ip} "systemctl restart cali"
+   ssh ${sshkeys} ${user}@${ip} "systemctl restart cali"
 
-   echo "use: ssh ${user}@${ip} to login!"
+   echo "use: ssh${sshkeys} ${user}@${ip} to login!"
 }
 
 login_cloud_vm () {
@@ -215,7 +238,7 @@ login_cloud_vm () {
    if [ "${ip}" ]  ; then
       wait_cloud_init_ready
 
-      echo "use: ssh ${user}@${ip} to login!"
+      echo "use: ssh${sshkeys} ${user}@${ip} to login!"
    else 
       echo "${name} not available at ${provider}!"
       exit 1

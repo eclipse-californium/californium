@@ -42,7 +42,13 @@ provider_create_s3_bucket() {
    s3cmd -c $S3CFG put --acl-public -m "text/css; charset=utf-8" --add-header "Cache-Control:no-cache" \
       ${SERVICEPATH}/../src/main/resources/stylesheet.css s3://${s3bucket}/stylesheet.css
 
+   s3cmd -c $S3CFG put --acl-public -m "text/javascript; charset=utf-8" --add-header "Cache-Control:no-cache" \
+      ${SERVICEPATH}/../src/main/resources/appv2.js s3://${s3bucket}/appv2.js
+
+   s3cmd -c $S3CFG put -m "image/svg+xml" ${SERVICEPATH}/../docs/coap.svg s3://${s3bucket}/logo.svg
+
 }
+
 
 provider_delete_s3_bucket() {
    echo "S3cmd delete bucket ${s3bucket}"

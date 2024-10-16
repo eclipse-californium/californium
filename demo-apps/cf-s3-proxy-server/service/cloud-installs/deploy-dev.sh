@@ -120,7 +120,7 @@ fi
 echo "S3: ${s3bucket}"
 
 # Version to deploy
-: "${CALI_VERSION=3.12.0-SNAPSHOT}"
+: "${CALI_VERSION=4.0.0-SNAPSHOT}"
 
 # ssh login user
 : "${user=root}"
@@ -203,26 +203,26 @@ install_cloud_vm () {
    sed -i "s!--https-credentials=[^\"\t ]*!--https-credentials=/etc/letsencrypt/live/${domain}!" ${SERVICEPATH}/cali.service.e
 
    # service (may contain credentials)
-   scp ${SERVICEPATH}/cali.service.e ${user}@${ip}:/etc/systemd/system/cali.service
-   scp ${SERVICEPATH}/demo-devices.txt ${user}@${ip}:/home/cali
-   scp ${SERVICEPATH}/users.txt.e ${user}@${ip}:/home/cali/users.txt
-   scp ${SERVICEPATH}/configs.txt ${user}@${ip}:/home/cali
-   scp ${SERVICEPATH}/.s3cfg.e ${user}@${ip}:/home/cali/.s3cfg
-   scp ${SERVICEPATH}/../target/cf-s3-proxy-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-s3-proxy-server-update.jar
-   scp ${SERVICEPATH}/../src/main/resources/logback.xml ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/cali.service.e ${user}@${ip}:/etc/systemd/system/cali.service
+   scp ${sshkeys} ${SERVICEPATH}/demo-devices.txt ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/users.txt.e ${user}@${ip}:/home/cali/users.txt
+   scp ${sshkeys} ${SERVICEPATH}/configs.txt ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/.s3cfg.e ${user}@${ip}:/home/cali/.s3cfg
+   scp ${sshkeys} ${SERVICEPATH}/../target/cf-s3-proxy-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-s3-proxy-server-update.jar
+   scp ${sshkeys} ${SERVICEPATH}/../src/main/resources/logback.xml ${user}@${ip}:/home/cali
 
-   scp ${SERVICEPATH}/permissions.sh ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/permissions.sh ${user}@${ip}:/home/cali
 
    # create coap ec-key-pair and apply permissions 
-   ssh ${user}@${ip} "openssl ecparam -genkey -name prime256v1 -noout -out /home/cali/privkey.pem; sh /home/cali/permissions.sh"
+   ssh ${sshkeys} ${user}@${ip} "openssl ecparam -genkey -name prime256v1 -noout -out /home/cali/privkey.pem; sh /home/cali/permissions.sh"
 
-   ssh ${user}@${ip} "systemctl enable cali"
+   ssh ${sshkeys} ${user}@${ip} "systemctl enable cali"
 
-   ssh ${user}@${ip} "systemctl reboot"
+   ssh ${sshkeys} ${user}@${ip} "systemctl reboot"
 
    echo "Reboot cloud VM."
 
-   echo "use: ssh ${user}@${ip} to login!"
+   echo "use: ssh${sshkeys} ${user}@${ip} to login!"
 }
 
 update_cloud_vm () {
@@ -241,15 +241,15 @@ update_cloud_vm () {
 
    # update service 
 
-   scp ${SERVICEPATH}/.s3cfg.e ${user}@${ip}:/home/cali/.s3cfg
+   scp ${sshkeys} ${SERVICEPATH}/.s3cfg.e ${user}@${ip}:/home/cali/.s3cfg
 
-   scp ${SERVICEPATH}/cali.service.e ${user}@${ip}:/etc/systemd/system/cali.service
-   scp ${SERVICEPATH}/../target/cf-s3-proxy-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-s3-proxy-server-update.jar
-   scp ${SERVICEPATH}/../src/main/resources/logback.xml ${user}@${ip}:/home/cali
+   scp ${sshkeys} ${SERVICEPATH}/cali.service.e ${user}@${ip}:/etc/systemd/system/cali.service
+   scp ${sshkeys} ${SERVICEPATH}/../target/cf-s3-proxy-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-s3-proxy-server-update.jar
+   scp ${sshkeys} ${SERVICEPATH}/../src/main/resources/logback.xml ${user}@${ip}:/home/cali
 
-   ssh ${user}@${ip} "sh /home/cali/permissions.sh; systemctl daemon-reload; systemctl restart cali"
+   ssh ${sshkeys} ${user}@${ip} "sh /home/cali/permissions.sh; systemctl daemon-reload; systemctl restart cali"
 
-   echo "use: ssh ${user}@${ip} to login!"
+   echo "use: ssh${sshkeys} ${user}@${ip} to login!"
 }
 
 update_app () {
@@ -257,11 +257,11 @@ update_app () {
 
    get_ip
 
-   scp ${SERVICEPATH}/../target/cf-s3-proxy-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-s3-proxy-server-update.jar
+   scp ${sshkeys} ${SERVICEPATH}/../target/cf-s3-proxy-server-${CALI_VERSION}.jar ${user}@${ip}:/home/cali/cf-s3-proxy-server-update.jar
 
-   ssh ${user}@${ip} "systemctl restart cali"
+   ssh ${sshkeys} ${user}@${ip} "systemctl restart cali"
 
-   echo "use: ssh ${user}@${ip} to login!"
+   echo "use: ssh${sshkeys} ${user}@${ip} to login!"
 }
 
 
