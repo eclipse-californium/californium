@@ -308,6 +308,34 @@ public class LinuxConfigParser implements ResourceParser<LinuxConfigParser> {
 	}
 
 	/**
+	 * Remove field from {@code "default"} section.
+	 * 
+	 * @param name field name
+	 * @return removed field value, {@code null}, if field wasn't available.
+	 * @since 4.0
+	 */
+	public String remove(String name) {
+		return remove(DEFAULT_SECTION, name);
+	}
+
+	/**
+	 * Remove field.
+	 * 
+	 * @param section section name
+	 * @param name field name
+	 * @return removed field value, {@code null}, if field wasn't available.
+	 * @since 4.0
+	 */
+	public String remove(String section, String name) {
+		String value = null;
+		Map<String, String> sectionMap = getValues(section);
+		if (sectionMap != null) {
+			value = sectionMap.remove(getNameKey(name));
+		}
+		return value;
+	}
+
+	/**
 	 * Get value with default of {@code "default"} section.
 	 * 
 	 * @param name field name

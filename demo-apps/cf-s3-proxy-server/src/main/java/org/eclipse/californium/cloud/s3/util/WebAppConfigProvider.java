@@ -26,6 +26,10 @@ import java.util.Map;
  */
 public interface WebAppConfigProvider {
 
+	String CONFIGURATION_PREFIX = ".config";
+	String DIAGNOSE_NAME = "diagnose";
+	String CONFIGWRITE_NAME = "ConfigWrite";
+
 	/**
 	 * Get web application configuration values of subsection.
 	 * 
@@ -44,4 +48,30 @@ public interface WebAppConfigProvider {
 	 * @return web application configuration value
 	 */
 	String get(String domain, String section, String name);
+
+	/**
+	 * Remove web application configuration value.
+	 * 
+	 * @param domain domain name
+	 * @param section section
+	 * @param name name of web application configuration parameter.
+	 * @return removed web application configuration value, {@code null}, if
+	 *         field wasn't available.
+	 * @since 4.0
+	 */
+	String remove(String domain, String section, String name);
+
+	/**
+	 * Check, if value is available and not {@code "false"} nor {@code 0}.
+	 * 
+	 * @param domain domain name
+	 * @param section section
+	 * @param name name of web application configuration parameter.
+	 * @return {@code true}, if value is available and not {@code "false"} nor
+	 *         {@code 0}, {@code false}, otherwise.
+	 */
+	default boolean isEnabled(String domain, String section, String name) {
+		String value = get(domain, section, name);
+		return value != null && !value.equalsIgnoreCase("false") && !value.equals("0");
+	}
 }
