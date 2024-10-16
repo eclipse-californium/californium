@@ -415,6 +415,15 @@ public class Domains
 	}
 
 	@Override
+	public String remove(String domainName, String section, String name) {
+		Domain domain = domains.get(domainName);
+		if (domain != null) {
+			return domain.configStore.getResource().remove(section, name);
+		}
+		return null;
+	}
+
+	@Override
 	public URI getDestination(String domainName) {
 		Domain domain = domains.get(domainName);
 		if (domain != null) {
@@ -440,4 +449,5 @@ public class Domains
 		}
 		return null;
 	}
+
 }

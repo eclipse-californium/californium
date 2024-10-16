@@ -66,7 +66,7 @@ public class ConfigHandler extends S3Login {
 	 */
 	public ConfigHandler(int maxConfigSize, Aws4Authorizer authorizer, S3ProxyClientProvider clientProvider,
 			WebAppConfigProvider webAppConfigs, DeviceGroupProvider groups) {
-		super(authorizer, clientProvider, webAppConfigs, groups);
+		super(authorizer, clientProvider, webAppConfigs, groups, false);
 		this.maxConfigSize = maxConfigSize;
 	}
 
@@ -115,8 +115,8 @@ public class ConfigHandler extends S3Login {
 			throws InvalidKeyException {
 		WebAppUser credentials = authorization.getWebAppUser();
 		String domain = authorization.getDomain();
-		String value = webAppConfigs.get(domain, credentials.webAppConfig + ".config", "ConfigWrite");
-		if (value == null || value.equalsIgnoreCase("false") && !value.equals("0")) {
+		if (!webAppConfigs.isEnabled(domain, credentials.webAppConfig + WebAppConfigProvider.CONFIGURATION_PREFIX,
+				WebAppConfigProvider.CONFIGWRITE_NAME)) {
 			LOGGER.info("{}@{} has no ConfigWrite permission!", authorization.getName(), domain);
 			return 403;
 		}

@@ -39,6 +39,7 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 
 import org.eclipse.californium.cloud.http.HttpService;
+import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.util.DomainNamePair;
 import org.eclipse.californium.cloud.s3.util.WebAppDomainUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
@@ -522,6 +523,10 @@ public class Aws4Authorizer {
 	/**
 	 * Create AWS4-HMAC-SHA256 signature verifier.
 	 * 
+	 * The S3 region must be the fixed region used in javascript app to send
+	 * request to the http-host, for the provided javascript app use
+	 * {@link S3ProxyClient#DEFAULT_REGION}.
+	 * 
 	 * @param webAppUserProvider web application user provider.
 	 * @param region S3 region
 	 * @throws NullPointerException if webAppUserProvider or region is
@@ -530,6 +535,9 @@ public class Aws4Authorizer {
 	public Aws4Authorizer(WebAppUserProvider webAppUserProvider, String region) {
 		if (webAppUserProvider == null) {
 			throw new NullPointerException("Web application user provider must not be null!");
+		}
+		if (region == null) {
+			throw new NullPointerException("region must not be null!");
 		}
 		this.webAppUserProvider = webAppUserProvider;
 		this.region = region;
