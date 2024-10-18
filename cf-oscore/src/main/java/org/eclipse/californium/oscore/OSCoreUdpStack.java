@@ -56,8 +56,8 @@ public class OSCoreUdpStack extends BaseCoapStack {
 				new ExchangeCleanupLayer(config),
 				new ObserveLayer(config),
 				new BlockwiseLayer(tag, false, config, matchingStrategy),
-				CongestionControlLayer.newImplementation(tag, config),
-				new ObjectSecurityLayer(ctxDb)};
+				new ObjectSecurityLayer(ctxDb),
+				CongestionControlLayer.newImplementation(tag, config)};
 		setLayers(layers);
 	}
 }
