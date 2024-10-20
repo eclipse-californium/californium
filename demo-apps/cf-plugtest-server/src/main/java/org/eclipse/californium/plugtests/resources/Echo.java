@@ -170,6 +170,7 @@ public class Echo extends CoapResource {
 			Response response = new Response(CONTENT);
 			response.setPayload(LinkFormat.serializeTree(this));
 			response.getOptions().setContentFormat(APPLICATION_LINK_FORMAT);
+			response.getOptions().setMaxAge(0);
 			exchange.respond(response);
 		}
 	}
@@ -223,6 +224,7 @@ public class Echo extends CoapResource {
 		if (length > payload.length) {
 			Arrays.fill(responsePayload, payload.length, length, (byte) '*');
 		}
+		String location = null;
 		if (keep) {
 			String principal = getPrincipalName(request);
 			if (principal == null) {
@@ -242,6 +244,7 @@ public class Echo extends CoapResource {
 						child.setParent(this);
 						keptPosts.put(principal, child);
 					}
+					location = child.getURI();
 				} finally {
 					lock.unlock();
 				}
@@ -251,6 +254,9 @@ public class Echo extends CoapResource {
 		final Response response = new Response(CHANGED);
 		response.setPayload(responsePayload);
 		response.getOptions().setContentFormat(responseFormat);
+		if (location != null) {
+			response.getOptions().setLocationPath(location);
+		}
 		if (delay > 0 && executor != null) {
 			boolean schedule = false;
 			if (pendingResponses.get() < MAX_PENDING_RESPONSES - 1) {
@@ -331,6 +337,7 @@ public class Echo extends CoapResource {
 			Response response = new Response(CONTENT);
 			response.setPayload(devicePost.getPayload());
 			response.getOptions().setContentFormat(accept);
+			response.getOptions().setMaxAge(0);
 			exchange.respond(response);
 		}
 
