@@ -28,6 +28,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.NoResponseOption;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseConsumer;
@@ -55,7 +56,7 @@ public class CoapExchange implements ResponseConsumer {
 	private String locationPath = null;
 	private String locationQuery = null;
 	private String handshakeMode = null;
-	private long maxAge = 60;
+	private long maxAge = OptionNumberRegistry.Defaults.MAX_AGE;
 	private byte[] eTag = null;
 
 	/**
@@ -495,7 +496,7 @@ public class CoapExchange implements ResponseConsumer {
 			response.getOptions().setLocationPath(locationPath);
 		if (locationQuery != null)
 			response.getOptions().setLocationQuery(locationQuery);
-		if (maxAge != 60)
+		if (maxAge != OptionNumberRegistry.Defaults.MAX_AGE)
 			response.getOptions().setMaxAge(maxAge);
 		if (eTag != null) {
 			response.getOptions().clearETags();
