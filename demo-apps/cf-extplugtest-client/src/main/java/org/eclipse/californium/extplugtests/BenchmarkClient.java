@@ -59,7 +59,6 @@ import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -69,6 +68,8 @@ import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.ResponseTimeout;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
@@ -1010,7 +1011,7 @@ public class BenchmarkClient {
 		this.responseTimeout = configuration.getTimeAsInt(BENCHMARK_RESPONSE_TIMEOUT, TimeUnit.MILLISECONDS);
 
 		if (config.blockwiseOptions != null && config.blockwiseOptions.blocksize != null) {
-			block2 = new BlockOption(BlockOption.size2Szx(config.blockwiseOptions.blocksize), false, 0);
+			block2 = StandardOptionRegistry.BLOCK2.create(BlockOption.size2Szx(config.blockwiseOptions.blocksize), false, 0);
 		} else {
 			block2 = null;
 		}

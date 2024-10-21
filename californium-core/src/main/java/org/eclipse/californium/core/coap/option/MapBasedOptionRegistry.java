@@ -14,7 +14,9 @@
  ********************************************************************************/
 package org.eclipse.californium.core.coap.option;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -94,6 +96,28 @@ public class MapBasedOptionRegistry implements OptionRegistry {
 			add(registry);
 			for (OptionRegistry reg : registries) {
 				add(reg);
+			}
+		} catch (IllegalArgumentException ex) {
+			LOGGER.error("{}", ex.getMessage());
+			throw ex;
+		}
+	}
+
+	/**
+	 * Create option definition map from option registries and definitions.
+	 * 
+	 * @param registries option registries to add.
+	 * @param definitions option definitions to add.
+	 * @see Builder
+	 * @since 4.0
+	 */
+	public MapBasedOptionRegistry(List<OptionRegistry> registries, List<OptionDefinition> definitions) {
+		try {
+			for (OptionRegistry reg : registries) {
+				add(reg);
+			}
+			for (OptionDefinition definition : definitions) {
+				put(definition);
 			}
 		} catch (IllegalArgumentException ex) {
 			LOGGER.error("{}", ex.getMessage());
@@ -271,6 +295,69 @@ public class MapBasedOptionRegistry implements OptionRegistry {
 			return (optionNumber & 0xffff) + (code << 16);
 		} else {
 			return optionNumber;
+		}
+	}
+
+	/**
+	 * Creates builder.
+	 * 
+	 * @return created builder.
+	 * @since 4.0
+	 */
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	/**
+	 * {@link OptionRegistry} Builder.
+	 * <p>
+	 * Creates a {@link MapBasedOptionRegistry} from lists of registries and
+	 * definitions.
+	 * 
+	 * @since 4.0
+	 */
+	public static class Builder {
+
+		/**
+		 * List of {@link OptionRegistry}.
+		 */
+		private final List<OptionRegistry> registries = new ArrayList<>();
+		/**
+		 * List of {@link OptionDefinition}.
+		 */
+		private final List<OptionDefinition> definitions = new ArrayList<>();
+
+		/**
+		 * Adds option registry.
+		 * 
+		 * @param registry option registry
+		 * @return this builder for command chaining
+		 */
+		public Builder add(OptionRegistry registry) {
+			this.registries.add(registry);
+			return this;
+		}
+
+		/**
+		 * Adds option definitions.
+		 * 
+		 * @param definitions option definitions
+		 * @return this builder for command chaining
+		 */
+		public Builder add(OptionDefinition... definitions) {
+			for (OptionDefinition def : definitions) {
+				this.definitions.add(def);
+			}
+			return this;
+		}
+
+		/**
+		 * Builds option registry with added registries and definitions.
+		 * 
+		 * @return built option registry.
+		 */
+		public OptionRegistry build() {
+			return new MapBasedOptionRegistry(registries, definitions);
 		}
 	}
 }

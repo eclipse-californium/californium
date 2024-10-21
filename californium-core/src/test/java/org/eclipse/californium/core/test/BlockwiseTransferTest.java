@@ -37,8 +37,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;

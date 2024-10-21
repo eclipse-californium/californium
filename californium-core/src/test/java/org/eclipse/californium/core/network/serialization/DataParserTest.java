@@ -45,11 +45,11 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
+import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
-import org.eclipse.californium.core.coap.option.StringOptionDefinition;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
@@ -78,9 +78,9 @@ public class DataParserTest {
 	private static final int CUSTOM_OPTION_1 = 57453;
 	private static final int CUSTOM_OPTION_2 = 19205;
 
-	private static final IntegerOptionDefinition CUSTOM_1 = new IntegerOptionDefinition(CUSTOM_OPTION_1, "custom1",
+	private static final IntegerOption.Definition CUSTOM_1 = new IntegerOption.Definition(CUSTOM_OPTION_1, "custom1",
 			true, 0, 4);
-	private static final StringOptionDefinition CUSTOM_2 = new StringOptionDefinition(CUSTOM_OPTION_2, "custom2", false,
+	private static final StringOption.Definition CUSTOM_2 = new StringOption.Definition(CUSTOM_OPTION_2, "custom2", false,
 			0, 64);
 
 	@Rule
@@ -374,8 +374,8 @@ public class DataParserTest {
 		response.setToken(new byte[] { 22, -1, 0, 78, 100, 22 });
 		response.getOptions().addETag(new byte[] { 1, 0, 0, 0, 0, 1 })
 				.addLocationPath("/one/two/three/four/five/six/seven/eight/nine/ten")
-				.addOption(new Option(CUSTOM_1, 1234567)).addOption(new Option(CUSTOM_2, "Arbitrary1"))
-				.addOption(new Option(CUSTOM_2, "Arbitrary2")).addOption(new Option(CUSTOM_2, "Arbitrary3"));
+				.addOption(CUSTOM_1.create(1234567)).addOption(CUSTOM_2.create("Arbitrary1"))
+				.addOption(CUSTOM_2.create("Arbitrary2")).addOption(CUSTOM_2.create("Arbitrary3"));
 
 		RawData rawData = serializer.serializeResponse(response);
 		rawData = receive(rawData, CONNECTOR);

@@ -18,8 +18,6 @@ package org.eclipse.californium.examples.util;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
-import java.util.List;
-
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -38,19 +36,17 @@ public class CoapResponsePrinter {
 	 */
 	public static void printResponse(CoapResponse response) {
 		if (response != null) {
-			List<byte[]> etags = response.getOptions().getETags();
-			for (byte[] etag : etags) {
-				try {
-					for (byte e : etag) {
-						if (' ' > e) {
-							throw new Error("no ascii!");
-						}
+			byte[] etag = response.getOptions().getResponseEtag();
+			try {
+				for (byte e : etag) {
+					if (' ' > e) {
+						throw new Error("no ascii!");
 					}
-					String text = new String(etag, ISO_8859_1);
-					System.out.println("etag: '" + text + "', 0x" + StringUtil.byteArray2Hex(etag));
-				} catch (Error e) {
-					System.out.println("etag: 0x" + StringUtil.byteArray2Hex(etag));
 				}
+				String text = new String(etag, ISO_8859_1);
+				System.out.println("etag: '" + text + "', 0x" + StringUtil.byteArray2Hex(etag));
+			} catch (Error e) {
+				System.out.println("etag: 0x" + StringUtil.byteArray2Hex(etag));
 			}
 			int format = response.getOptions().getContentFormat();
 			if (format != MediaTypeRegistry.TEXT_PLAIN && format != MediaTypeRegistry.UNDEFINED) {

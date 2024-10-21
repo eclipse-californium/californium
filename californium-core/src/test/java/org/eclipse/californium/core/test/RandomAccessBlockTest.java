@@ -36,9 +36,10 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -219,7 +220,7 @@ public class RandomAccessBlockTest {
 					response = new Response(ResponseCode.CONTENT);
 					response.setPayload(payload);
 					boolean m = to <  buf.capacity();
-					block2 = new BlockOption(block2.getSzx(), m, block2.getNum());
+					block2 = StandardOptionRegistry.BLOCK2.create(block2.getSzx(), m, block2.getNum());
 					response.getOptions().setBlock2(block2);
 				} else {
 					response = new Response(ResponseCode.BAD_OPTION);

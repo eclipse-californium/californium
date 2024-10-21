@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPOptionException;
@@ -36,6 +35,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.TestOption;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
@@ -293,7 +293,7 @@ public class MaliciousClientTest {
 	 */
 	@Test
 	public void testBertRequest() throws Exception {
-		BlockOption block = new BlockOption(BlockOption.BERT_SZX, false, 0);
+		BlockOption block = StandardOptionRegistry.BLOCK2.create(BlockOption.BERT_SZX, false, 0);
 		Request get = newGet();
 		get.setConfirmable(true);
 		get.getOptions().setBlock2(block);

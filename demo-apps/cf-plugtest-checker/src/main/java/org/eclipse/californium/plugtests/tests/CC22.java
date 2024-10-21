@@ -106,7 +106,7 @@ public class CC22 extends TestClientAbstract {
 				success &= hasContentType(response);
 
 				if (success) {
-					etag1 = response.getOptions().getETags().get(0);
+					etag1 = response.getOptions().getResponseEtag();
 
 					// Part A
 					request = new Request(Code.PUT, Type.CON);
@@ -145,7 +145,7 @@ public class CC22 extends TestClientAbstract {
 						// checking the response
 						if (response != null) {
 
-							etag2 = response.getOptions().getETags().get(0);
+							etag2 = response.getOptions().getResponseEtag();
 
 							success &= checkCode(EXPECTED_RESPONSE_CODE_PREAMBLE, response.getCode());
 							success &= hasEtag(response);

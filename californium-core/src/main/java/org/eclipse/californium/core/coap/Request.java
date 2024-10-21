@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.AddressEndpointContext;

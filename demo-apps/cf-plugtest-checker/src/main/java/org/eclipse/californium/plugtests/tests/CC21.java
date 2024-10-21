@@ -104,7 +104,7 @@ public class CC21 extends TestClientAbstract {
 				success &= checkCode(EXPECTED_RESPONSE_CODE_A, response.getCode());
 				success &= hasEtag(response);
 				success &= hasNonEmptyPayload(response);
-				etagStep3 = response.getOptions().getETags().get(0);
+				etagStep3 = response.getOptions().getResponseEtag();
 
 				// Part B
 				request = new Request(Code.GET, Type.CON);
@@ -131,7 +131,7 @@ public class CC21 extends TestClientAbstract {
 					success &= checkCode(EXPECTED_RESPONSE_CODE_B, response.getCode());
 					success &= hasEtag(response);
 					success &= checkOption(etagStep3, response.getOptions()
-							.getETags().get(0), "ETag");
+							.getResponseEtag(), "ETag");
 
 					request = new Request(Code.PUT, Type.CON);
 					addContextObserver(request);
@@ -167,7 +167,7 @@ public class CC21 extends TestClientAbstract {
 						success &= checkCode(EXPECTED_RESPONSE_CODE_C, response.getCode());
 						success &= hasEtag(response);
 						success &= checkDifferentOption(etagStep3, response
-								.getOptions().getETags().get(0), "ETag");
+								.getOptions().getResponseEtag(), "ETag");
 					}
 				}
 			}

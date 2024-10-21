@@ -42,7 +42,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.californium.cloud.BaseServer;
 import org.eclipse.californium.cloud.s3.S3ProxyServer;
-import org.eclipse.californium.cloud.s3.option.IntervalOption;
+import org.eclipse.californium.cloud.s3.option.S3ProxyCustomOptions;
 import org.eclipse.californium.cloud.s3.proxy.S3ListResponse.S3Object;
 import org.eclipse.californium.cloud.s3.proxy.S3Request.CacheMode;
 import org.eclipse.californium.elements.config.Configuration;
@@ -73,8 +73,8 @@ import org.slf4j.LoggerFactory;
  * Only the {@code L} field is mandatory, the others may be not available. The
  * date-time field uses the ISO format, see example. {@code I} contains the
  * expected send interval in seconds indicated by the device using
- * {@link IntervalOption}, and {@code C} contains the numerical coap
- * content-type option.
+ * {@link S3ProxyCustomOptions#INTERVAL}, and {@code C} contains the
+ * numerical coap content-type option.
  * 
  * The file includes also two custom metadata fields {@link #METADATA_LASTDAY}
  * and {@link #METADATA_DAYS}, which helps to append new days or switch to a new

@@ -272,11 +272,11 @@ public abstract class DataParser {
 
 	/**
 	 * Create option.
-	 * 
+	 * <p>
 	 * Enables custom implementation to override this method in order to ignore,
 	 * fix malformed options, or provide details for an custom error response.
-	 * 
-	 * Note: only malformed CON-requests are responded with an error message.
+	 * <p>
+	 * <b>Note:</b> only malformed CON-requests are responded with an error message.
 	 * Malformed CON-responses are always rejected and malformed NON-messages
 	 * are always ignored.
 	 * 

@@ -33,16 +33,16 @@ import java.util.List;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
-import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
+import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
-import org.eclipse.californium.core.coap.option.OpaqueOptionDefinition;
+import org.eclipse.californium.core.coap.option.NoResponseOption;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
-import org.eclipse.californium.core.coap.option.StringOptionDefinition;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
@@ -60,15 +60,16 @@ public class OptionTest {
 
 	private static final int CUSTOM_OPTION_1 = 0xff1c;
 	private static final int CUSTOM_OPTION_2 = 0xff9c;
-	private static final StringOptionDefinition CUSTOM_1 = new StringOptionDefinition(CUSTOM_OPTION_1, "custom1", true,
+	private static final StringOption.Definition CUSTOM_1 = new StringOption.Definition(CUSTOM_OPTION_1, "custom1", true,
 			0, 64);
-	private static final StringOptionDefinition CUSTOM_2 = new StringOptionDefinition(CUSTOM_OPTION_2, "custom2", false,
+	private static final StringOption.Definition CUSTOM_2 = new StringOption.Definition(CUSTOM_OPTION_2, "custom2", false,
 			0, 64);
-	private static final OptionDefinition OPAQUE = new OpaqueOptionDefinition(OptionNumberRegistry.RESERVED_0, "Reserved 0");
-	private static final IntegerOptionDefinition INTEGER = new IntegerOptionDefinition(0xff7c, "custom3", false,
-			0, 4);
-	private static final IntegerOptionDefinition LONG = new IntegerOptionDefinition(0xff8c, "custom4", false,
-			0, 8);
+	private static final OptionDefinition OPAQUE = new OpaqueOption.Definition(OptionNumberRegistry.RESERVED_0,
+			"Reserved 0");
+	private static final IntegerOption.Definition INTEGER = new IntegerOption.Definition(0xff7c,
+			"custom3", false, 0, 4);
+	private static final IntegerOption.Definition LONG = new IntegerOption.Definition(0xff8c, "custom4",
+			false, 0, 8);
 
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
@@ -292,7 +293,7 @@ public class OptionTest {
 
 	@Test
 	public void testSetIntegerValue() {
-		Option option = INTEGER.create(0);
+		IntegerOption option = INTEGER.create(0);
 
 		assertArrayEquals(Bytes.EMPTY, option.getValue());
 		assertEquals(0, option.getIntegerValue());
@@ -329,7 +330,7 @@ public class OptionTest {
 
 	@Test
 	public void testSetLongValue() {
-		Option option = LONG.create(0);
+		IntegerOption option = LONG.create(0);
 
 		assertArrayEquals(option.getValue(), Bytes.EMPTY);
 		assertEquals(0, option.getLongValue());
@@ -472,7 +473,7 @@ public class OptionTest {
 
 		options = new OptionSet();
 		options.setBlock1(1, true, 4);
-		assertEquals("{\"Block1\":\"(szx=1/32, m=true, num=4)\"}", options.toString());
+		assertEquals("{\"Block1\":(szx=1/32, m=true, num=4)}", options.toString());
 
 		options = new OptionSet();
 		options.setAccept(MediaTypeRegistry.APPLICATION_VND_OMA_LWM2M_JSON);

@@ -28,6 +28,7 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 

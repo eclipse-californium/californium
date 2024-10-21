@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.californium.cloud.s3.option.IntervalOption;
+import org.eclipse.californium.cloud.s3.option.S3ProxyCustomOptions;
 import org.eclipse.californium.cloud.s3.resources.S3Devices;
 import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
@@ -28,6 +28,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry.MediaTypeDefintion;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -506,9 +507,9 @@ public class S3ProxyRequest extends S3PutRequest {
 				}
 			}
 			if (interval == null) {
-				Option option = request.getOptions().getOtherOption(IntervalOption.DEFINITION);
-				if (option != null) {
-					interval = option.getIntegerValue();
+				Option option = request.getOptions().getOtherOption(S3ProxyCustomOptions.INTERVAL);
+				if (option instanceof IntegerOption) {
+					interval = ((IntegerOption)option).getIntegerValue();
 				}
 			}
 			return new S3ProxyRequest(request, key, pathStartIndex, pathPrincipalIndex, subPath, etags, content,

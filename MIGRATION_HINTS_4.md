@@ -34,6 +34,8 @@ Californium 3 used in several functions two `ScheduledExecutorService` for execu
 In order to simplify the API for Californium 4, this behavior is mapped into the `ProtocolScheduledExecutorService` interface. This replaces the two executors in several functions. It may be provided with a custom implementation or by `ExecutorsUtil.newProtocolScheduledThreadPool(int, ThreadFactory)` and
 `ExecutorsUtil.newSingleThreadedProtocolExecutor(ThreadFactory)`.
 
+Californium 4 uses `Option` with immutable values. Customized implementations are intended to provide their `OptionDefinition` as a static inner class of the `Option`. The `Option` implementations are moved into a separate package, which cases some adaptions in the import declarations.
+
 ### Element-Connector:
 
 Supports virtual threads for UDP receivers and senders, if the JVM supports it. Otherwise platform daemon threads are used. Chosen by `-1` as number of threads in `UDP.RECEIVER_THREAD_COUNT` and `UDP.SENDER_THREAD_COUNT`.
@@ -58,7 +60,7 @@ Supports virtual threads for DTLS receivers, if the JVM supports it. Otherwise p
 
 ### Californium-Core:
 
-The `Option` is changed to be immutable, remove the setters.
+The `Option` is changed to be immutable, removing the setters.
 
 ### Californium-Proxy2:
 
@@ -125,6 +127,11 @@ Remove `ResponseConsumer`. Replaced by `Consumer<Response>`.
 Add `Endpoint.getExecutor()`.
 
 `ClientObserveRelation` and `CoapObserveRelation` switched to use the `Endpoint` executor instead of a separate argument.
+
+The `Option.getStringValue()` and `Option.getIntegerValue()/getLongValue()` are moved to `StringOption` and `IntegerOption`.
+
+The `BlockOption` and `NoResponseOption` moved into the `org.eclipse.californium.core.coap.option` package.
+The specific `OptionDefinition`s are moved into static classes, e.g. `IntegerOptionDefinition` to `IntegerOption.Definition`.
 
 ### Californium-Proxy2:
 

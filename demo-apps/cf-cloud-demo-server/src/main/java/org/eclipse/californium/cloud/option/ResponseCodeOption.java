@@ -17,27 +17,65 @@ package org.eclipse.californium.cloud.option;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MessageFormatException;
-import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
-import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.option.IntegerOption;
 
 /**
  * CoAP custom option for response code of combined read.
  * 
  * @since 3.12
  */
-public class ReadResponseOption extends Option {
+public class ResponseCodeOption extends IntegerOption {
 
 	/**
-	 * Number of custom option.
+	 * Create response code option for combined read.
+	 * 
+	 * @param code response code
 	 */
-	public static final int COAP_OPTION_READ_RESPONSE = 0xfdf0;
+	public ResponseCodeOption(Definition definition, long code) {
+		super(definition, code);
+	}
 
-	public static final IntegerOptionDefinition DEFINITION = new IntegerOptionDefinition(COAP_OPTION_READ_RESPONSE,
-			"Read_ResponseCode", true, 1, 1) {
+	/**
+	 * Create response code option for combined read.
+	 * 
+	 * @param code response code
+	 */
+	public ResponseCodeOption(Definition definition, ResponseCode code) {
+		this(definition, code.value);
+	}
+
+	public ResponseCodeOption(Definition definition, byte[] value) {
+		super(definition, value);
+	}
+
+	@Override
+	public Definition getDefinition() {
+		return (Definition) super.getDefinition();
+	}
+
+	@Override
+	public String toValueString() {
+		return CoAP.toDisplayString(getIntegerValue());
+	}
+
+	public static class Definition extends IntegerOption.Definition {
+
+		public Definition(int number, String name) {
+			super(number, name, true, 1, 1);
+		}
 
 		@Override
-		public Option create(byte[] value) {
-			return new ReadResponseOption(value);
+		public ResponseCodeOption create(byte[] value) {
+			return new ResponseCodeOption(this, value);
+		}
+
+		@Override
+		public ResponseCodeOption create(long value) {
+			return new ResponseCodeOption(this, value);
+		}
+
+		public ResponseCodeOption create(ResponseCode code) {
+			return new ResponseCodeOption(this, code);
 		}
 
 		@Override
@@ -49,33 +87,5 @@ public class ReadResponseOption extends Option {
 				throw new IllegalArgumentException(ex.getMessage() + " Value " + value);
 			}
 		}
-
-	};
-
-	/**
-	 * Create response code option for combined read.
-	 * 
-	 * @param code response code
-	 */
-	public ReadResponseOption(int code) {
-		super(DEFINITION, code);
-	}
-
-	/**
-	 * Create response code option for combined read.
-	 * 
-	 * @param code response code
-	 */
-	public ReadResponseOption(ResponseCode code) {
-		this(code.value);
-	}
-
-	public ReadResponseOption(byte[] value) {
-		super(DEFINITION, value);
-	}
-
-	@Override
-	public String toValueString() {
-		return CoAP.toDisplayString(getIntegerValue());
 	}
 }

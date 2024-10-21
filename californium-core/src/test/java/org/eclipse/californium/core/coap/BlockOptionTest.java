@@ -24,6 +24,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -134,8 +136,8 @@ public class BlockOptionTest {
 	 * back and checks that the result is the same as the original.
 	 */
 	private static void testCombined(int szx, boolean m, int num) {
-		BlockOption block = new BlockOption(szx, m, num);
-		BlockOption copy = new BlockOption(block.getValue());
+		BlockOption block = StandardOptionRegistry.BLOCK1.create(szx, m, num);
+		BlockOption copy = StandardOptionRegistry.BLOCK1.create(block.getValue());
 		assertEquals("szx", szx, block.getSzx());
 		assertEquals("m", m, block.isM());
 		assertEquals("num", num, block.getNum());
@@ -151,7 +153,7 @@ public class BlockOptionTest {
 	 * and serializes them to a byte array.
 	 */
 	private static byte[] toBytes(int szx, boolean m, int num) {
-		byte[] bytes = new BlockOption(szx, m, num).getValue();
+		byte[] bytes = BlockOption.encode(szx, m, num);
 		LOGGER.info("{} == (szx={}, m={}, num={})", StringUtil.byteArray2Hex(bytes), szx, m, num);
 		return bytes;
 	}

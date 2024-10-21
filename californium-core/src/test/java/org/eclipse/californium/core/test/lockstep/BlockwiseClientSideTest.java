@@ -63,9 +63,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.test.CountingCoapHandler;
@@ -1088,7 +1089,7 @@ public class BlockwiseClientSideTest {
 		String path = "test";
 
 		Request request = createRequest(GET, path, server);
-		request.getOptions().setBlock2(new BlockOption(BlockOption.size2Szx(128), false, 2));
+		request.getOptions().setBlock2(StandardOptionRegistry.BLOCK2.create(BlockOption.size2Szx(128), false, 2));
 		client.sendRequest(request);
 
 		server.expectRequest(CON, GET, path).storeBoth("A").block2(2, false, 128).go();

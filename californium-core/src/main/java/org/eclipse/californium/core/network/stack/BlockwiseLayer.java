@@ -68,7 +68,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -76,6 +75,8 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.EndpointContext;
@@ -209,7 +210,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		@Override
 		public void remove(BlockwiseStatus status) {
-			clearBlock1Status((Block1BlockwiseStatus)status);
+			clearBlock1Status((Block1BlockwiseStatus) status);
 		}
 
 	};
@@ -217,7 +218,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		@Override
 		public void remove(BlockwiseStatus status) {
-			clearBlock2Status((Block2BlockwiseStatus)status);
+			clearBlock2Status((Block2BlockwiseStatus) status);
 		}
 
 	};
@@ -705,7 +706,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				if (requestBlock2 != null) {
 					block2 = getLimitedBlockOption(requestBlock2);
 				} else {
-					block2 = new BlockOption(preferredBlockSzx, false, 0);
+					block2 = StandardOptionRegistry.BLOCK2.create(preferredBlockSzx, false, 0);
 				}
 				responseToSend = status.getNextResponseBlock(block2);
 				responseToSend.setDestinationContext(destinationContext);
@@ -1471,8 +1472,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			lock.unlock();
 		}
 		if (size != null) {
-			LOGGER.debug("{}created tracker for inbound block2 transfer {}, transfers in progress: {}, {}", tag, 
-					status, size, response);
+			LOGGER.debug("{}created tracker for inbound block2 transfer {}, transfers in progress: {}, {}", tag, status,
+					size, response);
 		}
 		return status;
 	}
@@ -1624,7 +1625,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				throw new IllegalStateException(
 						"Block offset " + offset + " doesn't align with preferred blocksize " + size + "!");
 			}
-			return new BlockOption(preferredBlockSzx, block.isM(), offset / size);
+			return block.getDefinition().create(preferredBlockSzx, block.isM(), offset / size);
 		} else {
 			return block;
 		}

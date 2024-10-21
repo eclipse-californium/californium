@@ -44,15 +44,15 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import java.util.function.Consumer;
 
 import org.eclipse.californium.cloud.BaseServer;
-import org.eclipse.californium.cloud.option.ReadEtagOption;
-import org.eclipse.californium.cloud.option.ReadResponseOption;
+import org.eclipse.californium.cloud.option.ResponseCodeOption;
+import org.eclipse.californium.cloud.option.ServerCustomOptions;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.resources.ProtectedCoapResource;
 import org.eclipse.californium.cloud.s3.forward.HttpForwardConfiguration;
 import org.eclipse.californium.cloud.s3.forward.HttpForwardConfigurationProvider;
 import org.eclipse.californium.cloud.s3.forward.HttpForwardService;
 import org.eclipse.californium.cloud.s3.forward.HttpForwardServiceManager;
-import org.eclipse.californium.cloud.s3.option.ForwardResponseOption;
+import org.eclipse.californium.cloud.s3.option.S3ProxyCustomOptions;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
@@ -67,6 +67,7 @@ import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
@@ -142,12 +143,12 @@ import org.slf4j.LoggerFactory;
  * <dl>
  * <dt>{@link TimeOption}, {@value TimeOption#COAP_OPTION_TIME}</dt>
  * <dd>Time synchronization.</dd>
- * <dt>{@link ReadResponseOption},
- * {@value ReadResponseOption#COAP_OPTION_READ_RESPONSE}</dt>
+ * <dt>{@link ResponseCodeOption},
+ * {@value ServerCustomOptions#COAP_OPTION_READ_RESPONSE}</dt>
  * <dd>Response code of piggybacked read request. See query parameter
  * {@value #URI_QUERY_OPTION_READ}</dd>
- * <dt>{@link ReadEtagOption},
- * {@value ReadEtagOption#COAP_OPTION_READ_ETAG}</dt>
+ * <dt>{@link OpaqueOption},
+ * {@value ServerCustomOptions#COAP_OPTION_READ_ETAG}</dt>
  * <dd>ETAG of piggybacked read request. See query parameter
  * {@value #URI_QUERY_OPTION_READ}</dd>
  * </dl>
@@ -412,7 +413,8 @@ public class S3Devices extends ProtectedCoapResource {
 						return;
 					}
 					// forward response code in custom option
-					response.getOptions().addOtherOption(new ForwardResponseOption(forward.getCode()));
+					response.getOptions().addOtherOption(
+							S3ProxyCustomOptions.FORWARD_RESPONSE.create(forward.getCode()));
 				}
 				if (write != null && read != null) {
 					if (write.getCode() == CHANGED && read.getCode() == CONTENT) {
@@ -420,12 +422,12 @@ public class S3Devices extends ProtectedCoapResource {
 						OptionSet options = write.getOptions();
 						options.setContentFormat(read.getOptions().getContentFormat());
 						for (byte[] etag : read.getOptions().getETags()) {
-							options.addOtherOption(ReadEtagOption.DEFINITION.create(etag));
+							options.addOtherOption(ServerCustomOptions.READ_ETAG.create(etag));
 						}
 						write.setPayload(read.getPayload());
 					}
 					// forward response code in custom option
-					write.getOptions().addOtherOption(new ReadResponseOption(read.getCode()));
+					write.getOptions().addOtherOption(ServerCustomOptions.READ_RESPONSE.create(read.getCode()));
 					exchange.respond(write);
 				} else if (write != null) {
 					exchange.respond(write);
@@ -453,7 +455,7 @@ public class S3Devices extends ProtectedCoapResource {
 		}
 
 		if (read != null && !read.isEmpty()) {
-			List<Option> readEtag = request.getOptions().getOthers(ReadEtagOption.DEFINITION);
+			List<Option> readEtag = request.getOptions().getOthers(ServerCustomOptions.READ_ETAG);
 			S3ProxyRequest s3ReadRequest = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(read)
 					.etags(readEtag).build();
 			s3Client.get(s3ReadRequest, multi.create("read"));

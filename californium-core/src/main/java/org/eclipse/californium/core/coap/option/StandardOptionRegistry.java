@@ -41,67 +41,67 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final OpaqueOptionDefinition IF_MATCH = new OpaqueOptionDefinition(OptionNumberRegistry.IF_MATCH,
+	public static final OpaqueOption.Definition IF_MATCH = new OpaqueOption.Definition(OptionNumberRegistry.IF_MATCH,
 			Names.If_Match, false, 0, 8);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final StringOptionDefinition URI_HOST = new StringOptionDefinition(OptionNumberRegistry.URI_HOST,
+	public static final StringOption.Definition URI_HOST = new StringOption.Definition(OptionNumberRegistry.URI_HOST,
 			Names.Uri_Host, true, 1, 255);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final OpaqueOptionDefinition ETAG = new OpaqueOptionDefinition(OptionNumberRegistry.ETAG, Names.ETag,
+	public static final OpaqueOption.Definition ETAG = new OpaqueOption.Definition(OptionNumberRegistry.ETAG, Names.ETag,
 			false, 1, 8);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final EmptyOptionDefinition IF_NONE_MATCH = new EmptyOptionDefinition(
+	public static final EmptyOption.Definition IF_NONE_MATCH = new EmptyOption.Definition(
 			OptionNumberRegistry.IF_NONE_MATCH, Names.If_None_Match);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final IntegerOptionDefinition URI_PORT = new IntegerOptionDefinition(OptionNumberRegistry.URI_PORT,
+	public static final IntegerOption.Definition URI_PORT = new IntegerOption.Definition(OptionNumberRegistry.URI_PORT,
 			Names.Uri_Port, true, 0, 2);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final StringOptionDefinition LOCATION_PATH = new StringOptionDefinition(
+	public static final StringOption.Definition LOCATION_PATH = new StringOption.Definition(
 			OptionNumberRegistry.LOCATION_PATH, Names.Location_Path, false, 0, 255);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final StringOptionDefinition URI_PATH = new StringOptionDefinition(OptionNumberRegistry.URI_PATH,
+	public static final StringOption.Definition URI_PATH = new StringOption.Definition(OptionNumberRegistry.URI_PATH,
 			Names.Uri_Path, false, 0, 255);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final IntegerOptionDefinition CONTENT_FORMAT = new IntegerOptionDefinition(
+	public static final IntegerOption.Definition CONTENT_FORMAT = new IntegerOption.Definition(
 			OptionNumberRegistry.CONTENT_FORMAT, Names.Content_Format, true, 0, 2);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final IntegerOptionDefinition MAX_AGE = new IntegerOptionDefinition(OptionNumberRegistry.MAX_AGE,
+	public static final IntegerOption.Definition MAX_AGE = new IntegerOption.Definition(OptionNumberRegistry.MAX_AGE,
 			Names.Max_Age, true, 0, 4);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final StringOptionDefinition URI_QUERY = new StringOptionDefinition(OptionNumberRegistry.URI_QUERY,
+	public static final StringOption.Definition URI_QUERY = new StringOption.Definition(OptionNumberRegistry.URI_QUERY,
 			Names.Uri_Query, false, 0, 255);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final IntegerOptionDefinition ACCEPT = new IntegerOptionDefinition(OptionNumberRegistry.ACCEPT,
+	public static final IntegerOption.Definition ACCEPT = new IntegerOption.Definition(OptionNumberRegistry.ACCEPT,
 			Names.Accept, true, 0, 2);
 	/**
 	 * Not supported for now, only for logging!
@@ -110,54 +110,54 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	 *      target= "_blank">RFC9177 4. The Q-Block1 and Q-Block2 Options </a>
 	 * @since 3.9
 	 */
-	public static final IntegerOptionDefinition Q_BLOCK_1 = new IntegerOptionDefinition(19, "Q-Block-1", true, 0, 3);
+	public static final IntegerOption.Definition Q_BLOCK_1 = new IntegerOption.Definition(19, "Q-Block-1", true, 0, 3);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final StringOptionDefinition LOCATION_QUERY = new StringOptionDefinition(
+	public static final StringOption.Definition LOCATION_QUERY = new StringOption.Definition(
 			OptionNumberRegistry.LOCATION_QUERY, Names.Location_Query, false, 0, 255);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final StringOptionDefinition PROXY_URI = new StringOptionDefinition(OptionNumberRegistry.PROXY_URI,
+	public static final StringOption.Definition PROXY_URI = new StringOption.Definition(OptionNumberRegistry.PROXY_URI,
 			Names.Proxy_Uri, true, 1, 1034);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final StringOptionDefinition PROXY_SCHEME = new StringOptionDefinition(
+	public static final StringOption.Definition PROXY_SCHEME = new StringOption.Definition(
 			OptionNumberRegistry.PROXY_SCHEME, Names.Proxy_Scheme, true, 1, 255);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.10"
 	 *      target= "_blank">RFC7252 5.10. Option Definitions</a>
 	 */
-	public static final IntegerOptionDefinition SIZE1 = new IntegerOptionDefinition(OptionNumberRegistry.SIZE1,
+	public static final IntegerOption.Definition SIZE1 = new IntegerOption.Definition(OptionNumberRegistry.SIZE1,
 			Names.Size1, true, 0, 4);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7641#section-2" target=
 	 *      "_blank">RFC7641 2. The Observe Option</a>
 	 */
-	public static final IntegerOptionDefinition OBSERVE = new IntegerOptionDefinition(OptionNumberRegistry.OBSERVE,
+	public static final IntegerOption.Definition OBSERVE = new IntegerOption.Definition(OptionNumberRegistry.OBSERVE,
 			Names.Observe, true, 0, 3);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7959#section-2.1" target=
 	 *      "_blank">RFC7959 2.1. The Block2 and Block1 Options</a>
 	 */
-	public static final IntegerOptionDefinition BLOCK1 = new IntegerOptionDefinition(OptionNumberRegistry.BLOCK1,
-			Names.Block1, true, 0, 3);
+	public static final BlockOption.Definition BLOCK1 = new BlockOption.Definition(OptionNumberRegistry.BLOCK1,
+			Names.Block1);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7959#section-2.1" target=
 	 *      "_blank">RFC7959 2.1. The Block2 and Block1 Options</a>
 	 */
-	public static final IntegerOptionDefinition BLOCK2 = new IntegerOptionDefinition(OptionNumberRegistry.BLOCK2,
-			Names.Block2, true, 0, 3);
+	public static final BlockOption.Definition BLOCK2 = new BlockOption.Definition(OptionNumberRegistry.BLOCK2,
+			Names.Block2);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7959#section-4" target=
 	 *      "_blank">RFC7959 4. The Size2 and Size1 Options</a>
 	 */
-	public static final IntegerOptionDefinition SIZE2 = new IntegerOptionDefinition(OptionNumberRegistry.SIZE2,
+	public static final IntegerOption.Definition SIZE2 = new IntegerOption.Definition(OptionNumberRegistry.SIZE2,
 			Names.Size2, true, 0, 4);
 	/**
 	 * Not supported for now, only for logging!
@@ -166,12 +166,12 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	 *      target= "_blank">RFC9177 4. The Q-Block1 and Q-Block2 Options </a>
 	 * @since 3.9
 	 */
-	public static final IntegerOptionDefinition Q_BLOCK_2 = new IntegerOptionDefinition(31, "Q-Block-2", false, 0, 3);
+	public static final IntegerOption.Definition Q_BLOCK_2 = new IntegerOption.Definition(31, "Q-Block-2", false, 0, 3);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc8613.html#section-2"
 	 *      target= "_blank">RFC8613 2. The OSCORE Option</a>
 	 */
-	public static final OpaqueOptionDefinition OSCORE = new OpaqueOptionDefinition(OptionNumberRegistry.OSCORE,
+	public static final OpaqueOption.Definition OSCORE = new OpaqueOption.Definition(OptionNumberRegistry.OSCORE,
 			Names.Object_Security, true, 0, 255);
 	/**
 	 * Not supported for now, only for logging!
@@ -180,13 +180,12 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	 *      target= "_blank">RFC9175 2.2.1. Echo Option Format</a>
 	 * @since 3.9
 	 */
-	public static final OpaqueOptionDefinition ECHO = new OpaqueOptionDefinition(252, "Echo", true, 1, 40);
+	public static final OpaqueOption.Definition ECHO = new OpaqueOption.Definition(252, "Echo", true, 1, 40);
 	/**
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7967.html#section-2"
 	 *      target= "_blank">RFC7967 2. Option Definition</a>
 	 */
-	public static final IntegerOptionDefinition NO_RESPONSE = new IntegerOptionDefinition(
-			OptionNumberRegistry.NO_RESPONSE, Names.No_Response, true, 0, 1);
+	public static final NoResponseOption.Definition NO_RESPONSE = new NoResponseOption.Definition();
 	/**
 	 * Not supported for now, only for logging!
 	 * 
@@ -194,7 +193,7 @@ public class StandardOptionRegistry extends MapBasedOptionRegistry {
 	 *      target= "_blank">RFC9175 3.2.1. Request-Tag Option Format </a>
 	 * @since 3.9
 	 */
-	public static final OpaqueOptionDefinition REQUEST_TAG = new OpaqueOptionDefinition(292, "Request-Tag", false, 0,
+	public static final OpaqueOption.Definition REQUEST_TAG = new OpaqueOption.Definition(292, "Request-Tag", false, 0,
 			8);
 
 	/**

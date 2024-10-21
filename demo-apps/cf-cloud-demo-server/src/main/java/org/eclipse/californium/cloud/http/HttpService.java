@@ -29,7 +29,6 @@ import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -876,9 +875,8 @@ public class HttpService {
 				} else {
 					contentType = "text/plain; charset=utf-8";
 				}
-				List<byte[]> tags = response.getOptions().getETags();
-				if (!tags.isEmpty()) {
-					byte[] etag = tags.get(0);
+				byte[] etag = response.getOptions().getResponseEtag();
+				if (etag != null) {
 					httpExchange.getResponseHeaders().set("ETag", StringUtil.byteArray2Hex(etag));
 				}
 			} else {

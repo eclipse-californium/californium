@@ -15,12 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.plugtests.tests;
 
-import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.plugtests.PlugtestChecker;
 import org.eclipse.californium.plugtests.TestClientAbstract;
 
@@ -53,7 +52,7 @@ public class CB04 extends TestClientAbstract {
 		} else {
 			int maxNUM = response.getOptions().getBlock1().getNum();
 			success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
-			success &= checkOption(new BlockOption(PlugtestChecker.PLUGTEST_BLOCK_SZX,
+			success &= checkOption(StandardOptionRegistry.BLOCK1.create(PlugtestChecker.PLUGTEST_BLOCK_SZX,
 					false, maxNUM), response.getOptions().getBlock1(),
 					"Block1");
 			success &= hasLocation(response);

@@ -29,10 +29,10 @@ package org.eclipse.californium.core.network.stack;
 
 import java.util.List;
 
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.ExchangeCompleteException;
 import org.eclipse.californium.core.network.Outbox;
