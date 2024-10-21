@@ -28,10 +28,10 @@ package org.eclipse.californium.core.network.stack;
 
 import java.util.Arrays;
 
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.NotificationOrder;
 import org.eclipse.californium.elements.util.Bytes;
@@ -86,7 +86,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		}
 		if (response.getOptions().getETagCount() > 0) {
 			// keep track of ETag included in response
-			etag = response.getOptions().getETags().get(0);
+			etag = response.getOptions().getResponseEtag();
 		} else {
 			etag = null;
 		}
@@ -216,7 +216,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 			// response must contain the same ETag
 			if (responseBlock.getOptions().getETagCount() != 1) {
 				throw new BlockwiseTransferException("response does not contain a single ETag");
-			} else if (!Arrays.equals(etag, responseBlock.getOptions().getETags().get(0))) {
+			} else if (!Arrays.equals(etag, responseBlock.getOptions().getResponseEtag())) {
 				throw new BlockwiseTransferException("response does not contain expected ETag");
 			}
 		}

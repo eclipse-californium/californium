@@ -16,6 +16,7 @@ package org.eclipse.californium.core.coap.option;
 
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
+import org.eclipse.californium.core.coap.option.EmptyOption.Definition;
 
 /**
  * Option definition.
@@ -44,25 +45,12 @@ public interface OptionDefinition extends OptionNumber {
 	 * Create option from byte array.
 	 * 
 	 * @param value the option value
-	 * @return create options
+	 * @return created options
+	 * @throws NullPointerException if value is {@code null}.
+	 * @throws UnsupportedOperationException if option definition is a
+	 *             {@link Definition}.
 	 */
 	Option create(byte[] value);
-
-	/**
-	 * Create option from string.
-	 * 
-	 * @param value the option value
-	 * @return create options
-	 */
-	Option create(String value);
-
-	/**
-	 * Create option from long.
-	 * 
-	 * @param value the option value
-	 * @return create options
-	 */
-	Option create(long value);
 
 	/**
 	 * Get option format.

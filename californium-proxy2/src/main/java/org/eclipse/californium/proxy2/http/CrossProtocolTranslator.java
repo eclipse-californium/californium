@@ -51,8 +51,10 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.InvalidMethodException;
@@ -298,7 +300,7 @@ public class CrossProtocolTranslator {
 								coapContentType = getCoapMediaType(headerFragment, MediaTypeRegistry.UNDEFINED);
 							}
 							if (coapContentType != MediaTypeRegistry.UNDEFINED) {
-								accept = new Option(StandardOptionRegistry.ACCEPT, coapContentType);
+								accept = StandardOptionRegistry.ACCEPT.create(coapContentType);
 								acceptQualifier = qualifier;
 							}
 						}
@@ -323,20 +325,20 @@ public class CrossProtocolTranslator {
 					}
 					if (maxAge >= 0) {
 						// create the option
-						Option option = new Option(StandardOptionRegistry.MAX_AGE, maxAge);
+						Option option = StandardOptionRegistry.MAX_AGE.create(maxAge);
 						optionList.add(option);
 					}
 				} else if (optionDefinition.equals(StandardOptionRegistry.ETAG)) {
 					byte[] etag = etagTranslator.getCoapEtag(headerValue);
-					Option option = new Option(StandardOptionRegistry.ETAG, etag);
+					Option option = StandardOptionRegistry.ETAG.create(etag);
 					optionList.add(option);
 				} else if (optionDefinition.equals(StandardOptionRegistry.IF_MATCH)) {
 					byte[] etag = etagTranslator.getCoapEtag(headerValue);
-					Option option = new Option(StandardOptionRegistry.IF_MATCH, etag);
+					Option option = StandardOptionRegistry.IF_MATCH.create(etag);
 					optionList.add(option);
 				} else if (optionDefinition.equals(StandardOptionRegistry.IF_NONE_MATCH)) {
 					if (headerValue.equals("*")) {
-						Option option = new Option(StandardOptionRegistry.IF_NONE_MATCH, Bytes.EMPTY);
+						Option option = StandardOptionRegistry.IF_NONE_MATCH.create();
 						optionList.add(option);
 					} else {
 						LOGGER.debug("'if-none-match' with etag '{}' is not supported!", headerValue);
@@ -364,7 +366,7 @@ public class CrossProtocolTranslator {
 					Option option;
 					switch (optionDefinition.getFormat()) {
 					case INTEGER:
-						option = optionDefinition.create(Long.parseLong(headerValue));
+						option = ((IntegerOption.Definition)optionDefinition).create(Long.parseLong(headerValue));
 						break;
 					case OPAQUE:
 						option = optionDefinition.create(headerValue.getBytes(ISO_8859_1));
@@ -374,7 +376,7 @@ public class CrossProtocolTranslator {
 						break;
 					case STRING:
 					default:
-						option = optionDefinition.create(headerValue);
+						option = ((StringOption.Definition)optionDefinition).create(headerValue);
 						break;
 					}
 					optionList.add(option);
@@ -605,22 +607,22 @@ public class CrossProtocolTranslator {
 					stringOptionValue = "*";
 				} else if (StandardOptionRegistry.ACCEPT.equals(definition)) {
 					try {
-						stringOptionValue = getHttpContentType(option.getIntegerValue()).toString();
+						stringOptionValue = getHttpContentType(((IntegerOption)option).getIntegerValue()).toString();
 					} catch (TranslationException e) {
 						continue;
 					}
 				} else if (StandardOptionRegistry.MAX_AGE.equals(definition)) {
 					// format: cache-control: max-age=60
-					int maxAge = option.getIntegerValue();
+					int maxAge = ((IntegerOption)option).getIntegerValue();
 					if (maxAge > 0) {
-						stringOptionValue = "max-age=" + Integer.toString(option.getIntegerValue());
+						stringOptionValue = "max-age=" + Integer.toString(maxAge);
 					} else {
 						stringOptionValue = "no-cache";
 					}
 				} else if (optionFormat == OptionFormat.STRING) {
-					stringOptionValue = option.getStringValue();
+					stringOptionValue = ((StringOption)option).getStringValue();
 				} else if (optionFormat == OptionFormat.INTEGER) {
-					stringOptionValue = Integer.toString(option.getIntegerValue());
+					stringOptionValue = Integer.toString(((IntegerOption)option).getIntegerValue());
 				} else if (optionFormat == OptionFormat.OPAQUE) {
 					stringOptionValue = new String(option.getValue());
 				} else if (optionFormat == OptionFormat.EMPTY) {
@@ -640,9 +642,9 @@ public class CrossProtocolTranslator {
 			for (Option option : optionList) {
 				OptionDefinition definition = option.getDefinition();
 				if (StandardOptionRegistry.LOCATION_PATH.equals(definition)) {
-					locationPath.append("/").append(option.getStringValue());
+					locationPath.append("/").append(((StringOption)option).getStringValue());
 				} else if (StandardOptionRegistry.LOCATION_QUERY.equals(definition)) {
-					locationQuery.append("&").append(option.getStringValue());
+					locationQuery.append("&").append(((StringOption)option).getStringValue());
 				}
 			}
 			if (locationQuery.length() > 0) {

@@ -332,14 +332,14 @@ public class PlugtestClient {
 		System.out.println("===============\nCC21");
 		System.out.println("---------------\nGET /validate\n---------------");
 		response = client.get();
-		if (response.getOptions().getETagCount() == 1) {
-			etag = response.getOptions().getETags().get(0);
+		etag = response.getOptions().getResponseEtag();
+		if (etag != null) {
 			System.out.println(response.getCode() + " - ETag [" + Utils.toHexString(etag) + "]");
 			System.out.println(response.getResponseText());
 
 			System.out.println("---------------\nGET /validate with ETag\n---------------");
 			response = client.validate(etag);
-			etag = response.getOptions().getETags().get(0);
+			etag = response.getOptions().getResponseEtag();
 			System.out.println(response.getCode() + " - ETag [" + Utils.toHexString(etag) + "]");
 			System.out.println(response.getResponseText());
 
@@ -352,7 +352,7 @@ public class PlugtestClient {
 
 			System.out.println("---------------\nGET /validate with ETag\n---------------");
 			response = client.validate(etag);
-			etag = response.getOptions().getETags().get(0);
+			etag = response.getOptions().getResponseEtag();
 			System.out.println(response.getCode() + " - ETag [" + Utils.toHexString(etag) + "]");
 			System.out.println(response.getResponseText());
 
@@ -363,8 +363,8 @@ public class PlugtestClient {
 		System.out.println("===============\nCC22");
 		System.out.println("---------------\nGET /validate with If-Match\n---------------");
 		response = client.get();
-		if (response.getOptions().getETagCount() == 1) {
-			etag = response.getOptions().getETags().get(0);
+		etag = response.getOptions().getResponseEtag();
+		if (etag != null) {
 			System.out.println(response.getCode() + " - ETag [" + Utils.toHexString(etag) + "]");
 			System.out.println(response.getResponseText());
 
@@ -376,7 +376,7 @@ public class PlugtestClient {
 
 			System.out.println("---------------\nGET /validate\n---------------");
 			response = client.get();
-			etag = response.getOptions().getETags().get(0);
+			etag = response.getOptions().getResponseEtag();
 			System.out.println(response.getCode() + " - ETag [" + Utils.toHexString(etag) + "]");
 			System.out.println(response.getResponseText());
 

@@ -23,6 +23,7 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.elements.EndpointContext;
 
 /**

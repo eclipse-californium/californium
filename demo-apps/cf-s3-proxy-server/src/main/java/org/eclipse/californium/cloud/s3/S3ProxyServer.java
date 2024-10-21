@@ -29,8 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cloud.BaseServer;
 import org.eclipse.californium.cloud.http.HttpService;
-import org.eclipse.californium.cloud.option.ReadEtagOption;
-import org.eclipse.californium.cloud.option.ReadResponseOption;
+import org.eclipse.californium.cloud.option.ServerCustomOptions;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.resources.Diagnose;
 import org.eclipse.californium.cloud.resources.MyContext;
@@ -47,8 +46,7 @@ import org.eclipse.californium.cloud.s3.http.ConfigHandler;
 import org.eclipse.californium.cloud.s3.http.GroupsHandler;
 import org.eclipse.californium.cloud.s3.http.S3Login;
 import org.eclipse.californium.cloud.s3.http.SinglePageApplication;
-import org.eclipse.californium.cloud.s3.option.ForwardResponseOption;
-import org.eclipse.californium.cloud.s3.option.IntervalOption;
+import org.eclipse.californium.cloud.s3.option.S3ProxyCustomOptions;
 import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3Processor;
 import org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealthLogger;
@@ -71,6 +69,7 @@ import org.eclipse.californium.cloud.util.ResourceStore;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -430,9 +429,11 @@ public class S3ProxyServer extends BaseServer {
 	};
 
 	public static void main(String[] args) {
-		MapBasedOptionRegistry registry = new MapBasedOptionRegistry(StandardOptionRegistry.getDefaultOptionRegistry(),
-				TimeOption.DEFINITION, ReadEtagOption.DEFINITION, ReadResponseOption.DEFINITION,
-				IntervalOption.DEFINITION, ForwardResponseOption.DEFINITION, TimeOption.DEPRECATED_DEFINITION);
+		OptionRegistry registry = MapBasedOptionRegistry.builder()
+				.add(StandardOptionRegistry.getDefaultOptionRegistry()).add(ServerCustomOptions.CUSTOM)
+				.add(S3ProxyCustomOptions.CUSTOM)
+				.add(TimeOption.DEPRECATED_DEFINITION).build();
+
 		StandardOptionRegistry.setDefaultOptionRegistry(registry);
 
 		Configuration configuration = Configuration.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);

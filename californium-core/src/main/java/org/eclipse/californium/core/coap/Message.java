@@ -53,6 +53,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.TokenGenerator;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;

@@ -24,13 +24,8 @@ package org.eclipse.californium.core.coap;
 
 import java.util.Arrays;
 
-import org.eclipse.californium.core.coap.option.EmptyOptionDefinition;
-import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.OptionNumber;
-import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
-import org.eclipse.californium.core.coap.option.StringOptionDefinition;
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -38,23 +33,36 @@ import org.eclipse.californium.elements.util.StringUtil;
  * 
  * An option number is constructed with a bit mask to indicate if an option is
  * Critical/Elective, Unsafe/Safe and in the case of Safe, also a Cache-Key
- * indication. See <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.6"
- * target= "_blank">RFC7252 5.4.6. Option Numbers</a>.
+ * indication. See
+ * <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.6" target=
+ * "_blank">RFC7252 5.4.6. Option Numbers</a>.
  * 
- * <hr><blockquote><pre>
+ * <hr>
+ * <blockquote>
+ * 
+ * <pre>
  *   0   1   2   3   4   5   6   7
  * +---+---+---+---+---+---+---+---+
  * |           | NoCacheKey| U | C |
  * +---+---+---+---+---+---+---+---+
- * </pre></blockquote><hr>
+ * </pre>
+ * 
+ * </blockquote>
+ * <hr>
  * 
  * For a given option number {@code onum} we can compute
  * 
- * <hr><blockquote><pre>
+ * <hr>
+ * <blockquote>
+ * 
+ * <pre>
  * Critical = (onum &amp; 1);
  * UnSafe = (onum &amp; 2);
  * NoCacheKey = ((onum &amp; 0x1e) == 0x1c);
- * </pre></blockquote><hr>
+ * </pre>
+ * 
+ * </blockquote>
+ * <hr>
  *
  * {@code CoAP} defines several option numbers detailed in
  * {@link OptionNumberRegistry}.
@@ -71,9 +79,9 @@ import org.eclipse.californium.elements.util.StringUtil;
  * most significant bit first notation). A recipient MUST be prepared to process
  * values with leading zero bytes.
  * <p>
- * {@code Option} has helper methods, namely {@link #getIntegerValue()} and
- * {@link #toValueString()} taking into account actual option type and how it
- * may be represented in a native {@code value}.
+ * {@code Option} has a helper method, the {@link #toValueString()} taking into
+ * account actual option type and how it may be represented in a native
+ * {@code value}.
  * 
  * Since 3.8 {@link OptionDefinition} is introduced and is the preferred and
  * future way to specify, which option is represented. The option number on it's
@@ -113,26 +121,19 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 	 * @param value value to set unchecked
 	 * @param unchecked unused parameter to overload standard checked
 	 *            constructor
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}
 	 * @since 4.0
 	 */
 	Option(OptionDefinition definition, byte[] value, boolean unchecked) {
 		if (definition == null) {
 			throw new NullPointerException("Definition must not be null!");
 		}
+		if (value == null) {
+			throw new NullPointerException(definition.getName() + " option value must not be null!");
+		}
 		this.definition = definition;
 		this.value = value;
-	}
-
-	/**
-	 * Instantiates a new empty option with the specified empty option
-	 * definition.
-	 * 
-	 * @param definition the option definition
-	 * @since 3.8
-	 */
-	public Option(EmptyOptionDefinition definition) {
-		this.definition = definition;
-		this.value = Bytes.EMPTY;
 	}
 
 	/**
@@ -141,61 +142,22 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 	 * 
 	 * @param definition the option definition
 	 * @param value the option value in bytes
-	 * @throws NullPointerException if value is {@code null}
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}
 	 * @throws IllegalArgumentException if value doesn't match the option
 	 *             definition.
 	 * @since 3.8
 	 */
-	public Option(OptionDefinition definition, byte[] value) {
+	protected Option(OptionDefinition definition, byte[] value) {
+		if (definition == null) {
+			throw new NullPointerException("Definition must not be null!");
+		}
 		if (value == null) {
 			throw new NullPointerException(definition.getName() + " option value must not be null!");
 		}
 		definition.assertValue(value);
 		this.definition = definition;
 		this.value = value;
-	}
-
-	/**
-	 * Instantiates a new option with the specified option definition and
-	 * encodes the specified string as option value.
-	 * 
-	 * @param definition the option definition
-	 * @param value the option value as string
-	 * @throws NullPointerException if value is {@code null}
-	 * @throws IllegalArgumentException if value doesn't match the option
-	 *             definition.
-	 * @since 3.8
-	 */
-	public Option(StringOptionDefinition definition, String value) {
-		this(definition, StringOptionDefinition.setStringValue(value));
-	}
-
-	/**
-	 * Instantiates a new option with the specified option definition and
-	 * encodes the specified integer as option value.
-	 * 
-	 * @param definition the option definition
-	 * @param value the option value as integer
-	 * @throws IllegalArgumentException if value doesn't match the option
-	 *             definition.
-	 * @since 3.8
-	 */
-	public Option(IntegerOptionDefinition definition, int value) {
-		this(definition, IntegerOptionDefinition.setIntegerValue(value));
-	}
-
-	/**
-	 * Instantiates a new option with the specified option definition and
-	 * encodes the specified long as option value.
-	 * 
-	 * @param definition the option definition
-	 * @param value the option value as long
-	 * @throws IllegalArgumentException if value doesn't match the option
-	 *             definition.
-	 * @since 3.8
-	 */
-	public Option(IntegerOptionDefinition definition, long value) {
-		this(definition, IntegerOptionDefinition.setLongValue(value));
 	}
 
 	// Getter and Setter
@@ -233,49 +195,9 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 	 * Gets the option value.
 	 *
 	 * @return the option value
-	 * @throws IllegalStateException if value was not set before (since 3.0).
 	 */
 	public byte[] getValue() {
-		if (value == null) {
-			throw new IllegalStateException(definition.getName() + " option value must be set before!");
-		}
 		return value;
-	}
-
-	/**
-	 * Gets the option value as string.
-	 *
-	 * @return the string value
-	 * @throws IllegalStateException if value was not set before (since 3.0).
-	 */
-	public String getStringValue() {
-		return StringOptionDefinition.getStringValue(getValue());
-	}
-
-	/**
-	 * Gets the option value as integer.
-	 * 
-	 * Handles cases where {@code value} contains leading 0's or a case where
-	 * {@code value} is empty which returns 0.
-	 *
-	 * @return the integer value
-	 * @throws IllegalStateException if value was not set before (since 3.0).
-	 */
-	public int getIntegerValue() {
-		return IntegerOptionDefinition.getIntegerValue(getValue());
-	}
-
-	/**
-	 * Gets the option value as long.
-	 * 
-	 * Handles cases where {@code value} contains leading 0's or a case where
-	 * {@code value} is empty which returns 0.
-	 *
-	 * @return the long value
-	 * @throws IllegalStateException if value was not set before (since 3.0).
-	 */
-	public long getLongValue() {
-		return IntegerOptionDefinition.getLongValue(getValue());
 	}
 
 	/**
@@ -359,35 +281,17 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 	}
 
 	/**
-	 * Renders the option value as string. Takes into account of option type,
-	 * thus giving more accurate representation of an option {@code value}.
-	 * Formats {@code value} as integer or string if so defined in
-	 * {@link OptionNumberRegistry}. In case of option {@code value} is just an
-	 * opaque byte array, formats this value as hex string.
+	 * Renders the option value as string.
+	 * <p>
+	 * Takes into account of option type, thus giving more accurate
+	 * representation of an option {@code value}. Formats {@code value} as
+	 * integer or string if so defined in {@link OptionNumberRegistry}. In case
+	 * of option {@code value} is just an opaque byte array, formats this value
+	 * as hex string.
 	 *
 	 * @return the option value as string
 	 */
 	public String toValueString() {
-		if (value == null) {
-			return "not available";
-		}
-		switch (definition.getFormat()) {
-		case INTEGER:
-			if (StandardOptionRegistry.BLOCK1.equals(definition) || StandardOptionRegistry.BLOCK2.equals(definition))
-				return "\"" + new BlockOption(value) + "\"";
-			int iValue = getIntegerValue();
-			if (StandardOptionRegistry.ACCEPT.equals(definition)
-					|| StandardOptionRegistry.CONTENT_FORMAT.equals(definition))
-				return "\"" + MediaTypeRegistry.toString(iValue) + "\"";
-			if (StandardOptionRegistry.NO_RESPONSE.equals(definition))
-				return "\"" + new NoResponseOption(iValue) + "\"";
-			return Long.toString(getLongValue());
-		case STRING:
-			return "\"" + this.getStringValue() + "\"";
-		case EMPTY:
-			return "";
-		default:
-			return "0x" + StringUtil.byteArray2Hex(value);
-		}
+		return "0x" + StringUtil.byteArray2Hex(value);
 	}
 }

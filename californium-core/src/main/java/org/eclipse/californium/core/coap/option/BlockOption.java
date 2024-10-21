@@ -20,14 +20,16 @@
  *                                                    to return value of toString() 
  *                                                    (for message tracing)
  ******************************************************************************/
-package org.eclipse.californium.core.coap;
+package org.eclipse.californium.core.coap.option;
 
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * BlockOption represents a Block1 or Block2 option in a CoAP message.
+ * 
+ * @since 4.0 (moved from package org.eclipse.californium.core.coap)
  */
-public final class BlockOption {
+public final class BlockOption extends IntegerOption {
 
 	/**
 	 * SZX for BERT blockwise.
@@ -47,22 +49,16 @@ public final class BlockOption {
 	 * Creates a new block option for given values.
 	 *
 	 * @param szx the szx
-	 * @param m the m
+	 * @param m the more indicator
 	 * @param num the num
 	 * @throws IllegalArgumentException if the szx is &lt; 0 or &gt; 7 or if num
 	 *             is not a 20-bit uint.
 	 */
-	public BlockOption(final int szx, final boolean m, final int num) {
-		if (szx < 0 || 7 < szx) {
-			throw new IllegalArgumentException("Block option's szx " + szx + " must be between 0 and 7 inclusive");
-		} else if (num < 0 || (1 << 20) - 1 < num) {
-			throw new IllegalArgumentException(
-					"Block option's num " + num + " must be between 0 and " + (1 << 20 - 1) + " inclusive");
-		} else {
-			this.szx = szx;
-			this.m = m;
-			this.num = num;
-		}
+	public BlockOption(Definition definition, final int szx, final boolean m, final int num) {
+		super(definition, encode(szx, m, num));
+		this.szx = szx;
+		this.m = m;
+		this.num = num;
 	}
 
 	/**
@@ -73,8 +69,8 @@ public final class BlockOption {
 	 * @throws IllegalArgumentException if the specified value's length is
 	 *             larger than 3
 	 */
-	public BlockOption(final byte[] value) {
-
+	public BlockOption(Definition definition, final byte[] value) {
+		super(definition, value);
 		if (value == null) {
 			throw new NullPointerException();
 		} else if (value.length > 3) {
@@ -95,6 +91,11 @@ public final class BlockOption {
 			}
 			this.num = tempNum;
 		}
+	}
+
+	@Override
+	public Definition getDefinition() {
+		return (Definition) super.getDefinition();
 	}
 
 	/**
@@ -198,16 +199,7 @@ public final class BlockOption {
 	 * @return the value
 	 */
 	public byte[] getValue() {
-		int last = szx | (m ? 1 << 3 : 0);
-		if (num == 0 && !m && szx == 0) {
-			return Bytes.EMPTY;
-		} else if (num < 1 << 4) {
-			return new byte[] { (byte) (last | (num << 4)) };
-		} else if (num < 1 << 12) {
-			return new byte[] { (byte) (num >> 4), (byte) (last | (num << 4)) };
-		} else {
-			return new byte[] { (byte) (num >> 12), (byte) (num >> 4), (byte) (last | (num << 4)) };
-		}
+		return super.getValue();
 	}
 
 	/**
@@ -220,7 +212,7 @@ public final class BlockOption {
 	}
 
 	@Override
-	public String toString() {
+	public String toValueString() {
 		return String.format("(szx=%d/%d, m=%b, num=%d)", szx, szx2Size(szx), m, num);
 	}
 
@@ -291,4 +283,63 @@ public final class BlockOption {
 			return 1 << (szx + 4);
 		}
 	}
+
+	public static byte[] encode(final int szx, final boolean m, final int num) {
+		if (szx < 0 || 7 < szx) {
+			throw new IllegalArgumentException("Block option's szx " + szx + " must be between 0 and 7 inclusive");
+		} else if (num < 0 || (1 << 20) - 1 < num) {
+			throw new IllegalArgumentException(
+					"Block option's num " + num + " must be between 0 and " + (1 << 20 - 1) + " inclusive");
+		}
+		int last = szx | (m ? 1 << 3 : 0);
+		if (num == 0 && !m && szx == 0) {
+			return Bytes.EMPTY;
+		} else if (num < 1 << 4) {
+			return new byte[] { (byte) (last | (num << 4)) };
+		} else if (num < 1 << 12) {
+			return new byte[] { (byte) (num >> 4), (byte) (last | (num << 4)) };
+		} else {
+			return new byte[] { (byte) (num >> 12), (byte) (num >> 4), (byte) (last | (num << 4)) };
+		}
+	}
+
+	/**
+	 * Definition for {@link BlockOption}.
+	 * 
+	 * @since 4.0
+	 */
+	static public class Definition extends IntegerOption.Definition {
+
+		/**
+		 * Creates option definition for an block option.
+		 * 
+		 * @param number option number
+		 * @param name option name
+		 */
+		public Definition(int number, String name) {
+			super(number, name, true, 0, 3);
+		}
+
+		@Override
+		public BlockOption create(byte[] value) {
+			if (value == null) {
+				throw new NullPointerException("Option " + getName() + " value must not be null.");
+			}
+			return new BlockOption(this, value);
+		}
+
+		/**
+		 * Creates {@link BlockOption} for this definition.
+		 * 
+		 * @param szx the szx
+		 * @param m the more block indicator
+		 * @param num the number of block
+		 * @return created {@link BlockOption}
+		 */
+		public BlockOption create(int szx, boolean m, int num) {
+			return new BlockOption(this, szx, m, num);
+		}
+
+	}
+
 }

@@ -549,7 +549,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 								}
 								Long time = getTime(getObjectResponse);
 								if (time != null) {
-									TimeOption timeOption = new TimeOption(time);
+									TimeOption timeOption = TimeOption.DEFINITION.create(time);
 									response.getOptions().addOtherOption(timeOption);
 								}
 								if (!etag.isEmpty()) {

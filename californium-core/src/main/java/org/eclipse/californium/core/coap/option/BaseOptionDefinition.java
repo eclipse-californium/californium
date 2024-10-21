@@ -16,7 +16,6 @@ package org.eclipse.californium.core.coap.option;
 
 import java.util.Arrays;
 
-import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
 
 /**
@@ -46,13 +45,6 @@ public abstract class BaseOptionDefinition implements OptionDefinition {
 	 */
 	private final String name;
 	/**
-	 * Value format of the option.
-	 * 
-	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-3.2" target=
-	 *      "_blank">RFC7252 3.2. Option Value Formats</a>
-	 */
-	private final OptionFormat format;
-	/**
 	 * Indicates, if the option is a single value option or may be used multiple
 	 * times.
 	 * 
@@ -71,19 +63,17 @@ public abstract class BaseOptionDefinition implements OptionDefinition {
 	 * 
 	 * @param number option number
 	 * @param name option name
-	 * @param format option format
 	 * @param singleValue {@code true}, if option supports a single value,
 	 *            {@code false}, if option supports multiple values.
 	 * @param lengths minimum and maximum value lengths. If only one length is
 	 *            provided, this is used for both, minimum and maximum length.
 	 */
-	protected BaseOptionDefinition(int number, String name, OptionFormat format, boolean singleValue, int[] lengths) {
+	protected BaseOptionDefinition(int number, String name, boolean singleValue, int[] lengths) {
 		if (number > 0xffff || number < 0) {
 			throw new IllegalArgumentException(number + " invalid option number!");
 		}
 		this.number = number;
 		this.name = name;
-		this.format = format;
 		this.singleValue = singleValue;
 		if (lengths == null || lengths.length == 0) {
 			// default lengths
@@ -96,11 +86,6 @@ public abstract class BaseOptionDefinition implements OptionDefinition {
 		} else {
 			this.lengths = Arrays.copyOf(lengths, 2);
 		}
-	}
-
-	@Override
-	public OptionFormat getFormat() {
-		return format;
 	}
 
 	@Override
@@ -141,7 +126,7 @@ public abstract class BaseOptionDefinition implements OptionDefinition {
 
 	@Override
 	public String toString() {
-		return name + "/" + format;
+		return name + "/" + getFormat();
 	}
 
 	@Override
@@ -152,21 +137,6 @@ public abstract class BaseOptionDefinition implements OptionDefinition {
 	@Override
 	public String getName() {
 		return name;
-	}
-
-	@Override
-	public Option create(byte[] value) {
-		return new Option(this, value);
-	}
-
-	@Override
-	public Option create(String value) {
-		throw new IllegalArgumentException(getClass().getSimpleName() + " doesn't support string-values!");
-	}
-
-	@Override
-	public Option create(long value) {
-		throw new IllegalArgumentException(getClass().getSimpleName() + " doesn't support integer-values!");
 	}
 
 }

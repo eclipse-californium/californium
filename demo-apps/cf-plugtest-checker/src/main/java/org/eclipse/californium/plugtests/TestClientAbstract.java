@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.WebLink;
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -36,6 +35,7 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -612,16 +612,14 @@ public abstract class TestClientAbstract {
 	 * @return true, if successful
 	 */
 	protected boolean hasEtag(Response response) {
-		// boolean success = response.hasOption(OptionNumberRegistry.ETAG);
-		boolean success = response.getOptions().getETagCount() > 0;
-
-		if (!success) {
+		byte[] etag = response.getOptions().getResponseEtag();
+		if (etag == null) {
 			System.out.println("FAIL: Response without Etag");
+			return false;
 		} else {
-			System.out.printf("PASS: Etag (%s)\n", Utils.toHexString(response.getOptions().getETags().get(0)));
+			System.out.printf("PASS: Etag (%s)\n", Utils.toHexString(etag));
+			return true;
 		}
-
-		return success;
 	}
 
 	/**

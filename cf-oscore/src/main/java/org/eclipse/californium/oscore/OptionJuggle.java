@@ -23,17 +23,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.Message;
 
 /**
  * 
@@ -147,7 +147,7 @@ public class OptionJuggle {
 				break;
 			case OptionNumberRegistry.PROXY_URI:
 				// create Uri-Path and Uri-Query
-				String proxyUri = o.getStringValue();
+				String proxyUri = ((StringOption)o).getStringValue();
 				proxyUri = proxyUri.replace("coap://", "");
 				proxyUri = proxyUri.replace("coaps://", "");
 				int i = proxyUri.indexOf('/');

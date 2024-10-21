@@ -28,13 +28,13 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TYPE_BITS;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION_BITS;
 
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.DatagramReader;

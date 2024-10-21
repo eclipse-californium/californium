@@ -31,9 +31,12 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.NoResponseOption;
+import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
@@ -444,6 +447,21 @@ public final class OptionSet {
 	public OptionSet clearETags() {
 		getETags().clear();
 		return this;
+	}
+
+	/**
+	 * Gets response etag value.
+	 * 
+	 * @return etag value, or {@code null}, if not available
+	 * @since 4.0
+	 */
+	public byte[] getResponseEtag() {
+		byte[] etag = null;
+		final List<byte[]> list = etag_list;
+		if (list != null && list.size() == 1) {
+			etag = list.get(0);
+		}
+		return etag;
 	}
 
 	/**
@@ -1241,7 +1259,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet setBlock1(int szx, boolean m, int num) {
-		this.block1 = new BlockOption(szx, m, num);
+		this.block1 = StandardOptionRegistry.BLOCK1.create(szx, m, num);
 		return this;
 	}
 
@@ -1252,7 +1270,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet setBlock1(byte[] value) {
-		this.block1 = new BlockOption(value);
+		this.block1 = StandardOptionRegistry.BLOCK1.create(value);
 		return this;
 	}
 
@@ -1304,7 +1322,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet setBlock2(int szx, boolean m, int num) {
-		this.block2 = new BlockOption(szx, m, num);
+		this.block2 = StandardOptionRegistry.BLOCK2.create(szx, m, num);
 		return this;
 	}
 
@@ -1315,7 +1333,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet setBlock2(byte[] value) {
-		this.block2 = new BlockOption(value);
+		this.block2 = StandardOptionRegistry.BLOCK2.create(value);
 		return this;
 	}
 
@@ -1713,7 +1731,7 @@ public final class OptionSet {
 		if (hasOscore())
 			options.add(StandardOptionRegistry.OSCORE.create(getOscore()));
 		if (hasNoResponse())
-			options.add(getNoResponse().toOption());
+			options.add(getNoResponse());
 
 		if (others != null)
 			options.addAll(others);
@@ -1770,7 +1788,7 @@ public final class OptionSet {
 				addIfMatch(option.getValue());
 				break;
 			case OptionNumberRegistry.URI_HOST:
-				setUriHost(option.getStringValue());
+				setUriHost(((StringOption)option).getStringValue());
 				break;
 			case OptionNumberRegistry.ETAG:
 				addETag(option.getValue());
@@ -1779,34 +1797,34 @@ public final class OptionSet {
 				setIfNoneMatch(true);
 				break;
 			case OptionNumberRegistry.URI_PORT:
-				setUriPort(option.getIntegerValue());
+				setUriPort(((IntegerOption)option).getIntegerValue());
 				break;
 			case OptionNumberRegistry.LOCATION_PATH:
-				addLocationPath(option.getStringValue());
+				addLocationPath(((StringOption)option).getStringValue());
 				break;
 			case OptionNumberRegistry.URI_PATH:
-				addUriPath(option.getStringValue());
+				addUriPath(((StringOption)option).getStringValue());
 				break;
 			case OptionNumberRegistry.CONTENT_FORMAT:
-				setContentFormat(option.getIntegerValue());
+				setContentFormat(((IntegerOption)option).getIntegerValue());
 				break;
 			case OptionNumberRegistry.MAX_AGE:
-				setMaxAge(option.getLongValue());
+				setMaxAge(((IntegerOption)option).getLongValue());
 				break;
 			case OptionNumberRegistry.URI_QUERY:
-				addUriQuery(option.getStringValue());
+				addUriQuery(((StringOption)option).getStringValue());
 				break;
 			case OptionNumberRegistry.ACCEPT:
-				setAccept(option.getIntegerValue());
+				setAccept(((IntegerOption)option).getIntegerValue());
 				break;
 			case OptionNumberRegistry.LOCATION_QUERY:
-				addLocationQuery(option.getStringValue());
+				addLocationQuery(((StringOption)option).getStringValue());
 				break;
 			case OptionNumberRegistry.PROXY_URI:
-				setProxyUri(option.getStringValue());
+				setProxyUri(((StringOption)option).getStringValue());
 				break;
 			case OptionNumberRegistry.PROXY_SCHEME:
-				setProxyScheme(option.getStringValue());
+				setProxyScheme(((StringOption)option).getStringValue());
 				break;
 			case OptionNumberRegistry.BLOCK1:
 				setBlock1(option.getValue());
@@ -1815,19 +1833,19 @@ public final class OptionSet {
 				setBlock2(option.getValue());
 				break;
 			case OptionNumberRegistry.SIZE1:
-				setSize1(option.getIntegerValue());
+				setSize1(((IntegerOption)option).getIntegerValue());
 				break;
 			case OptionNumberRegistry.SIZE2:
-				setSize2(option.getIntegerValue());
+				setSize2(((IntegerOption)option).getIntegerValue());
 				break;
 			case OptionNumberRegistry.OBSERVE:
-				setObserve(option.getIntegerValue());
+				setObserve(((IntegerOption)option).getIntegerValue());
 				break;
 			case OptionNumberRegistry.OSCORE:
 				setOscore(option.getValue());
 				break;
 			case OptionNumberRegistry.NO_RESPONSE:
-				setNoResponse(option.getIntegerValue());
+				setNoResponse(((IntegerOption)option).getIntegerValue());
 				break;
 			default:
 				getOthersInternal().add(option);
@@ -2013,7 +2031,7 @@ public final class OptionSet {
 	 * @since 3.8
 	 */
 	private void checkOptionValue(OptionDefinition definition, long longValue) {
-		byte[] value = IntegerOptionDefinition.setLongValue(longValue);
+		byte[] value = IntegerOption.Definition.setLongValue(longValue);
 		checkOptionValue(definition, value);
 	}
 

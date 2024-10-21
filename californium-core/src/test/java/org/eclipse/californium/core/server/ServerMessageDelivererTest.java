@@ -33,7 +33,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.option.EmptyOptionDefinition;
+import org.eclipse.californium.core.coap.option.EmptyOption.Definition;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -46,14 +46,14 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.ArgumentCaptor;
 
-
 /**
  * Verifies behavior of {@link ServerMessageDeliverer}.
  */
 @Category(Small.class)
 public class ServerMessageDelivererTest {
-	public final EmptyOptionDefinition CUSTOM = new EmptyOptionDefinition(200, "Test");
-	
+
+	public final Definition CUSTOM = new Definition(200, "Test");
+
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
@@ -71,15 +71,15 @@ public class ServerMessageDelivererTest {
 		rootResource = mock(Resource.class);
 		when(rootResource.getChild(anyString())).thenReturn(rootResource);
 		when(rootResource.getExecutor()).thenReturn(null);
-		incomingRequest = new Exchange(new Request(Code.POST), dest, Exchange.Origin.REMOTE, TestSynchroneExecutor.TEST_EXECUTOR);
+		incomingRequest = new Exchange(new Request(Code.POST), dest, Exchange.Origin.REMOTE,
+				TestSynchroneExecutor.TEST_EXECUTOR);
 		incomingResponse = new Response(ResponseCode.CONTENT);
 		outboundRequest = new Exchange(new Request(Code.GET), dest, Origin.LOCAL, TestSynchroneExecutor.TEST_EXECUTOR);
 	}
 
 	/**
-	 * Verifies that the message deliverer does not deliver incoming
-	 * requests to resources if a subclass has already processed the
-	 * request.
+	 * Verifies that the message deliverer does not deliver incoming requests to
+	 * resources if a subclass has already processed the request.
 	 */
 	@Test
 	public void testDeliverRequestYieldsToSubclass() {
@@ -87,6 +87,7 @@ public class ServerMessageDelivererTest {
 		// GIVEN a message deliverer subclass which processes all incoming requests
 		// in its preDeliverRequest method
 		final ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource, null) {
+
 			@Override
 			protected boolean preDeliverRequest(Exchange exchange) {
 				Response response = new Response(ResponseCode.CREATED);
@@ -97,7 +98,7 @@ public class ServerMessageDelivererTest {
 
 		// WHEN a request is received
 		incomingRequest.execute(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				deliverer.deliverRequest(incomingRequest);
@@ -110,16 +111,17 @@ public class ServerMessageDelivererTest {
 	}
 
 	/**
-	 * Verifies that the message deliverer delivers incoming
-	 * requests to resources if a subclass has not yet processed the response.
+	 * Verifies that the message deliverer delivers incoming requests to
+	 * resources if a subclass has not yet processed the response.
 	 */
 	@Test
 	public void testDeliverRequestProcessesRequestAfterPreDeliverRequest() {
 
 		// GIVEN a message deliverer subclass that adds a custom option to incoming
 		// requests
-		final Option customOption = new Option(CUSTOM);
+		final Option customOption = CUSTOM.create();
 		ServerMessageDeliverer deliverer = new ServerMessageDeliverer(rootResource, null) {
+
 			@Override
 			protected boolean preDeliverRequest(Exchange exchange) {
 				exchange.getRequest().getOptions().addOption(customOption);
@@ -138,8 +140,8 @@ public class ServerMessageDelivererTest {
 	}
 
 	/**
-	 * Verifies that incoming responses are not delivered to their originating requests
-	 * if a subclass has already processed the response.
+	 * Verifies that incoming responses are not delivered to their originating
+	 * requests if a subclass has already processed the response.
 	 */
 	@Test
 	public void testDeliverResponseYieldsToSubclass() {
@@ -161,8 +163,8 @@ public class ServerMessageDelivererTest {
 	}
 
 	/**
-	 * Verifies that incoming responses are delivered to their originating requests
-	 * if a subclass has not already processed the response.
+	 * Verifies that incoming responses are delivered to their originating
+	 * requests if a subclass has not already processed the response.
 	 */
 	@Test
 	public void testDeliverResponseProcessesResponseAfterPreDeliverResponse() {
@@ -173,7 +175,7 @@ public class ServerMessageDelivererTest {
 
 			@Override
 			protected boolean preDeliverResponse(Exchange exchange, Response response) {
-				response.getOptions().addOption(new Option(CUSTOM));
+				response.getOptions().addOption(CUSTOM.create());
 				return false;
 			}
 		};

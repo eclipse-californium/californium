@@ -15,12 +15,13 @@
  ******************************************************************************/
 package org.eclipse.californium.plugtests.tests;
 
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 
 public class CB06 extends TestClientAbstract {
 
@@ -48,7 +49,7 @@ public class CB06 extends TestClientAbstract {
 			int maxNUM = response.getOptions().getBlock2().getNum();
 			success &= checkType(Type.ACK, response.getType());
 			success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
-			success &= checkOption(new BlockOption(EXPECTED_BLOCK_SIZE,
+			success &= checkOption(StandardOptionRegistry.BLOCK2.create(EXPECTED_BLOCK_SIZE,
 					false, maxNUM), response.getOptions().getBlock2(),
 					"Block2");
 			success &= hasNonEmptyPayload(response);

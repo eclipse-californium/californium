@@ -13,15 +13,17 @@
  * Contributors:
  *    Bosch IO.GmbH - initial creation
  ******************************************************************************/
-package org.eclipse.californium.core.coap;
+package org.eclipse.californium.core.coap.option;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.CodeClass;
-import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
-import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
+import org.eclipse.californium.core.coap.OptionNumberRegistry.Names;
 
 /**
  * NoResponseOption.
- * 
+ * <p>
  * This option is used to suppress responses by their code class. If errors are
  * not suppressed, this overrides the multicast behavior to not respond with
  * errors, as defined by the RFC 7967, page 6.
@@ -39,10 +41,11 @@ import org.eclipse.californium.elements.util.Bytes;
  * client.
  * </pre>
  * 
- * @see <a href="https://tools.ietf.org/html/rfc7967" target="_blank"> RFC7967 - No Server Response</a>
- * @since 3.0
+ * @see <a href="https://tools.ietf.org/html/rfc7967" target="_blank"> RFC7967 -
+ *      No Server Response</a>
+ * @since 4.0 (moved from package org.eclipse.californium.core.coap)
  */
-public final class NoResponseOption {
+public final class NoResponseOption extends IntegerOption {
 
 	/**
 	 * Bit to suppress success responses.
@@ -68,13 +71,8 @@ public final class NoResponseOption {
 	public static final int SUPPRESS_ALL = SUPPRESS_SUCCESS | SUPPRESS_CLIENT_ERROR | SUPPRESS_SERVER_ERROR;
 
 	/**
-	 * Bit mask with suppressed code classes.
-	 */
-	private final int mask;
-
-	/**
-	 * Create no-response option.
-	 * 
+	 * Creates no-response option.
+	 * <p>
 	 * If used and errors are not suppressed, this overrides the multicast
 	 * behavior to not respond with errors.
 	 * 
@@ -84,23 +82,22 @@ public final class NoResponseOption {
 	 *            any response.
 	 */
 	public NoResponseOption(int mask) {
-		if (mask < 0 || mask > 255) {
-			throw new IllegalArgumentException("No-Response option " + mask + " must be between 0 and 255 inclusive");
-		}
-		this.mask = mask;
+		super(StandardOptionRegistry.NO_RESPONSE, mask);
 	}
 
 	/**
-	 * Get encoded option value.
+	 * Creates no-response option.
+	 * <p>
+	 * If used and errors are not suppressed, this overrides the multicast
+	 * behavior to not respond with errors.
 	 * 
-	 * @return byte array with encoded option value
+	 * @param mask bit mask as array. Use a bitwise or combinations of
+	 *            {@link #SUPPRESS_SUCCESS}, {@link #SUPPRESS_CLIENT_ERROR}, or
+	 *            {@link #SUPPRESS_SERVER_ERROR}. {@code 0} does not suppress
+	 *            any response.
 	 */
-	public byte[] getValue() {
-		if (mask == 0) {
-			return Bytes.EMPTY;
-		} else {
-			return new byte[] { (byte) mask };
-		}
+	public NoResponseOption(byte[] mask) {
+		super(StandardOptionRegistry.NO_RESPONSE, mask);
 	}
 
 	/**
@@ -112,12 +109,12 @@ public final class NoResponseOption {
 	 * @see #SUPPRESS_SERVER_ERROR
 	 */
 	public int getMask() {
-		return mask;
+		return getIntegerValue();
 	}
 
 	/**
-	 * Check, if response with the code must be suppressed.
-	 * 
+	 * Checks, if response with the code must be suppressed.
+	 * <p>
 	 * If errors are not suppressed, this overrides the multicast behavior to
 	 * not respond with errors.
 	 * 
@@ -127,12 +124,12 @@ public final class NoResponseOption {
 	 */
 	public boolean suppress(int code) {
 		int bit = 1 << (CoAP.getCodeClass(code) - 1);
-		return (mask & bit) != 0;
+		return (getIntegerValue() & bit) != 0;
 	}
 
 	/**
-	 * Check, if response with the code must be suppressed.
-	 * 
+	 * Checks, if response with the code must be suppressed.
+	 * <p>
 	 * If errors are not suppressed, this overrides the multicast behavior to
 	 * not respond with errors.
 	 * 
@@ -140,24 +137,16 @@ public final class NoResponseOption {
 	 * @return {@code true}, if response must be suppressed, {@code false},
 	 *         otherwise.
 	 */
-	public boolean suppress(CoAP.ResponseCode code) {
+	public boolean suppress(ResponseCode code) {
 		int bit = 1 << (code.codeClass - 1);
-		return (mask & bit) != 0;
-	}
-
-	/**
-	 * Convert to generic {@link Option}.
-	 * 
-	 * @return generic option.
-	 */
-	public Option toOption() {
-		return StandardOptionRegistry.NO_RESPONSE.create(getValue());
+		return (getIntegerValue() & bit) != 0;
 	}
 
 	@Override
-	public String toString() {
+	public String toValueString() {
+		int mask = getIntegerValue();
 		if ((mask & SUPPRESS_ALL) != 0) {
-			StringBuilder text = new StringBuilder("NO ");
+			StringBuilder text = new StringBuilder("\"NO ");
 			if ((mask & SUPPRESS_SUCCESS) != 0) {
 				text.append("SUCCESS,");
 			}
@@ -168,23 +157,49 @@ public final class NoResponseOption {
 				text.append("SERVER_ERROR,");
 			}
 			text.setLength(text.length() - 1);
+			text.append('"');
 			return text.toString();
 		} else {
-			return "ALL";
+			return "\"ALL\"";
 		}
 	}
 
-	@Override
-	public boolean equals(final Object o) {
-		if (!(o instanceof NoResponseOption)) {
-			return false;
+	/**
+	 * Definition for no response option.
+	 * 
+	 * @since 4.0
+	 */
+	public static class Definition extends IntegerOption.Definition {
+
+		/**
+		 * Creates option definition for a no response option.
+		 */
+		public Definition() {
+			super(OptionNumberRegistry.NO_RESPONSE, Names.No_Response, true, 0, 1);
 		}
-		NoResponseOption option = (NoResponseOption) o;
-		return mask == option.mask;
+
+		@Override
+		public NoResponseOption create(byte[] value) {
+			if (value == null) {
+				throw new NullPointerException("Option " + getName() + " value must not be null.");
+			}
+			return new NoResponseOption(value);
+		}
+
+		/**
+		 * Creates no response option from mask.
+		 * 
+		 * @param mask bit mask. Use a bitwise or combinations of
+		 *            {@link NoResponseOption#SUPPRESS_SUCCESS},
+		 *            {@link NoResponseOption#SUPPRESS_CLIENT_ERROR}, or
+		 *            {@link NoResponseOption#SUPPRESS_SERVER_ERROR}. {@code 0}
+		 *            does not suppress any response.
+		 * @return the created no response option.
+		 */
+		public NoResponseOption create(int mask) {
+			return new NoResponseOption(mask);
+		}
+
 	}
 
-	@Override
-	public int hashCode() {
-		return mask;
-	}
 }

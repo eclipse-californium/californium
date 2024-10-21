@@ -24,6 +24,8 @@ import java.util.List;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Rule;
@@ -44,13 +46,13 @@ public class MessageTest {
 	public void testFullRequestHasBlock() {
 		Request put = Request.newPut();
 		put.setPayload("1234567890ABCDEF1234567890ABCDEF");
-		BlockOption start = new BlockOption(0, true, 0);
+		BlockOption start = StandardOptionRegistry.BLOCK1.create(0, true, 0);
 		assertThat(put.hasBlock(start), is(true));
-		BlockOption middle = new BlockOption(0, true, 1);
+		BlockOption middle = StandardOptionRegistry.BLOCK1.create(0, true, 1);
 		assertThat(put.hasBlock(middle), is(true));
-		BlockOption end = new BlockOption(0, true, 2);
+		BlockOption end = StandardOptionRegistry.BLOCK1.create(0, true, 2);
 		assertThat(put.hasBlock(end), is(true));
-		BlockOption exceeds = new BlockOption(0, true, 3);
+		BlockOption exceeds = StandardOptionRegistry.BLOCK1.create(0, true, 3);
 		assertThat(put.hasBlock(exceeds), is(false));
 	}
 
@@ -60,15 +62,15 @@ public class MessageTest {
 		put.setPayload("1234567890ABCDEF1234567890ABCDEF");
 		put.getOptions().setBlock1(0, true, 1);
 
-		BlockOption before = new BlockOption(0, true, 0);
+		BlockOption before = StandardOptionRegistry.BLOCK1.create(0, true, 0);
 		assertThat(put.hasBlock(before), is(false));
-		BlockOption start = new BlockOption(0, true, 1);
+		BlockOption start = StandardOptionRegistry.BLOCK1.create(0, true, 1);
 		assertThat(put.hasBlock(start), is(true));
-		BlockOption middle = new BlockOption(0, true, 2);
+		BlockOption middle = StandardOptionRegistry.BLOCK1.create(0, true, 2);
 		assertThat(put.hasBlock(middle), is(true));
-		BlockOption end = new BlockOption(0, true, 3);
+		BlockOption end = StandardOptionRegistry.BLOCK1.create(0, true, 3);
 		assertThat(put.hasBlock(end), is(true));
-		BlockOption exceeds = new BlockOption(0, true, 4);
+		BlockOption exceeds = StandardOptionRegistry.BLOCK1.create(0, true, 4);
 		assertThat(put.hasBlock(exceeds), is(false));
 	}
 
@@ -76,13 +78,13 @@ public class MessageTest {
 	public void testFullResponseHasBlock() {
 		Response content = new Response(ResponseCode.CONTENT);
 		content.setPayload("1234567890ABCDEF1234567890ABCDEF");
-		BlockOption start = new BlockOption(0, true, 0);
+		BlockOption start = StandardOptionRegistry.BLOCK2.create(0, true, 0);
 		assertThat(content.hasBlock(start), is(true));
-		BlockOption middle = new BlockOption(0, true, 1);
+		BlockOption middle = StandardOptionRegistry.BLOCK2.create(0, true, 1);
 		assertThat(content.hasBlock(middle), is(true));
-		BlockOption end = new BlockOption(0, true, 2);
+		BlockOption end = StandardOptionRegistry.BLOCK2.create(0, true, 2);
 		assertThat(content.hasBlock(end), is(true));
-		BlockOption exceeds = new BlockOption(0, true, 3);
+		BlockOption exceeds = StandardOptionRegistry.BLOCK2.create(0, true, 3);
 		assertThat(content.hasBlock(exceeds), is(false));
 	}
 
@@ -92,15 +94,15 @@ public class MessageTest {
 		content.setPayload("1234567890ABCDEF1234567890ABCDEF");
 		content.getOptions().setBlock2(0, true, 1);
 
-		BlockOption before = new BlockOption(0, true, 0);
+		BlockOption before = StandardOptionRegistry.BLOCK2.create(0, true, 0);
 		assertThat(content.hasBlock(before), is(false));
-		BlockOption start = new BlockOption(0, true, 1);
+		BlockOption start = StandardOptionRegistry.BLOCK2.create(0, true, 1);
 		assertThat(content.hasBlock(start), is(true));
-		BlockOption middle = new BlockOption(0, true, 2);
+		BlockOption middle = StandardOptionRegistry.BLOCK2.create(0, true, 2);
 		assertThat(content.hasBlock(middle), is(true));
-		BlockOption end = new BlockOption(0, true, 3);
+		BlockOption end = StandardOptionRegistry.BLOCK2.create(0, true, 3);
 		assertThat(content.hasBlock(end), is(true));
-		BlockOption exceeds = new BlockOption(0, true, 4);
+		BlockOption exceeds = StandardOptionRegistry.BLOCK2.create(0, true, 4);
 		assertThat(content.hasBlock(exceeds), is(false));
 	}
 

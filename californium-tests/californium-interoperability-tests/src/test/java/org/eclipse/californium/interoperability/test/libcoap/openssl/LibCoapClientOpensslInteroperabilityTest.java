@@ -36,9 +36,9 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.NoResponseOption;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.NoResponseOption;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
@@ -156,7 +156,7 @@ public class LibCoapClientOpensslInteroperabilityTest {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		californiumUtil.start(BIND, null, cipherSuite);
 		processUtil.setClientMessageType(CoAP.Type.NON);
-		processUtil.setClientOption(new NoResponseOption(NoResponseOption.SUPPRESS_SUCCESS).toOption());
+		processUtil.setClientOption(new NoResponseOption(NoResponseOption.SUPPRESS_SUCCESS));
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		californiumUtil.assertReceivedData("Hello, CoAP!", REQUEST_TIMEOUT_MILLIS.get());
 		assertFalse("unexpected \"Greetings!\" received", processUtil.waitConsole("Greetings!", REQUEST_TIMEOUT_MILLIS.get()));
@@ -202,7 +202,7 @@ public class LibCoapClientOpensslInteroperabilityTest {
 		String message = "Hello, CoAP! " + californiumUtil.createTextPayload(4096);
 		processUtil.setClientBlocksize(128);
 		int szx = BlockOption.size2Szx(128);
-		processUtil.setClientOption(StandardOptionRegistry.BLOCK2.create(new BlockOption(szx, false, 0).getValue()));
+		processUtil.setClientOption(StandardOptionRegistry.BLOCK2.create(szx, false, 0));
 		processUtil.startupClient(DESTINATION_URL + "large?size=4096", PSK, message, cipherSuite);
 		ProcessResult result = connect(message,
 				"3f#############################################################");

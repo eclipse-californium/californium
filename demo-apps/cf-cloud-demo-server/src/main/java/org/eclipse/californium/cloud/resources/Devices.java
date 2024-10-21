@@ -38,8 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.californium.cloud.BaseServer;
-import org.eclipse.californium.cloud.option.ReadEtagOption;
-import org.eclipse.californium.cloud.option.ReadResponseOption;
+import org.eclipse.californium.cloud.option.ResponseCodeOption;
+import org.eclipse.californium.cloud.option.ServerCustomOptions;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.util.PrincipalInfo;
 import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
@@ -50,6 +50,7 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
@@ -57,7 +58,6 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 /**
  * Devices resource.
  * <p>
@@ -114,12 +114,12 @@ import org.slf4j.LoggerFactory;
  * <dl>
  * <dt>{@link TimeOption}, {@value TimeOption#COAP_OPTION_TIME}</dt>
  * <dd>Time synchronization.</dd>
- * <dt>{@link ReadResponseOption},
- * {@value ReadResponseOption#COAP_OPTION_READ_RESPONSE}</dt>
+ * <dt>{@link ResponseCodeOption},
+ * {@value ServerCustomOptions#COAP_OPTION_READ_RESPONSE}</dt>
  * <dd>Response code of piggybacked read request. See query parameter
  * {@value #URI_QUERY_OPTION_READ}</dd>
- * <dt>{@link ReadEtagOption},
- * {@value ReadEtagOption#COAP_OPTION_READ_ETAG}</dt>
+ * <dt>{@link OpaqueOption},
+ * {@value ServerCustomOptions#COAP_OPTION_READ_ETAG}</dt>
  * <dd>ETAG of piggybacked read request. See query parameter
  * {@value #URI_QUERY_OPTION_READ}</dd>
  * </dl>

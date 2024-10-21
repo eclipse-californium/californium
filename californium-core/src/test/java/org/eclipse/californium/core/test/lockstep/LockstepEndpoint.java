@@ -71,7 +71,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -83,6 +83,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
@@ -637,7 +638,7 @@ public class LockstepEndpoint {
 				}
 
 				public String toString() {
-					BlockOption option = new BlockOption(BlockOption.size2Szx(size), m, num);
+					BlockOption option = StandardOptionRegistry.BLOCK1.create(BlockOption.size2Szx(size), m, num);
 					return "Expected Block1 option: " + option;
 				}
 			});
@@ -657,7 +658,7 @@ public class LockstepEndpoint {
 				}
 
 				public String toString() {
-					BlockOption option = new BlockOption(BlockOption.size2Szx(size), m, num);
+					BlockOption option = StandardOptionRegistry.BLOCK2.create(BlockOption.size2Szx(size), m, num);
 					return "Expected Block2 option: " + option;
 				}
 			});

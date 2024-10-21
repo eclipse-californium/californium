@@ -40,7 +40,7 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
-import org.eclipse.californium.core.coap.option.OpaqueOptionDefinition;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -65,7 +65,7 @@ public class CaliforniumUtil extends ConnectorUtil {
 
 	public static final int OPTION_TRACE_CONTEXT_NO = 0b1111110111111110; // 65022
 
-	public static final OpaqueOptionDefinition OPTION_TRACE_CONTEXT = new OpaqueOptionDefinition(OPTION_TRACE_CONTEXT_NO, "Trace_Context", true, 1, 128);
+	public static final OpaqueOption.Definition OPTION_TRACE_CONTEXT = new OpaqueOption.Definition(OPTION_TRACE_CONTEXT_NO, "Trace_Context", true, 1, 128);
 
 	/**
 	 * {@code true}, if used as client, {@code false}, otherwise.
