@@ -20,7 +20,6 @@ import org.eclipse.californium.cloud.BaseServer.ServerConfig;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
-import org.eclipse.californium.core.coap.option.TransmissionCountOption;
 import org.eclipse.californium.elements.config.Configuration;
 
 import picocli.CommandLine.ArgGroup;
@@ -40,7 +39,7 @@ public class DemoServer {
 
 	@Command(name = "CloudDemoServer", version = "(c) 2024, Contributors to the Eclipse Foundation.", footer = { "",
 			"Examples:",
-			"  DemoServer --no-loopback",
+			"  DemoServer --no-loopback --device-file devices.txt",
 			"    (DemoServer listening only on external network interfaces.)",
 			"",
 			"  DemoServer --store-file dtls.bin --store-max-age 168 \\",
@@ -48,8 +47,18 @@ public class DemoServer {
 			"                --device-file devices.txt",
 			"",
 			"    (DemoServer with device credentials from file and dtls-graceful restart.",
-			"     Devices/sessions with no exchange for more then a week (168 hours)",
-			"     are skipped when saving.)",
+			"     Devices/sessions with no exchange for more then a week (168 hours) are",
+			"     skipped when saving.)",
+			"",
+			"  DemoServer --store-file dtls.bin --store-max-age 168 \\",
+			"                --store-password64 ZVhiRW5pdkx1RUs2dmVoZg== \\",
+			"                --device-file devices.txt --https-credenitals .",
+			"",
+			"    (DemoServer with device credentials from file and dtls-graceful restart.",
+			"     A simple HTTP server is started at port 8080 using the x509 certificates",
+			"     from the current directory (certificate is required to be provided).",
+			"     Devices/sessions with no exchange for more then a week (168 hours) are",
+			"     skipped when saving.)",
 			"", })
 	public static class Config extends ServerConfig {
 
