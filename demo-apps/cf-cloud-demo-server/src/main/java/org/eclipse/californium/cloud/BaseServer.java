@@ -319,13 +319,13 @@ public class BaseServer extends CoapServer {
 
 		public static class HttpsConfig {
 
-			@Option(names = "--https-port", required = true, description = "Port of https service.")
+			@Option(names = "--https-port", defaultValue = "8080", description = "Port of https service. Default: ${DEFAULT-VALUE}")
 			public int port;
 
 			@Option(names = "--https-credentials", required = true, description = "Folder containing https credentials in 'privkey.pem' and 'fullchain.pem'.")
 			public String credentials;
 
-			@Option(names = "--https-password64", description = "Folder containing https credentials in 'privkey.pem' and 'fullchain.pem'.")
+			@Option(names = "--https-password64", description = "Password for https credentials. Base 64 encoded.")
 			public String password64;
 		}
 

@@ -117,16 +117,39 @@ public class S3ProxyServer extends BaseServer {
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for S3 Proxy Server";
 
 	@Command(name = "S3ProxyServer", version = "(c) 2024, Contributors to the Eclipse Foundation.", footer = { "",
-			"Examples:", "  S3ProxyServer --no-loopback",
-			"    (S3ProxyServer listening only on external network interfaces.)", "",
+			"Examples:", 
+			"  S3ProxyServer --no-loopback --device-file devices.txt \\",
+			"                --s3-config ~/.s3cfg",
+			"    (S3ProxyServer listening only on external network interfaces.)",
+			"",
 			"  S3ProxyServer --store-file dtls.bin --store-max-age 168 \\",
 			"                --store-password64 ZVhiRW5pdkx1RUs2dmVoZg== \\",
-			"                --device-file devices.txt --user-file users.txt", "",
-			"    (S3ProxyServer with device credentials and web application user.",
+			"                --device-file devices.txt --user-file users.txt \\",
+			"                --s3-config ~/.s3cfg",
+			"",
+			"    (S3ProxyServer with device credentials and web application user",
 			"     from file and dtls-graceful restart. Devices/sessions with no",
-			"     exchange for more then a week (168 hours) are skipped when saving.)", "",
-			"Currently two variants for the '--http-authentication' are supported:",
-			"  'Bearer <token>' or '<username>:<password>'.",
+			"     exchange for more then a week (168 hours) are skipped when saving.)",
+			"",
+			"  S3ProxyServer --store-file dtls.bin --store-max-age 168 \\",
+			"                --store-password64 ZVhiRW5pdkx1RUs2dmVoZg== \\",
+			"                --device-file devices.txt --user-file users.txt \\",
+			"                --https-credentials . --s3-config ~/.s3cfg",
+			"",
+			"    (S3ProxyServer with device credentials and web application user",
+			"     from file and dtls-graceful restart. The Web-Login HTTP server",
+			"     is started at port 8080 using the x509 certificates from the",
+			"     current directory (certificate is required to be provided).",
+			"     Devices/sessions with no exchange for more then a week",
+			"     (168 hours) are skipped when saving.)",
+			"",
+			"For device data forwarding via http currently three variants for the",
+			"  '--http-authentication' are supported: 'Bearer <token>',",
+			"  'PreBasic <username>:<password>', or '<username>:<password>'.",
+			"  The 'Bearer' and 'PreBasic' authentication data will be send",
+			"  without challenge from the server. The '<username>:<password>'",
+			"  variant will be used on challenge by the server and supports",
+			"  BASIC and DIGEST.",
 			"",
 			"Search path for '--spa-css', '--spa-script', and '--spa-script-v2':",
 			"  If the provided path starts with 'http:' or 'https:' then the path",
@@ -184,13 +207,13 @@ public class S3ProxyServer extends BaseServer {
 
 		public static class HttpForward {
 
-			@Option(names = "--http-forward", required = true, description = "Http destination to forward coap-requests.")
+			@Option(names = "--http-forward", required = true, description = "Http destination to forward device data (coap-requests).")
 			public String httpForward;
 
-			@Option(names = "--http-authentication", description = "Http authentication for forward coap-requests.")
+			@Option(names = "--http-authentication", description = "Http authentication for forward device data (coap-requests). Supports 'Bearer <access-token>', 'PreBasic <username:password' and '<username:password>'")
 			public String httpAuthentication;
 
-			@Option(names = "--http-device-identity-mode", defaultValue = "NONE", description = "Http device identity mode. Supported values: NONE, HEADLINE and QUERY_PARAMETER. Default: ${DEFAULT-VALUE}")
+			@Option(names = "--http-device-identity-mode", defaultValue = "NONE", description = "Http device identity mode for forwarding device data (coap-requests) . Supported values: NONE, HEADLINE and QUERY_PARAMETER. Default: ${DEFAULT-VALUE}")
 			public HttpForwardDestinationProvider.DeviceIdentityMode httpDeviceIdentityMode;
 		}
 
