@@ -31,8 +31,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * hesitate to create an issue.
  * 
  * Note: since 3.9 the implementation based on the
- * {@link LeastRecentlyUpdatedCache} instead of the deprecated
- * LeastRecentlyUsedCache.
+ * {@link LeastRecentlyUpdatedCache}.
  * 
  * @since 3.0
  */

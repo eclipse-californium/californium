@@ -27,7 +27,6 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 
-import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.scandium.ConnectionListener;
 
 /**
@@ -35,8 +34,7 @@ import org.eclipse.californium.scandium.ConnectionListener;
  * 
  * @since 1.1
  */
-@SuppressWarnings("deprecation")
-public interface ResumptionSupportingConnectionStore extends PersistentConnector, Iterable<Connection> {
+public interface ResumptionSupportingConnectionStore extends Iterable<Connection> {
 
 	/**
 	 * Set connection listener.
@@ -73,7 +71,7 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	 * @return number of save connections.
 	 * @throws IOException if an io-error occurred
 	 * @throws IllegalStateException if connector is running
-	 * @since 3.4 (overrides the deprecated interface method)
+	 * @since 3.4
 	 */
 	int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException;
 
@@ -94,7 +92,7 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	 * @throws IllegalArgumentException if an reading error occurred. Continue
 	 *             to load other connection-stores may work, that may be not
 	 *             affected by this error.
-	 * @since 3.4 (overrides the deprecated interface method)
+	 * @since 3.4
 	 */
 	int loadConnections(InputStream in, long delta) throws IOException;
 

@@ -24,17 +24,7 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
  * 
  * @since 3.8
  */
-public interface OptionDefinition {
-
-	/**
-	 * Returns the option number.
-	 * 
-	 * @return the option number
-	 * 
-	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.6"
-	 *      target= "_blank">RFC7252 5.4.6. Option Numbers</a>
-	 */
-	int getNumber();
+public interface OptionDefinition extends OptionNumber {
 
 	/**
 	 * Get name of option.
@@ -102,16 +92,5 @@ public interface OptionDefinition {
 	 * @throws IllegalArgumentException if value doesn't match the definition
 	 */
 	void assertValue(byte[] value);
-
-	/**
-	 * Get value length of custom option.
-	 * 
-	 * @return array with minimum and maximum length of values. If both are
-	 *         equal, the array may contain only one length. If {@code null} is
-	 *         returned, the default lengths of values is used.
-	 * @deprecated obsolete, use {@link OptionDefinition#assertValue(byte[])}
-	 */
-	@Deprecated
-	int[] getValueLengths();
 
 }

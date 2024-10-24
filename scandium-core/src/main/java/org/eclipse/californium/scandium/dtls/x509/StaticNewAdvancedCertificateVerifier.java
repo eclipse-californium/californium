@@ -65,11 +65,8 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
+	private final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	/**
 	 * Trusted x509 certificates.
@@ -281,7 +278,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		String literalIp = null;
 		String hostname = null;
 		if (peer != null) {
-			hostname = StringUtil.toHostString(peer);
+			hostname = peer.getHostString();
 			InetAddress destination = peer.getAddress();
 			if (destination != null) {
 				literalIp = destination.getHostAddress();

@@ -92,11 +92,8 @@ public class TcpClientConnector implements Connector {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
+	private final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;

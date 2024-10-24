@@ -111,11 +111,8 @@ import org.slf4j.LoggerFactory;
 public class UdpMulticastConnector extends UDPConnector {
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	public static final Logger LOGGER = LoggerFactory.getLogger(UdpMulticastConnector.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMulticastConnector.class);
 
 	/**
 	 * Network interface of socket for outgoing multicast traffic. May be

@@ -525,7 +525,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			}
 
 			PlugtestServer.add(server);
-			PlugtestServer.load(config);
+			PlugtestServer.setupPersistence(config);
 
 			// start standard plugtest server and shutdown
 			CoapServer plugtestServer = PlugtestServer.start(executor, secondaryExecutor, config, configuration,
@@ -603,9 +603,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 						client.restoreSingle(k8sClient, httpsRestoreOther.getPort(), clientContext, server);
 					}
 				} else {
-					String host = StringUtil.toHostString(httpsRestoreOther);
-					client.restore(InetAddress.getLocalHost().getHostName(), host, httpsRestoreOther.getPort(),
-							clientContext, server);
+					client.restore(InetAddress.getLocalHost().getHostName(), httpsRestoreOther.getHostString(),
+							httpsRestoreOther.getPort(), clientContext, server);
 				}
 			}
 			if (!config.benchmark) {

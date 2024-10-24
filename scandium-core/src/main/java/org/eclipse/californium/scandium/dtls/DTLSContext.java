@@ -51,12 +51,6 @@ public final class DTLSContext implements Destroyable {
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 
 	/**
-	 * Use deprecated MAC for CID.
-	 * 
-	 * @since 3.0
-	 */
-	private boolean useDeprecatedCid;
-	/**
 	 * Connection id used for all outbound records.
 	 */
 	private ConnectionId writeConnectionId = null;
@@ -161,28 +155,6 @@ public final class DTLSContext implements Destroyable {
 	 *            <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1"
 	 *            target="_blank"> section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for
 	 *            details)
-	 * @throws IllegalArgumentException if sequence number is out of the valid
-	 *             range {@code [0...2^48)}.
-	 *             @deprecated use {@link #DTLSContext(long, boolean)} instead.
-	 */
-	@Deprecated
-	DTLSContext(long initialRecordSequenceNo) {
-		this(initialRecordSequenceNo, false);
-	}
-
-	/**
-	 * Creates a new DTLS context initialized with a given record sequence
-	 * number.
-	 *
-	 * @param initialRecordSequenceNo the initial record sequence number to
-	 *            start from in epoch 0. When starting a new handshake with a
-	 *            client that has successfully exchanged a cookie with the
-	 *            server, the sequence number to use in the SERVER_HELLO record
-	 *            MUST be the same as the one from the successfully validated
-	 *            CLIENT_HELLO record (see
-	 *            <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1"
-	 *            target="_blank"> section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for
-	 *            details)
 	 * @param supportExport {@code true}, if
 	 *            {@link DtlsConfig#DTLS_SUPPORT_KEY_MATERIAL_EXPORT} is
 	 *            enabled.
@@ -231,30 +203,6 @@ public final class DTLSContext implements Destroyable {
 	 */
 	public DTLSSession getSession() {
 		return session;
-	}
-
-	/**
-	 * Use deprecated definitions for extension ID and MAC calculation.
-	 * 
-	 * @return {@code true}, if the deprecated extension ID {@code 53} along
-	 *         with the deprecated MAC calculation is used, {@code false},
-	 *         otherwise.
-	 * @since 3.0
-	 */
-	public boolean useDeprecatedCid() {
-		return useDeprecatedCid;
-	}
-
-	/**
-	 * Set usage of deprecated definitions for extension ID and MAC calculation.
-	 * 
-	 * @param useDeprecatedCid {@code true}, if the deprecated extension ID
-	 *            {@code 53} along with the deprecated MAC calculation is used,
-	 *            {@code false}, otherwise.
-	 * @since 3.0
-	 */
-	void setDeprecatedCid(boolean useDeprecatedCid) {
-		this.useDeprecatedCid = useDeprecatedCid;
 	}
 
 	/**
@@ -834,7 +782,6 @@ public final class DTLSContext implements Destroyable {
 		result = prime * result + (int) (receivedRecordsVector ^ (receivedRecordsVector >>> 32));
 		result = prime * result + ((readConnectionId == null) ? 0 : readConnectionId.hashCode());
 		result = prime * result + ((writeConnectionId == null) ? 0 : writeConnectionId.hashCode());
-		result = prime * result + ((useDeprecatedCid) ? 1 : 0);
 		result = prime * result + effectiveMaxMessageSize;
 		result = prime * result + session.hashCode();
 		return result;
@@ -892,9 +839,6 @@ public final class DTLSContext implements Destroyable {
 		if (sequenceNumbers[writeEpoch] != other.sequenceNumbers[writeEpoch]) {
 			return false;
 		}
-		if (useDeprecatedCid != other.useDeprecatedCid) {
-			return false;
-		}
 		if (effectiveMaxMessageSize != other.effectiveMaxMessageSize) {
 			return false;
 		}
@@ -935,20 +879,25 @@ public final class DTLSContext implements Destroyable {
 	/**
 	 * Version number for serialization.
 	 */
-	private static final int VERSION = 4;
+	private static final int VERSION = 5;
 
 	/**
 	 * Version number for serialization before introducing
-	 * {@link #useDeprecatedCid}.
+	 * {@code useDeprecatedCid} (removed with version 4).
 	 */
 	private static final int VERSION_DEPRECATED = 2;
 	/**
 	 * Version number for serialization before introducing
-	 * {@link #useDeprecatedCid}.
+	 * {@link #supportExport}.
 	 */
 	private static final int VERSION_DEPRECATED_2 = 3;
+	/**
+	 * Version number for serialization before removing
+	 * {@code useDeprecatedCid}.
+	 */
+	private static final int VERSION_DEPRECATED_3 = 4;
 
-	private static final SupportedVersions VERSIONS = new SupportedVersions(VERSION, VERSION_DEPRECATED, VERSION_DEPRECATED_2);
+	private static final SupportedVersions VERSIONS = new SupportedVersions(VERSION, VERSION_DEPRECATED, VERSION_DEPRECATED_2, VERSION_DEPRECATED_3);
 
 	/**
 	 * Write DTLS context state.
@@ -979,8 +928,9 @@ public final class DTLSContext implements Destroyable {
 		}
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
 		writeSequenceNumbers(writer);
-		// after deprecation
-		writer.writeByte(useDeprecatedCid ? (byte) 1 : (byte) 0);
+		// after deprecation, add useDeprecatedCid 
+		// after deprecation_3, remove useDeprecatedCid for 4.0 
+		// writer.writeByte(useDeprecatedCid ? (byte) 1 : (byte) 0);
 		writer.write(effectiveMaxMessageSize, Short.SIZE);
 		// after deprecation_2
 		writer.writeByte(supportExport ? (byte) 1 : (byte) 0);
@@ -1042,15 +992,29 @@ public final class DTLSContext implements Destroyable {
 		}
 		readSequenceNumbers(reader);
 		if (version == VERSION_DEPRECATED) {
-			useDeprecatedCid = true;
 			effectiveMaxMessageSize = 0;
 			supportExport = false;
 		} else if (version == VERSION_DEPRECATED_2) {
-			useDeprecatedCid = reader.readNextByte() == 1;
+			// skip useDeprecatedCid, longer supported with 4.0
+			reader.readNextByte();
 			effectiveMaxMessageSize = reader.read(Short.SIZE);
 			supportExport = false;
+		} else if (version == VERSION_DEPRECATED_3) {
+			// skip useDeprecatedCid, not longer supported with 4.0
+			reader.readNextByte();
+			effectiveMaxMessageSize = reader.read(Short.SIZE);
+			supportExport = reader.readNextByte() == 1;
+			if (supportExport) {
+				data = reader.readVarBytes(Byte.SIZE);
+				if (data != null) {
+					clientRandom = new Random( data);
+				}
+				data = reader.readVarBytes(Byte.SIZE);
+				if (data != null) {
+					serverRandom = new Random( data);
+				}
+			}
 		} else if (version == VERSION) {
-			useDeprecatedCid = reader.readNextByte() == 1;
 			effectiveMaxMessageSize = reader.read(Short.SIZE);
 			supportExport = reader.readNextByte() == 1;
 			if (supportExport) {

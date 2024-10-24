@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
+import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.WebAppAuthorization;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.util.DeviceGroupProvider;
@@ -71,6 +72,13 @@ public class S3Login implements HttpHandler {
 	protected final S3ProxyClientProvider clientProvider;
 
 	/**
+	 * Indicates to forward the diagnose configuration.
+	 * 
+	 * @since 4.0
+	 */
+	private final boolean withDiagnose;
+
+	/**
 	 * Create http S3 Login.
 	 * 
 	 * @param authorizer AWS4-HMAC-SHA256 authorizer to check for valid
@@ -80,7 +88,7 @@ public class S3Login implements HttpHandler {
 	 * @param groups device groups provider
 	 */
 	public S3Login(Aws4Authorizer authorizer, S3ProxyClientProvider clientProvider, WebAppConfigProvider webAppConfigs,
-			DeviceGroupProvider groups) {
+			DeviceGroupProvider groups, boolean withDiagnose) {
 		if (authorizer == null) {
 			throw new NullPointerException("authorizer must not be null!");
 		}
@@ -91,6 +99,7 @@ public class S3Login implements HttpHandler {
 		this.webAppConfigs = webAppConfigs;
 		this.groups = groups;
 		this.clientProvider = clientProvider;
+		this.withDiagnose = withDiagnose;
 	}
 
 	@Override
@@ -109,14 +118,14 @@ public class S3Login implements HttpHandler {
 				}
 				httpCode = 401;
 				Authorization authorization = authorizer.checkSignature(httpExchange, BAN);
-				if (authorization != null && authorization.isVerified()) {
+				if (authorization instanceof WebAppAuthorization) {
 					String amzNow = Aws4Authorizer.formatDateTime(System.currentTimeMillis());
 					LOGGER.info("Response, x-amz-date: {}", amzNow);
 					httpExchange.getResponseHeaders().add("x-amz-date", amzNow);
 					if (authorization.isInTime()) {
 						try {
 							httpCode = 200;
-							payload = getLoginResponse(authorization);
+							payload = getLoginResponse((WebAppAuthorization) authorization);
 							contentType = "application/json; charset=utf-8";
 							httpExchange.getResponseHeaders().add("Cache-Control", "no-cache");
 						} catch (Throwable t) {
@@ -164,7 +173,7 @@ public class S3Login implements HttpHandler {
 	 * @return payload of response.
 	 * @throws InvalidKeyException if generated signature key is inappropriate.
 	 */
-	private byte[] getLoginResponse(Authorization authorization) throws InvalidKeyException {
+	private byte[] getLoginResponse(WebAppAuthorization authorization) throws InvalidKeyException {
 		long now = System.currentTimeMillis();
 		String date = Aws4Authorizer.formatDate(now);
 		String date2 = Aws4Authorizer.formatDate(now + TimeUnit.HOURS.toMillis(1));
@@ -186,11 +195,14 @@ public class S3Login implements HttpHandler {
 		}
 		scope.set(0, date);
 		scope.set(1, region);
+		// create the signing key for access the S3 bucket by this user
+		// uses the assigned API key, secret, and region the S3 bucket
 		byte[] skey = Aws4Authorizer.getSigningKey(credentials.accessKeySecret, scope);
 		Formatter formatter = new Formatter.Json();
 		formatter.add("id", credentials.accessKeyId);
 		formatter.add(date, StringUtil.byteArray2Hex(skey));
 		if (!date.equals(date2)) {
+			// day switch, create the signing key for the next day
 			scope.set(0, date2);
 			byte[] skey2 = Aws4Authorizer.getSigningKey(credentials.accessKeySecret, scope);
 			formatter.add(date2, StringUtil.byteArray2Hex(skey2));
@@ -199,6 +211,11 @@ public class S3Login implements HttpHandler {
 		formatter.add("region", region);
 		GroupsHandler.getDeviceList(authorization, groups, formatter);
 		if (webAppConfigs != null && credentials.webAppConfig != null) {
+			if (!withDiagnose) {
+				// remove diagnose configuration.
+				webAppConfigs.remove(domain, credentials.webAppConfig + WebAppConfigProvider.CONFIGURATION_PREFIX,
+						WebAppConfigProvider.DIAGNOSE_NAME);
+			}
 			Map<String, Map<String, String>> config = webAppConfigs.getSubSections(domain, credentials.webAppConfig);
 			for (String section : config.keySet()) {
 				Map<String, String> values = config.get(section);

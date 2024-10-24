@@ -30,11 +30,8 @@ public class PemReader {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private.
 	 */
-	@Deprecated
-	public static final Logger LOGGER = LoggerFactory.getLogger(PemReader.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(PemReader.class);
 
 	private static final Pattern BEGIN_PATTERN = Pattern.compile("^\\-+BEGIN\\s+([\\w\\s]+)\\-+$");
 

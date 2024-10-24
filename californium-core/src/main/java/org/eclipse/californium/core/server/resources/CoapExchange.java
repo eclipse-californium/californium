@@ -28,6 +28,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.NoResponseOption;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseConsumer;
@@ -55,24 +56,8 @@ public class CoapExchange implements ResponseConsumer {
 	private String locationPath = null;
 	private String locationQuery = null;
 	private String handshakeMode = null;
-	private long maxAge = 60;
+	private long maxAge = OptionNumberRegistry.Defaults.MAX_AGE;
 	private byte[] eTag = null;
-
-	/**
-	 * Creates a new CoAP Exchange object for an exchange and resource.
-	 * 
-	 * @param exchange The message exchange.
-	 * @param resource The resource.
-	 * @throws NullPointerException if any of the parameters is {@code null}.
-	 * @deprecated use {@link #CoapExchange(Exchange)} instead
-	 */
-	@Deprecated
-	public CoapExchange(final Exchange exchange, final CoapResource resource) {
-		this(exchange);
-		if (resource == null) {
-			throw new NullPointerException("resource must not be null");
-		}
-	}
 
 	/**
 	 * Creates a new CoAP Exchange object for an exchange.
@@ -511,7 +496,7 @@ public class CoapExchange implements ResponseConsumer {
 			response.getOptions().setLocationPath(locationPath);
 		if (locationQuery != null)
 			response.getOptions().setLocationQuery(locationQuery);
-		if (maxAge != 60)
+		if (maxAge != OptionNumberRegistry.Defaults.MAX_AGE)
 			response.getOptions().setMaxAge(maxAge);
 		if (eTag != null) {
 			response.getOptions().clearETags();

@@ -371,6 +371,9 @@ public class Domains
 			Domain domain = domains.get(domainName);
 			if (domain != null) {
 				user = domain.userStore.getResource().get(userName);
+				if (user != null) {
+					return new WebAppDomainUser(domainName, user);
+				}
 			}
 		} else {
 			for (Entry<String, Domain> domain : domains.entrySet()) {
@@ -386,9 +389,9 @@ public class Domains
 					}
 				}
 			}
-		}
-		if (user != null) {
-			return new WebAppDomainUser(domainName, user);
+			if (user != null && domainName != null) {
+				return new WebAppDomainUser(domainName, user);
+			}
 		}
 		return null;
 	}
@@ -407,6 +410,15 @@ public class Domains
 		Domain domain = domains.get(domainName);
 		if (domain != null) {
 			return domain.configStore.getResource().get(section, name);
+		}
+		return null;
+	}
+
+	@Override
+	public String remove(String domainName, String section, String name) {
+		Domain domain = domains.get(domainName);
+		if (domain != null) {
+			return domain.configStore.getResource().remove(section, name);
 		}
 		return null;
 	}
@@ -437,4 +449,5 @@ public class Domains
 		}
 		return null;
 	}
+
 }

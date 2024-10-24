@@ -27,11 +27,8 @@
 package org.eclipse.californium.core;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -47,21 +44,16 @@ import org.eclipse.californium.core.observe.ObserveHealth;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
-import org.eclipse.californium.core.server.ServersSerializationUtil;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PersistentComponent;
 import org.eclipse.californium.elements.PersistentComponentProvider;
-import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.CounterStatisticManager;
-import org.eclipse.californium.elements.util.DataStreamReader;
-import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
-import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,23 +108,12 @@ import org.slf4j.LoggerFactory;
  * @see MessageDeliverer
  * @see Endpoint
  **/
-@SuppressWarnings("deprecation")
 public class CoapServer implements ServerInterface, PersistentComponentProvider {
 
 	/**
-	 * Start mark for connections in stream.
-	 * 
-	 * @since 3.0
-	 */
-	private static final String MARK = "CoAP";
-
-	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private
 	 */
-	@Deprecated
-	protected static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
 
 	/** The root resource. */
 	private final Resource root;
@@ -626,136 +607,6 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	}
 
 	/**
-	 * Save all connector's connections.
-	 * 
-	 * {@link #stop()}s before saving. Each entry contains the {@link #tag},
-	 * followed by the {@link Endpoint#getUri()} as ASCII string.
-	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it.
-	 * 
-	 * @param out output stream to write to
-	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
-	 *            seconds. Connections without traffic for that time are skipped
-	 *            during serialization.
-	 * @return number of saved connections.
-	 * @throws IOException if an i/o-error occurred
-	 * @see ServersSerializationUtil#saveServers(OutputStream, long, List)
-	 * @see PersistentConnector#saveConnections(OutputStream, long)
-	 * @since 3.0
-	 */
-	public int saveAllConnectors(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
-		stop();
-		int count = 0;
-		DatagramWriter writer = new DatagramWriter();
-		for (Endpoint endpoint : getEndpoints()) {
-			if (endpoint instanceof CoapEndpoint) {
-				Connector connector = ((CoapEndpoint) endpoint).getConnector();
-				if (connector instanceof PersistentConnector) {
-					SerializationUtil.write(writer, MARK, Byte.SIZE);
-					SerializationUtil.write(writer, getTag(), Byte.SIZE);
-					SerializationUtil.write(writer, endpoint.getUri().toASCIIString(), Byte.SIZE);
-					writer.writeTo(out);
-					int saved = ((PersistentConnector) connector).saveConnections(out, maxQuietPeriodInSeconds);
-					count += saved;
-				}
-			}
-		}
-		return count;
-	}
-
-	/**
-	 * Read connector identifier from provided input stream.
-	 * 
-	 * @param in input stream to read from
-	 * @return connector identifier, or {@code null}, if no connector identifier
-	 *         is left.
-	 * @throws IOException if the stream doesn't contain a valid connector
-	 *             identifier.
-	 * @see #loadConnector(ConnectorIdentifier, InputStream, long)
-	 * @see ServersSerializationUtil#loadServers(InputStream, List)
-	 * @see PersistentConnector#loadConnections(InputStream, long)
-	 * @since 3.0
-	 */
-	public static ConnectorIdentifier readConnectorIdentifier(InputStream in) throws IOException {
-		DataStreamReader reader = new DataStreamReader(in);
-		try {
-			if (!SerializationUtil.verifyString(reader, MARK, Byte.SIZE)) {
-				return null;
-			}
-		} catch (IllegalArgumentException ex) {
-			LOGGER.warn("loading failed, out of sync!");
-			throw new IOException(ex.getMessage() + " " + in.available() + " bytes left.");
-		}
-
-		String tag = SerializationUtil.readString(reader, Byte.SIZE);
-		if (tag == null) {
-			throw new IOException("Missing server's tag!");
-		}
-		String uri = SerializationUtil.readString(reader, Byte.SIZE);
-		try {
-			return new ConnectorIdentifier(tag, new URI(uri));
-		} catch (URISyntaxException e) {
-			LOGGER.warn("{}bad URI {}!", tag, uri, e);
-			throw new IOException("Bad URI '" + uri + "'!");
-		}
-	}
-
-	/**
-	 * Read connections for the connector of the provided uri.
-	 * 
-	 * @param identifier connector's identifier
-	 * @param in input stream
-	 * @param delta adjust-delta for nano-uptime. In nanoseconds. The stream
-	 *            contains timestamps based on nano-uptime. On loading, this
-	 *            requires to adjust these timestamps according the current nano
-	 *            uptime and the passed real time.
-	 * @return number of read connections, {@code -1}, if no persistent
-	 *         connector is available for the provided uri.
-	 * @throws IOException if an i/o-error occurred
-	 * @see #readConnectorIdentifier(InputStream)
-	 * @see ServersSerializationUtil#loadServers(InputStream, List)
-	 * @see PersistentConnector#loadConnections(InputStream, long)
-	 * @since 3.0
-	 */
-	public int loadConnector(ConnectorIdentifier identifier, InputStream in, long delta) throws IOException {
-		Endpoint endpoint = getEndpoint(identifier.uri);
-		if (endpoint == null && identifier.wildcard != null) {
-			// Seems, that ipv4 wildcards are not equal to ipv6 wildcards.
-			// And a wildcard may be changed into the other ip version when
-			// starting the connector
-			for (Endpoint ep : endpoints) {
-				if (identifier.matchWildcard(ep.getUri())) {
-					endpoint = ep;
-					break;
-				}
-			}
-		}
-		if (endpoint == null) {
-			LOGGER.warn("{}connector {} not available!", getTag(), identifier.uri.toASCIIString());
-			return -1;
-		}
-		PersistentConnector persistentConnector = null;
-		if (endpoint instanceof CoapEndpoint) {
-			Connector connector = ((CoapEndpoint) endpoint).getConnector();
-			if (connector instanceof PersistentConnector) {
-				persistentConnector = (PersistentConnector) connector;
-			}
-		}
-		if (persistentConnector != null) {
-			try {
-				return persistentConnector.loadConnections(in, delta);
-			} catch (IllegalArgumentException e) {
-				LOGGER.warn("{}loading failed:", getTag(), e);
-				return 0;
-			}
-		} else {
-			LOGGER.warn("{}connector {} doesn't support persistence!", getTag(), identifier.uri.toASCIIString());
-		}
-		return -1;
-	}
-
-	/**
 	 * Gets the root of this server.
 	 *
 	 * @return the root
@@ -827,60 +678,5 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 			exchange.respond(ResponseCode.CONTENT, msg);
 		}
 
-	}
-
-	/**
-	 * Connector identifier.
-	 * 
-	 * @since 3.0
-	 */
-	public static class ConnectorIdentifier {
-
-		/**
-		 * Server's tag.
-		 * 
-		 * @see CoapServer#setTag(String)
-		 * @see CoapServer#getTag()
-		 */
-		public final String tag;
-		/**
-		 * Connectors URI.
-		 */
-		public final URI uri;
-		/**
-		 * IPv4/IPv6 wildcard address.
-		 * 
-		 * @since 3.4
-		 */
-		public final String wildcard;
-
-		private ConnectorIdentifier(String tag, URI uri) {
-			this.tag = tag;
-			this.uri = uri;
-			String local = uri.getHost();
-			if (local.equals("0.0.0.0")) {
-				wildcard = "[0:0:0:0:0:0:0:0]";
-			} else if (local.equals("[0:0:0:0:0:0:0:0]")) {
-				wildcard = "0.0.0.0";
-			} else {
-				wildcard = null;
-			}
-		}
-
-		private boolean matchWildcard(URI uri) {
-			if (wildcard != null) {
-				if (this.uri.getScheme().equalsIgnoreCase(uri.getScheme()) && this.uri.getPort() == uri.getPort()) {
-					if (wildcard.equalsIgnoreCase(uri.getHost())) {
-						return true;
-					}
-				}
-			}
-			return false;
-		}
-
-		@Override
-		public String toString() {
-			return tag + uri.toASCIIString();
-		}
 	}
 }

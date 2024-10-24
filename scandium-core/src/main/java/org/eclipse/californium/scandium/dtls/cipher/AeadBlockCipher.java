@@ -37,9 +37,8 @@ public final class AeadBlockCipher {
 	 * handled as special transformation.
 	 * 
 	 * @see CCMBlockCipher
-	 * @deprecated use {@link #AES_CCM_NO_PADDING} instead
 	 */
-	public static final String AES_CCM = "AES/CCM";
+	private static final String AES_CCM = "AES/CCM";
 	/**
 	 * Support java prior 1.7, aes-ccm is a non-java-vm transformation and
 	 * handled as special transformation.

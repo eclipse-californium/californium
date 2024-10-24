@@ -12,41 +12,23 @@
  * 
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  ********************************************************************************/
-package org.eclipse.californium.cloud.s3.util;
+package org.eclipse.californium.core.coap.option;
 
 /**
- * Domain user.
+ * Option number.
  * 
- * Domain name and user pair.
- * 
- * @since 3.12
+ * @since 4.0
  */
-public class WebAppDomainUser {
+public interface OptionNumber {
 
 	/**
-	 * User.
-	 */
-	public final WebAppUser user;
-	/**
-	 * Domain name.
-	 */
-	public final String domain;
-
-	/**
-	 * Create domain user.
+	 * Returns the option number.
 	 * 
-	 * @param domain domain name.
-	 * @param user user
-	 * @throws NullPointerException if domain or user is {@code null}
+	 * @return the option number
+	 * 
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.6"
+	 *      target= "_blank">RFC7252 5.4.6. Option Numbers</a>
 	 */
-	public WebAppDomainUser(String domain, WebAppUser user) {
-		if (domain == null) {
-			throw new NullPointerException("domain must not be null!");
-		}
-		if (user == null) {
-			throw new NullPointerException("user must not be null!");
-		}
-		this.domain = domain;
-		this.user = user;
-	}
+	int getNumber();
+
 }

@@ -92,7 +92,6 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -437,11 +436,10 @@ public class DTLSConnectorHandshakeTest {
 		ConnectorHelper.assertPrincipalHasAdditionalInfo(clientIdentity, KEY_DEVICE_ID, DEVICE_ID);
 	}
 
-	private void assertCidVariant(EndpointContext endpointContext, boolean deprecatedCid, int readCidlength, int writeCidlength) {
+	private void assertCidVariant(EndpointContext endpointContext, int readCidlength, int writeCidlength) {
 		Connection connection = serverHelper.serverConnectionStore.get(endpointContext.getPeerAddress());
 		assertThat(connection, is(notNullValue()));
 		assertThat(connection.getEstablishedDtlsContext(), is(notNullValue()));
-		assertThat(connection.getEstablishedDtlsContext().useDeprecatedCid(), is(deprecatedCid));
 
 		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(notNullValue()));
 		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID).length(), is(readCidlength));
@@ -1184,7 +1182,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertCidVariant(endpointContext, false, 6, 4);
+		assertCidVariant(endpointContext, 6, 4);
 	}
 
 	@Test
@@ -1200,7 +1198,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertCidVariant(endpointContext, false, 6, 0);
+		assertCidVariant(endpointContext, 6, 0);
 	}
 
 	@Test
@@ -1216,7 +1214,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
-		assertCidVariant(endpointContext, false, 0, 4);
+		assertCidVariant(endpointContext, 0, 4);
 	}
 
 	@Test
@@ -1249,62 +1247,6 @@ public class DTLSConnectorHandshakeTest {
 		assertClientPrincipalHasAdditionalInfo(principal);
 		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(nullValue()));
 		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
-	}
-
-	@SuppressWarnings("deprecation")
-	@Test
-	public void testPskHandshakeWithDeprecatedCid() throws Exception {
-		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)
-				.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true)
-				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
-		startServer();
-		clientBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
-				.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, ExtensionType.CONNECTION_ID_DEPRECATED.getId());
-		startClientPsk(null);
-		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
-		Principal principal = endpointContext.getPeerIdentity();
-		assertThat(principal, is(notNullValue()));
-		assertThat(principal.getName(), is(CLIENT_IDENTITY));
-		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		assertClientPrincipalHasAdditionalInfo(principal);
-		assertCidVariant(endpointContext, true, 6, 4);
-	}
-
-	@SuppressWarnings("deprecation")
-	@Test
-	public void testPskHandshakeWithDeprecatedClientCid() throws Exception {
-		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)
-				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
-		startServer();
-		clientBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
-				.set(DtlsConfig.DTLS_USE_DEPRECATED_CID, ExtensionType.CONNECTION_ID_DEPRECATED.getId());
-		startClientPsk(null);
-		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
-		Principal principal = endpointContext.getPeerIdentity();
-		assertThat(principal, is(notNullValue()));
-		assertThat(principal.getName(), is(CLIENT_IDENTITY));
-		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		assertClientPrincipalHasAdditionalInfo(principal);
-		assertThat(endpointContext.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID), is(nullValue()));
-		assertThat(endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID), is(nullValue()));
-	}
-
-	@SuppressWarnings("deprecation")
-	@Test
-	public void testPskHandshakeWithSupportedDeprecatedCid() throws Exception {
-		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)
-				.set(DtlsConfig.DTLS_SUPPORT_DEPRECATED_CID, true)
-				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
-		startServer();
-		clientBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4);
-		startClientPsk(null);
-		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
-		Principal principal = endpointContext.getPeerIdentity();
-		assertThat(principal, is(notNullValue()));
-		assertThat(principal.getName(), is(CLIENT_IDENTITY));
-		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		assertClientPrincipalHasAdditionalInfo(principal);
-		assertCidVariant(endpointContext, false, 6, 4);
 	}
 
 	@Test

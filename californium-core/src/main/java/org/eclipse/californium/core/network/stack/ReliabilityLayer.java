@@ -64,11 +64,8 @@ public class ReliabilityLayer extends AbstractLayer {
 
 	/**
 	 * The logger.
-	 * 
-	 * @deprecated scope will change to private
 	 */
-	@Deprecated
-	protected final static Logger LOGGER = LoggerFactory.getLogger(ReliabilityLayer.class);
+	private final static Logger LOGGER = LoggerFactory.getLogger(ReliabilityLayer.class);
 
 	protected final ReliabilityLayerParameters defaultReliabilityLayerParameters;
 

@@ -239,7 +239,6 @@ public class NatTestHelper {
 					.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 20, TimeUnit.SECONDS)
 					.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
 					.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 4)
-					.set(DtlsConfig.DTLS_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD, 100)
 					.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 					.setLoggingTag(tag)
 					.setHealthHandler(health)

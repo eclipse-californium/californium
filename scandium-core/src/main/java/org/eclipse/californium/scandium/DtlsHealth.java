@@ -26,9 +26,8 @@ public interface DtlsHealth {
 	 * @param tag logging tag
 	 * @param maxConnections maximum number of connections
 	 * @param remainingCapacity remaining capacity for connections
-	 * @param pendingWithoutVerify pending handshakes without verification
 	 */
-	void dump(String tag, int maxConnections, int remainingCapacity, int pendingWithoutVerify);
+	void dump(String tag, int maxConnections, int remainingCapacity);
 
 	/**
 	 * Check, if collecting health data is enabled.
@@ -65,4 +64,45 @@ public interface DtlsHealth {
 	 *            is to be sent.
 	 */
 	void sendingRecord(boolean drop);
+
+	/**
+	 * Set number of connections.
+	 * 
+	 * @param count number of connections
+	 * 
+	 * @since 4.0 (moved from obsolete DtlsHealthExtended)
+	 */
+	void setConnections(int count);
+
+	/**
+	 * Report receiving record with MAC error.
+	 * 
+	 * @since 4.0 (moved from obsolete DtlsHealthExtended2)
+	 */
+	void receivingMacError();
+
+	/**
+	 * Set number of pending incoming jobs.
+	 * 
+	 * @param count number of pending incoming jobs
+	 * @since 4.0 (moved from obsolete DtlsHealthExtended2)
+	 */
+	void setPendingIncomingJobs(int count);
+
+	/**
+	 * Set number of pending outgoing jobs.
+	 * 
+	 * @param count number of pending outgoing jobs
+	 * @since 4.0 (moved from obsolete DtlsHealthExtended2)
+	 */
+	void setPendingOutgoingJobs(int count);
+
+	/**
+	 * Set number of pending handshake result jobs.
+	 * 
+	 * @param count number of pending handshake result jobs
+	 * @since 4.0 (moved from obsolete DtlsHealthExtended2)
+	 */
+	void setPendingHandshakeJobs(int count);
+
 }

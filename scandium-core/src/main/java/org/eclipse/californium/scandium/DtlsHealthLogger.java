@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.util.CounterStatisticManager;
@@ -30,8 +28,7 @@ import org.slf4j.LoggerFactory;
  * Health implementation using counter and logging for results.
  */
 @NoPublicAPI
-public class DtlsHealthLogger extends CounterStatisticManager
-		implements DtlsHealth, DtlsHealthExtended, DtlsHealthExtended2 {
+public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHealth {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName() + ".health");
@@ -78,24 +75,6 @@ public class DtlsHealthLogger extends CounterStatisticManager
 	 */
 	public DtlsHealthLogger(String tag) {
 		super(tag);
-		init();
-	}
-
-	/**
-	 * Create active dtls health logger with logging tag.
-	 * 
-	 * @param tag logging tag
-	 * @param interval interval. {@code 0} to disable actively calling
-	 *            {@link #dump()}.
-	 * @param unit time unit of interval
-	 * @param executor executor to schedule active calls of {@link #dump()}.
-	 * @throws NullPointerException if executor is {@code null}
-	 * @since 3.0 (added unit)
-	 * @deprecated use {@link DtlsHealthLogger#DtlsHealthLogger(String)} instead
-	 *             and call {@link #dump()} externally.
-	 */
-	public DtlsHealthLogger(String tag, int interval, TimeUnit unit, ScheduledExecutorService executor) {
-		super(tag, interval, unit, executor);
 		init();
 	}
 
@@ -147,7 +126,7 @@ public class DtlsHealthLogger extends CounterStatisticManager
 		}
 	}
 
-	public void dump(String tag, int maxConnections, int remainingCapacity, int pendingWithoutVerify) {
+	public void dump(String tag, int maxConnections, int remainingCapacity) {
 		try {
 			if (isEnabled()) {
 				connections.transferCounter();
@@ -167,7 +146,6 @@ public class DtlsHealthLogger extends CounterStatisticManager
 					log.append(" (").append(remainingCapacity).append(" remaining capacity).").append(eol);
 					msg = SimpleCounterStatistic.format(align.getAlign(), handshakes, pendingHandshakes.get());
 					log.append(head).append(msg);
-					log.append(" (").append(pendingWithoutVerify).append(" without verify).").append(eol);
 					log.append(head).append(succeededHandshakes).append(eol);
 					log.append(head).append(failedHandshakes).append(eol);
 					log.append(head).append(sentRecords).append(eol);

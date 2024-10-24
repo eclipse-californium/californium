@@ -286,7 +286,7 @@ public class HttpService {
 			try {
 				secureServer = HttpsServer.create(localSecureAddress, 10);
 				setHttpsConfigurator(context);
-				secureServer.createContext("/favicon.ico", new FileHandler(null, "image/x-icon", false));
+				secureServer.createContext("/favicon.ico", new FileHandler("image/x-icon"));
 				for (Map.Entry<String, HttpHandler> context : handlers.entrySet()) {
 					secureServer.createContext(context.getKey(), context.getValue());
 				}
@@ -501,31 +501,54 @@ public class HttpService {
 	 */
 	public static class FileHandler implements HttpHandler {
 
-		private final String file;
 		private final String path;
 		private final String contentType;
 		private final boolean classpath;
 		private final boolean reload;
 		private byte[] data;
 
-		public FileHandler(String file, String contentType, boolean reload) {
+		public FileHandler(String contentType) {
+			if (contentType == null) {
+				throw new NullPointerException("content-type must not be null!");
+			}
 			this.contentType = contentType;
-			String path = null;
+			this.classpath = false;
+			this.path = "";
+			this.reload = false;
+			load();
+		}
+
+		public FileHandler(String file, String contentType, boolean reload) {
+			if (file == null) {
+				throw new NullPointerException("file must not be null!");
+			}
+			if (contentType == null) {
+				throw new NullPointerException("content-type must not be null!");
+			}
+			this.contentType = contentType;
+			String path = "";
 			boolean classpath = false;
 			if (file != null) {
 				classpath = file.startsWith(SslContextUtil.CLASSPATH_SCHEME);
 				if (classpath) {
-					file = file.substring(SslContextUtil.CLASSPATH_SCHEME.length());
+					path = file.substring(SslContextUtil.CLASSPATH_SCHEME.length());
+					LOGGER.info("Load {} from classpath", path);
 				} else {
-					path = "src/main/resources/";
-					File f = new File(path + file);
-					if (!f.isFile() || !f.canRead()) {
-						path = "";
-						f = new File(file);
-						if (!f.isFile() || !f.canRead()) {
-							InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(file);
+					path = file;
+					File f = new File(path);
+					if (f.isFile() && f.canRead()) {
+						LOGGER.info("Load {} from file-system", path);
+					} else {
+						path = "src/main/resources/" + file;
+						f = new File(path);
+						if (f.isFile() && f.canRead()) {
+							LOGGER.info("Load {} from file-system", path);
+						} else {
+							path = file;
+							InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
 							if (in != null) {
 								classpath = true;
+								LOGGER.info("Load {} from classpath", path);
 								try {
 									in.close();
 								} catch (IOException e) {
@@ -536,7 +559,6 @@ public class HttpService {
 				}
 			}
 			this.classpath = classpath;
-			this.file = file;
 			this.path = path;
 			if (this.classpath) {
 				this.reload = false;
@@ -548,13 +570,15 @@ public class HttpService {
 
 		public void load() {
 			byte[] data = Bytes.EMPTY;
-			if (file != null && !file.isEmpty()) {
+			if (path.isEmpty()) {
+				LOGGER.info("Empty {} file", contentType);
+			} else {
 				InputStream inStream;
 				try {
 					if (classpath) {
-						inStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(file);
+						inStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
 					} else {
-						inStream = new FileInputStream(path + file);
+						inStream = new FileInputStream(path);
 					}
 					if (inStream != null) {
 						try {
@@ -565,8 +589,9 @@ public class HttpService {
 								out.write(temp, 0, length);
 							}
 							data = out.toByteArray();
+							LOGGER.info("{}: {} file {} bytes", path, contentType, data.length);
 						} catch (IOException ex) {
-							LOGGER.info("Failure loading file {}", file, ex);
+							LOGGER.info("Failure loading file {}", path, ex);
 						} finally {
 							try {
 								inStream.close();
@@ -575,11 +600,10 @@ public class HttpService {
 						}
 					}
 				} catch (FileNotFoundException e1) {
-					LOGGER.info("Failure loading file {}", file, e1);
+					LOGGER.info("Failure loading file {}", path, e1);
 				}
 			}
 			this.data = data;
-			LOGGER.info("{} file {} bytes", contentType, data.length);
 		}
 
 		public void handle(final HttpExchange httpExchange) throws IOException {

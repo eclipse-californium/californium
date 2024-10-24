@@ -27,6 +27,8 @@ import org.eclipse.californium.core.server.MessageDeliverer;
  * CoapStack is what CoapEndpoint uses to send messages through distinct layers.
  */
 public interface CoapStack {
+	// get layer
+	<T extends Layer> T getLayer(Class<T> type);
 
 	// delegate to top
 	void sendRequest(Exchange exchange, Request request);

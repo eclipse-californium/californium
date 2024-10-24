@@ -32,6 +32,7 @@ import org.eclipse.californium.cloud.http.EtagGenerator;
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.http.HttpService.CoapProxyHandler;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
+import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.WebAppAuthorization;
 import org.eclipse.californium.cloud.s3.util.WebAppConfigProvider;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.LinkFormat;
@@ -129,10 +130,11 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 		boolean permission = false;
 
 		Authorization authorization = authorizer.checkSignature(httpExchange, BAN);
-		if (authorization != null && authorization.isVerified() && authorization.isInTime()) {
-			String value = webAppConfigs.get(authorization.getDomain(),
-					authorization.getWebAppUser().webAppConfig + ".config", "diagnose");
-			permission = value != null && !value.equalsIgnoreCase("false") && !value.equals("0");
+		if (authorization instanceof WebAppAuthorization && authorization.isInTime()) {
+			WebAppAuthorization web = (WebAppAuthorization) authorization;
+			permission = webAppConfigs.isEnabled(web.getDomain(),
+					web.getWebAppUser().webAppConfig + WebAppConfigProvider.CONFIGURATION_PREFIX,
+					WebAppConfigProvider.DIAGNOSE_NAME);
 		}
 		if (permission) {
 			final String method = httpExchange.getRequestMethod();

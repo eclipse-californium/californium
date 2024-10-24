@@ -493,14 +493,16 @@ public class S3Devices extends CoapResource {
 				DeviceIdentityMode deviceIdentificationMode = httpDestination.getDeviceIdentityMode(domain);
 				Request outgoing = new Request(request.getCode(), request.getType());
 				outgoing.setOptions(request.getOptions());
+				byte[] payload = request.getPayload();
 				if (deviceIdentificationMode == DeviceIdentityMode.HEADLINE) {
 					byte[] head = (info.name + StringUtil.lineSeparator()).getBytes(StandardCharsets.UTF_8);
-					byte[] payload = Bytes.concatenate(head, request.getPayload());
-					outgoing.setPayload(payload);
+					payload = Bytes.concatenate(head, payload);
 				} else if (deviceIdentificationMode == DeviceIdentityMode.QUERY_PARAMETER) {
 					outgoing.getOptions().addUriQuery("id=" + info.name);
 				}
-				LOGGER.info("HTTP: {} => {} {}", info, httpDestinationUri, deviceIdentificationMode);
+				outgoing.setPayload(payload);
+				LOGGER.info("HTTP: {} => {} {} {} bytes", info, httpDestinationUri, deviceIdentificationMode,
+						outgoing.getPayloadSize());
 				final Consumer<Response> consumer = multi.create("forward");
 
 				httpForward.handleForward(httpDestinationUri, authentication, outgoing, new ResponseConsumer() {
