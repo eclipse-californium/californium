@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.integration.test;
 
+import static org.eclipse.californium.integration.test.NatTestHelper.DISABLE_CID;
 import static org.eclipse.californium.integration.test.NatTestHelper.USE_CID;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -72,7 +73,7 @@ public class SecureNatTest {
 	public void testSecureGet() throws Exception {
 		helper.setupConfiguration(MatcherMode.STRICT);
 		helper.createSecureServer((ConnectionIdGenerator) null);
-		helper.createDefaultClientEndpoint(null);
+		helper.createDefaultClientEndpoint(DISABLE_CID);
 
 		CoapClient client = new CoapClient(helper.uri);
 		CoapResponse coapResponse = client.get();

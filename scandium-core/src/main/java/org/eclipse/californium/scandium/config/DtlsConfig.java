@@ -300,7 +300,7 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_CONNECTION_ID_LENGTH = new IntegerDefinition(
 			MODULE + "CONNECTION_ID_LENGTH",
-			"DTLS connection ID length. <blank> disabled, 0 enables support without active use of CID.", null, 0);
+			"DTLS connection ID length. <blank> default, -1 disables, 0 enables support without active use of CID.", 6, -1);
 
 	/**
 	 * If {@link #DTLS_CONNECTION_ID_LENGTH} enables the use of a connection id,

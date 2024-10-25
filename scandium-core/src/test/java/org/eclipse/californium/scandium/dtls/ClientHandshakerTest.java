@@ -310,13 +310,13 @@ public class ClientHandshakerTest {
 
 		DtlsConnectorConfig.Builder builder = 
 				DtlsConnectorConfig.builder(network.createTestConfig())
-				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+					.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, -1)
+					.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 					.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE);
 		builder.setAdvancedPskStore(new AdvancedSinglePskStore("me", "secret".getBytes()));
 		DtlsConnectorConfig config = builder.build();
 		Connection connection = new Connection(config.getAddress());
 		connection.setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null);
-//		connection.setConnectionId(ConnectionId.EMPTY);
 		handshaker = new ClientHandshaker(
 				null,
 				recordLayer,

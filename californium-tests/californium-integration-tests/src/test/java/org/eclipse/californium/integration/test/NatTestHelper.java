@@ -78,6 +78,8 @@ public class NatTestHelper {
 	static final String IDENITITY = "client1";
 	static final String KEY = "key1";
 
+	static final Integer DISABLE_CID = -1;
+
 	static final Integer SUPPORT_CID = 0;
 
 	static final Integer USE_CID = 4;
@@ -218,7 +220,7 @@ public class NatTestHelper {
 	}
 
 	void createSecureServer(Integer cidLength) throws IOException {
-		ConnectionIdGenerator cidGenerator = cidLength == null ? null : new SingleNodeConnectionIdGenerator(cidLength);
+		ConnectionIdGenerator cidGenerator = (cidLength == null || cidLength < 0) ? null : new SingleNodeConnectionIdGenerator(cidLength);
 		createSecureServer(cidGenerator);
 	}
 
@@ -239,6 +241,7 @@ public class NatTestHelper {
 					.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 20, TimeUnit.SECONDS)
 					.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
 					.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 4)
+					.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, -1)
 					.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 					.setLoggingTag(tag)
 					.setHealthHandler(health)
@@ -297,7 +300,7 @@ public class NatTestHelper {
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 20)
 				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
 				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2)
-				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, cidLength)
+				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, cidLength == null ? -1 : cidLength)
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag(tag)
 				.setHealthHandler(health)

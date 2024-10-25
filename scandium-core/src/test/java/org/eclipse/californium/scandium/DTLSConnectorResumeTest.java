@@ -236,7 +236,8 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
 				serverResumptionVerifier.setDelay(0);
-				builder.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
+				builder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, -1)
+						.set(DtlsConfig.DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS, true)
 						.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}
@@ -259,7 +260,8 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
 				serverResumptionVerifier.setDelay(100);
-				builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+				builder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, -1)
+						.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}
 

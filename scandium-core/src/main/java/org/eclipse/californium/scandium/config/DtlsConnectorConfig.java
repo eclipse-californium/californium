@@ -1609,7 +1609,7 @@ public final class DtlsConnectorConfig {
 			if (config.connectionIdGenerator == null) {
 				Integer cidLength = config.configuration.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
 				Integer cidNode = config.configuration.get(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID);
-				if (cidLength != null) {
+				if (cidLength != null && cidLength >= 0) {
 					if (cidNode != null) {
 						if (cidLength <= 4) {
 							throw new IllegalStateException(cidLength
