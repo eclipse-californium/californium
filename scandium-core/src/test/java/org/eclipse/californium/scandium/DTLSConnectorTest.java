@@ -1200,7 +1200,7 @@ public class DTLSConnectorTest {
 
 		// send a CLIENT_HELLO message to the server to renegotiation connection
 		Record record = new Record(ContentType.HANDSHAKE, establishedClientContext.getWriteEpoch(), createClientHello(),
-				establishedClientContext, false, 0);
+				establishedClientContext, establishedClientContext.getWriteConnectionId() != null, 0);
 		record.setAddress(serverHelper.serverEndpoint, null);
 		client.sendRecord(record);
 
@@ -1216,8 +1216,9 @@ public class DTLSConnectorTest {
 
 		// send a HELLO_REQUEST message to the client
 		DTLSContext context = clientTestContext.getEstablishedServerContext();
+		
 		Record record = new Record(ContentType.HANDSHAKE, context.getWriteEpoch(),
-				new HelloRequest(), context, false, 0);
+				new HelloRequest(), context, context.getWriteConnectionId() != null, 0);
 		record.setAddress(clientTestContext.getClientAddress(), null);
 		serverHelper.server.sendRecord(record);
 

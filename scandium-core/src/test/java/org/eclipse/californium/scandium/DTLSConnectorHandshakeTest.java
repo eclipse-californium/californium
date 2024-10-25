@@ -1219,7 +1219,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeWithoutServerCid() throws Exception {
-		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)
+					.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, -1);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4);
 		startClientPsk(null);
@@ -1236,8 +1237,9 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testPskHandshakeWithoutClientCid() throws Exception {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE)
-				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0);
+				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
 		startServer();
+		clientBuilder.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, -1);
 		startClientPsk(null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();

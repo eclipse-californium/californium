@@ -422,6 +422,7 @@ public class DTLSConnectorAdvancedTest {
 				.build();
 		clientCertificateVerifier.setDelay(0);
 		clientConfigBuilder = ConnectorHelper.newClientConfigBuilder(network)
+				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, -1)
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
 				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 60, TimeUnit.SECONDS)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)

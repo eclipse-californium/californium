@@ -39,6 +39,8 @@ The functions to reduce the HelloVerifyRequests for specific cases, PSK (`DTLS_U
 
 The functions to handle the "deprecated CID" definition in the drafts before the RFC9146 have been removed. If still used in some other implementations, please update those other implementations to the final RFC.
 
+With this major version the DTLS 1.2 Connection ID is enabled by default with a length of 6 bytes. Therefore using the default by using an `<empty>` value will not longer work to disable this feature. Please use `-1`, if you want to disable it.
+
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.
 
 ### Element-Connector-TCP-Netty:

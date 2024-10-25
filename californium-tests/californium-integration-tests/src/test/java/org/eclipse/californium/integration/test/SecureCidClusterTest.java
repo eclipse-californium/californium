@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.integration.test;
 
+import static org.eclipse.californium.integration.test.NatTestHelper.DISABLE_CID;
 import static org.eclipse.californium.integration.test.NatTestHelper.SUPPORT_CID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -74,7 +75,7 @@ public class SecureCidClusterTest {
 	public void testSecureGet() throws Exception {
 		helper.setupConfiguration(MatcherMode.STRICT);
 		helper.createSecureServer(null, null);
-		helper.createDefaultClientEndpoint(null);
+		helper.createDefaultClientEndpoint(DISABLE_CID);
 
 		CoapClient client = new CoapClient(helper.uri);
 		CoapResponse coapResponse = client.get();
