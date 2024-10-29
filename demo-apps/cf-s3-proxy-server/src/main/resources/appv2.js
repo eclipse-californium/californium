@@ -1,21 +1,21 @@
 /********************************************************************************
- * Copyright (c) 2024 Contributors to the Eclipse Foundation
- * 
- * See the NOTICE file(s) distributed with this work for additional
- * information regarding copyright ownership.
- * 
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * https://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v1.0 which is available at
- * https://www.eclipse.org/org/documents/edl-v10.php.
- * 
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- ********************************************************************************/
+* Copyright (c) 2024 Contributors to the Eclipse Foundation
+* 
+* See the NOTICE file(s) distributed with this work for additional
+* information regarding copyright ownership.
+* 
+* This program and the accompanying materials are made available under the
+* terms of the Eclipse Public License v. 2.0 which is available at
+* https://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+* v1.0 which is available at
+* https://www.eclipse.org/org/documents/edl-v10.php.
+* 
+* SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+********************************************************************************/
 
 'use strict';
 
-const version = "Version 2 0.24.1, 17. October 2024";
+const version = "Version 2 0.25.0, 29. October 2024";
 
 let timeShift = 0;
 
@@ -3538,12 +3538,12 @@ class UiManager {
 	loginView() {
 		const mode = this.state.login ? "" : " disabled";
 		const page =
-			`<table><tbody>
-<tr><td><label html-for='name'>Name:</lable></td><td colspan='2'><input id='name' name='login'></input></td></tr>
+			`<form onsubmit='return false;'><table><tbody>
+<tr><td><label html-for='name'>Name:</lable></td><td colspan='2'><input id='name' name='login' autofocus></input></td></tr>
 <tr><td><label html-for='pw'>Password:</lable></td><td colspan='2'><input id='pw' name='login' type='password'></input></td></tr>
-<tr><td><button onclick='ui.login()'>login</button></td>
+<tr><td><button id='login' onclick='ui.login()'>login</button></td>
 <td><button id='logout' onclick='ui.logout()'${mode}>logout</button></td></tr>
-</tbody></table>`;
+</tbody></table></form>`;
 		return page;
 	}
 
@@ -3896,6 +3896,18 @@ class UiManager {
 
 		tab.setAttribute('aria-selected', 'true');
 		panel.setAttribute('aria-hidden', 'false');
+
+		if (tab.id == "login-tab") {
+			const name = panel.querySelector('#name');
+			if (name && !name.value) {
+				name.focus();
+			} else {
+				const login = panel.querySelector('#login');
+				if (login) {
+					login.focus();
+				}
+			}
+		}
 	}
 
 	selectDefaultTab(view, dev, withChart) {
