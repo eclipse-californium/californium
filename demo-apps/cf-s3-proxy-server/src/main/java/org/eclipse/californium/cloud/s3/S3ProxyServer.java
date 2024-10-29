@@ -343,7 +343,7 @@ public class S3ProxyServer extends BaseServer {
 
 		public static class SinglePageApplication extends HttpsConfig {
 
-			@Option(names = "--spa-script", defaultValue = "app.js", description = "Single-Page-Application script. See applied search path below. Default ${DEFAULT-VALUE}")
+			@Option(names = "--spa-script", defaultValue = "appv2.js", description = "Single-Page-Application script. See applied search path below. Default ${DEFAULT-VALUE}")
 			public String singlePageApplicationScript;
 
 			@Option(names = "--spa-css", defaultValue = "stylesheet.css", description = "Single-Page-Application Cascading Style Sheets. See applied search path below. Default ${DEFAULT-VALUE}")
@@ -357,6 +357,9 @@ public class S3ProxyServer extends BaseServer {
 
 			@Option(names = "--spa-script-v2", description = "Single-Page-Application script v2. See applied search path below.")
 			public String singlePageApplicationScriptV2;
+
+			@Option(names = "--spa-script-v1", description = "Single-Page-Application script v1. See applied search path below.")
+			public String singlePageApplicationScriptV1;
 
 		}
 
@@ -667,6 +670,12 @@ public class S3ProxyServer extends BaseServer {
 					SinglePageApplication spaV2 = new SinglePageApplication("CloudCoap V2", webClient,
 							cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScriptV2);
 					httpService.createContext("/v2", spaV2);
+				}
+
+				if (cliSpaArguments.singlePageApplicationScriptV1 != null) {
+					SinglePageApplication spaV1 = new SinglePageApplication("CloudCoap V1", webClient,
+							cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScriptV1);
+					httpService.createContext("/v1", spaV1);
 				}
 
 				String defaultScheme = cliSpaArguments.s3 ? S3_SCHEME : HTTPS_SCHEME;
