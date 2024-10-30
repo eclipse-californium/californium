@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import java.util.function.Predicate;
 
 /**
  * An in-memory cache with a maximum capacity and support for evicting stale
@@ -198,7 +199,7 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 * @param unit TimeUnit for threshold
 	 * @see #put(Object, Object)
 	 * @see #get(Object)
-	 * @see #find(Filter)
+	 * @see #find(Predicate)
 	 */
 	public final void setExpirationThreshold(long newThreshold, TimeUnit unit) {
 		this.expirationThresholdNanos = unit.toNanos(newThreshold);
@@ -695,14 +696,14 @@ public class LeastRecentlyUpdatedCache<K, V> {
 	 *         given predicate, or {@code null}, if no value matches
 	 * @since 3.10
 	 */
-	public V find(Filter<V> filter) {
+	public V find(Predicate<V> filter) {
 		if (filter != null) {
 			final Iterator<CacheEntry<K, V>> iterator = cache.values().iterator();
 			while (iterator.hasNext()) {
 				CacheEntry<K, V> entry = iterator.next();
 				if (!hideStaleValues || !entry.isStale(expirationThresholdNanos)) {
 					V value = entry.getValue();
-					if (filter.accept(value)) {
+					if (filter.test(value)) {
 						return value;
 					}
 				}
@@ -817,13 +818,7 @@ public class LeastRecentlyUpdatedCache<K, V> {
 
 				@Override
 				public final boolean contains(final Object o) {
-					return null != find(new Filter<V>() {
-
-						@Override
-						public boolean accept(final V value) {
-							return value.equals(o);
-						}
-					});
+					return null != find((value) -> value.equals(o));
 				}
 
 				@Override
