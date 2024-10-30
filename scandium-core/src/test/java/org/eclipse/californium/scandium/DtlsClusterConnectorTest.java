@@ -24,6 +24,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -33,7 +34,6 @@ import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.util.Filter;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.ConnectorHelper.MessageCapturingProcessor;
@@ -216,10 +216,10 @@ public class DtlsClusterConnectorTest {
 		assertEquals(9, clientConnections.remainingCapacity());
 
 		// adapt the destination address to connector 2
-		Future<Void> result = clientConnector.startForEach(new Filter<Connection>() {
+		Future<Void> result = clientConnector.startForEach(new Predicate<Connection>() {
 
 			@Override
-			public boolean accept(Connection value) {
+			public boolean test(Connection value) {
 				if (value.equalsPeerAddress(dtlsAddress1)) {
 					clientConnections.update(value, dtlsAddress2);
 					return true;

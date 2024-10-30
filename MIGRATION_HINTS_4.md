@@ -63,6 +63,8 @@ Removed `StringUtil.toHostString()` (support Java 6). Java 8 is the minimum supp
 
 Removed `org.eclipse.californium.elements.util.StandardCharsets`, obsoleted by java 8 `java.nio.charset.StandardCharsets`.
 
+Removed `org.eclipse.californium.elements.util.Filter`, obsoleted by java 8 `java.util.function.Predicate`.
+
 ### Scandium:
 
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.

@@ -157,6 +157,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -177,7 +178,6 @@ import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.elements.util.Filter;
 import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.LimitedRunnable;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -1508,14 +1508,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 		if (principal == null) {
 			throw new NullPointerException("principal must not be null!");
 		}
-		Filter<Principal> handler = new Filter<Principal>() {
-
-			@Override
-			public boolean accept(Principal connectionPrincipal) {
-				return principal.equals(connectionPrincipal);
-			}
-		};
-		return startTerminateConnectionsForPrincipal(handler);
+		return startTerminateConnectionsForPrincipal((connectionPrincipal) -> principal.equals(connectionPrincipal));
 	}
 
 	/**
@@ -1531,10 +1524,10 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 *            related connection is terminated and the session is removed
 	 *            from the session cache.
 	 * @return future to cancel or wait for completion
-	 * @see #startTerminateConnectionsForPrincipal(Filter, boolean)
+	 * @see #startTerminateConnectionsForPrincipal(Predicate, boolean)
 	 * @since 3.10
 	 */
-	public Future<Void> startTerminateConnectionsForPrincipal(Filter<Principal> principalHandler) {
+	public Future<Void> startTerminateConnectionsForPrincipal(Predicate<Principal> principalHandler) {
 		return startTerminateConnectionsForPrincipal(principalHandler, true);
 	}
 
@@ -1552,23 +1545,23 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 *            connection should be removed from the session cache,
 	 *            {@code false}, otherwise
 	 * @return future to cancel or wait for completion
-	 * @see #startTerminateConnectionsForPrincipal(Filter)
+	 * @see #startTerminateConnectionsForPrincipal(Predicate)
 	 * @since 3.10
 	 */
-	public Future<Void> startTerminateConnectionsForPrincipal(final Filter<Principal> principalHandler,
+	public Future<Void> startTerminateConnectionsForPrincipal(final Predicate<Principal> principalHandler,
 			final boolean removeFromSessionCache) {
 		if (principalHandler == null) {
 			throw new NullPointerException("principal handler must not be null!");
 		}
-		Filter<Connection> connectionHandler = new Filter<Connection>() {
+		Predicate<Connection> connectionHandler = new Predicate<Connection>() {
 
 			@Override
-			public boolean accept(Connection connection) {
+			public boolean test(Connection connection) {
 				Principal peer = null;
 				DTLSSession session = connection.getSession();
 				if (session != null) {
 					peer = session.getPeerIdentity();
-					if (peer != null && principalHandler.accept(peer)) {
+					if (peer != null && principalHandler.test(peer)) {
 						connectionStore.remove(connection, removeFromSessionCache);
 					}
 				}
@@ -1587,7 +1580,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 * @return future to cancel or wait for completion
 	 * @since 3.10
 	 */
-	public Future<Void> startForEach(Filter<Connection> handler) {
+	public Future<Void> startForEach(Predicate<Connection> handler) {
 		if (handler == null) {
 			throw new NullPointerException("handler must not be null!");
 		}
@@ -1607,7 +1600,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 * @param result future to get cancelled or signal completion
 	 * @since 3.10
 	 */
-	private void nextForEach(final Iterator<Connection> iterator, final Filter<Connection> handler,
+	private void nextForEach(final Iterator<Connection> iterator, final Predicate<Connection> handler,
 			final ForEachFuture result) {
 
 		if (!result.isStopped() && iterator.hasNext()) {
@@ -1619,7 +1612,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					public void run() {
 						boolean done = true;
 						try {
-							if (!result.isStopped() && !handler.accept(next)) {
+							if (!result.isStopped() && !handler.test(next)) {
 								done = false;
 								nextForEach(iterator, handler, result);
 							}
@@ -1634,9 +1627,9 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 				});
 				return;
 			} catch (RejectedExecutionException ex) {
-				if (!handler.accept(next)) {
+				if (!handler.test(next)) {
 					while (iterator.hasNext()) {
-						if (handler.accept(iterator.next())) {
+						if (handler.test(iterator.next())) {
 							break;
 						}
 						if (result.isStopped()) {
