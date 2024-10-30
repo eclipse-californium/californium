@@ -32,6 +32,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -78,7 +79,6 @@ import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.http.Coap2HttpProxy;
 import org.slf4j.Logger;

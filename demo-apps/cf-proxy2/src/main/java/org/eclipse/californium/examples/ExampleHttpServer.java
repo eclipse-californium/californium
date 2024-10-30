@@ -16,7 +16,7 @@
 
 package org.eclipse.californium.examples;
 
-import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.File;
 import java.io.IOException;

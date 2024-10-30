@@ -61,6 +61,8 @@ The http-client 5.4 follows [RFC 7540, 8.1.2.3, Request Pseudo-Header Fields](ht
 
 Removed `StringUtil.toHostString()` (support Java 6). Java 8 is the minimum supported version for runtime, therefore use `InetSocketAddress.getHostString()` directly.
 
+Removed `org.eclipse.californium.elements.util.StandardCharsets`, obsoleted by java 8 `java.nio.charset.StandardCharsets`.
+
 ### Scandium:
 
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.

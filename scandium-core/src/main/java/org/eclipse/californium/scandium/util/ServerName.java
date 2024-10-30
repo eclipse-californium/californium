@@ -16,9 +16,9 @@
 package org.eclipse.californium.scandium.util;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**

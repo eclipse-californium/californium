@@ -19,12 +19,13 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 
+import java.nio.charset.StandardCharsets;
+
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.category.Small;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.junit.Before;
 import org.junit.Test;

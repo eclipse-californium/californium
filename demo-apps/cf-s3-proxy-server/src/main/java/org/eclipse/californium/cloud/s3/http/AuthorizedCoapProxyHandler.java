@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -37,7 +38,6 @@ import org.eclipse.californium.cloud.s3.util.WebAppConfigProvider;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -15,7 +15,7 @@
  *******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.Arrays;
 

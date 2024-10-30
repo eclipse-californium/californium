@@ -18,6 +18,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.security.auth.DestroyFailedException;
 
 import org.eclipse.californium.cloud.util.ResourceParser;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;

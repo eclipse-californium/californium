@@ -17,6 +17,7 @@ package org.eclipse.californium.proxy2.http;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 
@@ -39,7 +40,6 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.proxy2.InvalidFieldException;
 import org.eclipse.californium.proxy2.TranslationException;
 import org.slf4j.Logger;

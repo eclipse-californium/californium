@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -48,7 +49,6 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.EncryptedPersistentComponentUtil;
 import org.eclipse.californium.elements.util.PersistentComponentUtil;
 import org.eclipse.californium.elements.util.SerializationUtil;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;

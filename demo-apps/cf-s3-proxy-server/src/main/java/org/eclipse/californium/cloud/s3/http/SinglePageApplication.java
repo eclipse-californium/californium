@@ -16,6 +16,7 @@ package org.eclipse.californium.cloud.s3.http;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
@@ -23,7 +24,6 @@ import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

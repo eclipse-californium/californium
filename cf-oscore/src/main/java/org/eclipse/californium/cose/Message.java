@@ -40,9 +40,10 @@
  ******************************************************************************/
 package org.eclipse.californium.cose;
 
+import java.nio.charset.StandardCharsets;
+
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
-import org.eclipse.californium.elements.util.StandardCharsets;
 
 /**
  * The Message class provides a common class that all of the COSE message classes
