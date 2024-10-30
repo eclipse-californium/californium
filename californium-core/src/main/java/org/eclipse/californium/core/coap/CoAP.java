@@ -31,10 +31,10 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.eclipse.californium.elements.util.StandardCharsets;
 
 /**
  * CoAP defines several constants.

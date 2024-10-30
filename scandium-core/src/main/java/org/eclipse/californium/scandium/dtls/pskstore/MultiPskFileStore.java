@@ -24,6 +24,7 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,7 +39,6 @@ import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.EncryptedStreamUtil;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceCheckReady;
 import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceMonitor;

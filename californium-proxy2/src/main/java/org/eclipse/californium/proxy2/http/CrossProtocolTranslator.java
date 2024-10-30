@@ -15,8 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy2.http;
 
-import static org.eclipse.californium.elements.util.StandardCharsets.ISO_8859_1;
-import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.net.URI;
 import java.net.URISyntaxException;

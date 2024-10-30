@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.Semaphore;
 
@@ -34,7 +35,6 @@ import javax.security.auth.Destroyable;
 import org.eclipse.californium.cloud.util.ResultConsumer.ResultCode;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.EncryptedStreamUtil;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.SystemResourceMonitors.FileMonitor;
 import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceCheckReady;

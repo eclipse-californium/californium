@@ -16,7 +16,7 @@
 
 package org.eclipse.californium.examples.util;
 
-import static org.eclipse.californium.elements.util.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import java.util.List;
 

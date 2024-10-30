@@ -14,9 +14,8 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.util;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
-
-import org.eclipse.californium.elements.util.StandardCharsets;
 
 import com.upokecenter.cbor.CBORObject;
 

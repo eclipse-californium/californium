@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 
 import javax.crypto.Mac;
@@ -24,7 +25,6 @@ import javax.crypto.ShortBufferException;
 
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
-import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
