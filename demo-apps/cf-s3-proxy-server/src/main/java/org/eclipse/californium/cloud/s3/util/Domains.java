@@ -279,6 +279,7 @@ public class Domains
 	 */
 	public DomainDeviceManager loadDevices(Configuration config, PrivateKey privateKey, PublicKey publicKey) {
 		long interval = config.get(BaseServer.DEVICE_CREDENTIALS_RELOAD_INTERVAL, TimeUnit.SECONDS);
+		long addTimeout = config.get(BaseServer.DEVICE_CREDENTIALS_ADD_TIMEOUT, TimeUnit.MILLISECONDS);
 		ConcurrentMap<String, ResourceStore<DeviceParser>> allDevices = new ConcurrentHashMap<>();
 
 		for (Entry<String, Domain> domainEntry : domains.entrySet()) {
@@ -306,7 +307,7 @@ public class Domains
 					devices.getMonitor());
 			allDevices.put(domainEntry.getKey(), devices);
 		}
-		return new DomainDeviceManager(allDevices, privateKey, publicKey);
+		return new DomainDeviceManager(allDevices, privateKey, publicKey, addTimeout);
 	}
 
 	/**

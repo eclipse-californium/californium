@@ -544,7 +544,8 @@ public class S3ProxyServer extends BaseServer {
 			singleDomain.put(DEFAULT_DOMAIN, configResource);
 		}
 
-		DomainDeviceManager deviceManager = new DomainDeviceManager(singleDomain, privateKey, publicKey);
+		long addTimeout = getConfig().get(DEVICE_CREDENTIALS_ADD_TIMEOUT, TimeUnit.MILLISECONDS);
+		DomainDeviceManager deviceManager = new DomainDeviceManager(singleDomain, privateKey, publicKey, addTimeout);
 		deviceGroupProvider = deviceManager;
 		deviceCredentials = deviceManager;
 
