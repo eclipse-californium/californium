@@ -15,13 +15,9 @@
 package org.eclipse.californium.cloud;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
-import java.security.GeneralSecurityException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -37,6 +33,7 @@ import org.eclipse.californium.cloud.resources.Devices;
 import org.eclipse.californium.cloud.resources.Diagnose;
 import org.eclipse.californium.cloud.resources.MyContext;
 import org.eclipse.californium.cloud.resources.Provisioning;
+import org.eclipse.californium.cloud.util.CredentialsStore;
 import org.eclipse.californium.cloud.util.DeviceGredentialsProvider;
 import org.eclipse.californium.cloud.util.DeviceManager;
 import org.eclipse.californium.cloud.util.DeviceParser;
@@ -66,7 +63,6 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil.InetAddressFilter;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil.SimpleInetAddressFilter;
-import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.SystemResourceMonitors;
@@ -124,6 +120,10 @@ public class BaseServer extends CoapServer {
 	 * Name of public key file for DTLS 1.2 (device communication).
 	 */
 	public static final String DTLS_PUBLIC_KEY = "pubkey.pem";
+	/**
+	 * Name of certificate file for DTLS 1.2 (device communication).
+	 */
+	public static final String DTLS_FULLCHAIN = "fullchain.pem";
 
 	// exit codes for runtime errors
 	public static final int ERR_INIT_FAILED = 1;
@@ -273,7 +273,7 @@ public class BaseServer extends CoapServer {
 			@Option(names = "--coaps-credentials", required = true, description = "Folder containing coaps credentials in 'privkey.pem' and 'pubkey.pem'")
 			public String credentials;
 
-			@Option(names = "--coaps-password64", required = false, description = "Password for device store. Base 64 encoded.")
+			@Option(names = "--coaps-password64", required = false, description = "Password for coaps credentials. Base 64 encoded.")
 			public String password64;
 
 		}
@@ -362,11 +362,6 @@ public class BaseServer extends CoapServer {
 			version = "";
 		}
 		CALIFORNIUM_BUILD_VERSION = version;
-	}
-
-	private static String toLog(PublicKey key) {
-		byte[] data = key.getEncoded();
-		return StringUtil.byteArray2Hex(Arrays.copyOfRange(data, data.length - 6, data.length));
 	}
 
 	public static void start(String[] args, String name, ServerConfig cliArguments, BaseServer server) {
@@ -591,39 +586,26 @@ public class BaseServer extends CoapServer {
 	 * @param cliArguments command line arguments.
 	 */
 	public void setupDeviceCredentials(ServerConfig cliArguments) {
-		PrivateKey privateKey = null;
-		PublicKey publicKey = null;
+		Credentials credentials = null;
 		if (cliArguments.coaps != null) {
-			try {
-				String path = cliArguments.coaps.credentials;
-				if (!path.endsWith("/")) {
-					path += "/";
-				}
-				String privateKeyPath = path + DTLS_PRIVATE_KEY;
-				Credentials credentials = SslContextUtil.loadCredentials(privateKeyPath, null, null, null);
-				privateKey = credentials.getPrivateKey();
-				publicKey = credentials.getPublicKey();
-				if (privateKey == null) {
-					LOGGER.info("PEM credentials {}, missing private key!", privateKeyPath);
-				} else if (publicKey != null) {
-					LOGGER.info("PEM credentials {}, public key: ...{}", privateKeyPath, toLog(publicKey));
-				} else {
-					String publicKeyPath = path + DTLS_PUBLIC_KEY;
-					credentials = SslContextUtil.loadCredentials(publicKeyPath, null, null, null);
-					publicKey = credentials.getPublicKey();
-					if (publicKey != null) {
-						LOGGER.info("PEM credentials {}, public key: ...{}", publicKeyPath, toLog(publicKey));
-					} else {
-						LOGGER.info("PEM credentials {}, missing public key!", publicKeyPath);
-					}
-				}
-			} catch (IOException e) {
-				LOGGER.info("Loading PEM credentials failed", e);
-			} catch (GeneralSecurityException e) {
-				LOGGER.info("Loading PEM credentials failed", e);
+			String path = cliArguments.coaps.credentials;
+			if (path.endsWith("/")) {
+				path = path.substring(0, path.length() - 1);
+			}
+			File directory = new File(path);
+			if (!directory.exists()) {
+				LOGGER.error("Missing directory {} for coap credentials!", path);
+			} else {
+				CredentialsStore store = new CredentialsStore();
+				store.setTag("coaps ");
+				String privateKeyPath = path + "/" + DTLS_PRIVATE_KEY;
+				String publicKeyPath = path + "/" + DTLS_PUBLIC_KEY;
+				String fullChainPath = path + "/" + DTLS_FULLCHAIN;
+				credentials = store.loadAndCreateMonitor(cliArguments.coaps.password64, false, fullChainPath,
+						privateKeyPath, publicKeyPath);
 			}
 		}
-		setupDeviceCredentials(cliArguments, privateKey, publicKey);
+		setupDeviceCredentials(cliArguments, credentials);
 	}
 
 	/**
@@ -632,10 +614,11 @@ public class BaseServer extends CoapServer {
 	 * Load the device credentials.
 	 * 
 	 * @param cliArguments command line arguments.
-	 * @param privateKey private key for DTLS 1.2 device communication.
-	 * @param publicKey public key for DTLS 1.2 device communication.
+	 * @param credentials server's credentials for DTLS 1.2 certificate based
+	 *            authentication
+	 * @since 4.0
 	 */
-	public void setupDeviceCredentials(ServerConfig cliArguments, PrivateKey privateKey, PublicKey publicKey) {
+	public void setupDeviceCredentials(ServerConfig cliArguments, Credentials credentials) {
 		ResourceStore<DeviceParser> deviceCredentialsResource = null;
 		if (cliArguments.deviceStore != null) {
 			long interval = getConfig().get(DEVICE_CREDENTIALS_RELOAD_INTERVAL, TimeUnit.SECONDS);
@@ -651,7 +634,7 @@ public class BaseServer extends CoapServer {
 			monitors.addMonitor("Devices", interval, TimeUnit.SECONDS, deviceCredentialsResource.getMonitor());
 		}
 		long addTimeout = getConfig().get(DEVICE_CREDENTIALS_ADD_TIMEOUT, TimeUnit.MILLISECONDS);
-		deviceCredentials = new DeviceManager(deviceCredentialsResource, privateKey, publicKey, addTimeout);
+		deviceCredentials = new DeviceManager(deviceCredentialsResource, credentials, addTimeout);
 	}
 
 	/**

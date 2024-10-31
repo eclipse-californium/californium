@@ -43,7 +43,6 @@ import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.cloud.resources.Devices;
 import org.eclipse.californium.cloud.util.CredentialsStore;
-import org.eclipse.californium.cloud.util.CredentialsStore.Observer;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -184,13 +183,9 @@ public class HttpService {
 		this.protocols = protocols == null ? null : protocols.clone();
 		this.credentialsStore = credentialsStore;
 		applyCredentials(credentialsStore.getCredentials());
-		this.credentialsStore.setObserver(new Observer() {
-
-			@Override
-			public void update(Credentials newCredentials) {
-				if (newCredentials != null) {
-					applyCredentials(newCredentials);
-				}
+		this.credentialsStore.setObserver((newCredentials) -> {
+			if (newCredentials != null) {
+				applyCredentials(newCredentials);
 			}
 		});
 	}
@@ -851,11 +846,11 @@ public class HttpService {
 			 */
 			@Override
 			protected boolean complete(Credentials newCredentials) {
-				return super.complete(newCredentials) && newCredentials.getCertificateChain() != null;
+				return super.complete(newCredentials) && newCredentials.hasCertificateChain();
 			}
 		};
 		credentialsStore.setTag("https ");
-		credentialsStore.loadAndCreateMonitor(fullChain, privateKey, password64, true);
+		credentialsStore.loadAndCreateMonitor(password64, true, fullChain, privateKey);
 		return credentialsStore;
 	}
 

@@ -20,8 +20,6 @@ import static org.eclipse.californium.cloud.s3.http.SinglePageApplication.S3_SCH
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -75,6 +73,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.TimeDefinition;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,40 +116,31 @@ public class S3ProxyServer extends BaseServer {
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for S3 Proxy Server";
 
 	@Command(name = "S3ProxyServer", version = "(c) 2024, Contributors to the Eclipse Foundation.", footer = { "",
-			"Examples:", 
-			"  S3ProxyServer --no-loopback --device-file devices.txt \\",
+			"Examples:", "  S3ProxyServer --no-loopback --device-file devices.txt \\",
 			"                --s3-config ~/.s3cfg",
-			"    (S3ProxyServer listening only on external network interfaces.)",
-			"",
+			"    (S3ProxyServer listening only on external network interfaces.)", "",
 			"  S3ProxyServer --store-file dtls.bin --store-max-age 168 \\",
 			"                --store-password64 ZVhiRW5pdkx1RUs2dmVoZg== \\",
 			"                --device-file devices.txt --user-file users.txt \\",
-			"                --s3-config ~/.s3cfg",
-			"",
+			"                --s3-config ~/.s3cfg", "",
 			"    (S3ProxyServer with device credentials and web application user",
 			"     from file and dtls-graceful restart. Devices/sessions with no",
-			"     exchange for more then a week (168 hours) are skipped when saving.)",
-			"",
+			"     exchange for more then a week (168 hours) are skipped when saving.)", "",
 			"  S3ProxyServer --store-file dtls.bin --store-max-age 168 \\",
 			"                --store-password64 ZVhiRW5pdkx1RUs2dmVoZg== \\",
 			"                --device-file devices.txt --user-file users.txt \\",
-			"                --https-credentials . --s3-config ~/.s3cfg",
-			"",
+			"                --https-credentials . --s3-config ~/.s3cfg", "",
 			"    (S3ProxyServer with device credentials and web application user",
 			"     from file and dtls-graceful restart. The Web-Login HTTP server",
 			"     is started at port 8080 using the x509 certificates from the",
 			"     current directory (certificate is required to be provided).",
-			"     Devices/sessions with no exchange for more then a week",
-			"     (168 hours) are skipped when saving.)",
-			"",
-			"For device data forwarding via http currently three variants for the",
+			"     Devices/sessions with no exchange for more then a week", "     (168 hours) are skipped when saving.)",
+			"", "For device data forwarding via http currently three variants for the",
 			"  '--http-authentication' are supported: 'Bearer <token>',",
 			"  'PreBasic <username>:<password>', or '<username>:<password>'.",
 			"  The 'Bearer' and 'PreBasic' authentication data will be send",
 			"  without challenge from the server. The '<username>:<password>'",
-			"  variant will be used on challenge by the server and supports",
-			"  BASIC and DIGEST.",
-			"",
+			"  variant will be used on challenge by the server and supports", "  BASIC and DIGEST.", "",
 			"Search path for '--spa-css', '--spa-script', and '--spa-script-v2':",
 			"  If the provided path starts with 'http:' or 'https:' then the path",
 			"  is used for the web app unmodified as provided.",
@@ -508,12 +498,12 @@ public class S3ProxyServer extends BaseServer {
 	}
 
 	@Override
-	public void setupDeviceCredentials(ServerConfig cliArguments, PrivateKey privateKey, PublicKey publicKey) {
+	public void setupDeviceCredentials(ServerConfig cliArguments, Credentials credentials) {
 		S3ProxyConfig cliS3Arguments = (S3ProxyConfig) cliArguments;
 		if (cliS3Arguments.mode.domainStore != null) {
-			setupMultiDomainDeviceCredentials(cliS3Arguments, privateKey, publicKey);
+			setupMultiDomainDeviceCredentials(cliS3Arguments, credentials);
 		} else {
-			setupSingleDomainDeviceCredentials(cliS3Arguments, privateKey, publicKey);
+			setupSingleDomainDeviceCredentials(cliS3Arguments, credentials);
 		}
 	}
 
@@ -521,11 +511,10 @@ public class S3ProxyServer extends BaseServer {
 	 * Setup device credentials for single domain setup.
 	 * 
 	 * @param cliArguments command line arguments.
-	 * @param privateKey private key for DTLS 1.2 device communication.
-	 * @param publicKey public key for DTLS 1.2 device communication.
+	 * @param credentials server's credentials for DTLS 1.2 certificate based
+	 *            authentication
 	 */
-	public void setupSingleDomainDeviceCredentials(S3ProxyConfig cliArguments, PrivateKey privateKey,
-			PublicKey publicKey) {
+	public void setupSingleDomainDeviceCredentials(S3ProxyConfig cliArguments, Credentials credentials) {
 
 		ConcurrentMap<String, ResourceStore<DeviceParser>> singleDomain = new ConcurrentHashMap<>();
 
@@ -545,7 +534,7 @@ public class S3ProxyServer extends BaseServer {
 		}
 
 		long addTimeout = getConfig().get(DEVICE_CREDENTIALS_ADD_TIMEOUT, TimeUnit.MILLISECONDS);
-		DomainDeviceManager deviceManager = new DomainDeviceManager(singleDomain, privateKey, publicKey, addTimeout);
+		DomainDeviceManager deviceManager = new DomainDeviceManager(singleDomain, credentials, addTimeout);
 		deviceGroupProvider = deviceManager;
 		deviceCredentials = deviceManager;
 
@@ -556,11 +545,10 @@ public class S3ProxyServer extends BaseServer {
 	 * Setup device credentials for multi domain setup.
 	 * 
 	 * @param cliArguments command line arguments.
-	 * @param privateKey private key for DTLS 1.2 device communication.
-	 * @param publicKey public key for DTLS 1.2 device communication.
+	 * @param credentials server's credentials for DTLS 1.2 certificate based
+	 *            authentication
 	 */
-	public void setupMultiDomainDeviceCredentials(S3ProxyConfig cliArguments, PrivateKey privateKey,
-			PublicKey publicKey) {
+	public void setupMultiDomainDeviceCredentials(S3ProxyConfig cliArguments, Credentials credentials) {
 		ResourceStore<LinuxConfigParser> domainStore = new ResourceStore<>(new LinuxConfigParser(false, false))
 				.setTag("Domains ");
 		domainStore.loadAndCreateMonitor(cliArguments.mode.domainStore.file, cliArguments.mode.domainStore.password64,
@@ -568,7 +556,7 @@ public class S3ProxyServer extends BaseServer {
 		LinuxConfigParser configuration = domainStore.getResource();
 		domains = new Domains(monitors, configuration, getConfig());
 		s3clients = domains;
-		DomainDeviceManager deviceManager = domains.loadDevices(getConfig(), privateKey, publicKey);
+		DomainDeviceManager deviceManager = domains.loadDevices(getConfig(), credentials);
 		deviceGroupProvider = deviceManager;
 		deviceCredentials = deviceManager;
 	}

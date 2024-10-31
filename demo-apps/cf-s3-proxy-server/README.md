@@ -12,7 +12,7 @@ Cloud CoAP-S3-Proxy Server for device communication with CoAP/DTLS 1.2 CID. Base
 
     Fill the missing link between the device and cloud.
 
-The server supports DTLS 1.2 CID with **P**re**S**hared**K**ey (similar to username/password) and **R**aw**P**ublic**Key** (a public key as certificate without additional information like subject or validity) authentication for device communication. X509 certificate based device authentication may be added to the cloud demo server in the future. Californium (Cf) itself does already support it.
+The server supports DTLS 1.2 CID with **P**re**S**hared**K**ey (similar to username/password), **R**aw**P**ublic**Key** (a public key as certificate without additional information like subject or validity), and x509 certificate authentication for device communication.
 
 The sent data is forwarded with the proxy function to a **S**imple**S**torage**S**ervice (**S3**) to persist it. Your backend may either fetch the data from that S3 or you may use a included simple Web-Browser javascript **S**ingle**P**age**A**pplication to display the data and to visualize that in simple charts.
 
@@ -74,7 +74,7 @@ Some more details about the web-UI can be found in [web-UI documentation](./docs
 - The footprint of the OS and Java VM, around 800 MB RAM, requires to use at least 2 GB RAM.
 - The maximum number of devices depends mainly on the available RAM. Per PSK around 3K per device, for certificate based devices 5K per device.
 - The maximum number of requests per second also depends on the available RAM and CPU for processing. Usually the backend slows down the processing a lot. Without backend, a 4x3GHz System with 16 GB RAM runs 50000 requests/s. With backends, that’s usually much less.
-- If S3 is used as backend, usually the write preformance of S3 limits then the number of requests/s. 300 requests/s up to 3000 requests/s could be found.
+- If S3 is used as backend, usually the write performance of S3 limits then the number of requests/s. 300 requests/s up to 3000 requests/s could be found.
 - The Javascript Web App is considered only for first steps, Therefore it may handle 100-200 device, it’s not expected to be used with more.
 
 ## General Usage
@@ -254,7 +254,7 @@ Search path for '--spa-css', '--spa-script', and '--spa-script-v2':
 
 To see the set of options and arguments.
 
-When the server is started the first time, it creates the "CaliforniumS3Proxy.properties" file. this contains the settings, which may be adjusted by editing this file.
+When the server is started the first time, it creates the "CaliforniumS3Proxy.properties" file. This contains the settings, which may be adjusted by editing this file.
 
 ```
 # Californium CoAP Properties file for S3 Proxy Server

@@ -16,8 +16,6 @@ package org.eclipse.californium.cloud.s3.util;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -35,6 +33,7 @@ import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.LinuxConfigParser;
 import org.eclipse.californium.cloud.util.ResourceStore;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.SystemResourceMonitors;
 import org.slf4j.Logger;
@@ -273,11 +272,11 @@ public class Domains
 	 * Load device credentials.
 	 * 
 	 * @param config Californium configuration.
-	 * @param privateKey private key for DTLS 1.2 device communication.
-	 * @param publicKey public key for DTLS 1.2 device communication.
+	 * @param credentials server's credentials for DTLS 1.2 certificate based
+	 *            authentication
 	 * @return domain device manager
 	 */
-	public DomainDeviceManager loadDevices(Configuration config, PrivateKey privateKey, PublicKey publicKey) {
+	public DomainDeviceManager loadDevices(Configuration config, Credentials credentials) {
 		long interval = config.get(BaseServer.DEVICE_CREDENTIALS_RELOAD_INTERVAL, TimeUnit.SECONDS);
 		long addTimeout = config.get(BaseServer.DEVICE_CREDENTIALS_ADD_TIMEOUT, TimeUnit.MILLISECONDS);
 		ConcurrentMap<String, ResourceStore<DeviceParser>> allDevices = new ConcurrentHashMap<>();
@@ -307,7 +306,7 @@ public class Domains
 					devices.getMonitor());
 			allDevices.put(domainEntry.getKey(), devices);
 		}
-		return new DomainDeviceManager(allDevices, privateKey, publicKey, addTimeout);
+		return new DomainDeviceManager(allDevices, credentials, addTimeout);
 	}
 
 	/**

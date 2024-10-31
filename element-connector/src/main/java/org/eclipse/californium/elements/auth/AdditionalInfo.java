@@ -14,26 +14,29 @@
  *    Bosch Software Innovations GmbH - initial creation
  *******************************************************************************/
 
-
 package org.eclipse.californium.elements.auth;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
- * An unmodifiable wrapper around additional information about an authenticated peer.
+ * An unmodifiable wrapper around additional information about an authenticated
+ * peer.
  *
  */
 public final class AdditionalInfo {
 
 	private static final Map<String, Object> EMPTY_MAP = new HashMap<>(0);
+	private static final AdditionalInfo EMPTY = new AdditionalInfo(null);
+
 	private final Map<String, Object> info;
 
 	/**
 	 * Creates new additional information.
 	 * <p>
-	 * A shallow copy of the given information is created in order
-	 * to prevent modification of the info after creation.
+	 * A shallow copy of the given information is created in order to prevent
+	 * modification of the info after creation.
 	 * 
 	 * @param additionalInfo The information or {@code null}.
 	 */
@@ -51,20 +54,35 @@ public final class AdditionalInfo {
 	 * @return The info.
 	 */
 	public static AdditionalInfo empty() {
-		return new AdditionalInfo(null);
+		return EMPTY;
 	}
 
 	/**
 	 * Creates new additional information.
 	 * <p>
-	 * A shallow copy of the given information is created in order
-	 * to prevent modification of the info after creation.
+	 * A shallow copy of the given information is created in order to prevent
+	 * modification of the info after creation.
 	 * 
 	 * @param info The information or {@code null}.
 	 * @return The info.
 	 */
 	public static AdditionalInfo from(Map<String, Object> info) {
 		return new AdditionalInfo(info);
+	}
+
+	/**
+	 * Put values of provided additional info.
+	 * 
+	 * @param info new values to put.
+	 * @return new additional info
+	 * @since 4.0
+	 */
+	public AdditionalInfo put(AdditionalInfo info) {
+		Map<String, Object> map = new HashMap<>(this.info);
+		for (Entry<String, Object> entry : info.info.entrySet()) {
+			map.put(entry.getKey(), entry.getValue());
+		}
+		return new AdditionalInfo(map);
 	}
 
 	/**
@@ -83,5 +101,15 @@ public final class AdditionalInfo {
 		} else {
 			return null;
 		}
+	}
+
+	/**
+	 * Checks, if additional info is empty.
+	 * 
+	 * @return {@code true}, if no info is contained, {@code false} otherwise.
+	 * @since 4.0
+	 */
+	public boolean isEmpty() {
+		return info.isEmpty();
 	}
 }

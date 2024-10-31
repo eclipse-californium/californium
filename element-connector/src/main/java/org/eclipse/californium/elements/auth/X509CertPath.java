@@ -42,6 +42,7 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 	private static final String ENCODING = "PkiPath";
 	private final CertPath path;
 	private final X509Certificate target;
+	private final X509Certificate anchor;
 
 	/**
 	 * Creates a new instance for a certificate chain.
@@ -70,7 +71,13 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 			throw new IllegalArgumentException("Cert path must not be empty");
 		} else {
 			this.path = certPath;
-			this.target = (X509Certificate) certPath.getCertificates().get(0);
+			List<? extends Certificate> list = certPath.getCertificates();
+			this.target = (X509Certificate) list.get(0);
+			if (list.size() > 1) {
+				this.anchor = (X509Certificate) list.get(list.size() - 1);
+			} else {
+				this.anchor = null;
+			}
 		}
 	}
 
@@ -195,6 +202,17 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 		return target;
 	}
 
+	/**
+	 * Gets the trust anchor of this certificate path.
+	 *
+	 * @return The trust anchor certificate. {@code null}, for self signed
+	 *         certificates.
+	 * @since 4.0
+	 */
+	public X509Certificate getAnchor() {
+		return anchor;
+	}
+
 	public boolean equals(Object obj) {
 		if (this == obj) {
 			return true;
@@ -216,7 +234,7 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 	 * 
 	 * Clients should not assume any particular format of the returned string
 	 * since it may change over time.
-	 *  
+	 * 
 	 * @return the string representation
 	 */
 	@Override

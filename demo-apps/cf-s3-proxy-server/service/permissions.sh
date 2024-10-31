@@ -21,20 +21,22 @@
 # 
 # Adjust permission for several configuration files, which may contain credentials
 
+prot () {
+  if [ -e "$1" ] ; then
+    chmod o-r $1
+    chown cali:cali $1
+    echo "Protected $1";  
+  else
+    echo "Missing $1";  
+  fi	
+}
+
 chmod o-r /etc/systemd/system/cali.service
 
-chmod o-r /home/cali/demo-devices.txt
-chown cali:cali /home/cali/demo-devices.txt
-
-chmod o-r /home/cali/privkey.pem
-chown cali:cali /home/cali/privkey.pem
-
-chmod o-r /home/cali/users.txt
-chown cali:cali /home/cali/users.txt
-
-chmod o-r /home/cali/configs.txt
-chown cali:cali /home/cali/configs.txt
-
-chmod o-r /home/cali/.s3cfg
-chown cali:cali /home/cali/.s3cfg
+prot /home/cali/demo-devices.txt
+prot /home/cali/fullchain.pem
+prot /home/cali/privkey.pem
+prot /home/cali/users.txt
+prot /home/cali/configs.txt
+prot /home/cali/.s3cfg
 

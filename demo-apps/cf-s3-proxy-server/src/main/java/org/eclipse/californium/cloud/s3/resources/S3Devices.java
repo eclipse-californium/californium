@@ -59,12 +59,13 @@ import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest.Builder;
-import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
-import org.eclipse.californium.cloud.s3.util.DomainDeviceManager.DomainDeviceInfo;
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider;
 import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider.DeviceIdentityMode;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
@@ -310,7 +311,7 @@ public class S3Devices extends CoapResource {
 			exchange.respond(NOT_ACCEPTABLE);
 		} else {
 			final Principal principal = request.getSourceContext().getPeerIdentity();
-			final DomainDeviceInfo info = DomainDeviceManager.getDeviceInfo(principal);
+			final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
 			if (info == null) {
 				exchange.respond(UNAUTHORIZED);
 			} else {
@@ -348,8 +349,15 @@ public class S3Devices extends CoapResource {
 			return;
 		}
 		final Principal principal = request.getSourceContext().getPeerIdentity();
-		final DomainDeviceInfo info = DomainDeviceManager.getDeviceInfo(principal);
+		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
 		LOGGER.info("S3: {}", info);
+		if (info == null) {
+			exchange.respond(UNAUTHORIZED);
+			return;
+		} else if (info.type != Type.DEVICE) {
+			exchange.respond(FORBIDDEN);
+			return;
+		}
 
 		boolean updateSeries = false;
 		boolean forward = false;
@@ -357,10 +365,10 @@ public class S3Devices extends CoapResource {
 		String write = null;
 		try {
 			UriQueryParameter helper = request.getOptions().getUriQueryParameter(SUPPORTED);
-			LOGGER.info("URI-Query: {} {}", request.getOptions().getUriQuery(), info != null ? info : "");
+			LOGGER.info("URI-Query: {} {}", request.getOptions().getUriQuery(), info);
 			List<Option> others = request.getOptions().getOthers();
 			if (!others.isEmpty()) {
-				LOGGER.info("Other options: {} {}", others, info != null ? info : "");
+				LOGGER.info("Other options: {} {}", others, info);
 			}
 			updateSeries = helper.hasParameter(URI_QUERY_OPTION_SERIES);
 			forward = helper.hasParameter(URI_QUERY_OPTION_FORWARD);
@@ -387,187 +395,184 @@ public class S3Devices extends CoapResource {
 		final long time = timeOption.getLongValue();
 
 		Response response = new Response(CHANGED);
-		if (info != null) {
-			final String timestamp = format(time, ChronoUnit.MILLIS);
-			final String domain = info.domain;
-			S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
-			StringBuilder log = new StringBuilder();
-			String position = null;
+		final String timestamp = format(time, ChronoUnit.MILLIS);
+		final String domain = info.domain;
+		S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
+		StringBuilder log = new StringBuilder();
+		String position = null;
 
-			LOGGER.info("S3: {}, {}", domain, s3Client.getExternalEndpoint());
-			String writeExpanded = replaceVars(write, timestamp);
-			if (format == TEXT_PLAIN && updateSeries) {
-				String[] lines = request.getPayloadString().split("[\\n\\r]+");
-				for (String line : lines) {
-					if (line.startsWith("!")) {
-						line = line.substring(1);
-						log.append(line).append(',');
-					}
+		LOGGER.info("S3: {}, {}", domain, s3Client.getExternalEndpoint());
+		String writeExpanded = replaceVars(write, timestamp);
+		if (format == TEXT_PLAIN && updateSeries) {
+			String[] lines = request.getPayloadString().split("[\\n\\r]+");
+			for (String line : lines) {
+				if (line.startsWith("!")) {
+					line = line.substring(1);
+					log.append(line).append(',');
 				}
 			}
-			StringUtil.truncateTail(log, ",");
-			request.setProtectFromOffload();
-			Series series = null;
-			String acl = S3ProxyRequest.getAcl(request, s3Client.getAcl());
-			boolean visible = acl != null && acl.startsWith("public-");
+		}
+		StringUtil.truncateTail(log, ",");
+		request.setProtectFromOffload();
+		Series series = null;
+		String acl = S3ProxyRequest.getAcl(request, s3Client.getAcl());
+		boolean visible = acl != null && acl.startsWith("public-");
 
-			Resource deviceDomain = domains.get(info.domain);
-			if (!(deviceDomain instanceof DeviceDomain)) {
-				deviceDomain = new DeviceDomain(info.domain, minutes, maxDevices);
-				Resource previous = domains.putIfAbsent(info.domain, deviceDomain);
-				if (previous != null) {
-					deviceDomain = previous;
+		Resource deviceDomain = domains.get(info.domain);
+		if (!(deviceDomain instanceof DeviceDomain)) {
+			deviceDomain = new DeviceDomain(info.domain, minutes, maxDevices);
+			Resource previous = domains.putIfAbsent(info.domain, deviceDomain);
+			if (previous != null) {
+				deviceDomain = previous;
+			} else {
+				deviceDomain.setParent(this);
+			}
+		}
+		if (deviceDomain instanceof DeviceDomain) {
+			LeastRecentlyUpdatedCache<String, Resource> keptPosts = ((DeviceDomain) deviceDomain).keptPosts;
+			WriteLock lock = keptPosts.writeLock();
+			lock.lock();
+			try {
+				Device device;
+				Resource child = keptPosts.update(info.name);
+				if (child instanceof Device) {
+					device = (Device) child;
 				} else {
-					deviceDomain.setParent(this);
+					device = new Device(info.name);
 				}
-			}
-			if (deviceDomain instanceof DeviceDomain) {
-				LeastRecentlyUpdatedCache<String, Resource> keptPosts = ((DeviceDomain) deviceDomain).keptPosts;
-				WriteLock lock = keptPosts.writeLock();
-				lock.lock();
-				try {
-					Device device;
-					Resource child = keptPosts.update(info.name);
-					if (child instanceof Device) {
-						device = (Device) child;
-					} else {
-						device = new Device(info.name);
-					}
-					device.setVisible(visible);
-					device.setPost(request, position, time, writeExpanded);
-					// workaround for javascript dependency on "series-" file
-					series = device.appendSeries(log.toString(), timestamp);
-					if (device.getParent() == null) {
-						device.setParent(deviceDomain);
-						keptPosts.put(info.name, device);
-					}
-					LOGGER.info("Domain: {}, {} devices", info.domain, keptPosts.size());
-				} finally {
-					lock.unlock();
+				device.setVisible(visible);
+				device.setPost(request, position, time, writeExpanded);
+				// workaround for javascript dependency on "series-" file
+				series = device.appendSeries(log.toString(), timestamp);
+				if (device.getParent() == null) {
+					device.setParent(deviceDomain);
+					keptPosts.put(info.name, device);
 				}
+				LOGGER.info("Domain: {}, {} devices", info.domain, keptPosts.size());
+			} finally {
+				lock.unlock();
 			}
+		}
 
-			MultiConsumer<Response> multi = new MultiConsumer<Response>() {
+		MultiConsumer<Response> multi = new MultiConsumer<Response>() {
+
+			@Override
+			public void complete(Map<String, Response> results) {
+				Response read = results.get("read");
+				Response write = results.get("write");
+				Response forward = results.get("forward");
+				Response response = write != null ? write : read;
+				if (forward != null) {
+					if (response == null || (forward.isSuccess() && !forward.getPayloadString().equals("ack")
+							&& !forward.getPayloadString().equals(""))) {
+						exchange.respond(forward);
+						return;
+					}
+					response.getOptions().addOtherOption(new ForwardResponseOption(forward.getCode()));
+				}
+				if (write != null && read != null) {
+					if (write.getCode() == CHANGED && read.getCode() == CONTENT) {
+						// Add get response
+						OptionSet options = write.getOptions();
+						options.setContentFormat(read.getOptions().getContentFormat());
+						for (byte[] etag : read.getOptions().getETags()) {
+							options.addOtherOption(ReadEtagOption.DEFINITION.create(etag));
+						}
+						write.setPayload(read.getPayload());
+					}
+					write.getOptions().addOtherOption(new ReadResponseOption(read.getCode()));
+					exchange.respond(write);
+				} else if (write != null) {
+					exchange.respond(write);
+				} else if (read != null) {
+					exchange.respond(read);
+				} else {
+					response = new Response(INTERNAL_SERVER_ERROR);
+					response.setPayload("no internal response!");
+					exchange.respond(response);
+				}
+			}
+		};
+
+		URI httpDestinationUri;
+		if (forward && httpForward != null && httpDestination != null
+				&& ((httpDestinationUri = httpDestination.getDestination(domain)) != null)) {
+			String authentication = httpDestination.getAuthentication(domain);
+			DeviceIdentityMode deviceIdentificationMode = httpDestination.getDeviceIdentityMode(domain);
+			Request outgoing = new Request(request.getCode(), request.getType());
+			outgoing.setOptions(request.getOptions());
+			byte[] payload = request.getPayload();
+			if (deviceIdentificationMode == DeviceIdentityMode.HEADLINE) {
+				byte[] head = (info.name + StringUtil.lineSeparator()).getBytes(StandardCharsets.UTF_8);
+				payload = Bytes.concatenate(head, payload);
+			} else if (deviceIdentificationMode == DeviceIdentityMode.QUERY_PARAMETER) {
+				String path = httpDestinationUri.getPath();
+				String query = httpDestinationUri.getQuery();
+				if (query == null) {
+					query = "id=" + info.name;
+				} else {
+					query = query + "&" + "id=" + info.name;
+				}
+				try {
+					httpDestinationUri = httpDestinationUri.resolve(new URI(null, null, null, -1, path, query, null));
+				} catch (URISyntaxException e) {
+					LOGGER.warn("URI: ", e);
+				}
+			}
+			outgoing.setPayload(payload);
+
+			LOGGER.info("HTTP: {} => {} {} {} bytes", info, httpDestinationUri, deviceIdentificationMode,
+					outgoing.getPayloadSize());
+			final Consumer<Response> consumer = multi.create("forward");
+
+			httpForward.handleForward(httpDestinationUri, authentication, outgoing, new ResponseConsumer() {
 
 				@Override
-				public void complete(Map<String, Response> results) {
-					Response read = results.get("read");
-					Response write = results.get("write");
-					Response forward = results.get("forward");
-					Response response = write != null ? write : read;
-					if (forward != null) {
-						if (response == null || (forward.isSuccess() && !forward.getPayloadString().equals("ack")
-								&& !forward.getPayloadString().equals(""))) {
-							exchange.respond(forward);
-							return;
-						}
-						response.getOptions().addOtherOption(new ForwardResponseOption(forward.getCode()));
+				public void respond(Response response) {
+					consumer.accept(response);
+				}
+
+			});
+		}
+
+		if (read != null && !read.isEmpty()) {
+			List<Option> readEtag = request.getOptions().getOthers(ReadEtagOption.DEFINITION);
+			S3ProxyRequest s3ReadRequest = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(read)
+					.etags(readEtag).build();
+			s3Client.get(s3ReadRequest, multi.create("read"));
+		}
+
+		if (writeExpanded != null && !writeExpanded.isEmpty()) {
+			final Consumer<Response> putResponseConsumer = multi.create("write");
+
+			Builder builder = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(writeExpanded);
+			if (write.equals(writeExpanded)) {
+				builder.timestamp(time);
+			}
+			s3Client.put(builder.build(), new Consumer<Response>() {
+
+				@Override
+				public void accept(Response response) {
+					// respond with time?
+					final TimeOption responseTimeOption = timeOption.adjust();
+					if (responseTimeOption != null) {
+						response.getOptions().addOtherOption(responseTimeOption);
 					}
-					if (write != null && read != null) {
-						if (write.getCode() == CHANGED && read.getCode() == CONTENT) {
-							// Add get response
-							OptionSet options = write.getOptions();
-							options.setContentFormat(read.getOptions().getContentFormat());
-							for (byte[] etag : read.getOptions().getETags()) {
-								options.addOtherOption(ReadEtagOption.DEFINITION.create(etag));
-							}
-							write.setPayload(read.getPayload());
-						}
-						write.getOptions().addOtherOption(new ReadResponseOption(read.getCode()));
-						exchange.respond(write);
-					} else if (write != null) {
-						exchange.respond(write);
-					} else if (read != null) {
-						exchange.respond(read);
+					putResponseConsumer.accept(response);
+					if (response.isSuccess()) {
+						LOGGER.info("Device {} updated!{}", info, visible ? " (public)" : " (private)");
 					} else {
-						response = new Response(INTERNAL_SERVER_ERROR);
-						response.setPayload("no internal response!");
-						exchange.respond(response);
+						LOGGER.info("Device {} update failed!", info);
 					}
 				}
-			};
+			});
+		}
 
-			URI httpDestinationUri;
-			if (forward && httpForward != null && httpDestination != null
-					&& ((httpDestinationUri = httpDestination.getDestination(domain)) != null)) {
-				String authentication = httpDestination.getAuthentication(domain);
-				DeviceIdentityMode deviceIdentificationMode = httpDestination.getDeviceIdentityMode(domain);
-				Request outgoing = new Request(request.getCode(), request.getType());
-				outgoing.setOptions(request.getOptions());
-				byte[] payload = request.getPayload();
-				if (deviceIdentificationMode == DeviceIdentityMode.HEADLINE) {
-					byte[] head = (info.name + StringUtil.lineSeparator()).getBytes(StandardCharsets.UTF_8);
-					payload = Bytes.concatenate(head, payload);
-				} else if (deviceIdentificationMode == DeviceIdentityMode.QUERY_PARAMETER) {
-					String path = httpDestinationUri.getPath();
-					String query = httpDestinationUri.getQuery();
-					if (query == null) {
-						query = "id=" + info.name;
-					} else {
-						query = query + "&" + "id=" + info.name;
-					}
-					try {
-						httpDestinationUri = httpDestinationUri
-								.resolve(new URI(null, null, null, -1, path, query, null));
-					} catch (URISyntaxException e) {
-						LOGGER.warn("URI: ", e);
-					}
-				}
-				outgoing.setPayload(payload);
-
-				LOGGER.info("HTTP: {} => {} {} {} bytes", info, httpDestinationUri, deviceIdentificationMode,
-						outgoing.getPayloadSize());
-				final Consumer<Response> consumer = multi.create("forward");
-
-				httpForward.handleForward(httpDestinationUri, authentication, outgoing, new ResponseConsumer() {
-
-					@Override
-					public void respond(Response response) {
-						consumer.accept(response);
-					}
-
-				});
-			}
-
-			if (read != null && !read.isEmpty()) {
-				List<Option> readEtag = request.getOptions().getOthers(ReadEtagOption.DEFINITION);
-				S3ProxyRequest s3ReadRequest = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(read)
-						.etags(readEtag).build();
-				s3Client.get(s3ReadRequest, multi.create("read"));
-			}
-
-			if (writeExpanded != null && !writeExpanded.isEmpty()) {
-				final Consumer<Response> putResponseConsumer = multi.create("write");
-
-				Builder builder = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(writeExpanded);
-				if (write.equals(writeExpanded)) {
-					builder.timestamp(time);
-				}
-				s3Client.put(builder.build(), new Consumer<Response>() {
-
-					@Override
-					public void accept(Response response) {
-						// respond with time?
-						final TimeOption responseTimeOption = timeOption.adjust();
-						if (responseTimeOption != null) {
-							response.getOptions().addOtherOption(responseTimeOption);
-						}
-						putResponseConsumer.accept(response);
-						if (response.isSuccess()) {
-							LOGGER.info("Device {} updated!{}", info, visible ? " (public)" : " (private)");
-						} else {
-							LOGGER.info("Device {} update failed!", info);
-						}
-					}
-				});
-			}
-
-			if (series != null) {
-				updateSeries(request, series, s3Client);
-			}
-			if (multi.created()) {
-				return;
-			}
+		if (series != null) {
+			updateSeries(request, series, s3Client);
+		}
+		if (multi.created()) {
+			return;
 		}
 		// respond with time?
 		final TimeOption responseTimeOption = timeOption.adjust();
@@ -747,10 +752,17 @@ public class S3Devices extends CoapResource {
 			return series;
 		}
 
-		private boolean hasPermission(Request request) {
+		private ResponseCode checkPermission(Request request) {
 			final Principal principal = request.getSourceContext().getPeerIdentity();
-			final DomainDeviceInfo info = DomainDeviceManager.getDeviceInfo(principal);
-			return info != null && (isVisible() || getName().equals(info.name));
+			final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
+			if (info == null) {
+				return UNAUTHORIZED;
+			} else if (info.type != Type.DEVICE) {
+				return FORBIDDEN;
+			} else if (!isVisible() && !getName().equals(info.name)) {
+				return FORBIDDEN;
+			}
+			return null;
 		}
 
 		@Override
@@ -758,8 +770,9 @@ public class S3Devices extends CoapResource {
 			Request devicePost = post;
 			// get request to read out details
 			Request request = exchange.advanced().getRequest();
-			if (!hasPermission(request)) {
-				exchange.respond(FORBIDDEN);
+			ResponseCode code = checkPermission(request);
+			if (code != null) {
+				exchange.respond(code);
 				return;
 			}
 			int format = devicePost.getOptions().getContentFormat();
@@ -849,8 +862,9 @@ public class S3Devices extends CoapResource {
 
 		public void handleGET(CoapExchange exchange) {
 			Request request = exchange.advanced().getRequest();
-			if (!getDevice().hasPermission(request)) {
-				exchange.respond(FORBIDDEN);
+			ResponseCode code = getDevice().checkPermission(request);
+			if (code != null) {
+				exchange.respond(code);
 				return;
 			}
 			int accept = request.getOptions().getAccept();

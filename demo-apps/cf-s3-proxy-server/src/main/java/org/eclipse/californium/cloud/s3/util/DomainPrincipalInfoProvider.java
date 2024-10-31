@@ -12,22 +12,20 @@
  * 
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  ********************************************************************************/
-package org.eclipse.californium.cloud.util;
+package org.eclipse.californium.cloud.s3.util;
+
+import java.security.Principal;
+
+import org.eclipse.californium.cloud.util.PrincipalInfoProvider;
 
 /**
- * Device provisioning consumer.
+ * Domain principal info provider.
  * 
- * @since 3.13
+ * @since 4.0
  */
-public interface DeviceProvisioningConsumer {
+public interface DomainPrincipalInfoProvider extends PrincipalInfoProvider {
 
-	/**
-	 * Add data to device store.
-	 * 
-	 * @param info principal info of provisioning.
-	 * @param time timestamp of request.
-	 * @param data data to add.
-	 * @param response response consumer.
-	 */
-	void add(PrincipalInfo info, long time, String data, ResultConsumer response);
+	@Override
+	DomainPrincipalInfo getPrincipalInfo(Principal principal);
+
 }

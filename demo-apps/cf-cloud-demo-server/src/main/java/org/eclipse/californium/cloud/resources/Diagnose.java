@@ -15,7 +15,9 @@
 package org.eclipse.californium.cloud.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_LINK_FORMAT;
@@ -34,6 +36,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cloud.EndpointNetSocketObserver;
+import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.CoAP;
@@ -160,6 +164,15 @@ public class Diagnose extends CoapResource {
 
 	@Override
 	public void handleGET(CoapExchange exchange) {
+		Principal principal = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
+		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
+		if (info == null) {
+			exchange.respond(UNAUTHORIZED);
+			return;
+		} else if (info.type != Type.DEVICE && info.type != Type.WEB) {
+			exchange.respond(FORBIDDEN);
+			return;
+		}
 		Response response = new Response(CONTENT);
 		Integer maxConnections = null;
 		Integer nodeId = null;
@@ -174,7 +187,11 @@ public class Diagnose extends CoapResource {
 				Configuration config = endpoint.getConfig();
 				maxConnections = config.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
 				nodeId = config.get(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID);
-				LOGGER.info("coaps: max {}, node-id {}", maxConnections, nodeId);
+				if (nodeId != null) {
+					LOGGER.info("coaps: max {}, node-id {}", maxConnections, nodeId);
+				} else {
+					LOGGER.info("coaps: max {}", maxConnections);
+				}
 			} else {
 				LOGGER.info("{}", scheme);
 			}
@@ -194,7 +211,7 @@ public class Diagnose extends CoapResource {
 			exchange.respond(response);
 			return;
 		}
-		Principal principal = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
+
 		switch (exchange.getRequestOptions().getAccept()) {
 		case UNDEFINED:
 		case TEXT_PLAIN:
