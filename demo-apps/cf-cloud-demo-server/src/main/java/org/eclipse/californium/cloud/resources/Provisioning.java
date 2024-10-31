@@ -18,9 +18,8 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_REQUEST;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONFLICT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.INTERNAL_SERVER_ERROR;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.TOO_MANY_REQUESTS;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
@@ -63,10 +62,6 @@ public class Provisioning extends CoapResource {
 	 * Device provisioning consumer.
 	 */
 	private final DeviceProvisioningConsumer devices;
-	/**
-	 * Indicates pending provisioning.
-	 */
-	private final AtomicBoolean busy = new AtomicBoolean();
 
 	/**
 	 * Create device provisioning resource.
@@ -100,7 +95,7 @@ public class Provisioning extends CoapResource {
 			String payload = request.getPayloadString();
 			if (payload.isEmpty()) {
 				exchange.respond(BAD_REQUEST, "Missing provisioning payload.");
-			} else if (busy.compareAndSet(false, true)) {
+			} else {
 				try {
 					final TimeOption timeOption = TimeOption.getMessageTime(request);
 					final long time = timeOption.getLongValue();
@@ -134,18 +129,13 @@ public class Provisioning extends CoapResource {
 									response.getOptions().addOtherOption(responseTimeOption);
 								}
 								exchange.respond(response);
-								busy.set(false);
 								LOGGER.info("{}", response);
 							}
 						}
 					});
 				} catch (Throwable t) {
 					exchange.respond(INTERNAL_SERVER_ERROR, "Provisioning failed, " + t.getMessage());
-					busy.set(false);
 				}
-			} else {
-				LOGGER.info("Provisioing busy.");
-				exchange.respond(TOO_MANY_REQUESTS, "Provisioning already pending.");
 			}
 		} else {
 			LOGGER.info("No permission to added device credentials.");

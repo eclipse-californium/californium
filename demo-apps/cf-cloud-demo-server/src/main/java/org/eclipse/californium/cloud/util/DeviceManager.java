@@ -102,6 +102,12 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	 */
 	protected final PublicKey publicKey;
 	/**
+	 * Timeout for add credentials for auto-provisioning. Value in milliseconds.
+	 * 
+	 * @since 4.0
+	 */
+	protected final long addTimeoutMillis;
+	/**
 	 * Store for PreSharedKey credentials.
 	 */
 	protected AdvancedPskStore pskStore;
@@ -127,11 +133,15 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	 *            credentials
 	 * @param privateKey private key of DTLS 1.2 server for device communication
 	 * @param publicKey public key of DTLS 1.2 server for device communication
+	 * @param addTimeoutMillis timeout in milliseconds configuration values
+	 * @since 4.0 (added parameter addTimeoutMillis)
 	 */
-	public DeviceManager(ResourceStore<DeviceParser> devices, PrivateKey privateKey, PublicKey publicKey) {
+	public DeviceManager(ResourceStore<DeviceParser> devices, PrivateKey privateKey, PublicKey publicKey,
+			long addTimeoutMillis) {
 		this.devices = devices;
 		this.privateKey = privateKey;
 		this.publicKey = publicKey;
+		this.addTimeoutMillis = addTimeoutMillis;
 	}
 
 	/**
@@ -168,9 +178,10 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 			response.results(ResultCode.SERVER_ERROR, "no ResourceChangedHandler.");
 			return;
 		}
-		Semaphore semaphore = devices.getSemaphore();
+		final Semaphore semaphore = devices.getSemaphore();
 		try {
-			if (semaphore.tryAcquire(15000, TimeUnit.MILLISECONDS)) {
+			if (semaphore.tryAcquire(addTimeoutMillis, TimeUnit.MILLISECONDS)) {
+				boolean release = true;
 				try (StringReader reader = new StringReader(data)) {
 					int result = devices.getResource().load(reader);
 					if (result > 0) {
@@ -181,11 +192,11 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 								try {
 									response.results(code, message);
 								} finally {
-									devices.getSemaphore().release();
+									semaphore.release();
 								}
 							}
 						});
-						semaphore = null;
+						release = false;
 					} else {
 						LOGGER.info("no credentials added!");
 						response.results(ResultCode.PROVISIONING_ERROR, "no credentials added.");
@@ -195,12 +206,12 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 				} catch (IOException e) {
 					response.results(ResultCode.SERVER_ERROR, "failed to read new credentials. " + e.getMessage());
 				} finally {
-					if (semaphore != null) {
+					if (release) {
 						semaphore.release();
 					}
 				}
 			} else {
-				response.results(ResultCode.SERVER_ERROR, "Too busy.");
+				response.results(ResultCode.TOO_MANY_REQUESTS, "Too busy.");
 			}
 		} catch (InterruptedException e) {
 			response.results(ResultCode.SERVER_ERROR, "Shutdown.");

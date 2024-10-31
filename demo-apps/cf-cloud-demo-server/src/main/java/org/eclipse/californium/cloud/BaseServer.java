@@ -168,6 +168,15 @@ public class BaseServer extends CoapServer {
 	public static final TimeDefinition DEVICE_CREDENTIALS_RELOAD_INTERVAL = new TimeDefinition(
 			"DEVICE_CREDENTIALS_RELOAD_INTERVAL",
 			"Reload device credentials interval. 0 to load credentials only on startup.", 60, TimeUnit.SECONDS);
+	/**
+	 * Request timeout for adding device credentials in auto-provisioning.
+	 * 
+	 * @since 4.0
+	 */
+	public static final TimeDefinition DEVICE_CREDENTIALS_ADD_TIMEOUT = new TimeDefinition(
+			"DEVICE_CREDENTIALS_ADD_TIMEOUT",
+			"Request timeout for adding device credentials in auto-provisioning. Credentials must be added in series and concurrent requests may cause overload resulting in timeouts.",
+			5000, TimeUnit.MILLISECONDS);
 
 	/**
 	 * Default configuration setup.
@@ -641,7 +650,8 @@ public class BaseServer extends CoapServer {
 					cliArguments.deviceStore.password64, interval > 0);
 			monitors.addMonitor("Devices", interval, TimeUnit.SECONDS, deviceCredentialsResource.getMonitor());
 		}
-		deviceCredentials = new DeviceManager(deviceCredentialsResource, privateKey, publicKey);
+		long addTimeout = getConfig().get(DEVICE_CREDENTIALS_ADD_TIMEOUT, TimeUnit.MILLISECONDS);
+		deviceCredentials = new DeviceManager(deviceCredentialsResource, privateKey, publicKey, addTimeout);
 	}
 
 	/**
@@ -668,7 +678,7 @@ public class BaseServer extends CoapServer {
 
 		// explore network interfaces
 		Collection<InetAddress> localAddresses;
-		String serializationLabel = null; 
+		String serializationLabel = null;
 		if (cliArguments.network.wildcard) {
 			localAddresses = Collections.singleton(new InetSocketAddress(0).getAddress());
 			serializationLabel = "*";

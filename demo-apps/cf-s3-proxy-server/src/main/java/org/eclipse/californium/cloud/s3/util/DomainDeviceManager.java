@@ -93,11 +93,13 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 	 *            RawPublicKey credentials
 	 * @param privateKey private key of DTLS 1.2 server for device communication
 	 * @param publicKey public key of DTLS 1.2 server for device communication
+	 * @param addTimeoutMillis timeout in milliseconds configuration values
 	 * @throws NullPointerException if domains is {@code null}
+	 * @since 4.0 (added parameter addTimeoutMillis)
 	 */
 	public DomainDeviceManager(ConcurrentMap<String, ResourceStore<DeviceParser>> domains, PrivateKey privateKey,
-			PublicKey publicKey) {
-		super(null, privateKey, publicKey);
+			PublicKey publicKey, long addTimeoutMillis) {
+		super(null, privateKey, publicKey, addTimeoutMillis);
 		if (domains == null) {
 			throw new NullPointerException("domains must not be null!");
 		}

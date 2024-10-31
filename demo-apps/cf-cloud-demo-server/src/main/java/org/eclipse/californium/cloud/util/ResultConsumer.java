@@ -22,7 +22,7 @@ package org.eclipse.californium.cloud.util;
 public interface ResultConsumer {
 
 	public enum ResultCode {
-		SUCCESS, PROVISIONING_ERROR, SERVER_ERROR
+		SUCCESS, TOO_MANY_REQUESTS, PROVISIONING_ERROR, SERVER_ERROR
 	};
 
 	/**
