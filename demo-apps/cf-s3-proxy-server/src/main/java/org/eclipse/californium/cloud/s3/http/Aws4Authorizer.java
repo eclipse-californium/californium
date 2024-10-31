@@ -30,7 +30,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -41,10 +43,16 @@ import javax.crypto.SecretKey;
 
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfoProvider;
 import org.eclipse.californium.cloud.s3.util.DomainNamePair;
 import org.eclipse.californium.cloud.s3.util.WebAppDomainUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserProvider;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
+import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
@@ -129,6 +137,20 @@ public class Aws4Authorizer {
 			return id.compareTo(o.id);
 		}
 	}
+
+	private static final DomainPrincipalInfoProvider webPrincipalInfoProvider = new DomainPrincipalInfoProvider() {
+
+		@Override
+		public DomainPrincipalInfo getPrincipalInfo(Principal principal) {
+			if (principal instanceof WebAppAuthorization) {
+				WebAppAuthorization authorization = (WebAppAuthorization) principal;
+				List<String> groups = authorization.getWebAppUser().groups;
+				String group = groups.isEmpty() ? "web" : groups.get(0);
+				return new DomainPrincipalInfo(authorization.getDomain(), group, authorization.getName(), Type.WEB);
+			}
+			return null;
+		}
+	};
 
 	/**
 	 * Web application authorization.
@@ -392,7 +414,9 @@ public class Aws4Authorizer {
 	/**
 	 * Web application authorization.
 	 */
-	public static class WebAppAuthorization extends Authorization {
+	public static class WebAppAuthorization extends Authorization implements ExtensiblePrincipal<WebAppAuthorization> {
+
+		private AdditionalInfo additionalInfo;
 
 		/**
 		 * The domain name of the associated web application user.
@@ -421,6 +445,11 @@ public class Aws4Authorizer {
 			}
 			this.domain = domain;
 			this.webAppUser = webAppUser;
+			Map<String, Object> info = new HashMap<>();
+			info.put(PrincipalInfo.INFO_NAME, authorization.getName());
+			info.put(PrincipalInfo.INFO_PROVIDER, webPrincipalInfoProvider);
+			info.put(DomainPrincipalInfo.INFO_DOMAIN, domain);
+			this.additionalInfo = AdditionalInfo.from(info);
 		}
 
 		@Override
@@ -466,6 +495,17 @@ public class Aws4Authorizer {
 		 */
 		public String getDomain() {
 			return domain;
+		}
+
+		@Override
+		public WebAppAuthorization amend(AdditionalInfo additionalInfo) {
+			this.additionalInfo = additionalInfo;
+			return null;
+		}
+
+		@Override
+		public AdditionalInfo getExtendedInfo() {
+			return additionalInfo;
 		}
 	}
 

@@ -20,18 +20,24 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONFLICT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.INTERNAL_SERVER_ERROR;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
+import java.io.StringWriter;
 import java.security.Principal;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.cloud.option.TimeOption;
-import org.eclipse.californium.cloud.util.DeviceManager;
-import org.eclipse.californium.cloud.util.DeviceManager.DeviceInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfoProvider;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
+import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.DeviceProvisioningConsumer;
 import org.eclipse.californium.cloud.util.ResultConsumer;
 import org.eclipse.californium.core.CoapResource;
@@ -39,6 +45,8 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.PemUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,8 +98,23 @@ public class Provisioning extends CoapResource {
 		}
 
 		Principal principal = request.getSourceContext().getPeerIdentity();
-		DeviceInfo info = DeviceManager.getDeviceInfo(principal);
-		if (info != null && info.provisioning) {
+		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
+		if (info == null) {
+			LOGGER.info("Not authorized to added device credentials.");
+			exchange.respond(UNAUTHORIZED, "Not authorized.");
+			return;
+		}
+
+		boolean x509 = principal instanceof X509CertPath;
+		if (x509 && info.type == Type.DEVICE) {
+			info = getDeviceInfoCa(principal);
+			if (info == null) {
+				LOGGER.info("CA not available.");
+				exchange.respond(FORBIDDEN, "CA not available.");
+				return;
+			}
+		}
+		if (info.type == Type.PROVISIONING || info.type == Type.CA) {
 			String payload = request.getPayloadString();
 			if (payload.isEmpty()) {
 				exchange.respond(BAD_REQUEST, "Missing provisioning payload.");
@@ -100,7 +123,21 @@ public class Provisioning extends CoapResource {
 					final TimeOption timeOption = TimeOption.getMessageTime(request);
 					final long time = timeOption.getLongValue();
 					payload = "# added " + format(time) + " by " + info.name + StringUtil.lineSeparator() + payload;
-
+					if (info.type == Type.CA) {
+						X509CertPath certPath = (X509CertPath) principal;
+						try {
+							StringWriter writer = new StringWriter();
+							byte[] data = certPath.getTarget().getEncoded();
+							writer.write(StringUtil.lineSeparator());
+							writer.write(DeviceParser.X509_POSTFIX);
+							writer.write('=');
+							writer.write(StringUtil.lineSeparator());
+							PemUtil.write("CERTIFICATE", data, writer);
+							payload = payload + writer.toString();
+						} catch (CertificateEncodingException e) {
+						}
+					}
+					LOGGER.debug("{}", payload);
 					devices.add(info, time, payload, new ResultConsumer() {
 
 						private final AtomicBoolean done = new AtomicBoolean();
@@ -143,7 +180,26 @@ public class Provisioning extends CoapResource {
 		}
 	}
 
-	private static String format(long millis) {
+	public static PrincipalInfo getDeviceInfoCa(Principal principal) {
+		if (!(principal instanceof X509CertPath)) {
+			LOGGER.warn("Principal is not X.509 based! {}", principal.getClass().getSimpleName());
+			return null;
+		}
+		X509CertPath x509 = (X509CertPath) principal;
+		PrincipalInfoProvider provider = x509.getExtendedInfo().get(PrincipalInfo.INFO_PROVIDER, PrincipalInfoProvider.class);
+		if (provider == null) {
+			LOGGER.warn("Principal has no device-info-provider assigned!");
+			return null;
+		}
+		X509Certificate anchor = x509.getAnchor();
+		if (anchor == null) {
+			LOGGER.warn("Principal has no CA.");
+			return null;
+		}
+		return provider.getPrincipalInfo(X509CertPath.fromCertificatesChain(anchor));
+	}
+
+	public static String format(long millis) {
 		return ISO_DATE_FORMAT.format(new Date(millis));
 	}
 }

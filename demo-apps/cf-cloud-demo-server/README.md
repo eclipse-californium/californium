@@ -10,7 +10,7 @@ Simple cloud demo server for device communication with CoAP/DTLS 1.2 CID . Based
 
     Kickstart your UDP experience
 
-The server supports DTLS 1.2 CID with **P**re**S**hared**K**ey (similar to username/password) and **R**aw**P**ublic**Key** (a public key as certificate without additional information like subject or validity) authentication for device communication. X509 certificate based device authentication may be added to the cloud deom server in the future. Californium (Cf) itself does already support x509.
+The server supports DTLS 1.2 CID with **P**re**S**hared**K**ey (similar to username/password), **R**aw**P**ublic**Key** (a public key as certificate without additional information like subject or validity), and x509 certificate authentication for device communication.
 
 Supports resource "devices":
 
@@ -156,7 +156,7 @@ HTTPS_CREDENTIALS_RELOAD_INTERVAL=30[min]
 
 ## Device Credentials
 
-In order to authenticate the devices, PSK (Pre-Shared-Key, [RFC4279](https://www.rfc-editor.org/rfc/rfc4279)), or RPK (Raw-Public-Key, [RFC7250](https://www.rfc-editor.org/rfc/rfc7250)) are supported. The device credentials are stored in a [text-file, e.g. demo-devices.txt](./service/demo-devices.txt) in the local file system of the cloud VM.
+In order to authenticate the devices, PSK (Pre-Shared-Key, [RFC4279](https://www.rfc-editor.org/rfc/rfc4279)), RPK (Raw-Public-Key, [RFC7250](https://www.rfc-editor.org/rfc/rfc7250)),or x509 ([RFC5280](https://www.rfc-editor.org/rfc/rfc5280)) are supported. The device credentials are stored in a [text-file, e.g. demo-devices.txt](./service/demo-devices.txt) in the local file system of the cloud VM.
 
 ```
 # Device store for Cloud Demo
@@ -171,11 +171,55 @@ Demo.10034780012=Thing
 Demo.10560970055=Thing
 .psk='cali.0012345','secretPSK'
 
+# x509 CA (trust root)
+ca.1=Admin
+.type=ca
+.x509=
+-----BEGIN CERTIFICATE-----
+MIIB6jCCAZCgAwIBAgIIVcDMBTw+KzcwCgYIKoZIzj0EAwIwXDEQMA4GA1UEAxMH
+Y2Ytcm9vdDEUMBIGA1UECxMLQ2FsaWZvcm5pdW0xFDASBgNVBAoTC0VjbGlwc2Ug
+SW9UMQ8wDQYDVQQHEwZPdHRhd2ExCzAJBgNVBAYTAkNBMB4XDTI0MTEwNDE4MTUz
+MFoXDTI2MTEwNDE4MTUzMFowXDEQMA4GA1UEAxMHY2Ytcm9vdDEUMBIGA1UECxML
+Q2FsaWZvcm5pdW0xFDASBgNVBAoTC0VjbGlwc2UgSW9UMQ8wDQYDVQQHEwZPdHRh
+d2ExCzAJBgNVBAYTAkNBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzx3KwWUN
+2s7ad0CComh/dfNEg64Z7THbM64Bm8BOgFBN9284SSrboMvdAIOQamDP/aAmhFV3
+6Qg/SF1A5qTW9qM8MDowHQYDVR0OBBYEFBifxGwtiNzNWfvoU9IdZYrqJqp3MAsG
+A1UdDwQEAwIBBjAMBgNVHRMEBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIGU7bo83
+m29D12Tf2BA9DVC+48dpmib6FGwoxwIGyKGaAiEA0KXJd7IGpmcdxiroGJ+89+/2
+TZIohp/YlALdHH1U/nU=
+-----END CERTIFICATE-----
+
+# x509 device certificate, signed by Ca
+Demo.40145780125=Thing
+.label=Door
+.x509=
+-----BEGIN CERTIFICATE-----
+MIICAjCCAaigAwIBAgIJAJvzugZ7RkwVMAoGCCqGSM49BAMCMFwxEDAOBgNVBAMT
+B2NmLXJvb3QxFDASBgNVBAsTC0NhbGlmb3JuaXVtMRQwEgYDVQQKEwtFY2xpcHNl
+IElvVDEPMA0GA1UEBxMGT3R0YXdhMQswCQYDVQQGEwJDQTAeFw0yNDExMDcxNTA5
+MzVaFw0yNjExMDcxNTA5MzVaMGAxFDASBgNVBAMTC2NmLWNsaWVudC0yMRQwEgYD
+VQQLEwtDYWxpZm9ybml1bTEUMBIGA1UEChMLRWNsaXBzZSBJb1QxDzANBgNVBAcT
+Bk90dGF3YTELMAkGA1UEBhMCQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATa
+v2cItqEoanxb1UduhvKR+dlbkr0lsbR/ql01UPuAa2ONNt9uIl9FCXoF3V/VzE3O
+xW5+YTUraJ/CcuARZC5Mo08wTTAdBgNVHQ4EFgQU0d8npcBVyIxSwE9hPFTJ7qmZ
+04owCwYDVR0PBAQDAgeAMB8GA1UdIwQYMBaAFBifxGwtiNzNWfvoU9IdZYrqJqp3
+MAoGCCqGSM49BAMCA0gAMEUCIQC5F+tgTY5IzmbjlXqQE6ha/hFHE981mo0pSAzv
+NdTutwIgS0YrTmYDan4J8Z+svEG89HbLk2QlY2aGrzyjce7faSk=
+-----END CERTIFICATE-----
+
 ```
 
 The format starts with a device definition, using the device `name`, followed by a '=' and the `group` the device belongs to. Each device belongs to one group and you may use a couple of groups to partition your devices. Currently the groups are only used by the [Californium (Cf) - Cloud CoAP-S3-Proxy Server](../cf-s3-proxy-server) to select the devices shown initial after login.
 
 It is recommended to use a long term stable and unique values for the `name`. Technical IDs are candidates for that, but they are bad for humans as identifiers. Therefore you may provide a human recognizable `label` to mitigate that.
+
+**Note:** the server's device credentials file is read using UTF-8 encoding, '=' are not supported for device names. Lines starting with '#' are skipped as comment, therefore a device name must not start with a '#'. Empty lines are also skipped.
+
+The cloud demo server checks frequently, if the file has changed and automatically reloads the device credentials.
+
+Devices already connected with removed credentials are kept connected but on the next handshake these device will fail to communicate with the cloud demo server.
+
+### Device Credentials - PSK
 
 PSK credentials are provided with `[<name>].psk=<psk-identity>,<psk-secret>`. If the `name` is skipped, the name of the last device definition is used. If the `name` is provided, then it must match the name of the last device definition. The `psk-identity` is provided in UTF-8 and the `psk-secret` in base64. The `psk-identity` must be unique for each device of the system. If hexadecimal should be used, then provide it with preceding ":0x".
 
@@ -183,6 +227,8 @@ PSK credentials are provided with `[<name>].psk=<psk-identity>,<psk-secret>`. If
 # default openssl PSK credentials
 .psk='Client_identity',:0x73656372657450534B
 ```
+
+### Device Credentials - RPK
 
 RPK credentials are provided similar with `[<name>].rpk=<public-key>`. The `public-key` is in base64 or with ":0x" in hexadecimal.
 
@@ -260,11 +306,37 @@ The `public key` of that server pair must be provided to devices, which then use
 
 Otherwise follow the instruction of the device how to supply the server `public key`. And don't mix it up with x509, RPK doesn't match for that.
 
-**Note:** the server's device credentials file is read using UTF-8 encoding, '=' are not supported for device names. Lines starting with '#' are skipped as comment, therefore a device name must not start with a '#'. Empty lines are also skipped.
+### Device Credentials - x509
 
-The cloud demo server checks frequently, if the file has changed and automatically reloads the device credentials.
+**Note:** using x509 comes usually with a quite high level of complexity and possibilities. That isn't covered here, only the basics for adding x509 certificates are explained.
 
-Devices already connected with removed credentials are kept connected but on the next handshake these device will fail to communicate with the cloud demo server.
+X509 certificates are provided with `[<name>].x509=` and the certificate in base 64 from the ".pem".
+
+```
+# x509 device certificate, signed by Ca
+Demo.40145780125=Thing
+.label=Door
+.x509=
+-----BEGIN CERTIFICATE-----
+MIICAjCCAaigAwIBAgIJAJvzugZ7RkwVMAoGCCqGSM49BAMCMFwxEDAOBgNVBAMT
+B2NmLXJvb3QxFDASBgNVBAsTC0NhbGlmb3JuaXVtMRQwEgYDVQQKEwtFY2xpcHNl
+IElvVDEPMA0GA1UEBxMGT3R0YXdhMQswCQYDVQQGEwJDQTAeFw0yNDExMDcxNTA5
+MzVaFw0yNjExMDcxNTA5MzVaMGAxFDASBgNVBAMTC2NmLWNsaWVudC0yMRQwEgYD
+VQQLEwtDYWxpZm9ybml1bTEUMBIGA1UEChMLRWNsaXBzZSBJb1QxDzANBgNVBAcT
+Bk90dGF3YTELMAkGA1UEBhMCQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATa
+v2cItqEoanxb1UduhvKR+dlbkr0lsbR/ql01UPuAa2ONNt9uIl9FCXoF3V/VzE3O
+xW5+YTUraJ/CcuARZC5Mo08wTTAdBgNVHQ4EFgQU0d8npcBVyIxSwE9hPFTJ7qmZ
+04owCwYDVR0PBAQDAgeAMB8GA1UdIwQYMBaAFBifxGwtiNzNWfvoU9IdZYrqJqp3
+MAoGCCqGSM49BAMCA0gAMEUCIQC5F+tgTY5IzmbjlXqQE6ha/hFHE981mo0pSAzv
+NdTutwIgS0YrTmYDan4J8Z+svEG89HbLk2QlY2aGrzyjce7faSk=
+-----END CERTIFICATE-----
+```
+
+X509 device certificates requires to add a certificate of a **C**ertificate **A**uthority as well. Use `[<name>].type=ca` to add that.
+
+To generate x509 certificates you may use the java `keytool` as show in [create-keystores.sh](./src/main/resources/create-keystores.sh).
+
+To block/ban a device or CA `[<name>].ban=1` is used. Banning a CA will also ban all devices with that CA as trust root.
 
 ## Device Credentials - Auto-Provisioning
 
@@ -273,10 +345,10 @@ In order to provision devices efficiently, an auto-provisioning function can be 
 ```
 Provisioning1=Admin
 .rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENTGXGkhc7gL614R4HBOkXoESM98YIXP3yts4VG7wpRlsIxYFFXVez3I3VE7oGaOpLlAMMhFa4Myq/4OIRMvauQ==
-.prov=1
+.type=prov
 ```
 
-That's done by the entry above. It contains a name (`Provisioning1`), the `public key` from the `auto-provisioning key-pair` and the marker `.prov=1`. For now, only RPK is supported for authentication `auto-provisioning`. Such a `auto-provisioning key-pair` is a **shared** device `key-pair`. A bulk of device may use the same to execute the provisioning. It's only supported to be used for that `auto-provisioning` and in a sequential mode, device by device. Sending other data will not work, sending parallel request with the same `auto-provisioning key-pair` may fail. You may use the approach using openssl described [above](#device-credentials) to create such a `auto-provisioning key-pair`.
+That's done by the entry above. It contains a name (`Provisioning1`), the `public key` from the `auto-provisioning key-pair` and the type `.type=prov`. For now, only RPK is supported for authentication `auto-provisioning`. Such a `auto-provisioning key-pair` is a **shared** device `key-pair`. A bulk of device may use the same to execute the provisioning. It's only supported to be used for that `auto-provisioning` and in a sequential mode, device by device. Sending other data will not work, sending parallel request with the same `auto-provisioning key-pair` may fail. You may use the approach using openssl described [above](#device-credentials) to create such a `auto-provisioning key-pair`.
 
 For production it's only successful, if the `device-id` is not already used. For development, this may be overwritten, if `--replace` is passed as cli option. On success, the entry is added to the device credentials.
 
@@ -287,6 +359,8 @@ device-id=Thing
 .rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEe7jf4/mFVId9GnUfFdV1XQVUAn4fAKsctXYfLnrcvKMXAPAKe6mLPNMNxXf/+TsDQDXEcamWAcjDUFVc/9pIeQ==
 .sig=BAMARzBFAiEAkL9amzTcqBrovw3EPeUJ+iB/NhiEhgS603VBGDx6UUMCIDNfKVwOG7aCQVnsL7mDqgQZhXW7XrCMEKp0hAk7wGac
 ```
+
+If the device uses a x509 certificate `auto-provisioning` uses the `CA` credentials to authorize the provisioning. The device certificate is then extracted during the handshake and only `<name>=<group>` must then be sent in the provisioning request.
 
 ## DTLS Graceful Restart
 

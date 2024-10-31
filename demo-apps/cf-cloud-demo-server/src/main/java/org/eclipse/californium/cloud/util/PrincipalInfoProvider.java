@@ -14,20 +14,21 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.util;
 
+import java.security.Principal;
+
 /**
- * Device provisioning consumer.
+ * Principal info provider.
  * 
- * @since 3.13
+ * @since 4.0
  */
-public interface DeviceProvisioningConsumer {
+public interface PrincipalInfoProvider {
 
 	/**
-	 * Add data to device store.
+	 * Get principal info from principal.
 	 * 
-	 * @param info principal info of provisioning.
-	 * @param time timestamp of request.
-	 * @param data data to add.
-	 * @param response response consumer.
+	 * @param principal principal
+	 * @return principal info
 	 */
-	void add(PrincipalInfo info, long time, String data, ResultConsumer response);
+	PrincipalInfo getPrincipalInfo(Principal principal);
+
 }

@@ -17,9 +17,15 @@ package org.eclipse.californium.cloud.util;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.Principal;
-import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.cert.CertPath;
+import java.security.cert.CertPathValidatorException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,9 +39,10 @@ import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.cloud.util.DeviceParser.Device;
 import org.eclipse.californium.cloud.util.ResultConsumer.ResultCode;
-import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
+import org.eclipse.californium.elements.util.CertPathUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.SystemResourceMonitors.SystemResourceMonitor;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -66,41 +73,20 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.12
  */
-public class DeviceManager implements DeviceGredentialsProvider, DeviceProvisioningConsumer {
+public class DeviceManager implements DeviceGredentialsProvider, DeviceProvisioningConsumer, PrincipalInfoProvider {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DeviceManager.class);
-
-	/**
-	 * Key for configured device name in additional info.
-	 */
-	public static final String INFO_NAME = "name";
-	/**
-	 * Key for device manager in additional info.
-	 * 
-	 * @since 3.13
-	 */
-	public static final String INFO_MANAGER = "manager";
-	/**
-	 * Device info provider.
-	 * 
-	 * Get device info from additional info of the principal.
-	 * 
-	 * @since 3.13
-	 */
-	private static volatile DeviceInfoProvider provider;
 
 	/**
 	 * Resource store of device credentials.
 	 */
 	private final ResourceStore<DeviceParser> devices;
 	/**
-	 * Private key of DTLS 1.2 server for certificate based authentication.
+	 * Server's credentials for DTLS 1.2 certificate based authentication.
+	 * 
+	 * @since 4.0
 	 */
-	protected final PrivateKey privateKey;
-	/**
-	 * Public key of DTLS 1.2 server for certificate based authentication.
-	 */
-	protected final PublicKey publicKey;
+	protected final Credentials credentials;
 	/**
 	 * Timeout for add credentials for auto-provisioning. Value in milliseconds.
 	 * 
@@ -131,16 +117,18 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	 * 
 	 * @param devices device store with PreSharedKey and RawPublicKey
 	 *            credentials
-	 * @param privateKey private key of DTLS 1.2 server for device communication
-	 * @param publicKey public key of DTLS 1.2 server for device communication
+	 * @param credentials server's credentials for DTLS 1.2 certificate based
+	 *            authentication
 	 * @param addTimeoutMillis timeout in milliseconds configuration values
 	 * @since 4.0 (added parameter addTimeoutMillis)
 	 */
-	public DeviceManager(ResourceStore<DeviceParser> devices, PrivateKey privateKey, PublicKey publicKey,
-			long addTimeoutMillis) {
+	public DeviceManager(ResourceStore<DeviceParser> devices, Credentials credentials, long addTimeoutMillis) {
 		this.devices = devices;
-		this.privateKey = privateKey;
-		this.publicKey = publicKey;
+		if (credentials.getPrivateKey() != null && credentials.getPublicKey() != null) {
+			this.credentials = credentials;
+		} else {
+			this.credentials = null;
+		}
 		this.addTimeoutMillis = addTimeoutMillis;
 	}
 
@@ -163,11 +151,11 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	}
 
 	@Override
-	public void add(DeviceInfo info, long time, String data, final ResultConsumer response) {
+	public void add(PrincipalInfo info, long time, String data, final ResultConsumer response) {
 		add(devices, info, time, data, response);
 	}
 
-	protected void add(final ResourceStore<DeviceParser> devices, DeviceInfo info, long time, String data,
+	protected void add(final ResourceStore<DeviceParser> devices, PrincipalInfo info, long time, String data,
 			final ResultConsumer response) {
 		if (devices == null) {
 			response.results(ResultCode.SERVER_ERROR, "no credentials available.");
@@ -231,22 +219,24 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 
 	@Override
 	public NewAdvancedCertificateVerifier getCertificateVerifier() {
-		if (devices == null || publicKey == null || privateKey == null) {
+		if (devices == null || credentials == null) {
 			return null;
 		}
 		if (certificateVerifier == null) {
-			certificateVerifier = new DeviceCertificateVerifier();
+			certificateVerifier = new DeviceCertificateVerifier(
+					createCertificateTypesList(credentials.hasCertificateChain()));
 		}
 		return certificateVerifier;
 	}
 
 	@Override
 	public CertificateProvider getCertificateProvider() {
-		if (devices == null || publicKey == null || privateKey == null) {
+		if (devices == null || credentials == null) {
 			return null;
 		}
 		if (certificateProvider == null) {
-			certificateProvider = new ServerCertificateProvider();
+			certificateProvider = new ServerCertificateProvider(
+					createCertificateTypesList(credentials.hasCertificateChain()));
 		}
 		return certificateProvider;
 	}
@@ -286,16 +276,53 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	 * 
 	 * @param device device to create additional info
 	 * @return additional info of device, or {@code null}, if provided device is
-	 *         {@code null}.
+	 *         {@code null}. For banned devices {@link AdditionalInfo#empty()}
+	 *         is returned.
 	 */
 	public AdditionalInfo createAdditionalInfo(Device device) {
 		if (device != null) {
-			Map<String, Object> info = new HashMap<>();
-			info.put(INFO_NAME, device.name);
-			info.put(INFO_MANAGER, this);
-			return AdditionalInfo.from(info);
+			if (device.ban) {
+				return AdditionalInfo.empty();
+			} else {
+				Map<String, Object> info = new HashMap<>();
+				info.put(PrincipalInfo.INFO_NAME, device.name);
+				info.put(PrincipalInfo.INFO_PROVIDER, this);
+				return AdditionalInfo.from(info);
+			}
 		}
 		return null;
+	}
+
+	@Override
+	public PrincipalInfo getPrincipalInfo(Principal principal) {
+		if (principal instanceof ExtensiblePrincipal) {
+			@SuppressWarnings("unchecked")
+			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
+			Device device = null;
+			if (extensiblePrincipal.getExtendedInfo().isEmpty()) {
+				device = devices.getResource().getByPrincipal(principal);
+			} else {
+				String name = extensiblePrincipal.getExtendedInfo().get(PrincipalInfo.INFO_NAME, String.class);
+				DeviceManager manager = extensiblePrincipal.getExtendedInfo().get(PrincipalInfo.INFO_PROVIDER,
+						DeviceManager.class);
+				if (manager == this && name != null && !name.contains("/")) {
+					device = devices.getResource().get(name);
+				}
+			}
+			if (device != null && !device.ban) {
+				return new PrincipalInfo(device.group, device.name, device.type);
+			}
+		}
+		return null;
+	}
+
+	public List<CertificateType> createCertificateTypesList(boolean x509) {
+		List<CertificateType> types = new ArrayList<>(2);
+		types.add(CertificateType.RAW_PUBLIC_KEY);
+		if (x509) {
+			types.add(CertificateType.X_509);
+		}
+		return types;
 	}
 
 	private class DevicePskStore implements AdvancedPskStore {
@@ -312,9 +339,9 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
 				boolean useExtendedMasterSecret) {
 			Device device = devices.getResource().getByPreSharedKeyIdentity(identity.getPublicInfoAsString());
-			if (device != null) {
-				return new PskSecretResult(cid, identity, SecretUtil.create(device.pskSecret, "PSK"),
-						createAdditionalInfo(device));
+			AdditionalInfo additionalInfo = createAdditionalInfo(device);
+			if (additionalInfo != null && !additionalInfo.isEmpty()) {
+				return new PskSecretResult(cid, identity, SecretUtil.create(device.pskSecret, "PSK"), additionalInfo);
 			} else {
 				return new PskSecretResult(cid, identity, null);
 			}
@@ -336,9 +363,13 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	 * Verifies that a provided Raw Public Key certificate is contained in the
 	 * device credentials.
 	 */
-	private class DeviceCertificateVerifier implements NewAdvancedCertificateVerifier {
+	protected class DeviceCertificateVerifier implements NewAdvancedCertificateVerifier {
 
-		private final List<CertificateType> supportedCertificateTypes = Arrays.asList(CertificateType.RAW_PUBLIC_KEY);
+		private final List<CertificateType> supportedCertificateTypes;
+
+		protected DeviceCertificateVerifier(List<CertificateType> supportedCertificateTypes) {
+			this.supportedCertificateTypes = Collections.unmodifiableList(supportedCertificateTypes);
+		}
 
 		@Override
 		public List<CertificateType> getSupportedCertificateTypes() {
@@ -349,15 +380,103 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 		public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
 				InetSocketAddress remotePeer, boolean clientUsage, boolean verifySubject,
 				boolean truncateCertificatePath, CertificateMessage message) {
-			PublicKey publicKey = message.getPublicKey();
-			Device device = devices.getResource().getByRawPublicKey(publicKey);
-			if (device != null) {
-				return new CertificateVerificationResult(cid, publicKey, createAdditionalInfo(device));
-			} else {
-				LOGGER.warn("Certificate validation failed: Raw public key is not trusted");
+			CertPath certChain = message.getCertificateChain();
+			if (certChain == null) {
+				PublicKey publicKey = message.getPublicKey();
+				AdditionalInfo info = getByRawPublicKey(publicKey);
+				if (info == null) {
+					LOGGER.info("Certificate validation failed: Raw public key is not trusted");
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+					return new CertificateVerificationResult(cid,
+							new HandshakeException("Raw public key is not trusted!", alert), null);
+				} else if (info.isEmpty()) {
+					LOGGER.info("Certificate validation failed: Raw public key is banned");
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+					return new CertificateVerificationResult(cid,
+							new HandshakeException("Raw public key is banned!", alert), null);
+				} else {
+					return new CertificateVerificationResult(cid, publicKey, info);
+				}
+			}
+			try {
+				if (!message.isEmpty()) {
+					List<? extends Certificate> path = certChain.getCertificates();
+					Certificate certificate = path.get(0);
+					if (certificate instanceof X509Certificate) {
+						X509Certificate deviceCertificate = (X509Certificate) certificate;
+						if (!CertPathUtil.canBeUsedForAuthentication(deviceCertificate, clientUsage)) {
+							LOGGER.debug("Certificate validation failed: key usage doesn't match");
+							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+							return new CertificateVerificationResult(cid,
+									new HandshakeException("Key Usage doesn't match!", alert), null);
+						}
+						X509Certificate[] trustedCertificates = getTrustedCertificates();
+						if (trustedCertificates == null || trustedCertificates.length == 0) {
+							LOGGER.info("Certificate validation failed: no trusted CA");
+							trustedCertificates = null;
+						} else {
+							LOGGER.debug("{} CA x509 certificates.", trustedCertificates.length);
+						}
+						certChain = CertPathUtil.validateCertificatePathWithIssuer(truncateCertificatePath, certChain,
+								trustedCertificates);
+						String role = "";
+						AdditionalInfo info = getByX509(deviceCertificate);
+						if (info == null || !info.isEmpty()) {
+							// check CA
+							path = certChain.getCertificates();
+							if (path.size() > 1) {
+								certificate = path.get(path.size() - 1);
+								if (certificate instanceof X509Certificate) {
+									AdditionalInfo caInfo = getByX509((X509Certificate) certificate);
+									if (caInfo != null && (info == null || caInfo.isEmpty())) {
+										role = "CA ";
+										info = caInfo;
+									}
+								}
+							}
+						}
+						if (info == null) {
+							LOGGER.info("Certificate validation failed: x509 certificate is not trusted");
+							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+							return new CertificateVerificationResult(cid,
+									new HandshakeException("x509 certificate is not trusted!", alert), null);
+						} else if (info.isEmpty()) {
+							LOGGER.info("{}Certificate validation failed: x509 certificate is banned", role);
+							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+							return new CertificateVerificationResult(cid,
+									new HandshakeException(role + "x509 certificate is banned!", alert), null);
+						} else {
+							return new CertificateVerificationResult(cid, certChain, info);
+						}
+					}
+				}
+				return new CertificateVerificationResult(cid, certChain, null);
+			} catch (
+
+			CertPathValidatorException e) {
+				Throwable cause = e.getCause();
+				if (cause instanceof CertificateExpiredException) {
+					LOGGER.debug("Certificate expired: {}", cause.getMessage());
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.CERTIFICATE_EXPIRED);
+					return new CertificateVerificationResult(cid, new HandshakeException("Certificate expired", alert),
+							null);
+				} else if (cause != null) {
+					LOGGER.debug("Certificate validation failed: {}/{}", e.getMessage(), cause.getMessage());
+				} else {
+					LOGGER.debug("Certificate validation failed: {}", e.getMessage());
+				}
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 				return new CertificateVerificationResult(cid,
-						new HandshakeException("Raw public key is not trusted!", alert), null);
+						new HandshakeException("Certificate chain could not be validated", alert, e), null);
+			} catch (GeneralSecurityException e) {
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("Certificate validation failed", e);
+				} else if (LOGGER.isDebugEnabled()) {
+					LOGGER.debug("Certificate validation failed due to {}", e.getMessage());
+				}
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
+				return new CertificateVerificationResult(cid,
+						new HandshakeException("Certificate chain could not be validated", alert, e), null);
 			}
 		}
 
@@ -370,6 +489,23 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 		public void setResultHandler(HandshakeResultHandler resultHandler) {
 		}
 
+		protected AdditionalInfo getByRawPublicKey(PublicKey publicKey) {
+			Device device = devices.getResource().getByRawPublicKey(publicKey);
+			return createAdditionalInfo(device);
+		}
+
+		protected AdditionalInfo getByX509(X509Certificate certificate) {
+			Device device = devices.getResource().getByX509(certificate);
+			if (LOGGER.isDebugEnabled()) {
+				String cn = CertPathUtil.getSubjectsCn(certificate);
+				LOGGER.debug("{}x509 certificate for {}", device == null ? "No " : "", cn);
+			}
+			return createAdditionalInfo(device);
+		}
+
+		protected X509Certificate[] getTrustedCertificates() {
+			return devices.getResource().getTrustedCertificates();
+		}
 	}
 
 	/**
@@ -377,13 +513,13 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	 */
 	protected class ServerCertificateProvider implements CertificateProvider {
 
-		private List<CertificateType> supportedCertificateTypes = Collections
-				.unmodifiableList(Arrays.asList(CertificateType.RAW_PUBLIC_KEY));
+		private List<CertificateType> supportedCertificateTypes;
+
 		private List<CertificateKeyAlgorithm> supportedCertificateKeyAlgorithms = Collections
-				.unmodifiableList(Arrays.asList(CertificateKeyAlgorithm.getAlgorithm(publicKey)));
+				.unmodifiableList(Arrays.asList(CertificateKeyAlgorithm.getAlgorithm(credentials.getPublicKey())));
 
-		public ServerCertificateProvider() {
-
+		public ServerCertificateProvider(List<CertificateType> supportedCertificateTypes) {
+			this.supportedCertificateTypes = Collections.unmodifiableList(supportedCertificateTypes);
 		}
 
 		@Override
@@ -401,101 +537,18 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 				List<X500Principal> issuers, ServerNames serverNames,
 				List<CertificateKeyAlgorithm> certificateKeyAlgorithms,
 				List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms, List<SupportedGroup> curves) {
-			return new CertificateIdentityResult(cid, privateKey, publicKey);
+			if (credentials.hasCertificateChain()) {
+				return new CertificateIdentityResult(cid, credentials.getPrivateKey(),
+						credentials.getCertificateChainAsList());
+			} else {
+				return new CertificateIdentityResult(cid, credentials.getPrivateKey(), credentials.getPublicKey());
+			}
 		}
 
 		@Override
 		public void setResultHandler(HandshakeResultHandler resultHandler) {
 
 		}
+
 	};
-
-	/**
-	 * Get device info.
-	 * 
-	 * Get device info from additional info of the principal.
-	 * 
-	 * @param principal the principal of the device
-	 * @return device info, or {@code null}, if not available.
-	 * @see EndpointContext#getPeerIdentity()
-	 */
-	public static DeviceInfo getDeviceInfo(Principal principal) {
-		DeviceInfoProvider provider = DeviceManager.provider;
-		if (provider != null) {
-			return provider.getDeviceInfo(principal);
-		}
-		if (principal instanceof ExtensiblePrincipal) {
-			@SuppressWarnings("unchecked")
-			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
-			String name = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_NAME, String.class);
-			DeviceManager manager = extensiblePrincipal.getExtendedInfo().get(DeviceManager.INFO_MANAGER,
-					DeviceManager.class);
-			if (manager != null && name != null && !name.contains("/")) {
-				Device device = manager.devices.getResource().get(name);
-				if (device != null) {
-					return new DeviceInfo(device.group, name, device.provisioning);
-				}
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * Set custom device info provider.
-	 * 
-	 * @param provider custom device info provider. {@code null} to reset for
-	 *            the default provider.
-	 * @since 3.13
-	 */
-	public static void setDeviceInfoProvider(DeviceInfoProvider provider) {
-		DeviceManager.provider = provider;
-	}
-
-	/**
-	 * Device info provider.
-	 * 
-	 * @since 3.13
-	 */
-	public interface DeviceInfoProvider {
-
-		DeviceInfo getDeviceInfo(Principal principal);
-	}
-
-	/**
-	 * Device info.
-	 */
-	public static class DeviceInfo {
-
-		/**
-		 * Device name.
-		 */
-		public final String name;
-		/**
-		 * Device group.
-		 */
-		public final String group;
-		/**
-		 * Device provisioning.
-		 */
-		public final boolean provisioning;
-
-		/**
-		 * Create device info
-		 * 
-		 * @param group group of device
-		 * @param name name of device
-		 * @param provisioning {@code true}, if credentials are used for auto
-		 *            provisioning, otherwise device credentials.
-		 */
-		protected DeviceInfo(String group, String name, boolean provisioning) {
-			this.name = name;
-			this.group = group;
-			this.provisioning = provisioning;
-		}
-
-		@Override
-		public String toString() {
-			return name + " (" + group + (provisioning ? ",prov)" : ")");
-		}
-	}
 }

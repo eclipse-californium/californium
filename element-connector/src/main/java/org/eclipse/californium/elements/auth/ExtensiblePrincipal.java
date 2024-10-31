@@ -32,10 +32,10 @@ public interface ExtensiblePrincipal<T extends Principal> extends Principal {
 	 * The additional information can be retrieved from the returned copy using the
 	 * {@link #getExtendedInfo()} method.
 	 * 
-	 * @param additionInfo The additional information.
+	 * @param additionalInfo The additional information.
 	 * @return The copy.
 	 */
-	T amend(AdditionalInfo additionInfo);
+	T amend(AdditionalInfo additionalInfo);
 
 	/**
 	 * Gets additional information about this principal.

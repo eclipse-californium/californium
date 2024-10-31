@@ -17,8 +17,9 @@ package org.eclipse.californium.cloud.resources;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JAVASCRIPT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
@@ -42,8 +43,8 @@ import org.eclipse.californium.cloud.BaseServer;
 import org.eclipse.californium.cloud.option.ReadEtagOption;
 import org.eclipse.californium.cloud.option.ReadResponseOption;
 import org.eclipse.californium.cloud.option.TimeOption;
-import org.eclipse.californium.cloud.util.DeviceManager;
-import org.eclipse.californium.cloud.util.DeviceManager.DeviceInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.LinkFormat;
@@ -241,7 +242,13 @@ public class Devices extends CoapResource {
 	public void handleGET(final CoapExchange exchange) {
 		Request request = exchange.advanced().getRequest();
 		int accept = request.getOptions().getAccept();
-		if (accept != UNDEFINED && accept != APPLICATION_LINK_FORMAT) {
+		Principal principal = request.getSourceContext().getPeerIdentity();
+		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
+		if (info == null) {
+			exchange.respond(UNAUTHORIZED);
+		} else if (info.type != Type.DEVICE) {
+			exchange.respond(FORBIDDEN);
+		} else if (accept != UNDEFINED && accept != APPLICATION_LINK_FORMAT) {
 			exchange.respond(NOT_ACCEPTABLE);
 		} else {
 			List<String> query = exchange.getRequestOptions().getUriQuery();
@@ -260,14 +267,18 @@ public class Devices extends CoapResource {
 	@Override
 	public void handlePOST(final CoapExchange exchange) {
 		Request request = exchange.advanced().getRequest();
-		if (request == null) {
-			throw new NullPointerException("request must not be null!");
-		}
-
 		int format = request.getOptions().getContentFormat();
-		if (format != UNDEFINED && Arrays.binarySearch(CONTENT_TYPES, format) < 0) {
-			Response response = new Response(NOT_ACCEPTABLE);
-			exchange.respond(response);
+		Principal principal = request.getSourceContext().getPeerIdentity();
+		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
+
+		if (info == null) {
+			exchange.respond(UNAUTHORIZED);
+			return;
+		} else if (info.type != Type.DEVICE) {
+			exchange.respond(FORBIDDEN);
+			return;
+		} else if (format != UNDEFINED && Arrays.binarySearch(CONTENT_TYPES, format) < 0) {
+			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
 
@@ -295,9 +306,7 @@ public class Devices extends CoapResource {
 		}
 
 		Response response;
-		Principal principal = request.getSourceContext().getPeerIdentity();
-		DeviceInfo info = DeviceManager.getDeviceInfo(principal);
-		String name = (info != null && !info.provisioning) ? info.name : null;
+		String name = info.name;
 		if (name != null) {
 			final TimeOption timeOption = TimeOption.getMessageTime(request);
 			final long time = timeOption.getLongValue();
@@ -444,7 +453,15 @@ public class Devices extends CoapResource {
 			Request request = exchange.advanced().getRequest();
 			int format = devicePost.getOptions().getContentFormat();
 			int accept = request.getOptions().getAccept();
-			if (accept == UNDEFINED) {
+			Principal principal = request.getSourceContext().getPeerIdentity();
+			PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
+			if (info == null) {
+				exchange.respond(UNAUTHORIZED);
+				return;
+			} else if (info.type != Type.DEVICE) {
+				exchange.respond(FORBIDDEN);
+				return;
+			} else if (accept == UNDEFINED) {
 				accept = format == UNDEFINED ? APPLICATION_OCTET_STREAM : format;
 			} else if (format == UNDEFINED) {
 				if (accept != TEXT_PLAIN && accept != APPLICATION_OCTET_STREAM) {
@@ -515,7 +532,15 @@ public class Devices extends CoapResource {
 		public void handleGET(CoapExchange exchange) {
 			Request request = exchange.advanced().getRequest();
 			int accept = request.getOptions().getAccept();
-			if (accept != UNDEFINED && accept != TEXT_PLAIN) {
+			Principal principal = request.getSourceContext().getPeerIdentity();
+			PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
+			if (info == null) {
+				exchange.respond(UNAUTHORIZED);
+				return;
+			} else if (info.type != Type.DEVICE) {
+				exchange.respond(FORBIDDEN);
+				return;
+			} else if (accept != UNDEFINED && accept != TEXT_PLAIN) {
 				exchange.respond(NOT_ACCEPTABLE);
 				return;
 			}

@@ -15,6 +15,7 @@
 package org.eclipse.californium.cloud.util;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -24,6 +25,10 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Principal;
 import java.security.PublicKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.ECGenParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +42,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.security.auth.DestroyFailedException;
 
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
@@ -44,8 +50,11 @@ import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.JceProviderUtil;
+import org.eclipse.californium.elements.util.PemReader;
+import org.eclipse.californium.elements.util.PemUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCertificateFactory;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +62,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Device credentials parser.
  * 
+ * <p>
  * Format:
+ * </p>
  * 
  * <pre>
  * {@code # <comment>}
@@ -62,9 +73,13 @@ import org.slf4j.LoggerFactory;
  * {@code [[<device-name>].psk=<identity>,<pre-shared-secret>]}
  * {@code [[<device-name>].rpk=<raw-public-key-certificate>]}
  * {@code [[<device-name>].sig=<signed raw-public-key-certificate>]}
- * {@code [[<device-name>].prov=1]}
+ * {@code [[<device-name>].type=(dev|prov|ca)]}
+ * {@code [[<device-name>].x509=]}
+ * {@code [[<device-name>].ban=]}
+ * {@code [[<device-name>].prov=1]} // deprecated, please use ".type=prov"
  * </pre>
  * 
+ * <p>
  * The recommended "best practice" is to choose a long term stable and unique
  * {@code device-name}. In many cases that will be a technical ID, which is hard
  * to be used by humans to identify the device. Therefore an additional
@@ -82,43 +97,75 @@ import org.slf4j.LoggerFactory;
  * parties, it may be relevant to have a proof that the device has a matching
  * private key for the provide public key. Therefore a optional signature may be
  * provided.
- * 
+ * </p>
+ * <p>
+ * For {@code x509} client and certificate authority certificates, the base 64
+ * encoding of the ".pem" file is supported. See example below.
+ * </p>
+ * <p>
+ * Not all credentials are identifying a device, some are used for provisioning
+ * or as trusted <b>C</b>ertificate <b>A</b>uthority for x509 device certificates.
+ * That is indicated by the {@code .type=(dev|prov|ca)} entry. If no one is given,
+ * "dev" is assumed.
+ * </p>
+ * <p>
+ * In order to block (or ban) a device, {@code .ban=1} is used. Ban a CA will 
+ * also ban all devices with that CA as trust root. Ban provisioning credentials 
+ * will not ban the devices provisioned with that.
+ * </p>
+ * <p>
  * Example:
+ * </p>
  * 
  * <pre>
  * {@code # base64 secret}
- * {@code
- * DemoClient = Demo
- * }
+ * {@code DemoClient = Demo}
  * {@code .psk='Client_identity',c2VjcmV0UFNL}
  * {@code .rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQxYO5/M5ie6+3QPOaAy5MD6CkFILZwIb2rOBCX/EWPaocX1H+eynUnaEEbmqxeN6rnI/pH19j4PtsegfHLrzzQ==}
  * 
  * {@code # PSK only, hexadecimal secret}
- * {@code
- * DemoDevice1 = Demo
- * }
+ * {@code DemoDevice1 = Demo}
  * {@code .psk='Device_identity',:0x010203040506}
  * 
  * {@code # RPK only, base64 certificate and signature}
- * {@code
- * DemoDevice2 = Demo
- * }
+ * {@code DemoDevice2 = Demo}
  * {@code .rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZRd+6w2dbCoDlIhrbkBkQdEHkiayS3CUgWYOanlU5curNy3H+MOheCqbmPZJdQud8KNvXXYTUyeYX/IqyOk8nQ==}
  * {@code .sig=BAMARzBFAiEAioj8fh5VrTYMz93XakmlCS283zAv8JxWcpADnbwlhGwCIDwm5mEXP8MBV1o7w08a79d+y84w81vW9LgP8QbDCp/p}
  * 
+ * {@code # x509}
+ * {@code DemoDevice3 = Demo}
+ * {@code .x509=}
+ * {@code -----BEGIN CERTIFICATE-----}
+ * {@code MIICAjCCAaigAwIBAgIJAJvzugZ7RkwVMAoGCCqGSM49BAMCMFwxEDAOBgNVBAMT}
+ * {@code B2NmLXJvb3QxFDASBgNVBAsTC0NhbGlmb3JuaXVtMRQwEgYDVQQKEwtFY2xpcHNl}
+ * {@code IElvVDEPMA0GA1UEBxMGT3R0YXdhMQswCQYDVQQGEwJDQTAeFw0yNDExMDcxNTA5}
+ * {@code MzVaFw0yNjExMDcxNTA5MzVaMGAxFDASBgNVBAMTC2NmLWNsaWVudC0yMRQwEgYD}
+ * {@code VQQLEwtDYWxpZm9ybml1bTEUMBIGA1UEChMLRWNsaXBzZSBJb1QxDzANBgNVBAcT}
+ * {@code Bk90dGF3YTELMAkGA1UEBhMCQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATa}
+ * {@code v2cItqEoanxb1UduhvKR+dlbkr0lsbR/ql01UPuAa2ONNt9uIl9FCXoF3V/VzE3O}
+ * {@code xW5+YTUraJ/CcuARZC5Mo08wTTAdBgNVHQ4EFgQU0d8npcBVyIxSwE9hPFTJ7qmZ}
+ * {@code 04owCwYDVR0PBAQDAgeAMB8GA1UdIwQYMBaAFBifxGwtiNzNWfvoU9IdZYrqJqp3}
+ * {@code MAoGCCqGSM49BAMCA0gAMEUCIQC5F+tgTY5IzmbjlXqQE6ha/hFHE981mo0pSAzv}
+ * {@code NdTutwIgS0YrTmYDan4J8Z+svEG89HbLk2QlY2aGrzyjce7faSk=}
+ * {@code -----END CERTIFICATE-----}
  * </pre>
  * 
- * **Note:** the data associated for a {@code device-name} may change, but the
+ * <b>Note:</b> the data associated for a {@code device-name} may change, but the
  * {@code device-name} itself is considered to be stable. However, though during
  * the DTLS handshake the credentials are used to identify the device, changing
  * them here in the store must reflect a change on the device. Otherwise the
- * device will not longer be assigend to the {@code device-name}.
+ * device will not longer be assigned to the {@code device-name}.
  * 
  * @since 3.12
  */
 public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DeviceParser.class);
+
+	private static final String CERTIFICATE_TYPE_X509 = "X.509";
+
+	private static final ThreadLocalCertificateFactory CERTIFICATE_FACTORY = new ThreadLocalCertificateFactory(
+			CERTIFICATE_TYPE_X509);
 
 	/**
 	 * ASN.1 header for plain {@code secp256r1} public key.
@@ -191,11 +238,29 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 */
 		public final byte[] sign;
 		/**
-		 * Provisioning credentials.
+		 * X509 certificate. {@code null}, if no x509 certificate is used.
 		 * 
-		 * @since 3.13
+		 * @since 4.0
 		 */
-		public final boolean provisioning;
+		public final X509Certificate x509;
+		/**
+		 * X509 PEM tag.
+		 * 
+		 * @since 4.0
+		 */
+		public final String x509PemTag;
+		/**
+		 * Device type.
+		 * 
+		 * @since 4.0
+		 */
+		public final Type type;
+		/**
+		 * Ban device.
+		 * 
+		 * @since 4.0
+		 */
+		public final boolean ban;
 
 		/**
 		 * Create device credentials.
@@ -214,27 +279,38 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 * @param sign Signature as "proof of possession" of a
 		 *            {@link #publicKey} matching private key. Only used, if
 		 *            {@link #publicKey} is provided. May be {@code null}.
-		 * @param provisioning {@code true}, if credentials are used for auto
-		 *            provisioning. {@code false} for device credentials.
-		 * @throws NullPointerException if name or group is {@code null}, or
-		 *             neither valid psk nor rpk credentials are provided.
+		 * @param x509PemTag tag in PEM file for x509 certificate
+		 * @param x509 x509 certificate.
+		 * @param type device type.
+		 * @param ban {@code true} to ban device.
+		 * @throws NullPointerException if name or group is {@code null}
 		 * @throws IllegalArgumentException if sign without public key is
-		 *             provided
+		 *             provided, or neither valid psk nor rpk credentials are
+		 *             provided.
 		 * @since 3.13 added label, sign and provisioning
 		 */
 		public Device(String name, String label, String comment, String group, String pskIdentity, byte[] pskSecret,
-				PublicKey publicKey, byte[] sign, boolean provisioning) {
+				PublicKey publicKey, byte[] sign, String x509PemTag, X509Certificate x509, Type type, boolean ban) {
 			if (name == null) {
 				throw new NullPointerException("name must not be null!");
 			}
 			if (group == null) {
 				throw new NullPointerException("group must not be null!");
 			}
-			if (pskIdentity == null && publicKey == null) {
-				throw new NullPointerException("either pskIdentity or publicKey must not be null!");
+			if (pskIdentity == null && publicKey == null && x509 == null) {
+				throw new IllegalArgumentException("either pskIdentity, publicKey or x509 must not be null!");
 			}
 			if (pskIdentity != null && pskSecret == null) {
-				throw new NullPointerException("pskSecret must not be null, if pskIdentity is provided!");
+				throw new IllegalArgumentException("pskSecret must not be null, if pskIdentity is provided!");
+			}
+			if (pskIdentity == null && pskSecret != null) {
+				throw new IllegalArgumentException("pskIdentity must not be null, if pskSecret is provided!");
+			}
+			if (x509 != null && x509PemTag == null) {
+				throw new IllegalArgumentException("x509PemTag must not be null, if x509 is provided!");
+			}
+			if (x509 == null && x509PemTag != null) {
+				throw new IllegalArgumentException("x509 must not be null, if x509PemTag is provided!");
 			}
 			if (sign != null) {
 				if (publicKey == null) {
@@ -257,8 +333,11 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			this.pskIdentity = pskIdentity;
 			this.pskSecret = pskSecret;
 			this.publicKey = publicKey;
+			this.x509 = x509;
+			this.x509PemTag = x509PemTag;
 			this.sign = sign;
-			this.provisioning = provisioning;
+			this.type = type;
+			this.ban = ban;
 		}
 
 		/**
@@ -277,7 +356,10 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			this.pskSecret = device.pskSecret;
 			this.publicKey = device.publicKey;
 			this.sign = device.sign;
-			this.provisioning = device.provisioning;
+			this.x509 = device.x509;
+			this.x509PemTag = device.x509PemTag;
+			this.type = device.type;
+			this.ban = device.ban;
 		}
 
 		@Override
@@ -365,11 +447,29 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			 */
 			public byte[] sign;
 			/**
+			 * X509 device certificate.
+			 * 
+			 * @since 4.0
+			 */
+			public X509Certificate x509;
+			/**
+			 * X509 PEM tag.
+			 * 
+			 * @since 4.0
+			 */
+			public String x509PemTag;
+			/**
 			 * Provisioning credentials.
 			 * 
-			 * @since 3.13
+			 * @since 4.0
 			 */
-			public boolean provisioning;
+			public Type type = Type.DEVICE;
+			/**
+			 * Ban device.
+			 * 
+			 * @since 4.0
+			 */
+			public boolean ban;
 
 			/**
 			 * Create builder.
@@ -384,7 +484,8 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			 * @return created device
 			 */
 			public Device build() {
-				return new Device(name, label, comment, group, pskIdentity, pskSecret, publicKey, sign, provisioning);
+				return new Device(name, label, comment, group, pskIdentity, pskSecret, publicKey, sign, x509PemTag,
+						x509, type, ban);
 			}
 		}
 
@@ -415,11 +516,27 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	 */
 	public static final String SIG_POSTFIX = ".sig";
 	/**
+	 * Postfix in header for x509 certificate.
+	 */
+	public static final String X509_POSTFIX = ".x509";
+	/**
 	 * Postfix in header for provisioning credentials.
 	 * 
 	 * @since 3.13
 	 */
 	public static final String PROV_POSTFIX = ".prov";
+	/**
+	 * Postfix in header for credentials type.
+	 * 
+	 * @since 4.0
+	 */
+	public static final String TYPE_POSTFIX = ".type";
+	/**
+	 * Postfix in header for banned credentials.
+	 * 
+	 * @since 4.0
+	 */
+	public static final String BAN_POSTFIX = ".ban";
 
 	/**
 	 * ReadWrite lock to protect access to maps.
@@ -438,9 +555,17 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	 */
 	private final ConcurrentMap<String, Device> psk = new ConcurrentHashMap<>();
 	/**
-	 * Map of RawPublicKeys and credentials.
+	 * Map of RawPublicKeys.
 	 */
 	private final ConcurrentMap<PublicKey, Device> rpk = new ConcurrentHashMap<>();
+	/**
+	 * Map of x509 certificates.
+	 */
+	private final ConcurrentMap<X509Certificate, Device> x509 = new ConcurrentHashMap<>();
+	/**
+	 * Map of x509 CA certificates.
+	 */
+	private final ConcurrentMap<X509Certificate, Device> x509Ca = new ConcurrentHashMap<>();
 	/**
 	 * Map of group names and sets of device identifiers.
 	 * 
@@ -460,6 +585,8 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	 * {@code true} if credentials are destroyed.
 	 */
 	private volatile boolean destroyed;
+
+	private volatile X509Certificate[] trusts;
 
 	/**
 	 * Create device store.
@@ -543,6 +670,14 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		if (name != id) {
 			return false;
 		}
+		name = prefix(id, X509_POSTFIX);
+		if (name != id) {
+			return false;
+		}
+		name = prefix(id, TYPE_POSTFIX);
+		if (name != id) {
+			return false;
+		}
 		name = prefix(id, PROV_POSTFIX);
 		if (name != id) {
 			return false;
@@ -597,7 +732,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		try {
 			Device replaced = map.putIfAbsent(key, device);
 			if (replaced != null) {
-				if (replace && !replaced.provisioning) {
+				if (replace && replaced.type == Type.DEVICE && !replaced.ban) {
 					if (device.label == null && replaced.label != null) {
 						device = new Device(device, replaced.label);
 					}
@@ -624,9 +759,32 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 				}
 				return false;
 			}
-			LOGGER.info("added {}{}{}{}{}", device.name, device.pskIdentity != null ? " psk" : "",
+			if (device.x509 != null) {
+				if ((previous = x509.putIfAbsent(device.x509, device)) != null) {
+					LOGGER.info("x509 {} ambiguous {}", device.name, previous.name);
+					remove(device);
+					if (replaced != null) {
+						add(replaced);
+					}
+					return false;
+				}
+				if (device.type == Type.CA) {
+					if ((previous = x509Ca.putIfAbsent(device.x509, device)) != null) {
+						LOGGER.info("x509 {} ambiguous CA {}", device.name, previous.name);
+						remove(device);
+						if (replaced != null) {
+							add(replaced);
+						}
+						return false;
+					}
+					synchronized (x509Ca) {
+						trusts = null;
+					}
+				}
+			}
+			LOGGER.info("added {}{}{}{}{} {}{}", device.name, device.pskIdentity != null ? " psk" : "",
 					device.publicKey != null ? " rpk" : "", device.sign != null ? " (sign)" : "",
-					device.provisioning ? " prov" : "");
+					device.x509 != null ? " x509" : "", device.type.getShortName(), device.ban ? " (banned)" : "");
 			Set<DeviceIdentifier> group = new HashSet<>();
 			Set<DeviceIdentifier> prev = groups.putIfAbsent(device.group, group);
 			if (prev != null) {
@@ -653,6 +811,25 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			devices = Collections.emptySet();
 		}
 		return devices;
+	}
+
+	public X509Certificate[] getTrustedCertificates() {
+		X509Certificate[] trusts = this.trusts;
+		if (trusts == null) {
+			synchronized (x509Ca) {
+				trusts = this.trusts;
+				if (trusts == null) {
+					int index = 0;
+					LOGGER.debug("{} CA x509 certificates", x509Ca.size());
+					trusts = new X509Certificate[x509Ca.size()];
+					for (X509Certificate certificate : x509Ca.keySet()) {
+						trusts[index++] = certificate;
+					}
+					this.trusts = trusts;
+				}
+			}
+		}
+		return trusts;
 	}
 
 	/**
@@ -686,12 +863,23 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	}
 
 	/**
+	 * Get device by x509 certificate.
+	 * 
+	 * @param x509Certificate x509 certificate
+	 * @return device credentials, or {@code null}, if not available.
+	 */
+	public Device getByX509(X509Certificate x509Certificate) {
+		return x509.get(x509Certificate);
+	}
+
+	/**
 	 * Get device by principal.
 	 * 
 	 * @param principal device principal
 	 * @return device credentials, or {@code null}, if not available.
 	 * @see #getByPreSharedKeyIdentity(String)
 	 * @see #getByRawPublicKey(PublicKey)
+	 * @see #getByX509(X509Certificate)
 	 */
 	public Device getByPrincipal(Principal principal) {
 		if (principal instanceof PreSharedKeyIdentity) {
@@ -701,6 +889,8 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			RawPublicKeyIdentity rpkIdentity = (RawPublicKeyIdentity) principal;
 			return getByRawPublicKey(rpkIdentity.getKey());
 		} else if (principal instanceof X509CertPath) {
+			X509CertPath x509Identity = (X509CertPath) principal;
+			return getByX509(x509Identity.getTarget());
 		}
 		return null;
 	}
@@ -732,6 +922,16 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 				}
 				if (device.publicKey != null) {
 					rpk.remove(device.publicKey, device);
+				}
+				if (device.x509 != null) {
+					x509.remove(device.x509, device);
+					if (device.type == Type.CA) {
+						if (x509Ca.remove(device.x509, device)) {
+							synchronized (x509Ca) {
+								trusts = null;
+							}
+						}
+					}
 				}
 				Set<DeviceIdentifier> group = groups.get(device.group);
 				if (group != null) {
@@ -832,8 +1032,24 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 						writer.write(StringUtil.lineSeparator());
 					}
 				}
-				if (credentials.provisioning) {
-					writer.write(PROV_POSTFIX);
+				if (credentials.x509 != null) {
+					try {
+						byte[] data = credentials.x509.getEncoded();
+						writer.write(X509_POSTFIX);
+						writer.write('=');
+						writer.write(StringUtil.lineSeparator());
+						PemUtil.write(credentials.x509PemTag, data, writer);
+					} catch (CertificateEncodingException e) {
+					}
+				}
+				if (credentials.type != Type.DEVICE) {
+					writer.write(TYPE_POSTFIX);
+					writer.write("=");
+					writer.write(credentials.type.getShortName());
+					writer.write(StringUtil.lineSeparator());
+				}
+				if (credentials.ban) {
+					writer.write(BAN_POSTFIX);
 					writer.write("=1");
 					writer.write(StringUtil.lineSeparator());
 				}
@@ -846,6 +1062,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		int entriesBefore = size();
 		int entries = 0;
 		BufferedReader lineReader = new BufferedReader(reader);
+		PemReader pemReader = new PemReader(lineReader);
 		String errorMessage = null;
 		lock.writeLock().lock();
 		try {
@@ -893,6 +1110,22 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 								}
 								continue;
 							}
+							prefix = prefix(name, X509_POSTFIX);
+							if (prefix != name) {
+								if (values.length != 1 || !match(builder, prefix)) {
+									++errors;
+									LOGGER.warn("{}: '{}' invalid line!", lineNumber, line);
+								} else {
+									String tag = pemReader.readNextBegin();
+									byte[] data = pemReader.readToEnd();
+									if (!parseX509(builder, tag, data)) {
+										++errors;
+										LOGGER.warn("{}: {} invalid {}!", lineNumber, line, tag);
+									}
+									lineNumber += pemReader.lines();
+								}
+								continue;
+							}
 							prefix = prefix(name, PSK_POSTFIX);
 							if (prefix != name) {
 								if (!parsePSK(builder, prefix, values)) {
@@ -901,13 +1134,43 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 								}
 								continue;
 							}
+							prefix = prefix(name, TYPE_POSTFIX);
+							if (prefix != name) {
+								if (values.length != 1 || !match(builder, prefix)) {
+									++errors;
+									LOGGER.warn("{}: '{}' invalid line!", lineNumber, line);
+								} else {
+									Type type = Type.valueOfShortName(values[0]);
+									if (type == null) {
+										++errors;
+										LOGGER.warn("{}: '{}' value not supported!", lineNumber, line);
+									} else if (type == Type.WEB) {
+										++errors;
+										LOGGER.warn("{}: '{}', 'web' not supported!", lineNumber, line);
+									} else {
+										builder.type = type;
+									}
+								}
+								continue;
+							}
 							prefix = prefix(name, PROV_POSTFIX);
 							if (prefix != name) {
 								if (values.length != 1 || !match(builder, prefix)) {
 									++errors;
 									LOGGER.warn("{}: '{}' invalid line!", lineNumber, line);
+								} else {
+									builder.type = Type.PROVISIONING;
 								}
-								builder.provisioning = true;
+								continue;
+							}
+							prefix = prefix(name, BAN_POSTFIX);
+							if (prefix != name) {
+								if (values.length != 1 || !match(builder, prefix)) {
+									++errors;
+									LOGGER.warn("{}: '{}' invalid line!", lineNumber, line);
+								} else {
+									builder.ban = true;
+								}
 								continue;
 							}
 							prefix = prefix(name, LABEL_POSTFIX);
@@ -923,11 +1186,10 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 							prefix = prefix(name, GROUP_POSTFIX);
 							if (prefix != name || isName(name)) {
 								if (builder.name != null) {
-									if (entriesBefore > 0 && builder.provisioning) {
+									if (entriesBefore > 0 && builder.type != Type.DEVICE) {
 										++errors;
-										LOGGER.warn("{}: provisioning entry is not allowed to be appended!",
-												lineNumber);
-										errorMessage = "provisioning entry is not allowed to be appended!";
+										LOGGER.warn("{}: non-device entry is not allowed to be appended!", lineNumber);
+										errorMessage = "non-device entry is not allowed to be appended!";
 									} else if (add(builder)) {
 										++entries;
 									}
@@ -956,10 +1218,10 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 				}
 			}
 			if (builder.name != null) {
-				if (entriesBefore > 0 && builder.provisioning) {
+				if (entriesBefore > 0 && builder.type != Type.DEVICE) {
 					++errors;
-					LOGGER.warn("{}: provisioning entry is not allowed to be appended!", lineNumber);
-					errorMessage = "provisioning entry is not allowed to be appended!";
+					LOGGER.warn("{}: non-device entry is not allowed to be appended!", lineNumber);
+					errorMessage = "non-device entry is not allowed to be appended!";
 				} else if (add(builder)) {
 					++entries;
 				}
@@ -1073,6 +1335,25 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		}
 		builder.sign = binDecodeTextOr64(values[0]);
 		return true;
+	}
+
+	private boolean parseX509(Device.Builder builder, String tag, byte[] value) {
+		if (value == null) {
+			LOGGER.warn("X509: {} missing certificate data", tag);
+		}
+		try {
+			CertificateFactory factory = CERTIFICATE_FACTORY.currentWithCause();
+			Certificate certificate = factory.generateCertificate(new ByteArrayInputStream(value));
+			if (certificate instanceof X509Certificate) {
+				builder.x509 = (X509Certificate) certificate;
+				builder.x509PemTag = tag;
+				return true;
+			}
+			LOGGER.warn("X509: {} is no X509 certificate", certificate.getType());
+		} catch (GeneralSecurityException e) {
+			LOGGER.warn("X509:", e);
+		}
+		return false;
 	}
 
 	@Override

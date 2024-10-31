@@ -35,8 +35,7 @@ import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
-import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
-import org.eclipse.californium.cloud.s3.util.DomainDeviceManager.DomainDeviceInfo;
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
@@ -154,7 +153,7 @@ public class S3ProxyResource extends CoapResource {
 		final TimeOption timeOption = TimeOption.getMessageTime(request);
 		final TimeOption responseTimeOption = timeOption.adjust();
 		final Principal principal = request.getSourceContext().getPeerIdentity();
-		final DomainDeviceInfo info = DomainDeviceManager.getDeviceInfo(principal);
+		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
 
 		if (info == null) {
 			exchange.respond(UNAUTHORIZED);
@@ -202,7 +201,7 @@ public class S3ProxyResource extends CoapResource {
 		final TimeOption timeOption = TimeOption.getMessageTime(request);
 		final TimeOption responseTimeOption = timeOption.adjust();
 		final Principal principal = request.getSourceContext().getPeerIdentity();
-		final DomainDeviceInfo info = DomainDeviceManager.getDeviceInfo(principal);
+		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
 
 		if (info == null) {
 			exchange.respond(UNAUTHORIZED);

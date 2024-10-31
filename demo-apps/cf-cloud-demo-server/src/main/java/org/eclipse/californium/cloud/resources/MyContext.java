@@ -15,7 +15,9 @@
 package org.eclipse.californium.cloud.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XML;
@@ -25,6 +27,8 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
+import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.cloud.util.Formatter;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -66,6 +70,15 @@ public class MyContext extends CoapResource {
 
 		// get request to read out details
 		Request request = exchange.advanced().getRequest();
+		Principal principal = request.getSourceContext().getPeerIdentity();
+		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
+		if (info == null) {
+			exchange.respond(UNAUTHORIZED);
+			return;
+		} else if (info.type != Type.DEVICE) {
+			exchange.respond(FORBIDDEN);
+			return;
+		}
 
 		int accept = request.getOptions().getAccept();
 		if (accept == UNDEFINED) {

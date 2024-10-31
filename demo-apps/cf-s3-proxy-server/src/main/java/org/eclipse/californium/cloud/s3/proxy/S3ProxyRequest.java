@@ -21,8 +21,8 @@ import java.util.Map;
 
 import org.eclipse.californium.cloud.s3.option.IntervalOption;
 import org.eclipse.californium.cloud.s3.resources.S3Devices;
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
-import org.eclipse.californium.cloud.s3.util.DomainDeviceManager.DomainDeviceInfo;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MediaTypeRegistry.MediaTypeDefintion;
 import org.eclipse.californium.core.coap.Option;
@@ -155,11 +155,11 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * 
 	 * @return device name.
 	 * 
-	 * @see DomainDeviceManager#getDeviceInfo(Principal)
+	 * @see DomainDeviceManager#getPrincipalInfo(Principal)
 	 */
 	public String getDeviceName() {
 		final Principal principal = request.getSourceContext().getPeerIdentity();
-		final DomainDeviceInfo info = DomainDeviceManager.getDeviceInfo(principal);
+		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
 		return info != null ? info.name : null;
 	}
 

@@ -26,6 +26,7 @@ import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
@@ -61,7 +62,7 @@ public class CredentialsStore implements Destroyable {
 	/**
 	 * Observer for loaded {@link Credentials}.
 	 */
-	private volatile Observer observer;
+	private volatile Consumer<Credentials> observer;
 	/**
 	 * Monitor for automatic reloading.
 	 */
@@ -87,7 +88,7 @@ public class CredentialsStore implements Destroyable {
 	 * changes in encrypted file.
 	 * 
 	 * @see #clearSeed()
-	 * @see #load(String, String, SecretKey)
+	 * @see #load(SecretKey, String...)
 	 * @see #load(InputStream, SecretKey)
 	 */
 	private byte[] seed;
@@ -149,7 +150,7 @@ public class CredentialsStore implements Destroyable {
 	 * @param observer observer for loaded credentials
 	 * @return this credentials store for command chaining
 	 */
-	public CredentialsStore setObserver(Observer observer) {
+	public CredentialsStore setObserver(Consumer<Credentials> observer) {
 		this.observer = observer;
 		return this;
 	}
@@ -157,16 +158,16 @@ public class CredentialsStore implements Destroyable {
 	/**
 	 * Create resource monitor for automatic credentials reloading.
 	 * 
-	 * @param file1 filename of credentials 1.
-	 * @param file2 filename of credentials 2. May be {@code null}.
 	 * @param password password of credentials. {@code null} to use
-	 *            {@link #load(String, String)} instead of
-	 *            {@link #load(String, String, SecretKey)}.
+	 *            {@link #load(String...)} instead of
+	 *            {@link #load(SecretKey, String...)}.
+	 * @param first filename of first existing file
+	 * @param files list of filenames
 	 * @return created resource monitor
 	 */
-	public SystemResourceMonitor createMonitor(final String file1, final String file2, final SecretKey password) {
-		if (file1 != null) {
-			monitor = new FileMonitor(file1) {
+	public SystemResourceMonitor createMonitor(final SecretKey password, String first, final String... files) {
+		if (first != null) {
+			monitor = new FileMonitor(first) {
 
 				private SecretKey monitorPassword = SecretUtil.create(password);
 
@@ -175,9 +176,9 @@ public class CredentialsStore implements Destroyable {
 					for (int loop = 0; loop < 3; ++loop) {
 						try {
 							if (monitorPassword != null) {
-								load(file1, file2, monitorPassword);
+								load(monitorPassword, files);
 							} else {
-								load(file1, file2);
+								load(files);
 							}
 							// on success, prevent reading again
 							ready(values);
@@ -209,8 +210,8 @@ public class CredentialsStore implements Destroyable {
 	 * Get resource monitor for automatic credentials reloading.
 	 * 
 	 * @return resource monitor, or {@code null}, if not created.
-	 * @see #createMonitor(String, String, SecretKey)
-	 * @see #loadAndCreateMonitor(String, String, String, boolean)
+	 * @see #createMonitor(SecretKey, String, String...)
+	 * @see #loadAndCreateMonitor(String, boolean, String...)
 	 */
 	public SystemResourceMonitor getMonitor() {
 		return monitor;
@@ -222,7 +223,7 @@ public class CredentialsStore implements Destroyable {
 	 * The store keeps the "seed" of encrypted files in order to prevent
 	 * reloading that same file. To force loading the file, clear the "seed".
 	 * 
-	 * @see #load(String, String, SecretKey)
+	 * @see #load(SecretKey, String...)
 	 * @see #load(InputStream, SecretKey)
 	 */
 	public void clearSeed() {
@@ -235,74 +236,111 @@ public class CredentialsStore implements Destroyable {
 	/**
 	 * Load credentials from file.
 	 * 
-	 * @param file1 filename of credentials 1.
-	 * @param file2 filename of credentials 2. May be {@code null}.
-	 * @return this credentials store for command chaining
+	 * @param file filename of credentials.
+	 * @return credentials loaded, {@code null}, otherwise
 	 * @see #load(Reader)
+	 * @since 4.0
 	 */
-	public CredentialsStore load(String file1, String file2) {
-		try (InputStream in1 = new FileInputStream(file1)) {
-			try (Reader reader1 = new InputStreamReader(in1, StandardCharsets.UTF_8)) {
-				Credentials newCredentials1 = load(reader1);
-				if (changed(newCredentials1)) {
-					if (file2 != null && !complete(newCredentials1)) {
-						try (InputStream in2 = new FileInputStream(file2)) {
-							try (Reader reader2 = new InputStreamReader(in2, StandardCharsets.UTF_8)) {
-								Credentials newCredentials2 = load(reader2);
-								if (newCredentials2 != null) {
-									newCredentials1 = merge(newCredentials1, newCredentials2);
-								}
-							}
-						} catch (IOException e) {
-							LOGGER.warn("{}read credentials {}:", tag, file2, e);
-						}
-					}
-					applyCredentials(newCredentials1);
-				} else if (newCredentials1 != null) {
-					LOGGER.info("{}read credentials {}: not changed", tag, file1);
-				}
+	private Credentials loadCredentials(String file) {
+		try (InputStream in = new FileInputStream(file)) {
+			try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+				return load(reader);
 			}
 		} catch (IOException e) {
-			LOGGER.warn("{}read credentials {}:", tag, file1, e);
+			if (LOGGER.isDebugEnabled()) {
+				LOGGER.debug("{}read credentials {}:", tag, file, e);
+			} else {
+				LOGGER.info("{}read credentials {}: {}", tag, file, e.getMessage());
+			}
 		}
-		return this;
+		return null;
+	}
+
+	/**
+	 * Load credentials from files.
+	 * 
+	 * @param files list of filenames
+	 * @return name of the first successfully loaded credentials
+	 * @see #loadCredentials(String)
+	 * @since 4.0
+	 */
+	public String load(String... files) {
+		String firstFile = null;
+		StringBuilder names = new StringBuilder();
+		Credentials newCredentials = null;
+		for (String file : files) {
+			Credentials credentials = loadCredentials(file);
+			if (credentials != null) {
+				if (firstFile == null) {
+					firstFile = file;
+				}
+				names.append(file).append(", ");
+				newCredentials = merge(newCredentials, credentials);
+				if (complete(newCredentials)) {
+					break;
+				}
+			}
+		}
+		if (changed(newCredentials)) {
+			applyCredentials(newCredentials);
+		} else if (newCredentials != null) {
+			names.setLength(names.length() - 2);
+			LOGGER.info("{}read credentials {}: not changed", tag, names);
+		}
+		return firstFile;
 	}
 
 	/**
 	 * Load encrypted credentials from file.
 	 * 
-	 * @param file1 filename of credentials 1.
-	 * @param file2 filename of credentials 2. May be {@code null}.
+	 * @param file filename of credentials.
 	 * @param password password of credentials.
-	 * @return this resource store for command chaining
-	 * @see #load(Reader)
+	 * @return credentials loaded, {@code null}, otherwise
+	 * @see #load(InputStream, SecretKey)
+	 * @since 4.0
 	 */
-	public CredentialsStore load(String file1, String file2, SecretKey password) {
-		try (InputStream in = new FileInputStream(file1)) {
-			Credentials newCredentials1 = load(in, password);
-			if (changed(newCredentials1)) {
-				if (file2 != null && !complete(newCredentials1)) {
-					byte[] seed = this.seed;
-					this.seed = null;
-					try (InputStream in2 = new FileInputStream(file2)) {
-						Credentials newCredentials2 = load(in2, password);
-						if (newCredentials2 != null) {
-							newCredentials1 = merge(newCredentials1, newCredentials2);
-						}
-					} catch (IOException e) {
-						LOGGER.warn("{}read encrypted credentials {}:", tag, file2, e);
-					} finally {
-						this.seed = seed;
-					}
-				}
-				applyCredentials(newCredentials1);
-			} else if (newCredentials1 != null) {
-				LOGGER.info("{}read encrypted credentials {}: not changed", tag, file1);
-			}
+	private Credentials loadCredentials(String file, SecretKey password) {
+		try (InputStream in = new FileInputStream(file)) {
+			return load(in, password);
 		} catch (IOException e) {
-			LOGGER.warn("{}read encrypted credentials {}:", tag, file1, e);
+			LOGGER.warn("{}read encrypted credentials {}:", tag, file, e);
 		}
-		return this;
+		return null;
+	}
+
+	/**
+	 * Load encrypted credentials from files.
+	 * 
+	 * @param password password of credentials.
+	 * @param files list of filenames
+	 * @return this resource store for command chaining
+	 * @see #loadCredentials(String, SecretKey)
+	 * @since 4.0
+	 */
+	public String load(SecretKey password, String... files) {
+		String firstFile = null;
+		StringBuilder names = new StringBuilder();
+		Credentials newCredentials = null;
+		for (String file : files) {
+			Credentials credentials = loadCredentials(file, password);
+			if (credentials != null) {
+				if (firstFile == null) {
+					firstFile = file;
+				}
+				names.append(file).append(", ");
+				newCredentials = merge(newCredentials, credentials);
+				if (complete(newCredentials)) {
+					break;
+				}
+			}
+		}
+		if (changed(newCredentials)) {
+			applyCredentials(newCredentials);
+		} else if (newCredentials != null) {
+			names.setLength(names.length() - 2);
+			LOGGER.info("{}read encrypted credentials {}: not changed", tag, names);
+		}
+		return firstFile;
 	}
 
 	/**
@@ -320,9 +358,9 @@ public class CredentialsStore implements Destroyable {
 			CertificateConfigurationHelper helper = new CertificateConfigurationHelper();
 			helper.verifyKeyPair(newCredentials.getPrivateKey(), newCredentials.getPublicKey());
 		}
-		final Observer observer = this.observer;
+		final Consumer<Credentials> observer = this.observer;
 		if (observer != null) {
-			observer.update(newCredentials);
+			observer.accept(newCredentials);
 		}
 		currentCredentials = newCredentials;
 	}
@@ -458,6 +496,11 @@ public class CredentialsStore implements Destroyable {
 	 * @throws IllegalArgumentException if credentials are ambiguous.
 	 */
 	private static Credentials merge(Credentials credentials1, Credentials credentials2) {
+		if (credentials1 == null) {
+			return credentials2;
+		} else if (credentials2 == null) {
+			return credentials1;
+		}
 		PrivateKey privateKey = credentials1.getPrivateKey();
 		PublicKey publicKey = credentials1.getPublicKey();
 		X509Certificate[] chain = credentials1.getCertificateChain();
@@ -496,32 +539,31 @@ public class CredentialsStore implements Destroyable {
 	/**
 	 * Load credentials and create monitor to check for changes.
 	 * 
-	 * @param name1 name 1 for monitoring.
-	 * @param name2 name 2 for monitoring. May be {@code null}.
 	 * @param password64 base64 encoded password of credentials. {@code null} to
-	 *            use {@link #load(String, String)} instead of
-	 *            {@link #load(String, String, SecretKey)}.
+	 *            use {@link #load(String...)} instead of
+	 *            {@link #load(SecretKey, String...)}.
 	 * @param createMonitor {@code true} to create a monitor, {@code false}, if
 	 *            not.
+	 * @param files list of filenames
 	 * @return loaded credentials.
 	 */
-	public Credentials loadAndCreateMonitor(String name1, String name2, String password64, boolean createMonitor) {
+	public Credentials loadAndCreateMonitor(String password64, boolean createMonitor, String... files) {
 		if (password64 != null) {
 			byte[] secret = StringUtil.base64ToByteArray(password64);
 			SecretKey key = SecretUtil.create(secret, "PW");
 			Bytes.clear(secret);
-			load(name1, name2, key);
+			String first = load(key, files);
 			if (createMonitor) {
-				createMonitor(name1, name2, key);
+				createMonitor(key, first, files);
 			}
 			SecretUtil.destroy(key);
-			LOGGER.info("{}loaded encrypted stores {}, {}", getTag(), name1, name2);
+			LOGGER.info("{}loaded encrypted stores {}", getTag(), first);
 		} else {
-			load(name1, name2);
+			String first = load(files);
 			if (createMonitor) {
-				createMonitor(name1, name2, null);
+				createMonitor(null, first, files);
 			}
-			LOGGER.info("{}loaded stores {}, {}", getTag(), name1, name2);
+			LOGGER.info("{}loaded stores {}", getTag(), first);
 		}
 		return currentCredentials;
 	}
@@ -544,18 +586,5 @@ public class CredentialsStore implements Destroyable {
 	@Override
 	public boolean isDestroyed() {
 		return destroyed;
-	}
-
-	/**
-	 * Observer for new credentials
-	 */
-	public interface Observer {
-
-		/**
-		 * Called, when new credentials are applied.
-		 * 
-		 * @param newCredentials the new credentials.
-		 */
-		void update(Credentials newCredentials);
 	}
 }

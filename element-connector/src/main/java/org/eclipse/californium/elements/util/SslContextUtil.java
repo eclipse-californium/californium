@@ -32,9 +32,9 @@ import java.net.Socket;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.security.Principal;
 import java.security.KeyStore.Entry;
 import java.security.KeyStore.PrivateKeyEntry;
+import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Security;
@@ -1469,12 +1469,34 @@ public class SslContextUtil {
 		}
 
 		/**
+		 * Check, if certificate trust chain is available.
+		 * 
+		 * @return {@code true}, if certificate trust chain is available,
+		 *         {@code false}, if not.
+		 * @since 4.0
+		 */
+		public boolean hasCertificateChain() {
+			return chain != null;
+		}
+
+		/**
 		 * Get trusted certificates.
 		 * 
 		 * @return trusted certificates. May be {@code null}, if not available.
 		 */
 		public Certificate[] getTrustedCertificates() {
 			return trusts;
+		}
+
+		/**
+		 * Check, if trusted certificates are available.
+		 * 
+		 * @return {@code true}, if trusted certificates are available,
+		 *         {@code false}, if not.
+		 * @since 4.0
+		 */
+		public boolean hasTrustedCertificates() {
+			return trusts != null;
 		}
 
 		/**
