@@ -57,8 +57,7 @@ public class DeduplicatorTest {
 	@Parameters(name = "deduplicator = {0}")
 	public static Iterable<String> deduplicatorParams() {
 		return Arrays.asList(CoapConfig.DEDUPLICATOR_MARK_AND_SWEEP,
-				CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP,
-				CoapConfig.DEDUPLICATOR_CROP_ROTATION);
+				CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
 	}
 
 	KeyMID key;

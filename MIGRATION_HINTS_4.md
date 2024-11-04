@@ -86,8 +86,11 @@ The functions of the obsolete and removed `ExtendedCoapStack` are moved into
 
 Rename `ExtendedCoapStackFactory` into `CoapStackFactory`.
 
-Remove setters from `Option`. 
+Remove setters from `Option`.
+
 Introduce `OptionNumber` to compare `Option` and `OptionDefintion` based on their `number`.
+
+Remove `CropRotation`. Please use an other available deduplication algorithms.
 
 ### Californium-Proxy2:
 
