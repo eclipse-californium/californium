@@ -26,7 +26,6 @@ import org.eclipse.californium.core.network.GroupedMessageIdTracker;
 import org.eclipse.californium.core.network.KeyMID;
 import org.eclipse.californium.core.network.KeyToken;
 import org.eclipse.californium.core.network.TokenGenerator;
-import org.eclipse.californium.core.network.deduplication.CropRotation;
 import org.eclipse.californium.core.network.deduplication.NoDeduplicator;
 import org.eclipse.californium.core.network.deduplication.SweepDeduplicator;
 import org.eclipse.californium.core.network.deduplication.SweepPerPeerDeduplicator;
@@ -249,12 +248,6 @@ public final class CoapConfig {
 	 * @see SweepPerPeerDeduplicator
 	 */
 	public static final String DEDUPLICATOR_PEERS_MARK_AND_SWEEP = "PEERS_MARK_AND_SWEEP";
-	/**
-	 * Crop rotation deduplicator.
-	 * 
-	 * @see CropRotation
-	 */
-	public static final String DEDUPLICATOR_CROP_ROTATION = "CROP_ROTATION";
 
 	/**
 	 * No deduplicator.
@@ -281,13 +274,6 @@ public final class CoapConfig {
 	 * @see SweepPerPeerDeduplicator
 	 */
 	public static final long DEFAULT_MARK_AND_SWEEP_INTERVAL_IN_SECONDS = 10;
-
-	/**
-	 * Default interval for crop rotation.
-	 * 
-	 * @see CropRotation
-	 */
-	public static final long DEFAULT_CROP_ROTATION_PERIOD_IN_SECONDS = DEFAULT_EXCHANGE_LIFETIME_IN_SECONDS;
 
 	/**
 	 * Default value for auto-replace in deduplictors.
@@ -720,13 +706,12 @@ public final class CoapConfig {
 	 * Deduplicator algorithm.
 	 * 
 	 * @see NoDeduplicator
-	 * @see CropRotation
 	 * @see SweepDeduplicator
 	 * @see SweepPerPeerDeduplicator
 	 */
 	public static final StringSetDefinition DEDUPLICATOR = new StringSetDefinition(MODULE + "DEDUPLICATOR",
 			"Deduplicator algorithm.", DEDUPLICATOR_MARK_AND_SWEEP, DEDUPLICATOR_MARK_AND_SWEEP,
-			DEDUPLICATOR_PEERS_MARK_AND_SWEEP, DEDUPLICATOR_CROP_ROTATION, NO_DEDUPLICATOR);
+			DEDUPLICATOR_PEERS_MARK_AND_SWEEP, NO_DEDUPLICATOR);
 	/**
 	 * The interval after which the next sweep run should occur.
 	 */
@@ -741,13 +726,6 @@ public final class CoapConfig {
 			MODULE + "PEERS_MARK_AND_SWEEP_MESSAGES",
 			"Maximum messages kept per peer for " + DEDUPLICATOR_PEERS_MARK_AND_SWEEP + ".",
 			DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES, 4);
-	/**
-	 * The interval after which the next crop run should occur.
-	 * 
-	 * @see CropRotation
-	 */
-	public static final TimeDefinition CROP_ROTATION_PERIOD = new TimeDefinition(MODULE + "CROP_ROTATION_PERIOD",
-			"Crop rotation period.", DEFAULT_CROP_ROTATION_PERIOD_IN_SECONDS, TimeUnit.SECONDS);
 	/**
 	 * Enable auto replace of not matching exchanges.
 	 * 
@@ -847,7 +825,6 @@ public final class CoapConfig {
 			config.set(DEDUPLICATOR, DEFAULT_DEDUPLICATOR);
 			config.set(MARK_AND_SWEEP_INTERVAL, DEFAULT_MARK_AND_SWEEP_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(PEERS_MARK_AND_SWEEP_MESSAGES, DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES);
-			config.set(CROP_ROTATION_PERIOD, DEFAULT_CROP_ROTATION_PERIOD_IN_SECONDS, TimeUnit.SECONDS);
 			config.set(DEDUPLICATOR_AUTO_REPLACE, DEFAULT_DEDUPLICATOR_AUTO_REPLACE);
 			config.set(RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
 

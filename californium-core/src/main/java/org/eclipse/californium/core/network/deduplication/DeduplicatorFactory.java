@@ -77,8 +77,6 @@ public class DeduplicatorFactory {
 			return new SweepPerPeerDeduplicator(config);
 		case CoapConfig.DEDUPLICATOR_MARK_AND_SWEEP:
 			return new SweepDeduplicator(config);
-		case CoapConfig.DEDUPLICATOR_CROP_ROTATION:
-			return new CropRotation(config);
 		case CoapConfig.NO_DEDUPLICATOR:
 			return new NoDeduplicator();
 		default:
