@@ -38,6 +38,7 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.util.Base64;
 import java.util.regex.Pattern;
 
 /**
@@ -306,9 +307,11 @@ public class StringUtil {
 	 * 
 	 * @param base64 base64 string
 	 * @return byte array. empty, if provided string could not be decoded.
-	 * @throws IllegalArgumentException if the length is invalid for base 64
+	 * @throws IllegalArgumentException if the length or content is invalid for
+	 *             base 64
 	 * @see #base64ToByteArray(char[])
-	 * @since 2.3
+	 * @since 4.0 (throws IllegalArgumentException if content is invalid base
+	 *        64)
 	 */
 	public static byte[] base64ToByteArray(String base64) {
 		int pad = base64.length() % 4;
@@ -322,11 +325,7 @@ public class StringUtil {
 				throw new IllegalArgumentException("'" + base64 + "' invalid base64!");
 			}
 		}
-		try {
-			return Base64.decode(base64);
-		} catch (IOException e) {
-			return Bytes.EMPTY;
-		}
+		return Base64.getDecoder().decode(base64);
 	}
 
 	/**
@@ -338,9 +337,10 @@ public class StringUtil {
 	 * 
 	 * @param base64 base64 char array
 	 * @return byte array.
-	 * @throws IllegalArgumentException if the length is invalid for base 64 or
-	 *             character is out of the supported character set of base 64.
-	 * @since 3.3
+	 * @throws IllegalArgumentException if the length or content is invalid for
+	 *             base 64.
+	 * @since 4.0 (throws IllegalArgumentException if content is invalid base
+	 *        64)
 	 */
 	public static byte[] base64ToByteArray(char[] base64) {
 		int pad = base64.length % 4;
@@ -363,11 +363,7 @@ public class StringUtil {
 			--pad;
 			data64[index++] = (byte) '=';
 		}
-		try {
-			return Base64.decode(data64);
-		} catch (IOException e) {
-			throw new IllegalArgumentException(e.getMessage());
-		}
+		return Base64.getDecoder().decode(data64);
 	}
 
 	/**
@@ -378,7 +374,7 @@ public class StringUtil {
 	 * @since 2.3
 	 */
 	public static String byteArrayToBase64(byte[] bytes) {
-		return Base64.encodeBytes(bytes);
+		return Base64.getEncoder().encodeToString(bytes);
 	}
 
 	/**
@@ -389,7 +385,7 @@ public class StringUtil {
 	 * @since 3.3
 	 */
 	public static char[] byteArrayToBase64CharArray(byte[] bytes) {
-		byte[] base64 = Base64.encodeBytesToBytes(bytes);
+		byte[] base64 = Base64.getEncoder().encode(bytes);
 		char[] result = new char[base64.length];
 		for (int index = 0; index < base64.length; ++index) {
 			result[index] = (char) base64[index];

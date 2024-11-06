@@ -103,12 +103,10 @@ public class StringUtilTest {
 		StringUtil.base64ToByteArray(line);
 	}
 
-	@Test
+	@Test(expected = IllegalArgumentException.class)
 	public void testBase64String2ByteArrayIllegalCharacter() {
 		String line = "QTABC\u0100";
-		byte[] result = StringUtil.base64ToByteArray(line);
-		// will change with next major release to IllegalArgumentException
-		assertThat(result, is(Bytes.EMPTY));
+		StringUtil.base64ToByteArray(line);
 	}
 
 	@Test
