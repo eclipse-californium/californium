@@ -86,6 +86,9 @@ public class S3Login implements HttpHandler {
 	 * @param clientProvider S3 client provider.
 	 * @param webAppConfigs web application configuration provider.
 	 * @param groups device groups provider
+	 * @param withDiagnose {@code true} to conditionally include
+	 *            "config.diagnose" in the response, {@code false} to not use
+	 *            "config.diagnose"
 	 */
 	public S3Login(Aws4Authorizer authorizer, S3ProxyClientProvider clientProvider, WebAppConfigProvider webAppConfigs,
 			DeviceGroupProvider groups, boolean withDiagnose) {
