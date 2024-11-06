@@ -18,7 +18,6 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.auth;
 
-import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
@@ -26,9 +25,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
+import java.util.Base64;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
-import org.eclipse.californium.elements.util.Base64;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 
 /**
@@ -36,7 +35,6 @@ import org.eclipse.californium.elements.util.JceProviderUtil;
  */
 public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicKeyIdentity> {
 
-	private static final int BASE_64_ENCODING_OPTIONS = Base64.ENCODE | Base64.URL_SAFE | Base64.NO_PADDING;
 	private String niUri;
 	private final PublicKey publicKey;
 
@@ -154,10 +152,10 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			md.update(subjectPublicKeyInfo);
 			byte[] digest = md.digest();
-			String base64urlDigest = Base64.encodeBytes(digest, BASE_64_ENCODING_OPTIONS);
+			String base64urlDigest = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
 			StringBuilder b = new StringBuilder("ni:///sha-256;").append(base64urlDigest);
 			niUri = b.toString();
-		} catch (NoSuchAlgorithmException | IOException e) {
+		} catch (NoSuchAlgorithmException e) {
 			// should not happen because SHA-256 is a mandatory message digest algorithm for any Java 7 VM
 			// no Base64 encoding of InputStream is done
 		}

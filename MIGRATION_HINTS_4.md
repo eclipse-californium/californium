@@ -65,6 +65,10 @@ Removed `org.eclipse.californium.elements.util.StandardCharsets`, obsoleted by j
 
 Removed `org.eclipse.californium.elements.util.Filter`, obsoleted by java 8 `java.util.function.Predicate`.
 
+Removed `org.eclipse.californium.elements.util.Base64`, obsoleted by java 8 `java.util.Base64`.
+
+`org.eclipse.californium.elements.util.StringUtil.base64ToByteArray(String)` throws now `IllegalArgumentException` for invalid content instead of returning an empty array.
+
 ### Scandium:
 
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.

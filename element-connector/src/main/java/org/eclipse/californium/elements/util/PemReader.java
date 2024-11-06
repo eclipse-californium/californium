@@ -20,12 +20,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Reader for PEM files.
+ * 
+ * @since 2.0
+ */
 public class PemReader {
 
 	/**
@@ -33,12 +39,28 @@ public class PemReader {
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(PemReader.class);
 
+	/**
+	 * Pattern for begin tag.
+	 */
 	private static final Pattern BEGIN_PATTERN = Pattern.compile("^\\-+BEGIN\\s+([\\w\\s]+)\\-+$");
 
+	/**
+	 * Pattern for end tag.
+	 */
 	private static final Pattern END_PATTERN = Pattern.compile("^\\-+END\\s+([\\w\\s]+)\\-+$");
 
+	/**
+	 * Buffered reader.
+	 */
 	private BufferedReader reader;
+	/**
+	 * Current tag.
+	 * 
+	 * Set by {@link #readNextBegin()}.
+	 */
 	private String tag;
+
+	private int lines;
 
 	/**
 	 * Create PEM reader from {@link InputStream}.
@@ -46,7 +68,7 @@ public class PemReader {
 	 * @param in input stream
 	 */
 	public PemReader(InputStream in) {
-		reader = new BufferedReader(new InputStreamReader(in));
+		reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
 	}
 
 	/**
@@ -59,6 +81,19 @@ public class PemReader {
 		reader = new BufferedReader(in);
 	}
 
+	/**
+	 * Create PEM reader from {@link BufferedReader}.
+	 * 
+	 * @param in buffered reader
+	 * @since 4.0
+	 */
+	public PemReader(BufferedReader in) {
+		reader = in;
+	}
+
+	/**
+	 * Close reader.
+	 */
 	public void close() {
 		try {
 			reader.close();
@@ -66,10 +101,17 @@ public class PemReader {
 		}
 	}
 
+	/**
+	 * Read to next begin pattern.
+	 * 
+	 * @return begin tag
+	 * @throws IOException if an i/o error occurred
+	 */
 	public String readNextBegin() throws IOException {
 		String line;
 		tag = null;
 		while ((line = reader.readLine()) != null) {
+			++lines;
 			Matcher matcher = BEGIN_PATTERN.matcher(line);
 			if (matcher.matches()) {
 				tag = matcher.group(1);
@@ -80,16 +122,23 @@ public class PemReader {
 		return tag;
 	}
 
+	/**
+	 * Read to end pattern.
+	 * 
+	 * @return bytes of read section. {@code null}, if end pattern not found.
+	 * @throws IOException if an i/o error occurred
+	 */
 	public byte[] readToEnd() throws IOException {
 		String line;
 		StringBuilder buffer = new StringBuilder();
 
 		while ((line = reader.readLine()) != null) {
+			++lines;
 			Matcher matcher = END_PATTERN.matcher(line);
 			if (matcher.matches()) {
 				String end = matcher.group(1);
 				if (end.equals(tag)) {
-					byte[] decode = Base64.decode(buffer.toString());
+					byte[] decode = StringUtil.base64ToByteArray(buffer.toString());
 					LOGGER.debug("Found End of {}", tag);
 					return decode;
 				} else {
@@ -101,5 +150,17 @@ public class PemReader {
 		}
 		tag = null;
 		return null;
+	}
+
+	/**
+	 * Get number of lines since last call of this function.
+	 * 
+	 * @return number of lines
+	 * @since 4.0
+	 */
+	public int lines() {
+		int lines = this.lines;
+		this.lines = 0;
+		return lines;
 	}
 }
