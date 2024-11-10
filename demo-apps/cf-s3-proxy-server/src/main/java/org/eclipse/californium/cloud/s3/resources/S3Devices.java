@@ -20,7 +20,6 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.INTERNAL_SERVER_ERROR;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JAVASCRIPT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
@@ -33,7 +32,6 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.security.Principal;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -53,6 +51,7 @@ import org.eclipse.californium.cloud.BaseServer;
 import org.eclipse.californium.cloud.option.ReadEtagOption;
 import org.eclipse.californium.cloud.option.ReadResponseOption;
 import org.eclipse.californium.cloud.option.TimeOption;
+import org.eclipse.californium.cloud.resources.ProtectedCoapResource;
 import org.eclipse.californium.cloud.s3.option.ForwardResponseOption;
 import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
@@ -62,7 +61,7 @@ import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest.Builder;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider;
 import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider.DeviceIdentityMode;
-import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
+import org.eclipse.californium.cloud.util.PrincipalInfo;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -74,6 +73,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseConsumer;
 import org.eclipse.californium.core.coap.UriQueryParameter;
+import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
@@ -195,7 +195,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.12
  */
-public class S3Devices extends CoapResource {
+public class S3Devices extends ProtectedCoapResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(S3Devices.class);
 
@@ -310,63 +310,42 @@ public class S3Devices extends CoapResource {
 		if (accept != UNDEFINED && accept != APPLICATION_LINK_FORMAT) {
 			exchange.respond(NOT_ACCEPTABLE);
 		} else {
-			final Principal principal = request.getSourceContext().getPeerIdentity();
-			final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
-			if (info == null) {
-				exchange.respond(UNAUTHORIZED);
-			} else {
-				List<String> query = exchange.getRequestOptions().getUriQuery();
-				if (query.size() > 1) {
-					exchange.respond(BAD_OPTION, "only one search query is supported!", TEXT_PLAIN);
-					return;
-				}
-				Set<WebLink> subTree = new ConcurrentSkipListSet<>();
-				Resource resource = domains.get(info.domain);
-				if (resource != null) {
-					LinkFormat.addSubTree(resource, query, subTree);
-				}
-				Response response = new Response(CONTENT);
-				response.setPayload(LinkFormat.serialize(subTree));
-				response.getOptions().setContentFormat(APPLICATION_LINK_FORMAT);
-				exchange.respond(response);
+			final String domain = DomainPrincipalInfo.getDomain(getPrincipal(exchange));
+			List<String> query = exchange.getRequestOptions().getUriQuery();
+			if (query.size() > 1) {
+				exchange.respond(BAD_OPTION, "only one search query is supported!", TEXT_PLAIN);
+				return;
 			}
+			Set<WebLink> subTree = new ConcurrentSkipListSet<>();
+			Resource resource = domains.get(domain);
+			if (resource != null) {
+				LinkFormat.addSubTree(resource, query, subTree);
+			}
+			Response response = new Response(CONTENT);
+			response.setPayload(LinkFormat.serialize(subTree));
+			response.getOptions().setContentFormat(APPLICATION_LINK_FORMAT);
+			exchange.respond(response);
 		}
 	}
 
 	@Override
 	public void handlePOST(final CoapExchange exchange) {
-		if (exchange == null) {
-			throw new NullPointerException("exchange must not be null!");
-		}
-		Request request = exchange.advanced().getRequest();
-		if (request == null) {
-			throw new NullPointerException("request must not be null!");
-		}
 
-		int format = request.getOptions().getContentFormat();
+		int format = exchange.getRequestOptions().getContentFormat();
 		if (format != UNDEFINED && Arrays.binarySearch(CONTENT_TYPES, format) < 0) {
 			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
-		final Principal principal = request.getSourceContext().getPeerIdentity();
-		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
-		LOGGER.info("S3: {}", info);
-		if (info == null) {
-			exchange.respond(UNAUTHORIZED);
-			return;
-		} else if (info.type != Type.DEVICE) {
-			exchange.respond(FORBIDDEN);
-			return;
-		}
 
+		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(getPrincipal(exchange));
 		boolean updateSeries = false;
 		boolean forward = false;
 		String read = null;
 		String write = null;
 		try {
-			UriQueryParameter helper = request.getOptions().getUriQueryParameter(SUPPORTED);
-			LOGGER.info("URI-Query: {} {}", request.getOptions().getUriQuery(), info);
-			List<Option> others = request.getOptions().getOthers();
+			UriQueryParameter helper = exchange.getRequestOptions().getUriQueryParameter(SUPPORTED);
+			LOGGER.info("URI-Query: {} {}", exchange.getRequestOptions().getUriQuery(), info);
+			List<Option> others = exchange.getRequestOptions().getOthers();
 			if (!others.isEmpty()) {
 				LOGGER.info("Other options: {} {}", others, info);
 			}
@@ -391,6 +370,7 @@ public class S3Devices extends CoapResource {
 			return;
 		}
 
+		Request request = exchange.advanced().getRequest();
 		final TimeOption timeOption = TimeOption.getMessageTime(request);
 		final long time = timeOption.getLongValue();
 
@@ -682,7 +662,7 @@ public class S3Devices extends CoapResource {
 	/**
 	 * Resource representing devices
 	 */
-	public static class Device extends CoapResource {
+	public static class Device extends ProtectedCoapResource {
 
 		private Series series = null;
 		private volatile Request post;
@@ -752,14 +732,9 @@ public class S3Devices extends CoapResource {
 			return series;
 		}
 
-		private ResponseCode checkPermission(Request request) {
-			final Principal principal = request.getSourceContext().getPeerIdentity();
-			final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
-			if (info == null) {
-				return UNAUTHORIZED;
-			} else if (info.type != Type.DEVICE) {
-				return FORBIDDEN;
-			} else if (!isVisible() && !getName().equals(info.name)) {
+		@Override
+		protected ResponseCode checkOperationPermission(PrincipalInfo info, Exchange exchange, boolean write) {
+			if (!isVisible() && !getName().equals(info.name)) {
 				return FORBIDDEN;
 			}
 			return null;
@@ -768,15 +743,8 @@ public class S3Devices extends CoapResource {
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			Request devicePost = post;
-			// get request to read out details
-			Request request = exchange.advanced().getRequest();
-			ResponseCode code = checkPermission(request);
-			if (code != null) {
-				exchange.respond(code);
-				return;
-			}
 			int format = devicePost.getOptions().getContentFormat();
-			int accept = request.getOptions().getAccept();
+			int accept = exchange.getRequestOptions().getAccept();
 			if (accept == UNDEFINED) {
 				accept = format == UNDEFINED ? APPLICATION_OCTET_STREAM : format;
 			} else if (format == UNDEFINED) {
@@ -800,7 +768,7 @@ public class S3Devices extends CoapResource {
 		}
 	}
 
-	public static class Series extends CoapResource {
+	public static class Series extends ProtectedCoapResource {
 
 		private final String startDate;
 		private final String s3Link;
@@ -860,14 +828,13 @@ public class S3Devices extends CoapResource {
 			return content.toString();
 		}
 
+		@Override
+		protected ResponseCode checkOperationPermission(PrincipalInfo info, Exchange exchange, boolean write) {
+			return getDevice().checkOperationPermission(info, exchange, write);
+		}
+
 		public void handleGET(CoapExchange exchange) {
-			Request request = exchange.advanced().getRequest();
-			ResponseCode code = getDevice().checkPermission(request);
-			if (code != null) {
-				exchange.respond(code);
-				return;
-			}
-			int accept = request.getOptions().getAccept();
+			int accept = exchange.getRequestOptions().getAccept();
 			if (accept != UNDEFINED && accept != TEXT_PLAIN) {
 				exchange.respond(NOT_ACCEPTABLE);
 				return;

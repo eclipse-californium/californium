@@ -73,13 +73,30 @@ public class DomainPrincipalInfo extends PrincipalInfo {
 		if (principal instanceof ExtensiblePrincipal) {
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
-			if (!extensiblePrincipal.getExtendedInfo().isEmpty()) {
-				DomainPrincipalInfoProvider provider = extensiblePrincipal.getExtendedInfo().get(INFO_PROVIDER,
-						DomainPrincipalInfoProvider.class);
-				if (provider != null) {
-					return provider.getPrincipalInfo(extensiblePrincipal);
-				}
+			DomainPrincipalInfoProvider provider = extensiblePrincipal.getExtendedInfo().get(INFO_PROVIDER,
+					DomainPrincipalInfoProvider.class);
+			if (provider != null) {
+				return provider.getPrincipalInfo(extensiblePrincipal);
 			}
+		}
+		return null;
+	}
+
+	/**
+	 * Get domain.
+	 * 
+	 * Only {@link ExtensiblePrincipal} with {@link AdditionalInfo}
+	 * {@link #INFO_DOMAIN} are supported.
+	 * 
+	 * @param principal the principal
+	 * @return domain name, or {@code null}, if not available.
+	 * @see EndpointContext#getPeerIdentity()
+	 */
+	public static String getDomain(Principal principal) {
+		if (principal instanceof ExtensiblePrincipal) {
+			@SuppressWarnings("unchecked")
+			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
+			return extensiblePrincipal.getExtendedInfo().get(INFO_DOMAIN, String.class);
 		}
 		return null;
 	}

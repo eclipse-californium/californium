@@ -15,9 +15,7 @@
 package org.eclipse.californium.cloud.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XML;
@@ -27,12 +25,8 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
-import org.eclipse.californium.cloud.util.PrincipalInfo;
-import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.cloud.util.Formatter;
-import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
@@ -49,7 +43,7 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
  * 
  * @since 3.12
  */
-public class MyContext extends CoapResource {
+public class MyContext extends ProtectedCoapResource {
 
 	public static final String RESOURCE_NAME = "mycontext";
 
@@ -68,19 +62,7 @@ public class MyContext extends CoapResource {
 	@Override
 	public void handleGET(CoapExchange exchange) {
 
-		// get request to read out details
-		Request request = exchange.advanced().getRequest();
-		Principal principal = request.getSourceContext().getPeerIdentity();
-		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
-		if (info == null) {
-			exchange.respond(UNAUTHORIZED);
-			return;
-		} else if (info.type != Type.DEVICE) {
-			exchange.respond(FORBIDDEN);
-			return;
-		}
-
-		int accept = request.getOptions().getAccept();
+		int accept = exchange.getRequestOptions().getAccept();
 		if (accept == UNDEFINED) {
 			accept = TEXT_PLAIN;
 		}

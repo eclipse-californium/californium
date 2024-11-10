@@ -17,7 +17,6 @@ package org.eclipse.californium.cloud.s3.resources;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JAVASCRIPT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
@@ -27,19 +26,21 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XM
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
-import java.security.Principal;
 import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.cloud.option.TimeOption;
+import org.eclipse.californium.cloud.resources.ProtectedCoapResource;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
-import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.config.Configuration;
@@ -51,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.12
  */
-public class S3ProxyResource extends CoapResource {
+public class S3ProxyResource extends ProtectedCoapResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(S3ProxyResource.class);
 
@@ -91,32 +92,13 @@ public class S3ProxyResource extends CoapResource {
 		this.pathStartIndex = pathStartIndex;
 	}
 
-	/**
-	 * Checks, if principal has read permission for the provided path.
-	 * 
-	 * The default implementation grants read access to all.
-	 * 
-	 * @param principal principal
-	 * @param path resource path
-	 * @return {@code true}, if principal has read permission, {@code false},
-	 *         otherwise.
-	 */
-	public boolean hasReadPermission(Principal principal, String path) {
-		return true;
-	}
-
-	/**
-	 * Checks, if principal has write permission for the provided path.
-	 * 
-	 * The default implementation denies write access for all.
-	 * 
-	 * @param principal principal
-	 * @param path resource path
-	 * @return {@code true}, if principal has write permission, {@code false},
-	 *         otherwise.
-	 */
-	public boolean hasWritePermission(Principal principal, String path) {
-		return false;
+	@Override
+	protected ResponseCode checkOperationPermission(PrincipalInfo info, Exchange exchange, boolean write) {
+		if (write) {
+			return FORBIDDEN;
+		} else {
+			return null;
+		}
 	}
 
 	/*
@@ -152,25 +134,17 @@ public class S3ProxyResource extends CoapResource {
 		}
 		final TimeOption timeOption = TimeOption.getMessageTime(request);
 		final TimeOption responseTimeOption = timeOption.adjust();
-		final Principal principal = request.getSourceContext().getPeerIdentity();
-		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
 
-		if (info == null) {
-			exchange.respond(UNAUTHORIZED);
-		} else if (!hasReadPermission(principal, request.getOptions().getUriPathString())) {
-			exchange.respond(FORBIDDEN);
-		} else {
-			final String domain = info.domain;
-			S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
-			S3ProxyRequest s3ReadRequest = S3ProxyRequest.builder(request).pathStartIndex(pathStartIndex).build();
-			s3Client.get(s3ReadRequest, (Response s3response) -> {
-				// respond with time?
-				if (responseTimeOption != null) {
-					s3response.getOptions().addOtherOption(responseTimeOption);
-				}
-				exchange.respond(s3response);
-			});
-		}
+		final String domain = DomainPrincipalInfo.getDomain(getPrincipal(exchange));
+		S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
+		S3ProxyRequest s3ReadRequest = S3ProxyRequest.builder(request).pathStartIndex(pathStartIndex).build();
+		s3Client.get(s3ReadRequest, (Response s3response) -> {
+			// respond with time?
+			if (responseTimeOption != null) {
+				s3response.getOptions().addOtherOption(responseTimeOption);
+			}
+			exchange.respond(s3response);
+		});
 	}
 
 	@Override
@@ -200,24 +174,16 @@ public class S3ProxyResource extends CoapResource {
 
 		final TimeOption timeOption = TimeOption.getMessageTime(request);
 		final TimeOption responseTimeOption = timeOption.adjust();
-		final Principal principal = request.getSourceContext().getPeerIdentity();
-		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
+		final String domain = DomainPrincipalInfo.getDomain(getPrincipal(exchange));
 
-		if (info == null) {
-			exchange.respond(UNAUTHORIZED);
-		} else if (!hasWritePermission(principal, request.getOptions().getUriPathString())) {
-			exchange.respond(FORBIDDEN);
-		} else {
-			final String domain = info.domain;
-			S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
-			S3ProxyRequest s3ReadRequest = S3ProxyRequest.builder(request).build();
-			s3Client.put(s3ReadRequest, (Response s3response) -> {
-				// respond with time?
-				if (responseTimeOption != null) {
-					s3response.getOptions().addOtherOption(responseTimeOption);
-				}
-				exchange.respond(s3response);
-			});
-		}
+		S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
+		S3ProxyRequest s3ReadRequest = S3ProxyRequest.builder(request).build();
+		s3Client.put(s3ReadRequest, (Response s3response) -> {
+			// respond with time?
+			if (responseTimeOption != null) {
+				s3response.getOptions().addOtherOption(responseTimeOption);
+			}
+			exchange.respond(s3response);
+		});
 	}
 }

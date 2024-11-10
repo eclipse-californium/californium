@@ -19,7 +19,6 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JAVASCRIPT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
@@ -29,7 +28,6 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XM
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
-import java.security.Principal;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
@@ -44,8 +42,6 @@ import org.eclipse.californium.cloud.option.ReadEtagOption;
 import org.eclipse.californium.cloud.option.ReadResponseOption;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.util.PrincipalInfo;
-import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
-import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -164,7 +160,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.12
  */
-public class Devices extends CoapResource {
+public class Devices extends ProtectedCoapResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Devices.class);
 	private static final Logger LOGGER_TRACKER = LoggerFactory.getLogger("org.eclipse.californium.gnss.tracker");
@@ -240,15 +236,8 @@ public class Devices extends CoapResource {
 
 	@Override
 	public void handleGET(final CoapExchange exchange) {
-		Request request = exchange.advanced().getRequest();
-		int accept = request.getOptions().getAccept();
-		Principal principal = request.getSourceContext().getPeerIdentity();
-		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
-		if (info == null) {
-			exchange.respond(UNAUTHORIZED);
-		} else if (info.type != Type.DEVICE) {
-			exchange.respond(FORBIDDEN);
-		} else if (accept != UNDEFINED && accept != APPLICATION_LINK_FORMAT) {
+		int accept = exchange.getRequestOptions().getAccept();
+		if (accept != UNDEFINED && accept != APPLICATION_LINK_FORMAT) {
 			exchange.respond(NOT_ACCEPTABLE);
 		} else {
 			List<String> query = exchange.getRequestOptions().getUriQuery();
@@ -266,18 +255,9 @@ public class Devices extends CoapResource {
 
 	@Override
 	public void handlePOST(final CoapExchange exchange) {
-		Request request = exchange.advanced().getRequest();
-		int format = request.getOptions().getContentFormat();
-		Principal principal = request.getSourceContext().getPeerIdentity();
-		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
+		int format = exchange.getRequestOptions().getContentFormat();
 
-		if (info == null) {
-			exchange.respond(UNAUTHORIZED);
-			return;
-		} else if (info.type != Type.DEVICE) {
-			exchange.respond(FORBIDDEN);
-			return;
-		} else if (format != UNDEFINED && Arrays.binarySearch(CONTENT_TYPES, format) < 0) {
+		if (format != UNDEFINED && Arrays.binarySearch(CONTENT_TYPES, format) < 0) {
 			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
@@ -285,9 +265,9 @@ public class Devices extends CoapResource {
 		boolean updateSeries = false;
 		String read = null;
 		try {
-			UriQueryParameter helper = request.getOptions().getUriQueryParameter(SUPPORTED);
-			LOGGER.info("URI-Query: {}", request.getOptions().getUriQuery());
-			List<Option> others = request.getOptions().getOthers();
+			UriQueryParameter helper = exchange.getRequestOptions().getUriQueryParameter(SUPPORTED);
+			LOGGER.info("URI-Query: {}", exchange.getRequestOptions().getUriQuery());
+			List<Option> others = exchange.getRequestOptions().getOthers();
 			if (!others.isEmpty()) {
 				LOGGER.info("Other options: {}", others);
 			}
@@ -305,9 +285,11 @@ public class Devices extends CoapResource {
 			return;
 		}
 
+		PrincipalInfo info = getPrincipalInfo(exchange);
 		Response response;
 		String name = info.name;
 		if (name != null) {
+			Request request = exchange.advanced().getRequest();
 			final TimeOption timeOption = TimeOption.getMessageTime(request);
 			final long time = timeOption.getLongValue();
 			String log = null;
@@ -379,7 +361,7 @@ public class Devices extends CoapResource {
 	/**
 	 * Resource representing devices
 	 */
-	public static class Device extends CoapResource {
+	public static class Device extends ProtectedCoapResource {
 
 		private Series series = null;
 		private volatile Request post;
@@ -449,19 +431,9 @@ public class Devices extends CoapResource {
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			Request devicePost = post;
-			// get request to read out details
-			Request request = exchange.advanced().getRequest();
 			int format = devicePost.getOptions().getContentFormat();
-			int accept = request.getOptions().getAccept();
-			Principal principal = request.getSourceContext().getPeerIdentity();
-			PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
-			if (info == null) {
-				exchange.respond(UNAUTHORIZED);
-				return;
-			} else if (info.type != Type.DEVICE) {
-				exchange.respond(FORBIDDEN);
-				return;
-			} else if (accept == UNDEFINED) {
+			int accept = exchange.getRequestOptions().getAccept();
+			if (accept == UNDEFINED) {
 				accept = format == UNDEFINED ? APPLICATION_OCTET_STREAM : format;
 			} else if (format == UNDEFINED) {
 				if (accept != TEXT_PLAIN && accept != APPLICATION_OCTET_STREAM) {
@@ -484,7 +456,7 @@ public class Devices extends CoapResource {
 		}
 	}
 
-	public static class Series extends CoapResource {
+	public static class Series extends ProtectedCoapResource {
 
 		private final String startDate;
 		private final StringBuilder content = new StringBuilder();
@@ -530,17 +502,8 @@ public class Devices extends CoapResource {
 		}
 
 		public void handleGET(CoapExchange exchange) {
-			Request request = exchange.advanced().getRequest();
-			int accept = request.getOptions().getAccept();
-			Principal principal = request.getSourceContext().getPeerIdentity();
-			PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
-			if (info == null) {
-				exchange.respond(UNAUTHORIZED);
-				return;
-			} else if (info.type != Type.DEVICE) {
-				exchange.respond(FORBIDDEN);
-				return;
-			} else if (accept != UNDEFINED && accept != TEXT_PLAIN) {
+			int accept = exchange.getRequestOptions().getAccept();
+			if (accept != UNDEFINED && accept != TEXT_PLAIN) {
 				exchange.respond(NOT_ACCEPTABLE);
 				return;
 			}

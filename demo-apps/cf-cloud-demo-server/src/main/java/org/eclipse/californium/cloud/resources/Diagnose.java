@@ -15,9 +15,7 @@
 package org.eclipse.californium.cloud.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_LINK_FORMAT;
@@ -36,9 +34,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cloud.EndpointNetSocketObserver;
-import org.eclipse.californium.cloud.util.PrincipalInfo;
 import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
-import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -69,7 +65,7 @@ import com.upokecenter.cbor.CBORObject;
  * 
  * @since 3.12
  */
-public class Diagnose extends CoapResource {
+public class Diagnose extends ProtectedCoapResource {
 
 	public static final String RESOURCE_NAME = "diagnose";
 
@@ -89,7 +85,7 @@ public class Diagnose extends CoapResource {
 	}
 
 	public Diagnose(String name, String title, ServerInterface server) {
-		super(name);
+		super(name, Type.DEVICE, Type.WEB);
 		init(title);
 		if (server != null) {
 			this.serverList.add(server);
@@ -100,7 +96,7 @@ public class Diagnose extends CoapResource {
 	}
 
 	public Diagnose(String name, String title, Endpoint endpoint, List<CounterStatisticManager> endpointHealth) {
-		super(name);
+		super(name, Type.DEVICE, Type.WEB);
 		init(title);
 		this.endpointsHealth = null;
 		this.endpointHealth = endpointHealth;
@@ -164,15 +160,6 @@ public class Diagnose extends CoapResource {
 
 	@Override
 	public void handleGET(CoapExchange exchange) {
-		Principal principal = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
-		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
-		if (info == null) {
-			exchange.respond(UNAUTHORIZED);
-			return;
-		} else if (info.type != Type.DEVICE && info.type != Type.WEB) {
-			exchange.respond(FORBIDDEN);
-			return;
-		}
 		Response response = new Response(CONTENT);
 		Integer maxConnections = null;
 		Integer nodeId = null;
@@ -212,6 +199,7 @@ public class Diagnose extends CoapResource {
 			return;
 		}
 
+		Principal principal = getPrincipal(exchange);
 		switch (exchange.getRequestOptions().getAccept()) {
 		case UNDEFINED:
 		case TEXT_PLAIN:
