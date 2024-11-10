@@ -34,16 +34,15 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.cloud.option.TimeOption;
-import org.eclipse.californium.cloud.util.PrincipalInfo;
-import org.eclipse.californium.cloud.util.PrincipalInfoProvider;
-import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.DeviceProvisioningConsumer;
+import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
+import org.eclipse.californium.cloud.util.PrincipalInfoProvider;
 import org.eclipse.californium.cloud.util.ResultConsumer;
-import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.PemUtil;
@@ -56,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.13
  */
-public class Provisioning extends CoapResource {
+public class Provisioning extends ProtectedCoapResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Provisioning.class);
 
@@ -77,7 +76,7 @@ public class Provisioning extends CoapResource {
 	 * @param devices device provisioning consumer
 	 */
 	public Provisioning(DeviceProvisioningConsumer devices) {
-		super(RESOURCE_NAME);
+		super(RESOURCE_NAME, Type.CA, Type.PROVISIONING);
 		Arrays.sort(CONTENT_TYPES);
 		getAttributes().setTitle("Device provisioning resource.");
 		getAttributes().addContentTypes(CONTENT_TYPES);
@@ -86,27 +85,17 @@ public class Provisioning extends CoapResource {
 
 	@Override
 	public void handlePOST(final CoapExchange exchange) {
-		Request request = exchange.advanced().getRequest();
-		if (request == null) {
-			throw new NullPointerException("request must not be null!");
-		}
 
-		int format = request.getOptions().getContentFormat();
+		int format = exchange.getRequestOptions().getContentFormat();
 		if (format != UNDEFINED && Arrays.binarySearch(CONTENT_TYPES, format) < 0) {
 			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
 
-		Principal principal = request.getSourceContext().getPeerIdentity();
-		PrincipalInfo info = PrincipalInfo.getPrincipalInfo(principal);
-		if (info == null) {
-			LOGGER.info("Not authorized to added device credentials.");
-			exchange.respond(UNAUTHORIZED, "Not authorized.");
-			return;
-		}
-
-		boolean x509 = principal instanceof X509CertPath;
-		if (x509 && info.type == Type.DEVICE) {
+		Principal principal = getPrincipal(exchange);
+		PrincipalInfo info = getPrincipalInfo(exchange);
+		if (info.type == Type.DEVICE) {
+			// provision already available device
 			info = getDeviceInfoCa(principal);
 			if (info == null) {
 				LOGGER.info("CA not available.");
@@ -114,13 +103,13 @@ public class Provisioning extends CoapResource {
 				return;
 			}
 		}
-		if (info.type == Type.PROVISIONING || info.type == Type.CA) {
-			String payload = request.getPayloadString();
+		if (allowed(info.type)) {
+			String payload = exchange.getRequestText();
 			if (payload.isEmpty()) {
 				exchange.respond(BAD_REQUEST, "Missing provisioning payload.");
 			} else {
 				try {
-					final TimeOption timeOption = TimeOption.getMessageTime(request);
+					final TimeOption timeOption = TimeOption.getMessageTime(exchange.advanced().getRequest());
 					final long time = timeOption.getLongValue();
 					payload = "# added " + format(time) + " by " + info.name + StringUtil.lineSeparator() + payload;
 					if (info.type == Type.CA) {
@@ -186,7 +175,8 @@ public class Provisioning extends CoapResource {
 			return null;
 		}
 		X509CertPath x509 = (X509CertPath) principal;
-		PrincipalInfoProvider provider = x509.getExtendedInfo().get(PrincipalInfo.INFO_PROVIDER, PrincipalInfoProvider.class);
+		PrincipalInfoProvider provider = x509.getExtendedInfo().get(PrincipalInfo.INFO_PROVIDER,
+				PrincipalInfoProvider.class);
 		if (provider == null) {
 			LOGGER.warn("Principal has no device-info-provider assigned!");
 			return null;
@@ -197,6 +187,22 @@ public class Provisioning extends CoapResource {
 			return null;
 		}
 		return provider.getPrincipalInfo(X509CertPath.fromCertificatesChain(anchor));
+	}
+
+	@Override
+	protected ResponseCode checkPermission(final Exchange exchange) {
+		final PrincipalInfo info = getPrincipalInfo(exchange);
+		if (info == null) {
+			return UNAUTHORIZED;
+		}
+		if (info.type == Type.DEVICE) {
+			if (!(getPrincipal(exchange) instanceof X509CertPath)) {
+				return FORBIDDEN;
+			}
+		} else if (!allowed(info.type)) {
+			return FORBIDDEN;
+		}
+		return checkOperationPermission(info, exchange, exchange.getRequest().getCode().write);
 	}
 
 	public static String format(long millis) {

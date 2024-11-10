@@ -153,4 +153,23 @@ public class PrincipalInfo {
 		return null;
 	}
 
+	/**
+	 * Get name.
+	 * 
+	 * Only {@link ExtensiblePrincipal} with {@link AdditionalInfo}
+	 * {@link #INFO_NAME} are supported.
+	 * 
+	 * @param principal the principal
+	 * @return name, or {@code null}, if not available.
+	 * @see EndpointContext#getPeerIdentity()
+	 */
+	public static String getName(Principal principal) {
+		if (principal instanceof ExtensiblePrincipal) {
+			@SuppressWarnings("unchecked")
+			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
+			return extensiblePrincipal.getExtendedInfo().get(INFO_NAME, String.class);
+		}
+		return null;
+	}
+
 }
