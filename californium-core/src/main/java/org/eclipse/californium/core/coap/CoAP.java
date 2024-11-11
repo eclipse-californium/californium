@@ -35,12 +35,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-
 /**
  * CoAP defines several constants.
  * <ul>
  * <li>Message types: CON, NON, ACK, RST</li>
- * <li>Request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH, (CUSTOM_30)</li>
+ * <li>Request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH,
+ * (CUSTOM_30)</li>
  * <li>Response codes</li>
  * <li>Option numbers</li>
  * <li>Message format</li>
@@ -98,12 +98,14 @@ public final class CoAP {
 	public static final InetAddress MULTICAST_IPV4 = new InetSocketAddress("224.0.1.187", 0).getAddress();
 	/**
 	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, link-local.
-	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2" target="_blank">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2" target=
+	 * "_blank">RFC7346, IPv6 Multicast Address Scopes</a>
 	 */
 	public static final InetAddress MULTICAST_IPV6_LINKLOCAL = new InetSocketAddress("[FF02::FD]", 0).getAddress();
 	/**
 	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, site-local.
-	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2" target="_blank">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2" target=
+	 * "_blank">RFC7346, IPv6 Multicast Address Scopes</a>
 	 */
 	public static final InetAddress MULTICAST_IPV6_SITELOCAL = new InetSocketAddress("[FF05::FD]", 0).getAddress();
 
@@ -118,7 +120,8 @@ public final class CoAP {
 	 * Gets the code class of a given CoAP code.
 	 * 
 	 * @param code the code.
-	 * @return the value represented by the three most significant bits of the code.
+	 * @return the value represented by the three most significant bits of the
+	 *         code.
 	 */
 	public static int getCodeClass(final int code) {
 		return (code & 0b11100000) >> 5;
@@ -128,7 +131,8 @@ public final class CoAP {
 	 * Gets the code detail of a given CoAP code.
 	 * 
 	 * @param code the code.
-	 * @return the value represented by the five least significant bits of the code.
+	 * @return the value represented by the five least significant bits of the
+	 *         code.
 	 */
 	public static int getCodeDetail(final int code) {
 		return code & 0b00011111;
@@ -138,7 +142,8 @@ public final class CoAP {
 	 * Gets the string representation of a CoAP code.
 	 * 
 	 * @param code the CoAP code.
-	 * @return a string following the pattern C.DD where C is the code class and DD is the code detail.
+	 * @return a string following the pattern C.DD where C is the code class and
+	 *         DD is the code detail.
 	 */
 	public static String formatCode(final int code) {
 		return formatCode(getCodeClass(code), getCodeDetail(code));
@@ -214,7 +219,8 @@ public final class CoAP {
 	}
 
 	/**
-	 * Checks, if provided protocol is {@link #PROTOCOL_UDP} or {@link #PROTOCOL_DTLS}.
+	 * Checks, if provided protocol is {@link #PROTOCOL_UDP} or
+	 * {@link #PROTOCOL_DTLS}.
 	 * 
 	 * @param protocol protocol to be checked
 	 * @return {@code true}, if the provided protocol matches one of the list
@@ -222,36 +228,36 @@ public final class CoAP {
 	 * @since 3.1
 	 */
 	public static boolean isUdpProtocol(final String protocol) {
-		return PROTOCOL_UDP.equalsIgnoreCase(protocol) 
-				|| PROTOCOL_DTLS.equalsIgnoreCase(protocol);
+		return PROTOCOL_UDP.equalsIgnoreCase(protocol) || PROTOCOL_DTLS.equalsIgnoreCase(protocol);
 	}
 
 	/**
-	 * Checks, if provided protocol is {@link #PROTOCOL_TCP} or {@link #PROTOCOL_TLS}.
+	 * Checks, if provided protocol is {@link #PROTOCOL_TCP} or
+	 * {@link #PROTOCOL_TLS}.
 	 * 
 	 * @param protocol protocol to be checked
 	 * @return {@code true}, if the provided protocol matches one of the list
 	 *         above, {@code false}, otherwise.
 	 */
 	public static boolean isTcpProtocol(final String protocol) {
-		return PROTOCOL_TCP.equalsIgnoreCase(protocol)
-				|| PROTOCOL_TLS.equalsIgnoreCase(protocol);
+		return PROTOCOL_TCP.equalsIgnoreCase(protocol) || PROTOCOL_TLS.equalsIgnoreCase(protocol);
 	}
 
 	/**
-	 * Checks, if provided protocol is {@link #PROTOCOL_DTLS} or {@link #PROTOCOL_TLS}.
+	 * Checks, if provided protocol is {@link #PROTOCOL_DTLS} or
+	 * {@link #PROTOCOL_TLS}.
 	 * 
 	 * @param protocol protocol to be checked
 	 * @return {@code true}, if the provided protocol matches one of the list
 	 *         above, {@code false}, otherwise.
 	 */
 	public static boolean isSecureProtocol(final String protocol) {
-		return PROTOCOL_DTLS.equalsIgnoreCase(protocol)
-				|| PROTOCOL_TLS.equalsIgnoreCase(protocol);
+		return PROTOCOL_DTLS.equalsIgnoreCase(protocol) || PROTOCOL_TLS.equalsIgnoreCase(protocol);
 	}
 
 	/**
-	 * Checks, if provided scheme is {@link #COAP_URI_SCHEME} or {@link #COAP_SECURE_URI_SCHEME}.
+	 * Checks, if provided scheme is {@link #COAP_URI_SCHEME} or
+	 * {@link #COAP_SECURE_URI_SCHEME}.
 	 * 
 	 * @param uriScheme scheme to be checked
 	 * @return {@code true}, if the provided scheme matches one of the list
@@ -259,12 +265,12 @@ public final class CoAP {
 	 * @since 3.1
 	 */
 	public static boolean isUdpScheme(final String uriScheme) {
-		return COAP_URI_SCHEME.equalsIgnoreCase(uriScheme)
-				|| COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme);
+		return COAP_URI_SCHEME.equalsIgnoreCase(uriScheme) || COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme);
 	}
 
 	/**
-	 * Checks, if provided scheme is {@link #COAP_TCP_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
+	 * Checks, if provided scheme is {@link #COAP_TCP_URI_SCHEME} or
+	 * {@link #COAP_SECURE_TCP_URI_SCHEME}.
 	 * 
 	 * @param uriScheme scheme to be checked
 	 * @return {@code true}, if the provided scheme matches one of the list
@@ -276,7 +282,8 @@ public final class CoAP {
 	}
 
 	/**
-	 * Checks, if provided scheme is {@link #COAP_SECURE_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
+	 * Checks, if provided scheme is {@link #COAP_SECURE_URI_SCHEME} or
+	 * {@link #COAP_SECURE_TCP_URI_SCHEME}.
 	 * 
 	 * @param uriScheme scheme to be checked
 	 * @return {@code true}, if the provided scheme matches one of the list
@@ -288,17 +295,18 @@ public final class CoAP {
 	}
 
 	/**
-	 * Checks, if provided scheme is {@link #COAP_URI_SCHEME}, {@link #COAP_SECURE_URI_SCHEME}, {@link #COAP_TCP_URI_SCHEME} or {@link #COAP_SECURE_TCP_URI_SCHEME}.
+	 * Checks, if provided scheme is {@link #COAP_URI_SCHEME},
+	 * {@link #COAP_SECURE_URI_SCHEME}, {@link #COAP_TCP_URI_SCHEME} or
+	 * {@link #COAP_SECURE_TCP_URI_SCHEME}.
 	 * 
 	 * @param uriScheme scheme to be checked
 	 * @return {@code true}, if the provided scheme matches one of the list
 	 *         above, {@code false}, otherwise.
 	 */
 	public static boolean isSupportedScheme(final String uriScheme) {
-		return CoAP.COAP_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
-				CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
-				CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
-				CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
+		return CoAP.COAP_URI_SCHEME.equalsIgnoreCase(uriScheme) || CoAP.COAP_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)
+				|| CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme)
+				|| CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
 	}
 
 	/**
@@ -350,22 +358,22 @@ public final class CoAP {
 	 * Checks if a given CoAP code is a request code.
 	 * 
 	 * @param code the code to check.
-	 * @return {@code true} if the code's class is 0 and 1 &lt;= detail &lt;= 31.
+	 * @return {@code true} if the code's class is 0 and 1 &lt;= detail &lt;=
+	 *         31.
 	 */
 	public static boolean isRequest(final int code) {
-		return code >= REQUEST_CODE_LOWER_BOUND &&
-				code <= REQUEST_CODE_UPPER_BOUND;
+		return code >= REQUEST_CODE_LOWER_BOUND && code <= REQUEST_CODE_UPPER_BOUND;
 	}
 
 	/**
 	 * Checks if a given CoAP code is a response code.
 	 * 
 	 * @param code the code to check.
-	 * @return {@code true} if 1 &lt; code class &lt;6 and 0 &lt;= detail &lt;= 31.
+	 * @return {@code true} if 1 &lt; code class &lt;6 and 0 &lt;= detail &lt;=
+	 *         31.
 	 */
 	public static boolean isResponse(final int code) {
-		return code >= RESPONSE_CODE_LOWER_BOUND &&
-				code <= RESPONSE_CODE_UPPER_BOUND;
+		return code >= RESPONSE_CODE_LOWER_BOUND && code <= RESPONSE_CODE_UPPER_BOUND;
 	}
 
 	/**
@@ -413,8 +421,8 @@ public final class CoAP {
 	}
 
 	/**
-	 * CoAP defines four types of messages:
-	 * Confirmable, Non-confirmable, Acknowledgment, Reset.
+	 * CoAP defines four types of messages: Confirmable, Non-confirmable,
+	 * Acknowledgment, Reset.
 	 */
 	public enum Type {
 
@@ -451,11 +459,16 @@ public final class CoAP {
 		 */
 		public static Type valueOf(final int value) {
 			switch (value) {
-				case 0: return CON;
-				case 1: return NON;
-				case 2: return ACK;
-				case 3: return RST;
-				default: throw new IllegalArgumentException("Unknown CoAP type " + value);
+			case 0:
+				return CON;
+			case 1:
+				return NON;
+			case 2:
+				return ACK;
+			case 3:
+				return RST;
+			default:
+				throw new IllegalArgumentException("Unknown CoAP type " + value);
 			}
 		}
 	}
@@ -497,57 +510,69 @@ public final class CoAP {
 		 *
 		 * @param value the integer value
 		 * @return the request code
-		 * @throws MessageFormatException if the integer value does not represent a valid request code.
+		 * @throws MessageFormatException if the integer value does not
+		 *             represent a valid request code.
 		 */
 		public static CodeClass valueOf(final int value) {
 			switch (value) {
-				case 0: return REQUEST;
-				case 2: return SUCCESS_RESPONSE;
-				case 4: return ERROR_RESPONSE;
-				case 5: return SERVER_ERROR_RESPONSE;
-				case 7: return SIGNAL;
-				default: throw new MessageFormatException(String.format("Unknown CoAP class code: %d", value));
+			case 0:
+				return REQUEST;
+			case 2:
+				return SUCCESS_RESPONSE;
+			case 4:
+				return ERROR_RESPONSE;
+			case 5:
+				return SERVER_ERROR_RESPONSE;
+			case 7:
+				return SIGNAL;
+			default:
+				throw new MessageFormatException(String.format("Unknown CoAP class code: %d", value));
 			}
 		}
 	}
 
 	/**
-	 * The enumeration of request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH, and CUSTOM_30.
+	 * The enumeration of request codes: GET, POST, PUT, DELETE, FETCH, PATCH,
+	 * IPATCH, and CUSTOM_30.
 	 */
 	public enum Code {
 
 		/** The GET code. */
-		GET(1),
+		GET(1, false),
 
 		/** The POST code. */
-		POST(2),
+		POST(2, true),
 
 		/** The PUT code. */
-		PUT(3),
+		PUT(3, true),
 
 		/** The DELETE code. */
-		DELETE(4),
+		DELETE(4, true),
 
 		/** The FETCH code. */
-		FETCH(5),
+		FETCH(5, false),
 
 		/** The PATCH code. */
-		PATCH(6),
+		PATCH(6, true),
 
 		/** The IPATCH code. */
-		IPATCH(7),
+		IPATCH(7, true),
 
 		/**
 		 * The custom code 30.
 		 * 
-		 * Support for openHAB custom CoAP extension, CoIoT, used for shelly binding.
-		 * <a href="https://shelly-api-docs.shelly.cloud/images/CoIoT%20for%20Shelly%20devices%20(rev%201.0)%20.pdf" target="_blank">CoIot Shelly</a>.
+		 * Support for openHAB custom CoAP extension, CoIoT, used for shelly
+		 * binding. <a href=
+		 * "https://shelly-api-docs.shelly.cloud/gen1/docs/coiot/v1/CoIoT%20for%20Shelly%20devices%20(rev%201.0)%20.pdf"
+		 * target="_blank">CoIot Shelly</a>.
 		 * 
-		 * Note: though this code is not assigned by IANA, it may cause future incompatibilities.
-		 * If the IANA assigns this value, this will get replaced!
-		 * <a href="https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes" target="_blank">IANA CoAP Codes</a>.
+		 * Note: though this code is not assigned by IANA, it may cause future
+		 * incompatibilities. If the IANA assigns this value, this will get
+		 * replaced! <a href=
+		 * "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes"
+		 * target="_blank">IANA CoAP Codes</a>.
 		 */
-		CUSTOM_30(30);
+		CUSTOM_30(30, true);
 
 		/** The code value. */
 		public final int value;
@@ -557,14 +582,23 @@ public final class CoAP {
 		 * @since 2.1
 		 */
 		public final String text;
+		/**
+		 * Code represents a writing function.
+		 * 
+		 * @since 4.0
+		 */
+		public final boolean write;
 
 		/**
 		 * Instantiates a new code with the specified code value.
 		 *
 		 * @param value the integer value of the code
+		 * @param write write operation
+		 * @since 4.0 (add parameter write)
 		 */
-		private Code(final int value) {
+		private Code(final int value, final boolean write) {
 			this.value = value;
+			this.write = write;
 			this.text = formatCode(getCodeClass(value), getCodeDetail(value));
 			codeMap.put(text, this);
 		}
@@ -574,24 +608,36 @@ public final class CoAP {
 		 *
 		 * @param value the integer value
 		 * @return the request code
-		 * @throws MessageFormatException if the integer value does not represent a valid request code.
+		 * @throws MessageFormatException if the integer value does not
+		 *             represent a valid request code.
 		 */
 		public static Code valueOf(final int value) {
 			int codeClass = getCodeClass(value);
 			int codeDetail = getCodeDetail(value);
 			if (codeClass > 0) {
-				throw new MessageFormatException(String.format("Not a CoAP request code: %s", formatCode(codeClass, codeDetail)));
+				throw new MessageFormatException(
+						String.format("Not a CoAP request code: %s", formatCode(codeClass, codeDetail)));
 			}
 			switch (codeDetail) {
-				case 1: return GET;
-				case 2: return POST;
-				case 3: return PUT;
-				case 4: return DELETE;
-				case 5: return FETCH;
-				case 6: return PATCH;
-				case 7: return IPATCH;
-				case 30: return CUSTOM_30;
-				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(codeClass, codeDetail)));
+			case 1:
+				return GET;
+			case 2:
+				return POST;
+			case 3:
+				return PUT;
+			case 4:
+				return DELETE;
+			case 5:
+				return FETCH;
+			case 6:
+				return PATCH;
+			case 7:
+				return IPATCH;
+			case 30:
+				return CUSTOM_30;
+			default:
+				throw new MessageFormatException(
+						String.format("Unknown CoAP request code: %s", formatCode(codeClass, codeDetail)));
 			}
 		}
 
@@ -676,7 +722,8 @@ public final class CoAP {
 		/**
 		 * Checks if a response code indicates success.
 		 * 
-		 * @return {@code true} if the given code's class is {@link CodeClass#SUCCESS_RESPONSE}).
+		 * @return {@code true} if the given code's class is
+		 *         {@link CodeClass#SUCCESS_RESPONSE}).
 		 * @since 3.0
 		 */
 		public boolean isSuccess() {
@@ -686,7 +733,8 @@ public final class CoAP {
 		/**
 		 * Checks if a response code indicates a client error.
 		 * 
-		 * @return {@code true} if the given code's class is {@link CodeClass#ERROR_RESPONSE}).
+		 * @return {@code true} if the given code's class is
+		 *         {@link CodeClass#ERROR_RESPONSE}).
 		 * @since 3.0
 		 */
 		public boolean isClientError() {
@@ -696,7 +744,8 @@ public final class CoAP {
 		/**
 		 * Checks if a response code indicates a server error.
 		 * 
-		 * @return {@code true} if the given code's class is {@link CodeClass#SERVER_ERROR_RESPONSE}).
+		 * @return {@code true} if the given code's class is
+		 *         {@link CodeClass#SERVER_ERROR_RESPONSE}).
 		 * @since 3.0
 		 */
 		public boolean isServerError() {
@@ -708,7 +757,8 @@ public final class CoAP {
 		 *
 		 * @param value the value
 		 * @return the response code
-		 * @throws MessageFormatException if the value does not represent a valid response code.
+		 * @throws MessageFormatException if the value does not represent a
+		 *             valid response code.
 		 */
 		public static ResponseCode valueOf(final int value) {
 			int codeClass = getCodeClass(value);
@@ -721,7 +771,8 @@ public final class CoAP {
 			case 5:
 				return valueOfServerErrorCode(codeDetail);
 			default:
-				throw new MessageFormatException(String.format("Not a CoAP response code: %s", formatCode(codeClass, codeDetail)));
+				throw new MessageFormatException(
+						String.format("Not a CoAP response code: %s", formatCode(codeClass, codeDetail)));
 			}
 		}
 
@@ -738,47 +789,73 @@ public final class CoAP {
 		}
 
 		private static ResponseCode valueOfSuccessCode(final int codeDetail) {
-			switch(codeDetail) {
-			case 1: return CREATED;
-			case 2: return DELETED;
-			case 3: return VALID;
-			case 4: return CHANGED;
-			case 5: return CONTENT;
-			case 31: return CONTINUE;
+			switch (codeDetail) {
+			case 1:
+				return CREATED;
+			case 2:
+				return DELETED;
+			case 3:
+				return VALID;
+			case 4:
+				return CHANGED;
+			case 5:
+				return CONTENT;
+			case 31:
+				return CONTINUE;
 			default:
 				return _UNKNOWN_SUCCESS_CODE;
 			}
 		}
 
 		private static ResponseCode valueOfClientErrorCode(final int codeDetail) {
-			switch(codeDetail) {
-			case 0: return BAD_REQUEST;
-			case 1: return UNAUTHORIZED;
-			case 2: return BAD_OPTION;
-			case 3: return FORBIDDEN;
-			case 4: return NOT_FOUND;
-			case 5: return METHOD_NOT_ALLOWED;
-			case 6: return NOT_ACCEPTABLE;
-			case 8: return REQUEST_ENTITY_INCOMPLETE;
-			case 9: return CONFLICT;
-			case 12: return PRECONDITION_FAILED;
-			case 13: return REQUEST_ENTITY_TOO_LARGE;
-			case 15: return UNSUPPORTED_CONTENT_FORMAT;
-			case 22: return UNPROCESSABLE_ENTITY;
-			case 29: return TOO_MANY_REQUESTS;
+			switch (codeDetail) {
+			case 0:
+				return BAD_REQUEST;
+			case 1:
+				return UNAUTHORIZED;
+			case 2:
+				return BAD_OPTION;
+			case 3:
+				return FORBIDDEN;
+			case 4:
+				return NOT_FOUND;
+			case 5:
+				return METHOD_NOT_ALLOWED;
+			case 6:
+				return NOT_ACCEPTABLE;
+			case 8:
+				return REQUEST_ENTITY_INCOMPLETE;
+			case 9:
+				return CONFLICT;
+			case 12:
+				return PRECONDITION_FAILED;
+			case 13:
+				return REQUEST_ENTITY_TOO_LARGE;
+			case 15:
+				return UNSUPPORTED_CONTENT_FORMAT;
+			case 22:
+				return UNPROCESSABLE_ENTITY;
+			case 29:
+				return TOO_MANY_REQUESTS;
 			default:
 				return BAD_REQUEST;
 			}
 		}
 
 		private static ResponseCode valueOfServerErrorCode(final int codeDetail) {
-			switch(codeDetail) {
-			case 0: return INTERNAL_SERVER_ERROR;
-			case 1: return NOT_IMPLEMENTED;
-			case 2: return BAD_GATEWAY;
-			case 3: return SERVICE_UNAVAILABLE;
-			case 4: return GATEWAY_TIMEOUT;
-			case 5: return PROXY_NOT_SUPPORTED;
+			switch (codeDetail) {
+			case 0:
+				return INTERNAL_SERVER_ERROR;
+			case 1:
+				return NOT_IMPLEMENTED;
+			case 2:
+				return BAD_GATEWAY;
+			case 3:
+				return SERVICE_UNAVAILABLE;
+			case 4:
+				return GATEWAY_TIMEOUT;
+			case 5:
+				return PROXY_NOT_SUPPORTED;
 			default:
 				return INTERNAL_SERVER_ERROR;
 			}
@@ -807,7 +884,10 @@ public final class CoAP {
 		/** number of bits used for the encoding of the token length field. */
 		public static final int TOKEN_LENGTH_BITS = 4;
 
-		/** number of bits used for the encoding of the request method/response code field. */
+		/**
+		 * number of bits used for the encoding of the request method/response
+		 * code field.
+		 */
 		public static final int CODE_BITS = 8;
 
 		/** number of bits used for the encoding of the message ID. */
@@ -819,7 +899,10 @@ public final class CoAP {
 		/** number of bits used for the encoding of the option delta field. */
 		public static final int OPTION_LENGTH_BITS = 4;
 
-		/** One byte which indicates indicates the end of options and the start of the payload. */
+		/**
+		 * One byte which indicates indicates the end of options and the start
+		 * of the payload.
+		 */
 		public static final byte PAYLOAD_MARKER = (byte) 0xFF;
 
 		/** CoAP version supported by this Californium version. */
