@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 2 0.25.0, 29. October 2024";
+const version = "Version 2 0.26.0, 18. November 2024";
 
 let timeShift = 0;
 
@@ -684,33 +684,47 @@ const regexTimeHeader = new RegExp("^" + timeRegexText);
 
 const regexDateEnding = /-([0-9]{2,4}-[0-1][0-9]-[0-3][0-9])(Z|\+[0-9]+)?$/;
 
+/*
+ * sides: array with values, 0:= not displayed, 1 := left, 2 := right
+ * sides[0] : default
+ * sides[1] : signals
+ * sides[2] : sensors
+ * sides[3] : both
+ */
 class ChartConfig {
-	constructor(regex, units, color, min, max, scale = 1) {
+	constructor(regex, units, color, min, max, sides, scale = 1, text) {
 		this.regex = regex;
 		this.units = units;
 		this.color = color;
 		this.min = min;
 		this.max = max;
+		this.sides = sides;
 		this.scale = scale;
+		this.text = text;
+	}
+
+	side(index) {
+		return this.sides ? this.sides[index] : 0;
 	}
 }
 
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, 1000),
-	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75),
-	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15),
-	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400),
-	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, 1000),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, [1, 1, 0, 1], 1000),
+	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100, [1, 1, 0, 1]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40, [2, 0, 1, 2]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80, [2, 0, 1, 2]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100, [2, 0, 1, 2]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500, [1, 0, 2, 2]),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75, [0, 2, 0, 1]),
+	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15, [0, 2, 0, 1]),
+	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400, [1, 1, 0, 1]),
+	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400, [0, 1, 0, 1]),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50, [2, 0, 2, 2]),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50, [2, 0, 2, 2]),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, [2, 0, 2, 2], 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, [0, 1, 0, 1], 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, [2, 2, 0, 1], 1000),
+	new ChartConfig(null, "°C dp", "steelblue", 10, 40, [0, 0, 2, 0], 1, "dew point"),
 ];
 
 function getChartConfigIndex(units) {
@@ -782,8 +796,13 @@ class Earfcn {
 	}
 
 	calculateFrequnecy(earfcn) {
-		if (this.in(earfcn)) {
-			return this.frequence + 0.1 * (earfcn - this.start);
+		if (earfcn) {
+			if (this.in(earfcn)) {
+				return this.frequence + 0.1 * (earfcn - this.start);
+			}
+		} else {
+			// middle of band
+			return this.frequence + 0.1 * (this.end - this.start) / 2;
 		}
 		return undefined;
 	}
@@ -827,7 +846,7 @@ function earfcn2frequency(band, earfcn) {
 		if (calc) {
 			return calc.calculateFrequnecy(earfcn);
 		}
-	} else {
+	} else if (earfcn) {
 		const calc = earfcnTab.find((e) => e.in(earfcn));
 		if (calc) {
 			return calc.calculateFrequnecy(earfcn);
@@ -843,6 +862,22 @@ function frequency2wavelength(f) {
 		return radioSpeed / (f * 10000);
 	}
 	return undefined;
+}
+
+function round2digits(n) {
+	return Math.round(n * 100) / 100;
+}
+
+// dew point calculation, source: www.wetterochs.de
+
+function calcSaturationSteamPressure(temperature, a = temperature >= 0 ? 7.5 : 7.6, b = temperature >= 0 ? 237.3 : 240.7) {
+	return 6.1078 * Math.exp(((a * temperature) / (b + temperature)) / Math.LOG10E);
+}
+
+function calcDewPoint(temperature, humidity, a = temperature >= 0 ? 7.5 : 7.6, b = temperature >= 0 ? 237.3 : 240.7) {
+	const steamPressure = calcSaturationSteamPressure(temperature, a, b);
+	const value = Math.log10((humidity / 100 * steamPressure) / 6.1078);
+	return round2digits((b * value) / (a - value));
 }
 
 class DeviceMessage {
@@ -873,16 +908,23 @@ class DeviceMessage {
 		return value != null && value != 0 && value != -0.6;
 	}
 
-	static volIndex = getChartConfigIndex("mV");
+	static isScaleValue(value) {
+		return value != null && -10 < value && value < 250;
+	}
+
 	static levelIndex = getChartConfigIndex("%");
 	static tempIndex = getChartConfigIndex("°C");
 	static humIndex = getChartConfigIndex("%H");
 	static presIndex = getChartConfigIndex("hPa");
+	static dewPointIndex = getChartConfigIndex("°C dp");
+
+	static scaleAIndex = getChartConfigIndex("kg A");
+	static scaleBIndex = getChartConfigIndex("kg B");
 
 	static parseValueSet(line, values) {
 		let foundValues = 0;
 		for (let i = 0; i < chartConfig.length; ++i) {
-			if (values[i] == undefined) {
+			if (values[i] == undefined && chartConfig[i].regex) {
 				const found = line.match(chartConfig[i].regex);
 				if (found && found.length > 1) {
 					const n = conv(found[1]);
@@ -905,30 +947,49 @@ class DeviceMessage {
 	}
 
 	static checkSensors(line) {
+		let removed = 0;
+		let temp = null;
+		let hum = null;
 		let sensors = 0;
 
 		if (DeviceMessage.isValue(line[DeviceMessage.humIndex])) {
 			++sensors;
+			hum = line[DeviceMessage.humIndex];
 		}
 		if (DeviceMessage.isValue(line[DeviceMessage.presIndex])) {
 			++sensors;
 		}
 		if (DeviceMessage.isTempValue(line[DeviceMessage.tempIndex])) {
 			++sensors;
+			temp = line[DeviceMessage.tempIndex];
 		}
 		if (sensors == 0) {
 			if (DeviceMessage.removeSensor(line, DeviceMessage.humIndex)) {
-				++sensors;
+				++removed;
 			}
 			if (DeviceMessage.removeSensor(line, DeviceMessage.presIndex)) {
-				++sensors;
+				++removed;
 			}
 			if (DeviceMessage.removeSensor(line, DeviceMessage.tempIndex)) {
-				++sensors;
+				++removed;
 			}
-			return sensors;
 		}
-		return 0;
+		if (temp != null && hum != null) {
+			line[DeviceMessage.dewPointIndex] = calcDewPoint(temp, hum);
+		}
+
+		if (!DeviceMessage.isScaleValue(line[DeviceMessage.scaleAIndex])) {
+			if (DeviceMessage.removeSensor(line, DeviceMessage.scaleAIndex)) {
+				++removed;
+			}
+		}
+		if (!DeviceMessage.isScaleValue(line[DeviceMessage.scaleBIndex])) {
+			if (DeviceMessage.removeSensor(line, DeviceMessage.scaleBIndex)) {
+				++removed;
+			}
+		}
+
+		return removed;
 	}
 
 	static createMessage(msgKey, download) {
@@ -2170,6 +2231,7 @@ class UiChart {
 				addChartConfigValue(display, values, "°C");
 				addChartConfigValue(display, values, "%H");
 				addChartConfigValue(display, values, "hPa");
+				addChartConfigValue(display, values, "°C dp");
 				addChartConfigValue(display, values, "kg A");
 				addChartConfigValue(display, values, "kg B");
 				addChartConfigValue(display, values, "mV Ext.");
@@ -2291,11 +2353,11 @@ class UiChart {
 			let threshold = Math.min(delta11, delta10) * 8;
 			if (deltaStart < threshold && deltaEnd < threshold) {
 				/* align weights */
-				console.log("Align " + cha + "/" + chb + ": " + threshold + ": " + deltaStart + ", " + deltaEnd);
+				console.log("Align " + cha + "/" + chb + ": " + threshold + ": " + deltaStart + " ... " + deltaEnd);
 				starts[a] = (starts[b] = Math.min(starts[a], starts[b]));
 				ends[a] = (ends[b] = Math.max(ends[a], ends[b]));
 			} else {
-				console.log("No Align " + cha + "/" + chb + ": " + threshold + ": " + deltaStart + ", " + deltaEnd);
+				console.log("No Align " + cha + "/" + chb + ": " + threshold + ": " + deltaStart + " ... " + deltaEnd);
 			}
 		} else {
 			console.log("No Align " + cha + "/" + chb);
@@ -2446,6 +2508,7 @@ class UiChart {
 
 		this.alignChannels("mAs", "mAs0", starts, ends);
 		this.alignChannels("kg A", "kg B", starts, ends);
+		this.alignChannels("°C", "°C dp", starts, ends);
 
 		if (this.zoom) {
 			for (let i = 1; i < numberOfSensors; ++i) {
@@ -2515,43 +2578,66 @@ class UiChart {
 		const gw = Math.round(cw / cols);
 		const gh = gw;
 		/* [0] total number, [1] current index */
-		const left = [0, 0];
-		const right = [0, 0];
-		let s = null
-		// ["ms", "mV", "%", "C", "%H", "hPa", "IAQ", dBm", "dB", "mAs", "mAs", "kg A", "kg B", "mV Ext.", "RETRANS", "ms"];
-		if (this.signals && this.sensors) {
-			s = [null, left, left, right, right, right, right, left, left, left, left, right, right, right, left, left];
-		} else if (this.signals) {
-			s = [null, left, left, null, null, null, null, right, right, left, left, null, null, null, left, right];
-		} else if (this.sensors) {
-			s = [null, null, null, left, left, left, right, null, null, null, null, right, right, right, null, null];
-		} else {
-			s = [null, left, left, right, right, right, left, null, null, left, null, right, right, right, null, right];
-		}
-		const side = s;
+		const left = [0, 0, []];
+		const right = [0, 0, []];
+
+		const sideIndex = (this.signals ? 1 : 0) + (this.sensors ? 2 : 0);
+		const tab = [null, left, right];
 
 		const statusTime = dev.statusMessage.time;
 		const statusDateTime = new Date(statusTime).toUTCString();
 		const interval = dev.lastInterval ? `Interval: ${dev.lastInterval}` : "";
+		for (let i = 1; i < dev.paths.length; ++i) {
+			if (dev.paths[i].length > 0) {
+				const cfg = chartConfig[i - 1];
+				const side = tab[cfg.side(sideIndex)];
+				if (side) {
+					side[0]++;
+					if (cfg.text) {
+						side[2].push(cfg);
+					}
+				}
+			}
+		}
+
 		let page =
 			`<tr><td colspan='4'>${statusDateTime}</td><td>${interval}</td></tr>
 <tr><td><input type='checkbox' id='cbsignals' onClick='ui.onClick("signals", false)' ${this.signals ? 'checked' : ''}><label for='cbsignals'>Signals</label></td>
 <td><input type='checkbox' id='cbsensors' onClick='ui.onClick("sensors", false)' ${this.sensors ? 'checked' : ''}><label for='cbsensors'>Sensors</label></td>
 <td><input type='checkbox' id='cbrange1' onClick='ui.onClick("average", true)' ${this.average ? 'checked' : ''}><label for='cbrange1'>Average</label></td>
 <td><input type='checkbox' id='cbrange2' onClick='ui.onClick("minmax", true)' ${this.minmax ? 'checked' : ''}><label for='cbrange2'>Min/Max</label></td>
-<td><input type='checkbox' id='cbzoom' onClick='ui.onClick("zoom", true)' ${this.zoom ? 'checked' : ''}><label for='cbzomm'>Zoom</label></td></tr>
+<td><input type='checkbox' id='cbzoom' onClick='ui.onClick("zoom", true)' ${this.zoom ? 'checked' : ''}><label for='cbzomm'>Zoom</label></td></tr>`;
 
-<tr><td colspan='5'><svg id='devicechart' x='0' y='0' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>
+		const descriptions = left[2].length + right[2].length;
+		page += `<tr>`;
+		if (descriptions > 0) {
+			if (left[2].length > 0) {
+				const cols = descriptions > 5 ? 5 : left[2].length;
+				page += `<td colspan='${cols}' align='left'>`;
+				left[2].forEach((cfg) => page += this.textSpan(cfg));
+				page += `</td>`;
+				if (right[2].length > 0 && descriptions > 5) {
+					page += `</tr><tr>`;
+				}
+			}
+			if (right[2].length > 0) {
+				const cols = descriptions > 5 ? 5 : 5 - left[2].length;
+				page += `<td colspan='${cols}' align='right'>`;
+				right[2].forEach((cfg) => page += this.textSpan(cfg));
+				page += `</td>`;
+			}
+		} else {
+			page += `<td>&nbsp;</td>`;
+		}
+		page += `</tr>`;
+
+		page +=
+			`<tr><td colspan='5'><svg id='devicechart' x='0' y='0' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>
 <desc>Device Charts</desc>
 <defs><pattern id='grid' patternUnits='userSpaceOnUse' x='${x + dev.offsetX}' y='${y}' width='${gw}' height='${gh}'>
 <path d='M0,0 v${gw} h${gh}' stroke='lightgrey' fill='none'></path></pattern></defs>
 <rect id='chart' x='${x}' y='${y}' width='${cw}' height='${ch}' fill='url(#grid)' stroke='grey'></rect>\n`;
 
-		for (let i = 1; i < dev.paths.length; ++i) {
-			if (dev.paths[i].length > 0 && side[i] != null) {
-				side[i][0]++;
-			}
-		}
 		if (this.center) {
 			const cx = Math.round((statusTime - dev.starts[0]) * cw / (dev.ends[0] - dev.starts[0]) + x);
 			page += this.centerMark(cx, y, ch);
@@ -2559,55 +2645,51 @@ class UiChart {
 		let cha = 0;
 		let chaColor = "";
 		for (let i = 1; i < dev.paths.length; ++i) {
-			if (dev.paths[i].length > 0 && side[i] != null) {
+			if (dev.paths[i].length > 0) {
 				const cfg = chartConfig[i - 1];
-				const color = cfg.color;
-				if (cfg.units == "kg A") {
-					cha = i;
-					chaColor = color;
-				}
-				page += `<path d='${dev.paths[i]}' fill='transparent' stroke='${color}'></path>\n`;
-				if (cha && cfg.units == "kg B") {
-					// cha with dashs over chb
-					page += `<path d='${dev.paths[cha]}' fill='transparent' stroke='${chaColor}' stroke-dasharray='2'></path>\n`;
-				}
-				const d = (dev.ends[i] - dev.starts[i]);
-				const labels = side[i][0];
-				const labelIndex = ++side[i][1];
-				if (cfg.scale) {
-					const hl = (labels == 1) ? gh / 2 : (labels > 3) ? gh * 2 : gh;
-					let yn = labelIndex * (hl / labels);
-					function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]) / cfg.scale; };
-					let digits = dev.starts[i] >= 100 ? 0 : 1;
-					if (d > 0) {
-						const diffDigits = Math.ceil(-Math.log10(d / cfg.scale)) + 1;
-						digits = Math.max(digits, isFinite(diffDigits) ? diffDigits : 0);
+				const side = tab[cfg.side(sideIndex)];
+				if (side) {
+					const color = cfg.color;
+					if (cfg.units == "kg A") {
+						cha = i;
+						chaColor = color;
 					}
-					const u = cfg.scale == 1000 ? strip(cfg.units, "m") : cfg.units;
-					for (; yn < ch; yn += hl) {
-						let value = calc(yn);
-						value = value.toFixed(digits);
-						const v = value + " " + u;
-						const l = side[i] == left;
-						page += this.scala(l, color, l ? x : x + cw, l ? 0 : w, yn, v)
+					page += `<path d='${dev.paths[i]}' fill='transparent' stroke='${color}'></path>\n`;
+					if (cha && cfg.units == "kg B") {
+						// cha with dashs over chb
+						page += `<path d='${dev.paths[cha]}' fill='transparent' stroke='${chaColor}' stroke-dasharray='2'></path>\n`;
 					}
-				} else {
-					//					transform = function(x) { return (y + ch) - Math.round((x - dev.starts[i]) * ch / d); };
-
-					const hl = ch / d;
-					let yn = hl;
-					function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]); };
-					const u = cfg.units;
-					for (; yn < ch; yn += hl) {
-						let value = calc(yn);
-						value = value.toFixed(0);
-						const v = value + " " + u;
-						if (side[i] == left) {
-							page += `<text x='0' y='${yn}' fill='${color}' dominant-baseline='middle'>${v}</text>\n`;
-							page += `<path d='M ${x - 5},${yn} l 5,0' stroke='${color}'></path>\n`;
-						} else {
-							page += `<text x='${w}' y='${yn}' fill='${color}' dominant-baseline='middle' text-anchor='end'>${v}</text>\n`;
-							page += `<path d='M ${x + cw + 5},${yn} l -5,0' stroke='${color}'></path>\n`;
+					const d = (dev.ends[i] - dev.starts[i]);
+					const labels = side[0];
+					const labelIndex = ++side[1];
+					if (cfg.scale) {
+						const hl = (labels == 1) ? gh / 2 : (labels > 3) ? gh * 2 : gh;
+						let yn = labelIndex * (hl / labels);
+						function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]) / cfg.scale; };
+						let digits = dev.starts[i] >= 100 ? 0 : 1;
+						if (d > 0) {
+							const diffDigits = Math.ceil(-Math.log10(d / cfg.scale)) + 1;
+							digits = Math.max(digits, isFinite(diffDigits) ? diffDigits : 0);
+						}
+						const u = cfg.scale == 1000 ? strip(cfg.units, "m") : cfg.units;
+						for (; yn < ch; yn += hl) {
+							let value = calc(yn);
+							value = value.toFixed(digits);
+							const v = value + " " + u;
+							const l = side == left;
+							page += this.scala(l, color, l ? x : x + cw, l ? 0 : w, yn, v)
+						}
+					} else {
+						const hl = ch / d;
+						let yn = hl;
+						function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]); };
+						const u = cfg.units;
+						for (; yn < ch; yn += hl) {
+							let value = calc(yn);
+							value = value.toFixed(0);
+							const v = value + " " + u;
+							const l = side == left;
+							page += this.scala(l, color, l ? x : x + cw, l ? 0 : w, yn, v)
 						}
 					}
 				}
@@ -2646,9 +2728,14 @@ class UiChart {
 
 	scala(left, color, xm, xv, y, v) {
 		const a = left ? "" : " text-anchor='end'";
+		const s = left ? "-" : "";
 		return `
-	<path d='M ${xm},${y} l 5,0' stroke='${color}'></path>
+	<path d='M ${xm},${y} l ${s}5,0' stroke='${color}'></path>
 	<text x='${xv}' y='${y}' fill='${color}' dominant-baseline='middle'${a}>${v}</text>\n`;
+	}
+
+	textSpan(cfg) {
+		return `<span style='color:${cfg.color}'>${cfg.units} ${cfg.text}</span>&nbsp;`;
 	}
 
 	mark(dateTimeMillis, x, y) {
@@ -3648,19 +3735,17 @@ class UiManager {
 					const mode = network.mode ?? "";
 					const type = network.type ?? "";
 					const band = network.band ?? "";
-					const earfcn = network.earfcn ?? "";
+					const earfcn = network.earfcn > 0 ? network.earfcn : "";
 					const plmn = network.plmn ?? "";
 					const tac = this.form(network.tac);
 					const cell = this.form(network.cell);
 					let freq = "";
-					if (network.earfcn) {
-						const f = earfcn2frequency(network.band, network.earfcn);
-						if (f) {
-							freq = f + " MHz";
-							const l = frequency2wavelength(f);
-							if (l) {
-								freq += " / " + (l / 4).toFixed(1) + " cm &#x3BB;/4";
-							}
+					const f = earfcn2frequency(network.band, network.earfcn);
+					if (f) {
+						freq = f + " MHz";
+						const l = frequency2wavelength(f);
+						if (l) {
+							freq += " / " + (l / 4).toFixed(1) + " cm &#x3BB;/4";
 						}
 					}
 					page +=
