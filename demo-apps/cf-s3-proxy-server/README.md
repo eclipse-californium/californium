@@ -108,18 +108,21 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [--config-file-password64=<password64>]]
                      [--http-forward=<httpForward>
                      [--http-authentication=<httpAuthentication>]
-                     [--http-device-identity-mode=<httpDeviceIdentityMode>]]])
+                     [--http-device-identity-mode=<httpDeviceIdentityMode>]
+                     [--http-response-filter=<httpResponseFilter>]
+                     [--http-service-name=<httpServiceName>]]])
                      [[--https-port=<port>] --https-credentials=<credentials>
                      [--https-password64=<password64>]
                      [--spa-script=<singlePageApplicationScript>]
                      [--spa-css=<singlePageApplicationCss>] [--spa-reload]
                      [--spa-s3]
-                     [--spa-script-v2=<singlePageApplicationScriptV2>]]
+                     [--spa-script-v2=<singlePageApplicationScriptV2>]
+                     [--spa-script-v1=<singlePageApplicationScriptV1>]]
       --coaps-credentials=<credentials>
                              Folder containing coaps credentials in 'privkey.
                                pem' and 'pubkey.pem'
       --coaps-password64=<password64>
-                             Password for device store. Base 64 encoded.
+                             Password for coaps credentials. Base 64 encoded.
       --config-file=<file>   Filename of configs-store.
       --config-file-password64=<password64>
                              Password for configs-store. Base 64 encoded.
@@ -134,14 +137,20 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
       --http-authentication=<httpAuthentication>
                              Http authentication for forward device data
                                (coap-requests). Supports 'Bearer
-                               <access-token>', 'PreBasic <username:password'
-                               and '<username:password>'
+                               <access-token>', 'Header <name:value>',
+                               'PreBasic <username:password' and '<username:
+                               password>'
       --http-device-identity-mode=<httpDeviceIdentityMode>
                              Http device identity mode for forwarding device
                                data (coap-requests) . Supported values: NONE,
                                HEADLINE and QUERY_PARAMETER. Default: NONE
       --http-forward=<httpForward>
                              Http destination to forward device data
+                               (coap-requests).
+      --http-response-filter=<httpResponseFilter>
+                             Regular expression to filter http response payload.
+      --http-service-name=<httpServiceName>
+                             Name of java-service to forward device data
                                (coap-requests).
       --https-credentials=<credentials>
                              Folder containing https credentials in 'privkey.
@@ -189,7 +198,10 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                                ccs from S3.
       --spa-script=<singlePageApplicationScript>
                              Single-Page-Application script. See applied search
-                               path below. Default app.js
+                               path below. Default appv2.js
+      --spa-script-v1=<singlePageApplicationScriptV1>
+                             Single-Page-Application script v1. See applied
+                               search path below.
       --spa-script-v2=<singlePageApplicationScriptV2>
                              Single-Page-Application script v2. See applied
                                search path below.
@@ -231,13 +243,16 @@ Examples:
      Devices/sessions with no exchange for more then a week
      (168 hours) are skipped when saving.)
 
-For device data forwarding via http currently three variants for the
+For device data forwarding via http currently four variants for the
   '--http-authentication' are supported: 'Bearer <token>',
-  'PreBasic <username>:<password>', or '<username>:<password>'.
-  The 'Bearer' and 'PreBasic' authentication data will be send
-  without challenge from the server. The '<username>:<password>'
-  variant will be used on challenge by the server and supports
-  BASIC and DIGEST.
+  'Header <name>:<value>', 'PreBasic <username>:<password>' or
+  '<username>:<password>'. The 'Bearer', 'Header' and 'PreBasic'
+  authentication data will be send without challenge from the server.
+  The '<username>:<password>' variant will be used on challenge by
+  server and supports BASIC and DIGEST.
+  The response filter is a regular expression. If that matches, the
+  response payload is dropped and not forwarded to the device. If
+  no filter is given, all response payloads are dropped.
 
 Search path for '--spa-css', '--spa-script', and '--spa-script-v2':
   If the provided path starts with 'http:' or 'https:' then the path
@@ -306,6 +321,24 @@ USER_CREDENTIALS_RELOAD_INTERVAL=30[s]
 ## Device Credentials
 
 Please see [Californium (Cf) - Cloud Demo Server - Device Credentials](../cf-cloud-demo-server#device-credentials).
+
+If [HTTP Forwarding](#http-forwarding) is used, additional fields are available:
+
+```
+# Device store for Cloud Demo
+
+Demo.10034780012=Thing
+.label=My Demo Weatherstation
+# default openssl PSK credentials
+.psk='Client_identity',c2VjcmV0UFNL
+# Californium demo-client RPK certificate
+.rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQxYO5/M5ie6+3QPOaAy5MD6CkFILZwIb2rOBCX/EWPaocX1H+eynUnaEEbmqxeN6rnI/pH19j4PtsegfHLrzzQ==
+.fdest=https://api.tago.io/data
+.fauth=Header device-token: ????????-????-????-????-????????????
+.fresp=.*"status":\s*true,.*
+```
+
+See [HTTP Forwarding](#http-forwarding) below for more details.
 
 ## Web Application User
 
@@ -475,14 +508,24 @@ Though the Web App is only a verify simple and limited application, it's possibl
 
 This feature is currently in a early stage and just demonstrates, that it is possible to forward the device data via http.
 
-To use it, provide the destination with `--http-forward=<httpForward>`. If that destination API requires authentication, `--http-authentication` supports either `Bearer <token>`, `PreBasic <username>:<password>` or `<username>:<password>`. `Bearer` and `PreBasic` will send the credentials without challenge from the server, plain `<username>:<password>` will send the credentials as response to such a server challenge, supporting `BASIC` and `DIGEST` authentication. For now, it is only possible to authenticate the proxy itself (sometimes called "gateway mode"), but not the individual devices. Finally, if the payload doesn't contain the device identity, then it is possible to add that to the forwarded request either as new headline in the payload, or as additional query-parameter "id=<device-id>". That is selected with `--http-device-identity-mode`.
+To use it, provide the destination with `--http-forward=<httpForward>`. If that destination API requires authentication, `--http-authentication` supports either `Bearer <token>`, `Header <name>:<value>`, `PreBasic <username>:<password>` or `<username>:<password>`. `Bearer`, `Header` and `PreBasic` will send the credentials without challenge from the server, plain `<username>:<password>` will send the credentials as response to such a server challenge, supporting `BASIC` and `DIGEST` authentication.
+
+If the payload doesn't contain the device identity, it is possible to add that to the forwarded request either as new headline in the payload, or as additional query-parameter "id=<device-id>". That is selected with `--http-device-identity-mode`.
+
+If in some cases the http-response payload should be forwarded back to device, then `--http-response-filter` must be used. That is a `regular expression`, if that matches, the http-response payload is dropped.
+
+Alternatively use either the [domain configuration](#using-multiple-s3-buckets-for-multiple-domains) or the [device specific](#device-credentials) configuration. If a device specific configuration and also either the domain-configuraiton or cli arguments are used, the device specific value have precedence over the general ones.
+
 
 ```sh
 java -jar cf-s3-proxy-server-4.0.0-SNAPSHOT.jar ... \
    --http-destination https://<my-server>/coap-devices \
    --http-authentication proxy:<password> \
    --http-device-identity-mode QUERY_PARAMETER
+   --http-response-filter '.*"status":\s*true,.*'
 ```
+
+**Note:** some of the special characters of the regular expression must be escaped from being interpreted by the shell. Therefore try to use single quotes to enclose them.
 
 Each device then decides in its request, if that request is intended to be forwarded by adding the query option "forward". 
 
@@ -616,13 +659,17 @@ config_store = configs.txt
 user_store = users.txt
 ```
 
-The data-section configures the S3-bucket the device data is forwarded to. It's also possible to host javascript- and css-files of the web application there using a `[web]` section, which defines the domain for that web resources. The management-section contains the file- or resource-names for the devices-definitions, the web-application-users and the web-application-configurations. It may also contain a S3 bucket definition. Without a S3 bucket definition in the management-section, the management files are read from the file-system instead of S3. Additionally the destination of the CoAP-2-HTTP cross proxy and the authentication credentials for that are provided in the management-section by the values of `http_forward` and `http_authentication`.
+The data-section configures the S3-bucket the device data is forwarded to. It's also possible to host javascript- and css-files of the web application there using a `[web]` section, which defines the domain for that web resources. The management-section contains the file- or resource-names for the devices-definitions, the web-application-users and the web-application-configurations. It may also contain a S3 bucket definition. Without a S3 bucket definition in the management-section, the management files are read from the file-system instead of S3. Additionally a http forwarding destination of the CoAP-2-HTTP cross proxy and the authentication credentials for that are provided in the management-section by the values of `http_forward` and `http_authentication`, along with `http_device_identity_mode`, `http_response_filter`, and `http_service_name`.
 
 ```
 http_forward = https://<destination>
 http_authentication = Bearer <token>
-# or
-http_authentication = <username>:<password>
+                    = Header <name>:<value>
+                    = PreBasic <username>:<password>
+                    = <username>:<password>
+http_device_identity_mode = NONE|HEADLINE|QUERY_PARAMETER
+http_response_filter =  <regex response filter>
+http_service_name = <java http-forwarding service>
 ```
 
 If `auto-provisioning` is enabled and a domain contains `auto-provisioning` credentials, then you may enable replacing previous device credentials entries with new entries. Add therefore `devices_replaced = true`, but only for development. Don't use that in production!

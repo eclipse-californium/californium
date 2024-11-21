@@ -32,6 +32,7 @@ import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.Message;
 import org.apache.hc.core5.http.ProtocolException;
+import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.StatusLine;
 import org.apache.hc.core5.http.nio.support.BasicResponseConsumer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -58,6 +59,7 @@ public class Coap2HttpProxy {
 
 	private static final String AUTH_BEARER = "Bearer ";
 	private static final String AUTH_PREEMPTIVE_BASIC = "PreBasic ";
+	private static final String AUTH_HEADER = "Header ";
 
 	/**
 	 * DefaultHttpClient is thread safe. It is recommended that the same
@@ -83,7 +85,7 @@ public class Coap2HttpProxy {
 	}
 
 	/**
-	 * Parse credentials from authentication.
+	 * Parses credentials from authentication.
 	 * 
 	 * @param authentication authentication as string. Expects
 	 *            {@code <username>:<password>}
@@ -99,6 +101,25 @@ public class Coap2HttpProxy {
 			pw = Arrays.copyOfRange(pw, index + 1, pw.length);
 
 			return new UsernamePasswordCredentials(authentication.substring(offset, index).trim(), pw);
+		}
+		return null;
+	}
+
+	/**
+	 * Parses http-header from authentication.
+	 * 
+	 * @param authentication authentication as string. Expects
+	 *            {@code <name>:<value>}
+	 * @param offset offset to parse the credentials.
+	 * @return Header on success, {@code null}, if parsing fails.
+	 * @since 4.0
+	 */
+	private Header parseHeader(String authentication, int offset) {
+		int index = authentication.indexOf(':', offset);
+		if (index > 0) {
+			String name = authentication.substring(offset, index).trim();
+			String value = authentication.substring(index + 1);
+			return new BasicHeader(name, value);
 		}
 		return null;
 	}
@@ -121,11 +142,15 @@ public class Coap2HttpProxy {
 	 * 
 	 * <dl>
 	 * <dt>Bearer {@code <access-token>}</dt>
-	 * <dd>adds the {@code <access-token>} preemptive to the reqeust's headers</dd>
+	 * <dd>adds the {@code <access-token>} preemptive to the request's
+	 * headers</dd>
 	 * <dt>PreBasic {@code <username:password>}</dt>
 	 * <dd>Uses BASIC authentication preemptive</dd>
+	 * <dt>Header {@code <name:value>}</dt>
+	 * <dd>Uses a header with name-value pair</dd>
 	 * <dt>{@code <username:password>}</dt>
-	 * <dd>Prepares to respond to a {@code WWW-Authenticate} challenge from the server.</dd>
+	 * <dd>Prepares to respond to a {@code WWW-Authenticate} challenge from the
+	 * server.</dd>
 	 * </dl>
 	 * 
 	 * @param destination http destination
@@ -137,10 +162,11 @@ public class Coap2HttpProxy {
 			final Consumer<Response> onResponse) {
 
 		HttpClientContext context = null;
+		Header extra = null;
 
 		if (authentication != null) {
 			if (authentication.regionMatches(true, 0, AUTH_BEARER, 0, AUTH_BEARER.length())) {
-				// pass to translator
+				extra = new BasicHeader(HttpHeaders.AUTHORIZATION, authentication);
 			} else if (authentication.regionMatches(true, 0, AUTH_PREEMPTIVE_BASIC, 0,
 					AUTH_PREEMPTIVE_BASIC.length())) {
 				UsernamePasswordCredentials credentials = parseCredentials(authentication,
@@ -149,7 +175,8 @@ public class Coap2HttpProxy {
 					context = ContextBuilder.create().preemptiveBasicAuth(getTargetHost(destination), credentials)
 							.build();
 				}
-				authentication = null;
+			} else if (authentication.regionMatches(true, 0, AUTH_HEADER, 0, AUTH_HEADER.length())) {
+				extra = parseHeader(authentication, AUTH_HEADER.length());
 			} else {
 				UsernamePasswordCredentials credentials = parseCredentials(authentication, 0);
 				if (credentials != null) {
@@ -157,14 +184,13 @@ public class Coap2HttpProxy {
 							.add(getTargetHost(destination), credentials).build();
 					context = ContextBuilder.create().useCredentialsProvider(credentialsProvider).build();
 				}
-				authentication = null;
 			}
 		}
 
 		ProxyRequestProducer httpRequest = null;
 		try {
 			// get the mapping to http for the outgoing coap request
-			httpRequest = translator.getHttpRequest(destination, authentication, incomingCoapRequest);
+			httpRequest = translator.getHttpRequest(destination, incomingCoapRequest, extra);
 			LOGGER.debug("Outgoing http request: {}", httpRequest.getRequestLine());
 			if (LOGGER.isDebugEnabled()) {
 				String ct = httpRequest.getContentType();
@@ -208,6 +234,10 @@ public class Coap2HttpProxy {
 							if (LOGGER.isDebugEnabled()) {
 								for (Header header : result.getHead().getHeaders()) {
 									LOGGER.debug("   {}", header);
+								}
+								if (status.isError()) {
+									byte[] content = result.getBody().getContent();
+									LOGGER.debug("   {}", new String(content));
 								}
 							}
 							// translate the received http response

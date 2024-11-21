@@ -217,7 +217,7 @@ It is recommended to use a long term stable and unique values for the `name`. Te
 
 The cloud demo server checks frequently, if the file has changed and automatically reloads the device credentials.
 
-Devices already connected with removed credentials are kept connected but on the next handshake these device will fail to communicate with the cloud demo server.
+Devices already connected with removed or banned credentials are kept connected. The requests of such a device will be respond with 4.03 (FORBIDDEN). On the next handshake these device will fail to communicate with the cloud demo server.
 
 ### Device Credentials - PSK
 
@@ -376,7 +376,7 @@ Stop the server and start it again using the same `--store-file` and `--store-pa
 
 Save and (re-)load the DTLS state makes a server update also seamless for the devices. Stop the old and start the new server jar usually takes only a few seconds and the most devices will not be affected at all. Only a few may send messages during the restart and without response they will just resend it short afterwards again. And at that time, the server is usually running again.
 
-There is small pitfall with this approach: if you write the new jar in place over the currently executed one, then the shutdown may fail with errors caused by that changed jar. Therefore a second jar is used to place the update and on restart that update jar is copied to the executed on. The [Systemd Service](./#systemd-service) described below handles that by:
+There is small pitfall with this approach: if you write the new jar in place over the currently executed one, then the shutdown may fail with errors caused by that changed jar. Therefore a second jar is used to place the update and on restart that update jar is copied to the executed on. The [Systemd Service](#systemd-service) described below handles that by:
 
 ```
 ExecStartPre=/bin/cp -u cf-cloud-demo-server-update.jar ${JAR}
@@ -567,7 +567,7 @@ Creates a ExoScale cloud-VM and installs the cloud-demo-server including generat
 
 Initially the default openssl PSK device credentials are provided (identity: Client_identity, shared key: secretPSK). That is intended to be replaced by you soon by editing the "/home/cali/demo-devices.txt" file.
 
-To enable the simple web read access, a x509 certificate is required. As mentioned [above](./#https-x509-certificate---lets-encrypt), this requires to redirect the intended DNS-domain to the ip-address of the create cloud VM. The ip-address is shown at the end of the installation:
+To enable the simple web read access, a x509 certificate is required. As mentioned [above](#https-x509-certificate---lets-encrypt), this requires to redirect the intended DNS-domain to the ip-address of the create cloud VM. The ip-address is shown at the end of the installation:
 
 ```sh
 ...
