@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 2 0.26.0, 18. November 2024";
+const version = "Version 2 0.26.1, 9. December 2024";
 
 let timeShift = 0;
 
@@ -1377,6 +1377,7 @@ class DeviceData {
 
 	config = null;
 	configTime = null;
+	configEtag = null;
 
 	lastArchDayMessage = null;
 	lastArchMessage = null;
@@ -1652,19 +1653,23 @@ class DeviceData {
 
 	async readConfig() {
 		let changed = false;
-		const fetch = s3.fetchContent(this.key + "config", null, true);
+		const fetch = s3.fetchContent(this.key + "config", this.configEtag, true);
 		s3.allStarted();
 		const config = await fetch;
 		if (config) {
-			changed = this.config != config.text;
-			this.config = config.text;
-			const lastModified = config.headers.get("last-modified");
-			this.configTime = Date.parse(lastModified);
-			console.log("config: " + new Date(this.configTime).toISOString());
+			if (config.status != 304) {
+				changed = this.config != config.text;
+				this.config = config.text;
+				this.configEtag = config.headers.get("etag");
+				const lastModified = config.headers.get("last-modified");
+				this.configTime = Date.parse(lastModified);
+				console.log("config: " + new Date(this.configTime).toISOString());
+			}
 		} else {
 			changed = this.config != null;
 			this.config = null;
 			this.configTime = null;
+			this.configEtag = null;
 		}
 		return changed;
 	}
