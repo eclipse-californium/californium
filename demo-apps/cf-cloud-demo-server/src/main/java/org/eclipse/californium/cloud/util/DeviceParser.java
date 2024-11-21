@@ -33,8 +33,10 @@ import java.security.spec.ECGenParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -61,10 +63,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Device credentials parser.
- * 
  * <p>
  * Format:
- * </p>
  * 
  * <pre>
  * {@code # <comment>}
@@ -97,43 +97,51 @@ import org.slf4j.LoggerFactory;
  * parties, it may be relevant to have a proof that the device has a matching
  * private key for the provide public key. Therefore a optional signature may be
  * provided.
- * </p>
  * <p>
  * For {@code x509} client and certificate authority certificates, the base 64
  * encoding of the ".pem" file is supported. See example below.
- * </p>
  * <p>
  * Not all credentials are identifying a device, some are used for provisioning
- * or as trusted <b>C</b>ertificate <b>A</b>uthority for x509 device certificates.
- * That is indicated by the {@code .type=(dev|prov|ca)} entry. If no one is given,
- * "dev" is assumed.
- * </p>
+ * or as trusted <b>C</b>ertificate <b>A</b>uthority for x509 device
+ * certificates. That is indicated by the {@code .type=(dev|prov|ca)} entry. If
+ * no one is given, "dev" is assumed.
  * <p>
- * In order to block (or ban) a device, {@code .ban=1} is used. Ban a CA will 
- * also ban all devices with that CA as trust root. Ban provisioning credentials 
+ * In order to block (or ban) a device, {@code .ban=1} is used. Ban a CA will
+ * also ban all devices with that CA as trust root. Ban provisioning credentials
  * will not ban the devices provisioned with that.
- * </p>
+ * <p>
+ * The CoAP-S3-proxy offers additionally http-forwarding and a device specific
+ * configuration of that function is done with custom fields:
+ * 
+ * <pre>
+ * {@code [[<device-name>].fdest=<http-forward-destination>]}
+ * {@code [[<device-name>].fauth=<http-forward-authentication>]}
+ * {@code [[<device-name>].fdevid=(NONE,HEADLINE,QUERY_PARAMETER)]}
+ * {@code [[<device-name>].fresp=<http-forward-response-filter>]}
+ * {@code [[<device-name>].fservice=<java-http-forward-service>]}
+ * </pre>
+ * 
+ * For details please see the documentation of {@code BasicHttpForwardConfiguration}.
  * <p>
  * Example:
- * </p>
  * 
  * <pre>
  * {@code # base64 secret}
- * {@code DemoClient = Demo}
+ * {@code DemoClient=Demo}
  * {@code .psk='Client_identity',c2VjcmV0UFNL}
  * {@code .rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQxYO5/M5ie6+3QPOaAy5MD6CkFILZwIb2rOBCX/EWPaocX1H+eynUnaEEbmqxeN6rnI/pH19j4PtsegfHLrzzQ==}
  * 
  * {@code # PSK only, hexadecimal secret}
- * {@code DemoDevice1 = Demo}
+ * {@code DemoDevice1=Demo}
  * {@code .psk='Device_identity',:0x010203040506}
  * 
  * {@code # RPK only, base64 certificate and signature}
- * {@code DemoDevice2 = Demo}
+ * {@code DemoDevice2=Demo}
  * {@code .rpk=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZRd+6w2dbCoDlIhrbkBkQdEHkiayS3CUgWYOanlU5curNy3H+MOheCqbmPZJdQud8KNvXXYTUyeYX/IqyOk8nQ==}
  * {@code .sig=BAMARzBFAiEAioj8fh5VrTYMz93XakmlCS283zAv8JxWcpADnbwlhGwCIDwm5mEXP8MBV1o7w08a79d+y84w81vW9LgP8QbDCp/p}
  * 
  * {@code # x509}
- * {@code DemoDevice3 = Demo}
+ * {@code DemoDevice3=Demo}
  * {@code .x509=}
  * {@code -----BEGIN CERTIFICATE-----}
  * {@code MIICAjCCAaigAwIBAgIJAJvzugZ7RkwVMAoGCCqGSM49BAMCMFwxEDAOBgNVBAMT}
@@ -150,11 +158,11 @@ import org.slf4j.LoggerFactory;
  * {@code -----END CERTIFICATE-----}
  * </pre>
  * 
- * <b>Note:</b> the data associated for a {@code device-name} may change, but the
- * {@code device-name} itself is considered to be stable. However, though during
- * the DTLS handshake the credentials are used to identify the device, changing
- * them here in the store must reflect a change on the device. Otherwise the
- * device will not longer be assigned to the {@code device-name}.
+ * <b>Note:</b> the data associated for a {@code device-name} may change, but
+ * the {@code device-name} itself is considered to be stable. However, though
+ * during the DTLS handshake the credentials are used to identify the device,
+ * changing them here in the store must reflect a change on the device.
+ * Otherwise the device will not longer be assigned to the {@code device-name}.
  * 
  * @since 3.12
  */
@@ -231,8 +239,9 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		public final PublicKey publicKey;
 		/**
 		 * Signature as "proof of possession" of a {@link #publicKey} matching
-		 * private key. Only used, if {@link #publicKey} is provided. May be
-		 * {@code null}.
+		 * private key.
+		 * <p>
+		 * Only used, if {@link #publicKey} is provided. May be {@code null}.
 		 * 
 		 * @since 3.13
 		 */
@@ -261,6 +270,10 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 * @since 4.0
 		 */
 		public final boolean ban;
+		/**
+		 * Custom fields.
+		 */
+		public final Map<String, String> customFields;
 
 		/**
 		 * Create device credentials.
@@ -283,14 +296,16 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 * @param x509 x509 certificate.
 		 * @param type device type.
 		 * @param ban {@code true} to ban device.
+		 * @param customFields map of custom field values. May be {@code null}.
 		 * @throws NullPointerException if name or group is {@code null}
 		 * @throws IllegalArgumentException if sign without public key is
 		 *             provided, or neither valid psk nor rpk credentials are
 		 *             provided.
-		 * @since 3.13 added label, sign and provisioning
+		 * @since 4.0 (added more fields)
 		 */
 		public Device(String name, String label, String comment, String group, String pskIdentity, byte[] pskSecret,
-				PublicKey publicKey, byte[] sign, String x509PemTag, X509Certificate x509, Type type, boolean ban) {
+				PublicKey publicKey, byte[] sign, String x509PemTag, X509Certificate x509, Type type, boolean ban,
+				Map<String, String> customFields) {
 			if (name == null) {
 				throw new NullPointerException("name must not be null!");
 			}
@@ -338,19 +353,21 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			this.sign = sign;
 			this.type = type;
 			this.ban = ban;
+			this.customFields = customFields;
 		}
 
 		/**
-		 * Create device credentials from device with additional label.
+		 * Create device credentials from device with additional label and custom fields.
 		 * 
-		 * @param device device
+		 * @param device device. The {@link #customFields} of this device may get modified!
 		 * @param label additional label
-		 * @since 3.13
+		 * @param customFields map of custom field values. May be {@code null}.
+		 * @since 4.0 (added customFields)
 		 */
-		public Device(Device device, String label) {
+		public Device(Device device, String label, Map<String, String> customFields) {
 			this.comment = device.comment;
 			this.name = device.name;
-			this.label = label;
+			this.label = applyDefault(device.label, label);
 			this.group = device.group;
 			this.pskIdentity = device.pskIdentity;
 			this.pskSecret = device.pskSecret;
@@ -360,6 +377,16 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			this.x509PemTag = device.x509PemTag;
 			this.type = device.type;
 			this.ban = device.ban;
+			if (customFields != null) {
+				if (device.customFields != null) {
+					for (Map.Entry<String, String> entry : customFields.entrySet()) {
+						device.customFields.putIfAbsent(entry.getKey(), entry.getValue());
+					}
+				}
+			} else {
+				customFields = device.customFields;
+			}
+			this.customFields = customFields;
 		}
 
 		@Override
@@ -389,6 +416,10 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			if (!name.equals(other.name))
 				return false;
 			return true;
+		}
+
+		private static <T> T applyDefault(T value, T def) {
+			return value != null ? value : def;
 		}
 
 		/**
@@ -440,8 +471,10 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			public PublicKey publicKey;
 			/**
 			 * Signature as "proof of possession" of a {@link #publicKey}
-			 * matching private key. Only used, if {@link #publicKey} is
-			 * provided. May be {@code null}.
+			 * matching private key.
+			 * <p>
+			 * Only used, if {@link #publicKey} is provided. May be
+			 * {@code null}.
 			 * 
 			 * @since 3.13
 			 */
@@ -463,13 +496,17 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			 * 
 			 * @since 4.0
 			 */
-			public Type type = Type.DEVICE;
+			public Type type;
 			/**
 			 * Ban device.
 			 * 
 			 * @since 4.0
 			 */
 			public boolean ban;
+			/**
+			 * Custom fields.
+			 */
+			public Map<String, String> customFields;
 
 			/**
 			 * Create builder.
@@ -478,66 +515,82 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 			}
 
+			public boolean addCustomField(String name, String value) {
+				if (customFields == null) {
+					customFields = new HashMap<>();
+				}
+				return customFields.putIfAbsent(name, value) == null;
+			}
+
+			public void applyDefaults() {
+				type = applyDefault(type, Type.DEVICE);
+			}
+
 			/**
 			 * Create device from builder data.
 			 * 
 			 * @return created device
 			 */
 			public Device build() {
+				applyDefaults();
 				return new Device(name, label, comment, group, pskIdentity, pskSecret, publicKey, sign, x509PemTag,
-						x509, type, ban);
+						x509, type, ban, customFields);
 			}
 		}
 
 	}
 
 	/**
-	 * Postfix in header for group.
+	 * Postfix in field name for group.
 	 */
 	public static final String GROUP_POSTFIX = ".group";
 	/**
-	 * Postfix in header for label.
+	 * Postfix in field name for label.
 	 * 
 	 * @since 3.13
 	 */
 	public static final String LABEL_POSTFIX = ".label";
 	/**
-	 * Postfix in header for PreSharedKey credentials.
+	 * Postfix in field name for PreSharedKey credentials.
 	 */
 	public static final String PSK_POSTFIX = ".psk";
 	/**
-	 * Postfix in header for RawPublicKey certificate.
+	 * Postfix in field name for RawPublicKey certificate.
 	 */
 	public static final String RPK_POSTFIX = ".rpk";
 	/**
-	 * Postfix in header for signature.
+	 * Postfix in field name for signature.
 	 * 
 	 * @since 3.13
 	 */
 	public static final String SIG_POSTFIX = ".sig";
 	/**
-	 * Postfix in header for x509 certificate.
+	 * Postfix in field name for x509 certificate.
 	 */
 	public static final String X509_POSTFIX = ".x509";
 	/**
-	 * Postfix in header for provisioning credentials.
+	 * Postfix in field name for provisioning credentials.
 	 * 
 	 * @since 3.13
+	 * @deprecated replaced by {@link #TYPE_POSTFIX} {@code =prov}.
 	 */
+	@Deprecated
 	public static final String PROV_POSTFIX = ".prov";
 	/**
-	 * Postfix in header for credentials type.
+	 * Postfix in field name for credentials type.
 	 * 
 	 * @since 4.0
 	 */
 	public static final String TYPE_POSTFIX = ".type";
 	/**
-	 * Postfix in header for banned credentials.
+	 * Postfix in field name for banned credentials.
 	 * 
 	 * @since 4.0
 	 */
 	public static final String BAN_POSTFIX = ".ban";
 
+	private static final List<String> POSTFIXES = Arrays.asList(LABEL_POSTFIX, PSK_POSTFIX, RPK_POSTFIX, SIG_POSTFIX,
+			X509_POSTFIX, PROV_POSTFIX, TYPE_POSTFIX, BAN_POSTFIX);
 	/**
 	 * ReadWrite lock to protect access to maps.
 	 */
@@ -582,6 +635,10 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	 */
 	private final boolean replace;
 	/**
+	 * Set of custom fields.
+	 */
+	private final List<String> customFields;
+	/**
 	 * {@code true} if credentials are destroyed.
 	 */
 	private volatile boolean destroyed;
@@ -595,10 +652,19 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	 *            {@code false}, otherwise.
 	 * @param replace {@code true} to replace previous credentials,
 	 *            {@code false}, to reject the new ones, if already available.
+	 * @param customFields set of custom fields. {@code null}, if not used.
 	 */
-	public DeviceParser(boolean caseSensitiveNames, boolean replace) {
+	public DeviceParser(boolean caseSensitiveNames, boolean replace, List<String> customFields) {
+		if (customFields != null) {
+			for (String name : customFields) {
+				if (!name.startsWith(".")) {
+					throw new IllegalArgumentException("Custom field '" + name + "' doesn't start with '.'!");
+				}
+			}
+		}
 		this.caseSensitiveNames = caseSensitiveNames;
 		this.replace = replace;
+		this.customFields = customFields;
 	}
 
 	/**
@@ -640,54 +706,71 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 	 * @see StringUtil#truncateTail(boolean, String, String)
 	 */
 	private String prefix(String id, String postfix) {
-		return StringUtil.truncateTail(caseSensitiveNames, id, postfix);
+		return StringUtil.truncateTail(!caseSensitiveNames, id, postfix);
 	}
 
 	/**
-	 * Checks, if id is a name.
+	 * Checks, if provided id ends with provided postfix.
 	 * 
+	 * @param id id
+	 * @param postfix postfix
+	 * @return {@code true}, if matching, {@code false}, if not.
+	 */
+	private boolean endsWith(String id, String postfix) {
+		int length = postfix.length();
+		int offset = id.length() - length;
+		if (offset >= 0) {
+			return id.regionMatches(!caseSensitiveNames, offset, postfix, 0, length);
+		}
+		return false;
+	}
+
+	/**
+	 * Checks, if provided id is a name.
+	 * <p>
 	 * The id is a name, if it ends with {@link #GROUP_POSTFIX}, or if it
-	 * doesn't end with {@link #PSK_POSTFIX} nor {@link #RPK_POSTFIX}.
+	 * doesn't end with one of the {@link #POSTFIXES} nor {@link #customFields}.
 	 * 
 	 * @param id id to check
 	 * @return {@code true}, if id complies with a name, {@code false},
 	 *         otherwise.
 	 */
 	private boolean isName(String id) {
-		String name = prefix(id, GROUP_POSTFIX);
-		if (name != id) {
+		if (endsWith(id, GROUP_POSTFIX)) {
 			return true;
 		}
-		name = prefix(id, PSK_POSTFIX);
-		if (name != id) {
+		for (String postfix : POSTFIXES) {
+			if (endsWith(id, postfix)) {
+				return false;
+			}
+		}
+		if (isCustomField(id) != null) {
 			return false;
 		}
-		name = prefix(id, RPK_POSTFIX);
-		if (name != id) {
-			return false;
+		return !id.startsWith(".");
+	}
+
+	/**
+	 * Checks, if provided id is a custom field.
+	 * 
+	 * @param id id to check
+	 * @return custom field name, or {@code null}, if id is no custom field.
+	 * @since 4.0
+	 */
+	private String isCustomField(String id) {
+		if (customFields != null) {
+			for (String postfix : customFields) {
+				if (endsWith(id, postfix)) {
+					return postfix;
+				}
+			}
 		}
-		name = prefix(id, SIG_POSTFIX);
-		if (name != id) {
-			return false;
-		}
-		name = prefix(id, X509_POSTFIX);
-		if (name != id) {
-			return false;
-		}
-		name = prefix(id, TYPE_POSTFIX);
-		if (name != id) {
-			return false;
-		}
-		name = prefix(id, PROV_POSTFIX);
-		if (name != id) {
-			return false;
-		}
-		return true;
+		return null;
 	}
 
 	/**
 	 * Match the device builder with the provided name
-	 * 
+	 * <p>
 	 * A device builder without a name doesn't match at all. A empty name
 	 * matches any non empty builder name. Or the name must match the builder's
 	 * name according {@link #match(String, String)}.
@@ -734,7 +817,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			if (replaced != null) {
 				if (replace && replaced.type == Type.DEVICE && !replaced.ban) {
 					if (device.label == null && replaced.label != null) {
-						device = new Device(device, replaced.label);
+						device = new Device(device, replaced.label, replaced.customFields);
 					}
 					remove(replaced);
 					map.putIfAbsent(key, device);
@@ -1053,6 +1136,14 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 					writer.write("=1");
 					writer.write(StringUtil.lineSeparator());
 				}
+				if (credentials.customFields != null) {
+					for (Map.Entry<String, String> entry : credentials.customFields.entrySet()) {
+						writer.write(entry.getKey());
+						writer.write("=");
+						writer.write(entry.getValue());
+						writer.write(StringUtil.lineSeparator());
+					}
+				}
 			}
 		}
 	}
@@ -1147,17 +1238,24 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 									} else if (type == Type.WEB) {
 										++errors;
 										LOGGER.warn("{}: '{}', 'web' not supported!", lineNumber, line);
+									} else if (builder.type != null) {
+										++errors;
+										LOGGER.warn("{}: '{}' invalid line, type already provided!", lineNumber, line);
 									} else {
 										builder.type = type;
 									}
 								}
 								continue;
 							}
+							/* deprecated */
 							prefix = prefix(name, PROV_POSTFIX);
 							if (prefix != name) {
 								if (values.length != 1 || !match(builder, prefix)) {
 									++errors;
 									LOGGER.warn("{}: '{}' invalid line!", lineNumber, line);
+								} else if (builder.type != null) {
+									++errors;
+									LOGGER.warn("{}: '{}' invalid line, type already provided!", lineNumber, line);
 								} else {
 									builder.type = Type.PROVISIONING;
 								}
@@ -1175,7 +1273,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 							}
 							prefix = prefix(name, LABEL_POSTFIX);
 							if (prefix != name) {
-								if (values.length != 1) {
+								if (values.length != 1 || !match(builder, prefix)) {
 									++errors;
 									LOGGER.warn("{}: '{}' invalid line!", lineNumber, line);
 								} else {
@@ -1183,9 +1281,21 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 								}
 								continue;
 							}
+							String customField = isCustomField(name);
+							if (customField != null) {
+								prefix = prefix(name, customField);
+								if (!match(builder, prefix)) {
+									++errors;
+									LOGGER.warn("{}: '{}' invalid line!", lineNumber, line);
+								} else {
+									builder.addCustomField(customField, entry[1]);
+								}
+								continue;
+							}
 							prefix = prefix(name, GROUP_POSTFIX);
 							if (prefix != name || isName(name)) {
 								if (builder.name != null) {
+									builder.applyDefaults();
 									if (entriesBefore > 0 && builder.type != Type.DEVICE) {
 										++errors;
 										LOGGER.warn("{}: non-device entry is not allowed to be appended!", lineNumber);
@@ -1218,6 +1328,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 				}
 			}
 			if (builder.name != null) {
+				builder.applyDefaults();
 				if (entriesBefore > 0 && builder.type != Type.DEVICE) {
 					++errors;
 					LOGGER.warn("{}: non-device entry is not allowed to be appended!", lineNumber);
@@ -1259,7 +1370,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 	/**
 	 * Parse PreSharedKey credentials.
-	 * 
+	 * <p>
 	 * The values must contain the identity in the first and the secret in the
 	 * second value.
 	 * 
@@ -1280,7 +1391,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 	/**
 	 * Parse RawPublicKey.
-	 * 
+	 * <p>
 	 * The values must contain the public key in the first value.
 	 * 
 	 * @param builder builder with device data
@@ -1320,7 +1431,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 	/**
 	 * Parse Signature.
-	 * 
+	 * <p>
 	 * The values must contain the public key in the first value.
 	 * 
 	 * @param builder builder with device data
@@ -1379,7 +1490,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 	/**
 	 * Decode value to byte array.
-	 * 
+	 * <p>
 	 * A plain text value must be in single- ({@code '}) or double-quotes
 	 * ({@code "}). A hexadecimal value starts with {@code :0x}. Other values
 	 * are considered to be base 64 encoded.
@@ -1411,7 +1522,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 	/**
 	 * Decode text value.
-	 * 
+	 * <p>
 	 * If the value is in single- ({@code '}) or double-quotes ({@code "}),
 	 * these are removed.
 	 * 
@@ -1434,7 +1545,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 
 	@Override
 	public DeviceParser create() {
-		return new DeviceParser(caseSensitiveNames, replace);
+		return new DeviceParser(caseSensitiveNames, replace, customFields);
 	}
 
 }

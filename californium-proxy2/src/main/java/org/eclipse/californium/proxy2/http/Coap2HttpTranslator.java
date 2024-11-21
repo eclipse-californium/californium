@@ -19,10 +19,8 @@ import java.net.URI;
 import java.util.List;
 
 import org.apache.hc.core5.http.Header;
-import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.Message;
-import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.BasicHttpRequest;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -68,7 +66,7 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 	}
 
 	/**
-	 * Create coap2http translator with provided translator.
+	 * Creates coap2http translator with provided translator.
 	 * 
 	 * @param httpTranslator translator
 	 * @param etagTranslator translator for etag
@@ -91,28 +89,15 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 	 * 
 	 * @param uri destination to use
 	 * @param coapRequest coap-request
+	 * @param extraHeaders extra headers, e.g. for authorization. May be
+	 *            {@code null}.
 	 * @return http-request
 	 * @throws TranslationException if request could not be translated
 	 * @throws NullPointerException if one of the provided arguments is
 	 *             {@code null}.
+	 * @since 4.0 (added extraHeaders)
 	 */
-	public ProxyRequestProducer getHttpRequest(URI uri, Request coapRequest) throws TranslationException {
-		return getHttpRequest(uri, null, coapRequest);
-	}
-
-	/**
-	 * Maps a coap-request into a http-request.
-	 * 
-	 * @param uri destination to use
-	 * @param authorization authorization. Maybe {@code null}.
-	 * @param coapRequest coap-request
-	 * @return http-request
-	 * @throws TranslationException if request could not be translated
-	 * @throws NullPointerException if one of the provided arguments is
-	 *             {@code null}.
-	 * @since 3.13
-	 */
-	public ProxyRequestProducer getHttpRequest(URI uri, String authorization, Request coapRequest)
+	public ProxyRequestProducer getHttpRequest(URI uri, Request coapRequest, Header... extraHeaders)
 			throws TranslationException {
 		if (uri == null) {
 			throw new NullPointerException("URI must not be null!");
@@ -133,12 +118,23 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 		Header[] headers = httpTranslator.getHttpHeaders(coapRequest.getOptions().asSortedList(), etagTranslator);
 		for (Header header : headers) {
 			httpRequest.addHeader(header);
-			if (header.getName().equals(HttpHeaders.AUTHORIZATION)) {
-				authorization = null;
+			if (extraHeaders != null) {
+				final String name = header.getName();
+				for (int index = 0; index < extraHeaders.length; ++index) {
+					final Header extra = extraHeaders[index];
+					if (extra != null && extra.getName().equals(name)) {
+						extraHeaders[index] = null;
+					}
+				}
 			}
 		}
-		if (authorization != null) {
-			httpRequest.addHeader(new BasicHeader(HttpHeaders.AUTHORIZATION, authorization));
+		if (extraHeaders != null) {
+			for (int index = 0; index < extraHeaders.length; ++index) {
+				final Header extra = extraHeaders[index];
+				if (extra != null) {
+					httpRequest.addHeader(extra);
+				}
+			}
 		}
 
 		LOGGER.debug("Incoming request translated correctly");
@@ -146,15 +142,16 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 	}
 
 	/**
-	 * Gets the CoAP response from an incoming HTTP response. No {@code null}
-	 * value is returned. The response is created from a the mapping of the HTTP
-	 * response code retrieved from the properties file. If the code is 204,
-	 * which has multiple meaning, the mapping is handled looking on the request
-	 * method that has originated the response. The options are set through the
-	 * HTTP headers and the option max-age, if not indicated, is set to the
-	 * default value (60 seconds). if the response has an enclosing entity, it
-	 * is mapped to a CoAP payload and the content-type of the CoAP message is
-	 * set properly.
+	 * Gets the CoAP response from an incoming HTTP response.
+	 * <p>
+	 * No {@code null} value is returned. The response is created from a the
+	 * mapping of the HTTP response code retrieved from the properties file. If
+	 * the code is 204, which has multiple meaning, the mapping is handled
+	 * looking on the request method that has originated the response. The
+	 * options are set through the HTTP headers and the option max-age, if not
+	 * indicated, is set to the default value (60 seconds). if the response has
+	 * an enclosing entity, it is mapped to a CoAP payload and the content-type
+	 * of the CoAP message is set properly.
 	 * 
 	 * @param httpResponse the http-response
 	 * @param coapRequest related coap-request. Some response codes are

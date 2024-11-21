@@ -628,7 +628,7 @@ public class BaseServer extends CoapServer {
 				LOGGER.info(
 						"New device credentials will replace already available ones. Use this only for development!");
 			}
-			DeviceParser factory = new DeviceParser(true, replace);
+			DeviceParser factory = new DeviceParser(true, replace, null);
 			deviceCredentialsResource = new ResourceStore<>(factory).setTag("Devices ");
 			deviceCredentialsResource.loadAndCreateMonitor(cliArguments.deviceStore.file,
 					cliArguments.deviceStore.password64, interval > 0);

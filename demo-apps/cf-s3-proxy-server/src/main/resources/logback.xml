@@ -89,6 +89,9 @@
 	<logger name="org.eclipse.californium.cloud.s3.http" level="DEBUG" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.cloud.s3.forward" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.proxy2.http.Coap2HttpProxy" level="DEBUG" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
