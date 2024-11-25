@@ -152,11 +152,6 @@ public interface JceNames {
 	 */
 	public String JCE_PROVIDER_BOUNCY_CASTLE_NON_BLOCKING_RANDOM = "BC_NON_BLOCKING_RANDOM";
 	/**
-	 * Value for {@link #CALIFORNIUM_JCE_PROVIDER} to use ed25519-java as JCE
-	 * for EdDSA.
-	 */
-	public String JCE_PROVIDER_NET_I2P_CRYPTO = "I2P";
-	/**
 	 * Name of environment variable to specify, if the used JCE is tested for
 	 * the ECDSA vulnerability
 	 * <a href= "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-21449"

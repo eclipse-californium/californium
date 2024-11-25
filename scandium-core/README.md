@@ -271,16 +271,10 @@ Supported extensions:
 ## Support for x25519 and ed25519
 
 Support for X25519 is only available using java 11 (or newer) for execution.
-Support for ED25519 is only available using java 15 (or newer) for execution,
-or java 11 (or newer) and a third party library [ed25519-java](https://github.com/str4d/ed25519-java). Building  _Scandium_  using java 11 therefore includes that third party library to the classpath. Use
+Support for ED25519 is only available using java 17 (or newer) for execution.
+Earlier versions of Californium also supported to use [ed25519-java](https://github.com/str4d/ed25519-java) at runtime, but that library seems to be not maintained for long and therefore the support in Californium has been removed.
 
-```sh
-mvn clean install -Dno.net.i2p.crypto.eddsa=true
-```
-
-if this library should not be included.
-
-*Note:* using the oracle build 28 of openjdk 11 uncovers, that calling `EdDSAEngine.engineSetParameter(null)` fails with `ǸullPointerException` instead of `InvalidAlgorithmParameterException`. That causes to fail the verification of the signature at all. Using the aptopen build seems not to call `EdDSAEngine.engineSetParameter(null)` and therefore works. [ed25519-java](https://github.com/str4d/ed25519-java) seems to be not longer maintained. It's therefore recommended to update to newer jdks (e.g. 17) or to use Bouncy Castle (see next section, even if the Bouncy Castle support is experimental).
+*Note:* using the oracle build 28 of openjdk 11 uncovers, that calling `EdDSAEngine.engineSetParameter(null)` fails with `ǸullPointerException` instead of `InvalidAlgorithmParameterException`. That causes to fail the verification of the signature at all. Using the aptopen build seems not to call `EdDSAEngine.engineSetParameter(null)` and therefore works.
 
 ## Support for Bouncy Castle
 
@@ -289,8 +283,8 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 ```
 <properties>
 	<bc.art>jdk18on</bc.art>
-	<bc.version>1.77</bc.version>
-	<slf4j.version>1.7.36</slf4j.version>
+	<bc.version>1.78.1</bc.version>
+	<slf4j.version>2.0.16</slf4j.version>
 </properties>
 <dependencies>
 	<dependency>
@@ -321,7 +315,7 @@ Starting with 3.0.0-RC1 an experimental support for using [Bouncy Castle](https:
 </dependencies>
 ```
 
-(With 3.3 the tests are using the updated version 1.70 instead of the 1.69, with 3.8 it is 1.72, with 3.9 it is 1.74, with 3.10 it is 1.77, and with 4.0.0 it is 1.78.1).
+(With Californium 3.3 the tests are using the updated version bc 1.70 instead of the 1.69, and with Californium 4.0.0 bc 1.78.1 is used).
 
 And setup a environment variable `CALIFORNIUM_JCE_PROVIDER` using the value `BC` (see [JceProviderUtil](../element-connector/src/main/java/org/eclipse/californium/elements/util/JceProviderUtil.java) for more details) or use the java `System.property` `CALIFORNIUM_JCE_PROVIDER` to do so.
 
