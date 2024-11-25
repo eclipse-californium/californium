@@ -42,31 +42,20 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Initialize JCE provider.
  * <p>
- * To support EdDSA, either java 15 (or newer), or java 11 with
- * <a href="https://github.com/str4d/ed25519-java" target=
- * "_blank">ed25519-java</a> is required at runtime. Using java 15 to build
- * Californium, leaves out {@code ed25519-java}, using java 11 for building,
- * includes {@code ed25519-java} by default. If {@code ed25519-java} should
- * <b>NOT</b> be included into the Californium's jars, add
- * {@code -Dno.net.i2p.crypto.eddsa=true} to maven's arguments. In that case,
- * it's still possible to use {@code ed25519-java}, if the <a href=
- * "https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar"
- * target="_blank">eddsa-0.3.0.jar</a> is provided to the classpath separately.
- * <p>
- * If java 11 is used to run maven, but the build uses the toolchain with java
- * 7, {@code -Dno.net.i2p.crypto.eddsa=true} must be used, because X25519 is not
- * supported with java 7 and causes the build to fail.
+ * To support EdDSA requires java 17 (or newer). Earlier versions of Californium
+ * also supported to use <a href="https://github.com/str4d/ed25519-java" target=
+ * "_blank">ed25519-java</a> at runtime, but that library seems to be not
+ * maintained for long and therefore the support in Californium has been removed.
  * <p>
  * With Californium version 3.0 an experimental support for using Bouncy Castle,
- * version 1.69, as JCE is available. And with Californium version 3.3 Bouncy
- * Castle version 1.70 is supported. On class startup, the default JCE is
+ * version 1.69, as JCE is available. And with Californium version 4.0 Bouncy
+ * Castle version 1.78.1 is supported. On class startup, the default JCE is
  * checked for providing EdDSA. If that fails, ed25519-java is tested and, on
  * success, added as provider. To use Bouncy Castle, or if the default JCE
  * provider should not be used, the environment variable
  * "CALIFORNIUM_JCE_PROVIDER" is used. Configure that with one of the values
  * "SYSTEM" (keep the providers configured externally), "BC" (load and insert
- * the Bouncy Castle provider), "I2P" (load net.i2p.crypto.eddsa ed25519-java
- * and use that for EdDSA).
+ * the Bouncy Castle provider).
  * <p>
  * Though Bouncy Castle uses JUL for logging, jul2slf4j2 is added when using BC.
  * That requires {@code org.slf4j.bridge.SLF4JBridgeHandler} in the classpath.
@@ -118,14 +107,6 @@ public class JceProviderUtil {
 			{ JceNames.X25519, JceNames.X25519v2, JceNames.OID_X25519 },
 			{ JceNames.X448, JceNames.X448v2, JceNames.OID_X448 } };
 
-	/**
-	 * Package name for external java 7 EdDSA provider.
-	 */
-	private static final String NET_I2P_CRYPTO_EDDSA = "net.i2p.crypto.eddsa";
-	/**
-	 * Name of i2p EdDSA JCE provider.
-	 */
-	private static final String NET_I2P_CRYPTO_EDDSA_PROVIDER = NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider";
 	/**
 	 * Name of Bouncy Castle JCE provider.
 	 */
@@ -194,19 +175,6 @@ public class JceProviderUtil {
 	 */
 	private static boolean isBouncyCastle(Provider provider) {
 		return provider != null && provider.getName().equals(JceNames.JCE_PROVIDER_BOUNCY_CASTLE);
-	}
-
-	/**
-	 * Checks, if provider is i2p EdDSA JCE provider.
-	 * 
-	 * @param provider provider to check. May be {@code null}.
-	 * @return {@code true}, if provided provider is i2p EdDSA JCE provider,
-	 *         {@code false}, if either no providers is provided or provider is
-	 *         not i2p EdDSA JCE provider.
-	 * @since 3.3
-	 */
-	private static boolean isNetI2PEdDsa(Provider provider) {
-		return provider != null && provider.getClass().getName().equals(NET_I2P_CRYPTO_EDDSA_PROVIDER);
 	}
 
 	/**
@@ -315,7 +283,6 @@ public class JceProviderUtil {
 	private static void setupJce() {
 		boolean tryJce = false;
 		boolean tryBc = false;
-		boolean tryEd25519Java = false;
 		boolean nonBlockingRandom = false;
 		String jce = StringUtil.getConfiguration(JceNames.CALIFORNIUM_JCE_PROVIDER);
 		if (jce != null && !jce.isEmpty()) {
@@ -327,14 +294,11 @@ public class JceProviderUtil {
 			} else if (JceNames.JCE_PROVIDER_BOUNCY_CASTLE_NON_BLOCKING_RANDOM.equalsIgnoreCase(jce)) {
 				tryBc = true;
 				nonBlockingRandom = true;
-			} else if (JceNames.JCE_PROVIDER_NET_I2P_CRYPTO.equalsIgnoreCase(jce)) {
-				tryEd25519Java = true;
 			}
 		} else {
 			// default
 			LOGGER.info("JCE default setup");
 			tryJce = true;
-			tryEd25519Java = true;
 		}
 		boolean found = false;
 		Provider provider = null;
@@ -390,26 +354,6 @@ public class JceProviderUtil {
 							LOGGER.trace("TLS from added BC");
 						} catch (SecurityException e) {
 						}
-					}
-				}
-			}
-		}
-		if (!found && tryEd25519Java) {
-			if (isNetI2PEdDsa(provider)) {
-				found = true;
-				LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
-			} else {
-				Provider newProvider = loadProvider(NET_I2P_CRYPTO_EDDSA_PROVIDER);
-				if (newProvider != null) {
-					try {
-						KeyFactory.getInstance(JceNames.EDDSA, newProvider);
-						Security.removeProvider(newProvider.getName());
-						Security.addProvider(newProvider);
-						provider = newProvider;
-						found = true;
-						LOGGER.trace("EdDSA added from {}", NET_I2P_CRYPTO_EDDSA);
-					} catch (SecurityException e) {
-					} catch (NoSuchAlgorithmException e) {
 					}
 				}
 			}
@@ -474,10 +418,6 @@ public class JceProviderUtil {
 				// Bouncy Castle support: add OIDs to KeyFactory
 				configure(provider, "Alg.Alias.KeyFactory." + JceNames.OID_ED25519, JceNames.ED25519);
 				configure(provider, "Alg.Alias.KeyFactory." + JceNames.OID_ED448, JceNames.ED448);
-			} else if (isNetI2PEdDsa(provider)) {
-				// i2p EdDSA support: add Ed25519 to KeyFactory
-				configure(provider, "Alg.Alias.KeyFactory." + JceNames.ED25519, JceNames.EDDSA);
-				configure(provider, "Alg.Alias.Signature." + JceNames.ED25519, "NONEwithEdDSA");
 			}
 			try {
 				KeyFactory.getInstance(JceNames.ED25519);

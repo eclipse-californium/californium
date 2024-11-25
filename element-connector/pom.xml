@@ -51,25 +51,6 @@
 		</dependency>
 	</dependencies>
 
-	<profiles>
-		<profile>
-			<id>java11-ed25519</id>
-			<activation>
-				<jdk>[11,15)</jdk>
-				<property>
-					<name>no.net.i2p.crypto.eddsa</name>
-					<value>!true</value>
-				</property>
-			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>net.i2p.crypto</groupId>
-					<artifactId>eddsa</artifactId>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
-
 	<build>
 		<plugins>
 			<plugin>

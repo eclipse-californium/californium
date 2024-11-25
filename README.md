@@ -71,30 +71,15 @@ To use the jdk7 toolchain and create javadocs, add "-DuseToolchainJavadoc=true" 
 $ mvn clean install -DuseToolchainJavadoc=true
 ```
 
-## Build with jdk11 and EdDSA support
+## Build with EdDSA support
 
-To support EdDSA, either java 17 or java 11 with [ed25519-java](https://github.com/str4d/ed25519-java) is required at runtime. Using java 17 (or newer) to build Californium, leaves out `ed25519-java`, using java 11 for building, includes `ed25519-java` by default. If `ed25519-java` should **NOT** be included into the californium's jars, add `-Dno.net.i2p.crypto.eddsa=true` to maven's arguments.
-
-```sh
-$ mvn clean install -Dno.net.i2p.crypto.eddsa=true
-```
-*Note*: if "-DuseToolchain=true" is used and the actual jdk to build is java 11, you must disable the i2p eddsa support as well.
- 
-```sh
-# java 11 with java 7 toolchain
-$ mvn clean install -DuseToolchain=true -Dno.net.i2p.crypto.eddsa=true
-```
-
-In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar) is provided to the classpath separately.
-
-*Note:* using the oracle build 28 of openjdk 11 uncovers, that calling `EdDSAEngine.engineSetParameter(null)` fails with `ǸullPointerException` instead of `InvalidAlgorithmParameterException`. That causes to fail the verification of the signature at all. Using the aptopen build seems not to call `EdDSAEngine.engineSetParameter(null)` and therefore works.
-
-[ed25519-java](https://github.com/str4d/ed25519-java) seems to be not longer maintained. It's therefore recommended to update to newer jdks (e.g. 17) or to use Bouncy Castle (see next section, even if the Bouncy Castle support is experimental).
+To support EdDSA requires java 17 (or newer). Earlier versions of Californium
+also supported to use [ed25519-java](https://github.com/str4d/ed25519-java) at runtime, but that library seems to be not
+maintained for long and therefore the support in Californium has been removed.
 
 ## Run unit tests using Bouncy Castle as alternative JCE provider
 
-With 3.0 a first, experimental support for using Bouncy Castle (version 1.69, bcprov-jdk15on, bcpkix-jdk15on, and, for tls, bctls-jdk15on) is implemented. With 3.3 the tests are using the updated version 1.70 (for tls also  bcutil-jdk15on is used additionally), with 3.8 version 1.72, with 3.9 version 1.74,
-and with 3.10 to version 1.77.
+With 3.0 a first, experimental support for using Bouncy Castle (starting with version 1.69, bcprov-jdk15on, bcpkix-jdk15on, and, for tls, bctls-jdk15on) is implemented. Version 4.0 bc version 1.78.1 gets supported.
 
 To demonstrate the basic functions, run the unit-tests using the profile `bc-tests`
 
@@ -120,7 +105,7 @@ With that, it gets very time consuming to test all combinations. Therefore, if y
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.12.0).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.13.0).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots `...`):
 
@@ -130,7 +115,7 @@ to your `pom.xml` (without the dots `...`):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>3.12.0</version>
+            <version>3.13.0</version>
     </dependency>
     ...
   </dependencies>
@@ -154,7 +139,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `3.13.0-SNAPSHOT`.
+You can then simply depend on `4.0.0-SNAPSHOT`.
 
 # Eclipse
 
@@ -177,7 +162,7 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 
 A test server is running at <a href="coap://californium.eclipseprojects.io:5683/">coap://californium.eclipseprojects.io:5683/</a>
 
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.11.0/cf-plugtest-server-3.11.0.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.13.0/cf-plugtest-server-3.13.0.jar) from the demo-apps.
 The root resource responds with its current version.
 
 For a preview to the [Return Routability Check for DTLS 1.2 and DTLS 1.3](https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html) experimental support, please read [feature/rrc - branch](https://github.com/eclipse-californium/californium/tree/feature/rrc).
@@ -245,7 +230,7 @@ For detailed information about the algorithms see the [COSE Algorithms IANA regi
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.12.0.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.13.0.jar MulticastTestServer`
 
 # Contact
 
