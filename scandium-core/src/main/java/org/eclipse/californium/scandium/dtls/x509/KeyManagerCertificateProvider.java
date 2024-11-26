@@ -419,18 +419,17 @@ public class KeyManagerCertificateProvider implements CertificateProvider, Confi
 				alias = keyManager.getClientAliases(keyType, issuers);
 			} else {
 				alias = keyManager.getServerAliases(keyType, issuers);
-				if (alias == null && JceProviderUtil.usesBouncyCastle()) {
-					// replace sun keyTypes as defined in
-					// https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#jssenames
-					// by the ones Bouncy Castle chose to use for the
-					// server-side
-					// https://github.com/bcgit/bc-java/issues/1053
-					String bcKeyType = BC_SERVER_KEY_TYPES_MAP.get(keyType);
-					if (bcKeyType != null) {
-						alias = keyManager.getServerAliases(bcKeyType, issuers);
-						if (alias != null) {
-							keyType = bcKeyType;
-						}
+			}
+			if (alias == null && JceProviderUtil.usesBouncyCastle()) {
+				// replace sun keyTypes as defined in
+				// https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#jssenames
+				// by the ones Bouncy Castle chose to use for the server-side
+				// https://github.com/bcgit/bc-java/issues/1053
+				String bcKeyType = BC_SERVER_KEY_TYPES_MAP.get(keyType);
+				if (bcKeyType != null) {
+					alias = keyManager.getServerAliases(bcKeyType, issuers);
+					if (alias != null) {
+						keyType = bcKeyType;
 					}
 				}
 			}
