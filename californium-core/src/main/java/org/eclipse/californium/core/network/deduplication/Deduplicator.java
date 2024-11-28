@@ -25,26 +25,28 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyMID;
 
-
 /**
- * The deduplicator has to detect duplicates. Notice that CONs and NONs can be
- * duplicates.
+ * The deduplicator has to detect duplicates.
+ * <p>
+ * Notice that CONs and NONs can be duplicates.
  */
 public interface Deduplicator {
 
 	/**
-	 * Starts the deduplicator
+	 * Starts the deduplicator.
 	 */
 	void start();
 
 	/**
-	 * Stops the deduplicator. The deduplicator should NOT clear its state.
+	 * Stops the deduplicator.
+	 * <p>
+	 * The deduplicator should NOT clear its state.
 	 */
 	void stop();
 
 	/**
 	 * Set executor for this Deduplicator.
-	 *
+	 * <p>
 	 * Executor is not managed by the Deduplicator, it must be shutdown
 	 * externally, if the resource should be freed.
 	 *
@@ -57,27 +59,30 @@ public interface Deduplicator {
 
 	/**
 	 * Checks if the specified key is already associated with a previous
-	 * exchange and otherwise associates the key with the exchange specified. 
-	 * This method can also be though of as 'put if absent'. This is equivalent 
+	 * exchange and otherwise associates the key with the exchange specified.
+	 * <p>
+	 * This method can also be though of as 'put if absent'. This is equivalent
 	 * to
+	 * 
 	 * <pre>
 	 *   if (!duplicator.containsKey(key))
 	 *       return duplicator.put(key, value);
 	 *   else
 	 *       return duplicator.get(key);
 	 * </pre>
+	 * 
 	 * except that the action is performed atomically.
 	 * 
 	 * @param key the key
 	 * @param exchange the exchange
 	 * @return the previous exchange associated with the specified key, or
-	 *         <tt>null</tt> if there was no mapping for the key.
+	 *         {@code null} if there was no mapping for the key.
 	 */
 	Exchange findPrevious(KeyMID key, Exchange exchange);
 
 	/**
 	 * Replace the previous exchange with the current.
-	 * 
+	 * <p>
 	 * In difference to the normal definition of this function, the current
 	 * exchange will be also added, if no exchange was registered with the key.
 	 * 
@@ -89,10 +94,26 @@ public interface Deduplicator {
 	 */
 	boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange);
 
+	/**
+	 * Find {@link Exchange} by {@link KeyMID}.
+	 * 
+	 * @param key MID key
+	 * @return exchange, of {@code null} if not available.
+	 */
 	Exchange find(KeyMID key);
 
+	/**
+	 * Checks, if no entries are available.
+	 * 
+	 * @return {@code true}, if no entries are available.
+	 */
 	boolean isEmpty();
 
+	/**
+	 * Gets number of entries.
+	 * 
+	 * @return number of entries
+	 */
 	int size();
 
 	/**

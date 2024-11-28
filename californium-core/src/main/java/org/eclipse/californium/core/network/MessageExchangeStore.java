@@ -37,7 +37,6 @@ import org.eclipse.californium.core.coap.Token;
  * with other Californium instances (running on other nodes) to support failing over
  * the processing of notifications received by another node after the original node
  * (which initiated the observation of the resource) has crashed.
- * </p>
  */
 public interface MessageExchangeStore {
 
@@ -55,8 +54,9 @@ public interface MessageExchangeStore {
 	 * Assigns an unused message ID to a message.
 	 * 
 	 * @param message the message. The message to assign the ID to.
-	 * @return The assigned message ID. This will be {@link Message#NONE} if all message IDs are currently in use for
-	 *         the message's destination endpoint.
+	 * @return The assigned message ID. This will be {@link Message#NONE} if all
+	 *         message IDs are currently in use for the message's destination
+	 *         endpoint.
 	 */
 	int assignMessageId(Message message);
 
@@ -164,9 +164,11 @@ public interface MessageExchangeStore {
 
 	/**
 	 * Checks if the specified message ID is already associated with a previous
-	 * exchange and otherwise associates the key with the exchange specified. 
-	 * This method can also be thought of as <em>put if absent</em>.
-	 * This is equivalent to
+	 * exchange and otherwise associates the key with the exchange specified.
+	 * <p> 
+	 * This method can also be thought of as <em>put if absent</em>, equivalent
+	 * to
+	 * 
 	 * <pre>
 	 *   if (!duplicator.containsKey(key))
 	 *       return duplicator.put(key, value);
@@ -178,13 +180,13 @@ public interface MessageExchangeStore {
 	 * @param messageId the message ID of the request
 	 * @param exchange the exchange
 	 * @return the previous exchange associated with the specified key, or
-	 *         <tt>null</tt> if there was no mapping for the key.
+	 *         {@code null} if there was no mapping for the key.
 	 */
 	Exchange findPrevious(KeyMID messageId, Exchange exchange);
 
 	/**
 	 * Replace the previous exchange with the current.
-	 * 
+	 * <p>
 	 * In difference to the normal definition of this function, the current
 	 * exchange will be also added, if no exchange was registered with the key.
 	 * 

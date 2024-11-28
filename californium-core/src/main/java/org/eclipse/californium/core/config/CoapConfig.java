@@ -45,7 +45,7 @@ import org.eclipse.californium.elements.config.TimeDefinition;
 
 /**
  * Configuration definitions for CoAP.
- * 
+ * <p>
  * Used for a Californium's server, endpoint and/or connector.
  * 
  * @since 3.0 (derived from former NetworkConfig)
@@ -56,7 +56,7 @@ public final class CoapConfig {
 
 	/**
 	 * Matcher mode.
-	 * 
+	 * <p>
 	 * Used for UDP and DTLS.
 	 */
 	public enum MatcherMode {
@@ -65,8 +65,9 @@ public final class CoapConfig {
 		 */
 		STRICT,
 		/**
-		 * Relaxed matching. DTLS session may have been resumed or UDP address
-		 * may have changed.
+		 * Relaxed matching.
+		 * <p>
+		 * DTLS session may have been resumed or UDP address may have changed.
 		 */
 		RELAXED,
 		/**
@@ -90,24 +91,28 @@ public final class CoapConfig {
 	 */
 	public enum TrackerMode {
 		/**
-		 * Disable tracker. May result in overload the other peer's MID
-		 * deduplication mechanism.
+		 * Disable tracker.
+		 * <p>
+		 * May result in overload the other peer's MID deduplication mechanism.
 		 */
 		NULL,
 		/**
-		 * Keep track of used MID-groups. Good trade-off between
-		 * resource-consumption and MID reuse.
+		 * Keep track of used MID-groups.
+		 * <p>
+		 * Good trade-off between resource-consumption and MID reuse.
 		 */
 		GROUPED,
 		/**
-		 * Keep track of used MIDs. High resource-consumption.
+		 * Keep track of used MIDs.
+		 * <p>
+		 * High resource-consumption.
 		 */
 		MAPBASED
 	}
 
 	/**
 	 * Congestion control mechanism.
-	 *
+	 * <p>
 	 * (Experimental.)
 	 */
 	public enum CongestionControlMode {
@@ -200,18 +205,18 @@ public final class CoapConfig {
 	public static final boolean DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER = true;
 
 	/**
-	 * The default value for {@link #PREFERRED_BLOCK_SIZE}
+	 * The default value for {@link #PREFERRED_BLOCK_SIZE}.
 	 */
 	public static final int DEFAULT_PREFERRED_BLOCK_SIZE = 512;
 
 	/**
-	 * The default value for {@link #MAX_MESSAGE_SIZE}
+	 * The default value for {@link #MAX_MESSAGE_SIZE}.
 	 */
 	public static final int DEFAULT_MAX_MESSAGE_SIZE = 1024;
 
 	/**
 	 * The default MID tracker.
-	 * 
+	 * <p>
 	 * Supported values are {@code NULL}, {@code GROUPED}, or {@code MAPBASED}.
 	 */
 	public static final TrackerMode DEFAULT_MID_TRACKER = TrackerMode.GROUPED;
@@ -241,7 +246,9 @@ public final class CoapConfig {
 	 */
 	public static final String DEDUPLICATOR_MARK_AND_SWEEP = "MARK_AND_SWEEP";
 	/**
-	 * Peers based deduplicator. Limits maximum messages kept per peer to
+	 * Peers based deduplicator.
+	 * <p>
+	 * Limits maximum messages kept per peer to
 	 * {@link #PEERS_MARK_AND_SWEEP_MESSAGES}. Removes messages, even if
 	 * exchange-lifetime is not expired.
 	 * 
@@ -282,15 +289,17 @@ public final class CoapConfig {
 
 	/**
 	 * The default response matcher.
-	 * 
+	 * <p>
 	 * Supported values are {@code STRICT}, {@code RELAXED}, or
 	 * {@code PRINCIPAL}.
 	 */
 	public static final MatcherMode DEFAULT_RESPONSE_MATCHING = MatcherMode.STRICT;
 
 	/**
-	 * The default multicast mid range. Enable multicast, and MID reserve range
-	 * of 65000..65335 for multicast. 0 to disable multicast.
+	 * The default multicast mid range.
+	 * <p>
+	 * Enable multicast, and MID reserve range of 65000..65335 for multicast.
+	 * 0 to disable multicast.
 	 */
 	public static final int DEFAULT_MULTICAST_BASE_MID = 65000;
 
@@ -300,7 +309,7 @@ public final class CoapConfig {
 	public static final int DEFAULT_TOKEN_SIZE_LIMIT = 8;
 	/**
 	 * The default number of maximum observes supported on the coap-server.
-	 * 
+	 * <p>
 	 * {@code 0} to disable the server side limitation of observers.
 	 * 
 	 * @since 3.6
@@ -342,8 +351,9 @@ public final class CoapConfig {
 	public static final IntegerDefinition COAP_SECURE_PORT = new IntegerDefinition(MODULE + "COAP_SECURE_PORT",
 			"CoAP DTLS port.", 5684, 1);
 	/**
-	 * Initial CoAP acknowledge timeout for CON messages. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
+	 * Initial CoAP acknowledge timeout for CON messages.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252 4.8. Transmission Parameters</a>.
 	 */
 	public static final TimeDefinition ACK_TIMEOUT = new TimeDefinition(MODULE + "ACK_TIMEOUT",
@@ -354,46 +364,52 @@ public final class CoapConfig {
 	public static final TimeDefinition MAX_ACK_TIMEOUT = new TimeDefinition(MODULE + "MAX_ACK_TIMEOUT",
 			"Maximum CoAP acknowledge timeout.", 60000, TimeUnit.MILLISECONDS);
 	/**
-	 * Random factor applied to the initial CoAP acknowledge timeout. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
+	 * Random factor applied to the initial CoAP acknowledge timeout.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final FloatDefinition ACK_INIT_RANDOM = new FloatDefinition(MODULE + "ACK_INIT_RANDOM",
 			"Random factor for initial CoAP acknowledge timeout.", 1.5F, 1.0F);
 	/**
-	 * Factor as back-off applied to follow-up CoAP acknowledge timeout. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.2"
+	 * Factor as back-off applied to follow-up CoAP acknowledge timeout.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.2"
 	 * target="_blank">RFC7252, 4.2. Messages Transmitted Reliably, "timeout is
 	 * doubled"</a>.
 	 */
 	public static final FloatDefinition ACK_TIMEOUT_SCALE = new FloatDefinition(MODULE + "ACK_TIMEOUT_SCALE",
 			"Scale factor for CoAP acknowledge backoff-timeout.", 2.0F, 1.0F);
 	/**
-	 * Maximum numbers of retransmissions. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
+	 * Maximum numbers of retransmissions.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final IntegerDefinition MAX_RETRANSMIT = new IntegerDefinition(MODULE + "MAX_RETRANSMIT",
 			"Maximum number of CoAP retransmissions.", 4, 1);
 	/**
-	 * The EXCHANGE_LIFETIME for CON requests. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
+	 * The EXCHANGE_LIFETIME for CON requests.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
 	 * target="_blank">RFC7252, 4.8.2. Time Values Derived from Transmission
 	 * Parameters</a>.
 	 */
 	public static final TimeDefinition EXCHANGE_LIFETIME = new TimeDefinition(MODULE + "EXCHANGE_LIFETIME",
 			"CoAP maximum exchange lifetime for CON requests.", DEFAULT_EXCHANGE_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);
 	/**
-	 * The NON_LIFETIME for NON requests. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
+	 * The NON_LIFETIME for NON requests.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
 	 * target="_blank">RFC7252, 4.8.2. Time Values Derived from Transmission
 	 * Parameters</a>.
 	 */
 	public static final TimeDefinition NON_LIFETIME = new TimeDefinition(MODULE + "NON_LIFETIME",
 			"CoAP maximum lifetime for NON requests.", DEFAULT_NON_LIFETIME_IN_SECONDS, TimeUnit.SECONDS);
 	/**
-	 * The maximum latency assumed for message transmission. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
+	 * The maximum latency assumed for message transmission.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
 	 * target="_blank">RFC7252, 4.8.2. Time Values Derived from Transmission
 	 * Parameters</a>.
 	 */
@@ -402,37 +418,42 @@ public final class CoapConfig {
 	/**
 	 * The the maximum time from the first transmission of a Confirmable message
 	 * to the time when the sender gives up on receiving an acknowledgement or
-	 * reset. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
+	 * reset.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8.2"
 	 * target="_blank">RFC7252, 4.8.2. Time Values Derived from Transmission
 	 * Parameters</a>.
 	 */
 	public static final TimeDefinition MAX_TRANSMIT_WAIT = new TimeDefinition(MODULE + "MAX_TRANSMIT_WAIT",
 			"Maximum time to wait for ACK or RST after the first transmission of a CON message.", 93, TimeUnit.SECONDS);
 	/**
-	 * The maximum server response delay. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7390#section-2.5"
+	 * The maximum server response delay.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7390#section-2.5"
 	 * target="_blank">RFC7390, 2.5. Request and Response Model</a>.
 	 */
 	public static final TimeDefinition MAX_SERVER_RESPONSE_DELAY = new TimeDefinition(
 			MODULE + "MAX_SERVER_RESPONSE_DELAY", "Maximum server response delay.", 250, TimeUnit.SECONDS);
 	/**
-	 * The number of concurrent maximum server response delay. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
+	 * The number of concurrent maximum server response delay.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final IntegerDefinition NSTART = new IntegerDefinition(MODULE + "NSTART",
 			"Maximum concurrent transmissions.", 1, 1);
 	/**
-	 * The leisure of a multicast server for response delays. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
+	 * The leisure of a multicast server for response delays.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>.
 	 */
 	public static final TimeDefinition LEISURE = new TimeDefinition(MODULE + "LEISURE",
 			"Timespan a multicast server may spread the response.", 5, TimeUnit.SECONDS);
 	/**
-	 * The probing rate for new destination endpoints. See
-	 * <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
+	 * The probing rate for new destination endpoints.
+	 * <p>
+	 * See <a href="https://datatracker.ietf.org/doc/html/rfc7252#section-4.8"
 	 * target="_blank">RFC7252, 4.8. Transmission Parameters</a>. Currently not
 	 * used.
 	 */
@@ -447,7 +468,7 @@ public final class CoapConfig {
 			MODULE + "USE_MESSAGE_OFFLOADING", "Use message off-loading, when data is not longer required.", false);
 	/**
 	 * Use initially a random value for the MID.
-	 * 
+	 * <p>
 	 * Mitigates accidentally MID duplicates after restart with MIDs used before
 	 * restart. Especially, if a blockwise transfer was ongoing before the
 	 * restart, the random initial value may not help. In that cases, use a
@@ -467,10 +488,11 @@ public final class CoapConfig {
 	public static final IntegerDefinition MID_TRACKER_GROUPS = new IntegerDefinition(MODULE + "MID_TRACKER_GROUPS",
 			"Number of MID tracker groups.", DEFAULT_MID_TRACKER_GROUPS, 4);
 	/**
-	 * Base MID for multicast MID range. All multicast requests use the same MID
-	 * provider, which generates MIDs in the range [base...65536). None
-	 * multicast request use the range [0...base). 0 := disable multicast
-	 * support.
+	 * Base MID for multicast MID range.
+	 * <p>
+	 * All multicast requests use the same MID provider, which generates MIDs in
+	 * the range [base...65536). None multicast request use the range
+	 * [0...base). 0 := disable multicast support.
 	 */
 	public static final IntegerDefinition MULTICAST_BASE_MID = new IntegerDefinition(MODULE + "MULTICAST_BASE_MID",
 			"Base MID for multicast requests.", DEFAULT_MULTICAST_BASE_MID, 0);
@@ -481,6 +503,7 @@ public final class CoapConfig {
 			"Limit of token size.", DEFAULT_TOKEN_SIZE_LIMIT, 1);
 	/**
 	 * The block size (number of bytes) to use when doing a blockwise transfer.
+	 * <p>
 	 * This value serves as the upper limit for block size in blockwise
 	 * transfers.
 	 */
@@ -489,10 +512,10 @@ public final class CoapConfig {
 	/**
 	 * The maximum payload size (in bytes) that can be transferred in a single
 	 * message, i.e. without requiring a blockwise transfer.
-	 * 
-	 * NB: this value MUST be adapted to the maximum message size supported by
-	 * the transport layer. In particular, this value cannot exceed the
-	 * network's MTU if UDP is used as the transport protocol.
+	 * <p>
+	 * <b>Note:</b> this value MUST be adapted to the maximum message size
+	 * supported by the transport layer. In particular, this value cannot exceed
+	 * the network's MTU if UDP is used as the transport protocol.
 	 */
 	public static final IntegerDefinition MAX_MESSAGE_SIZE = new IntegerDefinition(MODULE + "MAX_MESSAGE_SIZE",
 			"Maximum payload size.", DEFAULT_MAX_MESSAGE_SIZE, 16);
@@ -541,7 +564,7 @@ public final class CoapConfig {
 			DEFAULT_BLOCKWISE_STATUS_INTERVAL_IN_SECONDS, TimeUnit.SECONDS);
 	/**
 	 * Number of BERT/TCP bulk blocks.
-	 * 
+	 * <p>
 	 * If the value is greater than 1, this sets up the active use of BERT. i.e.
 	 * Messages will be sent with BERT option. The passive receiving of BERT
 	 * message is always enabled while using TCP connector.
@@ -555,7 +578,6 @@ public final class CoapConfig {
 	 * <p>
 	 * The default value of this property is
 	 * {@link #DEFAULT_BLOCKWISE_STRICT_BLOCK1_OPTION}.
-	 * </p>
 	 * 
 	 * @see <a href="https://github.com/eclipse/californium/issues/1937" target=
 	 *      "_blank"> RFC7959 - Block1 Option in Error Response 4.08 (Request
@@ -574,7 +596,6 @@ public final class CoapConfig {
 	 * <p>
 	 * The default value of this property is
 	 * {@link #DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}.
-	 * </p>
 	 * 
 	 * <ul>
 	 * <li>A value of {@code false} indicate that the server will respond
@@ -582,7 +603,6 @@ public final class CoapConfig {
 	 * <li>A value of {@code true} indicate that the server will response with
 	 * block2 option event if no further blocks are required.</li>
 	 * </ul>
-	 * 
 	 */
 	public static final BooleanDefinition BLOCKWISE_STRICT_BLOCK2_OPTION = new BooleanDefinition(
 			MODULE + "BLOCKWISE_STRICT_BLOCK2_OPTION", "Use block2 option strictly, even if block2 is not required.",
@@ -598,8 +618,9 @@ public final class CoapConfig {
 	 * When activated ({@code true}), CoAP client will try to use block mode or
 	 * adapt the block size when receiving a 4.13 Entity too large response
 	 * code.
-	 * <p>
-	 * @see <a href="https://tools.ietf.org/html/rfc7959#section-2.9.3" target="_blank">RFC7959, 2.9.3. - 4.13 Request Entity Too Large</a>
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc7959#section-2.9.3"
+	 * target="_blank">RFC7959, 2.9.3. - 4.13 Request Entity Too Large</a>
 	 */
 	public static final BooleanDefinition BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER = new BooleanDefinition(
 			MODULE + "BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER",
@@ -612,9 +633,10 @@ public final class CoapConfig {
 	 * <b>Note:</b> reusing tokens may introduce a vulnerability, if
 	 * requests/response are captured and sent later without protecting the
 	 * integrity of the payload by other means.
-	 * </p>
+	 * <p>
+	 * See <a href="https://github.com/core-wg/attacks-on-coap"
+	 * target="_blank">attacks-on-coap</a>
 	 * 
-	 * @see <a href="https://github.com/core-wg/attacks-on-coap" target="_blank">attacks-on-coap</a>
 	 * @since 3.8
 	 */
 	public static final BooleanDefinition BLOCKWISE_REUSE_TOKEN = new BooleanDefinition(
@@ -624,7 +646,7 @@ public final class CoapConfig {
 	/**
 	 * Time interval for a coap-server to check the client's interest in further
 	 * notifications.
-	 * 
+	 * <p>
 	 * Use a CON notification for that check.
 	 * 
 	 * @see ObserveRelation#check()
@@ -636,7 +658,7 @@ public final class CoapConfig {
 	/**
 	 * Number of notifications for a coap-server to check the client's interest
 	 * in further notifications.
-	 * 
+	 * <p>
 	 * Use a CON notification for that check.
 	 * 
 	 * @see ObserveRelation#check()
@@ -647,7 +669,7 @@ public final class CoapConfig {
 			"Interval counter to check notifications receiver using a CON message.", 100);
 	/**
 	 * Backoff time for a coap-client to reregister stale observations.
-	 * 
+	 * <p>
 	 * The coap-server is intended to set the max-age in the response/notify
 	 * according
 	 * <a href="https://datatracker.ietf.org/doc/html/rfc7641#section-4.3.1"
@@ -662,7 +684,7 @@ public final class CoapConfig {
 			2000L, TimeUnit.MILLISECONDS);
 	/**
 	 * The maximum number of observes supported on the coap-server.
-	 * 
+	 * <p>
 	 * {@code 0} to disable the server side limitation of observers.
 	 * 
 	 * @since 3.6
@@ -680,7 +702,7 @@ public final class CoapConfig {
 	/**
 	 * Force congestion control algorithm to use inet-address instead of remote
 	 * peer's identity.
-	 * 
+	 * <p>
 	 * The {@link EndpointIdentityResolver} enables Californium to use a
 	 * different remote identity instead of the inet-address to process states.
 	 * For congestion control that may result in less good results, if an
@@ -728,7 +750,7 @@ public final class CoapConfig {
 			DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES, 4);
 	/**
 	 * Enable auto replace of not matching exchanges.
-	 * 
+	 * <p>
 	 * Sometimes, mainly triggered by not-aware address changes, wrong messages
 	 * hit the deduplictor. Especially it the direction of the exchanges is
 	 * changing, that's mainly caused by such address changes and a automatic
@@ -764,6 +786,9 @@ public final class CoapConfig {
 			"Process empty messages strictly according RFC7252, 4.1 as format error. Disable to ignore additional data as tokens or options.",
 			true);
 
+	/**
+	 * Module definitions provider for CoAP.
+	 */
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
 		@Override
@@ -841,8 +866,9 @@ public final class CoapConfig {
 	}
 
 	/**
-	 * Register definitions of this module to the default definitions. Register
-	 * the required definitions of {@link SystemConfig} as well.
+	 * Register definitions of this module to the default definitions.
+	 * <p>
+	 * Register the required definitions of {@link SystemConfig} as well.
 	 */
 	public static void register() {
 		SystemConfig.register();

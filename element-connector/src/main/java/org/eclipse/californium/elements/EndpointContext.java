@@ -31,7 +31,7 @@ import org.eclipse.californium.elements.util.Bytes;
  * 
  * Contains several endpoint identity candidates:
  * 
- * <table summary="Endpoint Identity Candidates">
+ * <table><caption>Endpoint Identity Candidates</caption>
  * <tr>
  * <th>Candidate</th>
  * <th>Description</th>

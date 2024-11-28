@@ -112,8 +112,8 @@ public class CoapExchange implements ResponseConsumer {
 	}
 
 	/**
-	 * Gets the request code: <tt>GET</tt>, <tt>POST</tt>, <tt>PUT</tt> or
-	 * <tt>DELETE</tt>.
+	 * Gets the request code: {@code GET}, {@code POST}, {@code PUT} or
+	 * {@code DELETE}.
 	 * 
 	 * @return the request code
 	 */

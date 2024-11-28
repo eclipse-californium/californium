@@ -937,7 +937,6 @@ public final class OptionSet {
 
 	/**
 	 * Gets the Uri-Query parameter.
-	 * <p>
 	 * 
 	 * @param supportedParameterNames list of supported parameter names. May be
 	 *            {@code null} or empty, if the parameter names should not be
@@ -954,7 +953,6 @@ public final class OptionSet {
 
 	/**
 	 * Gets the Uri-Query parameter.
-	 * <p>
 	 * 
 	 * @param supportedParameterNames list of supported parameter names. May be
 	 *            {@code null} or empty, if the parameter names should not be

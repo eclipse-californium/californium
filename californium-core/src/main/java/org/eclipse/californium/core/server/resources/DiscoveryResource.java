@@ -35,7 +35,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
  * The DiscoveryResource implements CoAP's discovery service.
  * 
  * It is typically accessible over CoAP on the well-known URI:
- * <tt>/.well-known/core</tt>. It responds to GET requests with a list of the
+ * {@code /.well-known/core}. It responds to GET requests with a list of the
  * server's resources, i.e. links.
  * 
  * Since 3.1, this resource and its children are not longer contained in the
