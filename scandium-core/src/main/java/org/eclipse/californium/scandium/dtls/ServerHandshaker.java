@@ -91,8 +91,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Server handshaker does the protocol handshaking from the point of view of a
- * server. It is message-driven by the parent {@link Handshaker} class. The
- * message flow is depicted in
+ * server.
+ * <p>
+ * It is message-driven by the parent {@link Handshaker} class. The message flow
+ * is depicted in
  * <a href="https://tools.ietf.org/html/rfc6347#page-21" target= "_blank">Figure
  * 1</a>.
  * 
@@ -146,7 +148,7 @@ public class ServerHandshaker extends Handshaker {
 	/** Does the server use session id? */
 	private final boolean useSessionId;
 
-	/** certificate based client authentication mode */
+	/** certificate based client authentication mode. */
 	private final CertificateAuthenticationMode clientAuthenticationMode;
 
 	/** Is the client's address verified? */
@@ -167,10 +169,10 @@ public class ServerHandshaker extends Handshaker {
 
 	/**
 	 * Secure renegotiation mode.
-	 * 
+	 * <p>
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
 	 * update to a minimal version.
-	 * 
+	 * <p>
 	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
 	 * 5746</a> for additional details.
 	 * 
@@ -333,7 +335,7 @@ public class ServerHandshaker extends Handshaker {
 
 	/**
 	 * Start initial timeout for internal API calls.
-	 * 
+	 * <p>
 	 * Processing the first received flight has no pending timeout for the last
 	 * flight. Therefore start an empty dummy flight to schedule a timeout.
 	 * 
@@ -363,7 +365,7 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * If the server requires mutual authentication, the client must send its
 	 * certificate.
-	 * 
+	 * <p>
 	 * Calls {@link #processCertificateVerified()} on available verification
 	 * result.
 	 * 
@@ -423,9 +425,10 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * Called, when the server received the client's {@link Finished} message.
 	 * Generate a {@link DTLSFlight} containing the
-	 * {@link ChangeCipherSpecMessage} and {@link Finished} message. This flight
-	 * will not be retransmitted, unless we receive the same finish message in
-	 * the future; then, we retransmit this flight.
+	 * {@link ChangeCipherSpecMessage} and {@link Finished} message.
+	 * <p>
+	 * This flight will not be retransmitted, unless we receive the same finish
+	 * message in the future; then, we retransmit this flight.
 	 * 
 	 * @param message the client's {@link Finished} message.
 	 * @throws HandshakeException if the client did not send the required
@@ -470,7 +473,7 @@ public class ServerHandshaker extends Handshaker {
 
 	/**
 	 * Called after the server receives a {@link ClientHello} handshake message.
-	 * 
+	 * <p>
 	 * Determines common security parameters and prepares to create the
 	 * response. If a certificate based cipher suite is shared, request the
 	 * certificate identity and calls {@link #processClientHello(ClientHello)}
@@ -756,7 +759,7 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * Retrieves the preshared key from the identity hint and then generates the
 	 * master secret.
-	 * 
+	 * <p>
 	 * Calls {@link #processMasterSecret()} on available credentials.
 	 * 
 	 * @param message the client's key exchange message.
@@ -772,7 +775,7 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * Retrieves the preshared key from the identity hint and then generates the
 	 * master secret using also the result of the ECDHE key exchange.
-	 * 
+	 * <p>
 	 * Calls {@link #processMasterSecret()} on available credentials.
 	 * 
 	 * @param message the client's key exchange message.
@@ -901,9 +904,10 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	/**
-	 * Negotiates the version to be used. It will return the lower of that
-	 * suggested by the client in the client hello and the highest supported by
-	 * the server.
+	 * Negotiates the version to be used.
+	 * <p>
+	 * It will return the lower of that suggested by the client in the client
+	 * hello and the highest supported by the server.
 	 * 
 	 * @param clientVersion the suggested version by the client.
 	 * @return the version to be used in the handshake.
@@ -928,7 +932,6 @@ public class ServerHandshaker extends Handshaker {
 	 * <p>
 	 * Delegates the selection calling
 	 * {@link CipherSuiteSelector#select(CipherSuiteParameters)}.
-	 * <p>
 	 * 
 	 * @param clientHello the <em>CLIENT_HELLO</em> message.
 	 * @throws HandshakeException if this server's configuration does not
@@ -1082,9 +1085,10 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	/**
-	 * Get list of common supported certificate types. If the extension is
-	 * available, used it to find a supported certificate type. If the extension
-	 * is not available, check, if X_509 is supported.
+	 * Get list of common supported certificate types.
+	 * <p>
+	 * If the extension is available, used it to find a supported certificate
+	 * type. If the extension is not available, check, if X_509 is supported.
 	 * 
 	 * @param certTypeExt certificate type extension. {@code null}, if not
 	 *            available.

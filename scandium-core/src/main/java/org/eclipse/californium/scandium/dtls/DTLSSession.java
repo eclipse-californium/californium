@@ -78,7 +78,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * Represents a DTLS session between two peers.
- * 
+ * <p>
  * Keeps track of the negotiated parameter.
  */
 public final class DTLSSession implements Destroyable {
@@ -93,7 +93,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Protocol version.
-	 * 
+	 * <p>
 	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
 	 * 
 	 * @since 3.0
@@ -146,7 +146,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Use extended master secret.
-	 * 
+	 * <p>
 	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @since 3.0
@@ -154,10 +154,10 @@ public final class DTLSSession implements Destroyable {
 	private boolean extendedMasterSecret;
 	/**
 	 * Use secure renegotiation.
-	 * 
+	 * <p>
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
 	 * update to a minimal version of RFC 5746.
-	 * 
+	 * <p>
 	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
 	 * 5746</a> for additional details.
 	 * 
@@ -220,7 +220,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Sets session.
-	 * 
+	 * <p>
 	 * Sets all fields of this session from the values of the provided session.
 	 * 
 	 * @param session session to set
@@ -277,7 +277,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Sets the session identifier.
-	 * 
+	 * <p>
 	 * Resets the {@link #masterSecret}, if the session identifier is changed.
 	 * 
 	 * @param sessionIdentifier new session identifier
@@ -302,7 +302,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Gets protocol version.
-	 * 
+	 * <p>
 	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
 	 * 
 	 * @return protocol version.
@@ -314,7 +314,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Sets protocol version.
-	 * 
+	 * <p>
 	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
 	 * 
 	 * @param protocolVersion protocol version
@@ -438,7 +438,6 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Gets the cipher suite to be used for this session.
-	 * <p>
 	 * 
 	 * @return the cipher suite to be used
 	 */
@@ -448,7 +447,6 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Gets the cipher suites to be used for resumption.
-	 * <p>
 	 * 
 	 * @return the cipher suites for resumption
 	 * @since 3.13
@@ -463,7 +461,6 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Sets the cipher suite to be used for this session.
-	 * <p>
 	 * 
 	 * @param cipherSuite the cipher suite to be used
 	 * @throws NullPointerException if the given cipher suite is {@code null}
@@ -523,7 +520,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Set use extended master secret.
-	 * 
+	 * <p>
 	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @param enable {@code true}, to enable the use of the extended master
@@ -537,7 +534,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Gets use extended master secret.
-	 * 
+	 * <p>
 	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @return {@code true}, to enable the use of the extended master secret,
@@ -550,10 +547,10 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Sets secure renegotiation usage.
-	 * 
+	 * <p>
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
 	 * update to a minimal version of RFC 5746.
-	 * 
+	 * <p>
 	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
 	 * 5746</a> for additional details.
 	 * 
@@ -567,10 +564,10 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Gets use secure renegotiation.
-	 * 
+	 * <p>
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
 	 * update to a minimal version of RFC 5746.
-	 * 
+	 * <p>
 	 * See <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
 	 * 5746</a> for additional details.
 	 * 
@@ -594,7 +591,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Sets the master secret to be use on session resumptions.
-	 * 
+	 * <p>
 	 * Once the master secret has been set, it cannot be changed without
 	 * changing the session id ahead. If the session id is empty, the session
 	 * doesn't support resumption and therefore the master secret is not set.
@@ -737,7 +734,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Gets effective fragment limit.
-	 * 
+	 * <p>
 	 * Either {@link #recordSizeLimit}, if received, or
 	 * {@link #maxFragmentLength}.
 	 * 
@@ -792,7 +789,7 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	/**
-	 * Gets the negotiated ec-group to be used for the ECDHE key exchange
+	 * Gets the negotiated ec-group to be used for the ECDHE key exchange.
 	 * message.
 	 * 
 	 * @return negotiated ec-group
@@ -803,7 +800,7 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	/**
-	 * Sets the negotiated ec-group to be used for the ECDHE key exchange
+	 * Sets the negotiated ec-group to be used for the ECDHE key exchange.
 	 * 
 	 * @param ecGroup negotiated ec-group
 	 * @since 3.0
@@ -924,9 +921,9 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Write dtls session state.
-	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it.
+	 * <p>
+	 * <b>Note:</b> the stream will contain not encrypted critical credentials.
+	 * It is required to protect this data before exporting it.
 	 * 
 	 * @param writer writer for dtls session state
 	 * @since 3.0

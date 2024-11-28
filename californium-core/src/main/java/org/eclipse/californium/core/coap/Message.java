@@ -397,7 +397,7 @@ public abstract class Message {
 
 	/**
 	 * Checks, if message is marked to have unintended payload.
-	 * <p>
+	 * 
 	 * @return {@code true} if message is marked to have unintended payload
 	 */
 	public boolean isUnintendedPayload() {
