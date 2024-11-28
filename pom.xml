@@ -798,6 +798,29 @@
 			</build>
 		</profile>
 		<profile>
+			<id>java17-javadoc-warn</id>
+			<activation>
+				<!-- jdk executing maven, not the jdk of the toolchain -->
+				<jdk>[17,)</jdk>
+				<property>
+					<name>warnJavadoc</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<configuration>
+							<show>private</show>
+							<failOnWarnings>true</failOnWarnings>
+							<doclint>${javadoc.doclint}</doclint>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
 			<!-- This profile activate the usage of toolchain to compile using
 			JDK 
 				1.7 -->

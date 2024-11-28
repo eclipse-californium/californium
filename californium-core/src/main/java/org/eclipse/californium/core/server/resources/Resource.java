@@ -34,7 +34,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * structure. A resource must have a name and its URI is defined by the path to
  * the root of the server plus the name. Note that a resource's name is not part
  * of its path. Instead it holds that the URI is defined by
- * <tt>URI = path + name</tt> where the path is the concatenation of the names
+ * {@code URI = path + name} where the path is the concatenation of the names
  * of all parents separated and ended with a slash. Assume the following
  * resource tree
  * 
@@ -46,7 +46,7 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  *  |         `-- bal
  * </pre>
  * 
- * For resource <tt>bal</tt> it holds that
+ * For resource {@code bal} it holds that
  * 
  * <pre>
  *  bal.getName() equals "bal"
@@ -211,7 +211,7 @@ public interface Resource {
 	 * associate with that name. This allows to support URIs containing
 	 * wildcards for example. That implies, returning children not contained in
 	 * {@link #getChildren()} nor being discovered via a
-	 * <tt>/.well-known/core</tt>.
+	 * {@code /.well-known/core}.
 	 * 
 	 * @param name the name
 	 * @return the child

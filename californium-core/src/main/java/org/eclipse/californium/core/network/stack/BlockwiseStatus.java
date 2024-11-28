@@ -240,7 +240,6 @@ public abstract class BlockwiseStatus {
 
 	/**
 	 * Marks the transfer as complete.
-	 * <p>
 	 * 
 	 * @param complete {@code true} if all blocks have been transferred.
 	 */
@@ -250,7 +249,6 @@ public abstract class BlockwiseStatus {
 
 	/**
 	 * Marks the transfer as complete, if not already completed.
-	 * <p>
 	 * 
 	 * @return {@code true}, if the transfer is completed, {@code false}, if the
 	 *         transfer was already completed.
