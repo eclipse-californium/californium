@@ -65,17 +65,18 @@ import org.slf4j.LoggerFactory;
  * of CoapResource can be built up to a tree very easily, see
  * {@link #add(CoapResource)}.
  * <p>
- * CoapResource uses four distinct methods to handle requests:
+ * CoapResource uses seven distinct methods to handle requests:
  * {@code handleGET()}, {@code handlePOST()}, {@code handlePUT()} and
- * {@code handleDELETE()}. Each method has a default implementation that
- * responds with a 4.05 (Method Not Allowed). Each method exists twice but with
- * a different parameter: {@code handleGET(Exchange)} and
- * {@code handleGET(CoAPExchange)} for instance. The class {@link Exchange} is
- * used internally in Californium to keep the state of an exchange of CoAP
- * messages. Only override this version of the method if you need to access
- * detailed information of an exchange. Most developer should rather override
- * the latter version. CoAPExchange provides a save and user-friendlier API that
- * can be used to respond to a request.
+ * {@code handleDELETE()}, {@code handleFETCH()}, {@code handlePATCH()} and
+ * {@code handleIPATCH()}. Each method has a default implementation that
+ * responds with a 4.05 (Method Not Allowed). Each method uses a
+ * {@link CoapExchange} which provides a save and user-friendly API to respond
+ * to a request. There is also a generic function
+ * {@code handleRequest(Exchange)}, which is called ahead and uses a raw
+ * {@link Exchange}. That class {@link Exchange} is used internally in
+ * Californium to keep the state of an exchange of CoAP messages. Only override
+ * this version of the method if you need to access detailed information of an
+ * exchange. Most developer should rather override the latter version.
  * <p>
  * The following example override the four handle-method.
  * 
@@ -154,7 +155,7 @@ public class CoapResource implements Resource, ObservableResource {
 	private final ReentrantLock recursionProtection = new ReentrantLock();
 
 	/**
-	 *  The resource name.
+	 * The resource name.
 	 */
 	private String name;
 
@@ -176,7 +177,7 @@ public class CoapResource implements Resource, ObservableResource {
 	/**
 	 * The child resources.
 	 * <p>
-	 * We need a ConcurrentHashMap to have stronger guarantees in a 
+	 * We need a ConcurrentHashMap to have stronger guarantees in a
 	 * multi-threaded environment (e.g. for discovery to work properly).
 	 */
 	private ConcurrentMap<String, Resource> children;
@@ -261,8 +262,10 @@ public class CoapResource implements Resource, ObservableResource {
 	 * method if your resource handler requires advanced access to the internal
 	 * Exchange class. Most developer should be better off with overriding the
 	 * called methods {@link #handleGET(CoapExchange)},
-	 * {@link #handlePOST(CoapExchange)}, {@link #handlePUT(CoapExchange)}, and
-	 * {@link #handleDELETE(CoapExchange)}, which provide a better API through
+	 * {@link #handlePOST(CoapExchange)}, {@link #handlePUT(CoapExchange)},
+	 * {@link #handleDELETE(CoapExchange)}, {@link #handleFETCH(CoapExchange)},
+	 * {@link #handlePATCH(CoapExchange)} and
+	 * {@link #handleIPATCH(CoapExchange)}, which provide a better API through
 	 * the {@link CoapExchange} class.
 	 * 
 	 * @param exchange the exchange with the request
@@ -783,8 +786,8 @@ public class CoapResource implements Resource, ObservableResource {
 	 * its own executor, the thread that has called this method performs the
 	 * notification.
 	 * <p>
-	 * <b>Note:</b> this implementation is not intended to be used as "history" or
-	 * "time sequence" function. If {@link #changed()} is called while an
+	 * <b>Note:</b> this implementation is not intended to be used as "history"
+	 * or "time sequence" function. If {@link #changed()} is called while an
 	 * execution is already pending, the outcome is undefined. It's only
 	 * ensured, that the last change will be transmitted. That will especially
 	 * occur, if resources are intended to change fast.
@@ -899,7 +902,7 @@ public class CoapResource implements Resource, ObservableResource {
 	 * parent that defines its own executor and wait until it the task is
 	 * completed.
 	 * <p>
-	 * If no parent defines an executor, the thread that calls this method 
+	 * If no parent defines an executor, the thread that calls this method
 	 * executes the specified task.
 	 * 
 	 * @param task the task
