@@ -112,10 +112,10 @@ public class CoapExchange implements ResponseConsumer {
 	}
 
 	/**
-	 * Gets the request code: {@code GET}, {@code POST}, {@code PUT} or
-	 * {@code DELETE}.
+	 * Gets the request code.
 	 * 
-	 * @return the request code
+	 * @return the request code, {@code GET}, {@code POST}, {@code PUT},
+	 *         {@code DELETE}, {@code FETCH}, {@code PATCH} or {@code IPATCH}.
 	 */
 	public Code getRequestCode() {
 		return exchange.getRequest().getCode();
