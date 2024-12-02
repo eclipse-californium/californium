@@ -317,15 +317,16 @@ public class ContextRederivation {
 			// Generate HMAC output using S2
 			byte[] hmacOutput = performHMAC(ctx.getContextRederivationKey(), contextS2);
 
+			// Decode the received context ID from a CBOR byte string
+			byte[] contextIdParsed = decodeFromCborBstrBytes(contextID);
+
 			// Compare the HMAC output with the equivalent in the message
-			byte[] messageHmacOutput = Arrays.copyOfRange(ctx.getIdContext(), SEGMENT_LENGTH, SEGMENT_LENGTH * 2);
+			byte[] messageHmacOutput = Arrays.copyOfRange(contextIdParsed, SEGMENT_LENGTH, SEGMENT_LENGTH * 2);
 			if (Arrays.equals(hmacOutput, messageHmacOutput) == false) {
 				throw new OSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 			}
 
-			// Generate a new context with the received Context ID, after
-			// decoded from a CBOR byte string
-			byte[] contextIdParsed = decodeFromCborBstrBytes(contextID);
+			// Generate a new context with the received Context ID
 			OSCoreCtx newCtx = rederiveWithContextID(ctx, contextIdParsed);
 
 			// Set the next phase of the re-derivation procedure
