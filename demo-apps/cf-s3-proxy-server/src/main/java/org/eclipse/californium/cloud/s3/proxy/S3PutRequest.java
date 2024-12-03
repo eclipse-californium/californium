@@ -47,7 +47,7 @@ public class S3PutRequest extends S3Request {
 	private final Map<String, String> meta;
 
 	/**
-	 * Create S3 PUT request.
+	 * Creates S3 PUT request.
 	 * 
 	 * @param key S3 key.
 	 * @param content content for S3 PUT requests
@@ -68,7 +68,7 @@ public class S3PutRequest extends S3Request {
 	}
 
 	/**
-	 * Get content for S3 PUT.
+	 * Gets content for S3 PUT.
 	 * 
 	 * @return content for S3 PUT.
 	 */
@@ -77,7 +77,7 @@ public class S3PutRequest extends S3Request {
 	}
 
 	/**
-	 * Get content type for S3 PUT.
+	 * Gets content type for S3 PUT.
 	 * 
 	 * @return content type for S3 PUT.
 	 */
@@ -86,7 +86,7 @@ public class S3PutRequest extends S3Request {
 	}
 
 	/**
-	 * Get timestamp for S3 PUT.
+	 * Gets timestamp for S3 PUT.
 	 * 
 	 * @return timestamp for S3 PUT.
 	 */
@@ -95,7 +95,7 @@ public class S3PutRequest extends S3Request {
 	}
 
 	/**
-	 * Get metadata for S3 PUT.
+	 * Gets metadata for S3 PUT.
 	 * 
 	 * @return metadata, maybe empty.
 	 * @since 3.13
@@ -112,7 +112,7 @@ public class S3PutRequest extends S3Request {
 	}
 
 	/**
-	 * Create S3 PUT request builder.
+	 * Creates S3 PUT request builder.
 	 * 
 	 * @return created builder
 	 */
@@ -121,7 +121,7 @@ public class S3PutRequest extends S3Request {
 	}
 
 	/**
-	 * Create S3 PUT request builder from S3 PUT request.
+	 * Creates S3 PUT request builder from S3 PUT request.
 	 * 
 	 * @param request S3 PUT request.
 	 * @return created builder
@@ -153,13 +153,13 @@ public class S3PutRequest extends S3Request {
 		protected Map<String, String> meta;
 
 		/**
-		 * Create S3 PUT request builder.
+		 * Creates S3 PUT request builder.
 		 */
 		protected Builder() {
 		}
 
 		/**
-		 * Create builder from S3 PUT request.
+		 * Creates builder from S3 PUT request.
 		 * 
 		 * @param request S3 PUT request
 		 */
@@ -177,7 +177,7 @@ public class S3PutRequest extends S3Request {
 		}
 
 		/**
-		 * Set content for S3 PUT request.
+		 * Sets content for S3 PUT request.
 		 * 
 		 * @param content content
 		 * @return builder for command chaining
@@ -188,7 +188,7 @@ public class S3PutRequest extends S3Request {
 		}
 
 		/**
-		 * Set content-type for S3 PUT request.
+		 * Sets content-type for S3 PUT request.
 		 * 
 		 * @param contentType content-type for PUT request
 		 * @return builder for command chaining
@@ -199,7 +199,7 @@ public class S3PutRequest extends S3Request {
 		}
 
 		/**
-		 * Set timestamp for S3 PUT request.
+		 * Sets timestamp for S3 PUT request.
 		 * 
 		 * @param timestamp timestamp
 		 * @return builder for command chaining
@@ -210,7 +210,7 @@ public class S3PutRequest extends S3Request {
 		}
 
 		/**
-		 * Set map of meta data.
+		 * Sets map of meta data.
 		 * 
 		 * @param meta map of meta data.
 		 * @return builder for command chaining

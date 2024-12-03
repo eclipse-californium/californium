@@ -54,10 +54,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * S3 processor.
- * 
- * Accumulate the data of single requests of days into an archive file. It is
+ * <p>
+ * Accumulates the data of single requests of days into an archive file. It is
  * intended to run once a day and appends the last complete day.
- * 
+ * <p>
  * Format:
  * 
  * <pre>
@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * </pre>
  * 
  * Example: {@code ##L720#D2024-09-27T15:27:03.217Z#I3600#C0#}
- * 
+ * <p>
  * Only the {@code L} field is mandatory, the others may be not available. The
  * date-time field uses the ISO format, see example. {@code I} contains the
  * expected send interval in seconds indicated by the device using
@@ -154,12 +154,12 @@ public class S3Processor {
 	private final long processInitialDelayInSeconds;
 	/**
 	 * Daily process time in seconds.
-	 * 
+	 * <p>
 	 * The intended way to process the data accumulation is to run that once a
 	 * day. If this field contains a value larger than {@code 0}, that defines
 	 * the time after GMT midnight to start the processing. A value of {@code 0}
 	 * disables this schedule.
-	 * 
+	 * <p>
 	 * This value has precedence over {@link #processIntervalInSeconds}.
 	 * 
 	 * @see S3ProxyServer#S3_PROCESSING_DAILY_TIME
@@ -167,7 +167,7 @@ public class S3Processor {
 	private final long processDailyTimeInSeconds;
 	/**
 	 * Process interval in seconds.
-	 * 
+	 * <p>
 	 * The intended way to process the data accumulation is to run that once a
 	 * day. If {@link #processDailyTimeInSeconds} contains 0, this field defines
 	 * the interval in seconds to start the processing. A value of {@code 0}
@@ -327,7 +327,7 @@ public class S3Processor {
 
 	/**
 	 * Execute a process run.
-	 * 
+	 * <p>
 	 * List all devices of all domains and append new data to the archive files.
 	 * 
 	 * @return {@code true}, if this call start processing, {@code false}, if
@@ -488,7 +488,7 @@ public class S3Processor {
 		private final String domain;
 		/**
 		 * S3 device key.
-		 * 
+		 * <p>
 		 * Already terminated with "/".
 		 */
 		private final String deviceKey;
@@ -783,7 +783,7 @@ public class S3Processor {
 
 		/**
 		 * Load messages to append.
-		 * 
+		 * <p>
 		 * When all messages are loaded, write new archive file.
 		 * 
 		 * @param newMessages sorted list of new messages

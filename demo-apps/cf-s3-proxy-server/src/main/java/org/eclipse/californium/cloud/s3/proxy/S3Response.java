@@ -41,7 +41,7 @@ public class S3Response {
 	 */
 	private final String contentType;
 	/**
-	 * Timestamp.
+	 * Content length.
 	 */
 	private final Long contentLength;
 	/**
@@ -54,7 +54,7 @@ public class S3Response {
 	private final Map<String, String> meta;
 
 	/**
-	 * Create S3 response.
+	 * Creates S3 response.
 	 * 
 	 * @param httpStatusCode http status code
 	 * @param content content as string
@@ -76,7 +76,7 @@ public class S3Response {
 	}
 
 	/**
-	 * Get http status code.
+	 * Gets http status code.
 	 * 
 	 * @return http status code.
 	 */
@@ -85,7 +85,7 @@ public class S3Response {
 	}
 
 	/**
-	 * Get content.
+	 * Gets content.
 	 * 
 	 * @return content
 	 */
@@ -94,7 +94,7 @@ public class S3Response {
 	}
 
 	/**
-	 * Get content as stream.
+	 * Gets content as stream.
 	 * 
 	 * @return content as stream
 	 */
@@ -103,7 +103,7 @@ public class S3Response {
 	}
 
 	/**
-	 * Get content type.
+	 * Gets content type.
 	 * 
 	 * @return content type
 	 */
@@ -112,7 +112,7 @@ public class S3Response {
 	}
 
 	/**
-	 * Get content length.
+	 * Gets content length.
 	 * 
 	 * @return content length
 	 */
@@ -121,7 +121,7 @@ public class S3Response {
 	}
 
 	/**
-	 * Get timestamp of last update.
+	 * Gets timestamp of last update.
 	 * 
 	 * @return timestamp of last update
 	 */
@@ -130,7 +130,7 @@ public class S3Response {
 	}
 
 	/**
-	 * Get map of meta data.
+	 * Gets map of meta data.
 	 * 
 	 * @return map of meta data.
 	 */
@@ -139,7 +139,7 @@ public class S3Response {
 	}
 
 	/**
-	 * Create S3-request-builder.
+	 * Creates S3 response builder.
 	 * 
 	 * @return created builder
 	 */
@@ -148,17 +148,17 @@ public class S3Response {
 	}
 
 	/**
-	 * Create S3-request-builder from S3-request.
+	 * Creates S3 response builder from S3 response.
 	 * 
-	 * @param request S3-request.
+	 * @param response S3-response.
 	 * @return created builder
 	 */
-	public static Builder builder(S3Response request) {
-		return new Builder(request);
+	public static Builder builder(S3Response response) {
+		return new Builder(response);
 	}
 
 	/**
-	 * S3-request-builder.
+	 * S3 response builder.
 	 */
 	public static class Builder {
 
@@ -192,7 +192,7 @@ public class S3Response {
 		protected Map<String, String> meta;
 
 		/**
-		 * Create S3-request-builder.
+		 * Create S3 response builder.
 		 */
 		protected Builder() {
 		}
@@ -213,7 +213,7 @@ public class S3Response {
 		}
 
 		/**
-		 * Set http status code.
+		 * Sets http status code.
 		 * 
 		 * @param httpStatusCode http status code
 		 * @return builder for command chaining
@@ -224,7 +224,7 @@ public class S3Response {
 		}
 
 		/**
-		 * Set content.
+		 * Sets content.
 		 * 
 		 * @param content content.
 		 * @return builder for command chaining
@@ -235,7 +235,7 @@ public class S3Response {
 		}
 
 		/**
-		 * Set content.
+		 * Sets content.
 		 * 
 		 * @param content content as stream.
 		 * @return builder for command chaining
@@ -246,7 +246,7 @@ public class S3Response {
 		}
 
 		/**
-		 * Set content type.
+		 * Sets content type.
 		 * 
 		 * @param contentType content type.
 		 * @return builder for command chaining
@@ -257,7 +257,7 @@ public class S3Response {
 		}
 
 		/**
-		 * Set content length.
+		 * Sets content length.
 		 * 
 		 * @param contentLength content length.
 		 * @return builder for command chaining
@@ -268,7 +268,7 @@ public class S3Response {
 		}
 
 		/**
-		 * Set timestamp.
+		 * Sets timestamp.
 		 * 
 		 * @param timestamp timestamp.
 		 * @return builder for command chaining
@@ -279,7 +279,7 @@ public class S3Response {
 		}
 
 		/**
-		 * Set map of meta data.
+		 * Sets map of meta data.
 		 * 
 		 * @param meta map of meta data.
 		 * @return builder for command chaining

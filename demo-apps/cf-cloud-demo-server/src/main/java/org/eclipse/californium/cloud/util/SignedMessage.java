@@ -28,12 +28,12 @@ import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 
 /**
  * The ASN.1 signatures.
- * 
+ * <p>
  * See
  * <a href="https://tools.ietf.org/html/rfc4492#section-5.4" target="_blank">
  * RFC 4492, section 5.4 Server Key Exchange</a> for details regarding the
  * message format.
- * 
+ * <p>
  * According <a href="https://tools.ietf.org/html/rfc8422#section-5.1.1" target=
  * "_blank">RFC 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named
  * curves" are valid, the "prime" and "char2" curve descriptions are deprecated.

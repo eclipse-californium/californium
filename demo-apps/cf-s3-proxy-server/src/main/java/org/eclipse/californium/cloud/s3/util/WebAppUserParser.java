@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Web application user parser.
- * 
+ * <p>
  * Format:
  * 
  * <pre>
@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
  * double-quotes ({@code "}). An entry with {@code *.s3} is used to setup the
  * default S3 credentials for user definitions without explicit {@code .s3}
  * definition.
- * 
+ * <p>
  * Example:
  * 
  * <pre>

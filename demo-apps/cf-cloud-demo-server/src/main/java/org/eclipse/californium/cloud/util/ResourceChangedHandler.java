@@ -23,7 +23,7 @@ public interface ResourceChangedHandler {
 
 	/**
 	 * Handle changed resources.
-	 * 
+	 * <p>
 	 * Triggers to write the changed resource.
 	 * 
 	 * @param response response consumer.

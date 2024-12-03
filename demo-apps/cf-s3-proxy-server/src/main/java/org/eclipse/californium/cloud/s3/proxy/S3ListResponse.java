@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * S3 list response.
+ * S3 LIST response.
  * 
  * @since 3.13
  */
@@ -36,7 +36,7 @@ public class S3ListResponse extends S3Response {
 	private final List<S3Object> objects;
 
 	/**
-	 * Create S3 list response.
+	 * Creates S3 LIST response.
 	 * 
 	 * @param prefixes list of prefixes (directories).
 	 * @param objects list of objects.
@@ -48,7 +48,7 @@ public class S3ListResponse extends S3Response {
 	}
 
 	/**
-	 * Create S3 list response.
+	 * Creates S3 LIST response.
 	 * 
 	 * @param httpStatusCode http status code
 	 * @param content content as string
@@ -66,7 +66,7 @@ public class S3ListResponse extends S3Response {
 	}
 
 	/**
-	 * Get list of prefixes.
+	 * Gets list of prefixes.
 	 * 
 	 * @return list of prefixes.
 	 */
@@ -75,7 +75,7 @@ public class S3ListResponse extends S3Response {
 	}
 
 	/**
-	 * Get list of objects.
+	 * Gets list of objects.
 	 * 
 	 * @return list of objects.
 	 */
@@ -84,7 +84,7 @@ public class S3ListResponse extends S3Response {
 	}
 
 	/**
-	 * Create S3-request-builder.
+	 * Creates S3 LIST response builder.
 	 * 
 	 * @return created builder
 	 */
@@ -93,7 +93,7 @@ public class S3ListResponse extends S3Response {
 	}
 
 	/**
-	 * S3-request-builder.
+	 * S3 LIST response builder.
 	 */
 	public static class Builder extends S3Response.Builder {
 
@@ -107,7 +107,7 @@ public class S3ListResponse extends S3Response {
 		protected List<S3Object> objects;
 
 		/**
-		 * Create S3-request-builder.
+		 * Create S3 LIST response builder.
 		 */
 		protected Builder() {
 		}
@@ -155,7 +155,7 @@ public class S3ListResponse extends S3Response {
 		}
 
 		/**
-		 * Set list of prefixes.
+		 * Sets list of prefixes.
 		 * 
 		 * @param prefixes list of prefixes (directories).
 		 * @return builder for command chaining
@@ -166,7 +166,7 @@ public class S3ListResponse extends S3Response {
 		}
 
 		/**
-		 * Set list of objects.
+		 * Sets list of objects.
 		 * 
 		 * @param objects list of objects.
 		 * @return builder for command chaining
@@ -177,9 +177,9 @@ public class S3ListResponse extends S3Response {
 		}
 
 		/**
-		 * Creates S3 list response.
+		 * Creates S3 LIST response.
 		 * 
-		 * @return S3 list response
+		 * @return S3 LIST response
 		 */
 		public S3ListResponse build() {
 			if (prefixes != null && objects != null) {
@@ -191,11 +191,26 @@ public class S3ListResponse extends S3Response {
 		}
 	}
 
+	/**
+	 * S3 object.
+	 */
 	public static class S3Object implements Comparable<S3Object> {
 
+		/**
+		 * S3 resource key.
+		 */
 		public final String key;
+		/**
+		 * S3 resource ETAG.
+		 */
 		public final String etag;
 
+		/**
+		 * Creates S3 object.
+		 * 
+		 * @param key S3 resource key
+		 * @param etag S3 resource ETAG
+		 */
 		public S3Object(String key, String etag) {
 			this.key = key;
 			this.etag = etag;

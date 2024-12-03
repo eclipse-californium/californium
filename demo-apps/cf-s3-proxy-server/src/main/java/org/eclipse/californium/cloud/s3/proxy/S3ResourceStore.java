@@ -52,7 +52,7 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 	private final S3ProxyClient s3Client;
 
 	/**
-	 * Create S3 based resource store.
+	 * Creates S3 based resource store.
 	 * 
 	 * @param factory factory instance of {@link ResourceParser}.
 	 * @param s3Client s3Client to read resource from S3
@@ -65,7 +65,7 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 	}
 
 	/**
-	 * Create resource monitor for automatic resource reloading.
+	 * Creates resource monitor for automatic resource reloading.
 	 * 
 	 * @param key s3 key of resource store.
 	 * @param password password of resource. {@code null} to use
@@ -108,7 +108,7 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 	}
 
 	/**
-	 * Load resource from S3.
+	 * Loads resource from S3.
 	 * 
 	 * @param key s3 key of resource
 	 * @param handler handler for loaded stream
@@ -131,6 +131,11 @@ public class S3ResourceStore<T extends ResourceParser<T>> extends ResourceStore<
 		}
 	}
 
+	/**
+	 * {@link SystemResourceMonitor} with {@link ResourceChangedHandler}.
+	 * <p>
+	 * Monitors S3 resource and writes changes to S3.
+	 */
 	public class AppendS3Monitor implements SystemResourceMonitor, ResourceChangedHandler {
 
 		private final String key;

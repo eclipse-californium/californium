@@ -107,7 +107,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	protected CertificateProvider certificateProvider;
 	/**
 	 * Application level info supplier.
-	 * 
+	 * <p>
 	 * Adds application level device info to principal.
 	 */
 	protected ApplicationLevelInfoSupplier infoSupplier;
@@ -359,7 +359,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 
 	/**
 	 * Certificate verifier.
-	 * 
+	 * <p>
 	 * Verifies that a provided Raw Public Key certificate is contained in the
 	 * device credentials.
 	 */

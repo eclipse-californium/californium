@@ -40,6 +40,37 @@ import com.sun.net.httpserver.HttpHandler;
 
 /**
  * Login handler using AWS4-HMAC-SHA256 authorization.
+ * <p>
+ * Returns the S3 credentials, maps with the values of the web-configuration,
+ * and a map with device-names and labels of devices in the groups of the
+ * associated web-user.
+ * 
+ * <pre>
+ * <code>
+ * GET https://${host}/login
+ * 
+ * Response 200:
+ * 
+ * {
+ *   "id" : "S3 access key ID",
+ *   "${date}" : "S3 signing key",
+ *   ("${nextDaydate}" : "S3 signing key",)
+ *   "base" : "external S3 https endpoint",
+ *   "region" : "S3 region",
+ *   "config" :
+ *     { "${name1}": "${value1}",
+ *       "${name2}": "${value2}" ...
+ *     },
+ *   "groups" :
+ *     { "${device-name1}": "${label1}",
+ *       "${device-name2}": "${label2}" ...
+ *     }
+ * }
+ * </code>
+ * </pre>
+ * 
+ * The "${nextDaydate}" is only included on day change time (last hour of UTC
+ * day).
  * 
  * @since 3.12
  */
@@ -79,7 +110,7 @@ public class S3Login implements HttpHandler {
 	private final boolean withDiagnose;
 
 	/**
-	 * Create http S3 Login.
+	 * Creates http S3 Login.
 	 * 
 	 * @param authorizer AWS4-HMAC-SHA256 authorizer to check for valid
 	 *            credentials.
@@ -157,20 +188,10 @@ public class S3Login implements HttpHandler {
 	}
 
 	/**
-	 * Get login response.
-	 * 
-	 * Creates response with:
-	 * 
-	 * <pre>
-	 * id: access key ID
-	 * {@code <date> : signing key}
-	 * {@code <dateNextDay> : signing key}
-	 * base: external S3 https endpoint
-	 * region: S3 region
-	 * groups: list of device names
-	 * </pre>
-	 * 
-	 * And generic maps of web application configurations (subsections).
+	 * Gets login response.
+	 * <p>
+	 * Includes S3 credentials, generic maps of web application configurations
+	 * (subsections) and a map of device names and labels.
 	 * 
 	 * @param authorization authorization
 	 * @return payload of response.

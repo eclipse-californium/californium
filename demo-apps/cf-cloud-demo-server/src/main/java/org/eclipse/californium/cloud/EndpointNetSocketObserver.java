@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Register {@link Endpoint}s at a {@link NetSocketHealthLogger}.
- * 
+ * <p>
  * Registers the local addresses of {@link Endpoint}s at the
  * {@link NetSocketHealthLogger} to read the related udp message drops.
  * Registers also external {@link SimpleCounterStatistic}, if available, to
@@ -60,7 +60,7 @@ public class EndpointNetSocketObserver implements EndpointObserver {
 
 	/**
 	 * Add endpoint.
-	 * 
+	 * <p>
 	 * Add enpoint's local address to UDP network statistic and forward parts of
 	 * that statistic to the endpoint.
 	 * 
@@ -77,7 +77,7 @@ public class EndpointNetSocketObserver implements EndpointObserver {
 
 	/**
 	 * Remove endpoint.
-	 * 
+	 * <p>
 	 * Remove enpoint's local address from UDP network statistic.
 	 * 
 	 * @param endpoint endpoint to remove

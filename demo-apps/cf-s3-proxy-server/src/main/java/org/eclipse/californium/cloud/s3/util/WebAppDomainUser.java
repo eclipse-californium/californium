@@ -16,8 +16,8 @@ package org.eclipse.californium.cloud.s3.util;
 
 /**
  * Domain user.
- * 
- * Domain name and user pair.
+ * <p>
+ * Pair of domain name and user.
  * 
  * @since 3.12
  */
@@ -33,7 +33,7 @@ public class WebAppDomainUser {
 	public final String domain;
 
 	/**
-	 * Create domain user.
+	 * Creates domain user.
 	 * 
 	 * @param domain domain name.
 	 * @param user user

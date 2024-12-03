@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * CoAP custom time option.
- * 
+ * <p>
  * Used in {@link Request} to indicate the client's system-time in milliseconds.
  * If the used value is {@code 0} or differs from the system-time of the server
  * more than {@link #MAX_MILLISECONDS_DELTA}, the server adds also a
@@ -50,8 +50,10 @@ public class TimeOption extends Option {
 	public static final int COAP_OPTION_TIME = 0xfde8;
 
 	/**
-	 * Maximum delta in milliseconds. If exceeded, {@link #adjust()} returns the
-	 * {@link TimeOption} to be added to the {@link Response}.
+	 * Maximum delta in milliseconds.
+	 * <p>
+	 * If exceeded, {@link #adjust()} returns the {@link TimeOption} to be added
+	 * to the {@link Response}.
 	 */
 	public static final long MAX_MILLISECONDS_DELTA = 5000;
 
@@ -108,7 +110,7 @@ public class TimeOption extends Option {
 
 	/**
 	 * Get time option to adjust the device time.
-	 * 
+	 * <p>
 	 * Intended to be included in the response message, if indicated.
 	 * 
 	 * @return time option to adjust the device time, {@code null}, if the
@@ -120,7 +122,7 @@ public class TimeOption extends Option {
 
 	/**
 	 * Get time option from message or clock.
-	 * 
+	 * <p>
 	 * If message contains custom time option, return that. Otherwise use the
 	 * system receive time to create a time option to return.
 	 * 

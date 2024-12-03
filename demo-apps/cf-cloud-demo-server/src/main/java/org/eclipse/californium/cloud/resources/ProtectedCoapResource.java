@@ -29,12 +29,13 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 
 /**
  * Protected coap resource.
- * 
+ * <p>
  * Calls {@link #checkPermission(Exchange)} to check, if principal has
  * permission for this resource.
- * 
+ * <p>
  * The check is only a basic one, more specific permission rules may be applied
- * by overriding the {@link #checkPermission(Exchange)}.
+ * by overriding the
+ * {@link #checkOperationPermission(PrincipalInfo, Exchange, boolean)}.
  * 
  * @since 4.0
  */
@@ -101,6 +102,12 @@ public abstract class ProtectedCoapResource extends CoapResource {
 		}
 	}
 
+	/**
+	 * Checks, if authentication type is allowed.
+	 * 
+	 * @param type authentication type to check.
+	 * @return {@code true}, if operation is allowed.
+	 */
 	protected boolean allowed(final Type type) {
 		for (Type permission : allowed) {
 			if (type == permission) {
@@ -111,13 +118,15 @@ public abstract class ProtectedCoapResource extends CoapResource {
 	}
 
 	/**
-	 * Check permission.
-	 * 
+	 * Checks permission.
+	 * <p>
 	 * Checks permission based on the {@link PrincipalInfo}.
 	 * 
 	 * @param exchange exchange to check.
 	 * @return error response code, if permission is denied, {@code null}, if
 	 *         granted.
+	 * @see #allowed
+	 * @see #checkOperationPermission(PrincipalInfo, Exchange, boolean)
 	 */
 	protected ResponseCode checkPermission(Exchange exchange) {
 		final PrincipalInfo info = getPrincipalInfo(exchange);
@@ -132,6 +141,8 @@ public abstract class ProtectedCoapResource extends CoapResource {
 
 	/**
 	 * Check permission for operation.
+	 * <p>
+	 * Intended to be override, if more customizable check is required.
 	 * 
 	 * @param info principal info
 	 * @param exchange exchange to check.
@@ -144,19 +155,45 @@ public abstract class ProtectedCoapResource extends CoapResource {
 		return null;
 	}
 
+	/**
+	 * Gets principal info from {@link Exchange}.
+	 * 
+	 * @param exchange exchange to get the principal info for.
+	 * @return the principal info of the exchange, or {@code null}, if not
+	 *         available.
+	 */
 	protected PrincipalInfo getPrincipalInfo(final Exchange exchange) {
 		Principal principal = exchange.getRequest().getSourceContext().getPeerIdentity();
 		return PrincipalInfo.getPrincipalInfo(principal);
 	}
 
+	/**
+	 * Gets principal info from {@link CoapExchange}.
+	 * 
+	 * @param exchange exchange to get the principal info for.
+	 * @return the principal info of the exchange, or {@code null}, if not
+	 *         available.
+	 */
 	protected PrincipalInfo getPrincipalInfo(final CoapExchange exchange) {
 		return getPrincipalInfo(exchange.advanced());
 	}
 
+	/**
+	 * Gets principal from {@link Exchange}.
+	 * 
+	 * @param exchange exchange to get the principal for.
+	 * @return the principal of the exchange, or {@code null}, if not available.
+	 */
 	protected Principal getPrincipal(final Exchange exchange) {
 		return exchange.getRequest().getSourceContext().getPeerIdentity();
 	}
 
+	/**
+	 * Gets principal from {@link CoapExchange}.
+	 * 
+	 * @param exchange exchange to get the principal for.
+	 * @return the principal of the exchange, or {@code null}, if not available.
+	 */
 	protected Principal getPrincipal(final CoapExchange exchange) {
 		return getPrincipal(exchange.advanced());
 	}
