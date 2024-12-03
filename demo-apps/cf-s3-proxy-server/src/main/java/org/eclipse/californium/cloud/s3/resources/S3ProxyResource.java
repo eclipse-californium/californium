@@ -73,7 +73,7 @@ public class S3ProxyResource extends ProtectedCoapResource {
 			APPLICATION_XML, APPLICATION_JAVASCRIPT, APPLICATION_LINK_FORMAT };
 
 	/**
-	 * Create s3 proxy resource.
+	 * Creates s3 proxy resource.
 	 * 
 	 * @param name name of proxy resource
 	 * @param pathStartIndex start index of mapped path

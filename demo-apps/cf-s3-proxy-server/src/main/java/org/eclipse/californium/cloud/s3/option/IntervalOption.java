@@ -20,7 +20,7 @@ import org.eclipse.californium.core.coap.option.IntegerOptionDefinition;
 
 /**
  * CoAP custom interval option.
- * 
+ * <p>
  * Used in {@link Request} to indicate the client's interval in milliseconds
  * sending alive requests.
  * 
@@ -44,7 +44,7 @@ public class IntervalOption extends Option {
 	};
 
 	/**
-	 * Create time option.
+	 * Creates time option.
 	 * 
 	 * @param time time in system milliseconds.
 	 */
@@ -53,7 +53,7 @@ public class IntervalOption extends Option {
 	}
 
 	/**
-	 * Create time option.
+	 * Creates time option.
 	 * 
 	 * @param value time in system milliseconds as byte array.
 	 */

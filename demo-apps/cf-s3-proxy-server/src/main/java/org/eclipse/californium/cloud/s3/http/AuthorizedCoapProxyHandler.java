@@ -84,8 +84,8 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 
 	/**
 	 * Create proxy handler.
-	 * 
-	 * Note: requires web application configuration {@code config.diagnose}!
+	 * <p>
+	 * <b>Note:</b> requires web application configuration {@code config.diagnose}!
 	 * 
 	 * @param bucket bucket name for proxy. Used for list.
 	 * @param authorizer AWS4-HMAC-SHA256 authorizer to check for valid

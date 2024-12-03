@@ -53,7 +53,7 @@ public class ForwardResponseOption extends Option {
 	};
 
 	/**
-	 * Create response code option for combined read.
+	 * Creates response code option for combined read.
 	 * 
 	 * @param code response code
 	 */
@@ -62,7 +62,7 @@ public class ForwardResponseOption extends Option {
 	}
 
 	/**
-	 * Create response code option for combined read.
+	 * Creates response code option for combined read.
 	 * 
 	 * @param code response code
 	 */
@@ -70,6 +70,11 @@ public class ForwardResponseOption extends Option {
 		this(code.value);
 	}
 
+	/**
+	 * Creates response code option for combined read.
+	 * 
+	 * @param value response code
+	 */
 	public ForwardResponseOption(byte[] value) {
 		super(DEFINITION, value);
 	}

@@ -62,7 +62,6 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Keeps the content of POST request as sub-resource using the device name from
  * the additional info of the principal as name of the sub-resource. e.g.:
- * </p>
  * 
  * <code>
  * coaps://${host}/devices POST "Hi!" by principal "Client_identity"
@@ -70,7 +69,6 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * results in a resource:
- * </p>
  * 
  * <code>
  * "/devices/Client_identity" with content "Hi!".
@@ -84,7 +82,6 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * Supported content types:
- * </p>
  * 
  * <ul>
  * <li>{@link MediaTypeRegistry#TEXT_PLAIN}</li>
@@ -98,11 +95,8 @@ import org.slf4j.LoggerFactory;
  * <p>
  * For GET, {@link MediaTypeRegistry#APPLICATION_LINK_FORMAT} is also supported
  * and returns a list of web-links for the current devices.
- * </p>
- * 
  * <p>
  * Supported query parameter:
- * </p>
  * 
  * <dl>
  * <dt>{@value #URI_QUERY_OPTION_READ}</dt>
@@ -113,10 +107,8 @@ import org.slf4j.LoggerFactory;
  * 
  * Default argument only applies, if the parameter is provided, but without
  * argument.
- * 
  * <p>
  * Supported custom options:
- * </p>
  * 
  * <dl>
  * <dt>{@link TimeOption}, {@value TimeOption#COAP_OPTION_TIME}</dt>
@@ -139,16 +131,13 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * results in a resource:
- * </p>
  * 
  * <code>
  * "/devices/dev-1200045" with content "Temperature: 25.4°".
  * </code>
  * 
  * <p>
- * 
  * and returns the content of
- * </p>
  * 
  * <code>
  * "/devices/dev-1200045/config".
@@ -156,7 +145,6 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * (Default for "read" argument is "config".)
- * </p>
  * 
  * @since 3.12
  */
@@ -359,7 +347,7 @@ public class Devices extends ProtectedCoapResource {
 	}
 
 	/**
-	 * Resource representing devices
+	 * Resource representing devices.
 	 */
 	public static class Device extends ProtectedCoapResource {
 

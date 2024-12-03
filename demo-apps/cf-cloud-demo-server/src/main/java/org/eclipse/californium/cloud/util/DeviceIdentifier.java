@@ -23,7 +23,7 @@ public interface DeviceIdentifier {
 
 	/**
 	 * Get device name.
-	 * 
+	 * <p>
 	 * The name is a fixed identifier for the device.
 	 * 
 	 * @return device name
@@ -32,7 +32,7 @@ public interface DeviceIdentifier {
 
 	/**
 	 * Get device label.
-	 * 
+	 * <p>
 	 * The label is displayed identifier, which may be adapted from time to
 	 * time.
 	 * 

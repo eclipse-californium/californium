@@ -72,14 +72,14 @@ import com.sun.net.httpserver.HttpsServer;
 
 /**
  * Https service.
- * 
+ * <p>
  * Provides either forwarding to external site, a single page application in
  * javascript, or a simple http access to data sent via coap.
- * 
+ * <p>
  * The simple http access is implemented with a simplified http2coap proxy. It
  * supports only very limited conversion from http to coap. Allows only GET
  * access to resource "diagnose" and "devices" with sub-resources.
- * 
+ * <p>
  * For forwarding and data access no authentication is supported!
  * 
  * @since 3.12
@@ -143,7 +143,7 @@ public class HttpService {
 	 */
 	private final String sslContextAlgorithm;
 	/**
-	 * Ssl credentials for https.
+	 * SSL credentials for https.
 	 */
 	private final CredentialsStore credentialsStore;
 	/**
@@ -169,7 +169,7 @@ public class HttpService {
 	private final Map<String, HttpHandler> handlers = new ConcurrentHashMap<>();
 
 	/**
-	 * Create service.
+	 * Creates service.
 	 * 
 	 * @param localSecureAddress local address for secure endpoint (https).
 	 * @param credentialsStore credentials
@@ -205,7 +205,7 @@ public class HttpService {
 	}
 
 	/**
-	 * Set HTTPS configuration from {@link SSLContext}.
+	 * Sets HTTPS configuration from {@link SSLContext}.
 	 * 
 	 * @param sslContext context for HTTPS configuration
 	 */
@@ -254,6 +254,12 @@ public class HttpService {
 		}
 	}
 
+	/**
+	 * Creates context on {@link #secureServer}.
+	 * 
+	 * @param name path prefix of context
+	 * @param handler handler for context
+	 */
 	public void createContext(String name, HttpHandler handler) {
 		String url = name;
 		if (!url.startsWith("/")) {
@@ -265,6 +271,14 @@ public class HttpService {
 		}
 	}
 
+	/**
+	 * Creates file handler.
+	 * 
+	 * @param resource path
+	 * @param contentType content-type of response
+	 * @param reload {@code true} to reload on access, {@code true} to cache.
+	 * @see FileHandler
+	 */
 	public void createFileHandler(String resource, String contentType, boolean reload) {
 		if (!resource.startsWith("http")) {
 			// download resource from local server
@@ -273,7 +287,7 @@ public class HttpService {
 	}
 
 	/**
-	 * Start https service.
+	 * Starts https service.
 	 */
 	public void start() {
 		executor = Executors.newCachedThreadPool();
@@ -304,7 +318,7 @@ public class HttpService {
 	}
 
 	/**
-	 * Stop https service.
+	 * Stops https service.
 	 */
 	public void stop() {
 		started = false;
@@ -323,6 +337,11 @@ public class HttpService {
 		}
 	}
 
+	/**
+	 * Applies new credentials for https-server.
+	 * 
+	 * @param newCredentials new credentials.
+	 */
 	private void applyCredentials(Credentials newCredentials) {
 		X509Certificate[] certificateChain = newCredentials.getCertificateChain();
 		if (certificateChain != null && certificateChain.length > 0) {
@@ -357,7 +376,7 @@ public class HttpService {
 	}
 
 	/**
-	 * Create resource monitor for automatic credentials reloading.
+	 * Creates resource monitor for automatic credentials reloading.
 	 * 
 	 * @return created resource monitor
 	 */
@@ -365,9 +384,17 @@ public class HttpService {
 		return credentialsStore.getMonitor();
 	}
 
+	/**
+	 * Log headers in debug level.
+	 * 
+	 * @param title start tag for logging
+	 * @param headers header to log.
+	 */
 	public static void logHeaders(String title, Headers headers) {
-		for (String key : headers.keySet()) {
-			LOGGER.debug("{}: {} {}", title, key, headers.getFirst(key));
+		if (LOGGER.isDebugEnabled()) {
+			for (String key : headers.keySet()) {
+				LOGGER.debug("{}: {} {}", title, key, headers.getFirst(key));
+			}
 		}
 	}
 
@@ -436,6 +463,14 @@ public class HttpService {
 		}
 	}
 
+	/**
+	 * Writes message to {@link #LOGGER_BAN}.
+	 * <p>
+	 * Intended to be used by {@code fail2ban}.
+	 * 
+	 * @param httpExchange http exchange to ban host
+	 * @param topic topic of ban
+	 */
 	public static void ban(HttpExchange httpExchange, String topic) {
 		if (LOGGER_BAN.isInfoEnabled()) {
 			String address = httpExchange.getRemoteAddress().getAddress().getHostAddress();
@@ -446,6 +481,12 @@ public class HttpService {
 		}
 	}
 
+	/**
+	 * Checks, if the requested URI is equivalent to the context path.
+	 * 
+	 * @param httpExchange http exchange
+	 * @return {@code true} if both matches
+	 */
 	public static boolean strictPathCheck(HttpExchange httpExchange) {
 		URI uri = httpExchange.getRequestURI();
 		String path = httpExchange.getHttpContext().getPath();
@@ -466,11 +507,23 @@ public class HttpService {
 		 */
 		private final String forwardTitle;
 
+		/**
+		 * Creates forward handler.
+		 * 
+		 * @param link link to forward to.
+		 * @param title title of link.
+		 */
 		public ForwardHandler(String link, String title) {
 			this.forwardLink = link;
 			this.forwardTitle = title;
 		}
 
+		/**
+		 * {@inheritDoc}
+		 * 
+		 * Respond to request with forwarding page.
+		 */
+		@Override
 		public void handle(final HttpExchange httpExchange) throws IOException {
 			final URI uri = httpExchange.getRequestURI();
 			LOGGER.info("/request: {} {}", httpExchange.getRequestMethod(), uri);
@@ -675,6 +728,8 @@ public class HttpService {
 		}
 
 		/**
+		 * {@inheritDoc}
+		 * 
 		 * Simply transformation of http-get-request into coap-get-request.
 		 */
 		@Override
@@ -801,8 +856,8 @@ public class HttpService {
 	}
 
 	/**
-	 * Create {@link CredentialsStore} from "lets encrypt path".
-	 * 
+	 * Creates {@link CredentialsStore} from "lets encrypt path".
+	 * <p>
 	 * Appends {@link #HTTPS_PRIVATE_KEY} and {@link #HTTPS_FULL_CHAIN} to the
 	 * provided path to load credentials.
 	 * 
@@ -859,7 +914,7 @@ public class HttpService {
 	}
 
 	/**
-	 * Create http service.
+	 * Creates http service.
 	 * 
 	 * @param httpsPort server poet
 	 * @param credentialsPath server credentials
@@ -884,6 +939,14 @@ public class HttpService {
 		return false;
 	}
 
+	/**
+	 * Starts http service.
+	 * 
+	 * @return {@code true}, if started, {@code false}, if no http service was
+	 *         created.
+	 * @see #createHttpService(int, String, String, boolean)
+	 * @see #stopHttpService()
+	 */
 	public static boolean startHttpService() {
 		HttpService service = httpService;
 		if (service != null) {
@@ -895,6 +958,14 @@ public class HttpService {
 		}
 	}
 
+	/**
+	 * Stops http service.
+	 * 
+	 * @return {@code true}, if stopped, {@code false}, if no http service was
+	 *         created.
+	 * @see #createHttpService(int, String, String, boolean)
+	 * @see #startHttpService()
+	 */
 	public static boolean stopHttpService() {
 		HttpService service = httpService;
 		if (service != null) {

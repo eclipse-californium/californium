@@ -16,7 +16,7 @@ package org.eclipse.californium.cloud.s3.util;
 
 /**
  * Domain web application user provider.
- * 
+ * <p>
  * Resolves domain- and/or user names to {@link WebAppDomainUser}.
  * 
  * @since 3.12
@@ -24,7 +24,7 @@ package org.eclipse.californium.cloud.s3.util;
 public interface WebAppUserProvider {
 
 	/**
-	 * Get domain user.
+	 * Gets domain user.
 	 * 
 	 * @param domainName domain name. Maybe {@code null}, if user name is unique.
 	 * @param userName user name

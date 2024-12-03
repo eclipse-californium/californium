@@ -39,7 +39,7 @@ public class ManagementStatistic {
 	private static final long MEGA = 1024 * 1024L;
 
 	/**
-	 * LOgger to be used for logging.
+	 * Logger to be used for logging.
 	 */
 	private final Logger logger;
 
