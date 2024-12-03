@@ -81,8 +81,8 @@ public class CredentialsStore implements Destroyable {
 	private volatile boolean destroyed;
 
 	/**
-	 * Seed of last loaded file1.
-	 * 
+	 * Seed of last loaded first file.
+	 * <p>
 	 * The seed is a random header to ensure, that the encrypted file will be
 	 * different, even if the same credentials are contained. Used to detect
 	 * changes in encrypted file.
@@ -219,7 +219,7 @@ public class CredentialsStore implements Destroyable {
 
 	/**
 	 * Clear seed to force loading.
-	 * 
+	 * <p>
 	 * The store keeps the "seed" of encrypted files in order to prevent
 	 * reloading that same file. To force loading the file, clear the "seed".
 	 * 

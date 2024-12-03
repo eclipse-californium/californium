@@ -16,7 +16,7 @@ package org.eclipse.californium.cloud.s3.util;
 
 /**
  * Domain name.
- * 
+ * <p>
  * Pair of domain name and name.
  * 
  * @since 3.12
@@ -33,7 +33,7 @@ public class DomainNamePair {
 	public final String domain;
 
 	/**
-	 * Create domain name
+	 * Creates domain name pair.
 	 * 
 	 * @param domain domain name
 	 * @param name name
@@ -44,13 +44,13 @@ public class DomainNamePair {
 	}
 
 	/**
-	 * Create domain name.
+	 * Creates domain name pair.
+	 * <p>
+	 * Splits provided name at {@code @}. First part is considered as name,
+	 * second, if available is considered as domain name.
 	 * 
-	 * Split name at {@code @}. First part is name, second, if available is
-	 * domain name.
-	 * 
-	 * @param name name
-	 * @return domain name.
+	 * @param name full name
+	 * @return domain name pair.
 	 * @throws NullPointerException if name is {@code null}
 	 */
 	public static DomainNamePair fromName(String name) {

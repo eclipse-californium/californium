@@ -90,7 +90,7 @@ import picocli.CommandLine.ParseResult;
 
 /**
  * The basic cloud server.
- * 
+ * <p>
  * Creates {@link Endpoint}s using DTLS. Adds resources {@link Diagnose} and
  * {@link MyContext}.
  * 
@@ -579,7 +579,7 @@ public class BaseServer extends CoapServer {
 
 	/**
 	 * Setup device credentials.
-	 * 
+	 * <p>
 	 * Load the private and public key of the DTLS 1.2 server for the device
 	 * communication and the device credentials.
 	 * 
@@ -610,7 +610,7 @@ public class BaseServer extends CoapServer {
 
 	/**
 	 * Setup device credentials.
-	 * 
+	 * <p>
 	 * Load the device credentials.
 	 * 
 	 * @param cliArguments command line arguments.
@@ -767,7 +767,7 @@ public class BaseServer extends CoapServer {
 
 	/**
 	 * Setup UDP health logger.
-	 * 
+	 * <p>
 	 * Generate UDP statistic.
 	 * 
 	 * @param secondaryExecutor secondary executor for slow interval jobs
@@ -793,7 +793,7 @@ public class BaseServer extends CoapServer {
 
 	/**
 	 * Setup observe health logger.
-	 * 
+	 * <p>
 	 * Generate observer-notify statistic.
 	 */
 	public void setupObserveHealthLogger() {
@@ -807,7 +807,7 @@ public class BaseServer extends CoapServer {
 
 	/**
 	 * Setup persistence.
-	 * 
+	 * <p>
 	 * Support DTLS 1.2 graceful restart,
 	 * 
 	 * @param store store to keep persisted data
@@ -834,14 +834,20 @@ public class BaseServer extends CoapServer {
 	public void setupProcessors(ScheduledExecutorService secondaryExecutor) {
 	}
 
+	/**
+	 * Add {@link CounterStatisticManager} to {@link Diagnose} resource.
+	 * 
+	 * @param health {@link CounterStatisticManager} to add.
+	 */
 	protected void addServerStatistic(CounterStatisticManager health) {
 		diagnoseStatistics.add(health);
 		Resource child = getRoot().getChild(Diagnose.RESOURCE_NAME);
 		if (child instanceof Diagnose) {
 			((Diagnose) child).update(diagnoseStatistics);
-			LOGGER.info("{} {} added to diagnose.", health.getTag(), health.getClass().getSimpleName());
+			LOGGER.info("{} {} added to diagnose resource.", health.getTag(), health.getClass().getSimpleName());
 		} else {
-			LOGGER.info("{} {} not added to diagnose.", health.getTag(), health.getClass().getSimpleName());
+			LOGGER.info("{} {} not added, diagnose resource missing.", health.getTag(),
+					health.getClass().getSimpleName());
 		}
 	}
 }

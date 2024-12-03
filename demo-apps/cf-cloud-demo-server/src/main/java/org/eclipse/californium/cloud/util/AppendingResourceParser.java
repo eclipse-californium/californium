@@ -19,7 +19,7 @@ import java.io.Writer;
 
 /**
  * Appending resource parser.
- * 
+ * <p>
  * Keeps new entries for appending.
  * 
  * @since 3.13

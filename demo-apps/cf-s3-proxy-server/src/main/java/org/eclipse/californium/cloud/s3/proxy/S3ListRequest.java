@@ -35,7 +35,7 @@ public class S3ListRequest extends S3Request {
 	private final Integer maxKeys;
 
 	/**
-	 * Create S3 list request.
+	 * Creates S3 list request.
 	 * 
 	 * @param key S3 key.
 	 * @param delimiter content for S3 PUT requests
@@ -52,7 +52,7 @@ public class S3ListRequest extends S3Request {
 	}
 
 	/**
-	 * Get delimiter for S3 LIST.
+	 * Gets delimiter for S3 LIST.
 	 * 
 	 * @return delimiter for S3 LIST.
 	 */
@@ -61,7 +61,7 @@ public class S3ListRequest extends S3Request {
 	}
 
 	/**
-	 * Get key to start S3 LIST after.
+	 * Gets key to start S3 LIST after.
 	 * 
 	 * @return key to start S3 LIST after.
 	 */
@@ -70,7 +70,7 @@ public class S3ListRequest extends S3Request {
 	}
 
 	/**
-	 * Get maximum number of keys to fetch.
+	 * Gets maximum number of keys to fetch.
 	 * 
 	 * @return maximum number of keys to fetch.
 	 */
@@ -79,7 +79,7 @@ public class S3ListRequest extends S3Request {
 	}
 
 	/**
-	 * Create S3 LIST request builder.
+	 * Creates S3 LIST request builder.
 	 * 
 	 * @return created builder
 	 */
@@ -88,7 +88,7 @@ public class S3ListRequest extends S3Request {
 	}
 
 	/**
-	 * Create S3 LIST request builder from S3 LIST request.
+	 * Creates S3 LIST request builder from S3 LIST request.
 	 * 
 	 * @param request S3 LIST request.
 	 * @return created builder
@@ -116,13 +116,13 @@ public class S3ListRequest extends S3Request {
 		protected Integer maxKeys;
 
 		/**
-		 * Create S3 LIST request builder.
+		 * Creates S3 LIST request builder.
 		 */
 		protected Builder() {
 		}
 
 		/**
-		 * Create builder from S3 LIST request.
+		 * Creates builder from S3 LIST request.
 		 * 
 		 * @param request S3 LIST request
 		 */
@@ -140,7 +140,7 @@ public class S3ListRequest extends S3Request {
 		}
 
 		/**
-		 * Set delimiter for S3 LIST request.
+		 * Sets delimiter for S3 LIST request.
 		 * 
 		 * @param delimiter delimiter
 		 * @return builder for command chaining
@@ -151,7 +151,7 @@ public class S3ListRequest extends S3Request {
 		}
 
 		/**
-		 * Set key to start S3 LIST after.
+		 * Sets key to start S3 LIST after.
 		 * 
 		 * @param startAfter key to start list after
 		 * @return builder for command chaining
@@ -162,7 +162,7 @@ public class S3ListRequest extends S3Request {
 		}
 
 		/**
-		 * Set maximum number of keys to fetch.
+		 * Sets maximum number of keys to fetch.
 		 * 
 		 * @param maxKeys maximum number of keys to fetch
 		 * @return builder for command chaining

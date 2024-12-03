@@ -89,7 +89,7 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 
 	/**
 	 * Seed of last loaded file.
-	 * 
+	 * <p>
 	 * The seed is a random header to ensure, that the encrypted file will be
 	 * different, even if the same credentials are contained. Used to detect
 	 * changes in encrypted file.

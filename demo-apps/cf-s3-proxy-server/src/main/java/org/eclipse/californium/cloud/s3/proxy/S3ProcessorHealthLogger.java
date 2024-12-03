@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class S3ProcessorHealthLogger extends CounterStatisticManager implements S3ProcessorHealth {
 
-	/** the logger. */
+	/** The logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(S3ProcessorHealthLogger.class);
 
 	private static final String PROCESSING = "processing-devices";
@@ -42,6 +42,12 @@ public class S3ProcessorHealthLogger extends CounterStatisticManager implements 
 
 	private volatile boolean used = true;
 
+	/**
+	 * Creates a S3 processor health logger.
+	 * 
+	 * @param tag tag for associated counter statistic
+	 * @param domains set of domain names
+	 */
 	public S3ProcessorHealthLogger(String tag, Set<String> domains) {
 		super(tag);
 		LOGGER.info("S3-processor: {} domains.", domains.size());

@@ -20,7 +20,7 @@ import org.eclipse.californium.cloud.util.DeviceIdentifier;
 
 /**
  * Device groups provider.
- * 
+ * <p>
  * Resolves domain-group name pairs to set of devices.
  * 
  * @since 3.12

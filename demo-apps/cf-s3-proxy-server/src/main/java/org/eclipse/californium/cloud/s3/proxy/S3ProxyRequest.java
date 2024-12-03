@@ -33,7 +33,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * S3 proxy request.
- * 
+ * <p>
  * Wrapper for coap requests forwarded to S3.
  * 
  * @since 3.12
@@ -55,20 +55,21 @@ public class S3ProxyRequest extends S3PutRequest {
 	private final Request request;
 	/**
 	 * Coap-path start index of S3-path.
-	 * 
+	 * <p>
 	 * Only applied, when provided key was {@code null}.
 	 */
 	private final int pathStartIndex;
 	/**
-	 * Coap-path index to insert the device name. {@code < 0} to not include the
-	 * device name.
-	 * 
+	 * Coap-path index to insert the device name.
+	 * <p>
+	 * {@code < 0} to not include the device name.
+	 * <p>
 	 * Only applied, when provided key was {@code null}.
 	 */
 	private final int pathPrincipalIndex;
 	/**
 	 * Additional S3-sub-path.
-	 * 
+	 * <p>
 	 * Only applied, when provided key was {@code null}.
 	 */
 	private final String subPath;
@@ -90,7 +91,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	private final Integer coapContentType;
 
 	/**
-	 * Create S3 proxy request from coap-request.
+	 * Creates S3 proxy request from coap-request.
 	 * 
 	 * @param request coap-request.
 	 * @param key S3 key. If {@code null}, replaced by the coap-path considering
@@ -108,7 +109,6 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * @param interval interval for PUT requests
 	 * @param coapContentType content-type of coap-request
 	 * @param meta map of metadata
-	 * @param cacheMode cache mode.
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating.
 	 * @param cacheMode cache mode.
@@ -131,7 +131,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get the coap-request.
+	 * Gets the coap-request.
 	 * 
 	 * @return the coap-request.
 	 */
@@ -140,7 +140,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get the coap-options of the request.
+	 * Gets the coap-options of the request.
 	 * 
 	 * @return the coap-options
 	 */
@@ -149,8 +149,8 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get device name.
-	 * 
+	 * Gets device name.
+	 * <p>
 	 * Get the device name from the additional info of the principal.
 	 * 
 	 * @return device name.
@@ -163,8 +163,8 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get S3 resource key.
-	 * 
+	 * Gets S3 resource key.
+	 * <p>
 	 * Either the key provided when creating the instance, or, if that was
 	 * {@code null}, a key created from the coap-path using the
 	 * {@link #pathStartIndex}, the {@link #pathPrincipalIndex} and the
@@ -201,7 +201,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get canned Access Control List for PUT.
+	 * Gets canned Access Control List for PUT.
 	 * 
 	 * @param defaultAcl default ACL
 	 * @return canned Access Control List
@@ -211,7 +211,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get coap-etags.
+	 * Gets coap-etags.
 	 * 
 	 * @return list of coap-etags
 	 */
@@ -220,7 +220,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get interval for S3 PUT.
+	 * Gets coap send interval for S3 PUT.
 	 * 
 	 * @return interval for S3 PUT.
 	 * @since 3.13
@@ -230,7 +230,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get coap content-type for S3 PUT.
+	 * Gets coap content-type for S3 PUT.
 	 * 
 	 * @return coap content-type for S3 PUT.
 	 * @since 3.13
@@ -258,7 +258,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Get canned Access Control List for PUT.
+	 * Gets canned Access Control List for PUT.
 	 * 
 	 * @param request coap-request
 	 * @param defaultAcl default ACL
@@ -269,7 +269,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Create S3-proxy-request-builder from coap-request.
+	 * Creates S3-proxy-request-builder from coap-request.
 	 * 
 	 * @param request coap-request.
 	 * @return created builder
@@ -279,7 +279,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	}
 
 	/**
-	 * Create S3-proxy-request-builder from S3-proxy-request.
+	 * Creates S3-proxy-request-builder from S3-proxy-request.
 	 * 
 	 * @param request S3-proxy-request.
 	 * @return created builder
@@ -299,20 +299,20 @@ public class S3ProxyRequest extends S3PutRequest {
 		private final Request request;
 		/**
 		 * Coap-path start index of S3-path.
-		 * 
+		 * <p>
 		 * Only applied, when {@link #key} is {@code null}.
 		 */
 		private int pathStartIndex;
 		/**
 		 * Coap-path index to insert the device name. {@code < 0} to not include
 		 * the device name.
-		 * 
+		 * <p>
 		 * Only applied, when {@link #key} is {@code null}.
 		 */
 		private int pathPrincipalIndex = -1;
 		/**
 		 * Additional S3-sub-path.
-		 * 
+		 * <p>
 		 * Only applied, when provided {@link #key} was {@code null}.
 		 */
 		private String subPath;
@@ -335,7 +335,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		private Integer coapContentType;
 
 		/**
-		 * Create builder from coap-request.
+		 * Creates builder from coap-request.
 		 * 
 		 * @param request coap-request
 		 * @throws NullPointerException if request is {@code null}.
@@ -348,7 +348,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		/**
-		 * Create builder from S3-proxy-request.
+		 * Creates builder from S3-proxy-request.
 		 * 
 		 * @param request S3-proxy-request
 		 */
@@ -368,8 +368,8 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		/**
-		 * Set coap-path start index of S3-path.
-		 * 
+		 * Sets coap-path start index of S3-path.
+		 * <p>
 		 * Only applied, when {@link #key} is {@code null}.
 		 * 
 		 * @param pathIndex coap-path start index
@@ -381,8 +381,8 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		/**
-		 * Set coap-path index to insert the device name.
-		 * 
+		 * Sets coap-path index to insert the device name.
+		 * <p>
 		 * Only applied, when {@link #key} is {@code null}.
 		 * 
 		 * @param pathIndex coap-path index to insert the device name
@@ -394,8 +394,8 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		/**
-		 * Set additional sub-path.
-		 * 
+		 * Sets additional sub-path.
+		 * <p>
 		 * Only applied, when {@link #key} is {@code null}.
 		 * 
 		 * @param subPath additional sub-path
@@ -407,7 +407,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		/**
-		 * Set coap-etags for GET request.
+		 * Sets coap-etags for GET request.
 		 * 
 		 * @param etags coap-etags
 		 * @return builder for command chaining
@@ -418,9 +418,9 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		/**
-		 * Interval for S3 PUT request.
+		 * Sets coap send interval for S3 PUT request.
 		 * 
-		 * @param interval expected interval in s.
+		 * @param interval coap send interval in s.
 		 * @return builder for command chaining
 		 * @since 3.13
 		 */
@@ -430,7 +430,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		/**
-		 * coap content-type for S3 PUT request.
+		 * Sets coap content-type for S3 PUT request.
 		 * 
 		 * @param coapContentType coap content-type .
 		 * @return builder for command chaining

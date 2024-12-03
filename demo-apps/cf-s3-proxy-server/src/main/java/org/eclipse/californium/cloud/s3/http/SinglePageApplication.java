@@ -31,7 +31,9 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 /**
- * Create page for single page application.
+ * Single page application handler.
+ * <p>
+ * Initial page, which loads the related java-script application.
  * 
  * @since 3.12
  */
@@ -135,6 +137,11 @@ public class SinglePageApplication implements HttpHandler {
 		HttpService.respond(httpExchange, httpCode, contentType, payload);
 	}
 
+	/**
+	 * Creates initial web page loading the javascript app.
+	 * 
+	 * @return initial web page
+	 */
 	private String createPage() {
 		String base = getBase();
 		StringBuilder page = new StringBuilder();
@@ -153,7 +160,6 @@ public class SinglePageApplication implements HttpHandler {
 		page.append("</title>\n");
 		page.append("</head>\n");
 		page.append("<body>\n");
-		// page.append("<div id=\"logo\"></div>\n");
 		page.append("<h2><div id=\"logo\"></div><div id=\"title\">").append(singlePageApplicationTitle + ":")
 				.append("</div></h2>\n");
 		page.append("<div id=\"app\"></div>\n");
@@ -173,8 +179,8 @@ public class SinglePageApplication implements HttpHandler {
 	}
 
 	/**
-	 * Add base to relative URL.
-	 * 
+	 * Adds base to relative URL.
+	 * <p>
 	 * If provided URL is not relative (contains a scheme), return the URL
 	 * unmodified.
 	 * 
@@ -191,7 +197,7 @@ public class SinglePageApplication implements HttpHandler {
 	}
 
 	/**
-	 * Get base URL.
+	 * Gets base URL.
 	 * 
 	 * @return base URL.
 	 */
@@ -207,7 +213,7 @@ public class SinglePageApplication implements HttpHandler {
 	}
 
 	/**
-	 * Get scheme.
+	 * Gets scheme.
 	 * 
 	 * @param url URL
 	 * @param defaultScheme default scheme
