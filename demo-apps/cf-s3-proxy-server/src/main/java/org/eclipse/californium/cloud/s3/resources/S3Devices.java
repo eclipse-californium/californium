@@ -29,7 +29,6 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XM
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -54,7 +53,6 @@ import org.eclipse.californium.cloud.s3.forward.HttpForwardConfigurationProvider
 import org.eclipse.californium.cloud.s3.forward.HttpForwardService;
 import org.eclipse.californium.cloud.s3.forward.HttpForwardServiceManager;
 import org.eclipse.californium.cloud.s3.option.ForwardResponseOption;
-import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
@@ -78,7 +76,6 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
-import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -214,6 +211,7 @@ public class S3Devices extends ProtectedCoapResource {
 	public static final String URI_QUERY_OPTION_WRITE = "write";
 	/**
 	 * URI query parameter to append some lines to a series-resource.
+	 * Obsolete. Only used to not break communication of devices in field.
 	 */
 	public static final String URI_QUERY_OPTION_SERIES = "series";
 	/**
@@ -320,7 +318,6 @@ public class S3Devices extends ProtectedCoapResource {
 		}
 
 		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(getPrincipal(exchange));
-		boolean updateSeries = false;
 		boolean forward = false;
 		String read = null;
 		String write = null;
@@ -331,7 +328,6 @@ public class S3Devices extends ProtectedCoapResource {
 			if (!others.isEmpty()) {
 				LOGGER.info("Other options: {} {}", others, info);
 			}
-			updateSeries = helper.hasParameter(URI_QUERY_OPTION_SERIES);
 			forward = helper.hasParameter(URI_QUERY_OPTION_FORWARD);
 			if (helper.hasParameter(URI_QUERY_OPTION_READ)) {
 				read = helper.getArgument(URI_QUERY_OPTION_READ, DEFAULT_READ_SUB_RESOURCE_NAME);
@@ -360,23 +356,11 @@ public class S3Devices extends ProtectedCoapResource {
 		final String timestamp = format(time, ChronoUnit.MILLIS);
 		final String domain = info.domain;
 		S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
-		StringBuilder log = new StringBuilder();
 		String position = null;
 
 		LOGGER.info("S3: {}, {}", domain, s3Client.getExternalEndpoint());
 		String writeExpanded = replaceVars(write, timestamp);
-		if (format == TEXT_PLAIN && updateSeries) {
-			String[] lines = request.getPayloadString().split("[\\n\\r]+");
-			for (String line : lines) {
-				if (line.startsWith("!")) {
-					line = line.substring(1);
-					log.append(line).append(',');
-				}
-			}
-		}
-		StringUtil.truncateTail(log, ",");
 		request.setProtectFromOffload();
-		Series series = null;
 		String acl = S3ProxyRequest.getAcl(request, s3Client.getAcl());
 		boolean visible = acl != null && acl.startsWith("public-");
 
@@ -404,8 +388,6 @@ public class S3Devices extends ProtectedCoapResource {
 				}
 				device.setVisible(visible);
 				device.setPost(request, position, time, writeExpanded);
-				// workaround for javascript dependency on "series-" file
-				series = device.appendSeries(log.toString(), timestamp);
 				if (device.getParent() == null) {
 					device.setParent(deviceDomain);
 					keptPosts.put(info.name, device);
@@ -499,9 +481,6 @@ public class S3Devices extends ProtectedCoapResource {
 			});
 		}
 
-		if (series != null) {
-			updateSeries(request, series, s3Client);
-		}
 		if (multi.created()) {
 			return;
 		}
@@ -511,20 +490,6 @@ public class S3Devices extends ProtectedCoapResource {
 			response.getOptions().addOtherOption(responseTimeOption);
 		}
 		exchange.respond(response);
-	}
-
-	private void updateSeries(Request request, Series series, S3ProxyClient s3Client) {
-		String content;
-		String subResouce;
-		synchronized (series) {
-			content = series.getContent();
-			subResouce = series.getS3Link();
-		}
-		if (content != null) {
-			S3ProxyRequest s3SeriesRequest = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(subResouce)
-					.content(content.getBytes(StandardCharsets.UTF_8)).contentType("text/plain; charset=utf-8").build();
-			s3Client.put(s3SeriesRequest, S3AsyncProxyClient.NOP);
-		}
 	}
 
 	/**
@@ -569,7 +534,6 @@ public class S3Devices extends ProtectedCoapResource {
 	 */
 	public static class Device extends ProtectedCoapResource {
 
-		private Series series = null;
 		private volatile Request post;
 		private volatile long time;
 
@@ -617,26 +581,6 @@ public class S3Devices extends ProtectedCoapResource {
 			changed();
 		}
 
-		private Series appendSeries(String values, String timestamp) {
-			Series series = null;
-			synchronized (this) {
-				if (this.series != null) {
-					if (!this.series.append(values, timestamp)) {
-						delete(this.series);
-						this.series = null;
-					}
-				}
-				if (this.series == null) {
-					this.series = new Series(timestamp);
-					this.series.append(values, timestamp);
-					add(this.series);
-				}
-				series = this.series;
-				series.setVisible(isVisible());
-			}
-			return series;
-		}
-
 		@Override
 		protected ResponseCode checkOperationPermission(PrincipalInfo info, Exchange exchange, boolean write) {
 			if (!isVisible() && !getName().equals(info.name)) {
@@ -671,85 +615,6 @@ public class S3Devices extends ProtectedCoapResource {
 		public String toString() {
 			return getName();
 		}
-	}
-
-	public static class Series extends ProtectedCoapResource {
-
-		private final String startDate;
-		private final String s3Link;
-		private final StringBuilder content = new StringBuilder();
-
-		private Series(String timestamp) {
-			super(SUB_RESOURCE_NAME);
-			this.startDate = timestamp;
-			this.s3Link = SUB_RESOURCE_NAME + "-" + timestamp;
-			getAttributes().setAttribute(ATTRIBUTE_S3_LINK, "-" + timestamp);
-		}
-
-		@Override
-		public void setParent(Resource parent) {
-			super.setParent(parent);
-			synchronized (this) {
-				ResourceAttributes attributes = new ResourceAttributes(getAttributes());
-				if (parent != null) {
-					attributes.setTitle(parent.getName() + " => " + SUB_RESOURCE_NAME);
-				} else {
-					attributes.clearTitle();
-				}
-				setAttributes(attributes);
-			}
-		}
-
-		private Device getDevice() {
-			return (Device) getParent();
-		}
-
-		private String getS3Link() {
-			return s3Link;
-		}
-
-		private boolean append(String values, String timestamp) {
-			synchronized (this) {
-				int len = content.length();
-				String line = timestamp + ": ";
-				if (values != null && !values.isEmpty()) {
-					line += values;
-				}
-				boolean swap = len + line.length() > SERIES_MAX_SIZE;
-				if (swap || !startDate.regionMatches(0, timestamp, 0, 11)) {
-					return false;
-				}
-				if (len > 0) {
-					if (content.charAt(len - 1) != '\n') {
-						content.append('\n');
-					}
-				}
-				content.append(line);
-				return true;
-			}
-		}
-
-		private String getContent() {
-			return content.toString();
-		}
-
-		@Override
-		protected ResponseCode checkOperationPermission(PrincipalInfo info, Exchange exchange, boolean write) {
-			return getDevice().checkOperationPermission(info, exchange, write);
-		}
-
-		public void handleGET(CoapExchange exchange) {
-			int accept = exchange.getRequestOptions().getAccept();
-			if (accept != UNDEFINED && accept != TEXT_PLAIN) {
-				exchange.respond(NOT_ACCEPTABLE);
-				return;
-			}
-			Response response = new Response(CONTENT);
-			response.setPayload(content.toString());
-			response.getOptions().setContentFormat(TEXT_PLAIN);
-			exchange.respond(response);
-		}
-
 	}
 
 	private static String format(long millis, ChronoUnit unit) {
