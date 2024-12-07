@@ -16,20 +16,22 @@ package org.eclipse.californium.cloud.s3.http;
 
 /**
  * External https endpoint provider for S3 buckets.
+ * <p>
+ * Used for web-app to access data directly on S3.
  * 
  * @since 3.12
  */
 public interface ExternalEndpointProvider {
 
 	/**
-	 * Get external https endpoint for S3 bucket.
+	 * Gets external https endpoint for S3 bucket.
 	 * 
 	 * @return external https endpoint for S3 bucket
 	 */
 	String getExternalEndpoint();
 
 	/**
-	 * Get region of S3 bucket.
+	 * Gets region of S3 bucket.
 	 * 
 	 * @return region of S3 bucket
 	 */

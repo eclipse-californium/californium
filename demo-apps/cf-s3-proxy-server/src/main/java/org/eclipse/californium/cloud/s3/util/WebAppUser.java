@@ -17,7 +17,7 @@ package org.eclipse.californium.cloud.s3.util;
 import java.util.List;
 
 /**
- * Web application user credentials.
+ * Web application's user credentials.
  * 
  * @since 3.12
  */
@@ -49,7 +49,7 @@ public class WebAppUser {
 	public final List<String> groups;
 
 	/**
-	 * Create service credentials.
+	 * Creates web application's user credentials.
 	 * 
 	 * @param name login service user name
 	 * @param password login service password
@@ -88,16 +88,16 @@ public class WebAppUser {
 	}
 
 	/**
-	 * Create user builder.
+	 * Creates web application's user builder.
 	 * 
-	 * @return user builder
+	 * @return web application's user builder
 	 */
 	public static WebAppUser.Builder builder() {
 		return new Builder();
 	}
 
 	/**
-	 * User builder.
+	 * web application's user builder.
 	 */
 	public static class Builder {
 
@@ -127,14 +127,14 @@ public class WebAppUser {
 		public List<String> groups;
 
 		/**
-		 * Create builder.
+		 * Creates builder.
 		 */
 		private Builder() {
 
 		}
 
 		/**
-		 * Create web application user.
+		 * Creates web application user.
 		 * 
 		 * @return web application user
 		 */

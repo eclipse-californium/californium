@@ -18,7 +18,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.security.InvalidKeyException;
 import java.util.Set;
 
 import org.eclipse.californium.cloud.http.HttpService;
@@ -40,7 +39,14 @@ import org.slf4j.LoggerFactory;
 import com.sun.net.httpserver.HttpExchange;
 
 /**
- * Login handler using AWS4-HMAC-SHA256 authorization.
+ * Device Configuration handler using AWS4-HMAC-SHA256 authorization.
+ * <p>
+ * Enables fine grained http write permissions for web-user on device
+ * configuration data.
+ * 
+ * <code>
+ * PUT https://${host}/config/${device-name} "${configuration data}"
+ * </code>
  * 
  * @since 3.12
  */
@@ -51,11 +57,16 @@ public class ConfigHandler extends S3Login {
 	 * Logger.
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigHandler.class);
-
+	/**
+	 * Maximum size of configuration.
+	 */
 	private final int maxConfigSize;
 
 	/**
-	 * Create http S3 Login.
+	 * Creates http S3 configuration handler.
+	 * 
+	 * Implements fine grained write permissions for web-user on device
+	 * configuration data.
 	 * 
 	 * @param maxConfigSize maximum size of device configuration.
 	 * @param authorizer AWS4-HMAC-SHA256 authorizer to check for valid
@@ -111,8 +122,16 @@ public class ConfigHandler extends S3Login {
 		}
 	}
 
-	private int checkPermissions(WebAppAuthorization authorization, HttpExchange httpExchange)
-			throws InvalidKeyException {
+	/**
+	 * Checks, if web-user has {@code ConfigWrite} permission and the device is
+	 * contained in the device-groups of the web-user.
+	 * 
+	 * @param authorization web-authorization of web-user
+	 * @param httpExchange incoming http exchange with configuration data.
+	 * @return http-status code. {@code 200} on success, {@code 403} on missing
+	 *         permission, and {@code 500} on internal errors.
+	 */
+	private int checkPermissions(WebAppAuthorization authorization, HttpExchange httpExchange) {
 		WebAppUser credentials = authorization.getWebAppUser();
 		String domain = authorization.getDomain();
 		if (!webAppConfigs.isEnabled(domain, credentials.webAppConfig + WebAppConfigProvider.CONFIGURATION_PREFIX,
@@ -137,8 +156,13 @@ public class ConfigHandler extends S3Login {
 		return 500;
 	}
 
-	private void writeConfig(WebAppAuthorization authorization, final HttpExchange httpExchange)
-			throws InvalidKeyException {
+	/**
+	 * Write device configuration to S3.
+	 * 
+	 * @param authorization web-authorization of web-user
+	 * @param httpExchange incoming http exchange with configuration data.
+	 */
+	private void writeConfig(WebAppAuthorization authorization, final HttpExchange httpExchange) {
 		String contextPath = httpExchange.getHttpContext().getPath();
 		String configDevice = httpExchange.getRequestURI().getPath().substring(contextPath.length());
 		String contentType = httpExchange.getRequestHeaders().getFirst("Content-Type");
@@ -167,6 +191,13 @@ public class ConfigHandler extends S3Login {
 		proxyClient.save(s3PutRequest, (res) -> ready(httpExchange, res));
 	}
 
+	/**
+	 * Sends http-response, when writing the device configuration to S3 has
+	 * finished.
+	 * 
+	 * @param httpExchange incoming http exchange with configuration data.
+	 * @param response S3 response
+	 */
 	private void ready(HttpExchange httpExchange, S3Response response) {
 		String contentType = response.getContentType();
 		int httpCode = response.getHttpStatusCode();

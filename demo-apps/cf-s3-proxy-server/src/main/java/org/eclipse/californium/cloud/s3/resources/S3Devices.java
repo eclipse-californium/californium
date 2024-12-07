@@ -29,9 +29,6 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XM
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -52,15 +49,16 @@ import org.eclipse.californium.cloud.option.ReadEtagOption;
 import org.eclipse.californium.cloud.option.ReadResponseOption;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.resources.ProtectedCoapResource;
+import org.eclipse.californium.cloud.s3.forward.HttpForwardConfiguration;
+import org.eclipse.californium.cloud.s3.forward.HttpForwardConfigurationProvider;
+import org.eclipse.californium.cloud.s3.forward.HttpForwardService;
+import org.eclipse.californium.cloud.s3.forward.HttpForwardServiceManager;
 import org.eclipse.californium.cloud.s3.option.ForwardResponseOption;
-import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest.Builder;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
-import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider;
-import org.eclipse.californium.cloud.s3.util.HttpForwardDestinationProvider.DeviceIdentityMode;
 import org.eclipse.californium.cloud.util.PrincipalInfo;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
@@ -71,17 +69,13 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.ResponseConsumer;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
-import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.proxy2.http.Coap2HttpProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +84,6 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Keeps the content of POST request as sub-resource using the principal's name
  * and domain as path of the sub-resource. e.g.:
- * </p>
  * 
  * <code>
  * coaps://${host}/devices POST "Hi!" by principal "Client_identity"
@@ -98,7 +91,6 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * results in a resource:
- * </p>
  * 
  * <code>
  * "/devices/${device-domain}/Client_identity" with content "Hi!".
@@ -112,7 +104,6 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * Supported content types:
- * </p>
  * 
  * <ul>
  * <li>{@link MediaTypeRegistry#TEXT_PLAIN}</li>
@@ -127,11 +118,9 @@ import org.slf4j.LoggerFactory;
  * For GET, {@link MediaTypeRegistry#APPLICATION_LINK_FORMAT} is also supported
  * and returns a list of web-links for the current devices with public access
  * (ACL).
- * </p>
  * 
  * <p>
  * Supported query parameter:
- * </p>
  * 
  * <dl>
  * <dt>{@value #URI_QUERY_OPTION_ACL}</dt>
@@ -149,7 +138,6 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * Supported custom options:
- * </p>
  * 
  * <dl>
  * <dt>{@link TimeOption}, {@value TimeOption#COAP_OPTION_TIME}</dt>
@@ -164,6 +152,7 @@ import org.slf4j.LoggerFactory;
  * {@value #URI_QUERY_OPTION_READ}</dd>
  * </dl>
  * 
+ * <p>
  * Example:
  * 
  * <code>
@@ -173,7 +162,6 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * results in a S3 resource:
- * </p>
  * 
  * <code>
  * s3://${weather-bucket}/devices/dev-1200045/2022-11-03/17:14:46.645" with content "Temperature: 25.4°".
@@ -183,7 +171,6 @@ import org.slf4j.LoggerFactory;
  * (Default for "write" argument is "${date}/${time}".)
  * 
  * and returns the content of
- * </p>
  * 
  * <code>
  * s3://${weather-bucket}/devices/dev-1200045/config".
@@ -191,7 +178,6 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>
  * (Default for "read" argument is "config".)
- * </p>
  * 
  * @since 3.12
  */
@@ -225,6 +211,7 @@ public class S3Devices extends ProtectedCoapResource {
 	public static final String URI_QUERY_OPTION_WRITE = "write";
 	/**
 	 * URI query parameter to append some lines to a series-resource.
+	 * Obsolete. Only used to not break communication of devices in field.
 	 */
 	public static final String URI_QUERY_OPTION_SERIES = "series";
 	/**
@@ -247,22 +234,21 @@ public class S3Devices extends ProtectedCoapResource {
 
 	private final S3ProxyClientProvider s3Clients;
 
-	private final Coap2HttpProxy httpForward;
-
-	private final HttpForwardDestinationProvider httpDestination;
+	private final HttpForwardConfigurationProvider httpForwardConfigurationProvider;
 
 	private final int[] CONTENT_TYPES = { TEXT_PLAIN, APPLICATION_OCTET_STREAM, APPLICATION_JSON, APPLICATION_CBOR,
 			APPLICATION_XML, APPLICATION_JAVASCRIPT, APPLICATION_LINK_FORMAT };
 
 	/**
-	 * Create devices resource.
+	 * Creates devices resource.
 	 * 
 	 * @param config configuration
 	 * @param s3Clients s3 client to persist the requests.
-	 * @param httpDestination http destination to forward requests.
+	 * @param httpForwardConfigurationProvider http forward configuration
+	 *            provider.
 	 */
 	public S3Devices(Configuration config, S3ProxyClientProvider s3Clients,
-			HttpForwardDestinationProvider httpDestination) {
+			HttpForwardConfigurationProvider httpForwardConfigurationProvider) {
 		super(RESOURCE_NAME);
 		if (s3Clients == null) {
 			throw new NullPointerException("s3client must not be null!");
@@ -274,13 +260,7 @@ public class S3Devices extends ProtectedCoapResource {
 		maxDevices = config.get(BaseServer.CACHE_MAX_DEVICES);
 		domains = new ConcurrentHashMap<>();
 		this.s3Clients = s3Clients;
-		Coap2HttpProxy http = null;
-		if (httpDestination != null) {
-			http = new Coap2HttpProxy(null);
-			LOGGER.info("Forward to http enabled.");
-		}
-		this.httpForward = http;
-		this.httpDestination = httpDestination;
+		this.httpForwardConfigurationProvider = httpForwardConfigurationProvider;
 	}
 
 	@Override
@@ -338,7 +318,6 @@ public class S3Devices extends ProtectedCoapResource {
 		}
 
 		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(getPrincipal(exchange));
-		boolean updateSeries = false;
 		boolean forward = false;
 		String read = null;
 		String write = null;
@@ -349,7 +328,6 @@ public class S3Devices extends ProtectedCoapResource {
 			if (!others.isEmpty()) {
 				LOGGER.info("Other options: {} {}", others, info);
 			}
-			updateSeries = helper.hasParameter(URI_QUERY_OPTION_SERIES);
 			forward = helper.hasParameter(URI_QUERY_OPTION_FORWARD);
 			if (helper.hasParameter(URI_QUERY_OPTION_READ)) {
 				read = helper.getArgument(URI_QUERY_OPTION_READ, DEFAULT_READ_SUB_RESOURCE_NAME);
@@ -378,23 +356,11 @@ public class S3Devices extends ProtectedCoapResource {
 		final String timestamp = format(time, ChronoUnit.MILLIS);
 		final String domain = info.domain;
 		S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
-		StringBuilder log = new StringBuilder();
 		String position = null;
 
 		LOGGER.info("S3: {}, {}", domain, s3Client.getExternalEndpoint());
 		String writeExpanded = replaceVars(write, timestamp);
-		if (format == TEXT_PLAIN && updateSeries) {
-			String[] lines = request.getPayloadString().split("[\\n\\r]+");
-			for (String line : lines) {
-				if (line.startsWith("!")) {
-					line = line.substring(1);
-					log.append(line).append(',');
-				}
-			}
-		}
-		StringUtil.truncateTail(log, ",");
 		request.setProtectFromOffload();
-		Series series = null;
 		String acl = S3ProxyRequest.getAcl(request, s3Client.getAcl());
 		boolean visible = acl != null && acl.startsWith("public-");
 
@@ -422,8 +388,6 @@ public class S3Devices extends ProtectedCoapResource {
 				}
 				device.setVisible(visible);
 				device.setPost(request, position, time, writeExpanded);
-				// workaround for javascript dependency on "series-" file
-				series = device.appendSeries(log.toString(), timestamp);
 				if (device.getParent() == null) {
 					device.setParent(deviceDomain);
 					keptPosts.put(info.name, device);
@@ -443,11 +407,11 @@ public class S3Devices extends ProtectedCoapResource {
 				Response forward = results.get("forward");
 				Response response = write != null ? write : read;
 				if (forward != null) {
-					if (response == null || (forward.isSuccess() && !forward.getPayloadString().equals("ack")
-							&& !forward.getPayloadString().equals(""))) {
+					if (response == null || (forward.isSuccess() && forward.getPayloadSize() > 0)) {
 						exchange.respond(forward);
 						return;
 					}
+					// forward response code in custom option
 					response.getOptions().addOtherOption(new ForwardResponseOption(forward.getCode()));
 				}
 				if (write != null && read != null) {
@@ -460,6 +424,7 @@ public class S3Devices extends ProtectedCoapResource {
 						}
 						write.setPayload(read.getPayload());
 					}
+					// forward response code in custom option
 					write.getOptions().addOtherOption(new ReadResponseOption(read.getCode()));
 					exchange.respond(write);
 				} else if (write != null) {
@@ -474,45 +439,17 @@ public class S3Devices extends ProtectedCoapResource {
 			}
 		};
 
-		URI httpDestinationUri;
-		if (forward && httpForward != null && httpDestination != null
-				&& ((httpDestinationUri = httpDestination.getDestination(domain)) != null)) {
-			String authentication = httpDestination.getAuthentication(domain);
-			DeviceIdentityMode deviceIdentificationMode = httpDestination.getDeviceIdentityMode(domain);
-			Request outgoing = new Request(request.getCode(), request.getType());
-			outgoing.setOptions(request.getOptions());
-			byte[] payload = request.getPayload();
-			if (deviceIdentificationMode == DeviceIdentityMode.HEADLINE) {
-				byte[] head = (info.name + StringUtil.lineSeparator()).getBytes(StandardCharsets.UTF_8);
-				payload = Bytes.concatenate(head, payload);
-			} else if (deviceIdentificationMode == DeviceIdentityMode.QUERY_PARAMETER) {
-				String path = httpDestinationUri.getPath();
-				String query = httpDestinationUri.getQuery();
-				if (query == null) {
-					query = "id=" + info.name;
-				} else {
-					query = query + "&" + "id=" + info.name;
-				}
-				try {
-					httpDestinationUri = httpDestinationUri.resolve(new URI(null, null, null, -1, path, query, null));
-				} catch (URISyntaxException e) {
-					LOGGER.warn("URI: ", e);
+		if (forward && httpForwardConfigurationProvider != null) {
+			final HttpForwardConfiguration configuration = httpForwardConfigurationProvider.getConfiguration(domain,
+					info.name);
+			if (configuration != null && configuration.isValid()) {
+				String serviceName = configuration.getServiceName();
+				HttpForwardService service = HttpForwardServiceManager.getService(serviceName);
+				if (service != null) {
+					final Consumer<Response> consumer = multi.create("forward");
+					service.forwardPOST(request, info, configuration, consumer);
 				}
 			}
-			outgoing.setPayload(payload);
-
-			LOGGER.info("HTTP: {} => {} {} {} bytes", info, httpDestinationUri, deviceIdentificationMode,
-					outgoing.getPayloadSize());
-			final Consumer<Response> consumer = multi.create("forward");
-
-			httpForward.handleForward(httpDestinationUri, authentication, outgoing, new ResponseConsumer() {
-
-				@Override
-				public void respond(Response response) {
-					consumer.accept(response);
-				}
-
-			});
 		}
 
 		if (read != null && !read.isEmpty()) {
@@ -529,28 +466,21 @@ public class S3Devices extends ProtectedCoapResource {
 			if (write.equals(writeExpanded)) {
 				builder.timestamp(time);
 			}
-			s3Client.put(builder.build(), new Consumer<Response>() {
-
-				@Override
-				public void accept(Response response) {
-					// respond with time?
-					final TimeOption responseTimeOption = timeOption.adjust();
-					if (responseTimeOption != null) {
-						response.getOptions().addOtherOption(responseTimeOption);
-					}
-					putResponseConsumer.accept(response);
-					if (response.isSuccess()) {
-						LOGGER.info("Device {} updated!{}", info, visible ? " (public)" : " (private)");
-					} else {
-						LOGGER.info("Device {} update failed!", info);
-					}
+			s3Client.put(builder.build(), (s3Response) -> {
+				// respond with time?
+				final TimeOption responseTimeOption = timeOption.adjust();
+				if (responseTimeOption != null) {
+					s3Response.getOptions().addOtherOption(responseTimeOption);
+				}
+				putResponseConsumer.accept(s3Response);
+				if (s3Response.isSuccess()) {
+					LOGGER.info("Device {} updated!{}", info, visible ? " (public)" : " (private)");
+				} else {
+					LOGGER.info("Device {} update failed!", info);
 				}
 			});
 		}
 
-		if (series != null) {
-			updateSeries(request, series, s3Client);
-		}
 		if (multi.created()) {
 			return;
 		}
@@ -560,20 +490,6 @@ public class S3Devices extends ProtectedCoapResource {
 			response.getOptions().addOtherOption(responseTimeOption);
 		}
 		exchange.respond(response);
-	}
-
-	private void updateSeries(Request request, Series series, S3ProxyClient s3Client) {
-		String content;
-		String subResouce;
-		synchronized (series) {
-			content = series.getContent();
-			subResouce = series.getS3Link();
-		}
-		if (content != null) {
-			S3ProxyRequest s3SeriesRequest = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(subResouce)
-					.content(content.getBytes(StandardCharsets.UTF_8)).contentType("text/plain; charset=utf-8").build();
-			s3Client.put(s3SeriesRequest, S3AsyncProxyClient.NOP);
-		}
 	}
 
 	private static abstract class MultiConsumer<T> {
@@ -660,11 +576,10 @@ public class S3Devices extends ProtectedCoapResource {
 	}
 
 	/**
-	 * Resource representing devices
+	 * Resource representing devices.
 	 */
 	public static class Device extends ProtectedCoapResource {
 
-		private Series series = null;
 		private volatile Request post;
 		private volatile long time;
 
@@ -712,26 +627,6 @@ public class S3Devices extends ProtectedCoapResource {
 			changed();
 		}
 
-		private Series appendSeries(String values, String timestamp) {
-			Series series = null;
-			synchronized (this) {
-				if (this.series != null) {
-					if (!this.series.append(values, timestamp)) {
-						delete(this.series);
-						this.series = null;
-					}
-				}
-				if (this.series == null) {
-					this.series = new Series(timestamp);
-					this.series.append(values, timestamp);
-					add(this.series);
-				}
-				series = this.series;
-				series.setVisible(isVisible());
-			}
-			return series;
-		}
-
 		@Override
 		protected ResponseCode checkOperationPermission(PrincipalInfo info, Exchange exchange, boolean write) {
 			if (!isVisible() && !getName().equals(info.name)) {
@@ -768,85 +663,6 @@ public class S3Devices extends ProtectedCoapResource {
 		}
 	}
 
-	public static class Series extends ProtectedCoapResource {
-
-		private final String startDate;
-		private final String s3Link;
-		private final StringBuilder content = new StringBuilder();
-
-		private Series(String timestamp) {
-			super(SUB_RESOURCE_NAME);
-			this.startDate = timestamp;
-			this.s3Link = SUB_RESOURCE_NAME + "-" + timestamp;
-			getAttributes().setAttribute(ATTRIBUTE_S3_LINK, "-" + timestamp);
-		}
-
-		@Override
-		public void setParent(Resource parent) {
-			super.setParent(parent);
-			synchronized (this) {
-				ResourceAttributes attributes = new ResourceAttributes(getAttributes());
-				if (parent != null) {
-					attributes.setTitle(parent.getName() + " => " + SUB_RESOURCE_NAME);
-				} else {
-					attributes.clearTitle();
-				}
-				setAttributes(attributes);
-			}
-		}
-
-		private Device getDevice() {
-			return (Device) getParent();
-		}
-
-		private String getS3Link() {
-			return s3Link;
-		}
-
-		private boolean append(String values, String timestamp) {
-			synchronized (this) {
-				int len = content.length();
-				String line = timestamp + ": ";
-				if (values != null && !values.isEmpty()) {
-					line += values;
-				}
-				boolean swap = len + line.length() > SERIES_MAX_SIZE;
-				if (swap || !startDate.regionMatches(0, timestamp, 0, 11)) {
-					return false;
-				}
-				if (len > 0) {
-					if (content.charAt(len - 1) != '\n') {
-						content.append('\n');
-					}
-				}
-				content.append(line);
-				return true;
-			}
-		}
-
-		private String getContent() {
-			return content.toString();
-		}
-
-		@Override
-		protected ResponseCode checkOperationPermission(PrincipalInfo info, Exchange exchange, boolean write) {
-			return getDevice().checkOperationPermission(info, exchange, write);
-		}
-
-		public void handleGET(CoapExchange exchange) {
-			int accept = exchange.getRequestOptions().getAccept();
-			if (accept != UNDEFINED && accept != TEXT_PLAIN) {
-				exchange.respond(NOT_ACCEPTABLE);
-				return;
-			}
-			Response response = new Response(CONTENT);
-			response.setPayload(content.toString());
-			response.getOptions().setContentFormat(TEXT_PLAIN);
-			exchange.respond(response);
-		}
-
-	}
-
 	private static String format(long millis, ChronoUnit unit) {
 		Instant instant = Instant.ofEpochMilli(millis).truncatedTo(unit);
 		String time = DateTimeFormatter.ISO_INSTANT.format(instant);
@@ -858,7 +674,7 @@ public class S3Devices extends ProtectedCoapResource {
 	}
 
 	/**
-	 * Replace supported variables.
+	 * Replaces supported variables.
 	 * 
 	 * {@code ${now}}, {@code ${date}}, and {@code ${time}} are replaced with
 	 * the current timestamp, either device time, if the device supports the

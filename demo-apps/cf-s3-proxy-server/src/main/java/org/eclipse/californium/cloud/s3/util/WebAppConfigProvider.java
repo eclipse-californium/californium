@@ -18,7 +18,7 @@ import java.util.Map;
 
 /**
  * Web application configuration provider.
- * 
+ * <p>
  * Resolves domain-section-name pairs to set of web application configuration
  * values.
  * 

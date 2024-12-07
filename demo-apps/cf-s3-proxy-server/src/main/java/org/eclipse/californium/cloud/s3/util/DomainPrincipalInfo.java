@@ -39,7 +39,7 @@ public class DomainPrincipalInfo extends PrincipalInfo {
 	public final String domain;
 
 	/**
-	 * Create domain principal info
+	 * Creates domain principal info.
 	 * 
 	 * @param domain domain name of principal
 	 * @param group group of principal
@@ -60,8 +60,8 @@ public class DomainPrincipalInfo extends PrincipalInfo {
 	}
 
 	/**
-	 * Get principal info.
-	 * 
+	 * Gets principal info.
+	 * <p>
 	 * Only {@link ExtensiblePrincipal} with {@link AdditionalInfo}
 	 * {@link #INFO_PROVIDER} are supported.
 	 * 
@@ -83,8 +83,8 @@ public class DomainPrincipalInfo extends PrincipalInfo {
 	}
 
 	/**
-	 * Get domain.
-	 * 
+	 * Gets domain.
+	 * <p>
 	 * Only {@link ExtensiblePrincipal} with {@link AdditionalInfo}
 	 * {@link #INFO_DOMAIN} are supported.
 	 * 

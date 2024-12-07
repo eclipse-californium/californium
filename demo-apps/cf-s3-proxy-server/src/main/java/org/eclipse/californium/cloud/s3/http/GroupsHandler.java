@@ -36,7 +36,24 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 /**
- * Device groups handler.
+ * Device groups handler using AWS4-HMAC-SHA256 authorization.
+ * <p>
+ * Returns a map with device-names and labels of devices in the groups of the
+ * associated web-user.
+ * 
+ * <pre>
+ * <code>
+ * GET https://${host}/groups
+ * 
+ * Response 200:
+ * {
+ *   "groups" :
+ *     { "${device-name1}": "${label1}",
+ *       "${device-name2}": "${label2}" ...
+ *     }
+ * }
+ * </code>
+ * </pre>
  * 
  * @since 3.13
  */
@@ -61,7 +78,7 @@ public class GroupsHandler implements HttpHandler {
 	protected final DeviceGroupProvider groups;
 
 	/**
-	 * Create http get groups handler.
+	 * Creates http groups handler.
 	 * 
 	 * @param authorizer AWS4-HMAC-SHA256 authorizer to check for valid
 	 *            credentials.
@@ -129,13 +146,19 @@ public class GroupsHandler implements HttpHandler {
 	}
 
 	/**
-	 * Get device list response.
-	 * 
+	 * Gets list with devices of groups.
+	 * <p>
 	 * Creates response with:
 	 * 
-	 * <pre>
-	 * groups: list of device names
-	 * </pre>
+	 * <code>
+	 * Response 200:
+	 * {
+	 *   "groups" :
+	 *     { "${device-name1}": "${label1}",
+	 *       "${device-name2}": "${label2}" ...
+	 *     }
+	 * }
+	 * </code>
 	 * 
 	 * @param authorization authorization
 	 * @return payload of response.
@@ -147,7 +170,7 @@ public class GroupsHandler implements HttpHandler {
 	}
 
 	/**
-	 * Append device list.
+	 * Writes device list.
 	 * 
 	 * @param authorization authorization
 	 * @param groups device groups provider

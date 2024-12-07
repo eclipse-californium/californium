@@ -189,7 +189,7 @@ public class Aws4Authorizer {
 		private boolean verified;
 
 		/**
-		 * Create authorization instance from http exchange.
+		 * Creates authorization instance from http exchange.
 		 * 
 		 * @param httpExchange http exchange to extract the authorization info
 		 */
@@ -253,7 +253,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Initialize instance from other instance.
+		 * Initializes instance from other instance.
 		 * 
 		 * @param authorization other instance to copy fields
 		 * @throws NullPointerException if authorization is {@code null}
@@ -271,7 +271,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Get name from http Credential attribute.
+		 * Gets name from http Credential attribute.
 		 * 
 		 * @return name from http Credential attribute
 		 */
@@ -308,7 +308,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Get signature from http Signature attribute.
+		 * Gets signature from http Signature attribute.
 		 * 
 		 * @return signature from http Signature attribute
 		 */
@@ -317,7 +317,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Verify provided calculated signature matches the signature in the
+		 * Verifies provided calculated signature matches the signature in the
 		 * http headers.
 		 * 
 		 * @param signature calculated signature
@@ -341,7 +341,7 @@ public class Aws4Authorizer {
 
 		/**
 		 * Indicates, if the signature is verified.
-		 * 
+		 * <p>
 		 * Requires to execute {@link #verify(String)} before.
 		 * 
 		 * @return {@code true}, if matching, {@code false}, otherwise.
@@ -352,7 +352,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Get date and time from the http header.
+		 * Gets date and time from the http header.
 		 * 
 		 * @return date and time from the http header
 		 */
@@ -372,7 +372,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Check scope of signature.
+		 * Checks scope of signature.
 		 * 
 		 * @param region region
 		 * @return {@code true}, if the signature contains the expected scope,
@@ -386,7 +386,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Get list of elements from http Credential attribute building the
+		 * Gets list of elements from http Credential attribute building the
 		 * scope.
 		 * 
 		 * @return list of elements from http Credential attribute building the
@@ -397,7 +397,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Get list of signed headers from http SignedHeaders attribute.
+		 * Gets list of signed headers from http SignedHeaders attribute.
 		 * 
 		 * @return list of signed headers from http SignedHeaders attribute.
 		 * 
@@ -406,6 +406,15 @@ public class Aws4Authorizer {
 			return signedHeaders;
 		}
 
+		/**
+		 * Creates a web application authorization including specific
+		 * permissions of the associated web user.
+		 * 
+		 * @param domain domain name
+		 * @param webAppUser web-app user
+		 * @return web application authorization
+		 * @throws NullPointerException if any parameter is {@code null}
+		 */
 		public WebAppAuthorization createWebAppAuthorization(String domain, WebAppUser webAppUser) {
 			return new WebAppAuthorization(this, domain, webAppUser);
 		}
@@ -428,7 +437,7 @@ public class Aws4Authorizer {
 		private WebAppUser webAppUser;
 
 		/**
-		 * Create web application authorization instance.
+		 * Creates a web application authorization instance.
 		 * 
 		 * @param authorization http authorization
 		 * @param domain domain name
@@ -480,7 +489,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Get web application user.
+		 * Gets web application user.
 		 * 
 		 * @return web application user
 		 */
@@ -489,7 +498,7 @@ public class Aws4Authorizer {
 		}
 
 		/**
-		 * Get domain name of the associated web application user.
+		 * Gets domain name of the associated web application user.
 		 * 
 		 * @return domain name of the associated web application user
 		 */
@@ -562,7 +571,7 @@ public class Aws4Authorizer {
 
 	/**
 	 * Create AWS4-HMAC-SHA256 signature verifier.
-	 * 
+	 * <p>
 	 * The S3 region must be the fixed region used in javascript app to send
 	 * request to the http-host, for the provided javascript app use
 	 * {@link S3ProxyClient#DEFAULT_REGION}.

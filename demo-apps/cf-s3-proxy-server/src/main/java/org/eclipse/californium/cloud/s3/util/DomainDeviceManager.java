@@ -15,6 +15,7 @@
 package org.eclipse.californium.cloud.s3.util;
 
 import java.net.InetSocketAddress;
+import java.net.URISyntaxException;
 import java.security.Principal;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
@@ -29,6 +30,9 @@ import java.util.concurrent.ConcurrentMap;
 
 import javax.crypto.SecretKey;
 
+import org.eclipse.californium.cloud.s3.forward.BasicHttpForwardConfiguration;
+import org.eclipse.californium.cloud.s3.forward.HttpForwardConfiguration;
+import org.eclipse.californium.cloud.s3.forward.HttpForwardConfigurationProvider;
 import org.eclipse.californium.cloud.util.DeviceIdentifier;
 import org.eclipse.californium.cloud.util.DeviceManager;
 import org.eclipse.californium.cloud.util.DeviceParser;
@@ -56,12 +60,13 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Domain device manager.
- * 
+ * <p>
  * Organize devices into separate domains.
  * 
  * @since 3.12
  */
-public class DomainDeviceManager extends DeviceManager implements DeviceGroupProvider, DomainPrincipalInfoProvider {
+public class DomainDeviceManager extends DeviceManager
+		implements DeviceGroupProvider, DomainPrincipalInfoProvider, HttpForwardConfigurationProvider {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DomainDeviceManager.class);
 
@@ -164,7 +169,7 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 	}
 
 	/**
-	 * Create additional info for a domain device.
+	 * Creates additional info for a domain device.
 	 * 
 	 * @param domain domain name
 	 * @param device device to create additional info
@@ -229,6 +234,22 @@ public class DomainDeviceManager extends DeviceManager implements DeviceGroupPro
 		} else {
 			return resource.getResource().getGroup(group);
 		}
+	}
+
+	@Override
+	public HttpForwardConfiguration getConfiguration(String domain, String name) {
+		ResourceStore<DeviceParser> resource = domains.get(domain);
+		if (resource != null) {
+			Device device = resource.getResource().get(name);
+			if (device != null) {
+				try {
+					return BasicHttpForwardConfiguration.create(device.customFields);
+				} catch (URISyntaxException e) {
+					LOGGER.warn("Failed to configure http forward '{}'.", e.getMessage());
+				}
+			}
+		}
+		return null;
 	}
 
 	/**

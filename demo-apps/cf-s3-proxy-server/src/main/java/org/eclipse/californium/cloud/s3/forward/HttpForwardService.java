@@ -12,33 +12,36 @@
  * 
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  ********************************************************************************/
-package org.eclipse.californium.cloud.util;
+package org.eclipse.californium.cloud.s3.forward;
+
+import java.util.function.Consumer;
+
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 
 /**
- * Device identifier.
+ * Http forward service.
  * 
- * @since 3.13
+ * @since 4.0
  */
-public interface DeviceIdentifier {
+public interface HttpForwardService {
 
 	/**
-	 * Get device name.
-	 * <p>
-	 * The name is a fixed identifier for the device.
+	 * Gets name of service.
 	 * 
-	 * @return device name
+	 * @return name of service
 	 */
 	String getName();
 
 	/**
-	 * Get device label.
-	 * <p>
-	 * The label is displayed identifier, which may be adapted from time to
-	 * time.
+	 * Forwards coap-request to http destination.
 	 * 
-	 * @return label. {@code null}, if name should be used as displayed
-	 *         identifier
+	 * @param request coap-request to forward.
+	 * @param info principal information including the domain.
+	 * @param configuration configuration for http forwarding
+	 * @param respond consumer for response
 	 */
-	String getLabel();
-
+	void forwardPOST(Request request, DomainPrincipalInfo info, HttpForwardConfiguration configuration,
+			Consumer<Response> respond);
 }

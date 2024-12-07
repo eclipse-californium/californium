@@ -59,7 +59,7 @@ public class S3Request {
 	private final CacheMode cacheMode;
 
 	/**
-	 * Create S3 request.
+	 * Creates S3 request.
 	 * 
 	 * @param key S3 key
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
@@ -73,7 +73,7 @@ public class S3Request {
 	}
 
 	/**
-	 * Get key.
+	 * Gets key.
 	 * 
 	 * @return key
 	 */
@@ -82,8 +82,8 @@ public class S3Request {
 	}
 
 	/**
-	 * Get redirect info.
-	 * 
+	 * Gets redirect info.
+	 * <p>
 	 * Used, if S3 bucket is temporary redirected after creating. Otherwise
 	 * {@code null}.
 	 * 
@@ -95,7 +95,7 @@ public class S3Request {
 	}
 
 	/**
-	 * Get cache/ETAG mode.
+	 * Gets cache/ETAG mode.
 	 * 
 	 * @return cache/ETAG mode.
 	 * @since 3.13
@@ -106,7 +106,7 @@ public class S3Request {
 
 	/**
 	 * Redirect info.
-	 * 
+	 * <p>
 	 * Info if S3 bucket is temporary redirected after creating.
 	 */
 	public static class Redirect {
@@ -121,7 +121,7 @@ public class S3Request {
 		public final String externalEndpoint;
 
 		/**
-		 * Create redirect info.
+		 * Creates redirect info.
 		 * 
 		 * @param endpoint redirected endpoint
 		 * @param externalEndpoint Redirected external https endpoint
@@ -138,7 +138,7 @@ public class S3Request {
 	}
 
 	/**
-	 * Create S3-request-builder.
+	 * Creates S3-request-builder.
 	 * 
 	 * @return created builder
 	 */
@@ -147,7 +147,7 @@ public class S3Request {
 	}
 
 	/**
-	 * Create S3-request-builder from S3-request.
+	 * Creates S3 request builder from S3-request.
 	 * 
 	 * @param request S3-request.
 	 * @return created builder
@@ -177,13 +177,13 @@ public class S3Request {
 		protected CacheMode cacheMode = CacheMode.CACHE;
 
 		/**
-		 * Create S3-request-builder.
+		 * Creates S3 request builder.
 		 */
 		protected Builder() {
 		}
 
 		/**
-		 * Create S3-request-builder from S3-request.
+		 * Create S3 request builder from S3-request.
 		 * 
 		 * @param request S3-request.
 		 */
@@ -194,7 +194,7 @@ public class S3Request {
 		}
 
 		/**
-		 * Set S3 key.
+		 * Sets S3 key.
 		 * 
 		 * @param key S3 key
 		 * @return builder for command chaining
@@ -205,7 +205,7 @@ public class S3Request {
 		}
 
 		/**
-		 * Set redirect info.
+		 * Sets redirect info.
 		 * 
 		 * @param redirect redirect info, if S3 bucket is temporary redirected
 		 *            after creating.
@@ -217,7 +217,7 @@ public class S3Request {
 		}
 
 		/**
-		 * Set cache/ETAG mode.
+		 * Sets cache/ETAG mode.
 		 * 
 		 * @param cacheMode cache/ETAG modes.
 		 * @return builder for command chaining
