@@ -85,7 +85,7 @@ public class Diagnose extends ProtectedCoapResource {
 	}
 
 	public Diagnose(String name, String title, ServerInterface server) {
-		super(name, Type.DEVICE, Type.WEB);
+		super(name, Type.WEB);
 		init(title);
 		if (server != null) {
 			this.serverList.add(server);

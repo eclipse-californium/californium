@@ -42,6 +42,7 @@ import org.eclipse.californium.cloud.option.ReadEtagOption;
 import org.eclipse.californium.cloud.option.ReadResponseOption;
 import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -189,7 +190,7 @@ public class Devices extends ProtectedCoapResource {
 	 * @param config configuration
 	 */
 	public Devices(Configuration config) {
-		super(RESOURCE_NAME);
+		super(RESOURCE_NAME, Type.DEVICE, Type.WEB);
 		Arrays.sort(CONTENT_TYPES);
 		getAttributes().setTitle("Resource, which keeps track of POSTing devices.");
 		getAttributes().addContentTypes(CONTENT_TYPES);
@@ -356,7 +357,7 @@ public class Devices extends ProtectedCoapResource {
 		private volatile long time;
 
 		private Device(String name) {
-			super(name);
+			super(name, Type.DEVICE, Type.WEB);
 			setObservable(true);
 		}
 
@@ -450,7 +451,7 @@ public class Devices extends ProtectedCoapResource {
 		private final StringBuilder content = new StringBuilder();
 
 		private Series(String timestamp) {
-			super(SUB_RESOURCE_NAME);
+			super(SUB_RESOURCE_NAME, Type.WEB);
 			this.startDate = timestamp;
 		}
 

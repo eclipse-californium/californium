@@ -18,6 +18,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.FORBIDDEN;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.UNAUTHORIZED;
 
 import java.security.Principal;
+import java.util.Arrays;
 
 import org.eclipse.californium.cloud.util.PrincipalInfo;
 import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
@@ -26,6 +27,8 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Protected coap resource.
@@ -41,12 +44,30 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  */
 public abstract class ProtectedCoapResource extends CoapResource {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProtectedCoapResource.class);
+
 	/**
 	 * Allowed types.
 	 * 
 	 * @see #checkPermission(Exchange)
 	 */
 	private final Type[] allowed;
+	/**
+	 * Allowed types as text for logging.
+	 */
+	private final String allowedAsText;
+
+	/**
+	 * Get allowed types as string for debug logging.
+	 * 
+	 * @param allowed allowed types
+	 * @return provided allowed types as string, if
+	 *         {@link Logger#isDebugEnabled()} is {@code true}. Otherwise
+	 *         {@code null}.
+	 */
+	private static String getAllowedAsText(Type[] allowed) {
+		return LOGGER.isDebugEnabled() ? Arrays.asList(allowed).toString() : null;
+	}
 
 	/**
 	 * Create protected coap resource for {@link Type#DEVICE} only.
@@ -56,6 +77,7 @@ public abstract class ProtectedCoapResource extends CoapResource {
 	public ProtectedCoapResource(String name) {
 		super(name);
 		allowed = new Type[] { Type.DEVICE };
+		allowedAsText = getAllowedAsText(allowed);
 	}
 
 	/**
@@ -67,6 +89,7 @@ public abstract class ProtectedCoapResource extends CoapResource {
 	public ProtectedCoapResource(String name, boolean visible) {
 		super(name, visible);
 		allowed = new Type[] { Type.DEVICE };
+		allowedAsText = getAllowedAsText(allowed);
 	}
 
 	/**
@@ -78,6 +101,7 @@ public abstract class ProtectedCoapResource extends CoapResource {
 	public ProtectedCoapResource(String name, Type... allowed) {
 		super(name);
 		this.allowed = allowed;
+		this.allowedAsText = getAllowedAsText(allowed);
 	}
 
 	/**
@@ -90,6 +114,7 @@ public abstract class ProtectedCoapResource extends CoapResource {
 	public ProtectedCoapResource(String name, boolean visible, Type... allowed) {
 		super(name, visible);
 		this.allowed = allowed;
+		this.allowedAsText = getAllowedAsText(allowed);
 	}
 
 	@Override
@@ -113,6 +138,9 @@ public abstract class ProtectedCoapResource extends CoapResource {
 			if (type == permission) {
 				return true;
 			}
+		}
+		if (allowedAsText != null) {
+			LOGGER.debug("{} is not in {}", type, allowedAsText);
 		}
 		return false;
 	}
