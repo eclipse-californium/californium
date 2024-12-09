@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.http.HttpService.CoapProxyHandler;
 import org.eclipse.californium.cloud.http.HttpService.ForwardHandler;
+import org.eclipse.californium.cloud.http.HttpService.WebAnonymous;
 import org.eclipse.californium.cloud.resources.Devices;
 import org.eclipse.californium.cloud.resources.Diagnose;
 import org.eclipse.californium.cloud.resources.MyContext;
@@ -757,7 +758,8 @@ public class BaseServer extends CoapServer {
 		if (httpService != null) {
 			ForwardHandler forward = new ForwardHandler("devices", "Devices:");
 			httpService.createContext("/", forward);
-			CoapProxyHandler proxy = new CoapProxyHandler(getMessageDeliverer(), httpService.getExecutor());
+			CoapProxyHandler proxy = new CoapProxyHandler(getMessageDeliverer(), WebAnonymous.create(),
+					httpService.getExecutor());
 			httpService.createContext(Devices.RESOURCE_NAME, proxy);
 			if (cliArguments.diagnose) {
 				httpService.createContext(Diagnose.RESOURCE_NAME, proxy);
