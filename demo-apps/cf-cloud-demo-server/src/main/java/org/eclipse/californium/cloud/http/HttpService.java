@@ -28,6 +28,7 @@ import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,6 +44,8 @@ import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.cloud.resources.Devices;
 import org.eclipse.californium.cloud.util.CredentialsStore;
+import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfoProvider;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -55,6 +58,8 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.auth.AbstractExtensiblePrincipal;
+import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
@@ -493,6 +498,48 @@ public class HttpService {
 		return path.equals(uri.getPath());
 	}
 
+	private static final PrincipalInfoProvider webAnonymousInfoProvider = new PrincipalInfoProvider() {
+
+		@Override
+		public PrincipalInfo getPrincipalInfo(Principal principal) {
+			if (principal instanceof WebAnonymous) {
+				return new PrincipalInfo("web", principal.getName(), PrincipalInfo.Type.WEB);
+			}
+			return null;
+		}
+	};
+
+	public static class WebAnonymous extends AbstractExtensiblePrincipal<WebAnonymous> {
+
+		private static final String NAME = "anonymous";
+
+		protected WebAnonymous(AdditionalInfo additionalInfo) {
+			super(additionalInfo);
+		}
+
+		@Override
+		public String toString() {
+			return NAME;
+		}
+
+		@Override
+		public String getName() {
+			return NAME;
+		}
+
+		@Override
+		public WebAnonymous amend(AdditionalInfo additionalInfo) {
+			return new WebAnonymous(additionalInfo);
+		}
+
+		public static WebAnonymous create() {
+			Map<String, Object> info = new HashMap<>();
+			info.put(PrincipalInfo.INFO_NAME, NAME);
+			info.put(PrincipalInfo.INFO_PROVIDER, webAnonymousInfoProvider);
+			return new WebAnonymous(AdditionalInfo.from(info));
+		}
+	}
+
 	/**
 	 * HTTP handler to forward request.
 	 */
@@ -699,11 +746,21 @@ public class HttpService {
 		private final MessageDeliverer messageDeliverer;
 		private final Executor executor;
 		private final String[] prefix;
+		private final Principal anonymous;
 
 		public CoapProxyHandler(MessageDeliverer messageDeliverer, Executor executor, String... prefix) {
 			this.messageDeliverer = messageDeliverer;
 			this.executor = executor;
 			this.prefix = prefix;
+			this.anonymous = null;
+		}
+
+		public CoapProxyHandler(MessageDeliverer messageDeliverer, Principal anonymous, Executor executor,
+				String... prefix) {
+			this.messageDeliverer = messageDeliverer;
+			this.executor = executor;
+			this.prefix = prefix;
+			this.anonymous = anonymous;
 		}
 
 		public void fillUri(OptionSet options, String uri) {
@@ -743,7 +800,10 @@ public class HttpService {
 			if (attribute instanceof Principal) {
 				principal = (Principal) attribute;
 			}
-			LOGGER.info("http-request: {} {}", method, uri);
+			if (principal == null) {
+				principal = anonymous;
+			}
+			LOGGER.info("http-request: {} {} {}", method, uri, principal);
 			logHeaders("request", headers);
 
 			if (method.equals("GET") || method.equals("HEAD")) {
@@ -824,11 +884,26 @@ public class HttpService {
 			} else {
 				payload = null;
 				switch (response.getCode()) {
+				case BAD_REQUEST:
+					httpCode = 400;
+					break;
+				case UNAUTHORIZED:
+					httpCode = 401;
+					break;
+				case BAD_OPTION:
+					httpCode = 402;
+					break;
+				case FORBIDDEN:
+					httpCode = 403;
+					break;
 				case NOT_FOUND:
 					httpCode = 404;
 					break;
 				case METHOD_NOT_ALLOWED:
 					httpCode = 405;
+					break;
+				case REQUEST_ENTITY_TOO_LARGE:
+					httpCode = 413;
 					break;
 				default:
 					httpCode = 500;
