@@ -12,38 +12,26 @@
  * 
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  ********************************************************************************/
-package org.eclipse.californium.cloud.s3.proxy;
-
-import java.util.Set;
+package org.eclipse.californium.cloud.s3.forward;
 
 /**
- * S3 proxy client provider.
+ * Http forward provider.
+ * <p>
+ * Resolves domain and device name to http destination, authentication, mode and
+ * filter.
  * 
- * @since 3.12
+ * @since 4.0
  */
-public interface S3ProxyClientProvider {
+public interface HttpForwardConfigurationProvider {
 
 	/**
-	 * Gets domains.
-	 * 
-	 * @return set of domain names.
-	 * @since 3.13
-	 */
-	Set<String> getDomains();
-
-	/**
-	 * Gets S3 proxy client for domain.
+	 * Gets http forward configuration.
 	 * 
 	 * @param domain domain name
-	 * @return S3 proxy client, or {@code null}, if not available.
+	 * @param name device name
+	 * @return http forward configuration, or {@code null}, if http forwarding
+	 *         is not used.
 	 */
-	S3ProxyClient getProxyClient(String domain);
-
-	/**
-	 * Gets S3 proxy client for web resources.
-	 * 
-	 * @return S3 proxy client for web resources
-	 */
-	S3ProxyClient getWebClient();
+	HttpForwardConfiguration getConfiguration(String domain, String name);
 
 }

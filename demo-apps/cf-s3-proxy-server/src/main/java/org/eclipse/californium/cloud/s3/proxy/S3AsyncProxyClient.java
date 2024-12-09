@@ -81,11 +81,11 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
  * S3 asynchronous proxy client.
- * 
+ * <p>
  * Implements PUT and GET for device objects and load for other resources.
- * 
- * Note: the current implementation uses
- * {@code software.amazon.awssdk:s3:2.25.22} to access S3. That may be replaced
+ * <p>
+ * <b>Note:</b> the current implementation uses
+ * {@code software.amazon.awssdk:s3:2.27.24} to access S3. That may be replaced
  * in a future version to support different S3 storages for mandates.
  * 
  * @since 3.12
@@ -162,7 +162,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	private S3AsyncClient redirectS3Client;
 
 	/**
-	 * Create S3 client.
+	 * Creates S3 client.
 	 * 
 	 * @param concurrency number of maximum concurrent requests
 	 * @param endpoint S3 endpoint
@@ -223,7 +223,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	/**
-	 * Get effective S3 client considering the redirect information.
+	 * Gets effective S3 client considering the redirect information.
 	 * 
 	 * @param redirect redirect information, or {@code null}, if not used.
 	 * @return effective S3 client
@@ -259,7 +259,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	/**
-	 * Report successful access to S3.
+	 * Reports successful access to S3.
 	 * 
 	 * @param s3Client successful S3 client.
 	 */
@@ -871,7 +871,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	/**
-	 * Get redirect information from exception.
+	 * Gets redirect information from exception.
 	 * 
 	 * @param exception exception while executing S3 request.
 	 * @return redirect information, or {@code null}, if not available or not
@@ -905,7 +905,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	/**
-	 * Get coap response.
+	 * Gets coap response.
 	 * 
 	 * @param exception exception while executing S3 request.
 	 * @param httpErrorResponse http error response for S3 request.
@@ -972,7 +972,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	/**
-	 * Set S3 response.
+	 * Sets S3 response.
 	 * 
 	 * @param <B> S3 response builder type.
 	 * @param builder S3 response builder to set response to.
@@ -1019,7 +1019,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	}
 
 	/**
-	 * Get meta-data time from S3 response.
+	 * Gets meta-data time from S3 response.
 	 * 
 	 * @param getObjectResponse S3 response of GET request.
 	 * @return time in milliseconds since 1.1.1970
@@ -1057,7 +1057,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		private final String s3Etag;
 
 		/**
-		 * Create ETAG pair.
+		 * Creates ETAG pair.
 		 * 
 		 * @param s3Etag S3 ETAG.
 		 */
@@ -1079,7 +1079,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Get S3 ETAG.
+		 * Gets S3 ETAG.
 		 * 
 		 * @return S3 ETAG
 		 */
@@ -1088,7 +1088,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Get coap ETAG.
+		 * Gets coap ETAG.
 		 * 
 		 * @return coap ETAg
 		 */
@@ -1097,7 +1097,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Check, if etag is matching the coap etag.
+		 * Checks, if etag is matching the coap etag.
 		 * 
 		 * @param etag coap etag
 		 * @return {@code true}, if coap etags are matching, {@code false},
@@ -1120,7 +1120,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 	};
 
 	/**
-	 * Create builder for S3 client.
+	 * Creates builder for S3 client.
 	 * 
 	 * @return builder for S3 client
 	 */
@@ -1187,7 +1187,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		private TimeUnit thresholdUnit = TimeUnit.HOURS;
 
 		/**
-		 * Set S3 endpoint from URI.
+		 * Sets S3 endpoint from URI.
 		 * 
 		 * @param endpoint S3 endpoint
 		 * @return builder for command chaining
@@ -1198,7 +1198,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set S3 endpoint from text.
+		 * Sets S3 endpoint from text.
 		 * 
 		 * @param endpoint S3 endpoint
 		 * @return builder for command chaining
@@ -1209,7 +1209,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set S3 external https endpoint.
+		 * Sets S3 external https endpoint.
 		 * 
 		 * @param externalEndpoint S3 external https endpoint
 		 * @return builder for command chaining
@@ -1220,7 +1220,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set S3 region.
+		 * Sets S3 region.
 		 * 
 		 * @param region S3 region. If {@code null},
 		 *            {@link S3ProxyClient#DEFAULT_REGION} is set.
@@ -1236,7 +1236,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set S3 bucket.
+		 * Sets S3 bucket.
 		 * 
 		 * @param bucket S3 bucket. If {@code null},
 		 *            {@link S3AsyncProxyClient#DEFAULT_S3_BUCKET} is set.
@@ -1252,7 +1252,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set S3 default ACL.
+		 * Sets S3 default ACL.
 		 * 
 		 * @param acl S3 default ACL.
 		 * @return builder for command chaining
@@ -1274,7 +1274,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set S3 access key secret.
+		 * Sets S3 access key secret.
 		 * 
 		 * @param keySecret S3 access key secret.
 		 * @return builder for command chaining
@@ -1285,7 +1285,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set maximum number of concurrent requests.
+		 * Sets maximum number of concurrent requests.
 		 * 
 		 * @param concurrency maximum number of concurrent requests
 		 * @return builder for command chaining
@@ -1296,7 +1296,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Enable redirect support for S3.
+		 * Enables redirect support for S3.
 		 * 
 		 * @param enable {@code true} to enable redirect support, {@code false},
 		 *            if not.
@@ -1308,7 +1308,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set minimum number of cached ETAGs.
+		 * Sets minimum number of cached ETAGs.
 		 * 
 		 * @param min minimum number of cached ETAGs
 		 * @return builder for command chaining
@@ -1319,7 +1319,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set maximum number of cached ETAGs.
+		 * Sets maximum number of cached ETAGs.
 		 * 
 		 * @param max maximum number of cached ETAGs
 		 * @return builder for command chaining
@@ -1330,7 +1330,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Set threshold for unused cached ETAGs.
+		 * Sets threshold for unused cached ETAGs.
 		 * 
 		 * @param threshold threshold
 		 * @param unit time unit of threshold
@@ -1343,7 +1343,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		}
 
 		/**
-		 * Create S3 client.
+		 * Creates S3 client.
 		 * 
 		 * @return created S3 client
 		 */

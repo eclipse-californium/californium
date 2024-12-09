@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Generator for HTML pages.
- * 
+ * <p>
  * Create forward, device-list, and single page application pages.
  * 
  * @since 3.12
@@ -69,7 +69,7 @@ public class HtmlGenerator {
 
 	/**
 	 * Create page from {@link WebLink}s.
-	 * 
+	 * <p>
 	 * The links are prepared as relative links, if possible.
 	 * 
 	 * @param pagePath path to this page. Required to create relative links.
@@ -174,7 +174,7 @@ public class HtmlGenerator {
 
 	/**
 	 * Create link.
-	 * 
+	 * <p>
 	 * If provided link starts with pagePath, reduce the link to a relative
 	 * link.
 	 * 

@@ -22,7 +22,7 @@ import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 
 /**
  * Principal info.
- * 
+ * <p>
  * Application relevant information of principal.
  * 
  * @since 4.0
@@ -61,7 +61,9 @@ public class PrincipalInfo {
 		WEB("web");
 
 		/**
-		 * Short name. Using in device storage files.
+		 * Short name.
+		 * <p>
+		 * Used in device storage files.
 		 */
 		private final String shortName;
 
@@ -132,7 +134,7 @@ public class PrincipalInfo {
 
 	/**
 	 * Get principal info.
-	 * 
+	 * <p>
 	 * Only {@link ExtensiblePrincipal} with {@link AdditionalInfo}
 	 * {@link #INFO_PROVIDER} are supported.
 	 * 
@@ -155,7 +157,7 @@ public class PrincipalInfo {
 
 	/**
 	 * Get name.
-	 * 
+	 * <p>
 	 * Only {@link ExtensiblePrincipal} with {@link AdditionalInfo}
 	 * {@link #INFO_NAME} are supported.
 	 * 
