@@ -71,7 +71,6 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.ResponseConsumer;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -505,14 +504,7 @@ public class S3Devices extends ProtectedCoapResource {
 					outgoing.getPayloadSize());
 			final Consumer<Response> consumer = multi.create("forward");
 
-			httpForward.handleForward(httpDestinationUri, authentication, outgoing, new ResponseConsumer() {
-
-				@Override
-				public void respond(Response response) {
-					consumer.accept(response);
-				}
-
-			});
+			httpForward.handleForward(httpDestinationUri, authentication, outgoing, consumer);
 		}
 
 		if (read != null && !read.isEmpty()) {

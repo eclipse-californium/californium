@@ -24,7 +24,6 @@ import java.util.Set;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.ResponseConsumer;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.CoapUriTranslator;
@@ -113,13 +112,7 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 			exchange.sendAccept();
 		}
 
-		proxy.handleForward(destination, null, incomingCoapRequest, new ResponseConsumer() {
-
-			@Override
-			public void respond(Response response) {
-				exchange.sendResponse(response);
-			}
-		});
+		proxy.handleForward(destination, null, incomingCoapRequest, (response) -> exchange.sendResponse(response));
 
 	}
 
