@@ -18,6 +18,7 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.apache.hc.client5.http.ContextBuilder;
 import org.apache.hc.client5.http.auth.CredentialsProvider;
@@ -37,7 +38,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.ResponseConsumer;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.InvalidFieldException;
@@ -134,7 +134,7 @@ public class Coap2HttpProxy {
 	 * @param onResponse callback for coap-response
 	 */
 	public void handleForward(URI destination, String authentication, final Request incomingCoapRequest,
-			final ResponseConsumer onResponse) {
+			final Consumer<Response> onResponse) {
 
 		HttpClientContext context = null;
 
@@ -185,11 +185,11 @@ public class Coap2HttpProxy {
 			}
 		} catch (InvalidFieldException e) {
 			LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
-			onResponse.respond(new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED));
+			onResponse.accept(new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED));
 			return;
 		} catch (TranslationException e) {
 			LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
-			onResponse.respond(new Response(Coap2CoapTranslator.STATUS_TRANSLATION_ERROR));
+			onResponse.accept(new Response(Coap2CoapTranslator.STATUS_TRANSLATION_ERROR));
 			return;
 		}
 
@@ -214,25 +214,25 @@ public class Coap2HttpProxy {
 							// in a coap response
 							Response coapResponse = translator.getCoapResponse(result, incomingCoapRequest);
 							coapResponse.setNanoTimestamp(timestamp);
-							onResponse.respond(coapResponse);
+							onResponse.accept(coapResponse);
 						} catch (InvalidFieldException e) {
 							LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
 							Response response = new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED);
 							response.setPayload(e.getMessage());
 							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-							onResponse.respond(response);
+							onResponse.accept(response);
 						} catch (TranslationException e) {
 							LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
 							Response response = new Response(Coap2CoapTranslator.STATUS_TRANSLATION_ERROR);
 							response.setPayload(e.getMessage());
 							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-							onResponse.respond(response);
+							onResponse.accept(response);
 						} catch (Throwable e) {
 							LOGGER.debug("Error during the http/coap translation: {}", e.getMessage(), e);
 							Response response = new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED);
 							response.setPayload(e.getMessage());
 							response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-							onResponse.respond(response);
+							onResponse.accept(response);
 						}
 						LOGGER.debug("Incoming http response: {} processed ({}ms)!", status,
 								TimeUnit.NANOSECONDS.toMillis(timestamp - now));
@@ -242,7 +242,7 @@ public class Coap2HttpProxy {
 					public void failed(Exception ex) {
 						LOGGER.debug("Failed to get the http response: {}", ex.getMessage(), ex);
 						if (ex instanceof SocketTimeoutException) {
-							onResponse.respond(new Response(ResponseCode.GATEWAY_TIMEOUT));
+							onResponse.accept(new Response(ResponseCode.GATEWAY_TIMEOUT));
 							return;
 						}
 						Response response;
@@ -253,13 +253,13 @@ public class Coap2HttpProxy {
 						}
 						response.setPayload(ex.getMessage());
 						response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-						onResponse.respond(response);
+						onResponse.accept(response);
 					}
 
 					@Override
 					public void cancelled() {
 						LOGGER.debug("Request canceled");
-						onResponse.respond(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+						onResponse.accept(new Response(ResponseCode.SERVICE_UNAVAILABLE));
 					}
 				});
 

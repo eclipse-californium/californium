@@ -96,6 +96,8 @@ Introduce `OptionNumber` to compare `Option` and `OptionDefintion` based on thei
 
 Remove `CropRotation`. Please use an other available deduplication algorithms.
 
+Remove `ResponseConsumer`. Replaced by `Consumer<Response>`.
+
 ### Californium-Proxy2:
 
 Rename `HttpServer.registerVirtual` into `register`.
