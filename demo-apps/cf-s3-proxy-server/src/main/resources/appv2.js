@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 2 0.26.1, 9. December 2024";
+const version = "Version 2 0.27.0, 11. December 2024";
 
 let timeShift = 0;
 
@@ -685,7 +685,8 @@ const regexTimeHeader = new RegExp("^" + timeRegexText);
 const regexDateEnding = /-([0-9]{2,4}-[0-1][0-9]-[0-3][0-9])(Z|\+[0-9]+)?$/;
 
 /*
- * sides: array with values, 0:= not displayed, 1 := left, 2 := right
+ * sides: array with values, 0:= not displayed, 1 := left, 2 := right, 
+ *        3 := left + marker, 4 := right + marker
  * sides[0] : default
  * sides[1] : signals
  * sides[2] : sensors
@@ -709,36 +710,26 @@ class ChartConfig {
 }
 
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, [1, 1, 0, 1], 1000),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, [1, 3, 0, 1], 1000),
 	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100, [1, 1, 0, 1]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40, [2, 0, 1, 2]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80, [2, 0, 1, 2]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100, [2, 0, 1, 2]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100, [4, 0, 3, 4]),
+	new ChartConfig(null, "°C dp", "steelblue", 10, 40, [0, 0, 4, 0], 1, "dew point"),
 	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500, [1, 0, 2, 2]),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75, [0, 2, 0, 1]),
-	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15, [0, 2, 0, 1]),
-	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400, [1, 1, 0, 1]),
-	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400, [0, 1, 0, 1]),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50, [2, 0, 2, 2]),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50, [2, 0, 2, 2]),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, [2, 0, 2, 2], 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, [0, 1, 0, 1], 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, [2, 2, 0, 1], 1000),
-	new ChartConfig(null, "°C dp", "steelblue", 10, 40, [0, 0, 2, 0], 1, "dew point"),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75, [0, 4, 0, 1]),
+	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15, [0, 4, 0, 1]),
+	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400, [1, 3, 0, 1]),
+	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400, [0, 3, 0, 1]),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50, [4, 0, 4, 4]),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50, [4, 0, 4, 4]),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, [4, 0, 4, 4], 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, [0, 3, 0, 1], 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, [2, 4, 0, 1], 1000),
 ];
 
 function getChartConfigIndex(units) {
 	return chartConfig.findIndex((cfg) => cfg.units == units);
-}
-
-function addChartConfigValue(result, values, units) {
-	const i = getChartConfigIndex(units);
-	if (i >= 0 && i + 1 < values.length) {
-		const value = values[i + 1];
-		if (value != null) {
-			result.push(value + " " + chartConfig[i].units);
-		}
-	}
 }
 
 const defaultProviderMap = new Map();
@@ -2223,23 +2214,14 @@ class UiChart {
 		const message = dev.findNearestMessage(timeInMillis);
 		if (message && message.values) {
 			const values = message.values;
-			if (this.signals && !this.sensors) {
-				addChartConfigValue(display, values, "mV");
-				display.push("");
-				addChartConfigValue(display, values, "dBm");
-				addChartConfigValue(display, values, "dB");
-				addChartConfigValue(display, values, "mAs");
-				addChartConfigValue(display, values, "mAs0");
-				addChartConfigValue(display, values, "Retr.");
-				addChartConfigValue(display, values, "ms");
-			} else {
-				addChartConfigValue(display, values, "°C");
-				addChartConfigValue(display, values, "%H");
-				addChartConfigValue(display, values, "hPa");
-				addChartConfigValue(display, values, "°C dp");
-				addChartConfigValue(display, values, "kg A");
-				addChartConfigValue(display, values, "kg B");
-				addChartConfigValue(display, values, "mV Ext.");
+			const sideIndex = (this.signals ? 1 : 0) + (this.sensors ? 2 : 0);
+			for (let i = 1; i < values.length; ++i) {
+				if (values[i] != null && chartConfig[i - 1].side(sideIndex) > 2) {
+					display.push(values[i] + " " + chartConfig[i - 1].units);
+					if (i == 1) {
+						display.push("");
+					}
+				}
 			}
 		}
 
@@ -2587,7 +2569,7 @@ class UiChart {
 		const right = [0, 0, []];
 
 		const sideIndex = (this.signals ? 1 : 0) + (this.sensors ? 2 : 0);
-		const tab = [null, left, right];
+		const tab = [null, left, right, left, right];
 
 		const statusTime = dev.statusMessage.time;
 		const statusDateTime = new Date(statusTime).toUTCString();
