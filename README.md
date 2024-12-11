@@ -225,6 +225,39 @@ OSCORE Key Derivation:
 
 For detailed information about the algorithms see the [COSE Algorithms IANA registry](https://www.iana.org/assignments/cose/cose.xhtml#algorithms).
 
+## Interop Server - MyContext
+
+The interop-server supports also a "mycontext" resource. The response contains the information about the client on the server side.
+
+Examples:
+
+```
+> coap-client -p 15683 -m GET coap://californium.eclipseprojects.io/mycontext
+
+ip: 2a02:????:915b
+port: 15683
+server: Cf 3.13.0-SNAPSHOT
+```
+
+```
+> coap-client -p 15684 -m GET -u Client_identity -k secretPSK coaps://californium.eclipseprojects.io/mycontext
+
+ip: 2a02:????:915b
+port: 15684
+peer: Client_identity
+cipher-suite: TLS_PSK_WITH_AES_128_CCM_8
+session-id: 3BBC6EBAAA4F4A4717EEC8FF2C3FB1CFC4C9C89E9807EB0F1C0CDC11C6D9110C
+read-cid: 1CF2CC41B37E
+write-cid: 
+secure-renegotiation: true
+ext-master-secret: true
+newest-record: true
+message-size-limit: 1343
+server: Cf 3.13.0-SNAPSHOT
+```
+
+`ip` and `port` may be used to detect some NATs on the ip-route. If the `port:` in the response differs from the provided port in the cli (`-p`), then that's a first indication of some NAT. If a client send a new request a couple of minutes later and `ip` or `port` are changing, then that may also indicate a NAT. If the client uses DTLS without the Connection ID extension (no `read-cid`), then the request may timeout. In that case, try to use CoAP without encryption to see,  if the `ip` or `port` changes.
+
 # Adapter Selection
 
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
