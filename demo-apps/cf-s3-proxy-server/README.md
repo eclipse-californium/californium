@@ -2,13 +2,13 @@
 
 # Californium (Cf) - Cloud CoAP-S3-Proxy Server
 
-## SCADA (supervisory control and data acquisition)
+## SCADA (Supervisory Control And Data Acquisition)
 
 ## - Reliable - Efficient - Encrypted -
 
 ![coap-s3-proxy](./docs/coap-s3.svg)
 
-Cloud CoAP-S3-Proxy Server for device communication with CoAP/DTLS 1.2 CID. Based on the [Eclipse/Californium CoAP/DTLS 1.2 CID java library](https://github.com/eclipse-californium/californium).
+Cloud CoAP-S3-Proxy Server for device communication with CoAP/DTLS 1.2 CID, based on the [Eclipse/Californium CoAP/DTLS 1.2 CID java library](https://github.com/eclipse-californium/californium).
 
     Fill the missing link between the device and cloud.
 
@@ -39,7 +39,7 @@ Last calibration: A 2024-02-28T20:10:11Z, B 2024-02-28T20:19:55Z
 !26 C
 ```
 
-**Note:** the previous implementation uses the lines starting with an `!` for a accumulated data file named "series-date-time". That has changed and the current version accumulates the complete data into a "arch-date" file obsoleting the leading `!`. Use "`https://<hostname>/v2`" to use the web UI with the archive files.
+**Note:** If you are irritated by the usage of '!' in some lines, that is obsoleted. The previous implementation uses the lines starting with an `!` for a accumulated data file named "series-date-time". That has changed and the current version accumulates the complete data into a "arch-date" file.
 
 Web-Browser application login page:
 
@@ -514,8 +514,21 @@ If the payload doesn't contain the device identity, it is possible to add that t
 
 If in some cases the http-response payload should be forwarded back to device, then `--http-response-filter` must be used. That is a `regular expression`, if that matches, the http-response payload is dropped.
 
-Alternatively use either the [domain configuration](#using-multiple-s3-buckets-for-multiple-domains) or the [device specific](#device-credentials) configuration. If a device specific configuration and also either the domain-configuraiton or cli arguments are used, the device specific value have precedence over the general ones.
+Starting with `4.0.0-M1` it's also possible to implement a custom forwarding service. See [HttpForwardService](src/main/java/org/eclipse/californium/cloud/s3/forward/HttpForwardService.java) for details. If more then one implementation is used, `--http-service-name` selects the one to use.
 
+Alternatively to pass the http forward configuration by CLI arguments, use either the [domain configuration](#using-multiple-s3-buckets-for-multiple-domains) or the [device specific](#device-credentials) configuration. If a device specific configuration and also either the domain-configuration or cli arguments are used, the device specific value have precedence over the general ones.
+
+Table of http-forwarding configuration fields:
+
+| CLI | Domains | Devices |
+| --- | ------- | ------- |
+| `--http-forward` | `http_forward` | `.fdest` |
+| `--http-authentication` | `http_authentication` | `.fauth` |
+| `--http-device-identity-mode` | `http_device_identity_mode` | `.fdevid` |
+| `--http-response-filter` | `http_response_filter` | `.fresp` |
+| `--http-service-name` | `http_service_name` | `.fservice` |
+
+Example:
 
 ```sh
 java -jar cf-s3-proxy-server-4.0.0-SNAPSHOT.jar ... \
@@ -832,35 +845,30 @@ to the archive file. The first message is from the previous example and shows, t
 
 The javascript browser app extracts the values for the chart from the lines of that files with regular expressions:
 
-[javascript - chartConfig](src/main/resources/app.js#L610-L626)
+[javascript - chartConfig](src/main/resources/appv2.js#L687-L728)
 
 ```
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, 1000),
-	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75),
-	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15),
-	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400),
-	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, 1000),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, [1, 3, 0, 1], 1000),
+	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100, [1, 1, 0, 1]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100, [4, 0, 3, 4]),
+	new ChartConfig(null, "°C dp", "steelblue", 10, 40, [0, 0, 4, 0], 1, "dew point"),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500, [1, 0, 2, 2]),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75, [0, 4, 0, 1]),
+	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15, [0, 4, 0, 1]),
+	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400, [1, 3, 0, 1]),
+	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400, [0, 3, 0, 1]),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50, [4, 0, 4, 4]),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50, [4, 0, 4, 4]),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, [4, 0, 4, 4], 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, [0, 3, 0, 1], 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, [2, 4, 0, 1], 1000),
 ];
 ```
 
-If you want to add an different sensor value, add a `ChartConfig`to that table. You will also need to adapt the chart-view
-
-[javascript - side rules](src/main/resources/app.js#L1779-L1788)
-
-and, if required, also the info shown with the marker
-
-[javascript - marker](src/main/resources/app.js#L1420-L1436)
+If you want to add an different sensor value, add a `ChartConfig` to that table.
 
 ### CoAP API - coaps://fw
 
