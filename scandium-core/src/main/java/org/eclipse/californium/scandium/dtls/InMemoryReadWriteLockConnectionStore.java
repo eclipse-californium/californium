@@ -90,7 +90,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.5
  */
-public class InMemoryReadWriteLockConnectionStore implements ReadWriteLockConnectionStore {
+public class InMemoryReadWriteLockConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryReadWriteLockConnectionStore.class);
 	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER.getName(), 3, TimeUnit.SECONDS.toNanos(10));

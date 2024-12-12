@@ -216,7 +216,6 @@ import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
-import org.eclipse.californium.scandium.dtls.ReadWriteLockConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
@@ -934,8 +933,8 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			LOGGER.error("{} recent handshakes, cleanup failed after {} in {}ms{}!", size, count,
 					TimeUnit.NANOSECONDS.toMillis(time), qualifier, ex);
 		}
-		if (running.get() && connectionStore instanceof ReadWriteLockConnectionStore) {
-			((ReadWriteLockConnectionStore) connectionStore).shrink(calls, running);
+		if (running.get() ) {
+			connectionStore.shrink(calls, running);
 		}
 	}
 
@@ -979,8 +978,8 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 				}
 			}
 		}
-		if (change && connectionStore instanceof ReadWriteLockConnectionStore) {
-			((ReadWriteLockConnectionStore) connectionStore).setExecutor(null);
+		if (change ) {
+			connectionStore.setExecutor(null);
 		}
 	}
 
@@ -1183,9 +1182,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			} else {
 				executorService = timer;
 			}
-			if (connectionStore instanceof ReadWriteLockConnectionStore) {
-				((ReadWriteLockConnectionStore) connectionStore).setExecutor(executorService);
-			}
+			connectionStore.setExecutor(executorService);
 			this.hasInternalExecutor = true;
 		}
 		// prepare restored connections.
@@ -1401,9 +1398,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					shutdown = executorService;
 					executorService = null;
 					hasInternalExecutor = false;
-					if (connectionStore instanceof ReadWriteLockConnectionStore) {
-						((ReadWriteLockConnectionStore) connectionStore).setExecutor(null);
-					}
+					connectionStore.setExecutor(null);
 				}
 				for (Thread t : receiverThreads) {
 					t.interrupt();
@@ -1655,61 +1650,26 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 */
 	private final Connection getConnection(InetSocketAddress peerAddress, ConnectionId cid, boolean create) {
 		ExecutorService executor = getExecutorService();
-		Connection connection;
-		if (connectionStore instanceof ReadWriteLockConnectionStore) {
-			ReadWriteLockConnectionStore store = (ReadWriteLockConnectionStore) connectionStore;
-			if (cid != null) {
-				connection = connectionStore.get(cid);
-			} else {
+		Connection connection = (cid != null) ? connectionStore.get(cid) : connectionStore.get(peerAddress);
+		if (create && connection == null && cid == null) {
+			connectionStore.writeLock().lock();
+			try {
+				// check again, now with write-lock
 				connection = connectionStore.get(peerAddress);
-			}
-			if (create && connection == null && cid == null) {
-				store.writeLock().lock();
-				try {
-					// check again, now with write-lock
-					connection = connectionStore.get(peerAddress);
-					if (connection == null) {
-						LOGGER.trace("create new connection for {}", peerAddress);
-						Connection newConnection = new Connection(peerAddress);
-						newConnection.setConnectorContext(executor, connectionListener);
-						if (running.get()) {
-							// only add, if connector is running!
-							if (!connectionStore.put(newConnection)) {
-								return null;
-							}
+				if (connection == null) {
+					LOGGER.trace("create new connection for {}", peerAddress);
+					Connection newConnection = new Connection(peerAddress);
+					newConnection.setConnectorContext(executor, connectionListener);
+					if (running.get()) {
+						// only add, if connector is running!
+						if (!connectionStore.put(newConnection)) {
+							return null;
 						}
-						return newConnection;
 					}
-				} finally {
-					store.writeLock().unlock();
+					return newConnection;
 				}
-			}
-		} else {
-			synchronized (connectionStore) {
-				if (cid != null) {
-					connection = connectionStore.get(cid);
-				} else {
-					connection = connectionStore.get(peerAddress);
-					if (connection == null && create) {
-						LOGGER.trace("create new connection for {}", peerAddress);
-						Connection newConnection = new Connection(peerAddress);
-						newConnection.setConnectorContext(executor, connectionListener);
-						if (running.get()) {
-							// only add, if connector is running!
-							if (!connectionStore.put(newConnection)) {
-								return null;
-							}
-						}
-						return newConnection;
-					}
-				}
-				if (running.get() && connection != null && !connection.isExecuting()) {
-					// reviving is only required for none
-					// ShrinkingConnectionStore
-					connection.setConnectorContext(executor, connectionListener);
-					LOGGER.trace("revive connection for {},{}", peerAddress, cid);
-					return connection;
-				}
+			} finally {
+				connectionStore.writeLock().unlock();
 			}
 		}
 		if (connection == null) {
@@ -2463,18 +2423,11 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			if (addressVerified) {
 				final Connection connection;
 				ExecutorService executor = getExecutorService();
-				if (connectionStore instanceof ReadWriteLockConnectionStore) {
-					ReadWriteLockConnectionStore store = (ReadWriteLockConnectionStore) connectionStore;
-					store.writeLock().lock();
-					try {
-						connection = getConnectionForNewClientHello(peerAddress, clientHello, executor);
-					} finally {
-						store.writeLock().unlock();
-					}
-				} else {
-					synchronized (connectionStore) {
-						connection = getConnectionForNewClientHello(peerAddress, clientHello, executor);
-					}
+				connectionStore.writeLock().lock();
+				try {
+					connection = getConnectionForNewClientHello(peerAddress, clientHello, executor);
+				} finally {
+					connectionStore.writeLock().unlock();
 				}
 				if (connection != null) {
 					try {
