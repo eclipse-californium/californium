@@ -43,6 +43,8 @@ With this major version the DTLS 1.2 Connection ID is enabled by default with a 
 
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.
 
+In some cases `SHA384` was misspelled as `SHA378`. That's fixed but causes also to fail reading old `Californium3.properties`. 
+
 ### Element-Connector-TCP-Netty:
 
 ### Californium-Core:
@@ -82,6 +84,8 @@ The functions of the obsolete and removed `DatagramFilterExtended` are moved int
 `DatagramFilter`.
 
 Change scope of `DTLSFlight.wrapMessage` to `private`.
+
+The names `CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378`, and `CipherSuite.TLS_PSK_WITH_AES_256_GCM_SHA378` are corrected into `CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384`, and `CipherSuite.TLS_PSK_WITH_AES_256_GCM_SHA384`. 
 
 ### Californium-Core:
 

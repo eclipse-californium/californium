@@ -191,13 +191,13 @@ Also Starting with 3.0.0-RC1, a server may use a `X509KeyManager` in order to pr
 - TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256
 - TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256
 - TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256
-- *TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378*
+- *TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384*
 - TLS_PSK_WITH_AES_128_CCM
 - TLS_PSK_WITH_AES_128_CCM_8
 - TLS_PSK_WITH_AES_128_GCM_SHA256
 - TLS_PSK_WITH_AES_256_CCM
 - TLS_PSK_WITH_AES_256_CCM_8
-- *TLS_PSK_WITH_AES_256_GCM_SHA378*
+- *TLS_PSK_WITH_AES_256_GCM_SHA384*
 - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
 
@@ -223,9 +223,7 @@ ARIA cipher suites since 3.9.0, requires support by JCE, e.g. BouncyCastle 1.72:
 - TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256
 - TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384
 
-Note: the *CBC* cipher suites are not longer recommended for new deployments!
-
-Note: *SHA378* in the cipher suite names are typos. It must be *SHA384*. The straight forward fix would break the API, therefore the fix is postponed to 4.0 (no schedule for now)!
+**Note:** the *CBC* cipher suites are not longer recommended for new deployments!
 
 ## Supported Signature- and Hash-Algorithms
 
@@ -234,7 +232,7 @@ Note: *SHA378* in the cipher suite names are typos. It must be *SHA384*. The str
 - *ED25519* (if supported by JCE)
 - *ED448* (if supported by JCE)
 - *SHA1_WITH_ECDSA* (if explicitly enabled)
-- *SHA378_WITH_ECDSA* (if explicitly enabled)
+- *SHA384_WITH_ECDSA* (if explicitly enabled)
 - *SHA512_WITH_ECDSA* (if explicitly enabled)
 
 ## Supported Curves
