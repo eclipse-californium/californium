@@ -59,6 +59,7 @@
 				<exclude>org.eclipse.californium:californium-legal</exclude>
 			</excludes>
 			<outputDirectory>/</outputDirectory>
+			<useProjectArtifact>false</useProjectArtifact>
 			<unpack>true</unpack>
 			<unpackOptions>
 				<includes>
