@@ -10,7 +10,7 @@ Please refer to the eclipse Californium project page for license, build, and ins
 
 ## Download
 
-[Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-simplefile-server/3.13.0/cf-simplefile-server-3.13.0.jar)
+[Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-simplefile-server/4.0.0-M2/cf-simplefile-server-4.0.0-M2.jar)
 
 ## PREPARATION
 

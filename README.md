@@ -21,51 +21,13 @@ $ mvn clean install
 
 Executable JARs of the examples with all dependencies can be found in the `demo-apps/run` folder.
 
-The build-process in branch `main` is tested for jdk 7, jdk 8, jdk 11 and jdk 17. 
-For jdk 7 the revapi maven-plugin is disabled, it requires at least java 8.
-
-Note: the build **has been" tested long ago. In the meantime too much has changed. Please focus on using jdk 17 to build it.
+The build-process in branch `main` is tested for jdk8, jdk 11, jdk 17 and jdk 21. 
 
 To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set the `JAVA_HOME`.
 
 ```sh
 $ mvn clean install -DcreateJavadoc=true
 ```
-
-## Build jdk7 compliant
-
-In the meantime, JDK 7 is pretty deprecated! The next major version (4) will not longer support it! It hopefully comes this year (2024).
-
-Californium 2.x and newer can be used with java 7 or newer. In order to use plugins,
-which are only supported for newer jdks, the `--release` option is used (requires java 9 or newer to build it).
-
-If you want to build it with a jdk 7, the toolchain plugin could be used, but requires
-manually remove the `maven.compiler.release` property in the pom.xml. That requires
-also a toolchains configuration in "toolchains.xml" in your maven ".m2" folder
-
-```xml
-<?xml version="1.0" encoding="UTF8"?>
-<toolchains>
-	<!-- JDK toolchains -->
-	<toolchain>
-		<type>jdk</type>
-		<provides>
-			<version>1.7</version>
-		</provides>
-		<configuration>
-			<jdkHome>path..to..jdk7...home</jdkHome>
-		</configuration>
-	</toolchain>
-</toolchains>
-```
-
-To use the jdk7 toolchain, add "-DuseToolchain=true" to the command line.
-
-```sh
-$ mvn clean install -DuseToolchain=true
-```
-
-To use the jdk7 toolchain and create javadocs, add "-DuseToolchainJavadoc=true" to the command line (`JAVA_HOME` is not required).
 
 ```sh
 $ mvn clean install -DuseToolchainJavadoc=true
@@ -105,7 +67,7 @@ With that, it gets very time consuming to test all combinations. Therefore, if y
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:3.13.0).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:4.0.0-M2).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots `...`):
 
@@ -121,6 +83,23 @@ to your `pom.xml` (without the dots `...`):
   </dependencies>
   ...
 ```
+
+or
+
+```xml
+  <dependencies>
+    ...
+    <dependency>
+            <groupId>org.eclipse.californium</groupId>
+            <artifactId>californium-core</artifactId>
+            <version>4.0.0-M2</version>
+    </dependency>
+    ...
+  </dependencies>
+  ...
+```
+
+**Note:** the API of milestone release `4.0.0-M2` isn't stable yet.
 
 ##### Current Builds
 
@@ -162,7 +141,7 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 
 A test server is running at <a href="coap://californium.eclipseprojects.io:5683/">coap://californium.eclipseprojects.io:5683/</a>
 
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.13.0/cf-plugtest-server-3.13.0.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/4.0.0-M2/cf-plugtest-server-4.0.0-M2.jar) from the demo-apps.
 The root resource responds with its current version.
 
 For a preview to the [Return Routability Check for DTLS 1.2 and DTLS 1.3](https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html) experimental support, please read [feature/rrc - branch](https://github.com/eclipse-californium/californium/tree/feature/rrc).
@@ -188,11 +167,34 @@ And the PSK credentials:
 | Regex "`cali\..*`" | ".fornium" | Wildcard Identity for plugtest |
 | Regex "`^[^@]{8,}@.{8,}$`" | "secret" | Wildcard Identity for hono-identites |
 
-Note: TLS supports only the x509 Demo Certificates.
+**Note:** TLS supports only the x509 Demo Certificates. To enable a client to use x509, please add the below CA certificate to it's trusts.
+
+```
+Bag Attributes
+    friendlyName: C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-ca
+subject=CN = cf-ca, OU = Californium, O = Eclipse IoT, L = Ottawa, C = CA
+
+issuer=CN = cf-root, OU = Californium, O = Eclipse IoT, L = Ottawa, C = CA
+
+-----BEGIN CERTIFICATE-----
+MIICDDCCAbKgAwIBAgIIPKO8L7vZoqAwCgYIKoZIzj0EAwIwXDEQMA4GA1UEAxMH
+Y2Ytcm9vdDEUMBIGA1UECxMLQ2FsaWZvcm5pdW0xFDASBgNVBAoTC0VjbGlwc2Ug
+SW9UMQ8wDQYDVQQHEwZPdHRhd2ExCzAJBgNVBAYTAkNBMB4XDTIzMTAyNjA4MDgx
+NVoXDTI1MTAyNTA4MDgxNVowWjEOMAwGA1UEAxMFY2YtY2ExFDASBgNVBAsTC0Nh
+bGlmb3JuaXVtMRQwEgYDVQQKEwtFY2xpcHNlIElvVDEPMA0GA1UEBxMGT3R0YXdh
+MQswCQYDVQQGEwJDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLCbJjxIS4hI
+AnRFTlx23gkd4zyFd50zdpTnoUPz19oQ1o1youavC5Go9vrYoWxyx+zpph8T4brB
+C/mZGIgPVMOjYDBeMB0GA1UdDgQWBBSxVzoI1TL87++hsUb9vQwqODzgUTALBgNV
+HQ8EBAMCAQYwDwYDVR0TBAgwBgEB/wIBATAfBgNVHSMEGDAWgBTqNhC1fqOTsHRn
+IVZ9OabfWsxpcTAKBggqhkjOPQQDAgNIADBFAiBSEn3egc31JhhHTVYi5uhl0t4d
+ewujkEmwzBuruzf/xAIhAK/fXy2tsNoyLitFQ97x6LYV25jKmLKUlhL2mC/PwQdO
+-----END CERTIFICATE-----
+```
 
 ## Interop Server - OSCORE Support
 
 The server has a resource only accessible using OSCORE under "/oscore". It is configured with the following security material (client side):
+
 ```
 Master Secret: 0x0102030405060708090a0b0c0d0e0f10 (16 bytes)
 Master Salt:   0x9e7ca92223786340 (8 bytes)
@@ -201,6 +203,7 @@ Recipient ID:  0x02 (1 byte)
 ID Context:    0x37cbf3210017a2d3 (8 bytes)
 (See up to date parameters in "/oscoreInfo" resource)
 ```
+
 Note that the server supports running the Appendix B.2 context rederivation procedure. This is necessary as requests from new clients would otherwise be considered replays (as the server's replay window is filled up from earlier clients). To access this resource without using the Appendix B.2 procedure, an appropriate Sender Sequence Number to use and the current ID Context can be retrieved from the resource "/oscoreInfo" using plain CoAP.
 
 Currently Californium's OSCORE supports the following algorithms:
@@ -236,7 +239,7 @@ Examples:
 
 ip: 2a02:????:915b
 port: 15683
-server: Cf 3.13.0-SNAPSHOT
+server: Cf 4.0.0-M2
 ```
 
 ```
@@ -253,7 +256,7 @@ secure-renegotiation: true
 ext-master-secret: true
 newest-record: true
 message-size-limit: 1343
-server: Cf 3.13.0-SNAPSHOT
+server: Cf 4.0.0-M2
 ```
 
 `ip` and `port` may be used to detect some NATs on the ip-route. If the `port:` in the response differs from the provided port in the cli (`-p`), then that's a first indication of some NAT. If a client send a new request a couple of minutes later and `ip` or `port` are changing, then that may also indicate a NAT. If the client uses DTLS without the Connection ID extension (no `read-cid`), then the request may timeout. In that case, try to use CoAP without encryption to see,  if the `ip` or `port` changes.
@@ -263,7 +266,7 @@ server: Cf 3.13.0-SNAPSHOT
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-3.13.0.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-4.0.0-M2.jar MulticastTestServer`
 
 # Contact
 

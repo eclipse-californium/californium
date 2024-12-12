@@ -14,9 +14,10 @@ For more details, please look at [https://www.eclipse.org/security](https://www.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 3.13.0-SNAPSHOT (main) | :heavy_check_mark: |
-| 3.12.0 | :heavy_check_mark: |
-| 3.11.0, 3.10.0, 3.9.1,<br/> 3.9.0, 3.8.0, 3.7.0,<br/> 3.6.0, 3.5.0, 3.4.0,<br/> 3.3.1, 3.2.0, 3.1.0,<br/> 3.0.0 | :question: |
+| 4.0.0-SNAPSHOT (main) | :heavy_check_mark: |
+| 4.0.0-M2 | :heavy_check_mark: |
+| 3.13.0 | :heavy_check_mark: |
+| 3.12.1, 3.11.0, 3.10.0,<br/> 3.9.1, 3.8.0, 3.7.0,<br/> 3.6.0, 3.5.0, 3.4.0,<br/> 3.3.1, 3.2.0, 3.1.0,<br/> 3.0.0 | :question: |
 | 2.8.0   | :question: |
 | 2.7.4, 2.6.6, 2.5.0,<br/> 2.4.1, 2.3.1, 2.2.3,<br/> 2.1.0, 2.0.0 | :question: |
 | before 2.0.0   | :x: |

@@ -119,7 +119,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>scandium</artifactId>
-            <version>3.13.0</version>
+            <version>4.0.0-M2</version>
     </dependency>
     ...
   </dependencies>
