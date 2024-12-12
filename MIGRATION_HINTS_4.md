@@ -87,6 +87,8 @@ Change scope of `DTLSFlight.wrapMessage` to `private`.
 
 The names `CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378`, and `CipherSuite.TLS_PSK_WITH_AES_256_GCM_SHA378` are corrected into `CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384`, and `CipherSuite.TLS_PSK_WITH_AES_256_GCM_SHA384`. 
 
+Merged `ReadWriteLockConnectionStore` into `ResumptionSupportingConnectionStore` and remove obsolete `ReadWriteLockConnectionStore`.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into
