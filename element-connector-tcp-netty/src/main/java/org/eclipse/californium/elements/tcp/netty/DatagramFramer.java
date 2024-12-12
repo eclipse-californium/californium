@@ -34,7 +34,7 @@ import java.util.List;
  * Converts stream of bytes over TCP connection into distinct datagrams based on
  * CoAP over TCP spec.
  */
-public class DatagramFramer extends ByteToMessageDecoder {
+class DatagramFramer extends ByteToMessageDecoder {
 
 	private final TcpContextUtil contextUtil;
 

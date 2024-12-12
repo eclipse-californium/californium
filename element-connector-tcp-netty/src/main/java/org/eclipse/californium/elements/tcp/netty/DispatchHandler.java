@@ -23,7 +23,7 @@ import org.eclipse.californium.elements.RawDataChannel;
 /**
  * Channel handler that dispatches framed raw messages to coap stack.
  */
-public class DispatchHandler extends ChannelInboundHandlerAdapter {
+class DispatchHandler extends ChannelInboundHandlerAdapter {
 
 	private final RawDataChannel rawDataChannel;
 
