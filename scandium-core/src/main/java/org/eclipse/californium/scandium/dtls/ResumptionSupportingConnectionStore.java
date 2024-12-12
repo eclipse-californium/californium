@@ -26,6 +26,10 @@ import java.net.InetSocketAddress;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.californium.scandium.ConnectionListener;
 
@@ -45,7 +49,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Attach connection id generator.
-	 * 
+	 * <p>
 	 * Must be called before {@link #put(Connection)}.
 	 * 
 	 * @param connectionIdGenerator connection id generator. If {@code null} a
@@ -57,12 +61,12 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Save connections.
-	 * 
+	 * <p>
 	 * Connector must be stopped before saving connections. The connections are
 	 * removed after saving.
-	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it.
+	 * <p>
+	 * <b>Note:</b> the stream will contain not encrypted critical credentials.
+	 * It is required to protect this data before exporting it.
 	 * 
 	 * @param out output stream to save connections
 	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
@@ -77,8 +81,8 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Load connections.
-	 * 
-	 * Note: the stream contain not encrypted critical credentials. It is
+	 * <p>
+	 * <b>Note:</b> the stream contain not encrypted critical credentials. It is
 	 * required to protect this data.
 	 * 
 	 * @param in input stream to load connections
@@ -96,7 +100,6 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 */
 	int loadConnections(InputStream in, long delta) throws IOException;
 
-
 	/**
 	 * Restore connection.
 	 * 
@@ -108,7 +111,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Puts a connection into the store.
-	 * 
+	 * <p>
 	 * The connection is primary associated with its connection id
 	 * {@link Connection#getConnectionId()}. If the connection doesn't have a
 	 * connection id, a unique connection id created with the
@@ -116,8 +119,9 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 * also a peer address and/or a established session, it get's associated
 	 * with that as well. It removes also an other connection from these
 	 * associations.
-	 * 
-	 * Note: {@link #attach(ConnectionIdGenerator)} must be called before!
+	 * <p>
+	 * <b>Note:</b> {@link #attach(ConnectionIdGenerator)} must be called
+	 * before!
 	 * 
 	 * @param connection the connection to store
 	 * @return {@code true} if the connection could be stored, {@code false},
@@ -134,7 +138,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Update a connection in the store.
-	 * 
+	 * <p>
 	 * Update the last-access time to prevent connection from being evicted.
 	 * Associate a new peer address with this connection, and removes other
 	 * connections from that association.
@@ -148,7 +152,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Associates the connection with the session id.
-	 * 
+	 * <p>
 	 * Removes previous associated connection from store, if no second level
 	 * session store is used.
 	 * 
@@ -160,7 +164,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Remove the association of the connection with the session id.
-	 * 
+	 * <p>
 	 * Removes associated connection from store, if no second level session
 	 * store is used.
 	 * 
@@ -181,8 +185,8 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 * Gets a connection by its peer address.
 	 * 
 	 * @param peerAddress the peer address
-	 * @return the matching connection or {@code null}, if no connection
-	 *         exists for the given address
+	 * @return the matching connection or {@code null}, if no connection exists
+	 *         for the given address
 	 */
 	Connection get(InetSocketAddress peerAddress);
 
@@ -190,8 +194,8 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 * Gets a connection by its connection id.
 	 * 
 	 * @param cid connection id
-	 * @return the matching connection or {@code null}, if no connection
-	 *         exists for the given connection id
+	 * @return the matching connection or {@code null}, if no connection exists
+	 *         for the given connection id
 	 */
 	Connection get(ConnectionId cid);
 
@@ -199,8 +203,8 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 * Finds a connection by its session ID.
 	 * 
 	 * @param id the session ID
-	 * @return the matching connection or {@code null}, if no connection
-	 *         with an established session with the given ID exists
+	 * @return the matching connection or {@code null}, if no connection with an
+	 *         established session with the given ID exists
 	 */
 	DTLSSession find(SessionId id);
 
@@ -210,9 +214,9 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 * @param connection the connection to remove
 	 * @param removeFromSessionStore {@code true} if the session of the
 	 *            connection should be removed from the session store,
-	 *           {@code false}, otherwise
-	 * @return {@code true}, if the connection was removed,
-	 *         {@code false}, otherwise
+	 *            {@code false}, otherwise
+	 * @return {@code true}, if the connection was removed, {@code false},
+	 *         otherwise
 	 */
 	boolean remove(Connection connection, boolean removeFromSessionStore);
 
@@ -223,7 +227,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Stop all serial executors of connections from the store.
-	 * 
+	 * <p>
 	 * Add pending jobs to provided list.
 	 * 
 	 * @param pending list to add pending jobs
@@ -237,7 +241,7 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 
 	/**
 	 * Get "weakly consistent" iterator over all connections.
-	 * 
+	 * <p>
 	 * The iterator is a "weakly consistent" iterator that will never throw
 	 * {@link ConcurrentModificationException}, and guarantees to traverse
 	 * elements as they existed upon construction of the iterator, and may (but
@@ -247,5 +251,40 @@ public interface ResumptionSupportingConnectionStore extends Iterable<Connection
 	 * @return "weakly consistent" iterator
 	 */
 	Iterator<Connection> iterator();
+
+	/**
+	 * Shrinks the connection store.
+	 * 
+	 * @param calls number of calls
+	 * @param running {@code true}, if the related connector is running,
+	 *            {@code false}, if the connector has stopped and the shrinking
+	 *            may be abandoned.
+	 * @since 4.0 (moved from obsolete ReadWriteLockConnectionStore)
+	 */
+	void shrink(int calls, AtomicBoolean running);
+
+	/**
+	 * Set executor to pass to new connections.
+	 * 
+	 * @param executor executor to pass to new connections. May be {@code null}.
+	 * @since 4.0 (moved from obsolete ReadWriteLockConnectionStore)
+	 */
+	void setExecutor(ExecutorService executor);
+
+	/**
+	 * Get read lock.
+	 * 
+	 * @return read lock
+	 * @since 4.0 (moved from obsolete ReadWriteLockConnectionStore)
+	 */
+	ReadLock readLock();
+
+	/**
+	 * Get write lock.
+	 * 
+	 * @return write lock
+	 * @since 4.0 (moved from obsolete ReadWriteLockConnectionStore)
+	 */
+	WriteLock writeLock();
 
 }
