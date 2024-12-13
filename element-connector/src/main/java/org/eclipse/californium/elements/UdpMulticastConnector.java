@@ -235,7 +235,7 @@ public class UdpMulticastConnector extends UDPConnector {
 
 	@Override
 	public synchronized void start() throws IOException {
-		if (this.running)
+		if (isRunning())
 			return;
 
 		InetAddress effectiveInterface = localAddr.getAddress();

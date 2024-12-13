@@ -48,6 +48,9 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 
 import org.eclipse.californium.elements.UdpMulticastConnector.Builder;
 import org.eclipse.californium.elements.config.Configuration;
@@ -55,6 +58,9 @@ import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.NetworkStageRunnable;
+import org.eclipse.californium.elements.util.SocketThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,16 +91,11 @@ import org.slf4j.LoggerFactory;
  * {@link UdpConfig#UDP_SEND_BUFFER_SIZE} in the provided {@link Configuration}.
  */
 public class UDPConnector implements Connector {
+
 	/**
 	 * The logger.
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(UDPConnector.class);
-
-	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$
-
-	static {
-		ELEMENTS_THREAD_GROUP.setDaemon(false);
-	}
 
 	/**
 	 * Provided local address.
@@ -125,7 +126,7 @@ public class UDPConnector implements Connector {
 	private final Integer configReceiveBufferSize;
 	private final Integer configSendBufferSize;
 
-	protected volatile boolean running;
+	private final AtomicBoolean running = new AtomicBoolean();
 
 	private volatile DatagramSocket socket;
 
@@ -183,7 +184,7 @@ public class UDPConnector implements Connector {
 		} else {
 			this.localAddr = address;
 		}
-		this.running = false;
+		this.running.set(false);
 		this.effectiveAddr = localAddr;
 		this.outgoing = new LinkedBlockingQueue<RawData>(configuration.get(UdpConfig.UDP_CONNECTOR_OUT_CAPACITY));
 		this.receiverCount = configuration.get(UdpConfig.UDP_RECEIVER_THREAD_COUNT);
@@ -196,14 +197,14 @@ public class UDPConnector implements Connector {
 	}
 
 	@Override
-	public boolean isRunning() {
-		return running;
+	public final boolean isRunning() {
+		return running.get();
 	}
 
 	@Override
 	public synchronized void start() throws IOException {
 
-		if (running) {
+		if (isRunning()) {
 			return;
 		}
 
@@ -238,18 +239,26 @@ public class UDPConnector implements Connector {
 		sendBufferSize = socket.getSendBufferSize();
 
 		// running only, if the socket could be opened
-		running = true;
+		running.set(true);
 
 		// start receiver and sender threads
 		LOGGER.info("UDPConnector starts up {} sender threads and {} receiver threads", senderCount, receiverCount);
-
-		for (int i = 0; i < receiverCount; i++) {
-			receiverThreads.add(new Receiver("UDP-Receiver-" + localAddr + "[" + i + "]"));
+		int max = receiverCount < 0 ? 1 : receiverCount;
+		String addr = SocketThreadFactory.toName(localAddr);
+		ThreadFactory factory = SocketThreadFactory.create("UDP-Receiver-" + addr, receiverCount,
+				NamedThreadFactory.TRANSPORT_THREAD_GROUP);
+		for (int i = 0; i < max; i++) {
+			Thread thread = new Receiver(() -> isRunning(), UDPConnector.class).attach(factory, false);
+			receiverThreads.add(thread);
 		}
 
 		if (!multicast) {
-			for (int i = 0; i < senderCount; i++) {
-				senderThreads.add(new Sender("UDP-Sender-" + localAddr + "[" + i + "]"));
+			max = senderCount < 0 ? 1 : senderCount;
+			factory = SocketThreadFactory.create("UDP-Sender-" + addr, senderCount,
+					NamedThreadFactory.TRANSPORT_THREAD_GROUP);
+			for (int i = 0; i < max; i++) {
+				Thread thread = new Sender(() -> isRunning(), UDPConnector.class).attach(factory, false);
+				senderThreads.add(thread);
 			}
 		}
 
@@ -276,10 +285,10 @@ public class UDPConnector implements Connector {
 		// move onError callback out of synchronized block
 		List<RawData> pending = new ArrayList<>(outgoing.size());
 		synchronized (this) {
-			if (!running) {
+			if (!isRunning()) {
 				return;
 			}
-			running = false;
+			running.set(false);
 			LOGGER.debug("UDPConnector on [{}] stopping ...", effectiveAddr);
 			for (Connector receiver : multicastReceivers) {
 				receiver.stop();
@@ -340,8 +349,8 @@ public class UDPConnector implements Connector {
 		}
 		if (msg.getInetSocketAddress().getPort() == 0) {
 			String destination = StringUtil.toString(msg.getInetSocketAddress());
-			LOGGER.trace("Discarding message with {} bytes to [{}] without destination-port",
-					msg.getSize(), destination);
+			LOGGER.trace("Discarding message with {} bytes to [{}] without destination-port", msg.getSize(),
+					destination);
 			msg.onError(new IOException("CoAP message to " + destination + " dropped, destination port 0!"));
 			return;
 		}
@@ -350,7 +359,7 @@ public class UDPConnector implements Connector {
 		boolean running;
 		boolean added = false;
 		synchronized (this) {
-			running = this.running;
+			running = isRunning();
 			if (running) {
 				added = outgoing.offer(msg);
 			}
@@ -425,61 +434,19 @@ public class UDPConnector implements Connector {
 		msg.onError(new InterruptedIOException("Connector is not running."));
 	}
 
-	private abstract class NetworkStageThread extends Thread {
-
-		/**
-		 * Instantiates a new worker.
-		 *
-		 * @param name the name
-		 */
-		protected NetworkStageThread(String name) {
-			super(ELEMENTS_THREAD_GROUP, name);
-			setDaemon(true);
-		}
-
-		public void run() {
-			LOGGER.debug("Starting network stage thread [{}]", getName());
-			while (running) {
-				try {
-					work();
-					if (!running) {
-						LOGGER.debug("Network stage thread [{}] was stopped successfully", getName());
-						break;
-					}
-				} catch (InterruptedIOException t) {
-					LOGGER.trace("Network stage thread [{}] was stopped successfully at:", getName(), t);
-				} catch (InterruptedException t) {
-					LOGGER.trace("Network stage thread [{}] was stopped successfully at:", getName(), t);
-				} catch (IOException t) {
-					if (running) {
-						LOGGER.error("Exception in network stage thread [{}]:", getName(), t);
-					} else {
-						LOGGER.trace("Network stage thread [{}] was stopped successfully at:", getName(), t);
-					}
-				} catch (Throwable t) {
-					LOGGER.error("Exception in network stage thread [{}]:", getName(), t);
-				}
-			}
-		}
-
-		/**
-		 * @throws Exception the exception to be properly logged
-		 */
-		protected abstract void work() throws Exception;
-	}
-
-	private class Receiver extends NetworkStageThread {
+	private class Receiver extends NetworkStageRunnable {
 
 		private final DatagramPacket datagram;
 		private final int size;
 
-		private Receiver(String name) {
-			super(name);
+		private Receiver(BooleanSupplier running, Class<?> logger) {
+			super(running, logger);
 			// we add one byte to be able to detect potential truncation.
 			this.size = receiverPacketSize + 1;
 			this.datagram = new DatagramPacket(new byte[size], size);
 		}
 
+		@Override
 		protected void work() throws IOException {
 			datagram.setLength(size);
 			DatagramSocket currentSocket = socket;
@@ -490,15 +457,16 @@ public class UDPConnector implements Connector {
 		}
 	}
 
-	private class Sender extends NetworkStageThread {
+	private class Sender extends NetworkStageRunnable {
 
 		private final DatagramPacket datagram;
 
-		private Sender(String name) {
-			super(name);
+		private Sender(BooleanSupplier running, Class<?> logger) {
+			super(running, logger);
 			this.datagram = new DatagramPacket(Bytes.EMPTY, 0);
 		}
 
+		@Override
 		protected void work() throws InterruptedException {
 			RawData raw = outgoing.take(); // Blocking
 			/*
@@ -554,8 +522,8 @@ public class UDPConnector implements Connector {
 			// the port of the sending process, and may be assumed to be the
 			// port to which a reply should be addressed in the absence of any
 			// other information. If not used, a value of zero is inserted.
-			LOGGER.trace("Discarding message with {} bytes from [{}] without source-port",
-					datagram.getLength(), StringUtil.toLog(datagram.getSocketAddress()));
+			LOGGER.trace("Discarding message with {} bytes from [{}] without source-port", datagram.getLength(),
+					StringUtil.toLog(datagram.getSocketAddress()));
 			return;
 		}
 		if (datagram.getLength() > receiverPacketSize) {
