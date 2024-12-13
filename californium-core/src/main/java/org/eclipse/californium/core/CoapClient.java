@@ -519,7 +519,7 @@ public class CoapClient {
 	 * @return success of the ping
 	 */
 	public boolean ping(long timeout) {
-		return ping(new Long(timeout));
+		return ping(Long.valueOf(timeout));
 	}
 
 	private boolean ping(Long timeout) {
