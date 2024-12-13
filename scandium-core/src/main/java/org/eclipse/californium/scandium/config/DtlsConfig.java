@@ -614,14 +614,18 @@ public final class DtlsConfig {
 
 	/**
 	 * Specify the number of receiver threads used by a {@link DTLSConnector}.
+	 * <p>
 	 * The receiver threads are responsible for receiving the messages and
 	 * parsing them into structured {@link Record}s. Cryptographic function
 	 * except the cookie generation for {@link HelloVerifyRequest} are not
 	 * executed by this thread, these are executed by
 	 * {@link #DTLS_CONNECTOR_THREAD_COUNT}.
+	 * <p>
+	 * Values {@code < 0} will use 1 virtual thread if supported by the JVM.
 	 */
 	public static final IntegerDefinition DTLS_RECEIVER_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "RECEIVER_THREAD_COUNT", "Number of DTLS receiver threads.", 1, 0);
+			MODULE + "RECEIVER_THREAD_COUNT",
+			"Number of DTLS receiver threads. -1 for 1 virtual thread, if supported by the JVM.", 1);
 	/**
 	 * Specify the number of connector threads used by a {@link DTLSConnector}.
 	 * The connector threads are responsible for the most cryptographic

@@ -150,6 +150,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -182,8 +183,10 @@ import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.LimitedRunnable;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.NetworkStageRunnable;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.SocketThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -299,6 +302,12 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 
 	/** all the configuration options for the DTLS connector */
 	protected final DtlsConnectorConfig config;
+	/**
+	 * Logging tag.
+	 * 
+	 * @since 4.0
+	 */
+	private final String loggingTag;
 
 	/**
 	 * Label for serialization.
@@ -640,6 +649,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 				}
 			}
 			this.serializationLabel = label;
+			this.loggingTag = StringUtil.normalizeLoggingTag(config.getLoggingTag());
 
 			DtlsHealth healthHandler = config.getHealthHandler();
 			// this is a useful health metric
@@ -775,7 +785,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 * @since 2.5
 	 */
 	protected DtlsHealth createDefaultHealthHandler(DtlsConnectorConfig configuration) {
-		return new DtlsHealthLogger(configuration.getLoggingTag());
+		return new DtlsHealthLogger(loggingTag);
 	}
 
 	/**
@@ -1166,19 +1176,20 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 		}
 
 		lastBindAddress = actualBindAddress;
+		String addr = SocketThreadFactory.toName(lastBindAddress);
 
 		if (executorService instanceof ScheduledExecutorService) {
 			timer = (ScheduledExecutorService) executorService;
 		} else {
 			timer = ExecutorsUtil.newSingleThreadScheduledExecutor(new DaemonThreadFactory(
-					"DTLS-Timer-" + lastBindAddress + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+					"DTLS-Timer-" + addr + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
 		}
 
 		if (executorService == null) {
 			int threadCount = config.get(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT);
 			if (threadCount > 1) {
 				executorService = ExecutorsUtil.newFixedThreadPool(threadCount - 1, new DaemonThreadFactory(
-						"DTLS-Worker-" + lastBindAddress + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+						"DTLS-Worker-" + addr + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
 			} else {
 				executorService = timer;
 			}
@@ -1234,30 +1245,31 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 		running.set(true);
 
 		int receiverThreadCount = config.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
-		for (int i = 0; i < receiverThreadCount; i++) {
-			Worker receiver = new Worker("DTLS-Receiver-" + i + "-" + lastBindAddress) {
+		int max = receiverThreadCount < 0 ? 1 : receiverThreadCount;
+		ThreadFactory factory = SocketThreadFactory.create("DTLS-Receiver-" + addr, receiverThreadCount,
+				NamedThreadFactory.SCANDIUM_THREAD_GROUP);
+		for (int i = 0; i < max; i++) {
+			Thread thread = new NetworkStageRunnable(() -> isRunning(), DTLSConnector.class) {
 
 				private final byte[] receiverBuffer = new byte[inboundDatagramBufferSize];
 				private final DatagramPacket packet = new DatagramPacket(receiverBuffer, inboundDatagramBufferSize);
 
 				@Override
-				public void doWork() throws Exception {
+				public void work() throws Exception {
 					if (MDC_SUPPORT) {
 						MDC.clear();
 					}
 					packet.setData(receiverBuffer);
 					receiveNextDatagramFromNetwork(packet);
 				}
-			};
-			receiver.setDaemon(true);
-			receiver.start();
-			receiverThreads.add(receiver);
+			}.attach(factory, true);
+			receiverThreads.add(thread);
 		}
 
 		String mtuDescription = maximumTransmissionUnit != null ? maximumTransmissionUnit.toString()
 				: "IPv4 " + ipv4Mtu + " / IPv6 " + ipv6Mtu;
 		LOGGER.info("DTLSConnector listening on {}, recv buf = {}, send buf = {}, recv packet size = {}, MTU = {}",
-				lastBindAddress, recvBuffer, sendBuffer, inboundDatagramBufferSize, mtuDescription);
+				addr, recvBuffer, sendBuffer, inboundDatagramBufferSize, mtuDescription);
 
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
@@ -1281,7 +1293,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 						long now = ClockUtil.nanoRealtime();
 						if (healthStatusIntervalMillis > 0
 								&& TimeUnit.NANOSECONDS.toMillis(now - lastNanos) > healthStatusIntervalMillis) {
-							health.dump(config.getLoggingTag(), maxConnections, connectionStore.remainingCapacity());
+							health.dump(loggingTag, maxConnections, connectionStore.remainingCapacity());
 							lastNanos = now;
 						} else {
 							updateHealth();
@@ -3529,66 +3541,6 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	@Override
 	public final boolean isRunning() {
 		return running.get();
-	}
-
-	/**
-	 * A worker thread for continuously doing repetitive tasks.
-	 */
-	protected abstract class Worker extends Thread {
-
-		/**
-		 * Instantiates a new worker.
-		 *
-		 * @param name the name, e.g., of the transport protocol
-		 */
-		protected Worker(String name) {
-			super(NamedThreadFactory.SCANDIUM_THREAD_GROUP, name);
-		}
-
-		@Override
-		public void run() {
-			try {
-				LOGGER.info("Starting worker thread [{}]", getName());
-				while (running.get()) {
-					try {
-						doWork();
-					} catch (InterruptedIOException e) {
-						if (running.get()) {
-							LOGGER.info("Worker thread [{}] IO has been interrupted", getName());
-						} else {
-							LOGGER.debug("Worker thread [{}] IO has been interrupted", getName());
-						}
-					} catch (InterruptedException e) {
-						if (running.get()) {
-							LOGGER.info("Worker thread [{}] has been interrupted", getName());
-						} else {
-							LOGGER.debug("Worker thread [{}] has been interrupted", getName());
-						}
-					} catch (Exception e) {
-						if (running.get()) {
-							LOGGER.debug("Exception thrown by worker thread [{}]", getName(), e);
-						} else {
-							LOGGER.trace("Exception thrown by worker thread [{}]", getName(), e);
-						}
-					}
-				}
-			} finally {
-				if (running.get()) {
-					LOGGER.info("Worker thread [{}] has terminated", getName());
-				} else {
-					LOGGER.debug("Worker thread [{}] has terminated", getName());
-				}
-			}
-		}
-
-		/**
-		 * Does the actual work.
-		 * 
-		 * Subclasses should do the repetitive work here.
-		 * 
-		 * @throws Exception if something goes wrong
-		 */
-		protected abstract void doWork() throws Exception;
 	}
 
 	/**
