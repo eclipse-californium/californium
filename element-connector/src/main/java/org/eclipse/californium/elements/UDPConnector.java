@@ -510,7 +510,7 @@ public class UDPConnector implements Connector {
 			EndpointContext connectionContext = new UdpEndpointContext(destinationAddress);
 			EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
 			if (endpointMatcher != null && !endpointMatcher.isToBeSent(destination, connectionContext)) {
-				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}", effectiveAddr, datagram.getLength(),
+				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}", effectiveAddr, raw.getSize(),
 						StringUtil.toLog(destinationAddress));
 				raw.onError(new EndpointMismatchException("UDP sending"));
 				return;
