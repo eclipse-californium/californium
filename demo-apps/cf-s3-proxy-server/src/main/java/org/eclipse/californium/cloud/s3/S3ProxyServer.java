@@ -35,7 +35,6 @@ import org.eclipse.californium.cloud.option.TimeOption;
 import org.eclipse.californium.cloud.resources.Diagnose;
 import org.eclipse.californium.cloud.resources.MyContext;
 import org.eclipse.californium.cloud.resources.Provisioning;
-import org.eclipse.californium.cloud.s3.S3ProxyServer.S3ProxyConfig.HttpForward;
 import org.eclipse.californium.cloud.s3.forward.BasicHttpForwardConfiguration;
 import org.eclipse.californium.cloud.s3.forward.HttpForwardConfiguration;
 import org.eclipse.californium.cloud.s3.forward.HttpForwardConfiguration.DeviceIdentityMode;
@@ -596,7 +595,7 @@ public class S3ProxyServer extends BaseServer {
 			HttpForwardConfigurationProvider forward = domains;
 			if (domains == null) {
 				if (cliS3Arguments.mode.single != null && cliS3Arguments.mode.single.httpForward != null) {
-					HttpForward httpForward = cliS3Arguments.mode.single.httpForward;
+					S3ProxyConfig.HttpForward httpForward = cliS3Arguments.mode.single.httpForward;
 					String forwardDestination = httpForward.httpForward;
 					if (forwardDestination != null) {
 						String serviceName = httpForward.httpServiceName;
