@@ -134,7 +134,6 @@ import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVe
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -244,7 +243,7 @@ public class DTLSConnectorAdvancedTest {
 				return result;
 			}
 		};
-
+		cleanup.add(()-> serverPskStore.shutdown());
 		serverCertificateVerifier = new AsyncNewAdvancedCertificateVerifier(DtlsTestTools.getTrustedCertificates(),
 				new RawPublicKeyIdentity[0], null) {
 
@@ -271,6 +270,7 @@ public class DTLSConnectorAdvancedTest {
 				return result;
 			}
 		};
+		cleanup.add(()-> serverCertificateVerifier.shutdown());
 
 		serverResumptionVerifier = new AsyncResumptionVerifier() {
 			@Override
@@ -296,6 +296,7 @@ public class DTLSConnectorAdvancedTest {
 				return result;
 			}
 		};
+		cleanup.add(()-> serverResumptionVerifier.shutdown());
 
 		serverCertificateProvider = new AsyncCertificateProvider(DtlsTestTools.getPrivateKey(),
 				DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509) {
@@ -327,6 +328,7 @@ public class DTLSConnectorAdvancedTest {
 				return result;
 			}
 		};
+		cleanup.add(()-> serverCertificateProvider.shutdown());
 
 		serverHelper.serverBuilder
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
@@ -339,45 +341,16 @@ public class DTLSConnectorAdvancedTest {
 				.setAdvancedCertificateVerifier(serverCertificateVerifier)
 				.setResumptionVerifier(serverResumptionVerifier);
 		serverHelper.startServer();
+		cleanup.add(()-> serverHelper.destroyServer());
 
 		serverConfigSingleRecord = DtlsConnectorConfig.builder(serverHelper.serverConfig)
 				.set(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES, false)
 				.build();
 		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-ADVANCED-"));
+		cleanup.add(executor);
 		timer = new TestScheduledExecutorService();
+		cleanup.add(timer);
 		clientHealth = new DtlsHealthLogger("client");
-	}
-
-	@AfterClass
-	public static void tearDown() {
-		if (serverPskStore != null) {
-			serverPskStore.shutdown();
-			serverPskStore = null;
-		}
-		if (serverCertificateVerifier != null) {
-			serverCertificateVerifier.shutdown();
-			serverCertificateVerifier = null;
-		}
-		if (serverResumptionVerifier != null) {
-			serverResumptionVerifier.shutdown();
-			serverResumptionVerifier = null;
-		}
-		if (serverCertificateProvider != null) {
-			serverCertificateProvider.shutdown();
-			serverCertificateProvider = null;
-		}
-		if (serverHelper != null) {
-			serverHelper.destroyServer();
-			serverHelper = null;
-		}
-		if (timer != null) {
-			timer.shutdown();
-			timer = null;
-		}
-		if (executor != null) {
-			ExecutorsUtil.shutdownExecutorGracefully(100, executor);
-			executor = null;
-		}
 	}
 
 	/**
@@ -1186,6 +1159,8 @@ public class DTLSConnectorAdvancedTest {
 
 			// application data
 			rs = waitForFlightReceived("app data", collector, 1);
+
+			serverHelper.serverConnectionStore.putEstablishedSession(serverHandshaker.getConnection());
 
 			sessionListener = new LatchSessionListener();
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(1, 0,
@@ -2426,6 +2401,8 @@ public class DTLSConnectorAdvancedTest {
 			boolean expectedCid = ConnectionId.useConnectionId(clientCidGenerator) && ConnectionId.supportsConnectionId(serverCidGenerator);
 			assertThat(clientSideConnection.expectCid(), is(expectedCid));
 
+			serverHelper.serverConnectionStore.putEstablishedSession(serverHandshaker.getConnection());
+
 			sessionListener = new LatchSessionListener();
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(1, 0,
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
@@ -3571,7 +3548,7 @@ public class DTLSConnectorAdvancedTest {
 						handshaker.processMessage(record);
 					}
 				} catch (HandshakeException t) {
-					LOGGER.error("process handshake", t);
+					LOGGER.debug("process handshake", t);
 					cause.set(t);
 				} catch (Throwable t) {
 					LOGGER.error("process handshake", t);
