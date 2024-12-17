@@ -18,7 +18,10 @@ package org.eclipse.californium.elements.rule;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.JceProviderUtil;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -28,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Threads rule for junit tests.
- * 
+ * <p>
  * Ensure, that all new threads are terminated.
  */
 public class ThreadsRule implements TestRule {
@@ -51,6 +54,18 @@ public class ThreadsRule implements TestRule {
 	 * List with regex to exclude threads from termination check.
 	 */
 	private final String[] excludes;
+	/**
+	 * List of resource objects to cleanup.
+	 * 
+	 * @since 4.0
+	 */
+	private final List<Runnable> cleanup = new ArrayList<>();
+	/**
+	 * List of executor services to shutdown.
+	 * 
+	 * @since 4.0
+	 */
+	private final List<ExecutorService> shutdown = new ArrayList<>();
 
 	/**
 	 * Create a threads rule.
@@ -92,7 +107,7 @@ public class ThreadsRule implements TestRule {
 
 	/**
 	 * Close rule.
-	 * 
+	 * <p>
 	 * Calls {@link #shutdown()} and then verifies, that no new thread is still
 	 * alive.
 	 * 
@@ -205,7 +220,8 @@ public class ThreadsRule implements TestRule {
 		if (alive == 1) {
 			// bouncy castle hack:
 			// - 1.69 uses a daemon thread for secure random.
-			// - 1.71 will have that daemon thread name as "BC-ENTROPY-GATHERER".
+			// - 1.71 will have that daemon thread name as
+			// "BC-ENTROPY-GATHERER".
 			if (JceProviderUtil.usesBouncyCastle()) {
 				alive = 0;
 			}
@@ -213,8 +229,7 @@ public class ThreadsRule implements TestRule {
 		if (alive > 0) {
 			dump("leaking " + description, listAfter);
 			if (reportLeakAsException) {
-				throw new IllegalStateException(
-						"Active threads differs by " + alive + "! (" + description + ")");
+				throw new IllegalStateException("Active threads differs by " + alive + "! (" + description + ")");
 			}
 		}
 	}
@@ -295,6 +310,36 @@ public class ThreadsRule implements TestRule {
 	}
 
 	/**
+	 * Adds a shutdown hook.
+	 * 
+	 * @param shutdown shutdown hook
+	 * @since 4.0
+	 */
+	public void add(Runnable shutdown) {
+		cleanup.add(shutdown);
+	}
+
+	/**
+	 * Adds a connector to shutdowns.
+	 * 
+	 * @param connector connector to shutdown
+	 * @since 4.0
+	 */
+	public void add(Connector connector) {
+		add(() -> connector.destroy());
+	}
+
+	/**
+	 * Adds a executor service to shutdowns.
+	 * 
+	 * @param service executor service to shutdown
+	 * @since 4.0
+	 */
+	public void add(ExecutorService service) {
+		shutdown.add(service);
+	}
+
+	/**
 	 * Initialize resources after threads snapshot was created.
 	 */
 	protected void initialize() {
@@ -304,5 +349,25 @@ public class ThreadsRule implements TestRule {
 	 * Shutdown resources before threads are verified to be terminated.
 	 */
 	protected void shutdown() {
+		int hooks = cleanup.size();
+		if (hooks > 0) {
+			LOGGER.debug("{} shutdown hooks", hooks);
+			for (Runnable hook : cleanup) {
+				try {
+					hook.run();
+				} catch (RuntimeException ex) {
+					LOGGER.warn("shutdown failed!", ex);
+				}
+			}
+		}
+		hooks = shutdown.size();
+		if (hooks > 0) {
+			try {
+				LOGGER.debug("{} shutdown executor services", hooks);
+				ExecutorsUtil.shutdownExecutorGracefully(1000, shutdown.toArray(new ExecutorService[hooks]));
+			} catch (RuntimeException ex) {
+				LOGGER.warn("shutdown failed!", ex);
+			}
+		}
 	}
 }
