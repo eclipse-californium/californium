@@ -62,6 +62,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkStageRunnable;
 import org.eclipse.californium.elements.util.SocketThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.VirtualThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,21 +70,21 @@ import org.slf4j.LoggerFactory;
  * A {@link Connector} employing UDP as the transport protocol for exchanging
  * data between networked clients and a server application. It implements the
  * network stage in the Californium architecture.
- * 
+ * <p>
  * In order to process data received from the network via UDP, client code can
  * register a {@link RawDataChannel} instance by means of the
  * {@link #setRawDataReceiver(RawDataChannel)} method. Sending data out to
  * connected clients can be achieved by means of the {@link #send(RawData)}
  * method.
- * 
- * Note: using IPv6 interfaces with multiple addresses including permanent and
+ * <p>
+ * <b>Note:</b> using IPv6 interfaces with multiple addresses including permanent and
  * temporary (with potentially several different prefixes) currently causes
  * issues on the server side. The outgoing traffic in response to incoming may
  * select a different source address than the incoming destination address. To
  * overcome this, please ensure that the 'any address' is not used on the server
  * side and a separate Connector is created for each address to receive incoming
  * traffic.
- * 
+ * <p>
  * UDP broadcast is allowed.
  * 
  * The number of threads can be set through
@@ -165,8 +166,8 @@ public class UDPConnector implements Connector {
 
 	/**
 	 * Creates a connector bound to a given IP address and port.
-	 * 
-	 * Note: using IPv6 interfaces with multiple addresses including permanent
+	 * <p>
+	 * <b>Note:</b> using IPv6 interfaces with multiple addresses including permanent
 	 * and temporary (with potentially several different prefixes) currently
 	 * causes issues on the server side. The outgoing traffic in response to
 	 * incoming may select a different source address than the incoming
@@ -237,6 +238,12 @@ public class UDPConnector implements Connector {
 			socket.setSendBufferSize(configSendBufferSize);
 		}
 		sendBufferSize = socket.getSendBufferSize();
+
+		if (receiverCount < 0 && VirtualThreadFactory.isAvailable()) {
+			// see https://bugs.java.com/bugdatabase/view_bug?bug_id=JDK-8338104
+			// and comments in PR #2311
+			socket.setSoTimeout(Integer.MAX_VALUE);
+		}
 
 		// running only, if the socket could be opened
 		running.set(true);
@@ -413,7 +420,7 @@ public class UDPConnector implements Connector {
 
 	/**
 	 * Remove multicast-receiver.
-	 * 
+	 * <p>
 	 * If removed successful, reset raw-data-receiver to {@code null}.
 	 * 
 	 * @param multicastReceiver multicast-receiver.
@@ -505,7 +512,7 @@ public class UDPConnector implements Connector {
 
 	/**
 	 * Process received datagram.
-	 * 
+	 * <p>
 	 * Convert {@link DatagramPacket} into {@link RawData} and pass it to the
 	 * {@link RawDataChannel}.
 	 * 
