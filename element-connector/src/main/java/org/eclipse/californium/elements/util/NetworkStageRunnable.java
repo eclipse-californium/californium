@@ -15,6 +15,7 @@
 package org.eclipse.californium.elements.util;
 
 import java.io.InterruptedIOException;
+import java.net.SocketTimeoutException;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BooleanSupplier;
 
@@ -85,6 +86,8 @@ public abstract class NetworkStageRunnable implements Runnable {
 			while (running.getAsBoolean()) {
 				try {
 					work();
+				} catch (SocketTimeoutException e) {
+					LOGGER.trace("Network stage thread [{}] socket timeout", getName(), e);
 				} catch (InterruptedIOException e) {
 					if (running.getAsBoolean()) {
 						LOGGER.info("Network stage thread [{}] I/O has been interrupted", getName());

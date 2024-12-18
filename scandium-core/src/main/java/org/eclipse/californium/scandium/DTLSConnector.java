@@ -188,6 +188,7 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SocketThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.VirtualThreadFactory;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
@@ -1100,6 +1101,13 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 				LOGGER.error("failed to apply send buffer size {}", size, ex);
 			}
 		}
+
+		int receiverThreadCount = config.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
+		if (receiverThreadCount < 0 && VirtualThreadFactory.isAvailable()) {
+			// see https://bugs.java.com/bugdatabase/view_bug?bug_id=JDK-8338104
+			// and comments in PR #2311
+			socket.setSoTimeout(Integer.MAX_VALUE);
+		}
 		// don't try to access the buffer sizes,
 		// when receive may already lock the socket!
 		int recvBuffer = socket.getReceiveBufferSize();
@@ -1244,7 +1252,6 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 		}
 		running.set(true);
 
-		int receiverThreadCount = config.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
 		int max = receiverThreadCount < 0 ? 1 : receiverThreadCount;
 		ThreadFactory factory = SocketThreadFactory.create("DTLS-Receiver-" + addr, receiverThreadCount,
 				NamedThreadFactory.SCANDIUM_THREAD_GROUP);
