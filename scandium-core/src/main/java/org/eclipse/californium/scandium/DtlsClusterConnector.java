@@ -24,10 +24,14 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.FilteredLogger;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.NetworkStageRunnable;
+import org.eclipse.californium.elements.util.SocketThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -47,14 +51,12 @@ import org.slf4j.LoggerFactory;
  * passed in {@link ClusterNodesProvider}. Requires a
  * {@link NodeConnectionIdGenerator} in {@link DtlsConnectorConfig} in order to
  * extract the node-id from the record's CID and to retrieve the own node-id.
- * </p>
  * <p>
  * In order to preserve the original source address, the forwarded records are
  * prepended by a header, which contains that original address. The forwarded
  * records are exchange using a separate endpoint (port) to easier separate the
  * cluster internal traffic from external record traffic. That additional
  * endpoint is configured using {@link DtlsClusterConnectorConfig}.
- * </p>
  * <p>
  * Generally, if a forwarded tls_cid record is processed and a message is sent
  * back by that final destination connector, that sent message is backwarded to
@@ -62,7 +64,6 @@ import org.slf4j.LoggerFactory;
  * in order to keep all NATs and load-balancers working. If your network permits
  * to send outgoing messages also from other endpoints,
  * {@link DtlsClusterConnectorConfig} can be used to configure that.
- * </p>
  * 
  * @since 2.5
  */
@@ -108,7 +109,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	protected static final int MAX_DATAGRAM_OFFSET = CLUSTER_ADDRESS_OFFSET + MAX_ADDRESS_LENGTH + CLUSTER_MAC_LENGTH;
 	/**
 	 * Type of incoming forwarded messages.
-	 * 
+	 * <p>
 	 * Unassigned according <a href=
 	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-5"
 	 * target= "_blank">IANA, TLS ContentType</a>, and no collision with CoAP
@@ -119,7 +120,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	public static final Byte RECORD_TYPE_INCOMING = (byte) 63;
 	/**
 	 * Type of outgoing forwarded messages.
-	 * 
+	 * <p>
 	 * Unassigned according <a href=
 	 * "https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-5">IANA,
 	 * TLS ContentType</a>, and no collision with CoAP messages
@@ -257,22 +258,24 @@ public class DtlsClusterConnector extends DTLSConnector {
 
 	/**
 	 * Start receiver threads for cluster internal communication.
-	 * 
+	 * <p>
 	 * After starting the threads, the {@link #clusterInternalSocket} may be
 	 * locked by these threads calling
 	 * {@link DatagramSocket#receive(DatagramPacket)}.
 	 */
 	protected void startReceiver() {
 		int receiverThreadCount = config.get(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT);
-		for (int i = 0; i < receiverThreadCount; i++) {
-			Worker receiver = new Worker(
-					"DTLS-Cluster-" + getNodeID() + "-Receiver-" + i + "-" + clusterInternalSocketAddress) {
+		int max = receiverThreadCount < 0 ? 1 : receiverThreadCount;
+		String addr = SocketThreadFactory.toName(clusterInternalSocketAddress);
+		ThreadFactory factory = SocketThreadFactory.create("DTLS-Cluster-" + getNodeID() + "-Receiver-" + addr, receiverThreadCount, NamedThreadFactory.SCANDIUM_THREAD_GROUP);
+		for (int i = 0; i < max; i++) {
+			Thread thread = new NetworkStageRunnable(()-> isRunning(), DtlsClusterConnector.class) {
 
 				private final byte[] receiverBuffer = new byte[inboundDatagramBufferSize + MAX_DATAGRAM_OFFSET];
 				private final DatagramPacket clusterPacket = new DatagramPacket(receiverBuffer, receiverBuffer.length);
 
 				@Override
-				public void doWork() throws Exception {
+				public void work() throws Exception {
 					clusterPacket.setData(receiverBuffer);
 					clusterInternalSocket.receive(clusterPacket);
 					Byte type = getClusterRecordType(clusterPacket);
@@ -286,10 +289,8 @@ public class DtlsClusterConnector extends DTLSConnector {
 						processManagementDatagramFromClusterNetwork(clusterPacket);
 					}
 				}
-			};
-			receiver.setDaemon(true);
-			receiver.start();
-			clusterReceiverThreads.add(receiver);
+			}.attach(factory, true);
+			clusterReceiverThreads.add(thread);
 		}
 		LOGGER.info("cluster-node {}: started {}", getNodeID(), clusterInternalSocket.getLocalSocketAddress());
 	}
@@ -435,7 +436,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 
 	/**
 	 * Process cluster internal management message.
-	 * 
+	 * <p>
 	 * Not used for forwarded or backwarded tls_cid records.
 	 * 
 	 * @param clusterPacket cluster internal management message.
@@ -447,7 +448,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 
 	/**
 	 * Send cluster internal message.
-	 * 
+	 * <p>
 	 * Used for forwarded or backwarded tls_cid records.
 	 * 
 	 * @param clusterPacket cluster internal message
@@ -572,7 +573,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 
 	/**
 	 * Encode message for cluster internal communication.
-	 * 
+	 * <p>
 	 * Add original source address at message head.
 	 * 
 	 * @param direction direction of message. Values are
@@ -642,7 +643,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 
 	/**
 	 * Cluster nodes provider. Maintaining internal addresses of nodes.
-	 * 
+	 * <p>
 	 * It extremely performance critical to immediately return results!
 	 */
 	public static interface ClusterNodesProvider {

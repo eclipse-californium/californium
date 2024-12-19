@@ -31,6 +31,8 @@ support java 17 as minimum version to build Californium.
 
 ### Element-Connector:
 
+Supports virtual threads for UDP receivers and senders, if the JVM supports it. Otherwise platform daemon threads are used. Chosen by `-1` as number of threads in `UDP.RECEIVER_THREAD_COUNT` and `UDP.SENDER_THREAD_COUNT`.
+
 ### Scandium:
 
 Additional to the deprecated marked API, the implementation of the features are also removed.
@@ -44,6 +46,8 @@ With this major version the DTLS 1.2 Connection ID is enabled by default with a 
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.
 
 In some cases `SHA384` was misspelled as `SHA378`. That's fixed but causes also to fail reading old `Californium3.properties`. 
+
+Supports virtual threads for DTLS receivers, if the JVM supports it. Otherwise platform daemon threads are used. Chosen by `-1` as number of threads in `DTLS.RECEIVER_THREAD_COUNT`.
 
 ### Element-Connector-TCP-Netty:
 

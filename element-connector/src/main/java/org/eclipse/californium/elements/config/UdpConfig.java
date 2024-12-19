@@ -31,15 +31,19 @@ public final class UdpConfig {
 	public static final String MODULE = "UDP.";
 
 	/**
-	 * Number of receiver threads for {@link UDPConnector}.
+	 * Number of receiver threads for {@link UDPConnector}. Values {@code < 0}
+	 * will use 1 virtual thread if supported by the JVM.
 	 */
 	public static final IntegerDefinition UDP_RECEIVER_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "RECEIVER_THREAD_COUNT", "Number of UDP receiver threads.", 1, 0);
+			MODULE + "RECEIVER_THREAD_COUNT",
+			"Number of UDP receiver threads. -1 for 1 virtual thread, if supported by the JVM.", 1);
 	/**
-	 * Number of sender threads for {@link UDPConnector}.
+	 * Number of sender threads for {@link UDPConnector}. Values {@code < 0}
+	 * will use 1 virtual thread if supported by the JVM.
 	 */
 	public static final IntegerDefinition UDP_SENDER_THREAD_COUNT = new IntegerDefinition(
-			MODULE + "SENDER_THREAD_COUNT", "Number of UDP sender threads.", 1, 0);
+			MODULE + "SENDER_THREAD_COUNT",
+			"Number of UDP sender threads. -1 for 1 virtual thread, if supported by the JVM.", 1);
 	/**
 	 * Size of {@link DatagramPacket} for {@link UDPConnector}.
 	 */

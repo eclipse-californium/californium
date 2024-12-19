@@ -15,25 +15,19 @@
  ******************************************************************************/
 package org.eclipse.californium.rule;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.TestResource;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.test.lockstep.LockstepEndpoint;
-import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Threads rule for coap junit tests.
- * 
+ * <p>
  * Calls {@link EndpointManager#reset()} before checking, that all new threads
  * are terminated.
  */
@@ -42,69 +36,35 @@ public class CoapThreadsRule extends ThreadsRule {
 	public static final Logger LOGGER = LoggerFactory.getLogger(CoapThreadsRule.class);
 
 	/**
-	 * List of resource objects to cleanup.
-	 */
-	private final List<Object> cleanup = new ArrayList<Object>();
-
-	/**
 	 * Create a threads rule.
 	 */
 	public CoapThreadsRule() {
 		super();
 	}
 
-	public void add(Connector connector) {
-		cleanup.add(connector);
-	}
-
 	public void add(Endpoint endpoint) {
-		cleanup.add(endpoint);
+		add(() -> endpoint.destroy());
 	}
 
 	public void add(CoapClient client) {
-		cleanup.add(client);
+		add(() -> client.shutdown());
 	}
 
 	public void add(CoapServer server) {
-		cleanup.add(server);
-	}
-
-	public void add(ExecutorService service) {
-		cleanup.add(service);
+		add(() -> server.destroy());
 	}
 
 	public void add(LockstepEndpoint endpoint) {
-		cleanup.add(endpoint);
+		add(() -> endpoint.destroy());
 	}
 
 	public void add(TestResource resource) {
-		cleanup.add(resource);
+		add(() -> resource.report());
 	}
 
 	@Override
 	protected void shutdown() {
-		for (Object resource : cleanup) {
-			try {
-				LOGGER.debug("shutdown");
-				if (resource instanceof Endpoint) {
-					((Endpoint) resource).destroy();
-				} else if (resource instanceof CoapClient) {
-					((CoapClient) resource).shutdown();
-				} else if (resource instanceof CoapServer) {
-					((CoapServer) resource).destroy();
-				} else if (resource instanceof ExecutorService) {
-					ExecutorsUtil.shutdownExecutorGracefully(1000, (ExecutorService) resource);
-				} else if (resource instanceof LockstepEndpoint) {
-					((LockstepEndpoint) resource).destroy();
-				} else if (resource instanceof Connector) {
-					((Connector) resource).destroy();
-				} else if (resource instanceof TestResource) {
-					((TestResource) resource).report();
-				}
-			} catch (RuntimeException ex) {
-				LOGGER.warn("shutdown failed!", ex);
-			}
-		}
+		super.shutdown();
 		EndpointManager.reset();
 	}
 }

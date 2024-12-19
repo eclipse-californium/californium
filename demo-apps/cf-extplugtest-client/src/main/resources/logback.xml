@@ -61,6 +61,10 @@
 		<appender-ref ref="STDOUT" />
 	</logger>
 
+	<logger name="org.eclipse.californium.elements.util.VirtualThreadFactory" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<logger name="org.eclipse.californium.core.network.stack.BlockwiseLayer" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>

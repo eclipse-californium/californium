@@ -23,6 +23,7 @@ import java.net.DatagramSocket;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
@@ -38,8 +39,12 @@ import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoi
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -53,9 +58,13 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Category(Medium.class)
 public class SecureTest {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(SecureTest.class);
 
 	@ClassRule
 	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
@@ -83,18 +92,23 @@ public class SecureTest {
 	// DTLS config constants
 	private static final String PSK_IDENITITY = "client1";
 	private static final String PSK_KEY = "key1";
-	private static final int NB_RETRANSMISSION = 2;
-	private static final int RETRANSMISSION_TIMEOUT = 100; // milliseconds
+
+	// DTLS config constants for handshake timeout
+	private static final int TEST_TIMEOUT_DTLS_RETRANSMISSIONS = 2;
+	private static final int TEST_TIMEOUT_DTLS_RETRANSMISSION_TIMEOUT = 100; // milliseconds
 
 	// DTLS config constants for simultaneous handshakes
 	private static final int TEST_DTLS_RETRANSMISSIONS = 5;
-	private static final int TEST_DTLS_TIMEOUT = 2000; // milliseconds
-	private static final int TEST_DTLS_FAST_TIMEOUT = 100; // milliseconds
+	private static final int TEST_DTLS_TIMEOUT = 1000; // milliseconds
+	private static final int TEST_DTLS_FAST_TIMEOUT = 200; // milliseconds
 	private static final int TEST_DTLS_PSK_DELAY = 50; // milliseconds
+	private static final int TEST_DTLS_SERVER_RECEIVER_THREADS = 2;
+	private static final int TEST_DTLS_CLIENT_RECEIVER_THREADS = 1;
+	private static final int TEST_DTLS_THREAD_POOL_SIZE = 4;
 
 	private CoapTestEndpoint coapTestEndpoint;
 
-	private List<AsyncAdvancedPskStore> pskStores = new ArrayList<>();
+	private ScheduledExecutorService executor;
 
 	/**
 	 * Ensure there is no leak when we try to send a request to an absent peer
@@ -106,7 +120,7 @@ public class SecureTest {
 			int freePort = datagramSocket.getLocalPort();
 
 			// Create an endpoint
-			createTestEndpoint();
+			createTimeoutTestEndpoint();
 
 			// Send a request to an absent peer
 			CoapClient client = new CoapClient("coaps", TestTools.LOCALHOST_EPHEMERAL.getHostString(), freePort);
@@ -130,7 +144,14 @@ public class SecureTest {
 	public void testMultipleSecureHandshakes() throws Exception {
 		int loops = TestScope.enableIntensiveTests() ? TEST_LOOPS : 2;
 		for (int i = 0; i < loops; ++i) {
-			testSecureHandshakes(i);
+			executor = ExecutorsUtil.newScheduledThreadPool(TEST_DTLS_THREAD_POOL_SIZE,
+					new DaemonThreadFactory("test#", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
+			try {
+				testSecureHandshakes(i);
+			} finally {
+				ExecutorsUtil.shutdownExecutorGracefully(200, executor);
+				executor = null;
+			}
 		}
 	}
 
@@ -146,7 +167,8 @@ public class SecureTest {
 	 * @throws Exception if the test fails
 	 */
 	public void testSecureHandshakes(int loop) throws Exception {
-		CoapEndpoint serverEndpoint = createEndpoint("server", "dummy", TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
+		CoapEndpoint serverEndpoint = createEndpoint("server", "dummy", 
+				TEST_DTLS_SERVER_RECEIVER_THREADS, TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
 				TEST_DTLS_TIMEOUT, TEST_DTLS_PSK_DELAY);
 		CoapServer server = new CoapServer(serverEndpoint.getConfig());
 		server.addEndpoint(serverEndpoint);
@@ -155,7 +177,8 @@ public class SecureTest {
 		List<CoapEndpoint> clientEndpoints = new ArrayList<>();
 		int clients = TestScope.enableIntensiveTests() ? TEST_CLIENTS : 10;
 		for (int i = 0; i < clients; ++i) {
-			CoapEndpoint clientEndpoint = createEndpoint("client-" + i, "client-" + i , TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
+			CoapEndpoint clientEndpoint = createEndpoint("client-" + i, "client-" + i,
+					TEST_DTLS_CLIENT_RECEIVER_THREADS, TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
 					TEST_DTLS_FAST_TIMEOUT, 0);
 			clientEndpoint.start();
 			clientEndpoints.add(clientEndpoint);
@@ -180,6 +203,10 @@ public class SecureTest {
 				}
 			}
 		}
+		if (!pending.isEmpty() || !errors.isEmpty()) {
+			// wait for health statistic
+			Thread.sleep(5500);
+		}
 		for (CoapEndpoint clientEndpoint : clientEndpoints) {
 			try {
 				clientEndpoint.destroy();
@@ -199,11 +226,15 @@ public class SecureTest {
 				message.append(errors.size()).append(" requests failed, ");
 				int max = Math.min(5, errors.size());
 				for (int index = 0; index < max; ++index) {
-					message.append(errors.get(index)).append(' ');
+					int requestIndex = errors.get(index);
+					message.append(requestIndex).append(' ');
+					LOGGER.error("{}: {}", requestIndex, requests.get(requestIndex).getSendError());
 				}
-				message.append(", ");
+				if (!pending.isEmpty()) {
+					message.append(", ");
+				}
 			}
-			if (!errors.isEmpty()) {
+			if (!pending.isEmpty()) {
 				message.append(pending.size()).append(" requests pending, ");
 				int max = Math.min(5, pending.size());
 				for (int index = 0; index < max; ++index) {
@@ -212,27 +243,24 @@ public class SecureTest {
 			}
 			fail(message.toString());
 		}
-		for (AsyncAdvancedPskStore pskStore : pskStores) {
-			pskStore.shutdown();
-		}
-		pskStores.clear();
 		System.gc();
 		Thread.sleep(200);
 	}
 
-	private void createTestEndpoint() {
+	private void createTimeoutTestEndpoint() {
 		// setup CoAP config
 		Configuration config = network.createTestConfig()
 				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
 				.set(CoapConfig.ACK_INIT_RANDOM, 1f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
 				.set(CoapConfig.EXCHANGE_LIFETIME, TEST_TIMEOUT_EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_TIMEOUT_SWEEP_DEDUPLICATOR_INTERVAL, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS)
-				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, NB_RETRANSMISSION);
+				.set(CoapConfig.MARK_AND_SWEEP_INTERVAL, TEST_TIMEOUT_SWEEP_DEDUPLICATOR_INTERVAL,
+						TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, TEST_TIMEOUT_DTLS_RETRANSMISSION_TIMEOUT,
+						TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, TEST_TIMEOUT_DTLS_RETRANSMISSIONS);
 		// setup DTLS Config
-		Builder builder = DtlsConnectorConfig.builder(config)
-				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
+		Builder builder = DtlsConnectorConfig.builder(config).setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
 				.setAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
 		DtlsConnectorConfig dtlsConfig = builder.build();
@@ -243,35 +271,45 @@ public class SecureTest {
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapTestEndpoint);
 	}
 
-	private CoapEndpoint createEndpoint(String tag, String pskIdentity, int exchangeTimeout, int coapTimeout, int dtlsTimeout,
-			int pskDelay) {
+	private CoapEndpoint createEndpoint(String tag, String pskIdentity, int receiverThread, int exchangeTimeout,
+			int coapTimeout, int dtlsTimeout, int pskDelay) {
+
 		// setup CoAP config
 		Configuration config = network.createTestConfig()
-				.set(CoapConfig.ACK_TIMEOUT, coapTimeout, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.EXCHANGE_LIFETIME, exchangeTimeout, TimeUnit.MILLISECONDS)
+				.set(SystemConfig.HEALTH_STATUS_INTERVAL, 5000, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, dtlsTimeout, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, TEST_DTLS_RETRANSMISSIONS)
-				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
-				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, receiverThread)
+				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, receiverThread > 0 ? receiverThread : 1);
 		// setup DTLS Config
 		TestUtilPskStore singlePskStore = new TestUtilPskStore();
 		singlePskStore.set(pskIdentity, PSK_KEY.getBytes());
 		singlePskStore.setCatchAll(true);
 		AsyncAdvancedPskStore pskStore = new AsyncAdvancedPskStore(singlePskStore);
 		pskStore.setDelay(-pskDelay);
-		pskStores.add(pskStore);
-		Builder builder = new DtlsConnectorConfig.Builder(config)
-				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
-				.setLoggingTag(tag)
-				.setAdvancedPskStore(pskStore);
+		cleanup.add(() -> pskStore.shutdown());
+		Builder builder = new DtlsConnectorConfig.Builder(config).setAddress(TestTools.LOCALHOST_EPHEMERAL)
+				.setLoggingTag(tag).setAdvancedPskStore(pskStore);
 		DtlsConnectorConfig dtlsConfig = builder.build();
 
 		// create endpoint for tests
 		DTLSConnector connector = new DTLSConnector(dtlsConfig);
+		if (executor != null) {
+			connector.setExecutor(executor);
+		}
+
+		config = network.createTestConfig()
+				.set(SystemConfig.HEALTH_STATUS_INTERVAL, 100000, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.ACK_TIMEOUT, coapTimeout, TimeUnit.MILLISECONDS)
+				.set(CoapConfig.EXCHANGE_LIFETIME, exchangeTimeout, TimeUnit.MILLISECONDS);
+
 		CoapEndpoint.Builder coapBuilder = new CoapEndpoint.Builder();
 		coapBuilder.setConnector(connector);
 		coapBuilder.setConfiguration(config);
 		CoapEndpoint coapEndpoint = coapBuilder.build();
+		if (executor != null) {
+			coapEndpoint.setExecutors(executor, executor);
+		}
 		return coapEndpoint;
 	}
 

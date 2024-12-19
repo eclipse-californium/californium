@@ -22,13 +22,13 @@ echo "Californium CoAP Benchmark"
 echo
 echo "Requires a cf-extplugtest-server for exchanging messages."
 echo
-echo "Please check the available RAM (e.g.: on linux use \"free -m\") and"
-echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 50% of the available RAM."
-echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may be used instead."
+echo "Please check the available RAM (e.g.: on linux use \"free -m\") it should be at least 8GB."
+echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 75% of the available RAM."
+echo "For newer JVMs the \"-XX:MaxRAMPercentage=75\" argument in \"CF_OPT\" may be used instead."
 echo
 echo "The required server may be started using:"
-echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.10.0.jar --no-external --no-plugtest"
-echo "Adjust the \"-Xmx6g\" argument also to about 50% of the available RAM."
+echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-4.0.0-M2.jar --no-external --no-plugtest"
+echo "Adjust the \"-Xmx6g\" argument also to about 75% of the available RAM."
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may also be used instead."
 echo "If the benchmark is mainly used with the loopback interface (localhost), use the --no-external as above."
 echo "To use client and server on different hosts, provide --no-loopback instead."
@@ -42,7 +42,7 @@ echo "   in \"CaliforniumReceivetest.properties\" or set"
 echo "   DEDUPLICATOR to NO_DEDUPLICATOR there."
 echo
 echo "you have a too fast CPU for the available amount of RAM :-)."
-echo "Try to adjust the \"-Xmx\" to a larger value than the 50%."
+echo "Try to adjust the \"-Xmx\" to a larger value than the 75%."
 echo
 echo "Depending on your OS and configuration, the maximum number of sockets or threads may be limited."
 echo
@@ -52,13 +52,17 @@ echo "number of \"numproc\". That is mostly enough for servers, but for the benc
 echo "currently the number of clients to less than the half of the value of \"numproc\"."
 echo
 echo "For real (or virtual) machines with linux, the maximum number may be increased, if the host has"
-echo "enough resources (RAM and CPU) to execute it. On Ubuntu 18.04, please adjust the values"
+echo "enough resources (RAM and CPU) to execute it. On Ubuntu 20.04, please adjust the values"
 echo "\"DefaultLimitNOFILE\" in \"/etc/systemd/user.conf\" and \"/etc/systemd/system.conf\" accordingly"
 echo "to the number of wanted sockets, and uncomment it by removing the leading \"#\"."
 echo "For plain coap, currently more threads are required. Adjust \"UserTasksMax\" in"
 echo "\"/etc/systemd/logind.conf\" to twice the number of sockets plus 500 more. With that, up to 10000"
-echo "clients my be used for the benchmark. It's not recommended to use that many clients from one process"
-echo "and it's even less recommended to use more than that!"
+echo "emulated clients my be used for the benchmark. It's not recommended to use that many clients from"
+echo " one process and it's even less recommended to use more clients than that!"
+echo
+echo "Using java 21 or newer at runtime enables to use virtual threads. Only with that, 30000"
+echo "emulated clients may be used, if enough RAM is available and the CPU is fast enough to"
+echo "execute 30000 emulated clients. If the CPU is to slow, that may cause client to starve."
 echo
 echo "Variables:"
 echo "   USE_TCP, USE_UDP, USE_PLAIN, USE_SECURE, USE_CON, USE_NON"

@@ -349,7 +349,7 @@ public class MessageExchangeStoreTool {
 		@Override
 		public synchronized void start() throws IOException {
 
-			if (running) {
+			if (isRunning()) {
 				return;
 			}
 
