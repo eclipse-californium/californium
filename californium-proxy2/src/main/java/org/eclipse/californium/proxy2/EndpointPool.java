@@ -18,7 +18,6 @@ package org.eclipse.californium.proxy2;
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -26,6 +25,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,19 +49,11 @@ public class EndpointPool implements ClientEndpoints {
 	 */
 	protected final Queue<Endpoint> pool;
 	/**
-	 * Main executor for endpoints.
+	 * Executor for endpoints.
 	 * 
-	 * @see Endpoint#setExecutors(ScheduledExecutorService,
-	 *      ScheduledExecutorService)
+	 * @see Endpoint#setExecutor(ProtocolScheduledExecutorService)
 	 */
-	protected final ScheduledExecutorService mainExecutor;
-	/**
-	 * Secondary executor for endpoints.
-	 * 
-	 * @see Endpoint#setExecutors(ScheduledExecutorService,
-	 *      ScheduledExecutorService)
-	 */
-	protected final ScheduledExecutorService secondaryExecutor;
+	protected final ProtocolScheduledExecutorService executor;
 	/**
 	 * Scheme of endpoints.
 	 */
@@ -74,13 +66,11 @@ public class EndpointPool implements ClientEndpoints {
 	 * @param size size of pool
 	 * @param init initial size of pool
 	 * @param config configuration to create endpoints.
-	 * @param mainExecutor main executor for endpoints
-	 * @param secondaryExecutor secondary executor for endpoints
-	 * @since 3.0 (changed parameter to Configuration)
+	 * @param executor executor for endpoints
+	 * @since 4.0 (changed to single executor)
 	 */
-	public EndpointPool(int size, int init, Configuration config, ScheduledExecutorService mainExecutor,
-			ScheduledExecutorService secondaryExecutor) {
-		this(size, config, mainExecutor, secondaryExecutor);
+	public EndpointPool(int size, int init, Configuration config, ProtocolScheduledExecutorService executor) {
+		this(size, config, executor);
 		this.scheme = init(init);
 	}
 
@@ -91,17 +81,14 @@ public class EndpointPool implements ClientEndpoints {
 	 * 
 	 * @param size size of pool
 	 * @param config configuration to create endpoints.
-	 * @param mainExecutor main executor for endpoints
-	 * @param secondaryExecutor secondary executor for endpoints
-	 * @since 3.0 (changed parameter to Configuration)
+	 * @param executor executor for endpoints
+	 * @since 4.0 (changed to single executor)
 	 */
-	protected EndpointPool(int size, Configuration config, ScheduledExecutorService mainExecutor,
-			ScheduledExecutorService secondaryExecutor) {
+	protected EndpointPool(int size, Configuration config, ProtocolScheduledExecutorService executor) {
 		this.size = size;
 		this.pool = new ArrayBlockingQueue<>(size);
 		this.config = config;
-		this.mainExecutor = mainExecutor;
-		this.secondaryExecutor = secondaryExecutor;
+		this.executor = executor;
 	}
 
 	/**
@@ -166,7 +153,7 @@ public class EndpointPool implements ClientEndpoints {
 	 */
 	protected Endpoint createEndpoint() throws IOException {
 		Endpoint endpoint = new CoapEndpoint.Builder().setConfiguration(config).build();
-		endpoint.setExecutors(mainExecutor, secondaryExecutor);
+		endpoint.setExecutor(executor);
 		try {
 			endpoint.start();
 			return endpoint;

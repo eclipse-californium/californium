@@ -29,6 +29,11 @@ support java 17 as minimum version to build Californium.
 
 ## Noteworthy Behavior Changes
 
+Californium 3 used in several functions two `ScheduledExecutorService` for execution. The main was intended to be used only for very short and fast tasks in a "non-blocking" way. The "scheduled" tasks of that main executor are mainly intended to switch then to {@link SerialExecutor} to serialize executing jobs in the scope of an (CoAP) `Exchange` (DTLS) `Conection` secondary executor is the intended for longer running tasks, e.g. cleanup jobs. This long jobs must not execute too frequently and may be delayed. To optimize the performance the main executor should be created with `ExecutorsUtil.newScheduledThreadPool(int, ThreadFactory)` and the secondary with `ExecutorsUtil.newDefaultSecondaryScheduler(String)`.
+
+In order to simplify the API for Californium 4, this behavior is mapped into the `ProtocolScheduledExecutorService` interface. This replaces the two executors in several functions. It may be provided with a custom implementation or by `ExecutorsUtil.newProtocolScheduledThreadPool(int, ThreadFactory)` and
+`ExecutorsUtil.newSingleThreadedProtocolExecutor(ThreadFactory)`.
+
 ### Element-Connector:
 
 Supports virtual threads for UDP receivers and senders, if the JVM supports it. Otherwise platform daemon threads are used. Chosen by `-1` as number of threads in `UDP.RECEIVER_THREAD_COUNT` and `UDP.SENDER_THREAD_COUNT`.
@@ -75,6 +80,11 @@ Removed `org.eclipse.californium.elements.util.Base64`, obsoleted by java 8 `jav
 
 `org.eclipse.californium.elements.util.StringUtil.base64ToByteArray(String)` throws now `IllegalArgumentException` for invalid content instead of returning an empty array.
 
+Introduce `ProtocolScheduledExecutorService` interface to simplify main and secondary executors.
+
+Add `ExecutorsUtil.newProtocolScheduledThreadPool(int, ThreadFactory)` and
+`ExecutorsUtil.newSingleThreadedProtocolExecutor(ThreadFactory)` to created implementations of `ProtocolScheduledExecutorService`.
+
 ### Scandium:
 
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.
@@ -93,6 +103,8 @@ The names `CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378`, and `CipherSuite.
 
 Merged `ReadWriteLockConnectionStore` into `ResumptionSupportingConnectionStore` and remove obsolete `ReadWriteLockConnectionStore`.
 
+Uses the new introduced `ProtocolScheduledExecutorService`.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into
@@ -107,6 +119,12 @@ Introduce `OptionNumber` to compare `Option` and `OptionDefintion` based on thei
 Remove `CropRotation`. Please use an other available deduplication algorithms.
 
 Remove `ResponseConsumer`. Replaced by `Consumer<Response>`.
+
+`Endpoint`, `CoapServer`, `CoapClient`, `CoapStack`, and `Layer` replaces the main and secondary executor by the new introduced `ProtocolScheduledExecutorService`. Also replaces `void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor)` by `void setExecutor(ProtocolScheduledExecutorService executor)`.
+
+Add `Endpoint.getExecutor()`.
+
+`ClientObserveRelation` and `CoapObserveRelation` switched to use the `Endpoint` executor instead of a separate argument.
 
 ### Californium-Proxy2:
 

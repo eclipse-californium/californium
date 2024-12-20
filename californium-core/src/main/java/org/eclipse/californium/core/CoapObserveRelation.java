@@ -33,8 +33,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-
 import org.eclipse.californium.core.coap.ClientObserveRelation;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -59,10 +57,11 @@ public class CoapObserveRelation extends ClientObserveRelation {
 	 *
 	 * @param request the request
 	 * @param endpoint the endpoint
-	 * @param executor the executor to schedule the reregistration.
+	 * @throws IllegalArgumentException if endpoint has no executor
+	 * @since 4.0 (removed executor from arguments)
 	 */
-	protected CoapObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
-		super(request, endpoint, executor);
+	protected CoapObserveRelation(Request request, Endpoint endpoint) {
+		super(request, endpoint);
 	}
 
 	/**
@@ -122,8 +121,8 @@ public class CoapObserveRelation extends ClientObserveRelation {
 	/**
 	 * Sets the current response or notification.
 	 *
-	 * Use {@link #orderer} to filter deprecated responses over UDP.
-	 * Responses over TCP are already in order.
+	 * Use {@link #orderer} to filter deprecated responses over UDP. Responses
+	 * over TCP are already in order.
 	 *
 	 * @param response the response or notification
 	 * @return {@code true}, response is accepted by {@link #orderer},

@@ -23,7 +23,6 @@ import java.net.DatagramSocket;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
@@ -45,6 +44,7 @@ import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -108,7 +108,7 @@ public class SecureTest {
 
 	private CoapTestEndpoint coapTestEndpoint;
 
-	private ScheduledExecutorService executor;
+	private ProtocolScheduledExecutorService executor;
 
 	/**
 	 * Ensure there is no leak when we try to send a request to an absent peer
@@ -144,7 +144,7 @@ public class SecureTest {
 	public void testMultipleSecureHandshakes() throws Exception {
 		int loops = TestScope.enableIntensiveTests() ? TEST_LOOPS : 2;
 		for (int i = 0; i < loops; ++i) {
-			executor = ExecutorsUtil.newScheduledThreadPool(TEST_DTLS_THREAD_POOL_SIZE,
+			executor = ExecutorsUtil.newProtocolScheduledThreadPool(TEST_DTLS_THREAD_POOL_SIZE,
 					new DaemonThreadFactory("test#", NamedThreadFactory.SCANDIUM_THREAD_GROUP));
 			try {
 				testSecureHandshakes(i);
@@ -308,7 +308,7 @@ public class SecureTest {
 		coapBuilder.setConfiguration(config);
 		CoapEndpoint coapEndpoint = coapBuilder.build();
 		if (executor != null) {
-			coapEndpoint.setExecutors(executor, executor);
+			coapEndpoint.setExecutor(executor);
 		}
 		return coapEndpoint;
 	}

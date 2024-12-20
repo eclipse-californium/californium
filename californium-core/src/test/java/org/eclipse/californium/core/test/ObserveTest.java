@@ -970,10 +970,9 @@ public class ObserveTest {
 		serverEndpoint.addInterceptor(new MessageTracer());
 		int count = counter.incrementAndGet();
 		CoapServer server = new CoapServer(config);
-		server.setExecutors(ExecutorsUtil.newScheduledThreadPool(//
+		server.setExecutor(ExecutorsUtil.newProtocolScheduledThreadPool(//
 				config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT),
-				new NamedThreadFactory("CoapServer(main):" + count + "#")), //$NON-NLS-1$
-				ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary):" + count + "#"), false);
+				new NamedThreadFactory("CoapServer(main):" + count + "#")), false); //$NON-NLS-1$
 		server.addEndpoint(serverEndpoint);
 		resourceX = new MyResource(TARGET_X);
 		resourceY = new MyResource(TARGET_Y);

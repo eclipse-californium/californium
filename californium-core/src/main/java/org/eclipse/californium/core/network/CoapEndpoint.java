@@ -82,7 +82,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -94,13 +93,13 @@ import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Message.OffloadMode;
-import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.deduplication.NoDeduplicator;
@@ -136,6 +135,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -270,13 +270,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	private final String tag;
 
 	/** The executor to run tasks for this endpoint and its layers */
-	private ExecutorService executor;
-
-	/**
-	 * Scheduled executor intended to be used for rare executing timers (e.g.
-	 * cleanup tasks).
-	 */
-	private ScheduledExecutorService secondaryExecutor;
+	private ProtocolScheduledExecutorService executor;
 
 	/** Indicates if the endpoint has been started */
 	private volatile boolean started;
@@ -465,9 +459,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 
 			// in production environments the executor should be set to a multi
 			// threaded version in order to utilize all cores of the processor
-			final ScheduledExecutorService executorService = ExecutorsUtil
-					.newSingleThreadScheduledExecutor(new DaemonThreadFactory(":CoapEndpoint-" + connector + '#')); //$NON-NLS-1$
-			setExecutors(executorService, executorService);
+			final ProtocolScheduledExecutorService executorService = ExecutorsUtil
+					.newSingleThreadedProtocolExecutor(new DaemonThreadFactory(":CoapEndpoint-" + connector + '#')); //$NON-NLS-1$
+			setExecutor(executorService);
 			addObserver(new EndpointObserver() {
 
 				@Override
@@ -550,21 +544,25 @@ public class CoapEndpoint implements Endpoint, Executor {
 	}
 
 	@Override
-	public void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
-		if (mainExecutor == null || secondaryExecutor == null) {
-			throw new IllegalArgumentException("executors must not be null");
+	public void setExecutor(ProtocolScheduledExecutorService executor) {
+		if (executor == null) {
+			throw new NullPointerException("executor must not be null!");
 		}
-		if (this.executor == mainExecutor && this.secondaryExecutor == secondaryExecutor) {
+		if (this.executor == executor) {
 			return;
 		}
 		if (started) {
 			throw new IllegalStateException("endpoint already started!");
 		}
-		this.executor = mainExecutor;
-		this.secondaryExecutor = secondaryExecutor;
-		this.coapstack.setExecutors(mainExecutor, this.secondaryExecutor);
-		this.exchangeStore.setExecutor(this.secondaryExecutor);
-		this.observationStore.setExecutor(this.secondaryExecutor);
+		this.executor = executor;
+		this.coapstack.setExecutor(executor);
+		this.exchangeStore.setExecutor(executor.getBackgroundExecutor());
+		this.observationStore.setExecutor(executor.getBackgroundExecutor());
+	}
+
+	@Override
+	public ProtocolScheduledExecutorService getExecutor() {
+		return executor;
 	}
 
 	@Override

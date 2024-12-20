@@ -25,7 +25,6 @@ import static org.mockito.Mockito.mock;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
@@ -41,6 +40,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -62,9 +62,9 @@ public class CoapStackTest {
 
 	public CoapStackTest(CoapStack stack, Outbox outbox) {
 		this.stack = stack;
-		ScheduledExecutorService executor = ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("coap-stack-"));
+		ProtocolScheduledExecutorService executor = ExecutorsUtil.newSingleThreadedProtocolExecutor(new TestThreadFactory("coap-stack-"));
 		cleanup.add(executor);
-		this.stack.setExecutors(executor, executor);
+		this.stack.setExecutor(executor);
 		this.outbox = outbox;
 	}
 

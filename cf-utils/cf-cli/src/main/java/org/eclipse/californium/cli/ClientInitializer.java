@@ -45,6 +45,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -242,7 +243,7 @@ public class ClientInitializer {
 	 * @throws IllegalArgumentException if scheme is not provided or not
 	 *             supported
 	 */
-	public static CoapEndpoint createEndpoint(ClientBaseConfig config, ExecutorService executor) {
+	public static CoapEndpoint createEndpoint(ClientBaseConfig config, ProtocolScheduledExecutorService executor) {
 
 		String scheme = CoAP.getSchemeFromUri(config.uri);
 		if (scheme != null) {
@@ -256,6 +257,7 @@ public class ClientInitializer {
 					builder.setConnector(connector);
 					builder.setConfiguration(config.configuration);
 					CoapEndpoint endpoint = builder.build();
+					endpoint.setExecutor(executor);
 					if (config.verbose) {
 						endpoint.addInterceptor(new MessageTracer());
 					}
@@ -298,7 +300,7 @@ public class ClientInitializer {
 	public static class UdpConnectorFactory implements CliConnectorFactory {
 
 		@Override
-		public Connector create(ClientBaseConfig clientConfig, ExecutorService executor) {
+		public Connector create(ClientBaseConfig clientConfig, ProtocolScheduledExecutorService executor) {
 			int localPort = clientConfig.localPort == null ? 0 : clientConfig.localPort;
 			return new UDPConnector(new InetSocketAddress(localPort), clientConfig.configuration);
 		}
@@ -436,7 +438,7 @@ public class ClientInitializer {
 		}
 
 		@Override
-		public Connector create(ClientBaseConfig clientConfig, ExecutorService executor) {
+		public Connector create(ClientBaseConfig clientConfig, ProtocolScheduledExecutorService executor) {
 			Builder dtlsConfig = createDtlsConfig(clientConfig);
 			DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
 			if (executor != null) {

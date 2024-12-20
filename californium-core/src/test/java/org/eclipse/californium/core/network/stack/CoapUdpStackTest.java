@@ -21,7 +21,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
 import java.net.InetAddress;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -35,6 +34,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -55,7 +55,7 @@ public class CoapUdpStackTest {
 
 	@Mock private Outbox outbox;
 	@Mock private MessageDeliverer deliverer;
-	@Mock private ScheduledExecutorService executor;
+	@Mock private ProtocolScheduledExecutorService executor;
 
 	private CoapStack stack;
 
@@ -63,7 +63,7 @@ public class CoapUdpStackTest {
 	public void initialize() {
 		stack = new CoapUdpStack("udp-test ", CONFIG, new UdpEndpointContextMatcher(true), outbox);
 		stack.setDeliverer(deliverer);
-		stack.setExecutors(executor, executor);
+		stack.setExecutor(executor);
 
 	}
 

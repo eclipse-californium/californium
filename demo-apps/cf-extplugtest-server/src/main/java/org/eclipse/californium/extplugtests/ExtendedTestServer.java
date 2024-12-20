@@ -67,6 +67,7 @@ import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -376,11 +377,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			// create server
 
-			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
+			ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(//
 					configuration.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
-					new NamedThreadFactory("ExtCoapServer(main)#")); //$NON-NLS-1$
-			ScheduledExecutorService secondaryExecutor = ExecutorsUtil
-					.newDefaultSecondaryScheduler("ExtCoapServer(secondary)#");
+					new NamedThreadFactory("ExtCoapServer#")); //$NON-NLS-1$
 
 			long notifyIntervalMillis = config.getNotifyIntervalMillis();
 
@@ -388,7 +387,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					notifyIntervalMillis);
 			server.setVersion(PlugtestServer.CALIFORNIUM_BUILD_VERSION);
 			server.setTag("EXTENDED-TEST");
-			server.setExecutors(executor, secondaryExecutor, false);
+			server.setExecutor(executor, false);
 			server.add(new Echo(configuration, config.echoDelay ? executor : null));
 			if (config.diagnose) {
 				server.add(new Diagnose(server));
@@ -398,7 +397,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			server.add(reverseObserver);
 			if (k8sGroup != null) {
 				DtlsClusterConnectorConfig clusterConfig = clusterConfigBuilder.build();
-				server.addClusterEndpoint(secondaryExecutor, config.cluster.clusterType.k8sCluster.dtls,
+				server.addClusterEndpoint(executor.getBackgroundExecutor(), config.cluster.clusterType.k8sCluster.dtls,
 						k8sGroup.getNodeID(), clusterConfig, null, k8sGroup, config);
 			} else if (config.cluster != null && config.cluster.clusterType.simpleCluster != null) {
 				ClusterGroup group = null;
@@ -430,7 +429,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 						if (config.cluster.clusterType.simpleCluster.dtlsClusterGroup != null) {
 							group = new ClusterGroup(config.cluster.clusterType.simpleCluster.dtlsClusterGroup);
 						}
-						server.addClusterEndpoint(secondaryExecutor, cluster.dtls, cluster.nodeId, clusterConfig, nodes,
+						server.addClusterEndpoint(executor.getBackgroundExecutor(), cluster.dtls, cluster.nodeId, clusterConfig, nodes,
 								group, config);
 					}
 				}
@@ -450,13 +449,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				server.add(socketLogger);
 				long readInterval = configuration.get(UDP_DROPS_READ_INTERVAL, TimeUnit.MILLISECONDS);
 				if (interval > readInterval) {
-					secondaryExecutor.scheduleAtFixedRate(new Runnable() {
-
-						@Override
-						public void run() {
-							socketLogger.read();
-						}
-					}, readInterval, readInterval, TimeUnit.MILLISECONDS);
+					executor.scheduleBackgroundAtFixedRate(()-> socketLogger.read(), readInterval, readInterval, TimeUnit.MILLISECONDS);
 				}
 				socketObserver = new EndpointNetSocketObserver(socketLogger);
 				server.addDefaultEndpointObserver(socketObserver);
@@ -528,7 +521,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			PlugtestServer.setupPersistence(config);
 
 			// start standard plugtest server and shutdown
-			CoapServer plugtestServer = PlugtestServer.start(executor, secondaryExecutor, config, configuration,
+			CoapServer plugtestServer = PlugtestServer.start(executor, config, configuration,
 					socketObserver, null);
 			server.start();
 
@@ -656,7 +649,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			PlugtestServer.shutdown();
 			server.stop();
 			LOGGER.info("Executor shutdown ...");
-			ExecutorsUtil.shutdownExecutorGracefully(500, executor, secondaryExecutor);
+			ExecutorsUtil.shutdownExecutorGracefully(500, executor);
 			PlugtestServer.exit();
 			LOGGER.info("Exit ...");
 		} catch (Exception e) {

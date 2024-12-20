@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 
 /**
  * A layer processes requests, responses and empty messages. Layers can be
@@ -128,15 +129,14 @@ public interface Layer {
 	void setUpperLayer(Layer layer);
 
 	/**
-	 * Sets executors for this layer.
-	 *
-	 * Executors are not managed by the layer, it must be shutdown
+	 * Sets executor for this layer.
+	 * <p>
+	 * Executor is not managed by the layer, it must be shutdown
 	 * externally, if the resource should be freed.
 	 *
-	 * @param mainExecutor executors used for main tasks
-	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
+	 * @param executor executor for tasks
 	 */
-	void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor);
+	void setExecutor(ProtocolScheduledExecutorService executor);
 
 	/**
 	 * start this layer. (E.g. starting periodic task)
