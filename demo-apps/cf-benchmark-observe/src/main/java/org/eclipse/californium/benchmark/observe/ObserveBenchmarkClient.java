@@ -20,9 +20,6 @@ package org.eclipse.californium.benchmark.observe;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapServer;
@@ -31,6 +28,8 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 
 public class ObserveBenchmarkClient {
 	public static final int CORES = Runtime.getRuntime().availableProcessors();
@@ -98,17 +97,15 @@ public class ObserveBenchmarkClient {
 
 		// Create server
 		CoapServer server = new CoapServer();
-		ScheduledExecutorService executor = Executors.newScheduledThreadPool(protocol_threads);
-		ScheduledThreadPoolExecutor secondaryExecutor = ExecutorsUtil
-				.newDefaultSecondaryScheduler("CoapServer(secondary)#");
+		ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(protocol_threads, new NamedThreadFactory("observer-benchmark"));
 		if (use_executor) {
 			System.out.println("Using a scheduled thread pool with " + protocol_threads + " workers");
-			server.setExecutors(executor, secondaryExecutor, false);
+			server.setExecutor(executor, false);
 		}
 
 		System.out.println("Number of receiver/sender threads: " + udp_receiver + "/" + udp_sender);
 
-		server.add(new AnnounceResource("announce", executor, secondaryExecutor));
+		server.add(new AnnounceResource("announce", executor));
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(sockAddr);

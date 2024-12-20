@@ -62,6 +62,7 @@ import org.eclipse.californium.elements.util.EncryptedPersistentComponentUtil;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil.InetAddressFilter;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil.SimpleInetAddressFilter;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
@@ -551,29 +552,25 @@ public class BaseServer extends CoapServer {
 	public void initialize(ServerConfig cliArguments) throws SocketException {
 		Configuration config = getConfig();
 		// executors
-		ScheduledExecutorService secondaryExecutor = ExecutorsUtil
-				.newDefaultSecondaryScheduler("CoapServer(secondary)#");
+		ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(//
+				config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
+				new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 
-		monitors = new SystemResourceMonitors(secondaryExecutor);
+		monitors = new SystemResourceMonitors(executor.getBackgroundExecutor());
 
 		setupDeviceCredentials(cliArguments);
 
 		if (!cliArguments.noCoap) {
 			addEndpoints(cliArguments);
 
-			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
-					config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
-					new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
-			addResource(cliArguments, executor);
-
-			setExecutors(executor, secondaryExecutor, false);
+			setExecutor(executor, false);
 
 			// additional health loggers
-			setupUdpHealthLogger(secondaryExecutor);
+			setupUdpHealthLogger(executor.getBackgroundExecutor());
 			setupObserveHealthLogger();
 		}
 		setupHttpService(cliArguments);
-		setupProcessors(secondaryExecutor);
+		setupProcessors(executor.getBackgroundExecutor());
 
 		LOGGER.info("{} initialized.", getTag());
 	}

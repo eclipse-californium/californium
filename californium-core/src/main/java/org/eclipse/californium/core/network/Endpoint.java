@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
@@ -37,74 +36,84 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 
 /**
- * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
- * 
- * An Endpoint is bound to a particular IP address and port.
- * Clients use an Endpoint to send a request to a server. Servers bind resources to one or more Endpoints
- * in order for them to be requested over the network by clients.
+ * A communication endpoint multiplexing CoAP message exchanges between
+ * (potentially multiple) clients and servers.
+ * <p>
+ * An Endpoint is bound to a particular IP address and port. Clients use an
+ * Endpoint to send a request to a server. Servers bind resources to one or more
+ * Endpoints in order for them to be requested over the network by clients.
  */
 public interface Endpoint {
 
 	/**
-	 * Start this endpoint and all its components.. The starts its connector. If
+	 * Start this endpoint and all its components. The starts its connector. If
 	 * no executor has been set yet, the endpoint uses a single-threaded
 	 * executor.
 	 * 
 	 * @throws IOException if the endpoint could not be started, e.g. because
-	 * the endpoint's port is already in use.
+	 *             the endpoint's port is already in use.
 	 */
 	void start() throws IOException;
 
 	/**
-	 * Stop this endpoint and all its components, e.g., the connector. A
-	 * stopped endpoint can be started again.
+	 * Stop this endpoint and all its components, e.g., the connector. A stopped
+	 * endpoint can be started again.
 	 */
 	void stop();
 
 	/**
-	 * Destroys this endpoint and all its components. A destroyed endpoint cannot
-	 * be started again.
+	 * Destroys this endpoint and all its components. A destroyed endpoint
+	 * cannot be started again.
 	 */
 	void destroy();
 
 	/**
-	 *  Clears this endpoint's internal registries for tracking message exchanges.
-	 *  <p>
-	 *  Needed for tests to remove duplicates.
-	 *  </p>
+	 * Clears this endpoint's internal registries for tracking message
+	 * exchanges.
+	 * <p>
+	 * Needed for tests to remove duplicates.
 	 */
 	void clear();
 
 	/**
-	 * Checks if this endpoint has started.
+	 * Checks, if this endpoint has started.
 	 *
 	 * @return {@code true} if this endpoint is running.
 	 */
 	boolean isStarted();
 
 	/**
-	 * Sets executors for this endpoint and all its components.
+	 * Sets executor for this endpoint and all its components.
+	 * <p>
+	 * Executor is not managed by the endpoint, it must be shutdown externally,
+	 * if the resource should be freed.
 	 *
-	 * Executors are not managed by the endpoint, it must be shutdown
-	 * externally, if the resource should be freed.
-	 * 
-	 * Executors must not be {@code null}.
-	 *
-	 * @param mainExecutor executors used for main tasks
-	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
+	 * @param executor executor for endpoint
+	 * @throws NullPointerException if executor is {@code null}
 	 * @throws IllegalStateException if the endpoint is already started and a
 	 *             new executor is provided.
 	 */
-	void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor);
+	void setExecutor(ProtocolScheduledExecutorService executor);
 
 	/**
-	 * Adds the observer to the list of observers.
+	 * Gets executor for this endpoint.
 	 * 
+	 * @return executor for endpoint. May be {@code null}, if no executor was
+	 *         provided and the endpoint hasn't been started.
+	 * @since 4.0
+	 */
+	ProtocolScheduledExecutorService getExecutor();
+
+	/**
+	 * Adds the observer to the list of observers. This is not related with CoAP
+	 * observe relations.
+	 * <p>
 	 * If the endpoint {@link #isStarted()}, calls
 	 * {@link EndpointObserver#started(Endpoint)}.
-	 * 
+	 * <p>
 	 * <b>Note:</b> This has nothing to do with CoAP observe relations.
 	 * 
 	 * @param obs the observer
@@ -114,28 +123,28 @@ public interface Endpoint {
 	void addObserver(EndpointObserver obs);
 
 	/**
-	 * Removes the endpoint observer.This has nothing to do with
-	 * CoAP observe relations.
+	 * Removes the endpoint observer. This is not related with CoAP observe
+	 * relations.
 	 *
 	 * @param obs the observer
 	 */
 	void removeObserver(EndpointObserver obs);
-	
-	/**
-	 * Adds a listener for observe notification (This is related to CoAP
-	 * observe)
-	 * 
-	 * @param lis the listener
-	 */
-	void addNotificationListener(NotificationListener lis);
 
 	/**
-	 * Removes a listener for observe notification (This is related to CoAP
-	 * observe)
+	 * Adds a listener for observe notification. This is related to CoAP
+	 * observe.
 	 * 
-	 * @param lis the listener
+	 * @param listener the listener
 	 */
-	void removeNotificationListener(NotificationListener lis);
+	void addNotificationListener(NotificationListener listener);
+
+	/**
+	 * Removes a listener for observe notification. This is related to CoAP
+	 * observe.
+	 * 
+	 * @param listener the listener
+	 */
+	void removeNotificationListener(NotificationListener listener);
 
 	/**
 	 * Adds a message interceptor to this endpoint to be called, when messages
@@ -196,16 +205,18 @@ public interface Endpoint {
 	/**
 	 * Gets all registered message post process interceptor.
 	 *
-	 * @return an immutable list of the registered message post process interceptors.
+	 * @return an immutable list of the registered message post process
+	 *         interceptors.
 	 */
 	List<MessageInterceptor> getPostProcessInterceptors();
 
 	/**
 	 * Send the specified request.
-	 * 
+	 * <p>
 	 * Failures are reported with {@link Request#setSendError(Throwable)}.
-	 * 
-	 * Note: since 3.5 sending a request instance twice causes a send error.
+	 * <p>
+	 * <b>Note:</b> since 3.5 sending a request instance twice causes a send
+	 * error.
 	 *
 	 * @param request the request
 	 */
@@ -213,8 +224,9 @@ public interface Endpoint {
 
 	/**
 	 * Send the specified response.
-	 *
-	 * Note: since 3.5 sending a response instance twice causes a send error.
+	 * <p>
+	 * <b>Note:</b> since 3.5 sending a response instance twice causes a send
+	 * error.
 	 * 
 	 * @param exchange the exchange
 	 * @param response the response
@@ -223,8 +235,9 @@ public interface Endpoint {
 
 	/**
 	 * Send the specified empty message.
-	 *
-	 * Note: since 3.5 sending a empty message instance twice causes a send error.
+	 * <p>
+	 * <b>Note:</b> since 3.5 sending a empty message instance twice causes a
+	 * send error.
 	 * 
 	 * @param exchange the exchange
 	 * @param message the message
@@ -248,8 +261,9 @@ public interface Endpoint {
 	/**
 	 * Gets the URI for accessing this endpoint.
 	 * <p>
-	 * The URI will be built using this endpoint's supported <em>scheme</em> (e.g. {@code coap} or {@code coaps})
-	 * and the host name or IP address and port this endpoint is bound to.
+	 * The URI will be built using this endpoint's supported <em>scheme</em>
+	 * (e.g. {@code coap} or {@code coaps}) and the host name or IP address and
+	 * port this endpoint is bound to.
 	 * 
 	 * @return The URI.
 	 */

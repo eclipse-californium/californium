@@ -22,14 +22,13 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import java.util.concurrent.ScheduledExecutorService;
-
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,10 +58,7 @@ public abstract class AbstractLayer implements Layer {
 	private Layer lowerLayer = LogOnlyLayer.getInstance();
 
 	/** The main executor. */
-	protected ScheduledExecutorService executor;
-
-	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
-	protected ScheduledExecutorService secondaryExecutor;
+	protected ProtocolScheduledExecutorService executor;
 
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
@@ -135,9 +131,8 @@ public abstract class AbstractLayer implements Layer {
 	}
 
 	@Override
-	public final void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
-		this.executor = mainExecutor;
-		this.secondaryExecutor = secondaryExecutor;
+	public final void setExecutor(ProtocolScheduledExecutorService executor) {
+		this.executor = executor;
 	}
 
 	/**
@@ -231,7 +226,7 @@ public abstract class AbstractLayer implements Layer {
 		}
 
 		@Override
-		public void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
+		public void setExecutor(ProtocolScheduledExecutorService executor) {
 			// no nothing
 			
 		}

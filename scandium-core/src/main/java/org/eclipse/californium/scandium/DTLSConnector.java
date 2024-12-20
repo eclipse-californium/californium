@@ -148,7 +148,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -185,6 +184,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.NetworkStageRunnable;
 import org.eclipse.californium.elements.util.NoPublicAPI;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SocketThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -503,9 +503,6 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 
 	private volatile DatagramSocket socket;
 
-	/** The timer daemon to schedule retransmissions. */
-	protected ScheduledExecutorService timer;
-
 	/** Indicates whether the connector has started and not stopped yet */
 	private AtomicBoolean running = new AtomicBoolean(false);
 
@@ -524,7 +521,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	private final List<SessionListener> sessionListeners = new ArrayList<>();
 	private final ConnectionListener connectionListener;
 	private final DatagramFilter datagramFilter;
-	private volatile ExecutorService executorService;
+	private volatile ProtocolScheduledExecutorService executorService;
 	private boolean hasInternalExecutor;
 
 	/**
@@ -977,7 +974,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 * @throws IllegalStateException if a new executor is set and this connector
 	 *             is already running.
 	 */
-	public final void setExecutor(ExecutorService executor) {
+	public final void setExecutor(ProtocolScheduledExecutorService executor) {
 		boolean change;
 		synchronized (this) {
 			change = this.executorService != executor;
@@ -1186,21 +1183,10 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 		lastBindAddress = actualBindAddress;
 		String addr = SocketThreadFactory.toName(lastBindAddress);
 
-		if (executorService instanceof ScheduledExecutorService) {
-			timer = (ScheduledExecutorService) executorService;
-		} else {
-			timer = ExecutorsUtil.newSingleThreadScheduledExecutor(new DaemonThreadFactory(
-					"DTLS-Timer-" + addr + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
-		}
-
 		if (executorService == null) {
 			int threadCount = config.get(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT);
-			if (threadCount > 1) {
-				executorService = ExecutorsUtil.newFixedThreadPool(threadCount - 1, new DaemonThreadFactory(
-						"DTLS-Worker-" + addr + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
-			} else {
-				executorService = timer;
-			}
+			executorService = ExecutorsUtil.newProtocolScheduledThreadPool(threadCount, new DaemonThreadFactory(
+					"DTLS-Worker-" + addr + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
 			connectionStore.setExecutor(executorService);
 			this.hasInternalExecutor = true;
 		}
@@ -1291,7 +1277,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					intervalMillis = 2000;
 				}
 			if (intervalMillis > 0) {
-				statusLogger = timer.scheduleAtFixedRate(new Runnable() {
+				statusLogger = executorService.scheduleBackgroundAtFixedRate(new Runnable() {
 
 					private volatile long lastNanos = ClockUtil.nanoRealtime();
 
@@ -1312,7 +1298,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			updateHealth();
 		}
 
-		recentHandshakeCleaner = timer.scheduleWithFixedDelay(new Runnable() {
+		recentHandshakeCleaner = executorService.scheduleBackgroundWithFixedDelay(new Runnable() {
 
 			private int calls = 0;
 
@@ -1378,7 +1364,6 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 
 	@Override
 	public void stop() {
-		ExecutorService shutdownTimer = null;
 		ExecutorService shutdown = null;
 		List<Runnable> pending = new ArrayList<>();
 		boolean stop;
@@ -1407,11 +1392,6 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 				ipv4Mtu = DEFAULT_IPV4_MTU;
 				ipv6Mtu = DEFAULT_IPV6_MTU;
 				connectionStore.stop(pending);
-				if (executorService != timer) {
-					pending.addAll(timer.shutdownNow());
-					shutdownTimer = timer;
-					timer = null;
-				}
 				if (hasInternalExecutor) {
 					pending.addAll(executorService.shutdownNow());
 					shutdown = executorService;
@@ -1427,14 +1407,6 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					}
 				}
 				receiverThreads.clear();
-			}
-		}
-		if (shutdownTimer != null) {
-			try {
-				if (!shutdownTimer.awaitTermination(500, TimeUnit.MILLISECONDS)) {
-					LOGGER.warn("Shutdown DTLS connector on [{}] timer not terminated in time!", lastBindAddress);
-				}
-			} catch (InterruptedException e) {
 			}
 		}
 		if (shutdown != null) {
@@ -2581,12 +2553,12 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			if (useServerSessionID && clientHello.hasSessionId()) {
 				// client wants to resume a session
 				handshaker = new ResumingServerHandshaker(record.getSequenceNumber(), clientHello.getMessageSeq(), this,
-						timer, connection, config);
+						executorService, connection, config);
 			} else {
 				// At this point the client has demonstrated reachability by
 				// completing a cookie exchange. So start a new handshake
 				// (see section 4.2.8 of RFC 6347 (DTLS 1.2))
-				handshaker = new ServerHandshaker(record.getSequenceNumber(), clientHello.getMessageSeq(), this, timer,
+				handshaker = new ServerHandshaker(record.getSequenceNumber(), clientHello.getMessageSeq(), this, executorService,
 						connection, config);
 			}
 			initializeHandshaker(handshaker);
@@ -3086,7 +3058,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			String hostname = message.getEndpointContext().getVirtualHost();
 			// no session with peer established nor handshaker started yet,
 			// create new empty session & start handshake
-			ClientHandshaker clientHandshaker = new ClientHandshaker(hostname, this, timer, connection, config, false);
+			ClientHandshaker clientHandshaker = new ClientHandshaker(hostname, this, executorService, connection, config, false);
 			initializeHandshaker(clientHandshaker);
 			message.onConnecting();
 			clientHandshaker.addApplicationDataForDeferredProcessing(message);
@@ -3174,9 +3146,9 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					// server may use a empty session id to indicate,
 					// that resumption is not supported
 					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
-					newHandshaker = new ClientHandshaker(hostname, this, timer, connection, config, probing);
+					newHandshaker = new ClientHandshaker(hostname, this, executorService, connection, config, probing);
 				} else {
-					newHandshaker = new ResumingClientHandshaker(resume, this, timer, connection, config, probing);
+					newHandshaker = new ResumingClientHandshaker(resume, this, executorService, connection, config, probing);
 				}
 				if (probing) {
 					// Only reset the resumption trigger, but keep the session

@@ -358,7 +358,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	@Override
 	public void start() {
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && statusLogger == null) {
-			statusLogger = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
+			statusLogger = executor.scheduleBackgroundAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -393,13 +393,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.MILLISECONDS);
 		}
-		cleanup = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
-
-			@Override
-			public void run() {
-				cleanupExpiredBlockStatus(false);
-			}
-		}, blockInterval, blockInterval, TimeUnit.MILLISECONDS);
+		cleanup = executor.scheduleBackgroundAtFixedRate(() -> cleanupExpiredBlockStatus(false), blockInterval,
+				blockInterval, TimeUnit.MILLISECONDS);
 	}
 
 	@Override

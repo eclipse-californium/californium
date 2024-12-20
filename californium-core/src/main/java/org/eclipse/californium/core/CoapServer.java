@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -54,6 +53,7 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,13 +138,8 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	private final List<CounterStatisticManager> statistics = new CopyOnWriteArrayList<>();
 
 	/** The executor of the server for its endpoints (can be null). */
-	private ScheduledExecutorService executor;
+	private ProtocolScheduledExecutorService executor;
 
-	/**
-	 * Scheduled executor intended to be used for rare executing timers (e.g.
-	 * cleanup tasks).
-	 */
-	private ScheduledExecutorService secondaryExecutor;
 	/**
 	 * Indicate, it the server-specific executor service is detached, or
 	 * shutdown with this server.
@@ -242,12 +237,11 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 		}
 	}
 
-	public synchronized void setExecutors(final ScheduledExecutorService mainExecutor,
-			final ScheduledExecutorService secondaryExecutor, final boolean detach) {
-		if (mainExecutor == null || secondaryExecutor == null) {
-			throw new NullPointerException("executors must not be null");
+	public synchronized void setExecutor(final ProtocolScheduledExecutorService executor, final boolean detach) {
+		if (executor == null) {
+			throw new NullPointerException("executor must not be null");
 		}
-		if (this.executor == mainExecutor && this.secondaryExecutor == secondaryExecutor) {
+		if (this.executor == executor) {
 			return;
 		}
 		if (running) {
@@ -258,15 +252,11 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 			if (this.executor != null) {
 				this.executor.shutdownNow();
 			}
-			if (this.secondaryExecutor != null) {
-				this.secondaryExecutor.shutdownNow();
-			}
 		}
-		this.executor = mainExecutor;
-		this.secondaryExecutor = secondaryExecutor;
+		this.executor = executor;
 		this.detachExecutor = detach;
 		for (Endpoint ep : endpoints) {
-			ep.setExecutors(this.executor, this.secondaryExecutor);
+			ep.setExecutor(this.executor);
 		}
 	}
 
@@ -292,10 +282,9 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 		if (executor == null) {
 			// sets the central thread pool for the protocol stage over all
 			// endpoints
-			setExecutors(ExecutorsUtil.newScheduledThreadPool(//
+			setExecutor(ExecutorsUtil.newProtocolScheduledThreadPool(//
 					this.config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT),
-					new NamedThreadFactory("CoapServer(main)#")), //$NON-NLS-1$
-					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
+					new NamedThreadFactory("CoapServer(main)#")), false); //$NON-NLS-1$
 		}
 
 		if (endpoints.isEmpty()) {
@@ -360,13 +349,10 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 		try {
 			if (!detachExecutor)
 				if (running) {
-					ExecutorsUtil.shutdownExecutorGracefully(2000, executor, secondaryExecutor);
+					ExecutorsUtil.shutdownExecutorGracefully(2000, executor);
 				} else {
 					if (executor != null) {
 						executor.shutdownNow();
-					}
-					if (secondaryExecutor != null) {
-						secondaryExecutor.shutdownNow();
 					}
 				}
 		} finally {
@@ -429,8 +415,8 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	@Override
 	public void addEndpoint(final Endpoint endpoint) {
 		endpoint.setMessageDeliverer(deliverer);
-		if (executor != null && secondaryExecutor != null) {
-			endpoint.setExecutors(executor, secondaryExecutor);
+		if (executor != null) {
+			endpoint.setExecutor(executor);
 		}
 		for (EndpointObserver observer : defaultObservers) {
 			endpoint.addObserver(observer);

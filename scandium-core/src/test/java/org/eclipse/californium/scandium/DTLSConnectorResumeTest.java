@@ -44,7 +44,6 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -63,6 +62,7 @@ import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.elements.util.TestScope;
@@ -73,8 +73,8 @@ import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawData
 import org.eclipse.californium.scandium.ConnectorHelper.TestContext;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsSecureRenegotiation;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -131,7 +131,7 @@ public class DTLSConnectorResumeTest {
 	static AsyncCertificateProvider serverCertificateProvider;
 	static AsyncNewAdvancedCertificateVerifier serverCertificateVerifier;
 	static AsyncResumptionVerifier serverResumptionVerifier;
-	static ExecutorService executor;
+	static ProtocolScheduledExecutorService executor;
 	static PrivateKey clientPrivateKey;
 	static X509Certificate[] clientCertificateChain;
 	static AsyncAdvancedPskStore clientPskStore;
@@ -454,7 +454,7 @@ public class DTLSConnectorResumeTest {
 				.setResumptionVerifier(serverResumptionVerifier);
 
 		serverHelper.startServer();
-		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-RESUME-"));
+		executor = ExecutorsUtil.newProtocolScheduledThreadPool(2, new TestThreadFactory("DTLS-RESUME-"));
 		clientPrivateKey = DtlsTestTools.getClientPrivateKey();
 		clientCertificateChain = DtlsTestTools.getClientCertificateChain();
 

@@ -25,16 +25,15 @@ import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Date;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.config.CoapConfig.TrackerMode;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -46,6 +45,7 @@ import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.proxy2.ClientEndpoints;
 import org.eclipse.californium.proxy2.ClientSingleEndpoint;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
@@ -163,15 +163,14 @@ public class ExampleCrossProxy2 {
 		coapPort = config.get(CoapConfig.COAP_PORT);
 		httpPort = config.get(Proxy2Config.HTTP_PORT);
 		int threads = config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT);
-		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads,
+		ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(threads,
 				new DaemonThreadFactory("Proxy#"));
-		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
 		Coap2CoapTranslator translater = new Coap2CoapTranslator();
 		Configuration outgoingConfig = new Configuration(config);
 		if (useEndpointsPool) {
 			outgoingConfig.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, 1);
 			outgoingConfig.set(UdpConfig.UDP_SENDER_THREAD_COUNT, 1);
-			endpoints = new EndpointPool(1000, 250, outgoingConfig, mainExecutor, secondaryExecutor);
+			endpoints = new EndpointPool(1000, 250, outgoingConfig, executor);
 		} else {
 			outgoingConfig.set(CoapConfig.MID_TRACKER, TrackerMode.NULL);
 			CoapEndpoint.Builder builder = CoapEndpoint.builder()
@@ -202,7 +201,7 @@ public class ExampleCrossProxy2 {
 		proxyMessageDeliverer.addProxyCoapResources(coap2coap, coap2http);
 		proxyMessageDeliverer.addExposedServiceAddresses(new InetSocketAddress(coapPort));
 		coapProxyServer.setMessageDeliverer(proxyMessageDeliverer);
-		coapProxyServer.setExecutors(mainExecutor, secondaryExecutor, false);
+		coapProxyServer.setExecutor(executor, false);
 		coapProxyServer.add(coap2http);
 		coapProxyServer.add(coap2coap);
 		if (cache) {
@@ -219,7 +218,7 @@ public class ExampleCrossProxy2 {
 		httpServer = ProxyHttpServer.buider()
 				.setConfiguration(config)
 				.setPort(8080)
-				.setExecutor(mainExecutor)
+				.setExecutor(executor)
 				.setHttpTranslator(new Http2CoapTranslator())
 				.setLocalCoapDeliverer(local)
 				.setProxyCoapDeliverer(proxyMessageDeliverer)

@@ -25,7 +25,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -45,6 +44,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.junit.Assert;
 import org.junit.Before;
@@ -159,7 +159,12 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public void setExecutors(ScheduledExecutorService executor, ScheduledExecutorService secondaryExecutor) {
+		public void setExecutor(ProtocolScheduledExecutorService executor) {
+		}
+
+		@Override
+		public ProtocolScheduledExecutorService getExecutor() {
+			return null;
 		}
 
 		@Override
@@ -171,7 +176,7 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public void addNotificationListener(NotificationListener lis) {
+		public void addNotificationListener(NotificationListener listener) {
 		}
 
 		@Override

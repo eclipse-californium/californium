@@ -15,9 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.cli;
 
-import java.util.concurrent.ExecutorService;
-
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 
 /**
  * Connector factory to be used for CLI.
@@ -33,5 +32,5 @@ public interface CliConnectorFactory {
 	 * @param executor executor
 	 * @return create connector
 	 */
-	Connector create(ClientBaseConfig clientConfig, ExecutorService executor);
+	Connector create(ClientBaseConfig clientConfig, ProtocolScheduledExecutorService executor);
 }

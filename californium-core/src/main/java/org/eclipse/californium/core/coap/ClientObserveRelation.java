@@ -18,8 +18,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,14 +46,14 @@ public class ClientObserveRelation {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ClientObserveRelation.class);
 
 	/** A executor service to schedule re-registrations */
-	private final ScheduledThreadPoolExecutor scheduler;
+	private final ScheduledExecutorService scheduler;
 
 	/** The endpoint. */
 	protected final Endpoint endpoint;
 
 	/**
 	 * The orderer.
-	 * 
+	 * <p>
 	 * Only used for UDP, {@code null} for TCP.
 	 * 
 	 * @see <a href="https://www.rfc-editor.org/rfc/rfc8323.html#section-7.1"
@@ -74,7 +74,7 @@ public class ClientObserveRelation {
 	/**
 	 * Indicates, that an observe request or a (proactive) cancel observe
 	 * request is pending.
-	 * 
+	 * <p>
 	 * {@link #reregister()} is only effective, when no other request is already
 	 * pending.
 	 */
@@ -146,9 +146,14 @@ public class ClientObserveRelation {
 	 *
 	 * @param request the request
 	 * @param endpoint the endpoint
-	 * @param executor the executor to schedule the reregistration.
+	 * @throws IllegalArgumentException if endpoint has no executor
+	 * @since 4.0 (removed executor from arguments)
 	 */
-	public ClientObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
+	public ClientObserveRelation(Request request, Endpoint endpoint) {
+		this.scheduler = endpoint.getExecutor();
+		if (this.scheduler == null) {
+			throw new IllegalArgumentException("Endpoint executor must not be null!");
+		}
 		this.request = request;
 		this.confirmable = request.isConfirmable();
 		this.tcp = CoAP.isTcpScheme(request.getScheme());
@@ -156,7 +161,6 @@ public class ClientObserveRelation {
 		this.orderer = tcp ? null : new ObserveNotificationOrderer();
 		this.reregistrationBackoffMillis = endpoint.getConfig().get(CoapConfig.NOTIFICATION_REREGISTRATION_BACKOFF,
 				TimeUnit.MILLISECONDS);
-		this.scheduler = executor;
 		this.request.addMessageObserver(pendingRequestObserver);
 		this.request.setProtectFromOffload();
 	}
@@ -295,7 +299,7 @@ public class ClientObserveRelation {
 
 	/**
 	 * Cancel observation.
-	 * 
+	 * <p>
 	 * Cancel pending request of this observation and stop reregistrations.
 	 */
 	private void cancel() {
@@ -368,9 +372,9 @@ public class ClientObserveRelation {
 
 	/**
 	 * Sets the current response or notification.
-	 *
-	 * Use {@link #orderer} to filter deprecated responses over UDP.
-	 * Responses over TCP are already in order.
+	 * <p>
+	 * Use {@link #orderer} to filter deprecated responses over UDP. Responses
+	 * over TCP are already in order.
 	 *
 	 * @param response the response or notification
 	 * @return {@code true}, response is accepted by {@link #orderer},
@@ -412,7 +416,7 @@ public class ClientObserveRelation {
 	 */
 	public boolean matchRequest(Request request) {
 		// the client observe relation is created
-		// before the token is assigned sending the 
+		// before the token is assigned sending the
 		// request.
 		Token token = this.request.getToken();
 		return token != null && token.equals(request.getToken());
@@ -421,11 +425,7 @@ public class ClientObserveRelation {
 	private void setReregistrationHandle(ScheduledFuture<?> reregistrationHandle) {
 		ScheduledFuture<?> previousHandle = this.reregistrationHandle.getAndSet(reregistrationHandle);
 		if (previousHandle != null) {
-			if (previousHandle instanceof Runnable) {
-				scheduler.remove((Runnable) previousHandle);
-			} else {
-				previousHandle.cancel(false);
-			}
+			previousHandle.cancel(false);
 		}
 	}
 
