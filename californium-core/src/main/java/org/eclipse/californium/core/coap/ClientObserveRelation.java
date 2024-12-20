@@ -18,8 +18,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,7 +46,7 @@ public class ClientObserveRelation {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ClientObserveRelation.class);
 
 	/** A executor service to schedule re-registrations */
-	private final ScheduledThreadPoolExecutor scheduler;
+	private final ScheduledExecutorService scheduler;
 
 	/** The endpoint. */
 	protected final Endpoint endpoint;
@@ -148,7 +148,7 @@ public class ClientObserveRelation {
 	 * @param endpoint the endpoint
 	 * @param executor the executor to schedule the reregistration.
 	 */
-	public ClientObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
+	public ClientObserveRelation(Request request, Endpoint endpoint, ScheduledExecutorService executor) {
 		this.request = request;
 		this.confirmable = request.isConfirmable();
 		this.tcp = CoAP.isTcpScheme(request.getScheme());
@@ -421,11 +421,7 @@ public class ClientObserveRelation {
 	private void setReregistrationHandle(ScheduledFuture<?> reregistrationHandle) {
 		ScheduledFuture<?> previousHandle = this.reregistrationHandle.getAndSet(reregistrationHandle);
 		if (previousHandle != null) {
-			if (previousHandle instanceof Runnable) {
-				scheduler.remove((Runnable) previousHandle);
-			} else {
-				previousHandle.cancel(false);
-			}
+			previousHandle.cancel(false);
 		}
 	}
 

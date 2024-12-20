@@ -26,7 +26,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.Date;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapResource;
@@ -41,6 +40,7 @@ import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.examples.util.SecureEndpointPool;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.EndpointPool;
@@ -144,9 +144,8 @@ public class ExampleSecureProxy2 {
 	public ExampleSecureProxy2(Configuration config) throws IOException, GeneralSecurityException {
 		coapPort = config.get(CoapConfig.COAP_PORT);
 		int threads = config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT);
-		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads,
+		ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(threads,
 				new DaemonThreadFactory("Proxy#"));
-		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
 		Coap2CoapTranslator translater = new Coap2CoapTranslator();
 		Configuration outgoingConfig = new Configuration(config);
 		outgoingConfig.set(CoapConfig.MAX_ACTIVE_PEERS, config.get(OUTGOING_MAX_ACTIVE_PEERS));
@@ -155,7 +154,7 @@ public class ExampleSecureProxy2 {
 		outgoingConfig.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 1);
 		DtlsConnectorConfig.Builder builder = SecureEndpointPool.setupClient(outgoingConfig);
 		pool = new SecureEndpointPool(config.get(MAX_CONNECTION_POOL_SIZE), config.get(INIT_CONNECTION_POOL_SIZE),
-				outgoingConfig, mainExecutor, secondaryExecutor, builder.build());
+				outgoingConfig, executor, builder.build());
 		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, false, translater, pool);
 		coap2coap.setMaxResourceBodySize(config.get(CoapConfig.MAX_RESOURCE_BODY_SIZE));
 
@@ -166,7 +165,7 @@ public class ExampleSecureProxy2 {
 		proxyMessageDeliverer.addProxyCoapResources(coap2coap);
 		proxyMessageDeliverer.addExposedServiceAddresses(new InetSocketAddress(coapPort));
 		coapProxyServer.setMessageDeliverer(proxyMessageDeliverer);
-		coapProxyServer.setExecutors(mainExecutor, secondaryExecutor, false);
+		coapProxyServer.setExecutor(executor, false);
 		coapProxyServer.add(coap2coap);
 
 		CoapResource targets = new CoapResource("targets");

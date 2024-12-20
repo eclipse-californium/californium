@@ -70,7 +70,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -86,13 +85,14 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.TestThreadFactory;
+import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
 import org.eclipse.californium.scandium.ConnectorHelper.RecordCollectorDataHandler;
 import org.eclipse.californium.scandium.ConnectorHelper.TestContext;
-import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
 import org.eclipse.californium.scandium.ConnectorHelper.UdpConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -172,7 +172,7 @@ public class DTLSConnectorTest {
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
 
 	private static ConnectorHelper serverHelper;
-	private static ExecutorService executor;
+	private static ProtocolScheduledExecutorService executor;
 
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
@@ -183,7 +183,7 @@ public class DTLSConnectorTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 
-		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-"));
+		executor = ExecutorsUtil.newProtocolScheduledThreadPool(2, new TestThreadFactory("DTLS-"));
 
 		AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore(CLIENT_IDENTITY,
 				CLIENT_IDENTITY_SECRET.getBytes());

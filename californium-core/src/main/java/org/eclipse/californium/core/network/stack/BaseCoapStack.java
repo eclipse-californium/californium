@@ -28,7 +28,6 @@
 package org.eclipse.californium.core.network.stack;
 
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -40,6 +39,7 @@ import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.Layer.TopDownBuilder;
 import org.eclipse.californium.core.observe.ObservationStoreException;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,9 +139,9 @@ public abstract class BaseCoapStack implements CoapStack {
 	}
 
 	@Override
-	public final void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
+	public final void setExecutor(ProtocolScheduledExecutorService executor) {
 		for (Layer layer : layers) {
-			layer.setExecutors(mainExecutor, secondaryExecutor);
+			layer.setExecutor(executor);
 		}
 	}
 

@@ -22,7 +22,6 @@ import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
 import java.util.Date;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapServer;
@@ -33,6 +32,7 @@ import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.eclipse.californium.proxy2.http.Coap2HttpTranslator;
@@ -114,9 +114,8 @@ public class ExampleCoapToHttpProxy2 {
 		HttpClientFactory.setNetworkConfig(config);
 		coapPort = config.get(CoapConfig.COAP_PORT);
 		int threads = config.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT);
-		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads,
+		ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(threads,
 				new DaemonThreadFactory("Proxy#"));
-		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
 		Coap2CoapTranslator translater = new Coap2CoapTranslator();
 		ProxyCacheResource cacheResource = null;
 		StatsResource statsResource = null;
@@ -138,7 +137,7 @@ public class ExampleCoapToHttpProxy2 {
 		proxyMessageDeliverer.addProxyCoapResources(coap2http);
 		proxyMessageDeliverer.addExposedServiceAddresses(new InetSocketAddress(coapPort));
 		coapProxyServer.setMessageDeliverer(proxyMessageDeliverer);
-		coapProxyServer.setExecutors(mainExecutor, secondaryExecutor, false);
+		coapProxyServer.setExecutor(executor, false);
 		coapProxyServer.add(coap2http);
 		if (cache) {
 			coapProxyServer.add(statsResource);

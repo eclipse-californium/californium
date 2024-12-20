@@ -16,7 +16,6 @@
 package org.eclipse.californium.cli.tcp.netty;
 
 import java.security.GeneralSecurityException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.KeyManager;
@@ -33,6 +32,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.tcp.netty.TlsClientConnector;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.SslContextUtil;
 
 /**
@@ -45,7 +45,7 @@ public class TlsConnectorFactory implements CliConnectorFactory {
 	private static final String ALIAS = "client";
 
 	@Override
-	public Connector create(ClientBaseConfig clientConfig, ExecutorService executor) {
+	public Connector create(ClientBaseConfig clientConfig, ProtocolScheduledExecutorService executor) {
 		Configuration config = clientConfig.configuration;
 		int maxPeers = config.get(CoapConfig.MAX_ACTIVE_PEERS);
 		int sessionTimeout = config.getTimeAsInt(TcpConfig.TLS_SESSION_TIMEOUT, TimeUnit.SECONDS);

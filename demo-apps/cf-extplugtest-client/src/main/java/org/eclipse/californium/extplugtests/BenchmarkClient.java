@@ -42,8 +42,6 @@ import java.util.Collections;
 import java.util.Formatter;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -95,6 +93,7 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TimeStatistic;
 import org.eclipse.californium.extplugtests.resources.Feed;
@@ -595,7 +594,7 @@ public class BenchmarkClient {
 	/**
 	 * Executor service for this client.
 	 */
-	private final ScheduledExecutorService executorService;
+	private final ProtocolScheduledExecutorService executorService;
 	/**
 	 * Client to be used for benchmark.
 	 */
@@ -990,7 +989,7 @@ public class BenchmarkClient {
 	 *            (e.g. cleanup tasks).
 	 */
 	public BenchmarkClient(int index, Config.Reverse reverse, URI uri, CoapEndpoint endpoint,
-			ScheduledExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
+			ProtocolScheduledExecutorService executor) {
 		this.secure = CoAP.isSecureScheme(uri.getScheme());
 		this.tcp = CoAP.isTcpScheme(uri.getScheme());
 		Connector connector = endpoint.getConnector();
@@ -1001,7 +1000,7 @@ public class BenchmarkClient {
 		int maxResourceSize = configuration.get(CoapConfig.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
 			int threads = configuration.get(BENCHMARK_CLIENT_THREADS);
-			this.executorService = ExecutorsUtil.newScheduledThreadPool(threads, threadFactory);
+			this.executorService = ExecutorsUtil.newProtocolScheduledThreadPool(threads, threadFactory);
 			this.shutdown = true;
 		} else {
 			this.executorService = executor;
@@ -1017,7 +1016,7 @@ public class BenchmarkClient {
 		}
 
 		endpoint.addInterceptor(new MessageTracer());
-		endpoint.setExecutors(this.executorService, secondaryExecutor);
+		endpoint.setExecutor(this.executorService);
 		this.client = new CoapClient(uri);
 		this.server = new CoapServer(configuration);
 		if (reverse != null) {
@@ -1030,8 +1029,8 @@ public class BenchmarkClient {
 			feed.addObserver(feedObserver);
 			this.server.add(feed);
 		}
-		this.server.setExecutors(this.executorService, secondaryExecutor, true);
-		this.client.setExecutors(this.executorService, secondaryExecutor, true);
+		this.server.setExecutor(this.executorService, true);
+		this.client.setExecutor(this.executorService, true);
 		this.endpoint = endpoint;
 	}
 
@@ -1351,18 +1350,18 @@ public class BenchmarkClient {
 		overallReverseResponsesDownCounter.set(overallReverseResponses);
 		overallNotifiesDownCounter.set(overallNotifies);
 
+		int clienThreads = config.configuration.get(BENCHMARK_CLIENT_THREADS);
+		int threads = Runtime.getRuntime().availableProcessors();
+		if (clienThreads == 0) threads *= 2;
 		final List<BenchmarkClient> clientList = Collections.synchronizedList(new ArrayList<BenchmarkClient>(clients));
-		ScheduledExecutorService executor = ExecutorsUtil
-				.newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new DaemonThreadFactory("Aux#"));
+		ProtocolScheduledExecutorService executor = ExecutorsUtil
+				.newProtocolScheduledThreadPool(threads, new DaemonThreadFactory("Aux#"));
 
-		final ScheduledExecutorService connectorExecutor = config.configuration.get(BENCHMARK_CLIENT_THREADS) == 0
+		final ProtocolScheduledExecutorService connectorExecutor = clienThreads == 0
 				? executor
 				: null;
 		final boolean secure = CoAP.isSecureScheme(uri.getScheme());
 		final boolean dtls = secure && !CoAP.isTcpScheme(uri.getScheme());
-
-		final ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(2,
-				new DaemonThreadFactory("Aux(secondary)#"));
 
 		String proxyMessage = "";
 		if (config.proxy != null) {
@@ -1483,7 +1482,7 @@ public class BenchmarkClient {
 						coapEndpoint.addPostProcessInterceptor(health);
 					}
 					BenchmarkClient client = new BenchmarkClient(currentIndex, config.reverse, uri, coapEndpoint,
-							connectorExecutor, secondaryExecutor);
+							connectorExecutor);
 					clientList.add(client);
 					try {
 						client.start();
