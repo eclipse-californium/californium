@@ -33,7 +33,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.ClientObserveRelation;
 import org.eclipse.californium.core.coap.Request;
@@ -61,7 +61,7 @@ public class CoapObserveRelation extends ClientObserveRelation {
 	 * @param endpoint the endpoint
 	 * @param executor the executor to schedule the reregistration.
 	 */
-	protected CoapObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
+	protected CoapObserveRelation(Request request, Endpoint endpoint, ScheduledExecutorService executor) {
 		super(request, endpoint, executor);
 	}
 

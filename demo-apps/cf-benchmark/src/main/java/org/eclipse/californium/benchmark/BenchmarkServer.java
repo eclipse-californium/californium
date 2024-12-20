@@ -18,7 +18,6 @@ package org.eclipse.californium.benchmark;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapServer;
@@ -29,6 +28,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 
 /**
@@ -107,12 +107,10 @@ public class BenchmarkServer {
 		CoapServer server = new CoapServer();
 		if (use_workers) {
 			System.out.println("Use queues with "+protocol_threads+" workers");
-			server.setExecutors(new WorkQueueExecutor(protocol_threads),
-					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
+			server.setExecutor(new WorkQueueExecutor(protocol_threads), false);
 		} else {
 			System.out.println("Endpoint thread-pool size: "+protocol_threads);
-			server.setExecutors(Executors.newScheduledThreadPool(protocol_threads),
-					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
+			server.setExecutor(ExecutorsUtil.newProtocolScheduledThreadPool(protocol_threads, new NamedThreadFactory("benchmark")), false);
 		}
 		System.out.println("Number of receiver/sender threads: "+udp_receiver+"/"+udp_sender);
 

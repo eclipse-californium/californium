@@ -52,14 +52,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MessageObserver;
@@ -67,6 +66,7 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.observe.NotificationListener;
@@ -74,6 +74,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,10 +122,7 @@ public class CoapClient {
 	private int blockwise = 0;
 
 	/** The client-specific executor service. */
-	private ExecutorService executor;
-
-	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
-	private volatile ScheduledThreadPoolExecutor secondaryExecutor;
+	private ProtocolScheduledExecutorService executor;
 
 	/**
 	 * Indicate, it the client-specific executor service is detached, or
@@ -353,19 +351,16 @@ public class CoapClient {
 	 */
 	public CoapClient useExecutor() {
 		boolean failed = true;
-		ExecutorService executor = ExecutorsUtil.newFixedThreadPool(1, new NamedThreadFactory("CoapClient(main)#")); //$NON-NLS-1$
-		ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("CoapClient(secondary)#"));
+		ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(1, new NamedThreadFactory("CoapClient(main)#")); //$NON-NLS-1$
 		synchronized (this) {
-			if (this.executor == null && this.secondaryExecutor == null) {
+			if (this.executor == null) {
 				this.executor = executor;
-				this.secondaryExecutor = secondaryExecutor;
 				this.detachExecutor = false;
 				failed = false;
 			}
 		}
 		if (failed) {
 			executor.shutdownNow();
-			secondaryExecutor.shutdown();
 			throw new IllegalStateException("Executor already set or used!");
 		}
 
@@ -381,28 +376,26 @@ public class CoapClient {
 	}
 
 	/**
-	 * Sets the executor services for this client.
-	 * 
+	 * Sets the executor service for this client.
+	 * <p>
 	 * All handlers will be invoked by the main executor. The executors will shutdown
 	 * on {@link #shutdown()}, if not detached.
 	 * 
-	 * @param executor the main executor service
-	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks).
+	 * @param executor the executor service
 	 * @param detach {@code true}, if the executor is not shutdown on
 	 *            {@link #shutdown()}, {@code false}, otherwise.
 	 * @return the CoAP client
 	 * @throws IllegalStateException if executor is already set or used.
 	 * @throws NullPointerException if provided executors are null
 	 */
-	public CoapClient setExecutors(ExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor, boolean detach) {
-		if (executor == null || secondaryExecutor == null) {
-			throw new NullPointerException("Executors must not be null!");
+	public CoapClient setExecutor(ProtocolScheduledExecutorService executor, boolean detach) {
+		if (executor == null) {
+			throw new NullPointerException("Executor must not be null!");
 		}
 		boolean failed = true;
 		synchronized (this) {
-			if (this.executor == null && this.secondaryExecutor == null) {
+			if (this.executor == null) {
 				this.executor = executor;
-				this.secondaryExecutor = secondaryExecutor;
 				this.detachExecutor = detach;
 				failed = false;
 			}
@@ -413,16 +406,15 @@ public class CoapClient {
 		return this;
 	}
 
-	private synchronized ScheduledThreadPoolExecutor getSecondaryExecutor() {
+	private synchronized ScheduledExecutorService getBackgroundExecutor() {
 		// Warning there is maybe a performance issue here, see : 
 		// - https://en.wikipedia.org/wiki/Double-checked_locking#Usage_in_Java
 		// - https://github.com/eclipse/californium/issues/1420
-		if (secondaryExecutor == null) {
-			secondaryExecutor = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("CoapClient(secondary)#"));
-			this.detachExecutor = false;
+		if (executor == null) {
+			useExecutor();
 		}
 
-		return secondaryExecutor;
+		return executor.getBackgroundExecutor();
 	}
 
 	/**
@@ -1312,21 +1304,15 @@ public class CoapClient {
 	 */
 	public void shutdown() {
 		ExecutorService executor;
-		ExecutorService secondaryExecutor;
 		boolean shutdown;
 		synchronized (this) {
 			executor = this.executor;
-			secondaryExecutor = this.secondaryExecutor;
 			shutdown = !this.detachExecutor;
 			this.executor = null;
-			this.secondaryExecutor = null;
 		}
 		if (shutdown) {
 			if (executor != null) {
 				executor.shutdownNow();
-			}
-			if (secondaryExecutor != null) {
-				secondaryExecutor.shutdownNow();
 			}
 		}
 	}
@@ -1463,7 +1449,7 @@ public class CoapClient {
 		if (request.getOptions().hasObserve()) {
 			assignClientUriIfEmpty(request);
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
-			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint, getSecondaryExecutor());
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint, getBackgroundExecutor());
 			// add message observer to get the response.
 			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, request.isMulticast(), relation);
 			request.addMessageObserver(messageObserver);
@@ -1500,7 +1486,7 @@ public class CoapClient {
 		if (request.getOptions().hasObserve()) {
 			assignClientUriIfEmpty(request);
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
-			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint, getSecondaryExecutor());
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint, getBackgroundExecutor());
 			// add message observer to get the response.
 			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, request.isMulticast(), relation);
 			request.addMessageObserver(messageObserver);

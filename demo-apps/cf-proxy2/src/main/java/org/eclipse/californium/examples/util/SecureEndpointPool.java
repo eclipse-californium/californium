@@ -18,17 +18,17 @@ package org.eclipse.californium.examples.util;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.proxy2.EndpointPool;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
@@ -54,13 +54,12 @@ public class SecureEndpointPool extends EndpointPool {
 	 * @param size size of pool
 	 * @param init initial size of pool
 	 * @param config configuration to create endpoints.
-	 * @param mainExecutor main executor for endpoints
-	 * @param secondaryExecutor secondary executor for endpoints
+	 * @param executor executor for endpoints
 	 * @param dtlsConfig DTLS connector configuration
 	 */
-	public SecureEndpointPool(int size, int init, Configuration config, ScheduledExecutorService mainExecutor,
-			ScheduledExecutorService secondaryExecutor, DtlsConnectorConfig dtlsConfig) {
-		super(size, config, mainExecutor, secondaryExecutor);
+	public SecureEndpointPool(int size, int init, Configuration config, ProtocolScheduledExecutorService executor,
+			 DtlsConnectorConfig dtlsConfig) {
+		super(size, config, executor);
 		this.dtlsConfig = dtlsConfig;
 		this.scheme = init(init);
 	}
@@ -76,9 +75,9 @@ public class SecureEndpointPool extends EndpointPool {
 	@Override
 	protected Endpoint createEndpoint() throws IOException {
 		DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig);
-		dtlsConnector.setExecutor(mainExecutor);
+		dtlsConnector.setExecutor(executor);
 		Endpoint endpoint = new CoapEndpoint.Builder().setConfiguration(config).setConnector(dtlsConnector).build();
-		endpoint.setExecutors(mainExecutor, secondaryExecutor);
+		endpoint.setExecutor(executor);
 		try {
 			endpoint.start();
 			return endpoint;

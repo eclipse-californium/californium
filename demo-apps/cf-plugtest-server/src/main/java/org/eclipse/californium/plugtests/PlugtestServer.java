@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
@@ -61,6 +60,7 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil.InetAddressFilter;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil.SimpleInetAddressFilter;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
@@ -356,11 +356,9 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 		Configuration configuration = init(config);
 		setupPersistence(config);
-		ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
+		ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(//
 				configuration.get(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT), //
-				new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
-		ScheduledExecutorService secondaryExecutor = ExecutorsUtil
-				.newDefaultSecondaryScheduler("CoapServer(secondary)#");
+				new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 
 		EndpointNetSocketObserver socketObserver = null;
 		final NetSocketHealthLogger socketLogger = new NetSocketHealthLogger("udp");
@@ -368,19 +366,13 @@ public class PlugtestServer extends AbstractTestServer {
 		if (interval > 0 && socketLogger.isEnabled()) {
 			long readInterval = configuration.get(UDP_DROPS_READ_INTERVAL, TimeUnit.MILLISECONDS);
 			if (interval > readInterval) {
-				secondaryExecutor.scheduleAtFixedRate(new Runnable() {
-
-					@Override
-					public void run() {
-						socketLogger.read();
-					}
-				}, readInterval, readInterval, TimeUnit.MILLISECONDS);
+				executor.scheduleBackgroundAtFixedRate(() -> socketLogger.read(), readInterval, readInterval, TimeUnit.MILLISECONDS);
 			}
 			socketObserver = new EndpointNetSocketObserver(socketLogger);
 		}
-		start(executor, secondaryExecutor, config, configuration, socketObserver, new ActiveInputReader());
+		start(executor, config, configuration, socketObserver, new ActiveInputReader());
 		LOGGER.info("Executor shutdown ...");
-		ExecutorsUtil.shutdownExecutorGracefully(500, executor, secondaryExecutor);
+		ExecutorsUtil.shutdownExecutorGracefully(500, executor);
 		exit();
 		LOGGER.info("Exit ...");
 	}
@@ -508,16 +500,16 @@ public class PlugtestServer extends AbstractTestServer {
 		}
 	}
 
-	public static AbstractTestServer start(ScheduledExecutorService mainExecutor,
-			ScheduledExecutorService secondaryExecutor, BaseConfig config, Configuration configuration,
+	public static AbstractTestServer start(ProtocolScheduledExecutorService executor,
+			BaseConfig config, Configuration configuration,
 			EndpointNetSocketObserver observer, ActiveInputReader inputReader) {
 
 		if (server != null) {
-			server.setExecutors(mainExecutor, secondaryExecutor, true);
+			server.setExecutor(executor, true);
 			if (observer != null) {
 				server.addDefaultEndpointObserver(observer);
 			}
-			server.add(new Echo(configuration, config.echoDelay ? mainExecutor : null));
+			server.add(new Echo(configuration, config.echoDelay ? executor : null));
 			server.start();
 			server.addLogger(true);
 

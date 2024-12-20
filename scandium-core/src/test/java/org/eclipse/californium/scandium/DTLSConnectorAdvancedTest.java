@@ -49,7 +49,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -70,6 +69,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestConditionTools;
@@ -195,7 +195,7 @@ public class DTLSConnectorAdvancedTest {
 	static DtlsHealthLogger clientHealth;
 
 	static TestScheduledExecutorService timer;
-	static ExecutorService executor;
+	static ProtocolScheduledExecutorService executor;
 	static ConnectionIdGenerator serverCidGenerator;
 	static DtlsConnectorConfig serverConfigSingleRecord;
 
@@ -346,7 +346,7 @@ public class DTLSConnectorAdvancedTest {
 		serverConfigSingleRecord = DtlsConnectorConfig.builder(serverHelper.serverConfig)
 				.set(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES, false)
 				.build();
-		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-ADVANCED-"));
+		executor = ExecutorsUtil.newProtocolScheduledThreadPool(2, new TestThreadFactory("DTLS-ADVANCED-"));
 		cleanup.add(executor);
 		timer = new TestScheduledExecutorService();
 		cleanup.add(timer);

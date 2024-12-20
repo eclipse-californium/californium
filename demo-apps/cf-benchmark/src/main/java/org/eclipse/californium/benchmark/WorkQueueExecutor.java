@@ -30,7 +30,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class WorkQueueExecutor implements ScheduledExecutorService {
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
+
+public class WorkQueueExecutor implements ProtocolScheduledExecutorService {
 
 	private ScheduledExecutorService timerService;
 	private ThreadFactory threadFactory;
@@ -182,6 +184,34 @@ public class WorkQueueExecutor implements ScheduledExecutorService {
 				}
 			}
 		}
+	}
+
+	@Override
+	public ScheduledFuture<?> scheduleBackground(Runnable command, long delay, TimeUnit unit) {
+		return schedule(command, delay, unit);
+	}
+
+	@Override
+	public <V> ScheduledFuture<V> scheduleBackground(Callable<V> callable, long delay, TimeUnit unit) {
+		return schedule(callable, delay, unit);
+	}
+
+	@Override
+	public ScheduledFuture<?> scheduleBackgroundAtFixedRate(Runnable command, long initialDelay, long period,
+			TimeUnit unit) {
+		return scheduleAtFixedRate(command, initialDelay, period, unit);
+	}
+
+	@Override
+	public ScheduledFuture<?> scheduleBackgroundWithFixedDelay(Runnable command, long initialDelay, long delay,
+			TimeUnit unit) {
+		return scheduleWithFixedDelay(command, initialDelay, delay, unit);
+	}
+
+	@Override
+	public ScheduledExecutorService getBackgroundExecutor() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

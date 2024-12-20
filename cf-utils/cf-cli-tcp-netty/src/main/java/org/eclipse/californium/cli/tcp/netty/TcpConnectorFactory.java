@@ -15,12 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.cli.tcp.netty;
 
-import java.util.concurrent.ExecutorService;
-
 import org.eclipse.californium.cli.CliConnectorFactory;
 import org.eclipse.californium.cli.ClientBaseConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.tcp.netty.TcpClientConnector;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 
 /**
  * TCP connector factory for CLI.
@@ -30,7 +29,7 @@ import org.eclipse.californium.elements.tcp.netty.TcpClientConnector;
 public class TcpConnectorFactory implements CliConnectorFactory {
 
 	@Override
-	public Connector create(ClientBaseConfig clientConfig, ExecutorService executor) {
+	public Connector create(ClientBaseConfig clientConfig, ProtocolScheduledExecutorService executor) {
 		return new TcpClientConnector(clientConfig.configuration);
 	}
 

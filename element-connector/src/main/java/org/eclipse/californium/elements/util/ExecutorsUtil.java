@@ -25,8 +25,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,6 +105,28 @@ public class ExecutorsUtil {
 			}
 		}
 		REMOVE_ON_CANCEL = remove;
+	}
+
+	/**
+	 * Creates a protocol scheduled thread pool executor service.
+	 * <p>
+	 * If the provided number of threads exceeds the {@link #SPLIT_THRESHOLD},
+	 * the {@code SplitScheduledThreadPoolExecutor} is returned.
+	 * <p>
+	 * Creates also two additional background threads.
+	 * 
+	 * @param poolSize number of threads for thread pool.
+	 * @param threadFactory thread factory
+	 * @return thread pool based protocol scheduled executor service
+	 * @since 4.0
+	 */
+	public static ProtocolScheduledExecutorService newProtocolScheduledThreadPool(int poolSize,
+			ThreadFactory threadFactory) {
+		return new ProtocolScheduledThreadPoolExecutor(poolSize, threadFactory);
+	}
+
+	public static ProtocolScheduledExecutorService newSingleThreadedProtocolExecutor(ThreadFactory threadFactory) {
+		return new SingleThreadedProtocolScheduledExecutor(threadFactory);
 	}
 
 	/**
@@ -371,11 +393,13 @@ public class ExecutorsUtil {
 
 		@Override
 		public List<Runnable> shutdownNow() {
-			List<Runnable> result = super.shutdownNow();
 			if (directExecutor != null) {
-				result.addAll(directExecutor.shutdownNow());
+				List<Runnable> result = directExecutor.shutdownNow();
+				result.addAll(super.shutdownNow());
+				return result;
+			} else {
+				return super.shutdownNow();
 			}
-			return result;
 		}
 
 		@Override
@@ -388,6 +412,103 @@ public class ExecutorsUtil {
 			} else {
 				return super.awaitTermination(timeout, unit);
 			}
+		}
+	}
+
+	private static class ProtocolScheduledThreadPoolExecutor extends SplitScheduledThreadPoolExecutor
+			implements ProtocolScheduledExecutorService {
+
+		private final ScheduledThreadPoolExecutor background;
+
+		public ProtocolScheduledThreadPoolExecutor(int corePoolSize, ThreadFactory threadFactory) {
+			super(corePoolSize, threadFactory);
+			background = new ScheduledThreadPoolExecutor(2, threadFactory);
+			ExecutorsUtil.setRemoveOnCancelPolicy(background);
+			background.execute(WARMUP);
+			background.prestartAllCoreThreads();
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleBackground(Runnable command, long delay, TimeUnit unit) {
+			return background.schedule(command, delay, unit);
+		}
+
+		@Override
+		public <V> ScheduledFuture<V> scheduleBackground(Callable<V> callable, long delay, TimeUnit unit) {
+			return background.schedule(callable, delay, unit);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleBackgroundAtFixedRate(Runnable command, long initialDelay, long period,
+				TimeUnit unit) {
+			return background.scheduleAtFixedRate(command, initialDelay, period, unit);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleBackgroundWithFixedDelay(Runnable command, long initialDelay, long delay,
+				TimeUnit unit) {
+			return background.scheduleWithFixedDelay(command, initialDelay, delay, unit);
+		}
+
+		@Override
+		public ScheduledExecutorService getBackgroundExecutor() {
+			return background;
+		}
+
+		@Override
+		public void shutdown() {
+			background.shutdown();
+			super.shutdown();
+		}
+
+		@Override
+		public List<Runnable> shutdownNow() {
+			List<Runnable> result = background.shutdownNow();
+			result.addAll(super.shutdownNow());
+			return result;
+		}
+
+		@Override
+		public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+			if (!background.awaitTermination(timeout / 2, unit)) {
+				return false;
+			}
+			return super.awaitTermination(timeout / 2, unit);
+		}
+	}
+
+	private static class SingleThreadedProtocolScheduledExecutor extends ScheduledThreadPoolExecutor
+			implements ProtocolScheduledExecutorService {
+
+		public SingleThreadedProtocolScheduledExecutor(ThreadFactory threadFactory) {
+			super(1, threadFactory);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleBackground(Runnable command, long delay, TimeUnit unit) {
+			return schedule(command, delay, unit);
+		}
+
+		@Override
+		public <V> ScheduledFuture<V> scheduleBackground(Callable<V> callable, long delay, TimeUnit unit) {
+			return schedule(callable, delay, unit);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleBackgroundAtFixedRate(Runnable command, long initialDelay, long period,
+				TimeUnit unit) {
+			return scheduleAtFixedRate(command, initialDelay, period, unit);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleBackgroundWithFixedDelay(Runnable command, long initialDelay, long delay,
+				TimeUnit unit) {
+			return scheduleWithFixedDelay(command, initialDelay, delay, unit);
+		}
+
+		@Override
+		public ScheduledExecutorService getBackgroundExecutor() {
+			return this;
 		}
 	}
 }

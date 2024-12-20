@@ -20,8 +20,6 @@ package org.eclipse.californium.benchmark.observe;
 
 import java.net.InetSocketAddress;
 import java.util.HashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.CoapClient;
@@ -29,23 +27,22 @@ import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 
 public class AnnounceResource extends CoapResource {
 
 	private HashMap<InetSocketAddress, CoapObserveRelation> relationStorage;
 	private CoapHandler handler;
-	private ExecutorService executor;
-	private ScheduledThreadPoolExecutor secondaryExecutor;
+	private ProtocolScheduledExecutorService executor;
 
-	public AnnounceResource(String name, ExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
+	public AnnounceResource(String name, ProtocolScheduledExecutorService executor) {
 		super(name);
 		this.executor = executor;
-		this.secondaryExecutor = secondaryExecutor;
 		relationStorage = new HashMap<InetSocketAddress, CoapObserveRelation>();
 		handler = new CoapHandler() {
 			private AtomicBoolean testdump = new AtomicBoolean(false);
@@ -130,7 +127,7 @@ public class AnnounceResource extends CoapResource {
 	public CoapClient createClient(Endpoint outgoing) {
 		CoapClient client = new CoapClient();
 		try {
-			client.setExecutors(executor, secondaryExecutor, true);
+			client.setExecutor(executor, true);
 		} catch (NullPointerException ex) {
 			throw new IllegalStateException("At least one executor is not availabe!");
 		}
