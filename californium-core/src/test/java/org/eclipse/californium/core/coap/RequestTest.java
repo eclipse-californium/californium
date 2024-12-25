@@ -36,6 +36,7 @@ import java.util.List;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -106,13 +107,13 @@ public class RequestTest {
 		String nonUsAsciiQuery = "ä=öß";
 		Request req = Request.newGet().setURI(String.format("coap://127.0.0.1/%s?%s", nonUsAsciiPath, nonUsAsciiQuery));
 
-		List<String> path = req.getOptions().getUriPath();
+		List<StringOption> path = req.getOptions().getUriPath();
 		assertThat(path, is(notNullValue()));
-		assertThat(path.get(0), is(nonUsAsciiPath));
+		assertThat(path.get(0).getStringValue(), is(nonUsAsciiPath));
 
-		List<String> query = req.getOptions().getUriQuery();
+		List<StringOption> query = req.getOptions().getUriQuery();
 		assertThat(query, is(notNullValue()));
-		assertThat(query.get(0), is(nonUsAsciiQuery));
+		assertThat(query.get(0).getStringValue(), is(nonUsAsciiQuery));
 	}
 
 	@Test(expected = IllegalArgumentException.class)

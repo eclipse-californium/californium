@@ -186,7 +186,7 @@ public class Diagnose extends ProtectedCoapResource {
 				healths = endpointsHealth.get(endpoint.getAddress());
 			}
 		} else if (healths == null) {
-			List<String> query = exchange.getRequestOptions().getUriQuery();
+			List<String> query = exchange.getRequestOptions().getUriQueryStrings();
 			if (query.size() > 1) {
 				exchange.respond(ResponseCode.BAD_OPTION, "only one search query is supported!",
 						MediaTypeRegistry.TEXT_PLAIN);

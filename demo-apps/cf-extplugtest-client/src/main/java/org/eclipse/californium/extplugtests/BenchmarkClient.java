@@ -64,12 +64,13 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.Message.OffloadMode;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.ResponseTimeout;
-import org.eclipse.californium.core.coap.option.BlockOption;
-import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
@@ -727,16 +728,16 @@ public class BenchmarkClient {
 			if (response.isSuccess()) {
 				if (!stop.get()) {
 					String cmd = null;
-					List<String> queries = response.getOptions().getLocationQuery();
-					for (String query : queries) {
-						if (query.startsWith("hono-command=")) {
-							cmd = query.substring("hono-command=".length());
+					List<StringOption> queries = response.getOptions().getLocationQuery();
+					for (StringOption query : queries) {
+						if (query.getStringValue().startsWith("hono-command=")) {
+							cmd = query.getStringValue().substring("hono-command=".length());
 							break;
 						}
 					}
 					if (cmd != null) {
 						overallHonoCmds.incrementAndGet();
-						List<String> location = response.getOptions().getLocationPath();
+						List<StringOption> location = response.getOptions().getLocationPath();
 						if (location.size() == 2 || location.size() == 4) {
 							LOGGER.debug("{}: cmd {}: {}", id, cmd, location);
 							final Request cmdResponse = post.getCode() == Code.PUT ? Request.newPut()

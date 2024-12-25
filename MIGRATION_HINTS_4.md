@@ -62,6 +62,8 @@ Supports virtual threads for DTLS receivers, if the JVM supports it. Otherwise p
 
 The `Option` is changed to be immutable, removing the setters.
 
+The `OptionSet` uses now instances of `Option` subclasses instead of the representing java types.
+
 ### Californium-Proxy2:
 
 The apache http libraries haven been update to http-client 5.4 and http-core 5.3. The previous version used a pre-processing filter to implement a generic proxy (catch all), which added the path "proxy" to the incoming request. With this update the `RequestRouter` is used and so the routing may have changed slightly according the details. The proxy handler is now called with the original path without additional "proxy".
@@ -132,6 +134,8 @@ The `Option.getStringValue()` and `Option.getIntegerValue()/getLongValue()` are 
 
 The `BlockOption` and `NoResponseOption` moved into the `org.eclipse.californium.core.coap.option` package.
 The specific `OptionDefinition`s are moved into static classes, e.g. `IntegerOptionDefinition` to `IntegerOption.Definition`.
+
+The `OptionSet` functions returning `List<String>` or `List<byte[]>` returns now `List<Stringoption>` or `List<OpaqueOption>`.
 
 ### Californium-Proxy2:
 

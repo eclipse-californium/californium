@@ -15,7 +15,6 @@
 package org.eclipse.californium.cloud.s3.proxy;
 
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -25,11 +24,11 @@ import org.eclipse.californium.cloud.s3.util.DomainDeviceManager;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MediaTypeRegistry.MediaTypeDefintion;
-import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.option.IntegerOption;
-import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -77,7 +76,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	/**
 	 * List of coap-etags for GET requests.
 	 */
-	private final List<Option> etags;
+	private final List<OpaqueOption> etags;
 	/**
 	 * Interval for S3 PUT request.
 	 * 
@@ -116,7 +115,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * @since 3.13 interval added
 	 */
 	public S3ProxyRequest(Request request, String key, int pathStartIndex, int pathPrincipalIndex, String subPath,
-			List<Option> etags, byte[] content, String contentType, Long timestamp, Integer interval,
+			List<OpaqueOption> etags, byte[] content, String contentType, Long timestamp, Integer interval,
 			Integer coapContentType, Map<String, String> meta, Redirect redirect, CacheMode cacheMode) {
 		super(key, content, contentType, timestamp, meta, redirect, cacheMode);
 		if (request == null) {
@@ -180,12 +179,12 @@ public class S3ProxyRequest extends S3PutRequest {
 			String principal = pathPrincipalIndex >= 0 ? getDeviceName() : "";
 			if (principal != null) {
 				StringBuilder s3Path = new StringBuilder();
-				List<String> coapPath = request.getOptions().getUriPath();
+				List<StringOption> coapPath = request.getOptions().getUriPath();
 				for (int index = pathStartIndex; index < coapPath.size(); ++index) {
 					if (index == pathPrincipalIndex) {
 						s3Path.append(principal).append('/');
 					}
-					s3Path.append(coapPath.get(index)).append('/');
+					s3Path.append(coapPath.get(index).getStringValue()).append('/');
 				}
 				if (coapPath.size() == pathPrincipalIndex) {
 					s3Path.append(principal).append('/');
@@ -216,7 +215,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * 
 	 * @return list of coap-etags
 	 */
-	public List<Option> getETags() {
+	public List<OpaqueOption> getETags() {
 		return etags;
 	}
 
@@ -320,7 +319,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		/**
 		 * List of coap-etags for GET request.
 		 */
-		private List<Option> etags;
+		private List<OpaqueOption> etags;
 
 		/**
 		 * Interval for S3 PUT request.
@@ -413,7 +412,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		 * @param etags coap-etags
 		 * @return builder for command chaining
 		 */
-		public Builder etags(List<Option> etags) {
+		public Builder etags(List<OpaqueOption> etags) {
 			this.etags = etags;
 			return this;
 		}
@@ -485,11 +484,7 @@ public class S3ProxyRequest extends S3PutRequest {
 		 */
 		public S3ProxyRequest build() {
 			if (etags == null) {
-				List<byte[]> coapEtags = request.getOptions().getETags();
-				etags = new ArrayList<>(coapEtags.size());
-				for (byte[] etag : coapEtags) {
-					etags.add(StandardOptionRegistry.ETAG.create(etag));
-				}
+				etags = request.getOptions().getETags();
 			}
 			if (content == null) {
 				content = request.getPayload();
@@ -507,9 +502,9 @@ public class S3ProxyRequest extends S3PutRequest {
 				}
 			}
 			if (interval == null) {
-				Option option = request.getOptions().getOtherOption(S3ProxyCustomOptions.INTERVAL);
-				if (option instanceof IntegerOption) {
-					interval = ((IntegerOption)option).getIntegerValue();
+				IntegerOption option = request.getOptions().getOtherOption(S3ProxyCustomOptions.INTERVAL);
+				if (option != null) {
+					interval = option.getIntegerValue();
 				}
 			}
 			return new S3ProxyRequest(request, key, pathStartIndex, pathPrincipalIndex, subPath, etags, content,

@@ -18,7 +18,6 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.option.IntegerOption;
@@ -109,7 +108,7 @@ public class TimeOption extends IntegerOption {
 		long delta = ClockUtil.delta(message.getNanoTimestamp(), TimeUnit.MILLISECONDS);
 		long receiveTime = System.currentTimeMillis() - delta;
 		Definition definition = null;
-		Option option = message.getOptions().getOtherOption(DEFINITION);
+		TimeOption option = message.getOptions().getOtherOption(DEFINITION);
 		if (option != null) {
 			definition = DEFINITION;
 		} else {
@@ -118,24 +117,23 @@ public class TimeOption extends IntegerOption {
 				definition = DEPRECATED_DEFINITION;
 			}
 		}
-		if (option instanceof TimeOption) {
-			TimeOption time = (TimeOption) option;
-			long value = time.getLongValue();
+		if (option != null) {
+			long value = option.getLongValue();
 			if (value == 0) {
-				time = definition.create(receiveTime);
-				time.adjustTime = true;
+				option = definition.create(receiveTime);
+				option.adjustTime = true;
 				LOGGER.info("Time: send initial time");
 			} else {
 				delta = value - receiveTime;
 				if (Math.abs(delta) > MAX_MILLISECONDS_DELTA) {
 					// difference > 5s => send time fix back.
-					time.adjustTime = true;
+					option.adjustTime = true;
 					LOGGER.info("Time: {}ms delta => send fix", delta);
 				} else {
 					LOGGER.debug("Time: {}ms delta", delta);
 				}
 			}
-			return time;
+			return option;
 		} else {
 			LOGGER.debug("Time: localtime");
 			return DEFINITION.create(receiveTime);

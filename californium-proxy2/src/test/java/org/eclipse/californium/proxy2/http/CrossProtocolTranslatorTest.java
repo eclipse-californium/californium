@@ -143,9 +143,9 @@ public class CrossProtocolTranslatorTest {
 		assertThat(coapOptions.size(), is(3));
 		OptionSet options = new OptionSet().addOptions(coapOptions);
 		assertThat(options.getETagCount(), is(3));
-		assertThat(options.getETags().get(0), is("test".getBytes()));
-		assertThat(options.getETags().get(1), is("ab".getBytes()));
-		assertThat(options.getETags().get(2), is("abc".getBytes()));
+		assertThat(options.getETags().get(0).getValue(), is("test".getBytes()));
+		assertThat(options.getETags().get(1).getValue(), is("ab".getBytes()));
+		assertThat(options.getETags().get(2).getValue(), is("abc".getBytes()));
 	}
 
 	@Test
@@ -156,8 +156,8 @@ public class CrossProtocolTranslatorTest {
 		assertThat(coapOptions.size(), is(2));
 		OptionSet options = new OptionSet().addOptions(coapOptions);
 		assertThat(options.getETagCount(), is(2));
-		assertThat(options.getETags().get(0), is(StringUtil.hex2ByteArray("01abcd34")));
-		assertThat(options.getETags().get(1), is(StringUtil.hex2ByteArray("7788")));
+		assertThat(options.getETags().get(0).getValue(), is(StringUtil.hex2ByteArray("01abcd34")));
+		assertThat(options.getETags().get(1).getValue(), is(StringUtil.hex2ByteArray("7788")));
 	}
 
 	@Test
@@ -167,7 +167,7 @@ public class CrossProtocolTranslatorTest {
 		assertThat(coapOptions.size(), is(1));
 		OptionSet options = new OptionSet().addOptions(coapOptions);
 		assertThat(options.getETagCount(), is(1));
-		assertThat(options.getETags().get(0), is("test".getBytes()));
+		assertThat(options.getETags().get(0).getValue(), is("test".getBytes()));
 	}
 
 	@Test
@@ -177,8 +177,8 @@ public class CrossProtocolTranslatorTest {
 		assertThat(coapOptions.size(), is(2));
 		OptionSet options = new OptionSet().addOptions(coapOptions);
 		assertThat(options.getIfMatchCount(), is(2));
-		assertThat(options.getIfMatch().get(0), is("test".getBytes()));
-		assertThat(options.getIfMatch().get(1), is("ab".getBytes()));
+		assertThat(options.getIfMatch().get(0).getValue(), is("test".getBytes()));
+		assertThat(options.getIfMatch().get(1).getValue(), is("ab".getBytes()));
 	}
 
 	@Test

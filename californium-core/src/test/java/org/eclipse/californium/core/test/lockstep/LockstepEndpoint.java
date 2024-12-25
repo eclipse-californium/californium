@@ -71,7 +71,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -82,6 +81,8 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.network.serialization.DataParser;
@@ -699,11 +700,14 @@ public class LockstepEndpoint {
 
 		public MessageExpectation hasEtag(final byte[] etag) {
 
+			final OpaqueOption etagOption = StandardOptionRegistry.ETAG.create(etag);
+
 			expectations.add(new Expectation<Message>() {
 
 				@Override
 				public void check(final Message message) {
-					assertThat(message.getOptions().getETags(), hasItem(etag));
+					
+					assertThat(message.getOptions().getETags(), hasItem(etagOption));
 				}
 
 				@Override
@@ -1212,8 +1216,9 @@ public class LockstepEndpoint {
 
 				@Override
 				public void check(final Response response) {
-					assertTrue("Response has no ETag", response.getOptions().getETagCount() > 0);
-					storage.put(var, response.getOptions().getETags().get(0));
+					byte[] etag = response.getOptions().getResponseEtag();
+					assertTrue("Response has no ETag", etag != null);
+					storage.put(var, etag);
 				}
 			});
 			return this;
@@ -1224,11 +1229,11 @@ public class LockstepEndpoint {
 
 				@Override
 				public void check(final Response response) {
-					assertTrue("Response has no ETag", response.getOptions().getETagCount() > 0);
+					byte[] etag = response.getOptions().getResponseEtag();
+					assertTrue("Response has no ETag", etag != null);
 					Object obj = storage.get(var);
 					assertThat("Object stored under " + var + " is not an ETag", obj, is(instanceOf(byte[].class)));
-					assertThat("Response contains wrong ETag", (byte[]) obj,
-							is(response.getOptions().getETags().get(0)));
+					assertThat("Response contains wrong ETag", (byte[]) obj, is(etag));
 				}
 			});
 			return this;
