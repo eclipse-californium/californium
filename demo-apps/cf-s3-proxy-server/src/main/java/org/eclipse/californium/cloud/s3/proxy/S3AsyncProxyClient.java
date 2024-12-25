@@ -46,6 +46,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
@@ -486,8 +487,8 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 						boolean withEtag = false;
 						EtagPair etagPair = etags.update(key);
 						if (etagPair != null) {
-							List<Option> coapETags = request.getETags();
-							for (Option etag : coapETags) {
+							List<OpaqueOption> coapETags = request.getETags();
+							for (OpaqueOption etag : coapETags) {
 								if (etagPair.match(etag.getValue())) {
 									getBuilder.ifNoneMatch(etagPair.getS3Etag());
 									withEtag = true;

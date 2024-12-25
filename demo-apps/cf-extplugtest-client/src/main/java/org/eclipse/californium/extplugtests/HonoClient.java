@@ -43,6 +43,7 @@ import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.config.Configuration;
@@ -378,7 +379,7 @@ public class HonoClient {
 					out.write(download, 8, download.length - 8);
 					out.close();
 				}
-				List<String> location = coapResponse.getOptions().getLocationPath();
+				List<StringOption> location = coapResponse.getOptions().getLocationPath();
 				if (location.size() == 2 || location.size() == 4) {
 					System.out.println("cmd: " + cmd + ", " + location);
 					final Request cmdResponse = new Request(request.getCode());
@@ -415,10 +416,10 @@ public class HonoClient {
 
 	private static String getCommand(CoapResponse coapResponse) {
 		String cmd = null;
-		List<String> queries = coapResponse.getOptions().getLocationQuery();
-		for (String query : queries) {
-			if (query.startsWith("hono-command=")) {
-				cmd = query.substring("hono-command=".length());
+		List<StringOption> queries = coapResponse.getOptions().getLocationQuery();
+		for (StringOption query : queries) {
+			if (query.getStringValue().startsWith("hono-command=")) {
+				cmd = query.getStringValue().substring("hono-command=".length());
 				break;
 			}
 		}

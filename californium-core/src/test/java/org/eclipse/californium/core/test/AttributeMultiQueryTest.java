@@ -77,7 +77,7 @@ public class AttributeMultiQueryTest {
 		request.setURI("coap://localhost/.well-known/core?" + query);
 
 		DiscoveryResource discovery = new DiscoveryResource(root);
-		String serialized = discovery.discoverTree(root, request.getOptions().getUriQuery());
+		String serialized = discovery.discoverTree(root, request.getOptions().getUriQueryStrings());
 		LOGGER.info(serialized);
 
 		Assert.assertEquals(expected, serialized);

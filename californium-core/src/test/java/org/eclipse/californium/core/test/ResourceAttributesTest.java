@@ -109,7 +109,7 @@ public class ResourceAttributesTest {
 		request.setURI("coap://localhost/.well-known/core?rt=light-lux");
 
 		DiscoveryResource discovery = new DiscoveryResource(root);
-		String serialized = discovery.discoverTree(root, request.getOptions().getUriQuery());
+		String serialized = discovery.discoverTree(root, request.getOptions().getUriQueryStrings());
 		LOGGER.info(serialized);
 		Assert.assertEquals(expectedTree, serialized);
 	}

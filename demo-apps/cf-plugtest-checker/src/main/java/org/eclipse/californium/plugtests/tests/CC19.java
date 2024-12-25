@@ -18,13 +18,14 @@ package org.eclipse.californium.plugtests.tests;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.plugtests.TestClientAbstract;
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
 
 /**
  * TD_COAP_CORE_18: Perform POST transaction with responses containing
@@ -61,7 +62,7 @@ public class CC19 extends TestClientAbstract {
 		// success &= checkOption(new Option("second=2",
 		// OptionNumberRegistry.LOCATION_QUERY), options.get(1));
 
-		List<String> query = response.getOptions().getLocationQuery();
+		List<String> query = OptionSet.getValues(response.getOptions().getLocationQuery());
 		List<String> expec = Arrays.asList("first=1", "second=2");
 		success &= checkOption(expec, query, "Location Query");
 

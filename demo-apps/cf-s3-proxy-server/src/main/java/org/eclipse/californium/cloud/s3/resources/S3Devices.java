@@ -32,6 +32,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -211,8 +212,8 @@ public class S3Devices extends ProtectedCoapResource {
 	 */
 	public static final String URI_QUERY_OPTION_WRITE = "write";
 	/**
-	 * URI query parameter to append some lines to a series-resource.
-	 * Obsolete. Only used to not break communication of devices in field.
+	 * URI query parameter to append some lines to a series-resource. Obsolete.
+	 * Only used to not break communication of devices in field.
 	 */
 	public static final String URI_QUERY_OPTION_SERIES = "series";
 	/**
@@ -292,7 +293,7 @@ public class S3Devices extends ProtectedCoapResource {
 			exchange.respond(NOT_ACCEPTABLE);
 		} else {
 			final String domain = DomainPrincipalInfo.getDomain(getPrincipal(exchange));
-			List<String> query = exchange.getRequestOptions().getUriQuery();
+			List<String> query = exchange.getRequestOptions().getUriQueryStrings();
 			if (query.size() > 1) {
 				exchange.respond(BAD_OPTION, "only one search query is supported!", TEXT_PLAIN);
 				return;
@@ -413,16 +414,16 @@ public class S3Devices extends ProtectedCoapResource {
 						return;
 					}
 					// forward response code in custom option
-					response.getOptions().addOtherOption(
-							S3ProxyCustomOptions.FORWARD_RESPONSE.create(forward.getCode()));
+					response.getOptions()
+							.addOtherOption(S3ProxyCustomOptions.FORWARD_RESPONSE.create(forward.getCode()));
 				}
 				if (write != null && read != null) {
 					if (write.getCode() == CHANGED && read.getCode() == CONTENT) {
 						// Add get response
 						OptionSet options = write.getOptions();
 						options.setContentFormat(read.getOptions().getContentFormat());
-						for (byte[] etag : read.getOptions().getETags()) {
-							options.addOtherOption(ServerCustomOptions.READ_ETAG.create(etag));
+						for (OpaqueOption etag : read.getOptions().getETags()) {
+							options.addOtherOption(ServerCustomOptions.READ_ETAG.create(etag.getValue()));
 						}
 						write.setPayload(read.getPayload());
 					}
@@ -456,8 +457,12 @@ public class S3Devices extends ProtectedCoapResource {
 
 		if (read != null && !read.isEmpty()) {
 			List<Option> readEtag = request.getOptions().getOthers(ServerCustomOptions.READ_ETAG);
+			List<OpaqueOption> etags = new ArrayList<OpaqueOption>(readEtag.size());
+			for (Option option : readEtag) {
+				etags.add((OpaqueOption) option);
+			}
 			S3ProxyRequest s3ReadRequest = S3ProxyRequest.builder(request).pathPrincipalIndex(1).subPath(read)
-					.etags(readEtag).build();
+					.etags(etags).build();
 			s3Client.get(s3ReadRequest, multi.create("read"));
 		}
 

@@ -45,6 +45,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -266,10 +267,10 @@ public class ClientAsynchronousTest {
 
 		@Override
 		public void handleGET(CoapExchange exchange) {
-			List<String> queries = exchange.getRequestOptions().getUriQuery();
+			List<StringOption> queries = exchange.getRequestOptions().getUriQuery();
 			String c = content;
-			for (String q : queries) {
-				if (QUERY_UPPER_CASE.equals(q)) {
+			for (StringOption q : queries) {
+				if (QUERY_UPPER_CASE.equals(q.getStringValue())) {
 					c = content.toUpperCase();
 				}
 			}

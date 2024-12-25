@@ -30,6 +30,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveHealth;
 import org.eclipse.californium.core.observe.ObserveManager;
@@ -225,10 +226,10 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * @throws DelivererException if an other error is detected.
 	 * @since 3.0 (added DelivererException)
 	 */
-	protected Resource findResource(final List<String> path) throws DelivererException {
+	protected Resource findResource(final List<StringOption> path) throws DelivererException {
 		Resource current = getRootResource();
-		for (String name : path) {
-			current = current.getChild(name);
+		for (StringOption name : path) {
+			current = current.getChild(name.getStringValue());
 			if (current == null) {
 				break;
 			}

@@ -82,7 +82,7 @@ public class DiscoveryResource extends CoapResource {
 			exchange.respond(ResponseCode.NOT_ACCEPTABLE);
 			return;
 		}
-		List<String> query = exchange.getRequestOptions().getUriQuery();
+		List<String> query = exchange.getRequestOptions().getUriQueryStrings();
 		if (query.size() > 1) {
 			exchange.respond(ResponseCode.BAD_OPTION, "only one search query is supported!",
 					MediaTypeRegistry.TEXT_PLAIN);

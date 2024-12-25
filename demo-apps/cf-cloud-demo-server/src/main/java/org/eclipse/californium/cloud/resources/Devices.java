@@ -229,7 +229,7 @@ public class Devices extends ProtectedCoapResource {
 		if (accept != UNDEFINED && accept != APPLICATION_LINK_FORMAT) {
 			exchange.respond(NOT_ACCEPTABLE);
 		} else {
-			List<String> query = exchange.getRequestOptions().getUriQuery();
+			List<String> query = exchange.getRequestOptions().getUriQueryStrings();
 			if (query.size() > 1) {
 				exchange.respond(BAD_OPTION, "only one search query is supported!", TEXT_PLAIN);
 				return;

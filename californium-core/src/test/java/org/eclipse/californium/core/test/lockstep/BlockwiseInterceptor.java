@@ -21,13 +21,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.option.BlockOption;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.BlockOption;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.IntendedTestException;
@@ -115,8 +116,8 @@ public abstract class BlockwiseInterceptor {
 		if (options != null && options.getETagCount() > 0) {
 			buffer.append(", ETags(");
 			int i = 0;
-			for (byte[] tag : options.getETags()) {
-				buffer.append(Utils.toHexString(tag));
+			for (OpaqueOption tag : options.getETags()) {
+				buffer.append(Utils.toHexString(tag.getValue()));
 				if (++i < options.getETagCount()) {
 					buffer.append(", ");
 				}
