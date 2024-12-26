@@ -87,7 +87,7 @@ public class CoapClient {
 
 	/**
 	 * The timeout.
-	 * 
+	 * <p>
 	 * Request/Response timeout in milliseconds. If {@code null}, use
 	 * EXCHANGE_LIFETIME of effective endpoint
 	 */
@@ -111,7 +111,7 @@ public class CoapClient {
 
 	/**
 	 * Destination endpoint context.
-	 * 
+	 * <p>
 	 * If available, used as default for outgoing messages.
 	 */
 	private final AtomicReference<EndpointContext> destinationContext = new AtomicReference<EndpointContext>();
@@ -230,7 +230,7 @@ public class CoapClient {
 
 	/**
 	 * Sets the destination URI of this client.
-	 *
+	 * <p>
 	 * Resets {@link #destinationContext} also, if the destination host or port
 	 * differs and neither {@link #useProxy} is {@code true}, nor a
 	 * {@link #proxyScheme} is used. Therefore one of both must be set before
@@ -264,7 +264,7 @@ public class CoapClient {
 
 	/**
 	 * Get destination endpoint context.
-	 * 
+	 * <p>
 	 * A proxy-service may be used as destination as well.
 	 * 
 	 * @return destination endpoint context. Maybe {@code null}, if not
@@ -277,7 +277,7 @@ public class CoapClient {
 
 	/**
 	 * Set destination endpoint context.
-	 * 
+	 * <p>
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param peerContext destination endpoint context
@@ -290,7 +290,7 @@ public class CoapClient {
 
 	/**
 	 * Checks, if a proxy is used by this client.
-	 *
+	 * <p>
 	 * Prevents {@link #setURI(String)} from reseting the
 	 * {@link #destinationContext} and removing the proxy-service.
 	 * 
@@ -315,7 +315,7 @@ public class CoapClient {
 
 	/**
 	 * Gets the proxy-scheme of this client.
-	 * 
+	 * <p>
 	 * Prevents {@link #setURI(String)} from reseting the
 	 * {@link #destinationContext} and removing the proxy-service.
 	 *
@@ -341,7 +341,7 @@ public class CoapClient {
 
 	/**
 	 * Sets a single-threaded executor to this client.
-	 * 
+	 * <p>
 	 * All handlers will be invoked by this executor. Note that the client
 	 * executor uses a user thread (not a daemon thread) that needs to be
 	 * stopped to exit the program by calling {@link #shutdown()}.
@@ -418,7 +418,7 @@ public class CoapClient {
 
 	/**
 	 * Sets the endpoint this client is supposed to use.
-	 * 
+	 * <p>
 	 * The endpoint maybe shared among clients. Therefore {@link #shutdown()}
 	 * doesn't close nor destroy it.
 	 *
@@ -992,8 +992,8 @@ public class CoapClient {
 	}
 
 	/**
-	 * Sends a PUT request with with the specified ETags in the If-Match option
-	 * and blocks until the response is available.
+	 * Sends a PUT request with the specified ETags in the If-Match option and
+	 * blocks until the response is available.
 	 * 
 	 * @param payload the payload string
 	 * @param format the Content-Format
@@ -1013,8 +1013,8 @@ public class CoapClient {
 	}
 
 	/**
-	 * Sends a PUT request with with the specified ETags in the If-Match option
-	 * and blocks until the response is available.
+	 * Sends a PUT request with the specified ETags in the If-Match option and
+	 * blocks until the response is available.
 	 * 
 	 * @param payload the payload
 	 * @param format the Content-Format
@@ -1108,6 +1108,9 @@ public class CoapClient {
 	}
 
 	/**
+	 * Sends a PUT request with if-match option, the specified payload and the
+	 * specified content format and invokes the specified handler when a
+	 * response arrives.
 	 * 
 	 * @param handler the Response handler
 	 * @param payload the payload
@@ -1124,6 +1127,9 @@ public class CoapClient {
 	}
 
 	/**
+	 * Sends a PUT request with if-match option, the specified payload and the
+	 * specified content format and invokes the specified handler when a
+	 * response arrives.
 	 * 
 	 * @param handler the Response handler
 	 * @param payload the payload
@@ -1140,6 +1146,9 @@ public class CoapClient {
 	}
 
 	/**
+	 * Sends a PUT request with if-none-match option, the specified payload and
+	 * the specified content format and invokes the specified handler when a
+	 * response arrives.
 	 * 
 	 * @param handler the Response handler
 	 * @param payload the payload
@@ -1155,6 +1164,9 @@ public class CoapClient {
 	}
 
 	/**
+	 * Sends a PUT request with if-none-match option, the specified payload and
+	 * the specified content format and invokes the specified handler when a
+	 * response arrives.
 	 * 
 	 * @param handler the Response handler
 	 * @param payload the payload
@@ -1199,6 +1211,16 @@ public class CoapClient {
 
 	// ETag validation
 
+	/**
+	 * Sends a GET request with the specified ETags and blocks until the
+	 * response is available.
+	 * 
+	 * @param etags list of etags
+	 * @return the response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector)
+	 *             occurred
+	 */
 	public CoapResponse validate(byte[]... etags) throws ConnectorException, IOException {
 		Request request = newGet();
 		etags(request, etags);
@@ -1206,6 +1228,13 @@ public class CoapClient {
 		return synchronous(request);
 	}
 
+	/**
+	 * Sends a GET request with etags and invokes the specified handler when a response
+	 * arrives.
+	 * 
+	 * @param handler the Response handler
+	 * @param etags etags 
+	 */
 	public void validate(CoapHandler handler, byte[]... etags) {
 		Request request = newGet();
 		etags(request, etags);
