@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 
 import javax.crypto.SecretKey;
 
@@ -44,8 +43,8 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.config.Configuration;
-import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -222,12 +221,13 @@ public class ClientInitializer {
 	 * {@link EndpointManager}.
 	 * 
 	 * @param config client's config
-	 * @param executor executor service. {@code null}, if no external executor
-	 *            should be used.
+	 * @param executor protocol executor service. {@code null}, if no external
+	 *            executor should be used.
 	 * @throws IOException if an i/o error occurs
 	 */
-	public static void registerEndpoint(ClientBaseConfig config, ExecutorService executor) throws IOException {
-		CoapEndpoint coapEndpoint = createEndpoint(config, null);
+	public static void registerEndpoint(ClientBaseConfig config, ProtocolScheduledExecutorService executor)
+			throws IOException {
+		CoapEndpoint coapEndpoint = createEndpoint(config, executor);
 		coapEndpoint.start();
 		LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);
@@ -237,8 +237,8 @@ public class ClientInitializer {
 	 * Create endpoint from client's config-arguments.
 	 * 
 	 * @param config client's config
-	 * @param executor executor service. {@code null}, if no external executor
-	 *            should be used.
+	 * @param executor protocol executor service. {@code null}, if no external
+	 *            executor should be used.
 	 * @return created endpoint.
 	 * @throws IllegalArgumentException if scheme is not provided or not
 	 *             supported
@@ -257,7 +257,9 @@ public class ClientInitializer {
 					builder.setConnector(connector);
 					builder.setConfiguration(config.configuration);
 					CoapEndpoint endpoint = builder.build();
-					endpoint.setExecutor(executor);
+					if (executor != null) {
+						endpoint.setExecutor(executor);
+					}
 					if (config.verbose) {
 						endpoint.addInterceptor(new MessageTracer());
 					}
@@ -359,7 +361,8 @@ public class ClientInitializer {
 			}
 
 			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
-			StaticNewAdvancedCertificateVerifier.Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
+			StaticNewAdvancedCertificateVerifier.Builder verifierBuilder = StaticNewAdvancedCertificateVerifier
+					.builder();
 			boolean psk = false;
 			boolean cert = false;
 			List<KeyExchangeAlgorithm> keyExchangeAlgorithms = new ArrayList<KeyExchangeAlgorithm>();
@@ -408,8 +411,8 @@ public class ClientInitializer {
 
 			if (psk) {
 				if (clientConfig.identity != null) {
-					dtlsConfig
-							.setAdvancedPskStore(new PlugPskStore(clientConfig.identity, clientConfig.getPskSecretKey()));
+					dtlsConfig.setAdvancedPskStore(
+							new PlugPskStore(clientConfig.identity, clientConfig.getPskSecretKey()));
 				} else {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
