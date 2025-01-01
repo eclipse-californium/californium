@@ -18,8 +18,6 @@
 	<description>Demo applications illustrating Californium's features that can be run from the command line.</description>
 
 	<modules>
-		<module>cf-benchmark</module>
-		<module>cf-benchmark-observe</module>
 		<module>cf-cocoa</module>
 		<module>cf-extplugtest-client</module>
 		<module>cf-extplugtest-server</module>
