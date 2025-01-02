@@ -44,7 +44,6 @@ import org.eclipse.californium.cloud.s3.proxy.S3Request.CacheMode;
 import org.eclipse.californium.cloud.s3.proxy.S3Request.Redirect;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
@@ -1051,7 +1050,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		/**
 		 * CoAP ETAG.
 		 */
-		private final Option coapEtag;
+		private final OpaqueOption coapEtag;
 		/**
 		 * S3 ETAG.
 		 */
@@ -1093,7 +1092,7 @@ public class S3AsyncProxyClient implements S3ProxyClient {
 		 * 
 		 * @return coap ETAg
 		 */
-		public Option getCoapEtag() {
+		public OpaqueOption getCoapEtag() {
 			return coapEtag;
 		}
 

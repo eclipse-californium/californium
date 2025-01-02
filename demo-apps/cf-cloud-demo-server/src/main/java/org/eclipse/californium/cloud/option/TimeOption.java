@@ -22,6 +22,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,10 +156,6 @@ public class TimeOption extends IntegerOption {
 		super(definition, value);
 	}
 
-	public TimeOption(Definition definition, byte[] value) {
-		super(definition, value);
-	}
-
 	public static class Definition extends IntegerOption.Definition {
 
 		private Definition(int number, String name) {
@@ -166,8 +163,11 @@ public class TimeOption extends IntegerOption {
 		}
 
 		@Override
-		public TimeOption create(byte[] value) {
-			return new TimeOption(this, value);
+		public TimeOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
+			}
+			return new TimeOption(this, getLongValue(reader, length));
 		}
 
 		@Override

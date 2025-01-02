@@ -28,6 +28,7 @@ import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.MessageHeader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A utility to test malicious options.
@@ -45,9 +46,26 @@ public final class TestOption {
 	 * @since 3.8
 	 */
 	public static Option newOption(OptionDefinition definition, int length) {
-		byte[] value = new byte[length];
+		final byte[] value = new byte[length];
 		Arrays.fill(value, (byte) 'p');
-		return new Option(definition, value, true);
+		return new Option(definition) {
+
+			@Override
+			public int getLength() {
+				return value.length;
+			}
+
+			@Override
+			public void writeTo(DatagramWriter writer) {
+				writer.writeBytes(value);
+			}
+
+			@Override
+			public String toValueString() {
+				return "0x" + StringUtil.byteArray2Hex(value);
+			}
+			
+		};
 	}
 
 	/**

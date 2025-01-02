@@ -226,8 +226,7 @@ public abstract class DataParser {
 
 				// read option
 				if (reader.bytesAvailable(optionLength)) {
-					byte[] value = reader.readBytes(optionLength);
-					Option option = createOption(code, currentOptionNumber, value);
+					Option option = createOption(code, currentOptionNumber, reader, optionLength);
 					if (option != null) {
 						optionSet.addOption(option);
 					}
@@ -271,7 +270,7 @@ public abstract class DataParser {
 	}
 
 	/**
-	 * Create option.
+	 * Creates option.
 	 * <p>
 	 * Enables custom implementation to override this method in order to ignore,
 	 * fix malformed options, or provide details for an custom error response.
@@ -282,7 +281,8 @@ public abstract class DataParser {
 	 * 
 	 * @param code message code
 	 * @param optionNumber option number
-	 * @param value option value
+	 * @param reader datagram reader to read the option value
+	 * @param length length of the option value
 	 * @return create option, or {@code null}, to ignore this option. Please
 	 *         take care, if you ignore malformed critical options, the outcome
 	 *         will be undefined!
@@ -295,10 +295,10 @@ public abstract class DataParser {
 	 * @see Option#getNumber()
 	 * @since 3.8 (add parameter code)
 	 */
-	public Option createOption(int code, int optionNumber, byte[] value) {
+	public Option createOption(int code, int optionNumber, DatagramReader reader, int length) {
 		OptionDefinition definition = optionRegistry.getDefinitionByNumber(code, optionNumber);
 		if (definition != null) {
-			return definition.create(value);
+			return definition.create(reader, length);
 		} else if (OptionNumberRegistry.isCritical(optionNumber)) {
 			throw new IllegalArgumentException("Unknown critical option " + optionNumber + " is not supported!");
 		} else {

@@ -1280,17 +1280,6 @@ public final class OptionSet {
 	/**
 	 * Sets the Block1 option.
 	 * 
-	 * @param value the encoded value
-	 * @return this OptionSet for a fluent API.
-	 */
-	public OptionSet setBlock1(byte[] value) {
-		this.block1 = StandardOptionRegistry.BLOCK1.create(value);
-		return this;
-	}
-
-	/**
-	 * Sets the Block1 option.
-	 * 
 	 * @param block the block object
 	 * @return this OptionSet for a fluent API.
 	 * @throws IllegalArgumentException if block-option is no BLOCK1 option
@@ -1341,17 +1330,6 @@ public final class OptionSet {
 	 */
 	public OptionSet setBlock2(int szx, boolean m, int num) {
 		this.block2 = StandardOptionRegistry.BLOCK2.create(szx, m, num);
-		return this;
-	}
-
-	/**
-	 * Sets the Block2 option.
-	 * 
-	 * @param value the encoded value
-	 * @return this OptionSet for a fluent API.
-	 */
-	public OptionSet setBlock2(byte[] value) {
-		this.block2 = StandardOptionRegistry.BLOCK2.create(value);
 		return this;
 	}
 
@@ -1878,18 +1856,11 @@ public final class OptionSet {
 	}
 
 	/**
-	 * Add other option bypassing the validation check.
-	 * 
-	 * If standard options are added by this function, the additional validation
-	 * checks are bypassed! That maybe used for tests, but will result in
-	 * failing communication, if used for something else. Please use
-	 * {@link #addOption(Option)} for all options, including others, which are
-	 * not intended for tests.
+	 * Add other option.
 	 * 
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
 	 * @throws NullPointerException if option is {@code null}.
-	 * @see Option#Option(OptionDefinition, byte[], boolean)
 	 * @since 3.7 (throws NullPointerException)
 	 */
 	public OptionSet addOtherOption(Option option) {
@@ -1912,8 +1883,8 @@ public final class OptionSet {
 
 	/**
 	 * Clear other option by value.
-	 * 
-	 * Note: the removing is based on {@link Option#equals(Object)}, which
+	 * <p>
+	 * <b>Note:</b> the removing is based on {@link Option#equals(Object)}, which
 	 * includes the value as well. For repeatable options all are removed, if
 	 * the options are equal.
 	 * 
