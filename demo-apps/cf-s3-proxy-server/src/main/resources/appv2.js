@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 2 0.27.0, 11. December 2024";
+const version = "Version 2 0.27.1, 2. January 2025";
 
 let timeShift = 0;
 
@@ -903,6 +903,10 @@ class DeviceMessage {
 		return value != null && -10 < value && value < 250;
 	}
 
+	static isRetransValue(value) {
+		return value != null && 0 <= value && value < 10;
+	}
+
 	static levelIndex = getChartConfigIndex("%");
 	static tempIndex = getChartConfigIndex("°C");
 	static humIndex = getChartConfigIndex("%H");
@@ -911,6 +915,7 @@ class DeviceMessage {
 
 	static scaleAIndex = getChartConfigIndex("kg A");
 	static scaleBIndex = getChartConfigIndex("kg B");
+	static retransIndex = getChartConfigIndex("Retr.");
 
 	static parseValueSet(line, values) {
 		let foundValues = 0;
@@ -976,6 +981,11 @@ class DeviceMessage {
 		}
 		if (!DeviceMessage.isScaleValue(line[DeviceMessage.scaleBIndex])) {
 			if (DeviceMessage.removeSensor(line, DeviceMessage.scaleBIndex)) {
+				++removed;
+			}
+		}
+		if (!DeviceMessage.isRetransValue(line[DeviceMessage.retransIndex])) {
+			if (DeviceMessage.removeSensor(line, DeviceMessage.retransIndex)) {
 				++removed;
 			}
 		}
@@ -2649,9 +2659,9 @@ class UiChart {
 					const d = (dev.ends[i] - dev.starts[i]);
 					const labels = side[0];
 					const labelIndex = ++side[1];
+					let hl = (labels == 1) ? gh / 2 : (labels > 3) ? gh * 2 : gh;
+					let yn = labelIndex * (hl / labels);
 					if (cfg.scale) {
-						const hl = (labels == 1) ? gh / 2 : (labels > 3) ? gh * 2 : gh;
-						let yn = labelIndex * (hl / labels);
 						function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]) / cfg.scale; };
 						let digits = dev.starts[i] >= 100 ? 0 : 1;
 						if (d > 0) {
@@ -2667,8 +2677,10 @@ class UiChart {
 							page += this.scala(l, color, l ? x : x + cw, l ? 0 : w, yn, v)
 						}
 					} else {
-						const hl = ch / d;
-						let yn = hl;
+						if (d < cols) {
+							hl = (ch / d);
+							yn = hl;
+						}
 						function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]); };
 						const u = cfg.units;
 						for (; yn < ch; yn += hl) {
