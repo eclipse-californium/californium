@@ -22,11 +22,15 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
-import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.CODE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.MESSAGE_ID_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TYPE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION_BITS;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +76,8 @@ public final class UdpDataSerializer extends DataSerializer {
 	}
 
 	@Override
-	protected void assertValidOptions(OptionSet options) {
-		UdpDataParser.assertValidUdpOptions(options);
+	protected void assertValidOptions(Message message) {
+		super.assertValidOptions(message);
+		UdpDataParser.assertValidUdpOptions(message);
 	}
 }

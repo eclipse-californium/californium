@@ -28,7 +28,6 @@ package org.eclipse.californium.core.network.stack;
 
 import java.util.Arrays;
 
-import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.option.BlockOption;
@@ -76,7 +75,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 			int maxSize, int maxTcpBertBulkBlocks) {
 		super(keyUri, removeHandler, exchange, response, maxSize, maxTcpBertBulkBlocks);
 		Integer observeCount = response.getOptions().getObserve();
-		if (observeCount != null && OptionSet.isValidObserveOption(observeCount)) {
+		if (observeCount != null) {
 			// mark this tracker with the observe no of the block it has been
 			// created for
 			order = new NotificationOrder(observeCount);
@@ -84,12 +83,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		} else {
 			order = null;
 		}
-		if (response.getOptions().getETagCount() > 0) {
-			// keep track of ETag included in response
-			etag = response.getOptions().getResponseEtag();
-		} else {
-			etag = null;
-		}
+		etag = response.getOptions().getResponseEtag();
 	}
 
 	/**

@@ -16,15 +16,15 @@
 package org.eclipse.californium.core.coap.option;
 
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 /**
  * Option representing a string value.
  * 
  * @since 4.0
  */
-public class StringOption extends Option {
+public class StringOption extends OpaqueOption {
 
 	/**
 	 * String option value.
@@ -36,6 +36,8 @@ public class StringOption extends Option {
 	 * 
 	 * @param definition string option definition
 	 * @param value string value as byte array
+	 * @throws NullPointerException if definition or value is {@code null}.
+	 * @throws IllegalArgumentException if value doesn't match the definition.
 	 */
 	public StringOption(Definition definition, byte[] value) {
 		super(definition, value);
@@ -47,6 +49,8 @@ public class StringOption extends Option {
 	 * 
 	 * @param definition string option definition
 	 * @param value string value
+	 * @throws NullPointerException if definition or value is {@code null}.
+	 * @throws IllegalArgumentException if value doesn't match the definition.
 	 */
 	public StringOption(Definition definition, String value) {
 		super(definition, Definition.setStringValue(value));
@@ -75,7 +79,7 @@ public class StringOption extends Option {
 	 * 
 	 * @since 4.0 (moved from StringOptionDefinition)
 	 */
-	public static class Definition extends BaseOptionDefinition {
+	public static class Definition extends OpaqueOption.Definition {
 
 		/**
 		 * Creates option definition for an single value string option.
@@ -121,6 +125,23 @@ public class StringOption extends Option {
 		}
 
 		@Override
+		public StringOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
+			}
+			return new StringOption(this, reader.readBytes(length));
+		}
+
+		/**
+		 * Creates string option from byte array.
+		 * 
+		 * @param value the byte array
+		 * @return created string option
+		 * @throws NullPointerException if value is {@code null}.
+		 * @throws IllegalArgumentException if value doesn't match the
+		 *             definition.
+		 */
+		@Override
 		public StringOption create(byte[] value) {
 			if (value == null) {
 				throw new NullPointerException("Option " + getName() + " value must not be null.");
@@ -129,11 +150,13 @@ public class StringOption extends Option {
 		}
 
 		/**
-		 * Creates string option from string value
+		 * Creates string option from string value.
 		 * 
 		 * @param value the string value
 		 * @return created string option
 		 * @throws NullPointerException if value is {@code null}.
+		 * @throws IllegalArgumentException if value doesn't match the
+		 *             definition.
 		 */
 		public StringOption create(String value) {
 			if (value == null) {
@@ -146,22 +169,23 @@ public class StringOption extends Option {
 		 * Gets the option value as string.
 		 * 
 		 * @param value value as array in UTF-8.
-		 * @return the string value
+		 * @return the string value, or {@code null}, when value is
+		 *         {@code null}.
 		 */
 		public static String getStringValue(byte[] value) {
-			return new String(value, CoAP.UTF8_CHARSET);
+			return value == null ? null : new String(value, CoAP.UTF8_CHARSET);
 		}
 
 		/**
 		 * Sets the option value from a string.
 		 *
 		 * @param value the new option value as string
-		 * @return the string value array in UTF-8
+		 * @return the string value array in UTF-8, or {@code null}, when value
+		 *         is {@code null}.
 		 */
 		public static byte[] setStringValue(String value) {
-			return value.getBytes(CoAP.UTF8_CHARSET);
+			return value == null ? null : value.getBytes(CoAP.UTF8_CHARSET);
 		}
 
 	}
-
 }

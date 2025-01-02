@@ -28,7 +28,6 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 import org.eclipse.californium.core.coap.option.BlockOption;
@@ -37,6 +36,7 @@ import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.core.coap.option.NoResponseOption;
 import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.OptionNumber;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.option.StringOption;
 
@@ -66,7 +66,6 @@ import org.eclipse.californium.core.coap.option.StringOption;
  */
 public final class OptionSet {
 
-	private static final int MAX_OBSERVE_NO = (1 << 24) - 1;
 	/*
 	 * Options defined by the CoAP protocol
 	 */
@@ -195,13 +194,36 @@ public final class OptionSet {
 	}
 
 	/**
+	 * Counts items in optional list.
+	 * 
+	 * @param list list of items, or {@code null}.
+	 * @return number of items in list, or {@code 0} if list is {@code null}.
+	 * @since 4.0
+	 */
+	private static final int count(List<?> list) {
+		return list == null ? 0 : list.size();
+	}
+
+	/**
+	 * Clears optional list.
+	 * 
+	 * @param list list of items, or {@code null}.
+	 * @since 4.0
+	 */
+	private static final void clear(List<?> list) {
+		if (list != null) {
+			list.clear();
+		}
+	}
+
+	/**
 	 * Copies the specified list.
 	 * 
 	 * @param <T> the generic type
-	 * @param list the list
-	 * @return a copy of the list
+	 * @param list the list, or {@code null}.
+	 * @return a copy of the list, or {@code null}, {@code null} is provided.
 	 */
-	private <T> List<T> copyList(List<T> list) {
+	private static final <T> List<T> copyList(List<T> list) {
 		if (list == null)
 			return null;
 		else
@@ -216,11 +238,111 @@ public final class OptionSet {
 	 * @return the list, or the create list
 	 * @since 4.0
 	 */
-	private <T> List<T> ensureList(List<T> list) {
+	private static final <T> List<T> ensureList(List<T> list) {
 		if (list == null) {
 			list = new ArrayList<T>(4);
 		}
 		return list;
+	}
+
+	/**
+	 * Gets string value from optional string option.
+	 * 
+	 * @param option the string option, or {@code null}.
+	 * @return the string value, or {@code null}, {@code null} is provided.
+	 * @since 4.0
+	 */
+	private static final String getValue(StringOption option) {
+		return option == null ? null : option.getStringValue();
+	}
+
+	/**
+	 * Gets integer value from optional integer option.
+	 * 
+	 * @param option the integer option, or {@code null}.
+	 * @return the integer value, or {@code null}, {@code null} is provided.
+	 * @since 4.0
+	 */
+	private static final Integer getValue(IntegerOption option) {
+		return option == null ? null : option.getIntegerValue();
+	}
+
+	/**
+	 * Add option to ordered list.
+	 * <p>
+	 * Uses {@link Option#isSingleValue()} to either overwrite an option or
+	 * append the option at the end of a section of options with that same
+	 * number.
+	 * 
+	 * @param list the list of options
+	 * @param option the option to add
+	 * @throws NullPointerException if any argument is {@code null}
+	 * @since 4.0
+	 */
+	private static final void addOrdered(List<Option> list, Option option) {
+		if (list == null) {
+			throw new NullPointerException("List must not be null!");
+		}
+		if (option == null) {
+			throw new NullPointerException("Option must not be null!");
+		}
+		int pos = list.size();
+		while (pos > 0) {
+			--pos;
+			int cmp = list.get(pos).compareTo(option);
+			if (cmp <= 0) {
+				if (cmp == 0 && option.isSingleValue()) {
+					list.remove(pos);
+				} else {
+					++pos;
+				}
+				break;
+			}
+		}
+		list.add(pos, option);
+	}
+
+	/**
+	 * Gets index of first occurrence of option.
+	 * 
+	 * @param list list of options
+	 * @param option option number
+	 * @return position of first occurrence, or {@code -1}, if not contained.
+	 * @since 4.0
+	 */
+	private static final int indexOfFirst(List<Option> list, OptionNumber option) {
+		if (list == null) {
+			throw new NullPointerException("List must not be null!");
+		}
+		if (option == null) {
+			throw new NullPointerException("Option must not be null!");
+		}
+		for (int index = 0; index < list.size(); ++index) {
+			int cmp = list.get(index).compareTo(option);
+			if (cmp == 0) {
+				return index;
+			} else if (cmp > 0) {
+				break;
+			}
+		}
+		return -1;
+	}
+
+	/**
+	 * Checks order in list.
+	 * 
+	 * @param list the list to check the order
+	 * @throws IllegalArgumentException if the list is not ordered
+	 * @since 4.0
+	 */
+	private static final void assertOrder(List<Option> list) {
+		Option last = null;
+		for (Option option : list) {
+			if (last != null && last.compareTo(option) > 0) {
+				throw new IllegalArgumentException("List not sorted! " + last + " > " + option);
+			}
+			last = option;
+		}
 	}
 
 	/////////////////////// Getter and Setter ///////////////////////
@@ -460,15 +582,20 @@ public final class OptionSet {
 	 * Gets response etag value.
 	 * 
 	 * @return etag value, or {@code null}, if not available
+	 * @throws IllegalStateException if more than one etag is contained.
 	 * @since 4.0
 	 */
 	public byte[] getResponseEtag() {
-		byte[] etag = null;
 		final List<OpaqueOption> list = etag_list;
-		if (list != null && list.size() == 1) {
-			etag = list.get(0).getValue();
+		if (list != null) {
+			int size = list.size();
+			if (size == 1) {
+				return list.get(0).getValue();
+			} else if (size > 1) {
+				throw new IllegalStateException(size + " etags, only 1 etag supported in responses!");
+			}
 		}
-		return etag;
+		return null;
 	}
 
 	/**
@@ -1280,17 +1407,6 @@ public final class OptionSet {
 	/**
 	 * Sets the Block1 option.
 	 * 
-	 * @param value the encoded value
-	 * @return this OptionSet for a fluent API.
-	 */
-	public OptionSet setBlock1(byte[] value) {
-		this.block1 = StandardOptionRegistry.BLOCK1.create(value);
-		return this;
-	}
-
-	/**
-	 * Sets the Block1 option.
-	 * 
 	 * @param block the block object
 	 * @return this OptionSet for a fluent API.
 	 * @throws IllegalArgumentException if block-option is no BLOCK1 option
@@ -1341,17 +1457,6 @@ public final class OptionSet {
 	 */
 	public OptionSet setBlock2(int szx, boolean m, int num) {
 		this.block2 = StandardOptionRegistry.BLOCK2.create(szx, m, num);
-		return this;
-	}
-
-	/**
-	 * Sets the Block2 option.
-	 * 
-	 * @param value the encoded value
-	 * @return this OptionSet for a fluent API.
-	 */
-	public OptionSet setBlock2(byte[] value) {
-		this.block2 = StandardOptionRegistry.BLOCK2.create(value);
 		return this;
 	}
 
@@ -1500,17 +1605,6 @@ public final class OptionSet {
 	}
 
 	/**
-	 * Checks if a given number is a valid value for the <em>Observe</em>
-	 * option.
-	 * 
-	 * @param value The value to check.
-	 * @return {@code true}, if the value is &gt; 0 and &lt; 2^24 - 1.
-	 */
-	public static boolean isValidObserveOption(final int value) {
-		return value >= 0 && value <= MAX_OBSERVE_NO;
-	}
-
-	/**
 	 * Gets the byte array value of the OSCore option.
 	 * 
 	 * @return the OSCore value or {@code null} if the option is not present
@@ -1610,9 +1704,9 @@ public final class OptionSet {
 
 	/**
 	 * Checks, if an arbitrary option is present.
-	 * 
-	 * Note: implementation uses {@link #asSortedList()} and is therefore not
-	 * recommended to be called too frequently.
+	 * <p>
+	 * <b>Note:</b> implementation uses {@link #asSortedList()} and is therefore
+	 * not recommended to be called too frequently.
 	 * 
 	 * @param definition the option definition
 	 * @return {@code true}, if present
@@ -1623,6 +1717,8 @@ public final class OptionSet {
 
 	/**
 	 * Gets list of other options.
+	 * <p>
+	 * If not available, creates a new list.
 	 * 
 	 * @return list of other options
 	 */
@@ -1651,20 +1747,29 @@ public final class OptionSet {
 	 * Gets list of other options.
 	 * 
 	 * @param definition other option definition
-	 * @return an unmodifiable and unsorted list of other options with the
-	 *         provided definition.
+	 * @return an unmodifiable list of other options with the provided
+	 *         definition. order is defined by the order of adding this options.
 	 * @since 3.8
 	 */
 	public List<Option> getOthers(OptionDefinition definition) {
 		List<Option> options = null;
 		List<Option> others = this.others;
 		if (others != null) {
-			for (Option option : others) {
-				if (definition.equals(option.getDefinition())) {
+			int pos = indexOfFirst(others, definition);
+			if (pos >= 0) {
+				while (pos < others.size()) {
+					Option option = others.get(pos);
+					if (!definition.equals(option.getDefinition())) {
+						break;
+					}
 					if (options == null) {
 						options = new ArrayList<>();
 					}
 					options.add(option);
+					if (option.isSingleValue()) {
+						break;
+					}
+					++pos;
 				}
 			}
 		}
@@ -1677,7 +1782,7 @@ public final class OptionSet {
 
 	/**
 	 * Gets other option.
-	 * 
+	 * <p>
 	 * If the other option is contained more than once, return the first.
 	 * 
 	 * @param <T> option type
@@ -1689,10 +1794,9 @@ public final class OptionSet {
 	public <T extends Option> T getOtherOption(OptionDefinition definition) {
 		List<Option> others = this.others;
 		if (others != null) {
-			for (Option option : others) {
-				if (definition.equals(option.getDefinition())) {
-					return (T) option;
-				}
+			int pos = indexOfFirst(others, definition);
+			if (pos >= 0) {
+				return (T) others.get(pos);
 			}
 		}
 		return null;
@@ -1707,8 +1811,9 @@ public final class OptionSet {
 	 * @return the sorted list (a copy)
 	 */
 	public List<Option> asSortedList() {
-		ArrayList<Option> options = new ArrayList<Option>();
+		ArrayList<Option> options = new ArrayList<>();
 
+		// add options in order!
 		if (if_match_list != null)
 			options.addAll(if_match_list);
 		if (hasUriHost())
@@ -1717,10 +1822,14 @@ public final class OptionSet {
 			options.addAll(etag_list);
 		if (hasIfNoneMatch())
 			options.add(if_none_match);
+		if (hasObserve())
+			options.add(observe);
 		if (hasUriPort())
 			options.add(uri_port);
 		if (location_path_list != null)
 			options.addAll(location_path_list);
+		if (hasOscore())
+			options.add(oscore);
 		if (uri_path_list != null)
 			options.addAll(uri_path_list);
 		if (hasContentFormat())
@@ -1733,31 +1842,35 @@ public final class OptionSet {
 			options.add(accept);
 		if (location_query_list != null)
 			options.addAll(location_query_list);
+		if (hasBlock2())
+			options.add(block2);
+		if (hasBlock1())
+			options.add(block1);
+		if (hasSize2())
+			options.add(size2);
 		if (hasProxyUri())
 			options.add(proxy_uri);
 		if (hasProxyScheme())
 			options.add(proxy_scheme);
 
-		if (hasObserve())
-			options.add(observe);
-
-		if (hasBlock1())
-			options.add(block1);
-		if (hasBlock2())
-			options.add(block2);
 		if (hasSize1())
 			options.add(size1);
-		if (hasSize2())
-			options.add(size2);
-		if (hasOscore())
-			options.add(oscore);
 		if (hasNoResponse())
 			options.add(no_response);
 
-		if (others != null)
-			options.addAll(others);
-
-		Collections.sort(options);
+		List<Option> others = this.others;
+		if (others != null) {
+			Option last = options.isEmpty() ? null : options.get(options.size() - 1);
+			for (Option other : others) {
+				if (last == null || last.compareTo(other) <= 0) {
+					options.add(other);
+					last = other;
+				} else {
+					addOrdered(options, other);
+				}
+			}
+		}
+		assertOrder(options);
 		return options;
 	}
 
@@ -1796,126 +1909,107 @@ public final class OptionSet {
 	/**
 	 * Adds an arbitrary option.
 	 * <p>
-	 * Known options are checked if they are repeatable.
+	 * Single value options are replaced, repeated options are appended.
 	 * 
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
+	 * @throws NullPointerException if option is {@code null}.
 	 */
 	public OptionSet addOption(Option option) {
-		OptionDefinition definition = option.getDefinition();
-		if (StandardOptionRegistry.STANDARD_OPTIONS.contains(definition)) {
-			switch (option.getNumber()) {
-			case OptionNumberRegistry.IF_MATCH:
-				getIfMatch().add((OpaqueOption) option);
-				break;
-			case OptionNumberRegistry.URI_HOST:
-				uri_host = (StringOption) option;
-				break;
-			case OptionNumberRegistry.ETAG:
-				getETags().add((OpaqueOption) option);
-				break;
-			case OptionNumberRegistry.IF_NONE_MATCH:
-				if_none_match = (EmptyOption) option;
-				break;
-			case OptionNumberRegistry.URI_PORT:
-				uri_port = (IntegerOption) option;
-				break;
-			case OptionNumberRegistry.LOCATION_PATH:
-				getLocationPath().add((StringOption) option);
-				break;
-			case OptionNumberRegistry.URI_PATH:
-				getUriPath().add((StringOption) option);
-				break;
-			case OptionNumberRegistry.CONTENT_FORMAT:
-				content_format = (IntegerOption) option;
-				break;
-			case OptionNumberRegistry.MAX_AGE:
-				max_age = (IntegerOption) option;
-				break;
-			case OptionNumberRegistry.URI_QUERY:
-				getUriQuery().add((StringOption) option);
-				break;
-			case OptionNumberRegistry.ACCEPT:
-				accept = (IntegerOption) option;
-				break;
-			case OptionNumberRegistry.LOCATION_QUERY:
-				getLocationQuery().add((StringOption) option);
-				break;
-			case OptionNumberRegistry.PROXY_URI:
-				proxy_uri = (StringOption) option;
-				break;
-			case OptionNumberRegistry.PROXY_SCHEME:
-				proxy_scheme = (StringOption) option;
-				break;
-			case OptionNumberRegistry.BLOCK1:
-				block1 = (BlockOption) option;
-				break;
-			case OptionNumberRegistry.BLOCK2:
-				block2 = (BlockOption) option;
-				break;
-			case OptionNumberRegistry.SIZE1:
-				size1 = (IntegerOption) option;
-				break;
-			case OptionNumberRegistry.SIZE2:
-				size2 = (IntegerOption) option;
-				break;
-			case OptionNumberRegistry.OBSERVE:
-				observe = (IntegerOption) option;
-				break;
-			case OptionNumberRegistry.OSCORE:
-				oscore = (OpaqueOption) option;
-				break;
-			case OptionNumberRegistry.NO_RESPONSE:
-				no_response = (NoResponseOption) option;
-				break;
-			default:
-				getOthersInternal().add(option);
-			}
-		} else {
-			getOthersInternal().add(option);
+		if (option == null) {
+			throw new NullPointerException("Option must not be null!");
+		}
+		switch (option.getNumber()) {
+		case OptionNumberRegistry.IF_MATCH:
+			getIfMatch().add((OpaqueOption) option);
+			break;
+		case OptionNumberRegistry.URI_HOST:
+			uri_host = (StringOption) option;
+			break;
+		case OptionNumberRegistry.ETAG:
+			getETags().add((OpaqueOption) option);
+			break;
+		case OptionNumberRegistry.IF_NONE_MATCH:
+			if_none_match = (EmptyOption) option;
+			break;
+		case OptionNumberRegistry.URI_PORT:
+			uri_port = (IntegerOption) option;
+			break;
+		case OptionNumberRegistry.LOCATION_PATH:
+			getLocationPath().add((StringOption) option);
+			break;
+		case OptionNumberRegistry.URI_PATH:
+			getUriPath().add((StringOption) option);
+			break;
+		case OptionNumberRegistry.CONTENT_FORMAT:
+			content_format = (IntegerOption) option;
+			break;
+		case OptionNumberRegistry.MAX_AGE:
+			max_age = (IntegerOption) option;
+			break;
+		case OptionNumberRegistry.URI_QUERY:
+			getUriQuery().add((StringOption) option);
+			break;
+		case OptionNumberRegistry.ACCEPT:
+			accept = (IntegerOption) option;
+			break;
+		case OptionNumberRegistry.LOCATION_QUERY:
+			getLocationQuery().add((StringOption) option);
+			break;
+		case OptionNumberRegistry.PROXY_URI:
+			proxy_uri = (StringOption) option;
+			break;
+		case OptionNumberRegistry.PROXY_SCHEME:
+			proxy_scheme = (StringOption) option;
+			break;
+		case OptionNumberRegistry.BLOCK1:
+			block1 = (BlockOption) option;
+			break;
+		case OptionNumberRegistry.BLOCK2:
+			block2 = (BlockOption) option;
+			break;
+		case OptionNumberRegistry.SIZE1:
+			size1 = (IntegerOption) option;
+			break;
+		case OptionNumberRegistry.SIZE2:
+			size2 = (IntegerOption) option;
+			break;
+		case OptionNumberRegistry.OBSERVE:
+			observe = (IntegerOption) option;
+			break;
+		case OptionNumberRegistry.OSCORE:
+			oscore = (OpaqueOption) option;
+			break;
+		case OptionNumberRegistry.NO_RESPONSE:
+			no_response = (NoResponseOption) option;
+			break;
+		default:
+			addOrdered(getOthersInternal(), option);
 		}
 		return this;
 	}
 
 	/**
-	 * Add other option bypassing the validation check.
-	 * 
-	 * If standard options are added by this function, the additional validation
-	 * checks are bypassed! That maybe used for tests, but will result in
-	 * failing communication, if used for something else. Please use
-	 * {@link #addOption(Option)} for all options, including others, which are
-	 * not intended for tests.
+	 * Add other option.
 	 * 
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
 	 * @throws NullPointerException if option is {@code null}.
-	 * @see Option#Option(OptionDefinition, byte[], boolean)
-	 * @since 3.7 (throws NullPointerException)
 	 */
 	public OptionSet addOtherOption(Option option) {
 		if (option == null) {
 			throw new NullPointerException("Option must not be null!");
 		}
-		OptionDefinition definition = option.getDefinition();
-		List<Option> others = getOthersInternal();
-		if (definition.isSingleValue()) {
-			for (int index = 0; index < others.size(); ++index) {
-				if (definition.equals(others.get(index).getDefinition())) {
-					others.remove(index);
-					break;
-				}
-			}
-		}
-		others.add(option);
+		addOrdered(getOthersInternal(), option);
 		return this;
 	}
 
 	/**
 	 * Clear other option by value.
-	 * 
-	 * Note: the removing is based on {@link Option#equals(Object)}, which
-	 * includes the value as well. For repeatable options all are removed, if
-	 * the options are equal.
+	 * <p>
+	 * <b>Note:</b> the removing is based on {@link Option#equals(Object)},
+	 * which includes the value as well. For repeatable options all are removed,
+	 * if the options are equal.
 	 * 
 	 * @param option other option
 	 * @return this OptionSet for a fluent API.
@@ -1926,11 +2020,22 @@ public final class OptionSet {
 		if (option == null) {
 			throw new NullPointerException("Option must not be null!");
 		}
-		Iterator<Option> iterator = getOthersInternal().iterator();
-		while (iterator.hasNext()) {
-			Option currentOption = iterator.next();
-			if (currentOption.equals(option)) {
-				iterator.remove();
+		List<Option> others = this.others;
+		if (others != null) {
+			OptionDefinition definition = option.getDefinition();
+			int pos = indexOfFirst(others, definition);
+			if (pos >= 0) {
+				while (pos < others.size()) {
+					Option optionToRemove = others.get(pos);
+					if (!optionToRemove.getDefinition().equals(definition)) {
+						break;
+					}
+					if (optionToRemove.equals(option)) {
+						others.remove(pos);
+					} else {
+						++pos;
+					}
+				}
 			}
 		}
 		return this;
@@ -1938,9 +2043,9 @@ public final class OptionSet {
 
 	/**
 	 * Clear other option by number.
-	 * 
-	 * Note: the removing is based on {@link Option#getNumber()}. For repeatable
-	 * options all are removed, if the number is matching.
+	 * <p>
+	 * <b>Note:</b> the removing is based on {@link Option#getNumber()}. For
+	 * repeatable options all are removed, if the number is matching.
 	 * 
 	 * @param definition other option definition
 	 * @return this OptionSet for a fluent API.
@@ -1948,11 +2053,23 @@ public final class OptionSet {
 	 * @since 3.8
 	 */
 	public OptionSet clearOtherOption(OptionDefinition definition) {
-		Iterator<Option> iterator = getOthersInternal().iterator();
-		while (iterator.hasNext()) {
-			Option currentOption = iterator.next();
-			if (definition.equals(currentOption.getDefinition())) {
-				iterator.remove();
+		if (definition == null) {
+			throw new NullPointerException("OptionDefinition must not be null!");
+		}
+		List<Option> others = this.others;
+		if (others != null) {
+			final int pos = indexOfFirst(others, definition);
+			if (pos >= 0) {
+				while (pos < others.size()) {
+					Option optionToRemove = others.get(pos);
+					if (!optionToRemove.getDefinition().equals(definition)) {
+						break;
+					}
+					others.remove(pos);
+					if (definition.isSingleValue()) {
+						break;
+					}
+				}
 			}
 		}
 		return this;
@@ -2065,16 +2182,6 @@ public final class OptionSet {
 		return false;
 	}
 
-	private static final int count(List<?> options) {
-		return options == null ? 0 : options.size();
-	}
-
-	private static final void clear(List<?> options) {
-		if (options != null) {
-			options.clear();
-		}
-	}
-
 	/**
 	 * Checks, if one of the {@link OpaqueOption} contains the provided
 	 * byte-array.
@@ -2084,7 +2191,7 @@ public final class OptionSet {
 	 * @return {@code true} if byte-array is contained.
 	 * @since 4.0
 	 */
-	public static final boolean contains(List<OpaqueOption> options, byte[] value) {
+	private static final boolean contains(List<OpaqueOption> options, byte[] value) {
 		if (options != null) {
 			for (OpaqueOption option : options) {
 				if (Arrays.equals(option.getValue(), value)) {
@@ -2114,14 +2221,6 @@ public final class OptionSet {
 			}
 		}
 		return false;
-	}
-
-	private static final String getValue(StringOption option) {
-		return option == null ? null : option.getStringValue();
-	}
-
-	private static final Integer getValue(IntegerOption option) {
-		return option == null ? null : option.getIntegerValue();
 	}
 
 }

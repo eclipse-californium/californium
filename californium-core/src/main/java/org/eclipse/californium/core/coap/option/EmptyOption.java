@@ -16,7 +16,8 @@ package org.eclipse.californium.core.coap.option;
 
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
-import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * Empty options.
@@ -32,9 +33,20 @@ public class EmptyOption extends Option {
 	 * Creates a new empty option with the specified definition.
 	 * 
 	 * @param definition the empty option definition
+	 * @throws NullPointerException if definition is {@code null}.
 	 */
 	private EmptyOption(Definition definition) {
-		super(definition, Bytes.EMPTY);
+		super(definition);
+	}
+
+	@Override
+	public int getLength() {
+		return 0;
+	}
+
+	@Override
+	public void writeTo(DatagramWriter writer) {
+		// empty by intention
 	}
 
 	@Override
@@ -76,11 +88,11 @@ public class EmptyOption extends Option {
 		}
 
 		@Override
-		public EmptyOption create(byte[] value) {
-			if (value == null) {
-				throw new NullPointerException("Option " + getName() + " value must not be null.");
+		public EmptyOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
 			}
-			if (value.length != 0) {
+			if (length != 0) {
 				throw new IllegalArgumentException("Option " + getName() + " value must be empty.");
 			}
 			return option;

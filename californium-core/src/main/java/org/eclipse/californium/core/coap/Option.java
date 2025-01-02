@@ -22,11 +22,9 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import java.util.Arrays;
-
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.OptionNumber;
-import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * Both requests and responses may include a list of one or more options.
@@ -98,7 +96,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  *
  * @see OptionSet
  */
-public class Option implements OptionNumber, Comparable<OptionNumber> {
+public abstract class Option implements OptionNumber, Comparable<OptionNumber> {
 
 	/**
 	 * The option definition.
@@ -107,57 +105,20 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 	 */
 	private final OptionDefinition definition;
 
-	/** The value as byte array. */
-	private final byte[] value; // not null
-
 	// Constructors
-
 	/**
-	 * Instantiates a new option with the specified option number.
-	 * 
-	 * For unit tests only!
+	 * Instantiates a new option with the specified option definition.
 	 * 
 	 * @param definition the option definition
-	 * @param value value to set unchecked
-	 * @param unchecked unused parameter to overload standard checked
-	 *            constructor
-	 * @throws NullPointerException if one of the provided arguments is
+	 * @throws NullPointerException if the provided option definition is
 	 *             {@code null}
 	 * @since 4.0
 	 */
-	Option(OptionDefinition definition, byte[] value, boolean unchecked) {
+	protected Option(OptionDefinition definition) {
 		if (definition == null) {
 			throw new NullPointerException("Definition must not be null!");
 		}
-		if (value == null) {
-			throw new NullPointerException(definition.getName() + " option value must not be null!");
-		}
 		this.definition = definition;
-		this.value = value;
-	}
-
-	/**
-	 * Instantiates a new option with the specified option definition and with
-	 * an arbitrary byte array as value.
-	 * 
-	 * @param definition the option definition
-	 * @param value the option value in bytes
-	 * @throws NullPointerException if one of the provided arguments is
-	 *             {@code null}
-	 * @throws IllegalArgumentException if value doesn't match the option
-	 *             definition.
-	 * @since 3.8
-	 */
-	protected Option(OptionDefinition definition, byte[] value) {
-		if (definition == null) {
-			throw new NullPointerException("Definition must not be null!");
-		}
-		if (value == null) {
-			throw new NullPointerException(definition.getName() + " option value must not be null!");
-		}
-		definition.assertValue(value);
-		this.definition = definition;
-		this.value = value;
 	}
 
 	// Getter and Setter
@@ -176,28 +137,38 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 	 * Gets the length of the option value.
 	 *
 	 * @return the length
-	 * @throws IllegalStateException if value was not set before (since 3.0).
 	 */
-	public int getLength() {
-		return getValue().length;
-	}
+	public abstract int getLength();
 
 	/**
 	 * Gets the option number.
 	 *
 	 * @return the option number
 	 */
+	@Override
 	public int getNumber() {
 		return definition.getNumber();
 	}
 
 	/**
-	 * Gets the option value.
-	 *
-	 * @return the option value
+	 * Writes the option value.
+	 * 
+	 * @param writer writer to write the value to
+	 * @since 4.0
 	 */
-	public byte[] getValue() {
-		return value;
+	public abstract void writeTo(DatagramWriter writer);
+
+	/**
+	 * Encodes option value.
+	 * 
+	 * @return encoded option value
+	 * @since 4.0 (similar to previous getValue(), but reflects, that it is
+	 *        rather a conversion than just a get.)
+	 */
+	public byte[] encode() {
+		DatagramWriter writer = new DatagramWriter(getLength());
+		writeTo(writer);
+		return writer.toByteArray();
 	}
 
 	/**
@@ -230,6 +201,17 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 		return (getNumber() & 0x1E) == 0x1C;
 	}
 
+	/**
+	 * Checks if this options is a single value.
+	 * 
+	 * @return {@code true} for single value, {@code false} for repeatable
+	 *         value.
+	 * @since 4.0
+	 */
+	public boolean isSingleValue() {
+		return getDefinition().isSingleValue();
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -253,7 +235,7 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 			return false;
 		}
 		Option op = (Option) o;
-		return definition.equals(op.definition) && Arrays.equals(value, op.value);
+		return definition.equals(op.definition);
 	}
 
 	/*
@@ -263,7 +245,7 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 	 */
 	@Override
 	public int hashCode() {
-		return definition.hashCode() * 31 + Arrays.hashCode(value);
+		return definition.hashCode();
 	}
 
 	/*
@@ -282,16 +264,8 @@ public class Option implements OptionNumber, Comparable<OptionNumber> {
 
 	/**
 	 * Renders the option value as string.
-	 * <p>
-	 * Takes into account of option type, thus giving more accurate
-	 * representation of an option {@code value}. Formats {@code value} as
-	 * integer or string if so defined in {@link OptionNumberRegistry}. In case
-	 * of option {@code value} is just an opaque byte array, formats this value
-	 * as hex string.
 	 *
 	 * @return the option value as string
 	 */
-	public String toValueString() {
-		return "0x" + StringUtil.byteArray2Hex(value);
-	}
+	public abstract String toValueString();
 }
