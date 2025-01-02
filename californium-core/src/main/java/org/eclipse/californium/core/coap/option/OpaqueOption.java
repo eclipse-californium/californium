@@ -14,8 +14,14 @@
  ********************************************************************************/
 package org.eclipse.californium.core.coap.option;
 
+import java.util.Arrays;
+
 import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * Option representing an opaque value.
@@ -24,14 +30,75 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
  */
 public class OpaqueOption extends Option {
 
+	/** The value as byte array. */
+	private final byte[] value; // not null
+
 	/**
 	 * Create opaque option.
 	 * 
 	 * @param definition opaque option definition
 	 * @param value opaque value
+	 * @throws NullPointerException if definition or value is {@code null}.
+	 * @throws IllegalArgumentException if value doesn't match the definition.
 	 */
 	public OpaqueOption(Definition definition, byte[] value) {
-		super(definition, value);
+		super(definition);
+		if (value == null) {
+			throw new NullPointerException("Option " + definition.getName() + " value must not be null.");
+		}
+		this.value = value;
+		definition.assertValueLength(value.length);
+	}
+
+	/**
+	 * Gets the length of the option value.
+	 *
+	 * @return the length
+	 * @throws IllegalStateException if value was not set before (since 3.0).
+	 */
+	@Override
+	public int getLength() {
+		return value.length;
+	}
+
+	public byte[] getValue() {
+		return value;
+	}
+
+	@Override
+	public void writeTo(DatagramWriter writer) {
+		writer.writeBytes(value);
+	}
+
+	/**
+	 * Renders the option value as string.
+	 * <p>
+	 * Takes into account of option type, thus giving more accurate
+	 * representation of an option {@code value}. Formats {@code value} as
+	 * integer or string if so defined in {@link OptionNumberRegistry}. In case
+	 * of option {@code value} is just an opaque byte array, formats this value
+	 * as hex string.
+	 *
+	 * @return the option value as string
+	 */
+	public String toValueString() {
+		return "0x" + StringUtil.byteArray2Hex(value);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this) {
+			return true;
+		} else if (!(o instanceof OpaqueOption)) {
+			return false;
+		}
+		OpaqueOption op = (OpaqueOption) o;
+		return Arrays.equals(value, op.value) && getDefinition().equals(op.getDefinition());
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * super.hashCode() + Arrays.hashCode(value);
 	}
 
 	/**
@@ -88,6 +155,22 @@ public class OpaqueOption extends Option {
 		}
 
 		@Override
+		public OpaqueOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
+			}
+			return new OpaqueOption(this, reader.readBytes(length));
+		}
+
+		/**
+		 * Creates opaque option from byte array.
+		 * 
+		 * @param value the byte array
+		 * @return created opaque option
+		 * @throws NullPointerException if value is {@code null}.
+		 * @throws IllegalArgumentException if value doesn't match the
+		 *             definition.
+		 */
 		public OpaqueOption create(byte[] value) {
 			if (value == null) {
 				throw new NullPointerException("Option " + getName() + " value must not be null.");

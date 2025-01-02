@@ -20,6 +20,7 @@ import org.eclipse.californium.core.coap.CoAP.CodeClass;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.Names;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 /**
  * NoResponseOption.
@@ -80,23 +81,9 @@ public final class NoResponseOption extends IntegerOption {
 	 *            {@link #SUPPRESS_SUCCESS}, {@link #SUPPRESS_CLIENT_ERROR}, or
 	 *            {@link #SUPPRESS_SERVER_ERROR}. {@code 0} does not suppress
 	 *            any response.
+	 * @throws IllegalArgumentException if mask doesn't match the definition.
 	 */
 	public NoResponseOption(int mask) {
-		super(StandardOptionRegistry.NO_RESPONSE, mask);
-	}
-
-	/**
-	 * Creates no-response option.
-	 * <p>
-	 * If used and errors are not suppressed, this overrides the multicast
-	 * behavior to not respond with errors.
-	 * 
-	 * @param mask bit mask as array. Use a bitwise or combinations of
-	 *            {@link #SUPPRESS_SUCCESS}, {@link #SUPPRESS_CLIENT_ERROR}, or
-	 *            {@link #SUPPRESS_SERVER_ERROR}. {@code 0} does not suppress
-	 *            any response.
-	 */
-	public NoResponseOption(byte[] mask) {
 		super(StandardOptionRegistry.NO_RESPONSE, mask);
 	}
 
@@ -179,11 +166,18 @@ public final class NoResponseOption extends IntegerOption {
 		}
 
 		@Override
-		public NoResponseOption create(byte[] value) {
-			if (value == null) {
-				throw new NullPointerException("Option " + getName() + " value must not be null.");
+		public NoResponseOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
 			}
-			return new NoResponseOption(value);
+			if (length != 0 && length != 1) {
+				throw new IllegalArgumentException("Option " + getName() + " value must be empty or 1 byte.");
+			}
+			int mask = 0;
+			if (length == 1) {
+				mask = reader.readNextByte() & 0xFF;
+			}
+			return new NoResponseOption(mask);
 		}
 
 		/**
@@ -195,6 +189,8 @@ public final class NoResponseOption extends IntegerOption {
 		 *            {@link NoResponseOption#SUPPRESS_SERVER_ERROR}. {@code 0}
 		 *            does not suppress any response.
 		 * @return the created no response option.
+		 * @throws IllegalArgumentException if mask doesn't match the
+		 *             definition.
 		 */
 		public NoResponseOption create(int mask) {
 			return new NoResponseOption(mask);

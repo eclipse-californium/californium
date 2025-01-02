@@ -17,17 +17,17 @@
  *    Daniel Pauli - parsers and initial implementation
  *    Kai Hudalla - logging
  ******************************************************************************/
-package org.eclipse.californium.core.coap;
+package org.eclipse.californium.core.coap.option;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-import org.eclipse.californium.core.coap.option.BlockOption;
-import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,14 +35,14 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
- * This test tests the functionality of the class BlockOption. BlockOption
+ * Tests of the functionality of the class BlockOption. BlockOption
  * converts the parameters SZX, M, NUM (defined in the draft) to a byte array
  * and extracts these parameters vice-versa form a specified byte array.
  */
 @Category(Small.class)
 public class BlockOptionTest {
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(BlockOptionTest.class);
 
 	@Rule
@@ -137,14 +137,18 @@ public class BlockOptionTest {
 	 */
 	private static void testCombined(int szx, boolean m, int num) {
 		BlockOption block = StandardOptionRegistry.BLOCK1.create(szx, m, num);
-		BlockOption copy = StandardOptionRegistry.BLOCK1.create(block.getValue());
+		DatagramWriter writer = new DatagramWriter();
+		block.writeTo(writer);
+		int size = writer.size();
+		DatagramReader reader = new DatagramReader(writer.toByteArray());
+		BlockOption copy = StandardOptionRegistry.BLOCK1.create(reader, size);
 		assertEquals("szx", szx, block.getSzx());
 		assertEquals("m", m, block.isM());
 		assertEquals("num", num, block.getNum());
 		assertEquals("szx", block.getSzx(), copy.getSzx());
 		assertEquals("m", block.isM(), copy.isM());
 		assertEquals("num", block.getNum(), copy.getNum());
-		LOGGER.info("{} == (szx={}, m={}, num={})", StringUtil.byteArray2Hex(block.getValue()), block.getSzx(),
+		LOGGER.info("{} == (szx={}, m={}, num={})", Integer.toHexString(block.getIntegerValue()), block.getSzx(),
 				block.isM(), block.getNum());
 	}
 
@@ -153,7 +157,8 @@ public class BlockOptionTest {
 	 * and serializes them to a byte array.
 	 */
 	private static byte[] toBytes(int szx, boolean m, int num) {
-		byte[] bytes = BlockOption.encode(szx, m, num);
+		BlockOption option = StandardOptionRegistry.BLOCK1.create(szx, m, num);
+		byte[] bytes = option.encode();
 		LOGGER.info("{} == (szx={}, m={}, num={})", StringUtil.byteArray2Hex(bytes), szx, m, num);
 		return bytes;
 	}

@@ -64,6 +64,9 @@ The `Option` is changed to be immutable, removing the setters.
 
 The `OptionSet` uses now instances of `Option` subclasses instead of the representing java types.
 
+The `DataParser` and `DataSerializer` detect multiple ETAGs in responses and reject such
+messages.
+
 ### Californium-Proxy2:
 
 The apache http libraries haven been update to http-client 5.4 and http-core 5.3. The previous version used a pre-processing filter to implement a generic proxy (catch all), which added the path "proxy" to the incoming request. With this update the `RequestRouter` is used and so the routing may have changed slightly according the details. The proxy handler is now called with the original path without additional "proxy".
@@ -130,12 +133,19 @@ Add `Endpoint.getExecutor()`.
 
 `ClientObserveRelation` and `CoapObserveRelation` switched to use the `Endpoint` executor instead of a separate argument.
 
-The `Option.getStringValue()` and `Option.getIntegerValue()/getLongValue()` are moved to `StringOption` and `IntegerOption`.
+The `Option.getStringValue()` and `Option.getIntegerValue()/getLongValue()` are moved to `StringOption` and `IntegerOption`. `Option.getValue()` is moved to `OpaqueOption` and replaced by `Option.encode()`. `Option.writeTo(DatagramWriter)` has been added. The `byte[]` constructors have been removed and only still available for `OpaqueOption`. The `assertValue` is moved into the classes derived from `Option`and `Option(OptionDefinition definition)`is the only left constructor.
 
-The `BlockOption` and `NoResponseOption` moved into the `org.eclipse.californium.core.coap.option` package.
-The specific `OptionDefinition`s are moved into static classes, e.g. `IntegerOptionDefinition` to `IntegerOption.Definition`.
+The `BlockOption` and `NoResponseOption` moved into the `org.eclipse.californium.core.coap.option` package. Both now extends from `IntegerOption`. `byte[] BlockOption.encode(int szx, boolean m, int num)` is replaced by  `int BlockOption.encode(int szx, boolean m, int num)`.
 
-The `OptionSet` functions returning `List<String>` or `List<byte[]>` returns now `List<Stringoption>` or `List<OpaqueOption>`.
+The `StringOption` now extends `OpaqueOption`.
+
+The specific `OptionDefinition`s are moved into static classes, e.g. `IntegerOptionDefinition` to `IntegerOption.Definition`. The `OptionDefinition.create(byte[] data)` is replaced by `OptionDefinition.create(DatagramReader reader, int lengt)`. `OptionDefinition.assertValue(byte[] data)` is replaced by `void OptionDefinition.assertValueLength(int length)` and `IntegerOption.Definition.assertValue(long value)`.
+
+The `OptionSet` functions returning `List<String>` or `List<byte[]>` returns now `List<Stringoption>` or `List<OpaqueOption>`. `List<String> OptionSet.getValues(final List<StringOption> options)` has been added. `OptionSet.setBlock1(byte[] value)` and  `OptionSet.setBlock2(byte[] value)` have been removed.
+
+The `assertValidOptions` function of `DataParser` and `DataSerializer` uses now a `Message` as parameter instead of an `OptionSet` to distinguish between requests and responses.
+
+The `DataParser.createOption(int code, int optionNumber, DatagramReader reader, int length)` uses now a reader and length instead of a temporary byte array copy of the value.
 
 ### Californium-Proxy2:
 

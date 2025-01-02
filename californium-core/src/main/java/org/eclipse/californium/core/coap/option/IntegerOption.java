@@ -17,6 +17,8 @@ package org.eclipse.californium.core.coap.option;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * Option representing a integer value.
@@ -29,27 +31,34 @@ public class IntegerOption extends Option {
 	 * Integer value.
 	 */
 	private final long value;
-
 	/**
-	 * Creates integer option.
-	 * 
-	 * @param definition integer option definition
-	 * @param value value as byte array
+	 * Length of encoded value.
 	 */
-	public IntegerOption(Definition definition, byte[] value) {
-		super(definition, value);
-		this.value = Definition.getLongValue(value);
-	}
+	private final int length;
 
 	/**
 	 * Creates integer option.
 	 * 
 	 * @param definition integer option definition
 	 * @param value value as long
+	 * @throws NullPointerException if definition is {@code null}.
+	 * @throws IllegalArgumentException if value doesn't match the definition.
 	 */
 	public IntegerOption(Definition definition, long value) {
-		super(definition, Definition.setLongValue(value));
+		super(definition);
 		this.value = value;
+		this.length = Definition.getValueLength(value);
+		definition.assertValue(value, length);
+	}
+
+	@Override
+	public int getLength() {
+		return length;
+	}
+
+	@Override
+	public void writeTo(DatagramWriter writer) {
+		writer.writeLong(value, getLength() * Byte.SIZE);
 	}
 
 	/**
@@ -78,6 +87,22 @@ public class IntegerOption extends Option {
 			return "\"" + MediaTypeRegistry.toString(iValue) + "\"";
 		}
 		return Long.toString(getLongValue());
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this) {
+			return true;
+		} else if (!(o instanceof IntegerOption)) {
+			return false;
+		}
+		IntegerOption op = (IntegerOption) o;
+		return value == op.value && getDefinition().equals(op.getDefinition());
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * super.hashCode() + Long.hashCode(value);
 	}
 
 	/**
@@ -127,7 +152,7 @@ public class IntegerOption extends Option {
 		 *            length.
 		 */
 		public Definition(int number, String name, boolean singleValue, int... lengths) {
-			super(number, name, singleValue, lengths);
+			super(number, name, singleValue, lengths == null ? LENGTHS : lengths);
 		}
 
 		@Override
@@ -136,21 +161,36 @@ public class IntegerOption extends Option {
 		}
 
 		@Override
-		public IntegerOption create(byte[] value) {
-			if (value == null) {
-				throw new NullPointerException("Option " + getName() + " value must not be null.");
+		public IntegerOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
 			}
+			return new IntegerOption(this, getLongValue(reader, length));
+		}
+
+		/**
+		 * Creates integer option from integer value.
+		 * 
+		 * @param value the integer value
+		 * @return created integer option
+		 * @throws IllegalArgumentException if value doesn't match the
+		 *             definition.
+		 */
+		public IntegerOption create(long value) {
 			return new IntegerOption(this, value);
 		}
 
 		/**
-		 * Creates integer option from integer value
+		 * Asserts the value matches the options's definition.
 		 * 
-		 * @param value the integer value
-		 * @return created integer option
+		 * @param value value to check
+		 * @param length value length to check
+		 * @throws IllegalArgumentException if value doesn't match the
+		 *             definition
+		 * @since 4.0
 		 */
-		public IntegerOption create(long value) {
-			return new IntegerOption(this, value);
+		public void assertValue(long value, int length) {
+			assertValueLength(length);
 		}
 
 		/**
@@ -159,30 +199,47 @@ public class IntegerOption extends Option {
 		 * Handles cases where {@code value} contains leading 0's or a case
 		 * where {@code value} is empty which returns 0.
 		 *
-		 * @param value value as array
+		 * @param reader datagram reader to read option
+		 * @param length length of option value
 		 * @return the long value
 		 */
-		public static long getLongValue(byte[] value) {
+		public static long getLongValue(DatagramReader reader, int length) {
 			long ret = 0;
-			for (int i = 0; i < value.length; i++) {
-				ret += (long) (value[value.length - i - 1] & 0xFF) << (i * 8);
+			while (length-- > 0) {
+				ret <<= 8;
+				ret += (reader.readNextByte() & 0xFF);
 			}
 			return ret;
 		}
 
 		/**
-		 * Sets the option value from a long.
+		 * Gets the option value as int.
+		 * <p>
+		 * Handles cases where {@code value} contains leading 0's or a case
+		 * where {@code value} is empty which returns 0.
 		 *
-		 * @param val the new option value as long
-		 * @return the value as byte array
+		 * @param reader datagram reader to read option
+		 * @param length length of option value
+		 * @return the int value
+		 * @since 4.0
 		 */
-		public static byte[] setLongValue(long val) {
-			int length = (Long.SIZE - Long.numberOfLeadingZeros(val) + 7) / Byte.SIZE;
-			byte[] value = new byte[length];
-			for (int i = 0; i < length; i++) {
-				value[length - i - 1] = (byte) (val >> i * 8);
+		public static int getIntegerValue(DatagramReader reader, int length) {
+			int ret = 0;
+			while (length-- > 0) {
+				ret <<= 8;
+				ret += (reader.readNextByte() & 0xFF);
 			}
-			return value;
+			return ret;
+		}
+
+		/**
+		 * Gets the option values encoding length.
+		 * 
+		 * @param value option value.
+		 * @return encoding length
+		 */
+		public static int getValueLength(long value) {
+			return (Long.SIZE - Long.numberOfLeadingZeros(value) + 7) / Byte.SIZE;
 		}
 
 	}
@@ -229,7 +286,7 @@ public class IntegerOption extends Option {
 		 * @param max maximum value (inclusive)
 		 */
 		public RangeDefinition(int number, String name, boolean singleValue, long min, long max) {
-			super(number, name, singleValue, null);
+			super(number, name, singleValue, getValueLength(min), getValueLength(max));
 			if (min <= max) {
 				this.min = min;
 				this.max = max;
@@ -240,17 +297,16 @@ public class IntegerOption extends Option {
 		}
 
 		@Override
-		public void assertValue(byte[] value) {
-			long number = getLongValue(value);
-			if (number < min) {
+		public void assertValue(long value, int length) {
+			super.assertValue(value, length);
+			if (value < min) {
 				throw new IllegalArgumentException(
-						"Option " + getName() + " value " + number + " must be at least " + min + ".");
-			} else if (number > max) {
+						"Option " + getName() + " value " + value + " must be at least " + min + ".");
+			} else if (value > max) {
 				throw new IllegalArgumentException(
-						"Option " + getName() + " value " + number + "  must be at most " + max + ".");
+						"Option " + getName() + " value " + value + "  must be at most " + max + ".");
 			}
 		}
 
 	}
-
 }

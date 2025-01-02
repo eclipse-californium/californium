@@ -60,7 +60,7 @@ public abstract class DataSerializer {
 		if (message == null) {
 			throw new NullPointerException("message must not be null!");
 		}
-		assertValidOptions(message.getOptions());
+		assertValidOptions(message);
 		message.assertPayloadMatchsBlocksize();
 		if (message.getRawCode() == 0) {
 			// simple serialization for empty message.
@@ -241,13 +241,18 @@ public abstract class DataSerializer {
 	/**
 	 * Assert, if options are supported for the specific protocol flavor.
 	 * 
-	 * @param options option set to validate.
+	 * @param message message of option set to validate.
 	 * @throws IllegalArgumentException if at least one option is not valid for
 	 *             the specific flavor.
-	 * @since 3.0
+	 * @since 4.0 (changed parameter to Message)
 	 */
-	protected void assertValidOptions(OptionSet options) {
-		// empty default implementation
+	protected void assertValidOptions(Message message) {
+		if (CoAP.isResponse(message.getRawCode())) {
+			int count = message.getOptions().getETagCount();
+			if (count > 1) {
+				throw new IllegalArgumentException("Multiple ETAGs (" + count + ") in response!");
+			}
+		}
 	}
 
 	/**
@@ -279,7 +284,6 @@ public abstract class DataSerializer {
 
 		int lastOptionNumber = 0;
 		for (Option option : optionSet.asSortedList()) {
-			byte[] value = option.getValue();
 
 			// write 4-bit option delta
 			int optionNumber = option.getNumber();
@@ -288,7 +292,7 @@ public abstract class DataSerializer {
 			writer.write(optionDeltaNibble, OPTION_DELTA_BITS);
 
 			// write 4-bit option length
-			int optionLength = value.length;
+			int optionLength = option.getLength();
 			int optionLengthNibble = getOptionNibble(optionLength);
 			writer.write(optionLengthNibble, OPTION_LENGTH_BITS);
 
@@ -306,8 +310,7 @@ public abstract class DataSerializer {
 				writer.write(optionLength - 269, 2 * Byte.SIZE);
 			}
 
-			// write option value
-			writer.writeBytes(value);
+			option.writeTo(writer);
 
 			// update last option number
 			lastOptionNumber = optionNumber;

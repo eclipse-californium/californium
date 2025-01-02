@@ -31,6 +31,7 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION_BITS;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Token;
@@ -107,7 +108,7 @@ public class UdpDataParser extends DataParser {
 					throw new CoAPMessageFormatException("UDP malformed Empty Message!", null, mid, code, confirmable);
 				}
 			} else if (type == Type.RST) {
-				throw new CoAPMessageFormatException("UDP malformed RST Message!", null, mid, code, confirmable);				
+				throw new CoAPMessageFormatException("UDP malformed RST Message!", null, mid, code, confirmable);
 			}
 		}
 		if (!reader.bytesAvailable(tokenLength)) {
@@ -120,8 +121,9 @@ public class UdpDataParser extends DataParser {
 	}
 
 	@Override
-	protected void assertValidOptions(OptionSet options) {
-		assertValidUdpOptions(options);
+	protected void assertValidOptions(Message message) {
+		super.assertValidOptions(message);
+		assertValidUdpOptions(message);
 	}
 
 	private void assertCorrectVersion(int version) {
@@ -133,11 +135,12 @@ public class UdpDataParser extends DataParser {
 	/**
 	 * Assert, if options are supported for the UDP protocol flavor.
 	 * 
-	 * @param options option set to validate.
+	 * @param message message of option set to validate.
 	 * @throws IllegalArgumentException if one block option uses BERT.
-	 * @since 3.0
+	 * @since 4.0 (changed parameter to Message)
 	 */
-	public static void assertValidUdpOptions(OptionSet options) {
+	public static void assertValidUdpOptions(Message message) {
+		OptionSet options = message.getOptions();
 		BlockOption block = options.getBlock1();
 		if (block != null && block.isBERT()) {
 			throw new IllegalArgumentException("Block1 BERT used for UDP!");

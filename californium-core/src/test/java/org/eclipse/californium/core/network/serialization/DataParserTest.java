@@ -54,6 +54,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
 import org.junit.Rule;
@@ -114,8 +115,9 @@ public class DataParserTest {
 	public static List<Object[]> parameters() {
 
 		// Default, if "registry" is "null"
-		MapBasedOptionRegistry registry = new MapBasedOptionRegistry(StandardOptionRegistry.getDefaultOptionRegistry(),
-				CUSTOM_1, CUSTOM_2);
+		OptionRegistry registry = MapBasedOptionRegistry.builder()
+				.add(StandardOptionRegistry.getDefaultOptionRegistry())
+				.add(CUSTOM_1, CUSTOM_2).build();
 		StandardOptionRegistry.setDefaultOptionRegistry(registry);
 
 		List<Object[]> parameters = new ArrayList<>();
@@ -445,12 +447,12 @@ public class DataParserTest {
 		}
 
 		@Override
-		public Option createOption(int code, int optionNumber, byte[] value) {
+		public Option createOption(int code, int optionNumber, DatagramReader reader, int length) {
 			if (optionError != null) {
 				throw optionError;
 			}
 			try {
-				return super.createOption(code, optionNumber, value);
+				return super.createOption(code, optionNumber, reader, length);
 			} catch (RuntimeException ex) {
 				if (ignoreOptionError) {
 					return null;
@@ -481,12 +483,12 @@ public class DataParserTest {
 		}
 
 		@Override
-		public Option createOption(int code, int optionNumber, byte[] value) {
+		public Option createOption(int code, int optionNumber, DatagramReader reader, int length) {
 			if (optionError != null) {
 				throw optionError;
 			}
 			try {
-				return super.createOption(code, optionNumber, value);
+				return super.createOption(code, optionNumber,  reader, length);
 			} catch (RuntimeException ex) {
 				if (ignoreOptionError) {
 					return null;

@@ -22,10 +22,37 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap.option;
 
-import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 /**
  * BlockOption represents a Block1 or Block2 option in a CoAP message.
+ * <p>
+ * The value of the Block Option is a variable-size (0 to 3 byte).
+ * <hr>
+ * <blockquote>
+ * 
+ * <pre>
+ *  0
+ *  0 1 2 3 4 5 6 7
+ * +-+-+-+-+-+-+-+-+
+ * |  NUM  |M| SZX |
+ * +-+-+-+-+-+-+-+-+
+ *  0                   1
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |          NUM          |M| SZX |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  0                   1                   2
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                   NUM                 |M| SZX |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * </pre>
+ * 
+ * </blockquote>
+ * <hr>
+ * See <a href="https://tools.ietf.org/html/rfc7959#section-2.2" target=
+ * "_blank">RFC 7959, Section 2.2</a> for details.
  * 
  * @since 4.0 (moved from package org.eclipse.californium.core.coap)
  */
@@ -41,16 +68,39 @@ public final class BlockOption extends IntegerOption {
 	 */
 	public static final int BERT_SZX = 7;
 
+	/**
+	 * Maximum block number.
+	 * 
+	 * @since 4.0
+	 */
+	public static final int MAXIMUM_BLOCK_NUM = (1 << 20) - 1;
+
+	/**
+	 * The encoded block size.
+	 * <p>
+	 * Values 0 to 6. The resulting block size is calculated by
+	 * {@code 2**(SZX + 4)}. The value 7 indicates a special case, see
+	 * {@link #BERT_SZX}.
+	 */
 	private final int szx;
+	/**
+	 * The "more blocks" indicator.
+	 */
 	private final boolean m;
+	/**
+	 * The block number.
+	 * <p>
+	 * Values 0 to {@code 2**20 - 1}.
+	 */
 	private final int num;
 
 	/**
 	 * Creates a new block option for given values.
 	 *
-	 * @param szx the szx
+	 * @param szx the szx (encoded block size). Values 0 to 6, and 7 for BERT.
 	 * @param m the more indicator
-	 * @param num the num
+	 * @param num the block number. Values 0 to {@code 2**20-1}.
+	 * @throws NullPointerException if definition is {@code null}.
 	 * @throws IllegalArgumentException if the szx is &lt; 0 or &gt; 7 or if num
 	 *             is not a 20-bit uint.
 	 */
@@ -64,33 +114,17 @@ public final class BlockOption extends IntegerOption {
 	/**
 	 * Instantiates a new block option from the specified bytes (1-3 bytes).
 	 *
-	 * @param value the bytes
+	 * @param value the integer representation
 	 * @throws NullPointerException if the specified bytes are null
+	 * @throws NullPointerException if definition is {@code null}.
 	 * @throws IllegalArgumentException if the specified value's length is
 	 *             larger than 3
 	 */
-	public BlockOption(Definition definition, final byte[] value) {
+	public BlockOption(Definition definition, final int value) {
 		super(definition, value);
-		if (value == null) {
-			throw new NullPointerException();
-		} else if (value.length > 3) {
-			throw new IllegalArgumentException(
-					"Block option's length " + value.length + " must be at most 3 bytes inclusive");
-		} else if (value.length == 0) {
-			this.szx = 0;
-			this.m = false;
-			this.num = 0;
-
-		} else {
-			byte end = value[value.length - 1];
-			this.szx = end & 0x7;
-			this.m = (end >> 3 & 0x1) == 1;
-			int tempNum = (end & 0xFF) >> 4;
-			for (int i = 1; i < value.length; i++) {
-				tempNum += ((value[value.length - i - 1] & 0xff) << (i * 8 - 4));
-			}
-			this.num = tempNum;
-		}
+		szx = value & 7;
+		m = (value & 8) != 0;
+		num = value >> 4;
 	}
 
 	@Override
@@ -129,17 +163,19 @@ public final class BlockOption extends IntegerOption {
 	}
 
 	/**
-	 * Gets the szx.
+	 * Gets the szx (encoded block size).
 	 *
-	 * @return the szx
+	 * @return the szx (encoded block size). Values 0 to 6. The resulting block
+	 *         size is calculated by {@code 2**(SZX + 4)}. The value 7 indicates
+	 *         a special case, see {@link #isBERT()}.
 	 */
 	public int getSzx() {
 		return szx;
 	}
 
 	/**
-	 * Gets the size where {@code size == 1 << (4 + szx)}.
-	 * 
+	 * Gets the block size where {@code size == 1 << (4 + szx)}.
+	 * <p>
 	 * If {@link #getSzx()} is {@link #BERT_SZX}, 1024 is returned.
 	 *
 	 * @return the size
@@ -150,56 +186,26 @@ public final class BlockOption extends IntegerOption {
 	}
 
 	/**
-	 * Checks if is m. The value m is true if there are more block that follow
-	 * the message with this block option.
+	 * Get the "more blocks" indicator.
+	 * <p>
+	 * If {@code true} there are more block that follow the message with this
+	 * block option.
 	 * 
-	 * @return true, if is m
+	 * @return {@code true}, if "more blocks" to follow.
 	 */
 	public boolean isM() {
 		return m;
 	}
 
 	/**
-	 * Gets the num. This is the number of the block message.
+	 * Gets the num.
+	 * <p>
+	 * This is the block number of the block message.
 	 *
 	 * @return the num
 	 */
 	public int getNum() {
 		return num;
-	}
-
-	/**
-	 * Gets the encoded block option as 0-3 byte array.
-	 * 
-	 * The value of the Block Option is a variable-size (0 to 3 byte).
-	 * <hr>
-	 * <blockquote>
-	 * 
-	 * <pre>
-	 *  0
-	 *  0 1 2 3 4 5 6 7
-	 * +-+-+-+-+-+-+-+-+
-	 * |  NUM  |M| SZX |
-	 * +-+-+-+-+-+-+-+-+
-	 *  0                   1
-	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 * |          NUM          |M| SZX |
-	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 *  0                   1                   2
-	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
-	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 * |                   NUM                 |M| SZX |
-	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 * </pre>
-	 * 
-	 * </blockquote>
-	 * <hr>
-	 * 
-	 * @return the value
-	 */
-	public byte[] getValue() {
-		return super.getValue();
 	}
 
 	/**
@@ -214,23 +220,6 @@ public final class BlockOption extends IntegerOption {
 	@Override
 	public String toValueString() {
 		return String.format("(szx=%d/%d, m=%b, num=%d)", szx, szx2Size(szx), m, num);
-	}
-
-	@Override
-	public boolean equals(final Object o) {
-		if (!(o instanceof BlockOption)) {
-			return false;
-		}
-		BlockOption block = (BlockOption) o;
-		return szx == block.szx && num == block.num && m == block.m;
-	}
-
-	@Override
-	public int hashCode() {
-		int result = szx;
-		result = 31 * result + (m ? 1 : 0);
-		result = 31 * result + num;
-		return result;
 	}
 
 	/**
@@ -253,7 +242,6 @@ public final class BlockOption extends IntegerOption {
 	 *         equal to the block size.
 	 */
 	public static int size2Szx(int blockSize) {
-
 		if (blockSize >= 1024) {
 			return 6;
 		} else if (blockSize <= 16) {
@@ -284,23 +272,25 @@ public final class BlockOption extends IntegerOption {
 		}
 	}
 
-	public static byte[] encode(final int szx, final boolean m, final int num) {
+	/**
+	 * Encodes the block parameters into an integer representation.
+	 * 
+	 * @param szx the encoded block size.
+	 * @param m the more blocks indicator
+	 * @param num the block number
+	 * @return the encoded block parameters
+	 * @throws IllegalArgumentException if the szx is &lt; 0 or &gt; 7 or if num
+	 *             is not a 20-bit uint.
+	 * @since 4.0
+	 */
+	public static int encode(final int szx, final boolean m, final int num) {
 		if (szx < 0 || 7 < szx) {
 			throw new IllegalArgumentException("Block option's szx " + szx + " must be between 0 and 7 inclusive");
-		} else if (num < 0 || (1 << 20) - 1 < num) {
+		} else if (num < 0 || MAXIMUM_BLOCK_NUM < num) {
 			throw new IllegalArgumentException(
-					"Block option's num " + num + " must be between 0 and " + (1 << 20 - 1) + " inclusive");
+					"Block option's num " + num + " must be between 0 and " + MAXIMUM_BLOCK_NUM + " inclusive");
 		}
-		int last = szx | (m ? 1 << 3 : 0);
-		if (num == 0 && !m && szx == 0) {
-			return Bytes.EMPTY;
-		} else if (num < 1 << 4) {
-			return new byte[] { (byte) (last | (num << 4)) };
-		} else if (num < 1 << 12) {
-			return new byte[] { (byte) (num >> 4), (byte) (last | (num << 4)) };
-		} else {
-			return new byte[] { (byte) (num >> 12), (byte) (num >> 4), (byte) (last | (num << 4)) };
-		}
+		return szx | (m ? 1 << 3 : 0) | num << 4;
 	}
 
 	/**
@@ -321,20 +311,22 @@ public final class BlockOption extends IntegerOption {
 		}
 
 		@Override
-		public BlockOption create(byte[] value) {
-			if (value == null) {
-				throw new NullPointerException("Option " + getName() + " value must not be null.");
+		public BlockOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
 			}
-			return new BlockOption(this, value);
+			return new BlockOption(this, getIntegerValue(reader, length));
 		}
 
 		/**
 		 * Creates {@link BlockOption} for this definition.
 		 * 
-		 * @param szx the szx
+		 * @param szx the szx (encoded block size)
 		 * @param m the more block indicator
 		 * @param num the number of block
 		 * @return created {@link BlockOption}
+		 * @throws IllegalArgumentException if values doesn't match the
+		 *             definition.
 		 */
 		public BlockOption create(int szx, boolean m, int num) {
 			return new BlockOption(this, szx, m, num);

@@ -51,11 +51,12 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.option.EmptyOption;
 import org.eclipse.californium.core.coap.option.IntegerOption;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.option.StringOption;
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.InvalidMethodException;
 import org.eclipse.californium.proxy2.TranslationException;
@@ -369,10 +370,10 @@ public class CrossProtocolTranslator {
 						option = ((IntegerOption.Definition)optionDefinition).create(Long.parseLong(headerValue));
 						break;
 					case OPAQUE:
-						option = optionDefinition.create(headerValue.getBytes(ISO_8859_1));
+						option = ((OpaqueOption.Definition)optionDefinition).create(headerValue.getBytes(ISO_8859_1));
 						break;
 					case EMPTY:
-						option = optionDefinition.create(Bytes.EMPTY);
+						option = ((EmptyOption.Definition)optionDefinition).create();
 						break;
 					case STRING:
 					default:
@@ -600,9 +601,9 @@ public class CrossProtocolTranslator {
 				// format the value
 				String stringOptionValue = null;
 				if (StandardOptionRegistry.ETAG.equals(definition)) {
-					stringOptionValue = etagTranslator.getHttpEtag(option.getValue());
+					stringOptionValue = etagTranslator.getHttpEtag(((OpaqueOption)option).getValue());
 				} else if (StandardOptionRegistry.IF_MATCH.equals(definition)) {
-					stringOptionValue = etagTranslator.getHttpEtag(option.getValue());
+					stringOptionValue = etagTranslator.getHttpEtag(((OpaqueOption)option).getValue());
 				} else if (StandardOptionRegistry.IF_NONE_MATCH.equals(definition)) {
 					stringOptionValue = "*";
 				} else if (StandardOptionRegistry.ACCEPT.equals(definition)) {
@@ -624,7 +625,7 @@ public class CrossProtocolTranslator {
 				} else if (optionFormat == OptionFormat.INTEGER) {
 					stringOptionValue = Integer.toString(((IntegerOption)option).getIntegerValue());
 				} else if (optionFormat == OptionFormat.OPAQUE) {
-					stringOptionValue = new String(option.getValue());
+					stringOptionValue = new String(((OpaqueOption)option).getValue());
 				} else if (optionFormat == OptionFormat.EMPTY) {
 					stringOptionValue = "";
 				} else {
@@ -811,7 +812,7 @@ public class CrossProtocolTranslator {
 		@Override
 		public byte[] getCoapEtag(String value) {
 			byte[] etag = StringUtil.hex2ByteArray(value);
-			StandardOptionRegistry.ETAG.assertValue(etag);
+			StandardOptionRegistry.ETAG.assertValueLength(etag.length);
 			return etag;
 		}
 
@@ -835,7 +836,7 @@ public class CrossProtocolTranslator {
 		@Override
 		public byte[] getCoapEtag(String value) {
 			byte[] etag = value.getBytes(ISO_8859_1);
-			StandardOptionRegistry.ETAG.assertValue(etag);
+			StandardOptionRegistry.ETAG.assertValueLength(etag.length);
 			return etag;
 		}
 

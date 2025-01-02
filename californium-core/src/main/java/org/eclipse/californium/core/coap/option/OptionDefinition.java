@@ -16,7 +16,7 @@ package org.eclipse.californium.core.coap.option;
 
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
-import org.eclipse.californium.core.coap.option.EmptyOption.Definition;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 /**
  * Option definition.
@@ -42,15 +42,16 @@ public interface OptionDefinition extends OptionNumber {
 	String toString();
 
 	/**
-	 * Create option from byte array.
+	 * Creates option from reader.
 	 * 
-	 * @param value the option value
-	 * @return created options
-	 * @throws NullPointerException if value is {@code null}.
-	 * @throws UnsupportedOperationException if option definition is a
-	 *             {@link Definition}.
+	 * @param reader datagram reader to read the option value
+	 * @param length length of the option value
+	 * @return created option
+	 * @throws NullPointerException if reader is {@code null}.
+	 * @throws IllegalArgumentException if value doesn't match the definition.
+	 * @since 4.0
 	 */
-	Option create(byte[] value);
+	Option create(DatagramReader reader, int length);
 
 	/**
 	 * Get option format.
@@ -63,22 +64,12 @@ public interface OptionDefinition extends OptionNumber {
 	OptionFormat getFormat();
 
 	/**
-	 * Checks whether an option has a single value.
+	 * Asserts the value length matches the options's definition.
 	 * 
-	 * @return {@code true}, if the option has a single value, {@code false}, if
-	 *         the option is repeatable
-	 * 
-	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.5"
-	 *      target= "_blank">RFC7252 5.4.5. Repeatable Options</a>
+	 * @param length length to check
+	 * @throws IllegalArgumentException if length doesn't match the definition
+	 * @since 4.0
 	 */
-	boolean isSingleValue();
-
-	/**
-	 * Assert, that the value matches the custom options's definition.
-	 * 
-	 * @param value value to check
-	 * @throws IllegalArgumentException if value doesn't match the definition
-	 */
-	void assertValue(byte[] value);
+	void assertValueLength(int length);
 
 }

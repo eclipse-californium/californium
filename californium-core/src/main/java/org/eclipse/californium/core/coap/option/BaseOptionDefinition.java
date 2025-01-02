@@ -16,8 +16,6 @@ package org.eclipse.californium.core.coap.option;
 
 import java.util.Arrays;
 
-import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
-
 /**
  * Basic option definition.
  * 
@@ -94,31 +92,20 @@ public abstract class BaseOptionDefinition implements OptionDefinition {
 	}
 
 	@Override
-	public void assertValue(byte[] value) {
+	public void assertValueLength(int length) {
 		int min = lengths[0];
 		int max = lengths[1];
-		int valueLength = value.length;
-		if (getFormat() == OptionFormat.INTEGER) {
-			// skip leading 0s
-			for (byte b : value) {
-				if (b == 0) {
-					--valueLength;
-				} else {
-					break;
-				}
-			}
-		}
-		if (valueLength < min || valueLength > max) {
+		if (length < min || length > max) {
 			if (min == max) {
 				if (min == 0) {
 					throw new IllegalArgumentException(
-							"Option " + name + " value of " + valueLength + " bytes must be empty.");
+							"Option " + name + " value of " + length + " bytes must be empty.");
 				} else {
 					throw new IllegalArgumentException(
-							"Option " + name + " value of " + valueLength + " bytes must be " + min + " bytes.");
+							"Option " + name + " value of " + length + " bytes must be " + min + " bytes.");
 				}
 			} else {
-				throw new IllegalArgumentException("Option " + name + " value of " + valueLength
+				throw new IllegalArgumentException("Option " + name + " value of " + length
 						+ " bytes must be in range of [" + min + "-" + max + "] bytes.");
 			}
 		}

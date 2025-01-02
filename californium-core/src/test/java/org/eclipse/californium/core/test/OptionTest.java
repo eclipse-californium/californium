@@ -40,7 +40,7 @@ import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.NoResponseOption;
 import org.eclipse.californium.core.coap.option.OpaqueOption;
-import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.elements.category.Small;
@@ -64,7 +64,7 @@ public class OptionTest {
 			0, 64);
 	private static final StringOption.Definition CUSTOM_2 = new StringOption.Definition(CUSTOM_OPTION_2, "custom2", false,
 			0, 64);
-	private static final OptionDefinition OPAQUE = new OpaqueOption.Definition(OptionNumberRegistry.RESERVED_0,
+	private static final OpaqueOption.Definition OPAQUE = new OpaqueOption.Definition(OptionNumberRegistry.RESERVED_0,
 			"Reserved 0");
 	private static final IntegerOption.Definition INTEGER = new IntegerOption.Definition(0xff7c,
 			"custom3", false, 0, 4);
@@ -274,7 +274,7 @@ public class OptionTest {
 
 	@Test
 	public void testSetValue() {
-		Option option = OPAQUE.create(new byte[4]);
+		OpaqueOption option = OPAQUE.create(new byte[4]);
 		assertArrayEquals(new byte[4], option.getValue());
 
 		option = OPAQUE.create(new byte[] { 69, -104, 35, 55, -104, 116, 35, -104 });
@@ -283,7 +283,7 @@ public class OptionTest {
 
 	@Test
 	public void testSetStringValue() {
-		Option option = CUSTOM_1.create("");
+		StringOption option = CUSTOM_1.create("");
 
 		assertArrayEquals(Bytes.EMPTY, option.getValue());
 
@@ -295,36 +295,36 @@ public class OptionTest {
 	public void testSetIntegerValue() {
 		IntegerOption option = INTEGER.create(0);
 
-		assertArrayEquals(Bytes.EMPTY, option.getValue());
+		assertArrayEquals(Bytes.EMPTY, option.encode());
 		assertEquals(0, option.getIntegerValue());
 
 		option = INTEGER.create(11);
-		assertArrayEquals(new byte[] { 11 }, option.getValue());
+		assertArrayEquals(new byte[] { 11 }, option.encode());
 		assertEquals(11, option.getIntegerValue());
 
 		option = INTEGER.create(255);
-		assertArrayEquals(new byte[] { (byte) 255 }, option.getValue());
+		assertArrayEquals(new byte[] { (byte) 255 }, option.encode());
 		assertEquals(255, option.getIntegerValue());
 
 		option = INTEGER.create(256);
-		assertArrayEquals(new byte[] { 1, 0 }, option.getValue());
+		assertArrayEquals(new byte[] { 1, 0 }, option.encode());
 		assertEquals(256, option.getIntegerValue());
 
 		option = INTEGER.create(18273);
-		assertArrayEquals(new byte[] { 71, 97 }, option.getValue());
+		assertArrayEquals(new byte[] { 71, 97 }, option.encode());
 		assertEquals(18273, option.getIntegerValue());
 
 		option = INTEGER.create(1 << 16);
-		assertArrayEquals(new byte[] { 1, 0, 0 }, option.getValue());
+		assertArrayEquals(new byte[] { 1, 0, 0 }, option.encode());
 		assertEquals(1 << 16, option.getIntegerValue());
 
 		option = INTEGER.create(23984773);
-		assertArrayEquals(new byte[] { 1, 109, (byte) 250, (byte) 133 }, option.getValue());
+		assertArrayEquals(new byte[] { 1, 109, (byte) 250, (byte) 133 }, option.encode());
 		assertEquals(23984773, option.getIntegerValue());
 
 		// 0xFFFFFFFF requires L, otherwise it gets converted into a -1L
 		option = INTEGER.create(0xFFFFFFFFL);
-		assertArrayEquals(new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF }, option.getValue());
+		assertArrayEquals(new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF }, option.encode());
 		assertEquals(0xFFFFFFFF, option.getIntegerValue());
 	}
 
@@ -332,44 +332,44 @@ public class OptionTest {
 	public void testSetLongValue() {
 		IntegerOption option = LONG.create(0);
 
-		assertArrayEquals(option.getValue(), Bytes.EMPTY);
+		assertArrayEquals(Bytes.EMPTY, option.encode());
 		assertEquals(0, option.getLongValue());
 
 		option = LONG.create(11);
-		assertArrayEquals(option.getValue(), new byte[] { 11 });
+		assertArrayEquals(new byte[] { 11 }, option.encode());
 		assertEquals(11, option.getLongValue());
 
 		option = LONG.create(255);
-		assertArrayEquals(option.getValue(), new byte[] { (byte) 255 });
+		assertArrayEquals(new byte[] { (byte) 255 }, option.encode());
 		assertEquals(255, option.getLongValue());
 
 		option = LONG.create(256);
-		assertArrayEquals(option.getValue(), new byte[] { 1, 0 });
+		assertArrayEquals(new byte[] { 1, 0 }, option.encode());
 		assertEquals(256, option.getLongValue());
 
 		option = LONG.create(18273);
-		assertArrayEquals(option.getValue(), new byte[] { 71, 97 });
+		assertArrayEquals(new byte[] { 71, 97 }, option.encode());
 		assertEquals(18273, option.getLongValue());
 
 		option = LONG.create(1 << 16);
-		assertArrayEquals(option.getValue(), new byte[] { 1, 0, 0 });
+		assertArrayEquals(new byte[] { 1, 0, 0 }, option.encode());
 		assertEquals(1 << 16, option.getLongValue());
 
 		option = LONG.create(23984773);
-		assertArrayEquals(option.getValue(), new byte[] { 1, 109, (byte) 250, (byte) 133 });
+		assertArrayEquals(new byte[] { 1, 109, (byte) 250, (byte) 133 }, option.encode());
 		assertEquals(23984773, option.getLongValue());
 
 		option = LONG.create(0xFFFFFFFFL);
-		assertArrayEquals(option.getValue(), new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF });
+		assertArrayEquals(new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF }, option.encode());
 		assertEquals(0xFFFFFFFFL, option.getLongValue());
 
 		option = LONG.create(0x9823749837239845L);
-		assertArrayEquals(option.getValue(), new byte[] { -104, 35, 116, -104, 55, 35, -104, 69 });
+		assertArrayEquals(new byte[] { -104, 35, 116, -104, 55, 35, -104, 69 }, option.encode());
 		assertEquals(0x9823749837239845L, option.getLongValue());
 
 		option = LONG.create(0xFFFFFFFFFFFFFFFFL);
-		assertArrayEquals(option.getValue(), new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
-				(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF });
+		assertArrayEquals(new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
+				(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF }, option.encode());
 		assertEquals(0xFFFFFFFFFFFFFFFFL, option.getLongValue());
 	}
 
@@ -486,8 +486,9 @@ public class OptionTest {
 
 	@Test
 	public void testOthersCustomOptionRegistry() {
-		MapBasedOptionRegistry registry = new MapBasedOptionRegistry(StandardOptionRegistry.getDefaultOptionRegistry(),
-				CUSTOM_1, CUSTOM_2);
+		OptionRegistry registry = MapBasedOptionRegistry.builder()
+				.add(StandardOptionRegistry.getDefaultOptionRegistry())
+				.add(CUSTOM_1, CUSTOM_2).build();
 		StandardOptionRegistry.setDefaultOptionRegistry(registry);
 		testOthers();
 	}
@@ -522,15 +523,23 @@ public class OptionTest {
 		assertThat(list, not(hasItem(port)));
 		assertThat(list, not(hasItem(no)));
 
+		// add single value option, removes previous
+		Option other1a = CUSTOM_1.create("other1a");
+		options.addOtherOption(other1a);
+		list = options.asSortedList();
+		assertThat(list.size(), is(4));
+		assertThat(list, not(hasItem(other1)));
+		assertThat(list, hasItem(other1a));
+
 		list = options.getOthers(CUSTOM_1);
 		assertThat(list.size(), is(1));
-		assertThat(list, hasItem(other1));
+		assertThat(list, hasItem(other1a));
 		assertThat(list, not(hasItem(other2)));
 		assertThat(list, not(hasItem(other3)));
 		assertThat(list, not(hasItem(port)));
 		assertThat(list, not(hasItem(no)));
 
-		assertThat(options.getOtherOption(CUSTOM_1), is(other1));
+		assertThat(options.getOtherOption(CUSTOM_1), is(other1a));
 		assertThat(options.getOtherOption(CUSTOM_2), is(other2));
 
 		options.addOtherOption(other2);
@@ -538,7 +547,7 @@ public class OptionTest {
 
 		list = options.getOthers();
 		assertThat(list.size(), is(2));
-		assertThat(list, hasItem(other1));
+		assertThat(list, hasItem(other1a));
 		assertThat(list, not(hasItem(other2)));
 		assertThat(list, hasItem(other3));
 
@@ -547,7 +556,7 @@ public class OptionTest {
 
 		list = options.getOthers();
 		assertThat(list.size(), is(1));
-		assertThat(list, hasItem(other1));
+		assertThat(list, hasItem(other1a));
 		assertThat(list, not(hasItem(other2)));
 		assertThat(list, not(hasItem(other3)));
 	}
@@ -556,5 +565,4 @@ public class OptionTest {
 	public void tearDown() {
 		StandardOptionRegistry.setDefaultOptionRegistry(null);
 	}
-
 }

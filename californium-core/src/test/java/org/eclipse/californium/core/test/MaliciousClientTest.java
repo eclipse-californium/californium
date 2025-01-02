@@ -374,6 +374,27 @@ public class MaliciousClientTest {
 		assertThat("malicous piggybacked response not ignored", reject, is(nullValue()));
 	}
 
+	/**
+	 * Response with two etags.
+	 * 
+	 * @throws Exception if an error occurs
+	 */
+	@Test
+	public void testResponseWithTwoEtags() throws Exception {
+		Response response = newResponse(ResponseCode.CONTENT);
+		response.setType(Type.ACK);
+		response.getOptions().addOtherOption(newOption(StandardOptionRegistry.ETAG, 4));
+		response.getOptions().addOtherOption(newOption(StandardOptionRegistry.ETAG, 6));
+
+		DataSerializer serializer = new UdpDataSerializer();
+		RawData rawData = serializer.serializeResponse(response);
+		clientConnector.send(rawData);
+
+		assertStatisticCounter(healthStatistic, "recv-malformed", is(1L), 1000, TimeUnit.MILLISECONDS);
+		Message reject = waitForMessage(1000);
+		assertThat("malicous piggybacked response not ignored", reject, is(nullValue()));
+	}
+
 	private static Response newResponse(ResponseCode code) {
 		Response response = new Response(code);
 		response.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));

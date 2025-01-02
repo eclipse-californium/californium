@@ -178,13 +178,18 @@ public abstract class DataParser {
 	/**
 	 * Assert, if options are supported for the specific protocol flavor.
 	 * 
-	 * @param options option set to validate.
+	 * @param message message of option set to validate.
 	 * @throws IllegalArgumentException if at least one option is not valid for
 	 *             the specific flavor.
-	 * @since 3.0
+	 * @since 4.0 (changed parameter to Message)
 	 */
-	protected void assertValidOptions(OptionSet options) {
-		// empty default implementation
+	protected void assertValidOptions(Message message) {
+		if (CoAP.isResponse(message.getRawCode())) {
+			int count = message.getOptions().getETagCount();
+			if (count > 1) {
+				throw new IllegalArgumentException("Multiple ETAGs (" + count + ") in response!");
+			}
+		}
 	}
 
 	/**
@@ -226,8 +231,7 @@ public abstract class DataParser {
 
 				// read option
 				if (reader.bytesAvailable(optionLength)) {
-					byte[] value = reader.readBytes(optionLength);
-					Option option = createOption(code, currentOptionNumber, value);
+					Option option = createOption(code, currentOptionNumber, reader, optionLength);
 					if (option != null) {
 						optionSet.addOption(option);
 					}
@@ -246,7 +250,7 @@ public abstract class DataParser {
 			}
 		}
 		try {
-			assertValidOptions(message.getOptions());
+			assertValidOptions(message);
 		} catch (IllegalArgumentException ex) {
 			throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(),
 					message.getRawCode(), message.isConfirmable(), ResponseCode.BAD_REQUEST);
@@ -271,18 +275,19 @@ public abstract class DataParser {
 	}
 
 	/**
-	 * Create option.
+	 * Creates option.
 	 * <p>
 	 * Enables custom implementation to override this method in order to ignore,
 	 * fix malformed options, or provide details for an custom error response.
 	 * <p>
-	 * <b>Note:</b> only malformed CON-requests are responded with an error message.
-	 * Malformed CON-responses are always rejected and malformed NON-messages
-	 * are always ignored.
+	 * <b>Note:</b> only malformed CON-requests are responded with an error
+	 * message. Malformed CON-responses are always rejected and malformed
+	 * NON-messages are always ignored.
 	 * 
 	 * @param code message code
 	 * @param optionNumber option number
-	 * @param value option value
+	 * @param reader datagram reader to read the option value
+	 * @param length length of the option value
 	 * @return create option, or {@code null}, to ignore this option. Please
 	 *         take care, if you ignore malformed critical options, the outcome
 	 *         will be undefined!
@@ -293,12 +298,12 @@ public abstract class DataParser {
 	 * @throws NullPointerException if provided value is {@code null}
 	 * @see Message#getRawCode()
 	 * @see Option#getNumber()
-	 * @since 3.8 (add parameter code)
+	 * @since 4.0 (changed parameter {@code byte[] value} to DatagramReader and length)
 	 */
-	public Option createOption(int code, int optionNumber, byte[] value) {
+	public Option createOption(int code, int optionNumber, DatagramReader reader, int length) {
 		OptionDefinition definition = optionRegistry.getDefinitionByNumber(code, optionNumber);
 		if (definition != null) {
-			return definition.create(value);
+			return definition.create(reader, length);
 		} else if (OptionNumberRegistry.isCritical(optionNumber)) {
 			throw new IllegalArgumentException("Unknown critical option " + optionNumber + " is not supported!");
 		} else {

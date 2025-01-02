@@ -30,5 +30,15 @@ public interface OptionNumber {
 	 *      target= "_blank">RFC7252 5.4.6. Option Numbers</a>
 	 */
 	int getNumber();
+	/**
+	 * Checks whether an option has a single value.
+	 * 
+	 * @return {@code true}, if the option has a single value, {@code false}, if
+	 *         the option is repeatable
+	 * 
+	 * @see <a href="https://www.rfc-editor.org/rfc/rfc7252#section-5.4.5"
+	 *      target= "_blank">RFC7252 5.4.5. Repeatable Options</a>
+	 */
+	boolean isSingleValue();
 
 }
