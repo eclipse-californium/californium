@@ -16,7 +16,7 @@ package org.eclipse.californium.core.coap.option;
 
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
-import org.eclipse.californium.core.coap.option.EmptyOption.Definition;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 /**
  * Option definition.
@@ -42,15 +42,16 @@ public interface OptionDefinition extends OptionNumber {
 	String toString();
 
 	/**
-	 * Create option from byte array.
+	 * Creates option from reader.
 	 * 
-	 * @param value the option value
-	 * @return created options
+	 * @param reader datagram reader to read the option value
+	 * @param length length of the option value
+	 * @return created option
 	 * @throws NullPointerException if value is {@code null}.
-	 * @throws UnsupportedOperationException if option definition is a
-	 *             {@link Definition}.
+	 * @throws IllegalArgumentException if value doesn't match the definition.
+	 * @since 4.0
 	 */
-	Option create(byte[] value);
+	Option create(DatagramReader reader, int length);
 
 	/**
 	 * Get option format.
@@ -74,11 +75,12 @@ public interface OptionDefinition extends OptionNumber {
 	boolean isSingleValue();
 
 	/**
-	 * Assert, that the value matches the custom options's definition.
+	 * Asserts the value length matches the options's definition.
 	 * 
-	 * @param value value to check
-	 * @throws IllegalArgumentException if value doesn't match the definition
+	 * @param length length to check
+	 * @throws IllegalArgumentException if length doesn't match the definition
+	 * @since 4.0
 	 */
-	void assertValue(byte[] value);
+	void assertValueLength(int length);
 
 }

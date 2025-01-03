@@ -16,15 +16,15 @@
 package org.eclipse.californium.core.coap.option;
 
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.OptionFormat;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 /**
  * Option representing a string value.
  * 
  * @since 4.0
  */
-public class StringOption extends Option {
+public class StringOption extends OpaqueOption {
 
 	/**
 	 * String option value.
@@ -75,7 +75,7 @@ public class StringOption extends Option {
 	 * 
 	 * @since 4.0 (moved from StringOptionDefinition)
 	 */
-	public static class Definition extends BaseOptionDefinition {
+	public static class Definition extends OpaqueOption.Definition {
 
 		/**
 		 * Creates option definition for an single value string option.
@@ -121,11 +121,11 @@ public class StringOption extends Option {
 		}
 
 		@Override
-		public StringOption create(byte[] value) {
-			if (value == null) {
-				throw new NullPointerException("Option " + getName() + " value must not be null.");
+		public StringOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
 			}
-			return new StringOption(this, value);
+			return new StringOption(this, reader.readBytes(length));
 		}
 
 		/**
@@ -163,5 +163,4 @@ public class StringOption extends Option {
 		}
 
 	}
-
 }

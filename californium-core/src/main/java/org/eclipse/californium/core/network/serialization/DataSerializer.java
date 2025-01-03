@@ -279,7 +279,6 @@ public abstract class DataSerializer {
 
 		int lastOptionNumber = 0;
 		for (Option option : optionSet.asSortedList()) {
-			byte[] value = option.getValue();
 
 			// write 4-bit option delta
 			int optionNumber = option.getNumber();
@@ -288,7 +287,7 @@ public abstract class DataSerializer {
 			writer.write(optionDeltaNibble, OPTION_DELTA_BITS);
 
 			// write 4-bit option length
-			int optionLength = value.length;
+			int optionLength = option.getLength();
 			int optionLengthNibble = getOptionNibble(optionLength);
 			writer.write(optionLengthNibble, OPTION_LENGTH_BITS);
 
@@ -306,8 +305,7 @@ public abstract class DataSerializer {
 				writer.write(optionLength - 269, 2 * Byte.SIZE);
 			}
 
-			// write option value
-			writer.writeBytes(value);
+			option.writeTo(writer);
 
 			// update last option number
 			lastOptionNumber = optionNumber;

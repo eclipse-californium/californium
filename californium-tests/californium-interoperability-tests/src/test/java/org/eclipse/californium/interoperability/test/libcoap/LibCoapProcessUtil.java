@@ -429,7 +429,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		}
 		if (clientOption != null) {
 			args.add("-O");
-			byte[] value = clientOption.getValue();
+			byte[] value = clientOption.encode();
 			args.add(clientOption.getNumber() + ",0x" + StringUtil.byteArray2Hex(value));
 		}
 		if (clientBlocksize != null) {

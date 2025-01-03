@@ -14,10 +14,10 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.option;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.option.IntegerOption;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 /**
  * CoAP custom option for response code of combined read.
@@ -26,13 +26,22 @@ import org.eclipse.californium.core.coap.option.IntegerOption;
  */
 public class ResponseCodeOption extends IntegerOption {
 
+	private final ResponseCode code;
+
 	/**
 	 * Create response code option for combined read.
 	 * 
 	 * @param code response code
+	 * @throws IllegalArgumentException if code is no valid response code.
+	 * @see ResponseCode#valueOf(int)
 	 */
-	public ResponseCodeOption(Definition definition, long code) {
+	public ResponseCodeOption(Definition definition, int code) {
 		super(definition, code);
+		try {
+			this.code = ResponseCode.valueOf(code);
+		} catch (MessageFormatException ex) {
+			throw new IllegalArgumentException(getDefinition().getName() + " " + ex.getMessage());
+		}
 	}
 
 	/**
@@ -41,11 +50,11 @@ public class ResponseCodeOption extends IntegerOption {
 	 * @param code response code
 	 */
 	public ResponseCodeOption(Definition definition, ResponseCode code) {
-		this(definition, code.value);
-	}
-
-	public ResponseCodeOption(Definition definition, byte[] value) {
-		super(definition, value);
+		super(definition, code != null ? code.value : 0);
+		if (code == null) {
+			throw new NullPointerException("Option " + getDefinition().getName() + " code must not be null.");
+		}
+		this.code = code;
 	}
 
 	@Override
@@ -55,7 +64,11 @@ public class ResponseCodeOption extends IntegerOption {
 
 	@Override
 	public String toValueString() {
-		return CoAP.toDisplayString(getIntegerValue());
+		return code.text + "/" + code.name();
+	}
+
+	public ResponseCode getResponseCode() {
+		return code;
 	}
 
 	public static class Definition extends IntegerOption.Definition {
@@ -65,27 +78,26 @@ public class ResponseCodeOption extends IntegerOption {
 		}
 
 		@Override
-		public ResponseCodeOption create(byte[] value) {
-			return new ResponseCodeOption(this, value);
+		public ResponseCodeOption create(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Option " + getName() + " reader must not be null.");
+			}
+			if (length != 1) {
+				throw new IllegalArgumentException("Option " + getName() + " value must be 1 byte.");
+			}
+			return new ResponseCodeOption(this, reader.readNextByte() & 0xFF);
 		}
 
 		@Override
 		public ResponseCodeOption create(long value) {
-			return new ResponseCodeOption(this, value);
+			return new ResponseCodeOption(this, (int) value);
 		}
 
 		public ResponseCodeOption create(ResponseCode code) {
-			return new ResponseCodeOption(this, code);
-		}
-
-		@Override
-		public void assertValue(byte[] value) {
-			int code = value[0] & 0xff;
-			try {
-				ResponseCode.valueOf(code);
-			} catch (MessageFormatException ex) {
-				throw new IllegalArgumentException(ex.getMessage() + " Value " + value);
+			if (code == null) {
+				throw new NullPointerException("Option " + getName() + " code must not be null.");
 			}
+			return new ResponseCodeOption(this, code);
 		}
 	}
 }
