@@ -104,9 +104,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAl
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
@@ -151,7 +151,7 @@ public class DTLSConnectorHandshakeTest {
 	private static AdditionalInfo additionalClientInfo;
 	private static AdditionalInfo additionalServerInfo;
 
-	private static final AdvancedPskStore PSK_STORE = new AdvancedSinglePskStore(CLIENT_IDENTITY,
+	private static final PskStore PSK_STORE = new SinglePskStore(CLIENT_IDENTITY,
 			CLIENT_IDENTITY_SECRET.getBytes());
 
 	@Rule
@@ -162,7 +162,7 @@ public class DTLSConnectorHandshakeTest {
 	DtlsConnectorConfig.Builder serverBuilder;
 	ConnectorHelper serverHelper;
 
-	AsyncAdvancedPskStore serverPskStore;
+	AsyncPskStore serverPskStore;
 	AsyncNewAdvancedCertificateVerifier serverVerifier;
 
 	DtlsHealthLogger serverHealth;
@@ -176,7 +176,7 @@ public class DTLSConnectorHandshakeTest {
 	PrivateKey clientPrivateKey;
 	PublicKey clientPublicKey;
 	X509Certificate[] clientCertificateChain;
-	List<AsyncAdvancedPskStore> clientsPskStores = new ArrayList<>();
+	List<AsyncPskStore> clientsPskStores = new ArrayList<>();
 	List<AsyncNewAdvancedCertificateVerifier> clientsCertificateVerifiers = new ArrayList<>();
 
 	/**
@@ -280,9 +280,9 @@ public class DTLSConnectorHandshakeTest {
 
 			@Override
 			public void setup(Builder builder) {
-				AdvancedPskStore pskStore = builder.getIncompleteConfig().getAdvancedPskStore();
-				if (pskStore instanceof AsyncAdvancedPskStore) {
-					((AsyncAdvancedPskStore) pskStore).setDelay(0);
+				PskStore pskStore = builder.getIncompleteConfig().getPskStore();
+				if (pskStore instanceof AsyncPskStore) {
+					((AsyncPskStore) pskStore).setDelay(0);
 				}
 				NewAdvancedCertificateVerifier verifier = builder.getIncompleteConfig()
 						.getAdvancedCertificateVerifier();
@@ -303,9 +303,9 @@ public class DTLSConnectorHandshakeTest {
 
 			@Override
 			public void setup(Builder builder) {
-				AdvancedPskStore pskStore = builder.getIncompleteConfig().getAdvancedPskStore();
-				if (pskStore instanceof AsyncAdvancedPskStore) {
-					((AsyncAdvancedPskStore) pskStore).setDelay(1);
+				PskStore pskStore = builder.getIncompleteConfig().getPskStore();
+				if (pskStore instanceof AsyncPskStore) {
+					((AsyncPskStore) pskStore).setDelay(1);
 				}
 				NewAdvancedCertificateVerifier verifier = builder.getIncompleteConfig()
 						.getAdvancedCertificateVerifier();
@@ -367,9 +367,9 @@ public class DTLSConnectorHandshakeTest {
 		serverHelper = new ConnectorHelper(network);
 		serverBuilder = serverHelper.serverBuilder;
 
-		serverPskStore = new AsyncAdvancedPskStore(serverHelper.serverPskStore);
+		serverPskStore = new AsyncPskStore(serverHelper.serverPskStore);
 		serverPskStore.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
-		serverBuilder.setAdvancedPskStore(serverPskStore).setApplicationLevelInfoSupplier(clientInfoSupplier);
+		serverBuilder.setPskStore(serverPskStore).setApplicationLevelInfoSupplier(clientInfoSupplier);
 
 		clientBuilder = DtlsConnectorConfig.builder(network.createClientTestConfig());
 
@@ -400,7 +400,7 @@ public class DTLSConnectorHandshakeTest {
 			} catch (InterruptedException e) {
 			}
 		}
-		for (AsyncAdvancedPskStore pskStore : clientsPskStores) {
+		for (AsyncPskStore pskStore : clientsPskStores) {
 			pskStore.shutdown();
 		}
 		clientsPskStores.clear();
@@ -470,11 +470,11 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	private DTLSSession startClientPsk(String hostname) throws Exception {
-		AdvancedPskStore pskStore = clientBuilder.getIncompleteConfig().getAdvancedPskStore();
-		if (!(pskStore instanceof AsyncAdvancedPskStore)) {
-			AsyncAdvancedPskStore clientPskStore = new AsyncAdvancedPskStore(pskStore == null ? PSK_STORE : pskStore);
+		PskStore pskStore = clientBuilder.getIncompleteConfig().getPskStore();
+		if (!(pskStore instanceof AsyncPskStore)) {
+			AsyncPskStore clientPskStore = new AsyncPskStore(pskStore == null ? PSK_STORE : pskStore);
 			clientsPskStores.add(clientPskStore);
-			clientBuilder.setAdvancedPskStore(clientPskStore);
+			clientBuilder.setPskStore(clientPskStore);
 		}
 		return startClient(hostname);
 	}
@@ -666,8 +666,8 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true);
 		startServer();
 		clientBuilder
-				.setAdvancedPskStore(
-						new AdvancedSinglePskStore(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes()))
+				.setPskStore(
+						new SinglePskStore(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes()))
 				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true);
 		startClientPsk(SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
@@ -1315,7 +1315,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.REQUIRED);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE)
-				.setAdvancedPskStore(PSK_STORE);
+				.setPskStore(PSK_STORE);
 		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
@@ -1342,7 +1342,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.REQUIRED)
-				.setAdvancedPskStore(PSK_STORE);
+				.setPskStore(PSK_STORE);
 		startClientFailing();
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
@@ -1413,7 +1413,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NEEDED);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NONE)
-				.setAdvancedPskStore(PSK_STORE);
+				.setPskStore(PSK_STORE);
 
 		startClientFailing();
 
@@ -1441,7 +1441,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NONE);
 		startServer();
 		clientBuilder.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, DtlsSecureRenegotiation.NEEDED)
-				.setAdvancedPskStore(PSK_STORE);
+				.setPskStore(PSK_STORE);
 
 		startClientFailing();
 

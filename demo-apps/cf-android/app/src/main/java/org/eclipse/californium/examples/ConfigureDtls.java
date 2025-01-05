@@ -23,7 +23,7 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 
@@ -88,7 +88,7 @@ public class ConfigureDtls {
             }
         }
         if (PSK_MODE || !credentialsSet) {
-            dtlsConfig.setAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENTITY, PSK_SECRET));
+            dtlsConfig.setPskStore(new SinglePskStore(PSK_IDENTITY, PSK_SECRET));
         }
     }
 }

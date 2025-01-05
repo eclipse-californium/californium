@@ -35,8 +35,7 @@ import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * {@link AdvancedPskStore} implementation supporting multiple peers.
- * 
+ * {@link PskStore} implementation supporting multiple peers.
  * <p>
  * If you don't need to initiate handshake/connection, you could just add
  * identity/key with {@link #setKey(String, byte[])} or
@@ -55,9 +54,9 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * key in a secure way: keeping them in-memory is not a good idea.
  * </p>
  * 
- * @since 2.5
+ * @since 4.0 (Renamed AdvancedMultiPskStore into MultiPskStore)
  */
-public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
+public class MultiPskStore implements PskStore, Destroyable {
 
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 

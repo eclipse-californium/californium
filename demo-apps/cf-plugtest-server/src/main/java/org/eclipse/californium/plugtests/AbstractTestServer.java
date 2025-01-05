@@ -66,7 +66,7 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.MultiPskFileStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
@@ -336,9 +336,9 @@ public abstract class AbstractTestServer extends CoapServer {
 						if (cliConfig.pskFile != null) {
 							pskStore.loadPskCredentials(cliConfig.pskFile);
 						}
-						AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(pskStore);
+						AsyncPskStore asyncPskStore = new AsyncPskStore(pskStore);
 						asyncPskStore.setDelay(handshakeResultDelayMillis);
-						dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
+						dtlsConfigBuilder.setPskStore(asyncPskStore);
 					}
 					if (certificate) {
 						if (cliConfig.clientAuth != null) {

@@ -52,8 +52,8 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -262,7 +262,7 @@ public class SecureTest {
 		// setup DTLS Config
 		Builder builder = DtlsConnectorConfig.builder(config).setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
-				.setAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
+				.setPskStore(new SinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
 		DtlsConnectorConfig dtlsConfig = builder.build();
 
 		// create endpoint for tests
@@ -285,11 +285,11 @@ public class SecureTest {
 		TestUtilPskStore singlePskStore = new TestUtilPskStore();
 		singlePskStore.set(pskIdentity, PSK_KEY.getBytes());
 		singlePskStore.setCatchAll(true);
-		AsyncAdvancedPskStore pskStore = new AsyncAdvancedPskStore(singlePskStore);
+		AsyncPskStore pskStore = new AsyncPskStore(singlePskStore);
 		pskStore.setDelay(-pskDelay);
 		cleanup.add(() -> pskStore.shutdown());
 		Builder builder = new DtlsConnectorConfig.Builder(config).setAddress(TestTools.LOCALHOST_EPHEMERAL)
-				.setLoggingTag(tag).setAdvancedPskStore(pskStore);
+				.setLoggingTag(tag).setPskStore(pskStore);
 		DtlsConnectorConfig dtlsConfig = builder.build();
 
 		// create endpoint for tests

@@ -60,7 +60,7 @@ import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -96,7 +96,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	/**
 	 * Store for PreSharedKey credentials.
 	 */
-	protected AdvancedPskStore pskStore;
+	protected PskStore pskStore;
 	/**
 	 * Certificate verifier for device certificates.
 	 */
@@ -207,7 +207,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	}
 
 	@Override
-	public AdvancedPskStore getPskStore() {
+	public PskStore getPskStore() {
 		if (devices == null) {
 			return null;
 		}
@@ -325,7 +325,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 		return types;
 	}
 
-	private class DevicePskStore implements AdvancedPskStore {
+	private class DevicePskStore implements PskStore {
 
 		private final PskPublicInformation dummy = new PskPublicInformation("dummy");
 

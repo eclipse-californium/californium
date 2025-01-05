@@ -54,7 +54,7 @@ DtlsConfig.register();
 Configuration configuration = Configuration.getStandard();
 DtlsConnectorConfig dtlsConfiguration = DtlsConnectorConfig.builder(configuration)
    .set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY)
-   .setAdvancedPskStore(new AdvancedSinglePskStore("identity", "secret".getBytes()))
+   .setPskStore(new SinglePskStore("identity", "secret".getBytes()))
    .build();
 
 CoapEndpoint endpoint = CoapEndpoint.builder()

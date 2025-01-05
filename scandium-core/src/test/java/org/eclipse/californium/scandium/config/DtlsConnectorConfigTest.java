@@ -68,7 +68,7 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.Signature
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
@@ -150,7 +150,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderSetsPskCipherSuitesWhenPskStoreIsSet() {
-		DtlsConnectorConfig config = builder.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes())).build();
+		DtlsConnectorConfig config = builder.setPskStore(new SinglePskStore("ID", "KEY".getBytes())).build();
 		assertFalse(config.getSupportedCipherSuites().isEmpty());
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
 			assertThat(suite.getKeyExchange(),
@@ -174,7 +174,7 @@ public class DtlsConnectorConfigTest {
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
 		DtlsConnectorConfig config = builder
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
-				.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes())).build();
+				.setPskStore(new SinglePskStore("ID", "KEY".getBytes())).build();
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
 		assertThat(cipherSuites,
 				hasItems(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
@@ -191,7 +191,7 @@ public class DtlsConnectorConfigTest {
 		DtlsConnectorConfig config = builder
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
-				.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes()))
+				.setPskStore(new SinglePskStore("ID", "KEY".getBytes()))
 				.build();
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
 		assertThat(cipherSuites,
@@ -204,7 +204,7 @@ public class DtlsConnectorConfigTest {
 	public void testBuilderSetsNoNotRecommendedCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
 		builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		DtlsConnectorConfig config = builder.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()))
-				.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes())).build();
+				.setPskStore(new SinglePskStore("ID", "KEY".getBytes())).build();
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
 		for (CipherSuite cipherSuite :cipherSuites) {
 			assertThat(cipherSuite.isRecommended(), is(true)); 
@@ -215,7 +215,7 @@ public class DtlsConnectorConfigTest {
 	public void testBuilderDetectsNotRecommendedCiperSuite() {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("Not recommended cipher suites"));
-		builder.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes()));
+		builder.setPskStore(new SinglePskStore("ID", "KEY".getBytes()));
 		builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256).build();
 	}
 
@@ -559,7 +559,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testAntiReplayFilterDefault() throws Exception {
-		builder.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes()));
+		builder.setPskStore(new SinglePskStore("ID", "KEY".getBytes()));
 
 		// WHEN configuration is build
 		DtlsConnectorConfig config = builder.build();
@@ -571,7 +571,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testAntiReplayFilterDefaultWithWindowFilter() throws Exception {
-		builder.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes()))
+		builder.setPskStore(new SinglePskStore("ID", "KEY".getBytes()))
 				.set(DtlsConfig.DTLS_USE_DISABLED_WINDOW_FOR_ANTI_REPLAY_FILTER, -1);
 		
 		// WHEN configuration is build

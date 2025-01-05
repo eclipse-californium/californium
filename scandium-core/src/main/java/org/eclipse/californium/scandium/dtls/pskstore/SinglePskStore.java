@@ -29,12 +29,12 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * {@link AdvancedPskStore} implementation for clients to connect a single other
+ * {@link PskStore} implementation for clients to connect a single other
  * peer.
  * 
- * @since 2.5
+ * @since 4.0 (Renamed AdvancedSinglePskStore into SinglePskStore)
  */
-public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
+public class SinglePskStore implements PskStore, Destroyable {
 
 	/**
 	 * PSK identity.
@@ -51,7 +51,7 @@ public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 	 * @param identity PSK identity
 	 * @param key PSK secret key
 	 */
-	public AdvancedSinglePskStore(String identity, byte[] key) {
+	public SinglePskStore(String identity, byte[] key) {
 		this(new PskPublicInformation(identity), key);
 	}
 
@@ -61,7 +61,7 @@ public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 	 * @param identity PSK identity
 	 * @param key PSK secret key
 	 */
-	public AdvancedSinglePskStore(PskPublicInformation identity, byte[] key) {
+	public SinglePskStore(PskPublicInformation identity, byte[] key) {
 		this.identity = identity;
 		this.secret = SecretUtil.create(key, "PSK");
 	}
@@ -72,7 +72,7 @@ public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 	 * @param identity PSK identity
 	 * @param key PSK secret key
 	 */
-	public AdvancedSinglePskStore(String identity,SecretKey key) {
+	public SinglePskStore(String identity,SecretKey key) {
 		this(new PskPublicInformation(identity), key);
 	}
 
@@ -82,7 +82,7 @@ public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 	 * @param identity PSK identity
 	 * @param key PSK secret key
 	 */
-	public AdvancedSinglePskStore(PskPublicInformation identity, SecretKey key) {
+	public SinglePskStore(PskPublicInformation identity, SecretKey key) {
 		this.identity = identity;
 		this.secret = SecretUtil.create(key);
 	}

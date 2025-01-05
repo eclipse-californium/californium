@@ -232,7 +232,7 @@ import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
@@ -609,9 +609,9 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 					processAsynchronousHandshakeResult(connectionResult);
 				}
 			};
-			AdvancedPskStore advancedPskStore = config.getAdvancedPskStore();
-			if (advancedPskStore != null) {
-				advancedPskStore.setResultHandler(handler);
+			PskStore pskStore = config.getPskStore();
+			if (pskStore != null) {
+				pskStore.setResultHandler(handler);
 			}
 			CertificateProvider certificateIdentityProvider = config.getCertificateIdentityProvider();
 			if (certificateIdentityProvider != null) {

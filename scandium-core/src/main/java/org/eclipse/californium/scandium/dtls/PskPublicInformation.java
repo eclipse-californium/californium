@@ -21,7 +21,7 @@ import java.util.Arrays;
 
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 /**
  * Implementation of byte array based PSK public information (hint or identity).
@@ -33,7 +33,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
  * identity is used for {@link PreSharedKeyIdentity}, therefore it's required to
  * use {@link #PskPublicInformation(String, byte[])} to setup a proper name for
  * such non-compliant peers in the
- * {@link org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore}. During
+ * {@link org.eclipse.californium.scandium.dtls.pskstore.PskStore}. During
  * the lookup of the secret key in the handshake, such a non-compliant identity
  * is normalized with the identity provided by the store.
  */
@@ -116,7 +116,7 @@ public final class PskPublicInformation extends Bytes {
 	 * @param publicInfo PSK public information as string. Identity or hint.
 	 * @throws NullPointerException if public information is {@code null}
 	 * @throws IllegalArgumentException if public information is empty.
-	 * @see AdvancedPskStore#getIdentity(java.net.InetSocketAddress,
+	 * @see PskStore#getIdentity(java.net.InetSocketAddress,
 	 *      org.eclipse.californium.scandium.util.ServerNames)
 	 */
 	public void normalize(String publicInfo) {

@@ -76,9 +76,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.MultiPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateConfigurationHelper;
@@ -101,7 +101,7 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * InetSocketAddress bindToAddress = new InetSocketAddress(0); // use ephemeral port
  * DtlsConnectorConfig config = DtlsConnectorConfig.builder()
  *    .setAddress(bindToAddress)
- *    .setAdvancedPskStore(new AdvancedSinglePskStore("identity", "secret".getBytes()))
+ *    .setPskStore(new SinglePskStore("identity", "secret".getBytes()))
  *    .set... // additional configuration
  *    .build();
  * 
@@ -117,7 +117,7 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * 
  * Generally the not provided configuration values will be filled in using
  * proper values for the already provided ones. E.g. if the
- * {@link Builder#setAdvancedPskStore(AdvancedPskStore)} is used, but no
+ * {@link Builder#setPskStore(PskStore)} is used, but no
  * explicit cipher suite is set with
  * {@code builder.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, ...)}, the
  * configuration chose some PSK cipher suites on its own. For the asymmetric
@@ -163,11 +163,11 @@ public final class DtlsConnectorConfig {
 	private ProtocolVersion protocolVersionForHelloVerifyRequests;
 
 	/**
-	 * Advanced store of PSK credentials.
+	 * Store of PSK credentials.
 	 * 
 	 * @since 2.3
 	 */
-	private AdvancedPskStore advancedPskStore;
+	private PskStore pskStore;
 
 	/**
 	 * The certificate identity provider.
@@ -579,17 +579,17 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the advanced registry of <em>shared secrets</em> used for
+	 * Gets the registry of <em>shared secrets</em> used for
 	 * authenticating clients during a DTLS handshake.
 	 * 
 	 * @return the registry
-	 * @see Builder#setAdvancedPskStore(AdvancedPskStore)
-	 * @see AdvancedSinglePskStore
-	 * @see AdvancedMultiPskStore
+	 * @see Builder#setPskStore(PskStore)
+	 * @see SinglePskStore
+	 * @see MultiPskStore
 	 * @since 2.3
 	 */
-	public AdvancedPskStore getAdvancedPskStore() {
-		return advancedPskStore;
+	public PskStore getPskStore() {
+		return pskStore;
 	}
 
 	/**
@@ -817,7 +817,7 @@ public final class DtlsConnectorConfig {
 		cloned.advancedCertificateVerifier = advancedCertificateVerifier;
 		cloned.useReuseAddress = useReuseAddress;
 		cloned.protocolVersionForHelloVerifyRequests = protocolVersionForHelloVerifyRequests;
-		cloned.advancedPskStore = advancedPskStore;
+		cloned.pskStore = pskStore;
 		cloned.certificateIdentityProvider = certificateIdentityProvider;
 		cloned.certificateConfigurationHelper = certificateConfigurationHelper;
 		cloned.cipherSuiteSelector = cipherSuiteSelector;
@@ -881,7 +881,7 @@ public final class DtlsConnectorConfig {
 		 * constructor.
 		 * 
 		 * Note that when keeping the default values, at least one of the
-		 * {@link #setAdvancedPskStore(AdvancedPskStore)} or
+		 * {@link #setPskStore(PskStore)} or
 		 * {@link #setCertificateIdentityProvider(CertificateProvider)} methods
 		 * need to be used to get a working configuration for a
 		 * {@code DTLSConnector} that can be used as a client and server.
@@ -1109,7 +1109,7 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the advanced key store to use for authenticating clients based
+		 * Sets the key store to use for authenticating clients based
 		 * on a pre-shared key.
 		 * 
 		 * If used together with
@@ -1118,13 +1118,13 @@ public final class DtlsConnectorConfig {
 		 * change that, use the configuration of
 		 * {@link DtlsConfig#DTLS_CIPHER_SUITES}.
 		 * 
-		 * @param advancedPskStore the advanced key store
+		 * @param pskStore the key store
 		 * @return this builder for command chaining
-		 * @see DtlsConnectorConfig#getAdvancedPskStore()
+		 * @see DtlsConnectorConfig#getPskStore()
 		 * @since 2.3
 		 */
-		public Builder setAdvancedPskStore(AdvancedPskStore advancedPskStore) {
-			config.advancedPskStore = advancedPskStore;
+		public Builder setPskStore(PskStore pskStore) {
+			config.pskStore = pskStore;
 			return this;
 		}
 
@@ -1135,7 +1135,7 @@ public final class DtlsConnectorConfig {
 		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)},
 		 * if you want to trust the other peers.
 		 * 
-		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)},
+		 * If used together with {@link #setPskStore(PskStore)},
 		 * the default preference uses this certificate based cipher suites. To
 		 * change that, use the configuration of
 		 * {@link DtlsConfig#DTLS_CIPHER_SUITES}.
@@ -1515,8 +1515,8 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			if (!psk && config.advancedPskStore != null) {
-				throw new IllegalStateException("Advanced PSK store set, but no PSK cipher suite!");
+			if (!psk && config.pskStore != null) {
+				throw new IllegalStateException("PSK store set, but no PSK cipher suite!");
 			}
 
 			if (certifacte) {
@@ -1625,10 +1625,10 @@ public final class DtlsConnectorConfig {
 		}
 
 		private void verifyPskBasedCipherConfig(CipherSuite suite) {
-			if (config.advancedPskStore == null) {
+			if (config.pskStore == null) {
 				throw new IllegalStateException("PSK store must be set for configured " + suite.name());
 			}
-			if (!config.advancedPskStore.hasEcdhePskSupported() && suite.isEccBased()) {
+			if (!config.pskStore.hasEcdhePskSupported() && suite.isEccBased()) {
 				throw new IllegalStateException("PSK store doesn't support ECDHE! " + suite.name());
 			}
 		}
@@ -1739,8 +1739,8 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			if (config.advancedPskStore != null) {
-				if (config.advancedPskStore.hasEcdhePskSupported()) {
+			if (config.pskStore != null) {
+				if (config.pskStore.hasEcdhePskSupported()) {
 					ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(
 							config.get(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY), KeyExchangeAlgorithm.ECDHE_PSK));
 				}

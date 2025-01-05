@@ -111,7 +111,7 @@ import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
@@ -179,7 +179,7 @@ public abstract class Handshaker implements Destroyable {
 	protected final NewAdvancedCertificateVerifier certificateVerifier;
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
-	protected final AdvancedPskStore advancedPskStore;
+	protected final PskStore pskStore;
 
 	/**
 	 * The configured connection id length. {@code null}, not supported,
@@ -556,7 +556,7 @@ public abstract class Handshaker implements Destroyable {
 		this.useEarlyStopRetransmission = config.get(DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION);
 		this.certificateIdentityProvider = config.getCertificateIdentityProvider();
 		this.certificateVerifier = config.getAdvancedCertificateVerifier();
-		this.advancedPskStore = config.getAdvancedPskStore();
+		this.pskStore = config.getPskStore();
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 		this.ipv6 = connection.getPeerAddress().getAddress() instanceof Inet6Address;
@@ -1293,7 +1293,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Checks, if a internal API call is pending.
 	 * 
-	 * Using {@link AdvancedPskStore} or {@link NewAdvancedCertificateVerifier}
+	 * Using {@link PskStore} or {@link NewAdvancedCertificateVerifier}
 	 * may result in pending API calls. Such API calls are timed out with the
 	 * current flight and so report as INTERNAL_ERROR alert instead of silently
 	 * ignore that time out.
@@ -1513,7 +1513,7 @@ public abstract class Handshaker implements Destroyable {
 		pskRequestPending = true;
 		masterSecretSeed = seed;
 		this.otherSecret = SecretUtil.create(otherSecret);
-		PskSecretResult result = advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
+		PskSecretResult result = pskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
 				hmacAlgorithm, otherSecret, masterSecretSeed, session.useExtendedMasterSecret());
 		if (result != null) {
 			processPskSecretResult(result);

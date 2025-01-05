@@ -31,9 +31,9 @@ builder.setAddress(new InetSocketAddress(5684));
 
 ## PSK
 
-PSK credentials are provided using a implementation of the [AdvancedPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedPskStore.java) interface.
+PSK credentials are provided using a implementation of the [dPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/PskStore.java) interface.
 
-For demonstration, two implementations for server- and client-usage are available ([AdvancedMultiPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedMultiPskStore.java) and [AdvancedSinglePskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/AdvancedSinglePskStore.java)).
+For demonstration, two implementations for server- and client-usage are available ([MultiPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/MultiPskStore.java) and [SinglePskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/SinglePskStore.java)).
 
 Using the interface enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible. Such a design with larger latency will still cause delays in the handshakes and limit the possible handshakes in a period of time, but has only slightly effects on the other ongoing traffic.
 
@@ -43,8 +43,8 @@ Example:
 ...
 DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
 builder.setAddress(new InetSocketAddress(5684));
-AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("me", "secret".getBytes());
-builder.setAdvancedPskStore(pskStore);
+SinglePskStore pskStore = new SinglePskStore("me", "secret".getBytes());
+builder.setPskStore(pskStore);
 
 DTLSConnector connector = new DTLSConnector(builder.build());
 ```

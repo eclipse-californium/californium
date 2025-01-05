@@ -517,7 +517,7 @@ public class SecureObserveTest {
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("server")
 				.setConnectionIdGenerator(cidGenerator)
-				.setAdvancedPskStore(serverPskStore).build();
+				.setPskStore(serverPskStore).build();
 
 
 		serverConnector = new DTLSConnector(dtlsConfig);
@@ -544,7 +544,7 @@ public class SecureObserveTest {
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
 				.setConnectionIdGenerator(cidGenerator)
-				.setAdvancedPskStore(clientPskStore).build();
+				.setPskStore(clientPskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);

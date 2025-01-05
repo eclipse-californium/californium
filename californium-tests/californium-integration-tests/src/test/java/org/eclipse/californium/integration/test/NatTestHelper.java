@@ -64,7 +64,7 @@ import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.util.nat.NioNatUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -246,7 +246,7 @@ public class NatTestHelper {
 					.setLoggingTag(tag)
 					.setHealthHandler(health)
 					.setConnectionIdGenerator(generator)
-					.setAdvancedPskStore(pskStore).build();
+					.setPskStore(pskStore).build();
 
 			DebugConnectionStore serverConnectionStore = ConnectorHelper.createDebugConnectionStore(dtlsConfig);
 			this.serverConnections.add(serverConnectionStore);
@@ -305,7 +305,7 @@ public class NatTestHelper {
 				.setLoggingTag(tag)
 				.setHealthHandler(health)
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
-				.setAdvancedPskStore(new AdvancedSinglePskStore(IDENITITY + "." + size, KEY.getBytes())).build();
+				.setPskStore(new SinglePskStore(IDENITITY + "." + size, KEY.getBytes())).build();
 
 		DebugConnectionStore clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientDtlsConfig);
 

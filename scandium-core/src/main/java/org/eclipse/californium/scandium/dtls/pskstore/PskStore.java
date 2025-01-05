@@ -30,10 +30,10 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * Advanced PSK store with optional asynchronous API.
- * 
+ * PSK store with optional asynchronous API.
+ * <p>
  * It could also be used to delegate the master secret generation to a HSM.
- * 
+ * <p>
  * Returns psk secret result instead of PSK's secret key. The secret must either
  * be a master secret (algorithm "MAC"), or a PSK secret key (algorithm "PSK").
  * If required, the psk secret result maybe returned asynchronously using a
@@ -79,9 +79,9 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * }
  * </pre>
  * 
- * @since 2.3
+ * @since 4.0 (Renamed AdvancedPskStore into PskStore)
  */
-public interface AdvancedPskStore {
+public interface PskStore {
 
 	/**
 	 * Check, if ECDHE PSK cipher suites are supported.

@@ -42,7 +42,7 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 
 public class SecureClient {
 	private static final File CONFIG_FILE = new File("Californium3SecureClient.properties");
@@ -130,7 +130,7 @@ public class SecureClient {
 		CredentialsUtil.setupCid(args, builder);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_CLIENT_MODES, SUPPORTED_MODES);
 		if (modes.contains(CredentialsUtil.Mode.PSK) || modes.contains(CredentialsUtil.Mode.ECDHE_PSK)) {
-			builder.setAdvancedPskStore(new AdvancedSinglePskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
+			builder.setPskStore(new SinglePskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
 		}
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.CLIENT_NAME, modes);
 		// uncomment next line to load pem file for the example

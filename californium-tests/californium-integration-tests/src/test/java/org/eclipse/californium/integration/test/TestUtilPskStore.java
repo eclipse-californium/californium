@@ -24,7 +24,7 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -32,7 +32,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * Simple {@link PskStore} implementation with exchangeable credentials and
  * catch all function.
  */
-public class TestUtilPskStore implements AdvancedPskStore {
+public class TestUtilPskStore implements PskStore {
 	/**
 	 * Returns secret for all identities.
 	 * 

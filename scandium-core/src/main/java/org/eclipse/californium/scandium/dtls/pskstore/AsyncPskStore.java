@@ -39,17 +39,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Asynchronous test implementation using a provided {@link AdvancedPskStore}.
- * 
+ * Asynchronous test implementation using a provided {@link PskStore}.
+ * <p>
  * Use {@code 0} or negative delays for test with synchronous blocking
  * behavior. And positive delays for test with asynchronous none-blocking
  * behavior.
  * 
- * @since 2.5
+ * @since 4.0 (Renamed AsyncAdvancedPskStore into AsyncPskStore)
  */
-public class AsyncAdvancedPskStore implements AdvancedPskStore {
+public class AsyncPskStore implements PskStore {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncAdvancedPskStore.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncPskStore.class);
 
 	protected static final ThreadLocalCryptoMap<ThreadLocalMac> MAC = new ThreadLocalCryptoMap<>(
 			new Factory<ThreadLocalMac>() {
@@ -69,9 +69,9 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 */
 	private final ScheduledExecutorService executorService;
 	/**
-	 * Advanced PSK store.
+	 * PSK store.
 	 */
-	private final AdvancedPskStore pskStore;
+	private final PskStore pskStore;
 	/**
 	 * Delay for psk result. {@code 0} or negative delays for test with
 	 * synchronous blocking behaviour. Positive delays for test with
@@ -91,14 +91,14 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	private volatile HandshakeResultHandler resultHandler;
 
 	/**
-	 * Create an asynchronous advanced pskstore from {@link AdvancedPskStore}.
-	 * 
+	 * Create an asynchronous pskstore from {@link PskStore}.
+	 * <p>
 	 * A call to {@link #shutdown()} is required to cleanup the used resources
 	 * (executor).
 	 * 
-	 * @param pskStore advanced psk store
+	 * @param pskStore psk store
 	 */
-	public AsyncAdvancedPskStore(AdvancedPskStore pskStore) {
+	public AsyncPskStore(PskStore pskStore) {
 		this.pskStore = pskStore;
 		executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
 	}
@@ -110,7 +110,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 *            secret, {@code false} for PSK secret key.
 	 * @return this psk store for command chaining
 	 */
-	public AsyncAdvancedPskStore setSecretMode(boolean enableGenerateMasterSecret) {
+	public AsyncPskStore setSecretMode(boolean enableGenerateMasterSecret) {
 		this.generateMasterSecret = enableGenerateMasterSecret;
 		return this;
 	}
@@ -123,7 +123,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 *            delays using asynchronous none-blocking behaviour.
 	 * @return this psk store for command chaining
 	 */
-	public AsyncAdvancedPskStore setDelay(int delayMillis) {
+	public AsyncPskStore setDelay(int delayMillis) {
 		this.delayMillis = delayMillis;
 		if (delayMillis > 0) {
 			LOGGER.info("Asynchronous delayed PSK store {}ms.", delayMillis);

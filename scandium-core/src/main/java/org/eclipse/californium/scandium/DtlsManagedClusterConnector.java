@@ -43,7 +43,7 @@ import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,7 +157,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 					.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, mgmtSendBuffer)
 					.set(DtlsConfig.DTLS_ROLE, DtlsRole.BOTH)
 					.setAddress(clusterConfiguration.getAddress())
-					.setAdvancedPskStore(new AdvancedSinglePskStore(identity, secretkey))
+					.setPskStore(new SinglePskStore(identity, secretkey))
 					.setConnectionListener(new ConnectionListener() {
 
 						@Override

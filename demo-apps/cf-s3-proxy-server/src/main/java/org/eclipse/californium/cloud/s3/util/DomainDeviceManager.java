@@ -50,7 +50,7 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -124,7 +124,7 @@ public class DomainDeviceManager extends DeviceManager
 	}
 
 	@Override
-	public AdvancedPskStore getPskStore() {
+	public PskStore getPskStore() {
 		if (pskStore == null) {
 			pskStore = new DevicePskStore();
 		}
@@ -255,7 +255,7 @@ public class DomainDeviceManager extends DeviceManager
 	/**
 	 * PreSharedKey store for devices in domains.
 	 */
-	private class DevicePskStore implements AdvancedPskStore {
+	private class DevicePskStore implements PskStore {
 
 		private final PskPublicInformation dummy = new PskPublicInformation("dummy");
 
