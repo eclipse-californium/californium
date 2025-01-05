@@ -122,9 +122,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.MultiPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
@@ -182,7 +182,7 @@ public class DTLSConnectorAdvancedTest {
 	private static final int MAX_RETRANSMISSIONS = 2;
 	private static final int HANDSHAKE_EXPIRES_MS = RETRANSMISSION_TIMEOUT_MS * ((2 << MAX_RETRANSMISSIONS) + 1);
 
-	static AsyncAdvancedPskStore serverPskStore;
+	static AsyncPskStore serverPskStore;
 	static AsyncCertificateProvider serverCertificateProvider;
 	static AsyncNewAdvancedCertificateVerifier serverCertificateVerifier;
 	static AsyncResumptionVerifier serverResumptionVerifier;
@@ -200,7 +200,7 @@ public class DTLSConnectorAdvancedTest {
 	static DtlsConnectorConfig serverConfigSingleRecord;
 
 	ConnectorHelper alternativeServerHelper;
-	AsyncAdvancedPskStore clientPskStore;
+	AsyncPskStore clientPskStore;
 	AsyncNewAdvancedCertificateVerifier clientCertificateVerifier;
 	DtlsConnectorConfig.Builder clientConfigBuilder;
 	DTLSConnector client;
@@ -213,10 +213,10 @@ public class DTLSConnectorAdvancedTest {
 		serverHelper = new ConnectorHelper(network);
 		serverHealth = new DtlsHealthLogger("server");
 		serverCidGenerator = new SingleNodeConnectionIdGenerator(6);
-		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+		MultiPskStore pskStore = new MultiPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
-		serverPskStore = new AsyncAdvancedPskStore(pskStore) {
+		serverPskStore = new AsyncPskStore(pskStore) {
 
 			@Override
 			public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
@@ -336,7 +336,7 @@ public class DTLSConnectorAdvancedTest {
 				.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024)
 				.setConnectionIdGenerator(serverCidGenerator)
 				.setHealthHandler(serverHealth)
-				.setAdvancedPskStore(serverPskStore)
+				.setPskStore(serverPskStore)
 				.setCertificateIdentityProvider(serverCertificateProvider)
 				.setAdvancedCertificateVerifier(serverCertificateVerifier)
 				.setResumptionVerifier(serverResumptionVerifier);
@@ -2826,7 +2826,7 @@ public class DTLSConnectorAdvancedTest {
 		pskHandshakeResponses = 0; // no psk response
 
 		clientConfigBuilder
-				.setAdvancedPskStore(new AdvancedSinglePskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setPskStore(new SinglePskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
@@ -2886,7 +2886,7 @@ public class DTLSConnectorAdvancedTest {
 		pskHandshakeResponses = 2; // two psk responses
 		
 		clientConfigBuilder
-				.setAdvancedPskStore(new AdvancedSinglePskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setPskStore(new SinglePskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);

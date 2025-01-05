@@ -15,7 +15,7 @@
 package org.eclipse.californium.cloud.util;
 
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 
@@ -34,7 +34,7 @@ public interface DeviceGredentialsProvider {
 	 * 
 	 * @return PreSharedKey store, or {@code null}, if not available.
 	 */
-	AdvancedPskStore getPskStore();
+	PskStore getPskStore();
 
 	/**
 	 * Get certificate verifier.

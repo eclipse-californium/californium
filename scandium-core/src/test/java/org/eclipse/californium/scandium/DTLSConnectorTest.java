@@ -124,8 +124,8 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
@@ -185,7 +185,7 @@ public class DTLSConnectorTest {
 
 		executor = ExecutorsUtil.newProtocolScheduledThreadPool(2, new TestThreadFactory("DTLS-"));
 
-		AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore(CLIENT_IDENTITY,
+		SinglePskStore pskStore = new SinglePskStore(CLIENT_IDENTITY,
 				CLIENT_IDENTITY_SECRET.getBytes());
 
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
@@ -202,7 +202,7 @@ public class DTLSConnectorTest {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
-				.setAdvancedCertificateVerifier(verifier).setAdvancedPskStore(pskStore);
+				.setAdvancedCertificateVerifier(verifier).setPskStore(pskStore);
 		serverHelper.startServer();
 	}
 
@@ -1087,7 +1087,7 @@ public class DTLSConnectorTest {
 	@Test
 	public void testConnectorIgnoresUnknownPskIdentity() throws Exception {
 		ensureConnectorIgnoresBadCredentials(
-				new AdvancedSinglePskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
+				new SinglePskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
 		AlertMessage alert = serverHelper.serverAlertCatcher.waitForEvent(2, TimeUnit.SECONDS);
 		assertThat("server side internal alert", alert,
 				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY)));
@@ -1098,10 +1098,10 @@ public class DTLSConnectorTest {
 	 */
 	@Test
 	public void testConnectorIgnoresBadPsk() throws Exception {
-		ensureConnectorIgnoresBadCredentials(new AdvancedSinglePskStore(CLIENT_IDENTITY, "bad_psk".getBytes()));
+		ensureConnectorIgnoresBadCredentials(new SinglePskStore(CLIENT_IDENTITY, "bad_psk".getBytes()));
 	}
 
-	private void ensureConnectorIgnoresBadCredentials(AdvancedPskStore pskStoreWithBadCredentials) throws Exception {
+	private void ensureConnectorIgnoresBadCredentials(PskStore pskStoreWithBadCredentials) throws Exception {
 		if (client != null) {
 			client.destroy();
 		}
@@ -1111,7 +1111,7 @@ public class DTLSConnectorTest {
 				.setLoggingTag("client").setAddress(LOCAL)
 				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 250, TimeUnit.MILLISECONDS)
 				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, 1)
-				.setAdvancedPskStore(pskStoreWithBadCredentials).build();
+				.setPskStore(pskStoreWithBadCredentials).build();
 		client = serverHelper.createClient(clientConfig);
 		client.start();
 		SimpleMessageCallback callback = new SimpleMessageCallback();

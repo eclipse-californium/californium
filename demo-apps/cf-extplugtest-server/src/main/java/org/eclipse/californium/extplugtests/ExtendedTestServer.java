@@ -94,7 +94,7 @@ import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -716,9 +716,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 			if (cliConfig.pskFile != null) {
 				pskStore.loadPskCredentials(cliConfig.pskFile);
 			}
-			AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(pskStore);
+			AsyncPskStore asyncPskStore = new AsyncPskStore(pskStore);
 			asyncPskStore.setDelay(handshakeResultDelayMillis);
-			dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
+			dtlsConfigBuilder.setPskStore(asyncPskStore);
 		}
 		if (certificate) {
 			if (cliConfig.clientAuth != null) {
@@ -820,9 +820,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 			if (cliConfig.pskFile != null) {
 				pskStore.loadPskCredentials(cliConfig.pskFile);
 			}
-			AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(pskStore);
+			AsyncPskStore asyncPskStore = new AsyncPskStore(pskStore);
 			asyncPskStore.setDelay(handshakeResultDelayMillis);
-			dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
+			dtlsConfigBuilder.setPskStore(asyncPskStore);
 		}
 		if (certificate) {
 			if (cliConfig.clientAuth != null) {

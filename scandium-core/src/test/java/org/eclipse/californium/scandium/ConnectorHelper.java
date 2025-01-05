@@ -100,7 +100,7 @@ import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.MultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
@@ -139,7 +139,7 @@ public class ConnectorHelper {
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
 	AlertCatcher serverAlertCatcher;
 	DropCatcher serverDropCatcher;
-	AdvancedMultiPskStore serverPskStore;
+	MultiPskStore serverPskStore;
 
 	DtlsConnectorConfig serverConfig;
 	DtlsConnectorConfig.Builder serverBuilder;
@@ -148,7 +148,7 @@ public class ConnectorHelper {
 		List<CipherSuite> list = new ArrayList<>(CipherSuite.getCertificateCipherSuites(false, CertificateKeyAlgorithm.EC));
 		list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
 				KeyExchangeAlgorithm.PSK));
-		serverPskStore = new AdvancedMultiPskStore();
+		serverPskStore = new MultiPskStore();
 		serverPskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		serverPskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 
@@ -159,7 +159,7 @@ public class ConnectorHelper {
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, SERVER_CONNECTION_STORE_CAPACITY)
 				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 5, TimeUnit.MINUTES)
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-				.setAdvancedPskStore(serverPskStore)
+				.setPskStore(serverPskStore)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(),
 						DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509))
 				.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false)

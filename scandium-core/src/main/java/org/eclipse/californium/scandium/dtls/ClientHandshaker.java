@@ -990,7 +990,7 @@ public class ClientHandshaker extends Handshaker {
 			LOGGER.warn(
 					"client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
 		}
-		PskPublicInformation pskIdentity = advancedPskStore.getIdentity(getPeerAddress(), serverName);
+		PskPublicInformation pskIdentity = pskStore.getIdentity(getPeerAddress(), serverName);
 		// look up identity in scope of virtual host
 		if (pskIdentity == null) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);

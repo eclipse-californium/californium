@@ -48,7 +48,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
@@ -313,7 +313,7 @@ public class ClientHandshakerTest {
 					.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, -1)
 					.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 					.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.NONE);
-		builder.setAdvancedPskStore(new AdvancedSinglePskStore("me", "secret".getBytes()));
+		builder.setPskStore(new SinglePskStore("me", "secret".getBytes()));
 		DtlsConnectorConfig config = builder.build();
 		Connection connection = new Connection(config.getAddress());
 		connection.setConnectorContext(TestSynchroneExecutor.TEST_EXECUTOR, null);

@@ -51,7 +51,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.junit.After;
@@ -130,7 +130,7 @@ public class DtlsManagedClusterConnectorTest {
 		final int NODE_ID_1 = 1;
 		final int NODE_ID_2 = 2;
 		health1 = new DtlsClusterHealthLogger("server1");
-		AdvancedSinglePskStore testPskStore1 = new AdvancedSinglePskStore(ConnectorHelper.CLIENT_IDENTITY,
+		SinglePskStore testPskStore1 = new SinglePskStore(ConnectorHelper.CLIENT_IDENTITY,
 				ConnectorHelper.CLIENT_IDENTITY_SECRET.getBytes());
 		Configuration configuration = network.createTestConfig()
 			.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10)
@@ -138,17 +138,17 @@ public class DtlsManagedClusterConnectorTest {
 			.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
 		DtlsConnectorConfig config1 = DtlsConnectorConfig.builder(configuration)
 				.setAddress(dtlsAddress1)
-				.setAdvancedPskStore(testPskStore1)
+				.setPskStore(testPskStore1)
 				.setHealthHandler(health1)
 				.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(NODE_ID_1, CID_LENGTH)).build();
 		DtlsClusterConnectorConfig clusterConfig1 = DtlsClusterConnectorConfig.builder(clusterConfig)
 				.setAddress(mgmtAddress1).build();
 		health2 = new DtlsClusterHealthLogger("server2");
-		AdvancedSinglePskStore testPskStore2 = new AdvancedSinglePskStore(ConnectorHelper.CLIENT_IDENTITY,
+		SinglePskStore testPskStore2 = new SinglePskStore(ConnectorHelper.CLIENT_IDENTITY,
 				ConnectorHelper.CLIENT_IDENTITY_SECRET.getBytes());
 		DtlsConnectorConfig config2 = DtlsConnectorConfig.builder(configuration)
 				.setAddress(dtlsAddress2)
-				.setAdvancedPskStore(testPskStore2)
+				.setPskStore(testPskStore2)
 				.setHealthHandler(health2)
 				.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(NODE_ID_2, CID_LENGTH)).build();
 		DtlsClusterConnectorConfig clusterConfig2 = DtlsClusterConnectorConfig.builder(clusterConfig)
@@ -197,13 +197,13 @@ public class DtlsManagedClusterConnectorTest {
 		clusterConfig = clusterConfig1;
 
 		clientHealth = new DtlsClusterHealthLogger("client");
-		AdvancedSinglePskStore testPskStore = new AdvancedSinglePskStore(ConnectorHelper.CLIENT_IDENTITY,
+		SinglePskStore testPskStore = new SinglePskStore(ConnectorHelper.CLIENT_IDENTITY,
 				ConnectorHelper.CLIENT_IDENTITY_SECRET.getBytes());
 		DtlsConnectorConfig config = DtlsConnectorConfig.builder(configuration)
 				.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 4)
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10)
 				.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 6000, TimeUnit.SECONDS)
-				.setAdvancedPskStore(testPskStore)
+				.setPskStore(testPskStore)
 				.setHealthHandler(clientHealth)
 				.build();
 		clientConnections = ConnectorHelper.createDebugConnectionStore(config);

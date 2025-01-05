@@ -53,7 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * File based {@link AdvancedPskStore} implementation supporting multiple peers.
+ * File based {@link PskStore} implementation supporting multiple peers.
  * 
  * Lines in format:
  * 
@@ -81,7 +81,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.7
  */
-public class MultiPskFileStore implements AdvancedPskStore, Destroyable {
+public class MultiPskFileStore implements PskStore, Destroyable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(MultiPskFileStore.class);
 

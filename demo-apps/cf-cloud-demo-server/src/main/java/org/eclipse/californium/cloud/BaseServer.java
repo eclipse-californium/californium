@@ -77,7 +77,7 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.unixhealth.NetSocketHealthLogger;
@@ -677,9 +677,9 @@ public class BaseServer extends CoapServer {
 			if (serializationLabel != null) {
 				dtlsConfigBuilder.setSerializationLabel(serializationLabel);
 			}
-			AdvancedPskStore pskStore = deviceCredentials.getPskStore();
+			PskStore pskStore = deviceCredentials.getPskStore();
 			if (pskStore != null) {
-				dtlsConfigBuilder.setAdvancedPskStore(pskStore);
+				dtlsConfigBuilder.setPskStore(pskStore);
 			}
 			CertificateProvider certificateProvider = deviceCredentials.getCertificateProvider();
 			if (certificateProvider != null) {

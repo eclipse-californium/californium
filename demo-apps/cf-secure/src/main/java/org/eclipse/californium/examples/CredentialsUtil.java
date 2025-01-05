@@ -35,7 +35,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.MultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
@@ -216,7 +216,7 @@ public class CredentialsUtil {
 	 * Setup credentials for DTLS connector.
 	 * 
 	 * If PSK is provided and no PskStore is already set for the builder, a
-	 * {@link AdvancedMultiPskStore} containing {@link #PSK_IDENTITY} assigned
+	 * {@link MultiPskStore} containing {@link #PSK_IDENTITY} assigned
 	 * with {@link #PSK_SECRET}, and {@link #OPEN_PSK_IDENTITY} assigned with
 	 * {@link #OPEN_PSK_SECRET} set. If PSK is provided with other mode(s) and
 	 * loading the certificates failed, this is just treated as warning and the
@@ -254,12 +254,12 @@ public class CredentialsUtil {
 		boolean plainPsk = modes.contains(Mode.PSK);
 		boolean psk = ecdhePsk || plainPsk;
 
-		if (psk && config.getIncompleteConfig().getAdvancedPskStore() == null) {
+		if (psk && config.getIncompleteConfig().getPskStore() == null) {
 			// Pre-shared secret keys
-			AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+			MultiPskStore pskStore = new MultiPskStore();
 			pskStore.setKey(PSK_IDENTITY, PSK_SECRET);
 			pskStore.setKey(OPEN_PSK_IDENTITY, OPEN_PSK_SECRET);
-			config.setAdvancedPskStore(pskStore);
+			config.setPskStore(pskStore);
 		}
 		boolean noAuth = modes.contains(Mode.NO_AUTH);
 		boolean x509Trust = modes.contains(Mode.X509_TRUST);

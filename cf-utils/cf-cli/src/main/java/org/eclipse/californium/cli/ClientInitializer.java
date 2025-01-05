@@ -59,7 +59,7 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.ListUtils;
@@ -411,13 +411,13 @@ public class ClientInitializer {
 
 			if (psk) {
 				if (clientConfig.identity != null) {
-					dtlsConfig.setAdvancedPskStore(
+					dtlsConfig.setPskStore(
 							new PlugPskStore(clientConfig.identity, clientConfig.getPskSecretKey()));
 				} else {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
 					random.nextBytes(rid);
-					dtlsConfig.setAdvancedPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
+					dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
 				}
 			}
 			if (clientConfig.cipherSuites != null && !clientConfig.cipherSuites.isEmpty()) {
@@ -451,7 +451,7 @@ public class ClientInitializer {
 		}
 	}
 
-	public static class PlugPskStore implements AdvancedPskStore {
+	public static class PlugPskStore implements PskStore {
 
 		private final PskPublicInformation identity;
 		private final SecretKey secret;
