@@ -58,9 +58,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.After;
@@ -105,12 +105,12 @@ public class ServerHandshakerTest {
 	public void setup() throws Exception {
 		timer = new TestScheduledExecutorService();
 		recordLayer = new SimpleRecordLayer();
-		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build();
+		CertificateVerifier verifier = StaticCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build();
 		config = DtlsConnectorConfig.builder(new Configuration())
 				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
 				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, certificateChain, CertificateType.X_509))
-				.setAdvancedCertificateVerifier(verifier)
+				.setCertificateVerifier(verifier)
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, SERVER_CIPHER_SUITE)
 				.build();
 		handshaker = newHandshaker(config);
@@ -226,7 +226,7 @@ public class ServerHandshakerTest {
 
 		// GIVEN a server handshaker that supports a public key based cipher using RawPublicKeys
 		// only as well as a pre-shared key based cipher
-		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
+		CertificateVerifier verifier = StaticCertificateVerifier.builder().setTrustAllRPKs().build();
 		Configuration configuration = new Configuration();
 		config = DtlsConnectorConfig.builder(configuration)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(privateKey, DtlsTestTools.getPublicKey()))
@@ -234,7 +234,7 @@ public class ServerHandshakerTest {
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setPskStore(new SinglePskStore("client", "secret".getBytes()))
-				.setAdvancedCertificateVerifier(verifier)
+				.setCertificateVerifier(verifier)
 				.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, ExtendedMasterSecretMode.ENABLED)
 				.build();
 		handshaker = newHandshaker(config);

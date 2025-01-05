@@ -114,6 +114,8 @@ Uses the new introduced `ProtocolScheduledExecutorService`.
 
 Remove the "Advanced" from PSK-stores. Replace `AdvancedPskStore` by `PskStore`, `AdvancedSinglePskStore` by `SingelPskStore`, `AdvancedMultiPskStore` by `MultiPskStore`, and `AsyncAdvancedPskStore` by `AsyncPskStore`. Rename `advancedPskStore` field and variables into `pskStore`, `DtlsConnectorConfig.getAdvancedPskStore()` into `DtlsConnectorConfig.getPskStore()`, and `DtlsConnectorConfig.Builder.setAdvancedPskStore(AdvancedPskStore)` into `DtlsConnectorConfig.Builder.setPskStore(PskStore)`.
 
+Remove the "NewAdvanced" from CertificateVerifier. Replace `NewAdvancedCertificateVerifier` by `CertificateVerifier`, `StaticNewAdvancedCertificateVerifier` by `StaticCertificateVerifier` and `AsyncNewAdvancedCertificateVerifier` by `AsyncCertificateVerifier`.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into

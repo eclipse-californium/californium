@@ -50,8 +50,8 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier.Builder;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.junit.After;
@@ -282,13 +282,13 @@ public class ClientHandshakerTest {
 						CertificateType.X_509))
 					.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, sniEnabled);
 
-		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
+		Builder verifierBuilder = StaticCertificateVerifier.builder();
 		if (configureTrustStore) {
-			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build());
+			builder.setCertificateVerifier(verifierBuilder.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build());
 		} else if (configureEmptyTrustStore) {
-			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustAllCertificates().build());
+			builder.setCertificateVerifier(verifierBuilder.setTrustAllCertificates().build());
 		} else if (configureRpkTrustAll) {
-			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustAllRPKs().build());
+			builder.setCertificateVerifier(verifierBuilder.setTrustAllRPKs().build());
 		} else {
 			builder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		}

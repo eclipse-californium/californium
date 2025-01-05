@@ -96,7 +96,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.unixhealth.NetSocketHealthLogger;
 import org.eclipse.californium.unixhealth.NetStatLogger;
@@ -729,16 +729,16 @@ public class ExtendedTestServer extends AbstractTestServer {
 					configuration.get(DtlsConfig.DTLS_CERTIFICATE_TYPES));
 			certificateProvider.setDelay(handshakeResultDelayMillis);
 			dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
-			AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier.builder();
+			AsyncCertificateVerifier.Builder verifierBuilder = AsyncCertificateVerifier.builder();
 			if (cliConfig.trustall) {
 				verifierBuilder.setTrustAllCertificates();
 			} else {
 				verifierBuilder.setTrustedCertificates(trustedCertificates);
 			}
 			verifierBuilder.setTrustAllRPKs();
-			AsyncNewAdvancedCertificateVerifier verifier = verifierBuilder.build();
+			AsyncCertificateVerifier verifier = verifierBuilder.build();
 			verifier.setDelay(handshakeResultDelayMillis);
-			dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
+			dtlsConfigBuilder.setCertificateVerifier(verifier);
 		}
 		if (healthStatusIntervalMillis > 0) {
 			DtlsClusterHealthLogger health = new DtlsClusterHealthLogger(tag);
@@ -833,16 +833,16 @@ public class ExtendedTestServer extends AbstractTestServer {
 					configuration.get(DtlsConfig.DTLS_CERTIFICATE_TYPES));
 			certificateProvider.setDelay(handshakeResultDelayMillis);
 			dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
-			AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier.builder();
+			AsyncCertificateVerifier.Builder verifierBuilder = AsyncCertificateVerifier.builder();
 			if (cliConfig.trustall) {
 				verifierBuilder.setTrustAllCertificates();
 			} else {
 				verifierBuilder.setTrustedCertificates(trustedCertificates);
 			}
 			verifierBuilder.setTrustAllRPKs();
-			AsyncNewAdvancedCertificateVerifier verifier = verifierBuilder.build();
+			AsyncCertificateVerifier verifier = verifierBuilder.build();
 			verifier.setDelay(handshakeResultDelayMillis);
-			dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
+			dtlsConfigBuilder.setCertificateVerifier(verifier);
 		}
 		if (healthStatusIntervalMillis > 0) {
 			DtlsHealthLogger health = new DtlsHealthLogger(tag);

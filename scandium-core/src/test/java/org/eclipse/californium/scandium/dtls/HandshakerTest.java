@@ -65,8 +65,8 @@ import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -125,20 +125,20 @@ public class HandshakerTest {
 		serverPublicKey = DtlsTestTools.getPublicKey();
 		recordLayer = new SimpleRecordLayer();
 
-		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
+		CertificateVerifier verifier = StaticCertificateVerifier.builder()
 				.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build();
 		Configuration configuration = new Configuration();
 		configuration.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration);
-		builder.setAdvancedCertificateVerifier(verifier);
+		builder.setCertificateVerifier(verifier);
 
 		handshakerWithoutAnchors = new TestHandshaker(session, recordLayer, builder.build());
 
-		verifier = StaticNewAdvancedCertificateVerifier.builder()
+		verifier = StaticCertificateVerifier.builder()
 				.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey))
 				.setTrustedCertificates(trustAnchor).build();
 		builder = DtlsConnectorConfig.builder(configuration);
-		builder.setAdvancedCertificateVerifier(verifier);
+		builder.setCertificateVerifier(verifier);
 
 		handshakerWithAnchors = new TestHandshaker(session, recordLayer, builder.build());
 	}
@@ -154,7 +154,7 @@ public class HandshakerTest {
 		Configuration configuration = new Configuration();
 		configuration.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration)
-				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+				.setCertificateVerifier(StaticCertificateVerifier.builder()
 						.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build());
 
 		session.setCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
@@ -185,7 +185,7 @@ public class HandshakerTest {
 		Configuration configuration = new Configuration();
 		configuration.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder(configuration)
-				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+				.setCertificateVerifier(StaticCertificateVerifier.builder()
 						.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build());
 
 		// GIVEN a handshaker expecting the peer's ChangeCipherSpec message

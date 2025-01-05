@@ -38,8 +38,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.pskstore.MultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier.Builder;
 
 /**
  * Credentials utility for setup DTLS credentials.
@@ -280,7 +280,7 @@ public class CredentialsUtil {
 			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		}
 		Configuration configuration = config.getIncompleteConfig().getConfiguration();
-		Builder trustBuilder = StaticNewAdvancedCertificateVerifier.builder();
+		Builder trustBuilder = StaticCertificateVerifier.builder();
 		if (x509 >= 0 || rpk >= 0) {
 			try {
 				// try to read certificates
@@ -345,7 +345,7 @@ public class CredentialsUtil {
 		}
 		if (trustBuilder.hasTrusts()) {
 			certificate = true;
-			config.setAdvancedCertificateVerifier(trustBuilder.build());
+			config.setCertificateVerifier(trustBuilder.build());
 		}
 		List<CipherSuite> ciphers = configuration.get(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES);
 		List<CipherSuite> selectedCiphers = new ArrayList<>();

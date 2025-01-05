@@ -85,9 +85,9 @@ import org.eclipse.californium.scandium.dtls.x509.CertificateConfigurationHelper
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.ConfigurationHelperSetup;
 import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.eclipse.californium.scandium.util.ListUtils;
 
 /**
@@ -141,11 +141,11 @@ public final class DtlsConnectorConfig {
 	 */
 	private InetSocketAddress address;
 	/**
-	 * Advanced certificate verifier for non-blocking dynamic trust.
+	 * Certificate verifier for non-blocking dynamic trust.
 	 * 
 	 * @since 2.5
 	 */
-	private NewAdvancedCertificateVerifier advancedCertificateVerifier;
+	private CertificateVerifier certificateVerifier;
 
 	private Configuration configuration;
 
@@ -513,7 +513,7 @@ public final class DtlsConnectorConfig {
 
 	/**
 	 * Gets the supported cipher suites.
-	 * 
+	 * <p>
 	 * On the client side the connector advertise these cipher suites in a DTLS
 	 * handshake. On the server side the connector limits the acceptable cipher
 	 * suites to this list.
@@ -593,16 +593,16 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the new advanced certificate verifier to be used during the DTLS
+	 * Gets the certificate verifier to be used during the DTLS
 	 * handshake.
 	 * 
-	 * @return the new advanced certificate verifier
-	 * @see Builder#setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
-	 * @see StaticNewAdvancedCertificateVerifier
+	 * @return the certificate verifier
+	 * @see Builder#setCertificateVerifier(CertificateVerifier)
+	 * @see StaticCertificateVerifier
 	 * @since 2.5
 	 */
-	public NewAdvancedCertificateVerifier getAdvancedCertificateVerifier() {
-		return advancedCertificateVerifier;
+	public CertificateVerifier getCertificateVerifier() {
+		return certificateVerifier;
 	}
 
 	/**
@@ -665,14 +665,14 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return certificate types ordered by preference, or {@code null}, if no
 	 *         certificates are used to trust the other peer.
-	 * @see Builder#setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
-	 * @see NewAdvancedCertificateVerifier#getSupportedCertificateTypes()
+	 * @see Builder#setCertificateVerifier(CertificateVerifier)
+	 * @see CertificateVerifier#getSupportedCertificateTypes()
 	 */
 	public List<CertificateType> getTrustCertificateTypes() {
-		if (advancedCertificateVerifier == null) {
+		if (certificateVerifier == null) {
 			return null;
 		}
-		return advancedCertificateVerifier.getSupportedCertificateTypes();
+		return certificateVerifier.getSupportedCertificateTypes();
 	}
 
 	/**
@@ -814,7 +814,7 @@ public final class DtlsConnectorConfig {
 	protected Object clone() {
 		DtlsConnectorConfig cloned = new DtlsConnectorConfig(configuration);
 		cloned.address = address;
-		cloned.advancedCertificateVerifier = advancedCertificateVerifier;
+		cloned.certificateVerifier = certificateVerifier;
 		cloned.useReuseAddress = useReuseAddress;
 		cloned.protocolVersionForHelloVerifyRequests = protocolVersionForHelloVerifyRequests;
 		cloned.pskStore = pskStore;
@@ -1132,7 +1132,7 @@ public final class DtlsConnectorConfig {
 		 * Sets the connector's certificate identifying provider.
 		 * <p>
 		 * Please ensure, that you setup
-		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)},
+		 * {@link #setCertificateVerifier(CertificateVerifier)},
 		 * if you want to trust the other peers.
 		 * 
 		 * If used together with {@link #setPskStore(PskStore)},
@@ -1145,7 +1145,7 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param certificateIdentityProvider the certificate identity provider
 		 * @return this builder for command chaining
-		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
+		 * @see #setCertificateVerifier(CertificateVerifier)
 		 * @see DtlsConnectorConfig#getCertificateIdentityProvider()
 		 * @since 3.0
 		 */
@@ -1156,7 +1156,7 @@ public final class DtlsConnectorConfig {
 
 		/**
 		 * Sets the logic in charge of validating a X.509 certificate chain.
-		 *
+		 * <p>
 		 * Here are a few use cases where a custom implementation would be
 		 * needed:
 		 * <ul>
@@ -1165,18 +1165,18 @@ public final class DtlsConnectorConfig {
 		 * <li>cipher suites restriction per client
 		 * </ul>
 		 * 
-		 * @param verifier new advanced certificate verifier
+		 * @param verifier certificate verifier
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given certificate verifier is
 		 *             {@code null}
-		 * @see DtlsConnectorConfig#getAdvancedCertificateVerifier()
+		 * @see DtlsConnectorConfig#getCertificateVerifier()
 		 * @since 2.5
 		 */
-		public Builder setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier verifier) {
+		public Builder setCertificateVerifier(CertificateVerifier verifier) {
 			if (verifier == null) {
 				throw new NullPointerException("CertificateVerifier must not be null");
 			}
-			config.advancedCertificateVerifier = verifier;
+			config.certificateVerifier = verifier;
 			return this;
 		}
 
@@ -1424,7 +1424,7 @@ public final class DtlsConnectorConfig {
 			DtlsRole dtlsRole = config.get(DtlsConfig.DTLS_ROLE);
 			if (dtlsRole == DtlsRole.SERVER_ONLY) {
 				if (config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) == CertificateAuthenticationMode.NONE
-						&& config.advancedCertificateVerifier != null) {
+						&& config.certificateVerifier != null) {
 					throw new IllegalStateException(
 							"configured certificate verifier is not used for client authentication mode NONE!");
 				}
@@ -1470,7 +1470,7 @@ public final class DtlsConnectorConfig {
 			}
 
 			CertificateProvider provider = config.certificateIdentityProvider;
-			NewAdvancedCertificateVerifier verifier = config.advancedCertificateVerifier;
+			CertificateVerifier verifier = config.certificateVerifier;
 
 			if (config.certificateConfigurationHelper == null) {
 				CertificateConfigurationHelper helper = new CertificateConfigurationHelper();
@@ -1552,7 +1552,7 @@ public final class DtlsConnectorConfig {
 				if (provider != null) {
 					throw new IllegalStateException("certificate identity set, but no certificate based cipher suite!");
 				}
-				if (config.advancedCertificateVerifier != null) {
+				if (config.certificateVerifier != null) {
 					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
 				}
 			}
@@ -1635,7 +1635,7 @@ public final class DtlsConnectorConfig {
 
 		private void verifyCertificateBasedCipherConfig(CipherSuite suite) {
 			if (config.get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
-				if (config.advancedCertificateVerifier == null) {
+				if (config.certificateVerifier == null) {
 					throw new IllegalStateException(
 							"certificate verifier must be set on client for configured " + suite.name());
 				}
@@ -1650,7 +1650,7 @@ public final class DtlsConnectorConfig {
 							"One of the keys (" + keyAlgorithms + ") must be capable for configured " + suite.name());
 				}
 				if (config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NONE) {
-					if (config.advancedCertificateVerifier == null) {
+					if (config.certificateVerifier == null) {
 						throw new IllegalStateException(
 								"certificate verifier must be set for authentication using the configured "
 										+ suite.name());
@@ -1713,7 +1713,7 @@ public final class DtlsConnectorConfig {
 			// try to guess his intentions from properties he has set
 			List<CipherSuite> ciphers = new ArrayList<>();
 
-			if (config.certificateIdentityProvider != null || config.advancedCertificateVerifier != null) {
+			if (config.certificateIdentityProvider != null || config.certificateVerifier != null) {
 				// certificate based cipher suites.
 				List<CertificateKeyAlgorithm> keyAlgorithms = new ArrayList<>();
 				if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {

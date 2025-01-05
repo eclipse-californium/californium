@@ -51,11 +51,11 @@ DTLSConnector connector = new DTLSConnector(builder.build());
 
 ## RPK/X509
 
-Certificate based credentials are provided using a implementation of the [CertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/CertificateProvider.java) interface. And to verify certificates of the other peers, provide a implementation of the [NewAdvancedCertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/NewAdvancedCertificateVerifier.java).
+Certificate based credentials are provided using a implementation of the [CertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/CertificateProvider.java) interface. And to verify certificates of the other peers, provide a implementation of the [CertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/CertificateVerifier.java).
 
 For demonstration, two implementations of the `CertificateProvider` are available, the [SingleCertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/SingleCertificateProvider.java) (for simple setups or setups with earlier versions of Californium), and the [KeyManagerCertificateProvider](src/main/java/org/eclipse/californium/scandium/dtls/x509/KeyManagerCertificateProvider.java) (for setups with multiple certificates in order to support different certificate types and/or other subjects/servernames (SNI)).
 
-Also for demonstration, one implementation of the `NewAdvancedCertificateVerifier` is available, the [StaticNewAdvancedCertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/StaticNewAdvancedCertificateVerifier.java).
+Also for demonstration, one implementation of the `CertificateVerifier` is available, the [StaticCertificateVerifier](src/main/java/org/eclipse/californium/scandium/dtls/x509/StaticCertificateVerifier.java).
 
 Using the interfaces enables also implementations, which are providing the credentials dynamically. If that is done in a way with larger latency (e.g. remote call), also a asynchronous implementation is possible. Such a design with larger latency will still cause delays in the handshakes and limit the possible handshakes in a period of time, but has only slightly effects on the other ongoing traffic.
 
@@ -74,9 +74,9 @@ builder.setAddress(new InetSocketAddress(5684));
 SingleCertificateProvider certificate = new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain());
 builder.setCertificateIdentityProvider(certificate);
 
-NewAdvancedCertificateVerifier trust = StaticNewAdvancedCertificateVerifier.builder()
+CertificateVerifier trust = StaticCertificateVerifier.builder()
    .setTrustedCertificates(serverTrusts.getTrustedCertificates).build();
-builder.setAdvancedCertificateVerifier(trust);
+builder.setCertificateVerifier(trust);
 
 DTLSConnector connector = new DTLSConnector(builder.build());
 ```

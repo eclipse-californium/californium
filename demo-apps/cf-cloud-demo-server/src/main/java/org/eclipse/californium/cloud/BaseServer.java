@@ -79,7 +79,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.unixhealth.NetSocketHealthLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -685,9 +685,9 @@ public class BaseServer extends CoapServer {
 			if (certificateProvider != null) {
 				dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
 			}
-			NewAdvancedCertificateVerifier certificateVerifier = deviceCredentials.getCertificateVerifier();
+			CertificateVerifier certificateVerifier = deviceCredentials.getCertificateVerifier();
 			if (certificateVerifier != null) {
-				dtlsConfigBuilder.setAdvancedCertificateVerifier(certificateVerifier);
+				dtlsConfigBuilder.setCertificateVerifier(certificateVerifier);
 			}
 			ApplicationLevelInfoSupplier infoSupplier = deviceCredentials.getInfoSupplier();
 			if (infoSupplier != null) {

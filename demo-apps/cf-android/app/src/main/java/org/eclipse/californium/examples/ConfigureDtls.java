@@ -25,7 +25,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -76,13 +76,13 @@ public class ConfigureDtls {
             }
             if (CERTIFICATE_MODE && endpointCredentials != null && trustedCertificates != null) {
                 dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(endpointCredentials.getPrivateKey(), endpointCredentials.getCertificateChain(), CertificateType.X_509));
-                dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build());
+                dtlsConfig.setCertificateVerifier(StaticCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build());
                 dtlsConfig.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 2000, TimeUnit.MILLISECONDS);
                 dtlsConfig.set(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT, false);
                 credentialsSet = true;
             } else if (RPK_MODE && endpointCredentials != null) {
                 dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(endpointCredentials.getPrivateKey(), endpointCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY));
-                dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build());
+                dtlsConfig.setCertificateVerifier(StaticCertificateVerifier.builder().setTrustAllRPKs().build());
                 dtlsConfig.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 1000, TimeUnit.MILLISECONDS);
                 credentialsSet = true;
             }

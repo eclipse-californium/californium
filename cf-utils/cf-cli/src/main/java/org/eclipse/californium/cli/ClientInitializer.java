@@ -61,7 +61,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.eclipse.californium.scandium.util.ListUtils;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -361,7 +361,7 @@ public class ClientInitializer {
 			}
 
 			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
-			StaticNewAdvancedCertificateVerifier.Builder verifierBuilder = StaticNewAdvancedCertificateVerifier
+			StaticCertificateVerifier.Builder verifierBuilder = StaticCertificateVerifier
 					.builder();
 			boolean psk = false;
 			boolean cert = false;
@@ -395,7 +395,7 @@ public class ClientInitializer {
 			}
 			if (cert) {
 				verifierBuilder.setSupportedCertificateTypes(certificateTypes);
-				dtlsConfig.setAdvancedCertificateVerifier(verifierBuilder.build());
+				dtlsConfig.setCertificateVerifier(verifierBuilder.build());
 			}
 
 			if (clientConfig.authentication != null && clientConfig.authentication.credentials != null) {

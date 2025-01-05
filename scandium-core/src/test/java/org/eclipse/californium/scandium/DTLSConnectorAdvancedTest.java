@@ -127,10 +127,10 @@ import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.After;
@@ -184,7 +184,7 @@ public class DTLSConnectorAdvancedTest {
 
 	static AsyncPskStore serverPskStore;
 	static AsyncCertificateProvider serverCertificateProvider;
-	static AsyncNewAdvancedCertificateVerifier serverCertificateVerifier;
+	static AsyncCertificateVerifier serverCertificateVerifier;
 	static AsyncResumptionVerifier serverResumptionVerifier;
 	static int pskHandshakeResponses = 1;
 	static int certificateHandshakeResponses = 1;
@@ -201,7 +201,7 @@ public class DTLSConnectorAdvancedTest {
 
 	ConnectorHelper alternativeServerHelper;
 	AsyncPskStore clientPskStore;
-	AsyncNewAdvancedCertificateVerifier clientCertificateVerifier;
+	AsyncCertificateVerifier clientCertificateVerifier;
 	DtlsConnectorConfig.Builder clientConfigBuilder;
 	DTLSConnector client;
 	ResumptionSupportingConnectionStore clientConnectionStore;
@@ -244,7 +244,7 @@ public class DTLSConnectorAdvancedTest {
 			}
 		};
 		cleanup.add(()-> serverPskStore.shutdown());
-		serverCertificateVerifier = new AsyncNewAdvancedCertificateVerifier(DtlsTestTools.getTrustedCertificates(),
+		serverCertificateVerifier = new AsyncCertificateVerifier(DtlsTestTools.getTrustedCertificates(),
 				new RawPublicKeyIdentity[0], null) {
 
 			@Override
@@ -338,7 +338,7 @@ public class DTLSConnectorAdvancedTest {
 				.setHealthHandler(serverHealth)
 				.setPskStore(serverPskStore)
 				.setCertificateIdentityProvider(serverCertificateProvider)
-				.setAdvancedCertificateVerifier(serverCertificateVerifier)
+				.setCertificateVerifier(serverCertificateVerifier)
 				.setResumptionVerifier(serverResumptionVerifier);
 		serverHelper.startServer();
 		cleanup.add(()-> serverHelper.destroyServer());
@@ -389,7 +389,7 @@ public class DTLSConnectorAdvancedTest {
 		verifyHandshakeResponses = 1;
 		resumeHandshakeResponses = 1;
 
-		clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier)AsyncNewAdvancedCertificateVerifier.builder()
+		clientCertificateVerifier = (AsyncCertificateVerifier)AsyncCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
 				.setTrustAllRPKs()
 				.build();
@@ -402,7 +402,7 @@ public class DTLSConnectorAdvancedTest {
 				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS)
 				.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024)
 				.setConnectionIdGenerator(clientCidGenerator)
-				.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.setCertificateVerifier(clientCertificateVerifier)
 				.setHealthHandler(clientHealth);
 		clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfigBuilder.build());
 		clientHealth.reset();
@@ -2939,7 +2939,7 @@ public class DTLSConnectorAdvancedTest {
 
 		clientConfigBuilder
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain()))
-				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build());
+				.setCertificateVerifier(StaticCertificateVerifier.builder().setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build());
 
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(LOCAL, collector);
@@ -3001,7 +3001,7 @@ public class DTLSConnectorAdvancedTest {
 
 		clientConfigBuilder
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain()))
-				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build());
+				.setCertificateVerifier(StaticCertificateVerifier.builder().setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build());
 
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(LOCAL, collector);
@@ -3045,12 +3045,12 @@ public class DTLSConnectorAdvancedTest {
 	public void testClientX509WithoutMatchingCertificate() throws Exception {
 		logging.setLoggingLevel("OFF", LOGGER.getName());
 
-		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
+		CertificateVerifier verifier = StaticCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getServerCaRsaCertificateChain()).build();
 
 		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder(serverHelper.serverConfig)
 				.set(DtlsConfig.DTLS_USE_MULTI_RECORD_MESSAGES, false)
-				.setAdvancedCertificateVerifier(verifier)
+				.setCertificateVerifier(verifier)
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.X_509));
 
 		// Configure UDP connector we will use as Server

@@ -126,9 +126,9 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -188,7 +188,7 @@ public class DTLSConnectorTest {
 		SinglePskStore pskStore = new SinglePskStore(CLIENT_IDENTITY,
 				CLIENT_IDENTITY_SECRET.getBytes());
 
-		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
+		CertificateVerifier verifier = StaticCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
 
 		serverHelper = new ConnectorHelper(network);
@@ -202,7 +202,7 @@ public class DTLSConnectorTest {
 				.setAsList(DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
-				.setAdvancedCertificateVerifier(verifier).setPskStore(pskStore);
+				.setCertificateVerifier(verifier).setPskStore(pskStore);
 		serverHelper.startServer();
 	}
 
@@ -235,7 +235,7 @@ public class DTLSConnectorTest {
 	}
 
 	private static DtlsConnectorConfig.Builder newClientConfigBuilder() throws Exception {
-		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
+		CertificateVerifier verifier = StaticCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
 		return DtlsConnectorConfig.builder(network.createClientTestConfig())
 				.set(DtlsConfig.DTLS_MAX_CONNECTIONS, CLIENT_CONNECTION_STORE_CAPACITY)
@@ -246,7 +246,7 @@ public class DTLSConnectorTest {
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY,
 						CertificateType.X_509))
-				.setAdvancedCertificateVerifier(verifier);
+				.setCertificateVerifier(verifier);
 	}
 
 	@Test

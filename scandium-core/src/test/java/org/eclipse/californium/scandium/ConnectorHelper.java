@@ -101,10 +101,10 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.MultiPskStore;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier.Builder;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 
 /**
@@ -216,17 +216,17 @@ public class ConnectorHelper {
 		serverEndpoint = server.getAddress();
 	}
 
-	public NewAdvancedCertificateVerifier ensureTrusts(DtlsConnectorConfig.Builder builder) {
-		NewAdvancedCertificateVerifier result = null;
+	public CertificateVerifier ensureTrusts(DtlsConnectorConfig.Builder builder) {
+		CertificateVerifier result = null;
 		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
 		if (incompleteConfig.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NONE) {
-			if (incompleteConfig.getAdvancedCertificateVerifier() == null) {
-				Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
+			if (incompleteConfig.getCertificateVerifier() == null) {
+				Builder verifierBuilder = StaticCertificateVerifier.builder();
 				X509Certificate[] trustedCertificates = DtlsTestTools.getTrustedCertificates();
 				verifierBuilder.setTrustedCertificates(trustedCertificates);
 				verifierBuilder.setTrustAllRPKs();
 				result = verifierBuilder.build();
-				builder.setAdvancedCertificateVerifier(result);
+				builder.setCertificateVerifier(result);
 			}
 		}
 		return result;
@@ -309,7 +309,7 @@ public class ConnectorHelper {
 
 	public static DtlsConnectorConfig.Builder newClientConfigBuilder(DtlsNetworkRule network) throws IOException, GeneralSecurityException {
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		NewAdvancedCertificateVerifier clientCertificateVerifier = StaticNewAdvancedCertificateVerifier.builder()
+		CertificateVerifier clientCertificateVerifier = StaticCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
 		return DtlsConnectorConfig.builder(network.createTestConfig())
 				.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY)
@@ -320,7 +320,7 @@ public class ConnectorHelper {
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY,
 						CertificateType.X_509))
-				.setAdvancedCertificateVerifier(clientCertificateVerifier);
+				.setCertificateVerifier(clientCertificateVerifier);
 	}
 
 	public DTLSSession getEstablishedServerDtlsSession(InetSocketAddress address) {

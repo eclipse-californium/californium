@@ -53,12 +53,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * New advanced certificate verifier based on collections of trusted x509
+ * Static certificate verifier based on collections of trusted x509
  * certificates and RPKs.
  * 
- * @since 2.5
+ * @since 4.0 (Renamed StaticNewAdvancedCertificateVerifier into StaticCertificateVerifier)
  */
-public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertificateVerifier, ConfigurationHelperSetup {
+public class StaticCertificateVerifier implements CertificateVerifier, ConfigurationHelperSetup {
 
 	private static final X509Certificate[] X509_TRUST_ALL = new X509Certificate[0];
 	private static final RawPublicKeyIdentity[] RPK_TRUST_ALL = new RawPublicKeyIdentity[0];
@@ -92,7 +92,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	private final boolean useEmptyAcceptedIssuers;
 
 	/**
-	 * Create delegating certificate verifier for x509 and RPK.
+	 * Creates static certificate verifier for x509 and RPK.
 	 * 
 	 * @param trustedCertificates trusted x509 certificates. {@code null} not
 	 *            support x.509, empty, to trust all.
@@ -106,13 +106,13 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	 *             is empty, or the trusts for an provided certificate type are
 	 *             {@code null}.
 	 */
-	public StaticNewAdvancedCertificateVerifier(X509Certificate[] trustedCertificates,
+	public StaticCertificateVerifier(X509Certificate[] trustedCertificates,
 			RawPublicKeyIdentity[] trustedRPKs, List<CertificateType> supportedCertificateTypes) {
 		this(trustedCertificates, trustedRPKs, supportedCertificateTypes, false);
 	}
 
 	/**
-	 * Create delegating certificate verifier for x509 and RPK.
+	 * Creates static certificate verifier for x509 and RPK.
 	 * 
 	 * @param trustedCertificates trusted x509 certificates. {@code null} not
 	 *            support x.509, empty, to trust all.
@@ -130,7 +130,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	 *             {@code null}.
 	 * @since 3.3
 	 */
-	public StaticNewAdvancedCertificateVerifier(X509Certificate[] trustedCertificates,
+	public StaticCertificateVerifier(X509Certificate[] trustedCertificates,
 			RawPublicKeyIdentity[] trustedRPKs, List<CertificateType> supportedCertificateTypes,
 			boolean useEmptyAcceptedIssuers) {
 		if (trustedCertificates == null && trustedRPKs == null) {
@@ -253,7 +253,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 
 	/**
 	 * Verify the certificate's subject.
-	 * 
+	 * <p>
 	 * Considers both destination variants, server names and inet address and
 	 * verifies that using the certificate's subject CN and subject alternative
 	 * names.
@@ -327,7 +327,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	}
 
 	/**
-	 * Get a builder.
+	 * Gets a builder.
 	 * 
 	 * @return builder.
 	 */
@@ -440,7 +440,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 
 		/**
 		 * Set to use a empty accepted issuers list.
-		 * 
+		 * <p>
 		 * The list of accepted issuers is send to the client in the
 		 * {@link CertificateRequest} in order to help the client to select a
 		 * trusted client certificate. In some case, that list may get larger.
@@ -470,12 +470,12 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 		}
 
 		/**
-		 * Build NewAdvancedCertificateVerifier.
+		 * Builds CertificateVerifier.
 		 * 
-		 * @return NewAdvancedCertificateVerifier
+		 * @return CertificateVerifier
 		 */
-		public NewAdvancedCertificateVerifier build() {
-			return new StaticNewAdvancedCertificateVerifier(trustedCertificates, trustedRPKs, supportedCertificateTypes,
+		public CertificateVerifier build() {
+			return new StaticCertificateVerifier(trustedCertificates, trustedRPKs, supportedCertificateTypes,
 					useEmptyAcceptedIssuers);
 		}
 	}

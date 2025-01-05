@@ -19,7 +19,7 @@ import java.security.PublicKey;
 import java.security.cert.CertPath;
 
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 
 /**
  * Result of certificate verification.
@@ -33,7 +33,7 @@ public final class CertificateVerificationResult extends HandshakeResult {
 
 	/**
 	 * Verified resulting certificate path for x.509. If
-	 * {@link NewAdvancedCertificateVerifier#verifyCertificate(ConnectionId, org.eclipse.californium.scandium.util.ServerNames, java.net.InetSocketAddress, boolean, boolean, boolean, CertificateMessage)}
+	 * {@link CertificateVerifier#verifyCertificate(ConnectionId, org.eclipse.californium.scandium.util.ServerNames, java.net.InetSocketAddress, boolean, boolean, boolean, CertificateMessage)}
 	 * is called with {@code truncateCertificatePath} set to {@code true}, the
 	 * certificate path of the received certificate message is truncated to one
 	 * of the trust anchors. Maybe contain a empty path, if the received

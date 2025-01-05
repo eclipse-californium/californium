@@ -31,8 +31,8 @@ import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier.Builder;
 
 /**
  * A pool of secure Endpoints.
@@ -97,10 +97,10 @@ public class SecureEndpointPool extends EndpointPool {
 		DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
 		dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
 				CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
-		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
+		Builder verifierBuilder = StaticCertificateVerifier.builder();
 		verifierBuilder.setTrustedCertificates(trustedCertificates);
 		verifierBuilder.setTrustAllRPKs();
-		dtlsConfig.setAdvancedCertificateVerifier(verifierBuilder.build());
+		dtlsConfig.setCertificateVerifier(verifierBuilder.build());
 
 		return dtlsConfig;
 	}
@@ -115,10 +115,10 @@ public class SecureEndpointPool extends EndpointPool {
 		DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
 		dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
 				CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
-		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
+		Builder verifierBuilder = StaticCertificateVerifier.builder();
 		verifierBuilder.setTrustedCertificates(trustedCertificates);
 		verifierBuilder.setTrustAllRPKs();
-		dtlsConfig.setAdvancedCertificateVerifier(verifierBuilder.build());
+		dtlsConfig.setCertificateVerifier(verifierBuilder.build());
 
 		return dtlsConfig;
 	}

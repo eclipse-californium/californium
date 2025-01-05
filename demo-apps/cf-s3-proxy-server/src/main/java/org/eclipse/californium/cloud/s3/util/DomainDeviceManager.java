@@ -52,7 +52,7 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -132,7 +132,7 @@ public class DomainDeviceManager extends DeviceManager
 	}
 
 	@Override
-	public NewAdvancedCertificateVerifier getCertificateVerifier() {
+	public CertificateVerifier getCertificateVerifier() {
 		if (credentials == null) {
 			return null;
 		}
