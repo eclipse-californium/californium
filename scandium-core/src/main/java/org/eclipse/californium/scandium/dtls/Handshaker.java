@@ -113,7 +113,7 @@ import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -176,7 +176,7 @@ public abstract class Handshaker implements Destroyable {
 	 * The logic in charge of verifying the chain of certificates asserting this
 	 * handshaker's identity
 	 */
-	protected final NewAdvancedCertificateVerifier certificateVerifier;
+	protected final CertificateVerifier certificateVerifier;
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
 	protected final PskStore pskStore;
@@ -555,7 +555,7 @@ public abstract class Handshaker implements Destroyable {
 		this.useTruncatedCertificatePathForVerification = config.get(DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION);
 		this.useEarlyStopRetransmission = config.get(DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION);
 		this.certificateIdentityProvider = config.getCertificateIdentityProvider();
-		this.certificateVerifier = config.getAdvancedCertificateVerifier();
+		this.certificateVerifier = config.getCertificateVerifier();
 		this.pskStore = config.getPskStore();
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 		this.inboundMessageBuffer = new InboundMessageBuffer();
@@ -1293,7 +1293,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Checks, if a internal API call is pending.
 	 * 
-	 * Using {@link PskStore} or {@link NewAdvancedCertificateVerifier}
+	 * Using {@link PskStore} or {@link CertificateVerifier}
 	 * may result in pending API calls. Such API calls are timed out with the
 	 * current flight and so report as INTERNAL_ERROR alert instead of silently
 	 * ignore that time out.
@@ -2467,8 +2467,8 @@ public abstract class Handshaker implements Destroyable {
 	 * part of this message, or the raw public key of the message.
 	 *
 	 * This method delegates both certificate validation to the
-	 * {@link NewAdvancedCertificateVerifier}. If a asynchronous implementation
-	 * of {@link NewAdvancedCertificateVerifier} is used, the result will be not
+	 * {@link CertificateVerifier}. If a asynchronous implementation
+	 * of {@link CertificateVerifier} is used, the result will be not
 	 * available after this call, but will be available after the callback of
 	 * the asynchronous implementation.
 	 *

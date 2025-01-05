@@ -29,15 +29,13 @@ import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * New advanced certificate verifier.
- * 
+ * Certificate verifier.
+ * <p>
  * Returns certificate verification result. If required, the certificate
  * verification result maybe returned asynchronously using a
  * {@link HandshakeResultHandler}.
- * 
  * <p>
  * Synchronous example:
- * </p>
  * 
  * <pre>
  * &#64;Override
@@ -50,7 +48,6 @@ import org.eclipse.californium.scandium.util.ServerNames;
  *
  * <p>
  * Asynchronous example returning the master secret:
- * </p>
  * 
  * <pre>
  * &#64;Override
@@ -75,9 +72,9 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * }
  * </pre>
  * 
- * @since 2.5
+ * @since 4.0 (Renamed NewAdvancedCertificateVerifier into CertificateVerifier)
  */
-public interface NewAdvancedCertificateVerifier {
+public interface CertificateVerifier {
 
 	/**
 	 * Get the list of supported certificate types in order of preference.
@@ -90,7 +87,7 @@ public interface NewAdvancedCertificateVerifier {
 	/**
 	 * Validates the certificate provided by the the peer as part of the
 	 * certificate message.
-	 * 
+	 * <p>
 	 * If a x509 certificate chain is provided in the certificate message,
 	 * validate the chain and key usage. If a RawPublicKey certificate is
 	 * provided, check, if this public key is trusted.
@@ -125,7 +122,7 @@ public interface NewAdvancedCertificateVerifier {
 
 	/**
 	 * Set the handler for asynchronous handshake results.
-	 * 
+	 * <p>
 	 * Called during initialization of the {@link DTLSConnector}. Synchronous
 	 * implementations may just ignore this using an empty implementation.
 	 * 

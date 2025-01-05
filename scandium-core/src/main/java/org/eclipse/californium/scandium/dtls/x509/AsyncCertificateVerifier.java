@@ -38,19 +38,19 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Simple asynchronous test implementation of
- * {@link NewAdvancedCertificateVerifier}.
- * 
+ * {@link CertificateVerifier}.
+ * <p>
  * Use {@code 0} or negative delays for test with synchronous blocking
  * behaviour. And positive delays for test with asynchronous none-blocking
  * behaviour.
  * 
- * @since 2.5
+ * @since 4.0 (Renamed AsyncNewAdvancedCertificateVerifier into AsyncCertificateVerifier)
  */
-public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertificateVerifier {
+public class AsyncCertificateVerifier extends StaticCertificateVerifier {
 	/**
 	 * @since 3.10
 	 */
-	private static final Logger LOG = LoggerFactory.getLogger(AsyncNewAdvancedCertificateVerifier.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AsyncCertificateVerifier.class);
 
 	/**
 	 * Thread factory.
@@ -73,7 +73,7 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	 */
 	private HandshakeResultHandler resultHandler;
 
-	public AsyncNewAdvancedCertificateVerifier(X509Certificate[] trustedCertificates,
+	public AsyncCertificateVerifier(X509Certificate[] trustedCertificates,
 			RawPublicKeyIdentity[] trustedRPKs, List<CertificateType> supportedCertificateTypes) {
 		super(trustedCertificates, trustedRPKs, supportedCertificateTypes);
 		executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
@@ -87,7 +87,7 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	 *            delays using asynchronous none-blocking behaviour.
 	 * @return this certificate verifier for command chaining
 	 */
-	public AsyncNewAdvancedCertificateVerifier setDelay(int delayMillis) {
+	public AsyncCertificateVerifier setDelay(int delayMillis) {
 		this.delayMillis = delayMillis;
 		if (delayMillis > 0) {
 			LOG.info("Asynchronous delayed certificate verifier {}ms.", delayMillis);
@@ -172,10 +172,10 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 		return new Builder();
 	}
 
-	public static class Builder extends StaticNewAdvancedCertificateVerifier.Builder {
+	public static class Builder extends StaticCertificateVerifier.Builder {
 
-		public AsyncNewAdvancedCertificateVerifier build() {
-			return new AsyncNewAdvancedCertificateVerifier(trustedCertificates, trustedRPKs, supportedCertificateTypes);
+		public AsyncCertificateVerifier build() {
+			return new AsyncCertificateVerifier(trustedCertificates, trustedRPKs, supportedCertificateTypes);
 		}
 	}
 }

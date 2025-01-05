@@ -17,8 +17,8 @@ package org.eclipse.californium.scandium.dtls.x509;
 
 /**
  * Setup for certificate configuration helper.
- * 
- * {@link CertificateProvider} and {@link NewAdvancedCertificateVerifier}
+ * <p>
+ * {@link CertificateProvider} and {@link CertificateVerifier}
  * implementation may implement this interface as well in order to participate
  * in the automatic default configuration and configuration verification.
  * 

@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Generates certificate path, check intended certificates usage and verify
  * certificate paths.
- * 
+ * <p>
  * This implementation considers the below listed RFC's by:
  * <dl>
  * <dt>self-signed top-level certificate</dt>
@@ -326,8 +326,7 @@ public class CertPathUtil {
 	 * 
 	 * The certificate path is validate using a "PKIX" {@link CertPathValidator}
 	 * with the selected trusted certificate and disabled CRL. For other
-	 * required setups, please implement a custom Scandium
-	 * NewAdvancedCertificateVerifier.
+	 * required setups, please implement a custom Scandium CertificateVerifier.
 	 * 
 	 * @param truncateCertificatePath truncate certificate path at trusted
 	 *            certificate

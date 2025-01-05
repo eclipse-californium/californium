@@ -70,7 +70,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.MultiPskFileStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -349,7 +349,7 @@ public abstract class AbstractTestServer extends CoapServer {
 								keyManager, dtlsConfig.get(DtlsConfig.DTLS_CERTIFICATE_TYPES));
 						certificateProvider.setDelay(handshakeResultDelayMillis);
 						dtlsConfigBuilder.setCertificateIdentityProvider(certificateProvider);
-						AsyncNewAdvancedCertificateVerifier.Builder verifierBuilder = AsyncNewAdvancedCertificateVerifier
+						AsyncCertificateVerifier.Builder verifierBuilder = AsyncCertificateVerifier
 								.builder();
 						if (cliConfig.trustall) {
 							verifierBuilder.setTrustAllCertificates();
@@ -357,9 +357,9 @@ public abstract class AbstractTestServer extends CoapServer {
 							verifierBuilder.setTrustedCertificates(trustedCertificates);
 						}
 						verifierBuilder.setTrustAllRPKs();
-						AsyncNewAdvancedCertificateVerifier verifier = verifierBuilder.build();
+						AsyncCertificateVerifier verifier = verifierBuilder.build();
 						verifier.setDelay(handshakeResultDelayMillis);
-						dtlsConfigBuilder.setAdvancedCertificateVerifier(verifier);
+						dtlsConfigBuilder.setCertificateVerifier(verifier);
 						AsyncResumptionVerifier resumptionVerifier = new AsyncResumptionVerifier();
 						resumptionVerifier.setDelay(handshakeResultDelayMillis);
 						dtlsConfigBuilder.setResumptionVerifier(resumptionVerifier);

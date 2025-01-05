@@ -236,7 +236,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -617,7 +617,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			if (certificateIdentityProvider != null) {
 				certificateIdentityProvider.setResultHandler(handler);
 			}
-			NewAdvancedCertificateVerifier certificateVerifier = config.getAdvancedCertificateVerifier();
+			CertificateVerifier certificateVerifier = config.getCertificateVerifier();
 			if (certificateVerifier != null) {
 				certificateVerifier.setResultHandler(handler);
 			}

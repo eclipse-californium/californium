@@ -32,7 +32,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
-public class NewAdvancedCertificateVerifierTest {
+public class CertificateVerifierTest {
 
 	private static X509Certificate[] trusts;
 	private static Set<X500Principal> issuers;
@@ -49,14 +49,14 @@ public class NewAdvancedCertificateVerifierTest {
 
 	@Test
 	public void testUseEmptyAcceptedIssuers() {
-		NewAdvancedCertificateVerifier certificateVerifier = StaticNewAdvancedCertificateVerifier.builder()
+		CertificateVerifier certificateVerifier = StaticCertificateVerifier.builder()
 				.setTrustedCertificates(trusts).setUseEmptyAcceptedIssuers(true).build();
 		assertThat(certificateVerifier.getAcceptedIssuers().isEmpty(), is(true));
 	}
 
 	@Test
 	public void testAcceptedIssuers() {
-		NewAdvancedCertificateVerifier certificateVerifier = StaticNewAdvancedCertificateVerifier.builder()
+		CertificateVerifier certificateVerifier = StaticCertificateVerifier.builder()
 				.setTrustedCertificates(trusts).build();
 		assertThat(certificateVerifier.getAcceptedIssuers().size(), is(issuers.size()));
 	}

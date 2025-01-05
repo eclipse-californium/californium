@@ -62,7 +62,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAl
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -100,7 +100,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	/**
 	 * Certificate verifier for device certificates.
 	 */
-	protected NewAdvancedCertificateVerifier certificateVerifier;
+	protected CertificateVerifier certificateVerifier;
 	/**
 	 * Certificate provider for DTLS 1.2 server authentication.
 	 */
@@ -218,7 +218,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	}
 
 	@Override
-	public NewAdvancedCertificateVerifier getCertificateVerifier() {
+	public CertificateVerifier getCertificateVerifier() {
 		if (devices == null || credentials == null) {
 			return null;
 		}
@@ -363,7 +363,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	 * Verifies that a provided Raw Public Key certificate is contained in the
 	 * device credentials.
 	 */
-	protected class DeviceCertificateVerifier implements NewAdvancedCertificateVerifier {
+	protected class DeviceCertificateVerifier implements CertificateVerifier {
 
 		private final List<CertificateType> supportedCertificateTypes;
 
