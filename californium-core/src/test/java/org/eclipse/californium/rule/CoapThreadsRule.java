@@ -22,8 +22,6 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.test.lockstep.LockstepEndpoint;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Threads rule for coap junit tests.
@@ -32,8 +30,6 @@ import org.slf4j.LoggerFactory;
  * are terminated.
  */
 public class CoapThreadsRule extends ThreadsRule {
-
-	public static final Logger LOGGER = LoggerFactory.getLogger(CoapThreadsRule.class);
 
 	/**
 	 * Create a threads rule.
