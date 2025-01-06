@@ -46,7 +46,7 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension.Length;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -75,7 +75,7 @@ public class HelloExtensionNegotiationTest {
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
 	InetSocketAddress clientEndpoint;
-	ResumptionSupportingConnectionStore clientConnectionStore;
+	ConnectionStore clientConnectionStore;
 
 	/**
 	 * Configures and starts a server side connector for running the tests against.

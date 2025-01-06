@@ -49,7 +49,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -88,7 +88,7 @@ public class DTLSEndpointContextTest {
 	DtlsConnectorConfig clientConfig;
 	DTLSContext establishedClientContext;
 	DTLSSession establishedClientSession;
-	ResumptionSupportingConnectionStore clientConnectionStore;
+	ConnectionStore clientConnectionStore;
 
 	/**
 	 * Configures and starts a server side connector for running the tests

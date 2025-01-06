@@ -19,17 +19,17 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.ResumptionVerificationResult;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * Resumption verifier using the provided
- * {@link ResumptionSupportingConnectionStore}.
+ * {@link ConnectionStore}.
  * 
- * If not {@link ResumptionSupportingConnectionStore} is provided with
- * {@link #setConnectionStore(ResumptionSupportingConnectionStore)}, the
+ * If not {@link ConnectionStore} is provided with
+ * {@link #setConnectionStore(ConnectionStore)}, the
  * {@link DTLSConnector} will set its connection store as default on
  * initialization.
  * 
@@ -40,22 +40,22 @@ public class ConnectionStoreResumptionVerifier implements ResumptionVerifier {
 	/**
 	 * Connection store to lookup the dtls session.
 	 */
-	private volatile ResumptionSupportingConnectionStore connectionStore;
+	private volatile ConnectionStore connectionStore;
 
 	/**
 	 * Create a resumption verifier based on the
-	 * {@link ResumptionSupportingConnectionStore} of the {@link DTLSConnector}.
+	 * {@link ConnectionStore} of the {@link DTLSConnector}.
 	 */
 	public ConnectionStoreResumptionVerifier() {
 	}
 
 	/**
 	 * Create a resumption verifier based on the provided
-	 * {@link ResumptionSupportingConnectionStore}.
+	 * {@link ConnectionStore}.
 	 * 
 	 * @param connectionStore connection store to lookup the dtls session.
 	 */
-	public ConnectionStoreResumptionVerifier(ResumptionSupportingConnectionStore connectionStore) {
+	public ConnectionStoreResumptionVerifier(ConnectionStore connectionStore) {
 		setConnectionStore(connectionStore);
 	}
 
@@ -75,7 +75,7 @@ public class ConnectionStoreResumptionVerifier implements ResumptionVerifier {
 	 * @param connectionStore connection store
 	 * @throws NullPointerException if the connection store is {@code null}.
 	 */
-	public void setConnectionStore(ResumptionSupportingConnectionStore connectionStore) {
+	public void setConnectionStore(ConnectionStore connectionStore) {
 		if (connectionStore == null) {
 			throw new NullPointerException("Connection store must not be null!");
 		}

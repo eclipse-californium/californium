@@ -19,10 +19,14 @@ If a 3.0.0 or newer is used, it's recommended to update first to 3.13.0 and clea
 
 Some of the configuration properties are not longer supported (they have been marked as deprecated) and it is recommended to generate new property files and compare the content with the ones previous in use.
 
+The major update is also used to simplify some names, which have grown in length over the time. With removing alternative implementations these names has also be shortened.
+
 ## Base Lines
 
 The plan is still to be able to use Californium with java 8. 
-That requires also to use Android 8, API level 26. According a discussion, it is possible to [desugaring](https://github.com/eclipse-californium/californium/issues/1664#issuecomment-1893991987) java 8 back to Android versions before
+That requires also to use Android 8, API level 26. According a discussion, it is possible to [desugaring](https://github.com/eclipse-californium/californium/issues/1664#issuecomment-1893991987) java 8 back to Android versions before. 
+
+**Note:** as for now (January 2025) the android example doesn't compile anymore. if that gets fixed in the future depends the on the interest and contribution.
 
 For a local build new Java versions will be required. For now I would consider to
 support java 17 as minimum version to build Californium.
@@ -108,7 +112,7 @@ Change scope of `DTLSFlight.wrapMessage` to `private`.
 
 The names `CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378`, and `CipherSuite.TLS_PSK_WITH_AES_256_GCM_SHA378` are corrected into `CipherSuite.TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384`, and `CipherSuite.TLS_PSK_WITH_AES_256_GCM_SHA384`. 
 
-Merged `ReadWriteLockConnectionStore` into `ResumptionSupportingConnectionStore` and remove obsolete `ReadWriteLockConnectionStore`.
+Merged `ReadWriteLockConnectionStore` into `ResumptionSupportingConnectionStore` and renamed this into `ConnectionStore`. Remove obsolete `ReadWriteLockConnectionStore`. Also renames `InMemoryReadWriteLockConnectionStore` into `InMemoryConnectionStore`.
 
 Uses the new introduced `ProtocolScheduledExecutorService`.
 

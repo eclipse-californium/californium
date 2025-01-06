@@ -43,7 +43,7 @@ import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
@@ -87,7 +87,7 @@ public class DtlsClusterConnectorTest {
 	private static Configuration configuration;
 
 	private DTLSConnector clientConnector;
-	private ResumptionSupportingConnectionStore clientConnections;
+	private ConnectionStore clientConnections;
 	private LatchDecrementingRawDataChannel clientChannel;
 
 	@BeforeClass

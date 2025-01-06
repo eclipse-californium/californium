@@ -61,11 +61,11 @@ import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
-import org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore;
+import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
@@ -261,9 +261,9 @@ public final class DtlsConnectorConfig {
 	private DatagramFilter datagramFilter;
 
 	/**
-	 * Session store for {@link InMemoryReadWriteLockConnectionStore}.
+	 * Session store for {@link InMemoryConnectionStore}.
 	 * 
-	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+	 * If a custom {@link ConnectionStore} is used, the
 	 * session store must be provided directly to that implementation. In that
 	 * case, the configured session store here will be ignored.
 	 * 
@@ -730,9 +730,9 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets session store for {@link InMemoryReadWriteLockConnectionStore}.
+	 * Gets session store for {@link InMemoryConnectionStore}.
 	 * 
-	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+	 * If a custom {@link ConnectionStore} is used, the
 	 * session store must be provided directly to that implementation. In that
 	 * case, the configured session store here will be ignored.
 	 * 
@@ -753,7 +753,7 @@ public final class DtlsConnectorConfig {
 	 * implementation may check a maximum time, or, if the credentials are
 	 * expired (e.g. x509 valid range). The default verifier will just checks,
 	 * if a DTLS session with that session id is available in the
-	 * {@link ResumptionSupportingConnectionStore}.
+	 * {@link ConnectionStore}.
 	 * 
 	 * @return resumption verifier. May be {@code null}, if
 	 *         {@link DtlsConfig#DTLS_SERVER_USE_SESSION_ID} is {@code false} and session
@@ -1286,9 +1286,9 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the session store for {@link InMemoryReadWriteLockConnectionStore}.
+		 * Sets the session store for {@link InMemoryConnectionStore}.
 		 * 
-		 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+		 * If a custom {@link ConnectionStore} is used, the
 		 * session store must be provided directly to that implementation. In
 		 * that case, the configured session store here will be ignored.
 		 * 
@@ -1313,7 +1313,7 @@ public final class DtlsConnectorConfig {
 		 * available. An implementation may check a maximum time, or, if the
 		 * credentials are expired (e.g. x509 valid range). The default verifier
 		 * will just checks, if a DTLS session with that session id is available
-		 * in the {@link ResumptionSupportingConnectionStore}.
+		 * in the {@link ConnectionStore}.
 		 * 
 		 * @param resumptionVerifier the resumption verifier
 		 * @return this builder for command chaining.

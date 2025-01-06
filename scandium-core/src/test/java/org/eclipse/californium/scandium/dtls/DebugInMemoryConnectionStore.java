@@ -30,10 +30,10 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.5
  */
-public final class DebugReadWriteLockConnectionStore extends InMemoryReadWriteLockConnectionStore
+public final class DebugInMemoryConnectionStore extends InMemoryConnectionStore
 		implements DebugConnectionStore {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DebugReadWriteLockConnectionStore.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DebugInMemoryConnectionStore.class);
 
 	/**
 	 * Creates a store based on given configuration parameters.
@@ -47,7 +47,7 @@ public final class DebugReadWriteLockConnectionStore extends InMemoryReadWriteLo
 	 * @param uniquePrincipals {@code true}, to limit stale connections by
 	 *            unique principals, {@code false}, if not.
 	 */
-	public DebugReadWriteLockConnectionStore(int capacity, long threshold, SessionStore sessionStore,
+	public DebugInMemoryConnectionStore(int capacity, long threshold, SessionStore sessionStore,
 			boolean uniquePrincipals) {
 		super(capacity, threshold, sessionStore, uniquePrincipals);
 	}

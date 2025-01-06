@@ -19,7 +19,7 @@ package org.eclipse.californium.scandium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.Record;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -113,11 +113,11 @@ public class DtlsBindingPreprocessingConnector extends DTLSConnector {
 	}
 
 	/**
-	 * @see DTLSConnector#DTLSConnector(DtlsConnectorConfig, ResumptionSupportingConnectionStore)
+	 * @see DTLSConnector#DTLSConnector(DtlsConnectorConfig, ConnectionStore)
 	 * @param configuration The configuration options.
 	 * @param connectionStore The registry to use for managing connections to peers.
 	 */
-	public DtlsBindingPreprocessingConnector(DtlsConnectorConfig configuration, ResumptionSupportingConnectionStore connectionStore) {
+	public DtlsBindingPreprocessingConnector(DtlsConnectorConfig configuration, ConnectionStore connectionStore) {
 		super(configuration, connectionStore);
 	}
 

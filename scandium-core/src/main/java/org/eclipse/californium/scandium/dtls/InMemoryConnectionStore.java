@@ -46,7 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An in-memory {@code ReadWriteLockConnectionStore} with a configurable maximum
+ * An in-memory {@code ConnectionStore} with a configurable maximum
  * capacity and support for evicting stale connections based on a <em>least
  * recently update</em> policy.
  * <p>
@@ -88,11 +88,11 @@ import org.slf4j.LoggerFactory;
  * the session get's removed also from the session store.
  * </p>
  * 
- * @since 3.5
+ * @since 4.0 (Rename InMemoryReadWriteLockConnectionStore into InMemoryConnectionStore)
  */
-public class InMemoryReadWriteLockConnectionStore implements ResumptionSupportingConnectionStore {
+public class InMemoryConnectionStore implements ConnectionStore {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryReadWriteLockConnectionStore.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryConnectionStore.class);
 	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER.getName(), 3, TimeUnit.SECONDS.toNanos(10));
 
 	// extra cid bytes additionally to required bytes for small capacity.
@@ -132,7 +132,7 @@ public class InMemoryReadWriteLockConnectionStore implements ResumptionSupportin
 	 * @param uniquePrincipals {@code true}, to limit stale connections by
 	 *            unique principals, {@code false}, if not.
 	 */
-	public InMemoryReadWriteLockConnectionStore(int capacity, long threshold, SessionStore sessionStore,
+	public InMemoryConnectionStore(int capacity, long threshold, SessionStore sessionStore,
 			boolean uniquePrincipals) {
 		this.connections = new LeastRecentlyUpdatedCache<>(capacity, threshold, TimeUnit.SECONDS);
 		this.connectionsByAddress = new ConcurrentHashMap<>();
@@ -156,7 +156,7 @@ public class InMemoryReadWriteLockConnectionStore implements ResumptionSupportin
 						if (handshaker != null) {
 							handshaker.handshakeFailed(new ConnectionEvictedException("Evicted!"));
 						}
-						synchronized (InMemoryReadWriteLockConnectionStore.this) {
+						synchronized (InMemoryConnectionStore.this) {
 							removeByAddressConnections(staleConnection);
 							removeByEstablishedSessions(staleConnection.getEstablishedSessionIdentifier(),
 									staleConnection);
@@ -186,7 +186,7 @@ public class InMemoryReadWriteLockConnectionStore implements ResumptionSupportin
 	 * @param tag tag for logging
 	 * @return this connection store for calls chaining
 	 */
-	public synchronized InMemoryReadWriteLockConnectionStore setTag(final String tag) {
+	public synchronized InMemoryConnectionStore setTag(final String tag) {
 		this.tag = StringUtil.normalizeLoggingTag(tag);
 		return this;
 	}

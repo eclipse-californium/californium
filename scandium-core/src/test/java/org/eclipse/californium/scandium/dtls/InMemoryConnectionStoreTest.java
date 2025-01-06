@@ -74,7 +74,7 @@ public class InMemoryConnectionStoreTest {
 	public LoggingRule logging = new LoggingRule();
 
 	private static final int INITIAL_CAPACITY = 10;
-	ResumptionSupportingConnectionStore store;
+	ConnectionStore store;
 	Connection con;
 	SessionId sessionId;
 
@@ -140,7 +140,7 @@ public class InMemoryConnectionStoreTest {
 		// another node
 		SessionStore sessionStore = new TestInMemorySessionStore(true);
 		sessionStore.put(con.getEstablishedSession());
-		store = new InMemoryReadWriteLockConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true);
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true);
 		store.attach(null);
 
 		// WHEN retrieving the connection for the given peer
@@ -158,7 +158,7 @@ public class InMemoryConnectionStoreTest {
 		// and a (local) connection based on this session
 		SessionStore sessionStore = new TestInMemorySessionStore(true);
 		sessionStore.put(con.getEstablishedSession());
-		store = new InMemoryReadWriteLockConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true);
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore, true);
 		store.attach(null);
 		store.put(con);
 
@@ -340,7 +340,7 @@ public class InMemoryConnectionStoreTest {
 
 	@Test
 	public void testPutEvictsStaleOldConnection() throws Exception {
-		store = new InMemoryReadWriteLockConnectionStore(2, 1, null, true);
+		store = new InMemoryConnectionStore(2, 1, null, true);
 		store.attach(null);
 
 		// given an empty connection store
@@ -356,8 +356,8 @@ public class InMemoryConnectionStoreTest {
 		// assert that the store has two entries
 		assertThat(store.remainingCapacity(), is(0));
 
-		if (store instanceof InMemoryReadWriteLockConnectionStore) {
-			Map<Principal, Connection> connectionsByPrincipal = ((InMemoryReadWriteLockConnectionStore) store).connectionsByPrincipal;
+		if (store instanceof InMemoryConnectionStore) {
+			Map<Principal, Connection> connectionsByPrincipal = ((InMemoryConnectionStore) store).connectionsByPrincipal;
 			if (connectionsByPrincipal != null) {
 				assertThat(connectionsByPrincipal.size(), is(2));
 			}
@@ -370,8 +370,8 @@ public class InMemoryConnectionStoreTest {
 		// assert that the store has still two entries
 		assertThat(store.remainingCapacity(), is(0));
 
-		if (store instanceof InMemoryReadWriteLockConnectionStore) {
-			Map<Principal, Connection> connectionsByPrincipal = ((InMemoryReadWriteLockConnectionStore) store).connectionsByPrincipal;
+		if (store instanceof InMemoryConnectionStore) {
+			Map<Principal, Connection> connectionsByPrincipal = ((InMemoryConnectionStore) store).connectionsByPrincipal;
 			if (connectionsByPrincipal != null) {
 				assertThat(connectionsByPrincipal.size(), is(2));
 			}
@@ -411,7 +411,7 @@ public class InMemoryConnectionStoreTest {
 
 	@Test
 	public void testSaveAndLoadMaliciousConnections() throws Exception {
-		logging.setLoggingLevel("ERROR", InMemoryReadWriteLockConnectionStore.class);
+		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class);
 
 		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
 		assertTrue(store.put(con));

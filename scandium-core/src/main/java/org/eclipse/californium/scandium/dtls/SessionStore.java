@@ -23,7 +23,7 @@ package org.eclipse.californium.scandium.dtls;
 /**
  * A second level store for current state of DTLS sessions.
  * <p>
- * Used for {@link InMemoryReadWriteLockConnectionStore}. Session state can be
+ * Used for {@link InMemoryConnectionStore}. Session state can be
  * put to the store and later retrieved by the DTLS session's ID for resumption
  * handshakes. The provided store is required to be thread-safe because it will
  * be accessed concurrently. If used, the sessions are weakly consistent with
@@ -36,7 +36,7 @@ package org.eclipse.californium.scandium.dtls;
  * That was mainly also the situation before 3.0.
  * 
  * Note: using this interface for the
- * {@link InMemoryReadWriteLockConnectionStore} is not well tested! If used and
+ * {@link InMemoryConnectionStore} is not well tested! If used and
  * causing trouble, don't hesitate to create an issue.
  * 
  * @since 3.0 (renamed SessionCache)

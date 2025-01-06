@@ -81,7 +81,7 @@ import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.TestInMemorySessionStore;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -152,7 +152,7 @@ public class DTLSConnectorResumeTest {
 
 	Class<?> clientPrincipalType;
 	DTLSConnector client;
-	ResumptionSupportingConnectionStore clientConnectionStore;
+	ConnectionStore clientConnectionStore;
 	DtlsHealthLogger clientHealth;
 
 	public static interface TypedBuilderSetup extends BuilderSetup {
@@ -838,7 +838,7 @@ public class DTLSConnectorResumeTest {
 		// second client with same address
 		DtlsConnectorConfig clientConfig2 = createClientConfigBuilder("client-2", clientTestContext.getClientAddress())
 				.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true).build();
-		ResumptionSupportingConnectionStore clientConnectionStore2 = ConnectorHelper.createDebugConnectionStore(clientConfig2);
+		ConnectionStore clientConnectionStore2 = ConnectorHelper.createDebugConnectionStore(clientConfig2);
 		
 		DTLSConnector client2 = new DTLSConnector(clientConfig2, clientConnectionStore2);
 		client2.setExecutor(executor);

@@ -112,7 +112,7 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.ResumptionVerificationResult;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionId;
@@ -204,7 +204,7 @@ public class DTLSConnectorAdvancedTest {
 	AsyncCertificateVerifier clientCertificateVerifier;
 	DtlsConnectorConfig.Builder clientConfigBuilder;
 	DTLSConnector client;
-	ResumptionSupportingConnectionStore clientConnectionStore;
+	ConnectionStore clientConnectionStore;
 	List<Record> lastReceivedFlight;
 	List<Record> lastSentFlight;
 

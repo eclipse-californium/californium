@@ -116,12 +116,12 @@ import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloRequest;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
-import org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore;
+import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.PSKClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.Record;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -178,7 +178,7 @@ public class DTLSConnectorTest {
 	DTLSConnector client;
 	TestContext clientTestContext;
 	DTLSContext establishedClientContext;
-	ResumptionSupportingConnectionStore clientConnectionStore;
+	ConnectionStore clientConnectionStore;
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
@@ -717,7 +717,7 @@ public class DTLSConnectorTest {
 		// the same IP address and port again
 		clientTestContext.setLatchCount(1);
 		DtlsConnectorConfig clientConfig = newClientConfigBuilder().setAddress(clientTestContext.getClientAddress()).build();
-		ResumptionSupportingConnectionStore clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
+		ConnectionStore clientConnectionStore = ConnectorHelper.createDebugConnectionStore(clientConfig);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setRawDataReceiver(clientTestContext.getChannel());
 		client.setExecutor(executor);
@@ -1057,7 +1057,7 @@ public class DTLSConnectorTest {
 
 	@Test
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
-		logging.setLoggingLevel("ERROR", InMemoryReadWriteLockConnectionStore.class);
+		logging.setLoggingLevel("ERROR", InMemoryConnectionStore.class);
 		serverHelper.serverConnectionStore.clear();
 		assertEquals(SERVER_CONNECTION_STORE_CAPACITY, serverHelper.serverConnectionStore.remainingCapacity());
 		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050))
