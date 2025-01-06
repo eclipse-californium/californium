@@ -15,7 +15,7 @@ package org.eclipse.californium.scandium.dtls;
 
 /**
  * Raised when a connection is evicted from
- * {@link ResumptionSupportingConnectionStore}
+ * {@link ConnectionStore}
  * 
  * @since 2.3
  */

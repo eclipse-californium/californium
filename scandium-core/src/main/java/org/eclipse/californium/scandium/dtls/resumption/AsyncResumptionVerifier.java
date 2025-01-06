@@ -25,7 +25,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.ResumptionVerificationResult;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Asynchronous test implementation using the provided
- * {@link ResumptionSupportingConnectionStore}.
+ * {@link ConnectionStore}.
  * 
  * Use {@code 0} or negative delays for test with synchronous blocking behavior.
  * And positive delays for test with asynchronous none-blocking behavior.
@@ -67,7 +67,7 @@ public class AsyncResumptionVerifier extends ConnectionStoreResumptionVerifier {
 
 	/**
 	 * Create a resumption verifier based on the
-	 * {@link ResumptionSupportingConnectionStore} of the {@link DTLSConnector}.
+	 * {@link ConnectionStore} of the {@link DTLSConnector}.
 	 * 
 	 * A call to {@link #shutdown()} is required to cleanup the used resources
 	 * (executor).
@@ -79,14 +79,14 @@ public class AsyncResumptionVerifier extends ConnectionStoreResumptionVerifier {
 
 	/**
 	 * Create a resumption verifier based on the provided
-	 * {@link ResumptionSupportingConnectionStore}.
+	 * {@link ConnectionStore}.
 	 * 
 	 * A call to {@link #shutdown()} is required to cleanup the used resources
 	 * (executor).
 	 * 
 	 * @param connectionStore connection store to lookup the dtls session.
 	 */
-	public AsyncResumptionVerifier(ResumptionSupportingConnectionStore connectionStore) {
+	public AsyncResumptionVerifier(ConnectionStore connectionStore) {
 		super(connectionStore);
 		this.executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
 	}

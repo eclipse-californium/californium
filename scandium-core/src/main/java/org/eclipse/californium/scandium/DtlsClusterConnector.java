@@ -40,7 +40,7 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.Record;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -195,7 +195,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 *             {@link NodeConnectionIdGenerator}.
 	 */
 	protected DtlsClusterConnector(DtlsConnectorConfig configuration, DtlsClusterConnectorConfig clusterConfiguration,
-			ResumptionSupportingConnectionStore connectionStore, boolean startReceiver) {
+			ConnectionStore connectionStore, boolean startReceiver) {
 		super(configuration, connectionStore);
 		this.nodeCidGenerator = getNodeConnectionIdGenerator();
 		this.clusterInternalSocketAddress = clusterConfiguration.getAddress();

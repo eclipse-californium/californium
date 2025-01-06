@@ -25,7 +25,7 @@ import java.net.InetSocketAddress;
  * 
  * @since 3.5
  */
-public interface DebugConnectionStore extends ResumptionSupportingConnectionStore {
+public interface DebugConnectionStore extends ConnectionStore {
 
 	/**
 	 * Set logging tag.
@@ -33,7 +33,7 @@ public interface DebugConnectionStore extends ResumptionSupportingConnectionStor
 	 * @param tag logging tag
 	 * @return this connection store
 	 */
-	ResumptionSupportingConnectionStore setTag(String tag);
+	ConnectionStore setTag(String tag);
 
 	/**
 	 * Dump connections to logger. Intended to be used for unit tests.

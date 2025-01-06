@@ -19,7 +19,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.ResumptionVerificationResult;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -30,7 +30,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * to verify, if there is a valid session to resume. An implementation may check
  * a maximum time, or, if the credentials are expired (e.g. x509 valid range).
  * The default verifier will just checks, if a DTLS session with that session id
- * is available in the {@link ResumptionSupportingConnectionStore}.
+ * is available in the {@link ConnectionStore}.
  * 
  * @since 4.0 (removed skipRequestHelloVerify)
  */

@@ -217,14 +217,14 @@ import org.eclipse.californium.scandium.dtls.HandshakeResult;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
-import org.eclipse.californium.scandium.dtls.InMemoryReadWriteLockConnectionStore;
+import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionId;
@@ -318,7 +318,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 */
 	private final String serializationLabel;
 
-	private final ResumptionSupportingConnectionStore connectionStore;
+	private final ConnectionStore connectionStore;
 
 	/**
 	 * Maximum number of connections.
@@ -542,8 +542,8 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 * @return connection store
 	 * @since 3.0 (moved SessionCache from parameter to configuration)
 	 */
-	protected static ResumptionSupportingConnectionStore createConnectionStore(DtlsConnectorConfig configuration) {
-		return new InMemoryReadWriteLockConnectionStore(
+	protected static ConnectionStore createConnectionStore(DtlsConnectorConfig configuration) {
+		return new InMemoryConnectionStore(
 				configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
 				configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS),
 				configuration.getSessionStore(),
@@ -568,7 +568,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 *             generator.
 	 */
 	protected DTLSConnector(final DtlsConnectorConfig configuration,
-			final ResumptionSupportingConnectionStore connectionStore) {
+			final ConnectionStore connectionStore) {
 		if (configuration == null) {
 			throw new NullPointerException("Configuration must not be null");
 		} else if (connectionStore == null) {
@@ -1427,7 +1427,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 * Destroys the connector.
 	 * <p>
 	 * This method invokes {@link #stop()} and clears the
-	 * {@link ResumptionSupportingConnectionStore} used to manage connections to
+	 * {@link ConnectionStore} used to manage connections to
 	 * peers. Thus, contrary to the behavior specified for
 	 * {@link Connector#destroy()}, this connector can be re-started using the
 	 * {@link #start()} method but subsequent invocations of the

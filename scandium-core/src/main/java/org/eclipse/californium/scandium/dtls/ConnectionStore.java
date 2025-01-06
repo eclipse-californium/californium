@@ -34,11 +34,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import org.eclipse.californium.scandium.ConnectionListener;
 
 /**
- * A connection store which adds support of connection resumption.
+ * A connection.
  * 
- * @since 1.1
+ * @since 4.0 (Rename ResumptionSupportingConnectionStore into ConnectionStore)
  */
-public interface ResumptionSupportingConnectionStore extends Iterable<Connection> {
+public interface ConnectionStore extends Iterable<Connection> {
 
 	/**
 	 * Set connection listener.

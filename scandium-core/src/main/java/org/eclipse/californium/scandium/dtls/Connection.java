@@ -357,9 +357,9 @@ public final class Connection {
 	 * 
 	 * Note: to keep track of the associated address in the connection store,
 	 * this method must not be called directly. It must be called by calling
-	 * {@link ResumptionSupportingConnectionStore#update(Connection, InetSocketAddress)}
+	 * {@link ConnectionStore#update(Connection, InetSocketAddress)}
 	 * or
-	 * {@link ResumptionSupportingConnectionStore#remove(Connection, boolean)}.
+	 * {@link ConnectionStore#remove(Connection, boolean)}.
 	 * 
 	 * @param peerAddress the address of the peer
 	 * @throws IllegalArgumentException if the address should be updated with a

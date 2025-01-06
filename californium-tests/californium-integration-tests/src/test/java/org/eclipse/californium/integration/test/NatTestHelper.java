@@ -61,7 +61,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
@@ -448,7 +448,7 @@ public class NatTestHelper {
 
 	private static class MyDtlsConnector extends DTLSConnector {
 
-		public MyDtlsConnector(DtlsConnectorConfig configuration, ResumptionSupportingConnectionStore connectionStore) {
+		public MyDtlsConnector(DtlsConnectorConfig configuration, ConnectionStore connectionStore) {
 			super(configuration, connectionStore);
 
 		}
@@ -457,7 +457,7 @@ public class NatTestHelper {
 	private static class MyDtlsClusterConnector extends DtlsManagedClusterConnector {
 
 		public MyDtlsClusterConnector(DtlsConnectorConfig configuration,
-				DtlsClusterConnectorConfig clusterConfiguration, ResumptionSupportingConnectionStore connectionStore) {
+				DtlsClusterConnectorConfig clusterConfiguration, ConnectionStore connectionStore) {
 			super(configuration, clusterConfiguration, connectionStore);
 		}
 	}

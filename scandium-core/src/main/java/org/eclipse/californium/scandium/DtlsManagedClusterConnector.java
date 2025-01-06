@@ -41,7 +41,7 @@ import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.pskstore.SinglePskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -132,7 +132,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 *             {@link NodeConnectionIdGenerator}.
 	 */
 	protected DtlsManagedClusterConnector(DtlsConnectorConfig configuration,
-			DtlsClusterConnectorConfig clusterConfiguration, ResumptionSupportingConnectionStore connectionStore) {
+			DtlsClusterConnectorConfig clusterConfiguration, ConnectionStore connectionStore) {
 		super(configuration, clusterConfiguration, connectionStore, false);
 		String identity = clusterConfiguration.getSecureIdentity();
 		Integer mgmtReceiveBuffer = addConditionally(config.get(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE), MAX_DATAGRAM_OFFSET);

@@ -87,13 +87,13 @@ import org.eclipse.californium.scandium.dtls.DTLSConnectionState;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
-import org.eclipse.californium.scandium.dtls.DebugReadWriteLockConnectionStore;
+import org.eclipse.californium.scandium.dtls.DebugInMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.TestInMemorySessionStore;
 import org.eclipse.californium.scandium.dtls.Record;
-import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionStore;
@@ -303,7 +303,7 @@ public class ConnectorHelper {
 	}
 
 	public DTLSConnector createClient(DtlsConnectorConfig configuration,
-			ResumptionSupportingConnectionStore connectionStore) {
+			ConnectionStore connectionStore) {
 		return new DtlsTestConnector(configuration, connectionStore);
 	}
 
@@ -425,7 +425,7 @@ public class ConnectorHelper {
 
 	public static DebugConnectionStore createDebugConnectionStore(Configuration configuration,
 			SessionStore sessionStore) {
-		return new DebugReadWriteLockConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
+		return new DebugInMemoryConnectionStore(configuration.get(DtlsConfig.DTLS_MAX_CONNECTIONS),
 					configuration.get(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, TimeUnit.SECONDS), sessionStore,
 					configuration.get(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS));
 	}
@@ -869,7 +869,7 @@ public class ConnectorHelper {
 			});
 		}
 
-		DtlsTestConnector(DtlsConnectorConfig configuration, ResumptionSupportingConnectionStore connectionStore) {
+		DtlsTestConnector(DtlsConnectorConfig configuration, ConnectionStore connectionStore) {
 			super(configuration, connectionStore);
 			addSessionListener(new SessionAdapter() {
 
