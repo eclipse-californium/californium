@@ -18,6 +18,7 @@
 package org.eclipse.californium.rule;
 
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.serialization.DataParser;
@@ -114,6 +115,7 @@ public class CoapNetworkRule extends NetworkRule {
 	@Override
 	protected void closeNetwork() {
 		EndpointManager.reset();
+		StandardOptionRegistry.setDefaultOptionRegistry(null);
 		super.closeNetwork();
 	}
 
