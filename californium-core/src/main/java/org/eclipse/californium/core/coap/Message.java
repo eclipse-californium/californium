@@ -323,7 +323,7 @@ public abstract class Message {
 	 *         {@link Type#RST}). If no type has been defined, the type is
 	 *         {@code null}.
 	 */
-	public Type getType() {
+	public final Type getType() {
 		return type;
 	}
 
@@ -345,7 +345,7 @@ public abstract class Message {
 	 *
 	 * @return {@code true}, if is confirmable
 	 */
-	public boolean isConfirmable() {
+	public final boolean isConfirmable() {
 		return getType() == Type.CON;
 	}
 
@@ -430,7 +430,7 @@ public abstract class Message {
 	 *
 	 * @return the mid
 	 */
-	public int getMID() {
+	public final int getMID() {
 		return mid;
 	}
 
@@ -439,7 +439,7 @@ public abstract class Message {
 	 * 
 	 * @return {@code true} if this message's ID is a 16 bit unsigned integer.
 	 */
-	public boolean hasMID() {
+	public final boolean hasMID() {
 		return mid != NONE;
 	}
 
@@ -483,34 +483,40 @@ public abstract class Message {
 	 * @return {@code true} if this message's token is either {@code null} or of
 	 *         length 0.
 	 */
-	public boolean hasEmptyToken() {
+	public final boolean hasEmptyToken() {
+		Token token = this.token;
 		return token == null || token.isEmpty();
 	}
 
 	/**
 	 * Gets this message's token.
 	 *
-	 * @return the token
+	 * @return the token, or {@code null}, if the token has not yet being
+	 *         provided.
 	 */
-	public Token getToken() {
+	public final Token getToken() {
 		return token;
 	}
 
 	/**
 	 * Gets this message's 0- -8 byte token.
 	 *
-	 * @return the token
+	 * @return the token, or {@link Bytes#EMPTY}, if the token has not yet being
+	 *         provided.
 	 */
-	public byte[] getTokenBytes() {
-		return token == null ? null : token.getBytes();
+	public final byte[] getTokenBytes() {
+		Token token = this.token;
+		return token == null ? Bytes.EMPTY : token.getBytes();
 	}
 
 	/**
 	 * Gets the 0--8 byte token as string representation.
 	 *
-	 * @return the token as string
+	 * @return the token as string, or {@code "null"}, if the token has not yet
+	 *         being provided.
 	 */
-	public String getTokenString() {
+	public final String getTokenString() {
+		Token token = this.token;
 		return token == null ? "null" : token.getAsString();
 	}
 
@@ -532,11 +538,7 @@ public abstract class Message {
 	 *             ({@link #setBytes(byte[])} has been called before)
 	 */
 	public Message setToken(byte[] tokenBytes) {
-		Token token = null;
-		if (tokenBytes != null) {
-			token = new Token(tokenBytes);
-		}
-		return setToken(token);
+		return setToken(Token.create(tokenBytes));
 	}
 
 	/**
@@ -547,19 +549,19 @@ public abstract class Message {
 	 * these tokens must also comply to the scope encoding of the effectively
 	 * used generator. This narrows the definition of RFC 7252, 5.3.1, from
 	 * "client-local" to "node-local", and "system-local" tokens.
-	 * 
+	 * <p>
 	 * Provides a fluent API to chain setters.
 	 *
-	 * @param token the new token
+	 * @param token the new token. May be {@code null} to reset the token. 
 	 * @return this Message
 	 * @throws IllegalStateException if message is already serialized
 	 *             ({@link #setBytes(byte[])} has been called before)
 	 */
 	public Message setToken(Token token) {
-		this.token = token;
 		if (bytes != null) {
 			throw new IllegalStateException("already serialized!");
 		}
+		this.token = token;
 		return this;
 	}
 
@@ -636,7 +638,7 @@ public abstract class Message {
 	 *
 	 * @return the payload size
 	 */
-	public int getPayloadSize() {
+	public final int getPayloadSize() {
 		return payload.length;
 	}
 
@@ -646,7 +648,7 @@ public abstract class Message {
 	 * @return the payload.
 	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
-	public byte[] getPayload() {
+	public final byte[] getPayload() {
 		if (offload != null) {
 			throw new IllegalStateException("message " + offload + " offloaded!");
 		}
@@ -661,7 +663,7 @@ public abstract class Message {
 	 * @return the payload as string
 	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
-	public String getPayloadString() {
+	public final String getPayloadString() {
 		if (offload != null) {
 			throw new IllegalStateException("message " + offload + " offloaded!");
 		}
@@ -672,7 +674,12 @@ public abstract class Message {
 		}
 	}
 
-	protected String getPayloadTracingString() {
+	/**
+	 * Get payload as string for logging-
+	 * 
+	 * @return payload as string.
+	 */
+	protected final String getPayloadTracingString() {
 		return StringUtil.toDisplayString(payload, 32);
 	}
 
@@ -743,7 +750,7 @@ public abstract class Message {
 	 * 
 	 * @return the destination endpoint context.
 	 */
-	public EndpointContext getDestinationContext() {
+	public final EndpointContext getDestinationContext() {
 		return destinationContext;
 	}
 
@@ -757,7 +764,7 @@ public abstract class Message {
 	 *      EndpointContext)
 	 * @since 2.3
 	 */
-	public EndpointContext getEffectiveDestinationContext() {
+	public final EndpointContext getEffectiveDestinationContext() {
 		return effectiveDestinationContext;
 	}
 
@@ -766,7 +773,7 @@ public abstract class Message {
 	 * 
 	 * @return the source endpoint context.
 	 */
-	public EndpointContext getSourceContext() {
+	public final EndpointContext getSourceContext() {
 		return sourceContext;
 	}
 
@@ -857,7 +864,7 @@ public abstract class Message {
 	 *         outgoing messages.
 	 * @since 3.0
 	 */
-	public InetSocketAddress getLocalAddress() {
+	public final InetSocketAddress getLocalAddress() {
 		return localAddress;
 	}
 
@@ -866,7 +873,7 @@ public abstract class Message {
 	 *
 	 * @return true, if is acknowledged
 	 */
-	public boolean isAcknowledged() {
+	public final boolean isAcknowledged() {
 		return acknowledged.get();
 	}
 
@@ -914,7 +921,7 @@ public abstract class Message {
 	 *
 	 * @return {@code true}, if is rejected
 	 */
-	public boolean isRejected() {
+	public final boolean isRejected() {
 		return rejected;
 	}
 
@@ -941,7 +948,7 @@ public abstract class Message {
 	 * 
 	 * @return {@code true}, if timed out
 	 */
-	public boolean isTimedOut() {
+	public final boolean isTimedOut() {
 		return timedOut;
 	}
 
@@ -966,7 +973,7 @@ public abstract class Message {
 	 * 
 	 * @return {@code true}, if is canceled
 	 */
-	public boolean isCanceled() {
+	public final boolean isCanceled() {
 		return canceled;
 	}
 
@@ -1026,7 +1033,7 @@ public abstract class Message {
 	 * 
 	 * @return {@code true}, if is sent
 	 */
-	public boolean isSent() {
+	public final boolean isSent() {
 		return sent;
 	}
 
@@ -1052,7 +1059,7 @@ public abstract class Message {
 	 * 
 	 * @return {@code true}, if is sent
 	 */
-	public Throwable getSendError() {
+	public final Throwable getSendError() {
 		return sendError;
 	}
 
@@ -1146,7 +1153,7 @@ public abstract class Message {
 	 * 
 	 * @return {@code true}, if is a duplicate
 	 */
-	public boolean isDuplicate() {
+	public final boolean isDuplicate() {
 		return duplicate;
 	}
 
@@ -1187,7 +1194,7 @@ public abstract class Message {
 	 * @return the bytes of the serialized message or {@code null}
 	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
-	public byte[] getBytes() {
+	public final byte[] getBytes() {
 		if (offload == OffloadMode.FULL) {
 			throw new IllegalStateException("message offloaded!");
 		}
@@ -1209,12 +1216,14 @@ public abstract class Message {
 	/**
 	 * Add bytes to message size.
 	 * <p>
+	 * Accumulates the bytes of a blockwise transfer.
+	 * <p>
 	 * Not part of the fluent API.
 	 * 
 	 * @param bytes bytes to add
 	 * @since 3.7
 	 */
-	public void addMessageSize(int bytes) {
+	public final void addMessageSize(int bytes) {
 		this.messageSize += bytes;
 	}
 
@@ -1228,7 +1237,7 @@ public abstract class Message {
 	 * @return message size
 	 * @since 3.7
 	 */
-	public int getMessageSize() {
+	public final int getMessageSize() {
 		return messageSize;
 	}
 
@@ -1277,7 +1286,7 @@ public abstract class Message {
 	 * @return the nano timestamp
 	 * @see ClockUtil#nanoRealtime()
 	 */
-	public long getNanoTimestamp() {
+	public final long getNanoTimestamp() {
 		return nanoTimestamp;
 	}
 
@@ -1370,7 +1379,7 @@ public abstract class Message {
 	 *         serialized bytes are offloaded.
 	 * @since 2.2
 	 */
-	public OffloadMode getOffloadMode() {
+	public final OffloadMode getOffloadMode() {
 		return offload;
 	}
 
@@ -1395,7 +1404,7 @@ public abstract class Message {
 	 * @see #addMessageObservers(List)
 	 * @see #removeMessageObserver(MessageObserver)
 	 */
-	public List<MessageObserver> getMessageObservers() {
+	public final List<MessageObserver> getMessageObservers() {
 		if (null == unmodifiableMessageObserversFacade) {
 			return Collections.emptyList();
 		} else {
