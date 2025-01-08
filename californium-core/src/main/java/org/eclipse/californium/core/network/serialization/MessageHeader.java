@@ -34,7 +34,7 @@ public class MessageHeader {
 	public MessageHeader(int version, CoAP.Type type, Token token, int code, int mid, int bodyLength) {
 		this.version = version;
 		this.type = type;
-		this.token = token;
+		this.token = token == null ? Token.EMPTY : token;
 		this.code = code;
 		this.mid = mid;
 		this.bodyLength = bodyLength;

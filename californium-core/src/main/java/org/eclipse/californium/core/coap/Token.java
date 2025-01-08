@@ -33,6 +33,9 @@ public class Token extends Bytes {
 	 * Create token from bytes.
 	 * 
 	 * @param token token bytes to be copied
+	 * @throws NullPointerException if token is {@code null}
+	 * @throws IllegalArgumentException if tokens length is larger than 8 (as
+	 *             specified in CoAP)
 	 */
 	public Token(byte[] token) {
 		this(token, true);
@@ -59,13 +62,44 @@ public class Token extends Bytes {
 
 	/**
 	 * Create token from provider token.
-	 * 
+	 * <p>
 	 * Doesn't copy the provided token.
 	 * 
 	 * @param token token, not copied!
 	 * @return created Token
+	 * @throws NullPointerException if token is {@code null}
+	 * @throws IllegalArgumentException if tokens length is larger than 8 (as
+	 *             specified in CoAP)
 	 */
 	public static Token fromProvider(byte[] token) {
-		return new Token(token, false);
+		if (token == null) {
+			throw new NullPointerException("token must not be null");
+		}
+		if (token.length == 0) {
+			return EMPTY;
+		} else {
+			return new Token(token, false);
+		}
+	}
+
+	/**
+	 * Creates token.
+	 * <p>
+	 * May return {@link #EMPTY}, if provided array is empty.
+	 * 
+	 * @param token token as byte array. May be {@code null}.
+	 * @return create token, or {@code null}, if {@code null} is provided
+	 * @throws IllegalArgumentException if tokens length is larger than 8 (as
+	 *             specified in CoAP)
+	 * @since 4.0
+	 */
+	public static Token create(byte[] token) {
+		if (token == null) {
+			return null;
+		} else if (token.length == 0) {
+			return EMPTY;
+		} else {
+			return new Token(token);
+		}
 	}
 }
