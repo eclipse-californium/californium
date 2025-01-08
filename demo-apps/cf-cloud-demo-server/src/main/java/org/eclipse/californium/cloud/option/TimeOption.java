@@ -104,8 +104,12 @@ public class TimeOption extends IntegerOption {
 	 * 
 	 * @param message message with custom time option
 	 * @return the time option
+	 * @throws NullPointerException if message is {@code null}
 	 */
 	public static TimeOption getMessageTime(Message message) {
+		if (message == null) {
+			throw new NullPointerException("Message must not be null!");
+		}
 		long delta = ClockUtil.delta(message.getNanoTimestamp(), TimeUnit.MILLISECONDS);
 		long receiveTime = System.currentTimeMillis() - delta;
 		Definition definition = null;
