@@ -20,7 +20,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
-import static org.hamcrest.CoreMatchers.either;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -29,7 +28,9 @@ import static org.junit.Assert.assertNull;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -43,6 +44,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,7 +61,8 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class DataSerializerTest {
 
-	private static final EndpointContext ENDPOINT_CONTEXT = new DtlsEndpointContext(new InetSocketAddress(0), null, null, new Bytes("session".getBytes()), 1, "CIPHER", 100);
+	private static final EndpointContext ENDPOINT_CONTEXT = new DtlsEndpointContext(new InetSocketAddress(0), null,
+			null, new Bytes("session".getBytes()), 1, "CIPHER", 100);
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -81,7 +84,8 @@ public class DataSerializerTest {
 	}
 
 	/**
-	 * Verifies that the getByteArray() method does not set the Message's <em>bytes</em> property.
+	 * Verifies that the getByteArray() method does not set the Message's
+	 * <em>bytes</em> property.
 	 */
 	@Test
 	public void testGetByteArrayDoesNotAlterMessage() {
@@ -95,12 +99,14 @@ public class DataSerializerTest {
 		// WHEN serializing the request to a byte array
 		serializer.getByteArray(req);
 
-		// THEN the serialized byte array is not written to the request's bytes property
+		// THEN the serialized byte array is not written to the request's bytes
+		// property
 		assertNull(req.getBytes());
 	}
 
 	/**
-	 * Verifies that the serializeRequest() method sets the Message's <em>bytes</em> property.
+	 * Verifies that the serializeRequest() method sets the Message's
+	 * <em>bytes</em> property.
 	 */
 	@Test
 	public void testSerializeRequestStoresBytesInMessage() {
@@ -115,10 +121,90 @@ public class DataSerializerTest {
 		// WHEN serializing the request to a RawData object
 		RawData raw = serializer.serializeRequest(req);
 
-		// THEN the serialized byte array is stored in the request's bytes property
+		// THEN the serialized byte array is stored in the request's bytes
+		// property
 		assertNotNull(req.getBytes());
 		assertThat(raw.getBytes(), is(req.getBytes()));
 		assertThat(raw.getEndpointContext(), is(req.getDestinationContext()));
+		if (serializer instanceof TcpDataSerializer) {
+			assertThat(raw.getBytes(), is(StringUtil.hex2ByteArray("11010060")));
+		} else {
+			assertThat(raw.getBytes(), is(StringUtil.hex2ByteArray("410100010060")));
+		}
+	}
+
+	@Test
+	public void testSerializeRequestDifferentPayloads() {
+
+		// GIVEN a CoAP request
+		Request req = Request.newPut();
+		req.setToken(new byte[] { 0x00, 0x01 });
+		req.getOptions().setUriPath("coap://localhost/test");
+		req.setMID(1);
+		req.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
+		req.setPayload(TestTools.generatePayload(10));
+
+		// WHEN serializing the request to a RawData object
+		serializer.serializeRequest(req);
+
+		// THEN the serialized byte array is stored in the request's bytes
+		// property
+		assertNotNull(req.getBytes());
+		if (serializer instanceof TcpDataSerializer) {
+			assertThat(req.getBytes().length, is(38));
+			assertThat(req.getBytes(), is(StringUtil
+					.hex2ByteArray("D214030001B5636F61703A00096C6F63616C686F73740474657374FF30313233343536373839")));
+		} else {
+			assertThat(req.getBytes().length, is(39));
+			assertThat(req.getBytes(), is(StringUtil
+					.hex2ByteArray("420300010001B5636F61703A00096C6F63616C686F73740474657374FF30313233343536373839")));
+		}
+
+		req.setBytes(null);
+		req.setPayload(TestTools.generatePayload(245));
+		serializer.serializeRequest(req);
+		assertNotNull(req.getBytes());
+
+		if (serializer instanceof TcpDataSerializer) {
+			assertThat(req.getBytes().length, is(273));
+			assertStarts(req.getBytes(),
+					StringUtil.hex2ByteArray("D2FF030001B5636F61703A00096C6F63616C686F73740474657374FF303132"));
+		} else {
+			assertThat(req.getBytes().length, is(274));
+			assertStarts(req.getBytes(),
+					StringUtil.hex2ByteArray("420300010001B5636F61703A00096C6F63616C686F73740474657374FF303132"));
+		}
+
+		req.setBytes(null);
+		req.setPayload(TestTools.generatePayload(246));
+		serializer.serializeRequest(req);
+		assertNotNull(req.getBytes());
+
+		if (serializer instanceof TcpDataSerializer) {
+			assertThat(req.getBytes().length, is(275));
+			assertStarts(req.getBytes(),
+					StringUtil.hex2ByteArray("E20000030001B5636F61703A00096C6F63616C686F73740474657374FF303132"));
+		} else {
+			assertThat(req.getBytes().length, is(275));
+			assertStarts(req.getBytes(),
+					StringUtil.hex2ByteArray("420300010001B5636F61703A00096C6F63616C686F73740474657374FF303132"));
+		}
+
+		req.setBytes(null);
+		req.setPayload(TestTools.generatePayload(700));
+		serializer.serializeRequest(req);
+		assertNotNull(req.getBytes());
+
+		if (serializer instanceof TcpDataSerializer) {
+			assertThat(req.getBytes().length, is(729));
+			assertStarts(req.getBytes(),
+					StringUtil.hex2ByteArray("E201C6030001B5636F61703A00096C6F63616C686F73740474657374FF303132"));
+		} else {
+			assertThat(req.getBytes().length, is(729));
+			assertStarts(req.getBytes(),
+					StringUtil.hex2ByteArray("420300010001B5636F61703A00096C6F63616C686F73740474657374FF303132"));
+		}
+
 	}
 
 	/**
@@ -136,6 +222,12 @@ public class DataSerializerTest {
 		RawData data = serializer.serializeResponse(response, null);
 
 		assertThat(data.getEndpointContext(), is(equalTo(ENDPOINT_CONTEXT)));
+
+		if (serializer instanceof TcpDataSerializer) {
+			assertThat(data.getBytes(), is(StringUtil.hex2ByteArray("014500")));
+		} else {
+			assertThat(data.getBytes(), is(StringUtil.hex2ByteArray("6145000100")));
+		}
 	}
 
 	/**
@@ -153,10 +245,17 @@ public class DataSerializerTest {
 		RawData data = serializer.serializeEmptyMessage(ack, null);
 
 		assertThat(data.getEndpointContext(), is(equalTo(ENDPOINT_CONTEXT)));
+
+		if (serializer instanceof TcpDataSerializer) {
+			assertThat(data.getBytes(), is(StringUtil.hex2ByteArray("0000")));
+		} else {
+			assertThat(data.getBytes(), is(StringUtil.hex2ByteArray("60000001")));
+		}
 	}
 
 	/**
-	 * Verifies that the serializeRequest() method creates bare empty messages with 4 bytes only!
+	 * Verifies that the serializeRequest() method creates bare empty messages
+	 * with 4 bytes only!
 	 */
 	@Test
 	public void testSerializeEmptyRequest() {
@@ -170,13 +269,18 @@ public class DataSerializerTest {
 		// WHEN serializing the request to a RawData object
 		RawData raw = serializer.serializeRequest(request);
 
-		// THEN the serialized byte array is stored in the request's bytes property
+		// THEN the serialized byte array is stored in the request's bytes
+		// property
 		assertNotNull(raw);
 		assertNotNull(raw.getBytes());
-		assertThat(raw.getSize(), either(is(4)).or(is(2)));
+		if (serializer instanceof TcpDataSerializer) {
+			assertThat(raw.getBytes(), is(StringUtil.hex2ByteArray("0000")));
+		} else {
+			assertThat(raw.getBytes(), is(StringUtil.hex2ByteArray("40000001")));
+		}
 	}
 
-	@Test (expected = IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testSerializeEmptyNonRequestFails() {
 		// GIVEN a empty CoAP request
 		Request request = new Request(null, Type.NON);
@@ -188,11 +292,11 @@ public class DataSerializerTest {
 		serializer.serializeRequest(request);
 	}
 
-	@Test (expected = IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testSerializeEmptyRequestWithTokenFails() {
 		// GIVEN a empty CoAP request
 		Request request = new Request(null, Type.CON);
-		request.setToken(new byte[]{1});
+		request.setToken(new byte[] { 1 });
 		request.setMID(1);
 		request.setURI("coap://localhost/test");
 
@@ -200,7 +304,7 @@ public class DataSerializerTest {
 		serializer.serializeRequest(request);
 	}
 
-	@Test (expected = IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testSerializeEmptyRequestWithPayloadFails() {
 
 		// GIVEN a empty CoAP request
@@ -214,4 +318,7 @@ public class DataSerializerTest {
 		serializer.serializeRequest(request);
 	}
 
+	private static void assertStarts(byte[] actual, byte[] data) {
+		assertThat(Arrays.copyOf(actual, data.length), is(data));
+	}
 }
