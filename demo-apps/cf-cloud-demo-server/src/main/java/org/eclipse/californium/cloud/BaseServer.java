@@ -563,6 +563,8 @@ public class BaseServer extends CoapServer {
 		if (!cliArguments.noCoap) {
 			addEndpoints(cliArguments);
 
+			addResource(cliArguments, executor);
+
 			setExecutor(executor, false);
 
 			// additional health loggers
