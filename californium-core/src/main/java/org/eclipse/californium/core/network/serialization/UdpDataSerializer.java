@@ -29,7 +29,6 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TYPE_BITS;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION;
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION_BITS;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
@@ -38,41 +37,46 @@ import org.slf4j.LoggerFactory;
 /**
  * The DataSerialized serializes outgoing messages to byte arrays.
  */
-public final class UdpDataSerializer extends DataSerializer {
+public class UdpDataSerializer extends DataSerializer {
+
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(UdpDataSerializer.class);
 
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * The serialized length is not relevant for UDP. Therefore write message
-	 * direct to writer.
-	 * 
-	 * @since 2.6
-	 */
 	@Override
-	protected void serializeMessage(DatagramWriter writer, Message message) {
+	protected byte[] serializeEmpytMessage(Message message) {
 		int mid = message.getMID();
 		if (mid == Message.NONE) {
 			IllegalArgumentException ex = new IllegalArgumentException("MID required for UDP serialization!");
 			LOGGER.warn("UDP, {}:", message, ex);
 			throw ex;
 		}
-		MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(),
-				message.getRawCode(), mid, -1);
-		serializeHeader(writer, header);
-		writer.writeCurrentByte();
-		serializeOptionsAndPayload(writer, message.getOptions(), message.getPayload());
+		DatagramWriter writer = new DatagramWriter(4);
+		writer.write(VERSION, VERSION_BITS);
+		writer.write(message.getType().value, TYPE_BITS);
+		writer.write(0, TOKEN_LENGTH_BITS);
+		writer.write(0, CODE_BITS);
+		writer.write(message.getMID(), MESSAGE_ID_BITS);
+		return writer.toByteArray();
 	}
 
-	@Override 
-	protected void serializeHeader(final DatagramWriter writer, final MessageHeader header) {
+	@Override
+	protected byte[] serializeMessage(Message message) {
+		int mid = message.getMID();
+		if (mid == Message.NONE) {
+			IllegalArgumentException ex = new IllegalArgumentException("MID required for UDP serialization!");
+			LOGGER.warn("UDP, {}:", message, ex);
+			throw ex;
+		}
+		DatagramWriter writer = new DatagramWriter(message.getPayloadSize() + 32);
+		byte[] token = message.getTokenBytes();
 		writer.write(VERSION, VERSION_BITS);
-		writer.write(header.getType().value, TYPE_BITS);
-		writer.write(header.getToken().length(), TOKEN_LENGTH_BITS);
-		writer.write(header.getCode(), CODE_BITS);
-		writer.write(header.getMID(), MESSAGE_ID_BITS);
-		writer.writeBytes(header.getToken().getBytes());
+		writer.write(message.getType().value, TYPE_BITS);
+		writer.write(token.length, TOKEN_LENGTH_BITS);
+		writer.write(message.getRawCode(), CODE_BITS);
+		writer.write(message.getMID(), MESSAGE_ID_BITS);
+		writer.writeBytes(token);
+		serializeOptionsAndPayload(writer, message.getOptions(), message.getPayload());
+		return writer.toByteArray();
 	}
 
 	@Override
