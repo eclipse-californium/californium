@@ -17,7 +17,6 @@
 package org.eclipse.californium.core.network;
 
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -29,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.matcher.InRange;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -76,7 +76,7 @@ public class GroupedMessageIdTrackerTest {
 
 		for (int i = 0; i < TOTAL_NO_OF_MIDS / 2; i++) {
 			int mid = tracker.getNextMessageId();
-			assertThat(mid, is(inRange(0, TOTAL_NO_OF_MIDS)));
+			assertThat(mid, is(InRange.inRange(0, TOTAL_NO_OF_MIDS)));
 		}
 	}
 
@@ -90,7 +90,7 @@ public class GroupedMessageIdTrackerTest {
 		GroupedMessageIdTracker tracker = new GroupedMessageIdTracker(INITIAL_MID + minMid, minMid, maxMid, config);
 		for (int i = 0; i < rangeMid / 2; i++) {
 			int mid = tracker.getNextMessageId();
-			assertThat(mid, is(inRange(minMid, maxMid)));
+			assertThat(mid, is(InRange.inRange(minMid, maxMid)));
 		}
 		// THEN using the complete other half should not be possible
 		exception.expect(IllegalStateException.class);
@@ -98,7 +98,7 @@ public class GroupedMessageIdTrackerTest {
 
 		for (int i = 0; i < rangeMid / 2; i++) {
 			int mid = tracker.getNextMessageId();
-			assertThat(mid, is(inRange(minMid, maxMid)));
+			assertThat(mid, is(InRange.inRange(minMid, maxMid)));
 		}
 	}
 
@@ -113,7 +113,7 @@ public class GroupedMessageIdTrackerTest {
 		try {
 			for (int i = 1; i < TOTAL_NO_OF_MIDS; i++) {
 				int mid = tracker.getNextMessageId();
-				assertThat(mid, is(inRange(0, TOTAL_NO_OF_MIDS)));
+				assertThat(mid, is(InRange.inRange(0, TOTAL_NO_OF_MIDS)));
 			}
 			fail("mids expected to run out.");
 		} catch (IllegalStateException ex) {
@@ -124,11 +124,11 @@ public class GroupedMessageIdTrackerTest {
 		time.addTestTimeShift(config.getTimeAsInt(CoapConfig.EXCHANGE_LIFETIME, TimeUnit.MILLISECONDS) + 1, TimeUnit.MILLISECONDS);
 
 		int mid = tracker.getNextMessageId();
-		assertThat(mid, is(inRange(0, TOTAL_NO_OF_MIDS)));
+		assertThat(mid, is(InRange.inRange(0, TOTAL_NO_OF_MIDS)));
 
 		for (int i = 1; i < groupSize; i++) {
 			int nextMid = tracker.getNextMessageId();
-			assertThat(nextMid, is(inRange(0, TOTAL_NO_OF_MIDS)));
+			assertThat(nextMid, is(InRange.inRange(0, TOTAL_NO_OF_MIDS)));
 		}
 	}
 
@@ -158,7 +158,7 @@ public class GroupedMessageIdTrackerTest {
 		int maxMid = -1;
 		for (int i = 0; i < TOTAL_NO_OF_MIDS * 4; i++) {
 			int nextMid = tracker.getNextMessageId();
-			assertThat(nextMid, is(inRange(min, max)));
+			assertThat(nextMid, is(InRange.inRange(min, max)));
 			if (-1 < lastMid) {
 				int mid = ((lastMid - min + 1) % range) + min;
 				assertThat(msg + lastMid, nextMid, is(mid));

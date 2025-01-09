@@ -18,12 +18,12 @@ package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.matcher.InRange;
 import org.eclipse.californium.elements.util.Statistic.Summary;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -42,7 +42,7 @@ public class TimeStatisticTest {
 		}
 		Summary summary = statistic.getSummary();
 		assertThat("count", summary.getCount(), is(99));
-		assertThat("average", summary.getAverage(), is(inRange(1000.0D, 1001.0D + TIME_SLOT)));
+		assertThat("average", summary.getAverage(), is(InRange.inRange(1000.0D, 1001.0D + TIME_SLOT)));
 		assertThat("maximum", summary.getMaximum(), is(1980L));
 		statistic.add(4000, TimeUnit.MILLISECONDS);
 		summary = statistic.getSummary();
@@ -56,12 +56,12 @@ public class TimeStatisticTest {
 		}
 		Summary summary = statistic.getSummary(500, 900);
 		assertThat("count", summary.getPercentileCount(), is(2));
-		assertThat("percentil 50", summary.getPercentileValue(0), is(inRange(1000L, 1001L + TIME_SLOT)));
-		assertThat("percentil 90", summary.getPercentileValue(1), is(inRange(1800L, 1801L + TIME_SLOT)));
+		assertThat("percentil 50", summary.getPercentileValue(0), is(InRange.inRange(1000L, 1001L + TIME_SLOT)));
+		assertThat("percentil 90", summary.getPercentileValue(1), is(InRange.inRange(1800L, 1801L + TIME_SLOT)));
 		statistic.add(4000, TimeUnit.MILLISECONDS);
 		summary = statistic.getSummary(500, 900);
-		assertThat("percentil 50", summary.getPercentileValue(0), is(inRange(1000L, 1001L + TIME_SLOT)));
-		assertThat("percentil 90", summary.getPercentileValue(1), is(inRange(1800L, 1801L + TIME_SLOT)));
+		assertThat("percentil 50", summary.getPercentileValue(0), is(InRange.inRange(1000L, 1001L + TIME_SLOT)));
+		assertThat("percentil 90", summary.getPercentileValue(1), is(InRange.inRange(1800L, 1801L + TIME_SLOT)));
 	}
 
 	@Test
@@ -78,9 +78,9 @@ public class TimeStatisticTest {
 		}
 		Summary summary = statistic.getSummary(950, 990, 999);
 		assertThat("count", summary.getPercentileCount(), is(3));
-		assertThat("percentil 95", summary.getPercentileValue(0), is(inRange(900L, 1001L)));
-		assertThat("percentil 99", summary.getPercentileValue(1), is(inRange(950L, 1001L)));
-		assertThat("percentil 99.9", summary.getPercentileValue(2), is(inRange(970L, 1001L)));
+		assertThat("percentil 95", summary.getPercentileValue(0), is(InRange.inRange(900L, 1001L)));
+		assertThat("percentil 99", summary.getPercentileValue(1), is(InRange.inRange(950L, 1001L)));
+		assertThat("percentil 99.9", summary.getPercentileValue(2), is(InRange.inRange(970L, 1001L)));
 	}
 
 }

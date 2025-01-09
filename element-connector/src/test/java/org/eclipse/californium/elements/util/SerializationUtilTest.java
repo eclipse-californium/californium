@@ -18,7 +18,6 @@ package org.eclipse.californium.elements.util;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -29,6 +28,7 @@ import org.eclipse.californium.elements.Definitions;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.matcher.InRange;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -145,7 +145,7 @@ public class SerializationUtilTest {
 		timePassed -= ClockUtil.nanoRealtime();
 		long delta = SerializationUtil.readNanotimeSynchronizationMark(reader);
 		timePassed += ClockUtil.nanoRealtime();
-		assertThat(delta, is(inRange(-MILLISECOND_IN_NANOS, timePassed + MILLISECOND_IN_NANOS)));
+		assertThat(delta, is(InRange.inRange(-MILLISECOND_IN_NANOS, timePassed + MILLISECOND_IN_NANOS)));
 	}
 
 	@Test
@@ -158,7 +158,7 @@ public class SerializationUtilTest {
 		timePassed -= ClockUtil.nanoRealtime();
 		long delta = SerializationUtil.readNanotimeSynchronizationMark(reader);
 		timePassed += ClockUtil.nanoRealtime();
-		assertThat(delta, is(inRange(9 * MILLISECOND_IN_NANOS, timePassed + 11 * MILLISECOND_IN_NANOS)));
+		assertThat(delta, is(InRange.inRange(9 * MILLISECOND_IN_NANOS, timePassed + 11 * MILLISECOND_IN_NANOS)));
 	}
 
 	@Test

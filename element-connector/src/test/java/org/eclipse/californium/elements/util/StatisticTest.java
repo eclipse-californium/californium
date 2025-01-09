@@ -17,11 +17,11 @@ package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 
 import java.util.Random;
 
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.matcher.InRange;
 import org.eclipse.californium.elements.util.Statistic.Summary;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -40,7 +40,7 @@ public class StatisticTest {
 		}
 		Summary summary = statistic.getSummary();
 		assertThat("count", summary.getCount(), is(6));
-		assertThat("average", summary.getAverage(), is(inRange(2.4D, 2.6D)));
+		assertThat("average", summary.getAverage(), is(InRange.inRange(2.4D, 2.6D)));
 		assertThat("maximum", summary.getMaximum(), is(5L));
 		statistic.add(40);
 		summary = statistic.getSummary();
