@@ -202,8 +202,16 @@ public class IntegerOption extends Option {
 		 * @param reader datagram reader to read option
 		 * @param length length of option value
 		 * @return the long value
+		 * @throws NullPointerException if reader is {@code null}.
+		 * @throws IllegalArgumentException if length is {@code > 8}.
 		 */
 		public static long getLongValue(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Reader must not be null.");
+			}
+			if (length > 8) {
+				throw new IllegalArgumentException("Long's length must not be more than 8!");
+			}
 			long ret = 0;
 			while (length-- > 0) {
 				ret <<= 8;
@@ -221,9 +229,17 @@ public class IntegerOption extends Option {
 		 * @param reader datagram reader to read option
 		 * @param length length of option value
 		 * @return the int value
+		 * @throws NullPointerException if reader is {@code null}.
+		 * @throws IllegalArgumentException if length is {@code > 4}.
 		 * @since 4.0
 		 */
 		public static int getIntegerValue(DatagramReader reader, int length) {
+			if (reader == null) {
+				throw new NullPointerException("Reader must not be null.");
+			}
+			if (length > 4) {
+				throw new IllegalArgumentException("Integer's length must not be more than 4!");
+			}
 			int ret = 0;
 			while (length-- > 0) {
 				ret <<= 8;
