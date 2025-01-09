@@ -15,7 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -26,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.matcher.InRange;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -76,8 +76,8 @@ public class InMemoryMessageIdProviderMulticastTest {
 			int multicastMidGroup1 = midProvider.getNextMessageId(new InetSocketAddress(GROUP, PORT));
 			int multicastMidGroup2 = midProvider.getNextMessageId(new InetSocketAddress(GROUP2, PORT));
 			String tag = "loop " + i + ":";
-			assertThat(tag, multicastMidGroup1, is(inRange(multicastBaseMid, 65536)));
-			assertThat(tag, multicastMidGroup2, is(inRange(multicastBaseMid, 65536)));
+			assertThat(tag, multicastMidGroup1, is(InRange.inRange(multicastBaseMid, 65536)));
+			assertThat(tag, multicastMidGroup2, is(InRange.inRange(multicastBaseMid, 65536)));
 			assertThat(tag, multicastMidGroup1, is(not(multicastMidGroup2)));
 		}
 	}
@@ -104,8 +104,8 @@ public class InMemoryMessageIdProviderMulticastTest {
 			}
 			int multicastMid = midProvider.getNextMessageId(multicast);
 			int nonMulticastMid = midProvider.getNextMessageId(unicast);
-			assertThat(multicastMid, is(inRange(multicastBaseMid, 65536)));
-			assertThat(nonMulticastMid, is(inRange(0, multicastBaseMid)));
+			assertThat(multicastMid, is(InRange.inRange(multicastBaseMid, 65536)));
+			assertThat(nonMulticastMid, is(InRange.inRange(0, multicastBaseMid)));
 		}
 	}
 }

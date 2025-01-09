@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.concurrent.TimeUnit;
 
-import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 
 /**
@@ -73,67 +72,6 @@ public final class TestConditionTools {
 			}
 		}
 		return check.isFulFilled();
-	}
-
-	/**
-	 * Get in range matcher.
-	 * 
-	 * @param <T> type of values.
-	 * @param min inclusive minimum value
-	 * @param max exclusive maximum value
-	 * @return matcher.
-	 * @throws IllegalArgumentException if min is not less than max
-	 */
-	public static <T extends Number> org.hamcrest.Matcher<T> inRange(T min, T max) {
-		return new InRange<T>(min, max);
-	}
-
-	/**
-	 * In range matcher.
-	 * 
-	 * @see TestConditionTools#inRange(Number, Number)
-	 */
-	private static class InRange<T extends Number> extends org.hamcrest.BaseMatcher<T> {
-
-		private final Number min;
-		private final Number max;
-
-		private InRange(Number min, Number max) {
-			if (min instanceof Float || min instanceof Double) {
-				if (min.doubleValue() >= max.doubleValue()) {
-					throw new IllegalArgumentException("Min " + min + " must be less than max " + max + "!");
-				}
-			} else {
-				if (min.longValue() >= max.longValue()) {
-					throw new IllegalArgumentException("Min " + min + " must be less than max " + max + "!");
-				}
-			}
-			this.min = min;
-			this.max = max;
-		}
-
-		@Override
-		public boolean matches(Object item) {
-			if (!min.getClass().equals(item.getClass())) {
-				throw new IllegalArgumentException("value type " + item.getClass().getSimpleName()
-						+ " doesn't match range type " + min.getClass().getSimpleName());
-			}
-			Number value = (Number) item;
-			if (item instanceof Float || item instanceof Double) {
-				return min.doubleValue() <= value.doubleValue() && value.doubleValue() < max.doubleValue();
-			} else {
-				return min.longValue() <= value.longValue() && value.longValue() < max.longValue();
-			}
-		}
-
-		@Override
-		public void describeTo(Description description) {
-			description.appendText("range[");
-			description.appendText(min.toString());
-			description.appendText("-");
-			description.appendText(max.toString());
-			description.appendText(")");
-		}
 	}
 
 	/**

@@ -17,11 +17,11 @@
 package org.eclipse.californium.core.network;
 
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.matcher.InRange;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,7 +54,7 @@ public class NullMessageIdTrackerTest {
 		NullMessageIdTracker tracker = new NullMessageIdTracker(INITIAL_MID + minMid, minMid, maxMid);
 		for (int count = 0; count < rangeMid * 16; ++count) {
 			int mid = tracker.getNextMessageId();
-			assertThat(mid, is(inRange(minMid, maxMid)));
+			assertThat(mid, is(InRange.inRange(minMid, maxMid)));
 		}
 	}
 
@@ -95,7 +95,7 @@ public class NullMessageIdTrackerTest {
 		int maxMid = -1;
 		for (int i = 0; i < TOTAL_NO_OF_MIDS * 4; i++) {
 			int nextMid = tracker.getNextMessageId();
-			assertThat(nextMid, is(inRange(min, max)));
+			assertThat(nextMid, is(InRange.inRange(min, max)));
 			if (-1 < lastMid) {
 				int mid = ((lastMid - min + 1) % range) + min;
 				assertThat(msg + lastMid, nextMid, is(mid));

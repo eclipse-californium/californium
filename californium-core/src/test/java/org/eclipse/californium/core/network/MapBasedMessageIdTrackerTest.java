@@ -20,7 +20,6 @@
 package org.eclipse.californium.core.network;
 
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -31,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.matcher.InRange;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -87,7 +87,7 @@ public class MapBasedMessageIdTrackerTest {
 		MapBasedMessageIdTracker tracker = new MapBasedMessageIdTracker(INITIAL_MID + minMid, minMid, maxMid, config);
 		for (int i = 0; i < rangeMid; i++) {
 			int mid = tracker.getNextMessageId();
-			assertThat(mid, is(inRange(minMid, maxMid)));
+			assertThat(mid, is(InRange.inRange(minMid, maxMid)));
 		}
 
 		exception.expect(IllegalStateException.class);
@@ -149,7 +149,7 @@ public class MapBasedMessageIdTrackerTest {
 		int maxMid = -1;
 		for (int i = 0; i < TOTAL_NO_OF_MIDS * 4; i++) {
 			int nextMid = tracker.getNextMessageId();
-			assertThat(nextMid, is(inRange(min, max)));
+			assertThat(nextMid, is(InRange.inRange(min, max)));
 			if (-1 < lastMid) {
 				int mid = ((lastMid - min + 1) % range) + min;
 				assertThat(msg + lastMid, nextMid, is(mid));

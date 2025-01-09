@@ -15,7 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -29,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.matcher.InRange;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache.Timestamped;
 import org.junit.Rule;
@@ -119,7 +119,7 @@ public class LeastRecentlyUpdatedCacheTest {
 
 		assertThat(removed.get(), is(numberOfEntries / 3));
 		assertThat(cache.size(), is(numberOfEntries - removed.get()));
-		assertThat(read.get(), is(inRange(cache.size() * 9, (numberOfEntries * 9) + 1)));
+		assertThat(read.get(), is(InRange.inRange(cache.size() * 9, (numberOfEntries * 9) + 1)));
 		assertOrder(cache, false);
 	}
 
@@ -134,7 +134,7 @@ public class LeastRecentlyUpdatedCacheTest {
 		execute(10, new IterateJob(read), new PutJob(numberOfEntries, numberOfEntries * 2));
 
 		assertThat(cache.size(), is(numberOfEntries * 3));
-		assertThat(read.get(), is(inRange(numberOfEntries * 9, (cache.size() * 9) + 1)));
+		assertThat(read.get(), is(InRange.inRange(numberOfEntries * 9, (cache.size() * 9) + 1)));
 		assertOrder(cache, false);
 	}
 
@@ -149,7 +149,7 @@ public class LeastRecentlyUpdatedCacheTest {
 		execute(10, new IterateJob(read), new PutJob(0, numberOfEntries * 2));
 
 		assertThat(cache.size(), is(numberOfEntries * 2));
-		assertThat(read.get(), is(inRange(numberOfEntries * 9, (cache.size() * 9) + 1)));
+		assertThat(read.get(), is(InRange.inRange(numberOfEntries * 9, (cache.size() * 9) + 1)));
 		assertOrder(cache, false);
 	}
 
