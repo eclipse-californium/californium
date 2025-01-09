@@ -42,6 +42,8 @@ public class IntegerOptionTest {
 	private static final IntegerOption.RangeDefinition CUSTOM_RANGE = new IntegerOption.RangeDefinition(0xff2c, "Range",
 			false, 10, 1000);
 
+	private static final IntegerOption.Definition CUSTOM_LARGE = new IntegerOption.Definition(0xff3c, "Custom Large", false);
+
 	@Test
 	public void testCreate() {
 		DatagramReader reader = new DatagramReader(StringUtil.hex2ByteArray("0104"));
@@ -78,6 +80,18 @@ public class IntegerOptionTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testCreateZero() {
 		CUSTOM.create(0);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testCreateTooLongLong() {
+		DatagramReader reader = new DatagramReader("0123456789".getBytes());
+		CUSTOM_LARGE.create(reader, 9);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testCreateTooLongInteger() {
+		DatagramReader reader = new DatagramReader("0123456789".getBytes());
+		IntegerOption.Definition.getIntegerValue(reader, 5);
 	}
 
 	@Test
