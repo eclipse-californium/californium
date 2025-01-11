@@ -142,6 +142,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -168,6 +169,8 @@ import org.eclipse.californium.elements.PersistentComponent;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
+import org.eclipse.californium.elements.auth.ApplicationPrincipal;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
@@ -256,7 +259,7 @@ import org.slf4j.MDC;
  * side and a separate Connector is created for each address to receive incoming
  * traffic.
  */
-public class DTLSConnector implements Connector, PersistentComponent, RecordLayer {
+public class DTLSConnector implements Connector, ApplicationAuthorizer, PersistentComponent, RecordLayer {
 
 	/**
 	 * The {@code EndpointContext} key used to store the host name indicated by
@@ -418,6 +421,13 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	 * @since 3.8
 	 */
 	private final boolean useNewerRecordFilter;
+
+	/**
+	 * Only keep anonymous connections if authorized by the application.
+	 * 
+	 * @since 4.0
+	 */
+	private final boolean useApplicationAuthorization;
 
 	/**
 	 * Maximum pending jobs for outbound messages.
@@ -599,6 +609,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 			this.useAntiReplayFilter = config.get(DtlsConfig.DTLS_USE_ANTI_REPLAY_FILTER);
 			this.useCidUpdateAddressOnNewerRecordFilter = config.get(DtlsConfig.DTLS_UPDATE_ADDRESS_USING_CID_ON_NEWER_RECORDS);
 			this.useNewerRecordFilter = config.get(DtlsConfig.DTLS_USE_NEWER_RECORD_FILTER);
+			this.useApplicationAuthorization = config.get(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION);
 			this.maxConnections = config.get(DtlsConfig.DTLS_MAX_CONNECTIONS);
 			this.sniEnabled = config.get(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION);
 			this.extendedMasterSecretMode = config.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
@@ -891,7 +902,9 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	/**
 	 * Cleanup recent handshakes.
 	 * <p>
-	 * Remove starting hello client, if expired.
+	 * Remove starting hello client, if expired. When
+	 * {@link #useApplicationAuthorization} is enabled, remove also all
+	 * unauthorized connections.
 	 * 
 	 * @param calls number of calls
 	 * @return number of remove recent handshakes. {@code -1}, if execution is
@@ -928,6 +941,16 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 						size = recentHandshakesCounter.decrementAndGet();
 						iterator.remove();
 						++count;
+						if (useApplicationAuthorization && connection.getEstablishedPeerIdentity() == null) {
+							// remove unauthorized anonymous connection
+							connection.execute(() -> {
+								if (connectionStore.remove(connection, true)) {
+									if (health != null) {
+										health.applicationAuthorizationRejected(false);
+									}
+								}
+							});
+						}
 					} else if (!full) {
 						break;
 					}
@@ -3719,6 +3742,56 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	@Override
 	public String toString() {
 		return getProtocol() + "-" + StringUtil.toString(getAddress());
+	}
+
+	@Override
+	public Future<Boolean> authorize(final EndpointContext context, final ApplicationPrincipal principal) {
+		if (principal == null) {
+			throw new NullPointerException("Principal must not be null!");
+		}
+		final ConnectionId cid = getConnectionIdFromEndpointContext(context);
+		final Connection connection = getConnection(context.getPeerAddress(), cid, false);
+		final CompletableFuture<Boolean> future = new CompletableFuture<>();
+		if (connection != null) {
+			connection.execute(() -> {
+				Principal identity = connection.getEstablishedPeerIdentity();
+				if (identity == null) {
+					connection.setEstablishedPeerIdentity(principal);
+					connectionStore.putEstablishedSession(connection);
+				}
+				future.complete(identity == null || principal.equals(identity));
+			});
+		} else {
+			future.complete(false);
+		}
+		return future;
+	}
+
+	@Override
+	public Future<Void> rejectAuthorization(EndpointContext context) {
+		final ConnectionId cid = getConnectionIdFromEndpointContext(context);
+		final Connection connection = getConnection(context.getPeerAddress(), cid, false);
+		final CompletableFuture<Void> future = new CompletableFuture<>();
+		if (connection != null) {
+			connection.execute(() -> {
+				rejectAuthorization(connection);
+				future.complete(null);
+			});
+		} else {
+			;
+			future.complete(null);
+		}
+		return future;
+	}
+
+	private void rejectAuthorization(Connection connection) {
+		if (datagramFilter != null) {
+			datagramFilter.onApplicationAuthorizationRejected(connection);
+		}
+		if (health != null) {
+			health.applicationAuthorizationRejected(true);
+		}
+		connectionStore.remove(connection, true);
 	}
 
 	private ConnectionId getConnectionIdFromEndpointContext(EndpointContext context) {
