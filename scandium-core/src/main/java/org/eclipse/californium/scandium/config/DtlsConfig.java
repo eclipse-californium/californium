@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.config.BasicListDefinition;
 import org.eclipse.californium.elements.config.BooleanDefinition;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
@@ -80,11 +81,12 @@ public final class DtlsConfig {
 
 	/**
 	 * DTLS secure renegotiation.
-	 * 
+	 * <p>
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
 	 * update to a minimal version of RFC 5746.
 	 * 
-	 * @see <a href="https://tools.ietf.org/html/rfc5746" target="_blank" >RFC 5746</a>
+	 * @see <a href="https://tools.ietf.org/html/rfc5746" target="_blank" >RFC
+	 *      5746</a>
 	 * 
 	 * @since 3.8
 	 */
@@ -261,7 +263,7 @@ public final class DtlsConfig {
 
 	/**
 	 * DTLS session timeout. Currently not supported!
-	 * 
+	 * <p>
 	 * Californium uses {@link #DTLS_MAX_CONNECTIONS} and
 	 * {@link #DTLS_STALE_CONNECTION_THRESHOLD} in order to keep session as
 	 * along as the resources are not required for fresh connections.
@@ -270,7 +272,7 @@ public final class DtlsConfig {
 			"DTLS session timeout. Currently not supported.", 1L, TimeUnit.HOURS);
 	/**
 	 * DTLS auto handshake timeout.
-	 * 
+	 * <p>
 	 * After that period without exchanged messages, new messages will initiate
 	 * a handshake. If possible a resumption/abbreviated handshake is used. Must
 	 * not be used with {@link DtlsRole#SERVER_ONLY}. {@code 30s} is a common
@@ -299,8 +301,9 @@ public final class DtlsConfig {
 	 * </ul>
 	 */
 	public static final IntegerDefinition DTLS_CONNECTION_ID_LENGTH = new IntegerDefinition(
-			MODULE + "CONNECTION_ID_LENGTH",
-			"DTLS connection ID length. <blank> default, -1 disables, 0 enables support without active use of CID.", 6, -1);
+			MODULE + "CONNECTION_ID_LENGTH", "DTLS connection ID length. <blank> default, -1 disables, "
+					+ "0 enables support without active use of CID.",
+			6, -1);
 
 	/**
 	 * If {@link #DTLS_CONNECTION_ID_LENGTH} enables the use of a connection id,
@@ -341,13 +344,13 @@ public final class DtlsConfig {
 	/**
 	 * Specify the additional initial DTLS retransmission timeout, when the
 	 * other peer is expected to perform ECC calculations.
-	 * 
+	 * <p>
 	 * ECC calculations may be time intensive, especially for smaller
 	 * micro-controllers without ecc-hardware support. The additional timeout
 	 * prevents Californium from resending a flight too early. The extra time is
 	 * used for the DTLS-client, if a ECDSA or ECDHE cipher suite is proposed,
 	 * and for the DTLS-server, if a ECDSA or ECDHE cipher suite is selected.
-	 * 
+	 * <p>
 	 * This timeout is added to {@link #DTLS_RETRANSMISSION_TIMEOUT} and on each
 	 * retransmission, the resulting time is doubled.
 	 */
@@ -363,27 +366,27 @@ public final class DtlsConfig {
 	/**
 	 * Specify the number of DTLS retransmissions before the attempt to transmit
 	 * a flight in back-off mode.
-	 * 
+	 * <p>
 	 * <a href="https://tools.ietf.org/html/rfc6347#page-12" target= "_blank">
 	 * RFC 6347, Section 4.1.1.1, Page 12</a>
-	 * 
+	 * <p>
 	 * In back-off mode, UDP datagrams of maximum 512 bytes or the negotiated
 	 * records size, if that is smaller, are used. Each handshake message is
 	 * placed in one dtls record, or more dtls records, if the handshake message
 	 * is too large and must be fragmented. Beside of the CCS and FINISH dtls
 	 * records, which send together in one UDP datagram, all other records are
 	 * send in separate datagrams.
-	 * 
+	 * <p>
 	 * The {@link #DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS} and
 	 * {@link #DTLS_USE_MULTI_RECORD_MESSAGES} has precedence over the back-off
 	 * definition.
-	 * 
+	 * <p>
 	 * Value {@code 0}, to disable it, {@code null}, for default of
 	 * {@link #DTLS_MAX_RETRANSMISSIONS} / 2.
 	 */
 	public static final IntegerDefinition DTLS_RETRANSMISSION_BACKOFF = new IntegerDefinition(
-			MODULE + "RETRANSMISSION_BACKOFF",
-			"Number of flight-retransmissions before switching to backoff mode using single handshake messages in single record datagrams.",
+			MODULE + "RETRANSMISSION_BACKOFF", "Number of flight-retransmissions before switching to backoff mode "
+					+ "using single handshake messages in single record datagrams.",
 			null, 0);
 
 	/**
@@ -399,8 +402,8 @@ public final class DtlsConfig {
 	 * of next flight, not waiting for the last.
 	 */
 	public static final BooleanDefinition DTLS_USE_EARLY_STOP_RETRANSMISSION = new BooleanDefinition(
-			MODULE + "USE_EARLY_STOP_RETRANSMISSION",
-			"Stop retransmission on receiving the first message of the next flight, not waiting for the last message.",
+			MODULE + "USE_EARLY_STOP_RETRANSMISSION", "Stop retransmission on receiving the first message of the next "
+					+ "flight, not waiting for the last message.",
 			true);
 
 	/**
@@ -416,7 +419,7 @@ public final class DtlsConfig {
 	 * Specify the maximum fragment length.
 	 * 
 	 * @see <a href="https://tools.ietf.org/html/rfc6066#section-4" target=
-	 * "_blank">RFC 6066, Section 4</a>
+	 *      "_blank">RFC 6066, Section 4</a>
 	 */
 	public static final EnumDefinition<Length> DTLS_MAX_FRAGMENT_LENGTH = new EnumDefinition<>(
 			MODULE + "MAX_FRAGMENT_SIZE", "DTLS maximum fragment length (RFC 6066).", Length.values());
@@ -426,8 +429,8 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = new IntegerDefinition(
 			MODULE + "MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH",
-			"DTLS maximum length of reassembled fragmented handshake message.\n" +
-			"Must be large enough for used certificates.",
+			"DTLS maximum length of reassembled fragmented handshake message.\n"
+					+ "Must be large enough for used certificates.",
 			DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH, 64);
 
 	/**
@@ -440,7 +443,7 @@ public final class DtlsConfig {
 	 */
 	public static final BooleanDefinition DTLS_USE_MULTI_HANDSHAKE_MESSAGE_RECORDS = new BooleanDefinition(
 			MODULE + "USE_MULTI_HANDSHAKE_MESSAGE_RECORDS",
-			"Use multiple handshake messages in DTLS records.\nNot all libraries may have implemented this!");
+			"Use multiple handshake messages in DTLS records.\n" + "Not all libraries may have implemented this!");
 
 	/**
 	 * Specify the client's certificate authentication mode.
@@ -477,8 +480,8 @@ public final class DtlsConfig {
 
 	/**
 	 * Specify the MTU (Maximum Transmission Unit).
-	 * 
-	 * Note: Californium is only able to detect the MTU of local network
+	 * <p>
+	 * <b>Note:</b> Californium is only able to detect the MTU of local network
 	 * interfaces. For the transmission, the PMTU (Path Maximum Transmission
 	 * Unit) is required. Especially, if ip-tunnels are used, this value must be
 	 * provided in order to consider a smaller PMTU.
@@ -486,17 +489,19 @@ public final class DtlsConfig {
 	 * @see #DTLS_MAX_TRANSMISSION_UNIT_LIMIT
 	 */
 	public static final IntegerDefinition DTLS_MAX_TRANSMISSION_UNIT = new IntegerDefinition(
-			MODULE + "MAX_TRANSMISSION_UNIT", "DTLS MTU (Maximum Transmission Unit).\nMust be used, if the MTU of the local network doesn't apply, e.g. if ip-tunnels are used.", null, 64);
+			MODULE + "MAX_TRANSMISSION_UNIT", "DTLS MTU (Maximum Transmission Unit).\n"
+					+ "Must be used, if the MTU of the local network doesn't apply, " + "e.g. if ip-tunnels are used.",
+			null, 64);
 
 	/**
 	 * Specify a MTU (Maximum Transmission Unit) limit for (link local) auto
 	 * detection.
-	 * 
+	 * <p>
 	 * Limits maximum number of bytes sent in one transmission.
-	 *
-	 * Note: previous versions took the local link MTU without limits. That
-	 * results in possibly larger MTU, e.g. for localhost or some cloud nodes
-	 * using "jumbo frames". If a larger MTU is required to be detectable,
+	 * <p>
+	 * <b>Note:</b> previous versions took the local link MTU without limits.
+	 * That results in possibly larger MTU, e.g. for localhost or some cloud
+	 * nodes using "jumbo frames". If a larger MTU is required to be detectable,
 	 * please adjust this limit to the required value.
 	 * 
 	 * @see #DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT
@@ -508,11 +513,11 @@ public final class DtlsConfig {
 
 	/**
 	 * Specify default handshake mode.
-	 * 
+	 * <p>
 	 * <b>Note:</b> if {@link #DTLS_ROLE} is {@link DtlsRole#SERVER_ONLY}, the
 	 * specified default handshake mode is ignored and replaced by
 	 * {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}.
-	 * 
+	 * <p>
 	 * Values are {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE} or
 	 * {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO}.
 	 */
@@ -550,8 +555,8 @@ public final class DtlsConfig {
 	 */
 	public static final TimeDefinition DTLS_STALE_CONNECTION_THRESHOLD = new TimeDefinition(
 			MODULE + "STALE_CONNECTION_THRESHOLD",
-			"DTLS threshold for stale connections. Connections will only get removed for new ones, "+
-			"if at least for that threshold no messages are exchanged using that connection.",
+			"DTLS threshold for stale connections. Connections will only get removed for new ones, "
+					+ "if at least for that threshold no messages are exchanged using that connection.",
 			DEFAULT_STALE_CONNECTION_TRESHOLD_SECONDS, TimeUnit.SECONDS);
 
 	/**
@@ -561,8 +566,7 @@ public final class DtlsConfig {
 	 * @since 3.5
 	 */
 	public static final IntegerDefinition DTLS_MAX_PENDING_OUTBOUND_JOBS = new IntegerDefinition(
-			MODULE + "MAX_PENDING_OUTBOUND_JOBS",
-			"Maximum number of jobs for outbound DTLS messages.",
+			MODULE + "MAX_PENDING_OUTBOUND_JOBS", "Maximum number of jobs for outbound DTLS messages.",
 			DEFAULT_MAX_PENDING_OUTBOUND_JOBS, 64);
 
 	/**
@@ -572,8 +576,7 @@ public final class DtlsConfig {
 	 * @since 3.5
 	 */
 	public static final IntegerDefinition DTLS_MAX_PENDING_INBOUND_JOBS = new IntegerDefinition(
-			MODULE + "MAX_PENDING_INBOUND_JOBS",
-			"Maximum number of jobs for inbound DTLS messages.",
+			MODULE + "MAX_PENDING_INBOUND_JOBS", "Maximum number of jobs for inbound DTLS messages.",
 			DEFAULT_MAX_PENDING_INBOUND_JOBS, 64);
 	/**
 	 * Specify the number of pending handshake result jobs that can be queued
@@ -582,8 +585,7 @@ public final class DtlsConfig {
 	 * @since 3.5
 	 */
 	public static final IntegerDefinition DTLS_MAX_PENDING_HANDSHAKE_RESULT_JOBS = new IntegerDefinition(
-			MODULE + "MAX_PENDING_HANDSHAKE_RESULT_JOBS",
-			"Maximum number of jobs for DTLS handshake results.",
+			MODULE + "MAX_PENDING_HANDSHAKE_RESULT_JOBS", "Maximum number of jobs for DTLS handshake results.",
 			DEFAULT_MAX_PENDING_HANDSHAKE_RESULT_JOBS, 64);
 
 	/**
@@ -597,8 +599,8 @@ public final class DtlsConfig {
 	 */
 	public static final IntegerDefinition DTLS_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES = new IntegerDefinition(
 			MODULE + "MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES",
-			"DTLS maximum deferred outbound application messages.",
-			DEFAULT_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES, 0);
+			"DTLS maximum deferred outbound application messages.", DEFAULT_MAX_DEFERRED_OUTBOUND_APPLICATION_MESSAGES,
+			0);
 	/**
 	 * Specify maximum size of deferred processed incoming records.
 	 * 
@@ -656,7 +658,7 @@ public final class DtlsConfig {
 	 * {@link org.eclipse.californium.elements.EndpointContext}.
 	 * 
 	 * @see <a href="https://tools.ietf.org/html/rfc6066#section-3" target=
-	 * "_blank">RFC 6066, Section 3</a>
+	 *      "_blank">RFC 6066, Section 3</a>
 	 */
 	public static final BooleanDefinition DTLS_USE_SERVER_NAME_INDICATION = new BooleanDefinition(
 			MODULE + "USE_SERVER_NAME_INDICATION", "DTLS use server name indication.", false);
@@ -665,7 +667,7 @@ public final class DtlsConfig {
 	 * Defines the usage of the "extend master secret" extension.
 	 * 
 	 * @see <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC
-	 * 7627</a>
+	 *      7627</a>
 	 */
 	public static final EnumDefinition<ExtendedMasterSecretMode> DTLS_EXTENDED_MASTER_SECRET_MODE = new EnumDefinition<>(
 			MODULE + "EXTENDED_MASTER_SECRET_MODE", "DTLS extended master secret mode.",
@@ -695,7 +697,7 @@ public final class DtlsConfig {
 
 	/**
 	 * Use disabled window for anti replay filter.
-	 * 
+	 * <p>
 	 * Californium uses the "sliding receive window" approach mentioned in
 	 * <a href= "https://tools.ietf.org/html/rfc6347#section-4.1.2.6" target=
 	 * "_blank">RFC6347 4.1.2.6. Anti-Replay</a>. That causes trouble, if some
@@ -704,7 +706,7 @@ public final class DtlsConfig {
 	 * to discard such records, this values defines a "disabled window", that
 	 * allows record to pass the filter, even if the records are too old for the
 	 * current receive window.
-	 * 
+	 * <p>
 	 * The configured value will be subtracted from to lower receive window
 	 * boundary. A value of {@code -1} will set that calculated lower boundary
 	 * to {@code 0}. Messages between lower receive window boundary and that
@@ -733,7 +735,7 @@ public final class DtlsConfig {
 
 	/**
 	 * Only process newer records based on epoch/sequence_number.
-	 * 
+	 * <p>
 	 * Drop reorder records in order to protect from delay attacks, if no other
 	 * means, maybe on application level, are available.
 	 * 
@@ -741,14 +743,13 @@ public final class DtlsConfig {
 	 */
 	public static final BooleanDefinition DTLS_USE_NEWER_RECORD_FILTER = new BooleanDefinition(
 			MODULE + "USE_NEWER_FILTER",
-			"DTLS use newer record filter.\n" 
-					+ "Drop reordered records in order to protect from delay attacks,\n"
+			"DTLS use newer record filter.\n" + "Drop reordered records in order to protect from delay attacks,\n"
 					+ "if no other means, maybe on application level, are available.",
 			false);
 
 	/**
 	 * Use truncated certificate paths for client's certificate message.
-	 * 
+	 * <p>
 	 * Truncate certificate path according the received certificate authorities
 	 * in the {@link CertificateRequest} for the client's
 	 * {@link CertificateMessage}.
@@ -758,7 +759,7 @@ public final class DtlsConfig {
 
 	/**
 	 * Use truncated certificate paths for validation.
-	 * 
+	 * <p>
 	 * Truncate certificate path according the available trusted certificates
 	 * before validation.
 	 */
@@ -793,18 +794,18 @@ public final class DtlsConfig {
 	 */
 	public static final EnumListDefinition<CipherSuite> DTLS_PRESELECTED_CIPHER_SUITES = new EnumListDefinition<>(
 			MODULE + "PRESELECTED_CIPHER_SUITES",
-			"List of preselected DTLS cipher-suites.\n" +
-			"If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.\n" +
-			"The supported cipher suites are evaluated at runtime and may differ from the ones when creating this properties file.",
+			"List of preselected DTLS cipher-suites.\n"
+					+ "If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.\n"
+					+ "The supported cipher suites are evaluated at runtime and may differ from the ones when creating this properties file.",
 			CipherSuite.getCipherSuites(false, false));
 	/**
 	 * Select {@link CipherSuite}s.
 	 */
 	public static final EnumListDefinition<CipherSuite> DTLS_CIPHER_SUITES = new EnumListDefinition<>(
 			MODULE + "CIPHER_SUITES",
-			"List of DTLS cipher-suites.\n" +
-			"If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.\n" +
-			"The supported cipher suites are evaluated at runtime and may differ from the ones when creating this properties file.",
+			"List of DTLS cipher-suites.\n"
+					+ "If not recommended cipher suites are intended to be used, switch off DTLS_RECOMMENDED_CIPHER_SUITES_ONLY.\n"
+					+ "The supported cipher suites are evaluated at runtime and may differ from the ones when creating this properties file.",
 			null, 1, CipherSuite.getCipherSuites(false, true));
 	/**
 	 * Select curves ({@link SupportedGroup}s).
@@ -823,8 +824,8 @@ public final class DtlsConfig {
 	 */
 	public static final EnumListDefinition<CertificateKeyAlgorithm> DTLS_CERTIFICATE_KEY_ALGORITHMS = new EnumListDefinition<>(
 			MODULE + "CERTIFICATE_KEY_ALGORITHMS",
-			"List of DTLS certificate key algorithms.\n" +
-			"On the client side used to select the default cipher-suites, on the server side to negotiate the client's certificate.",
+			"List of DTLS certificate key algorithms.\n"
+					+ "On the client side used to select the default cipher-suites, on the server side to negotiate the client's certificate.",
 			new CertificateKeyAlgorithm[] { CertificateKeyAlgorithm.EC, CipherSuite.CertificateKeyAlgorithm.RSA });
 
 	/**
@@ -846,13 +847,11 @@ public final class DtlsConfig {
 	 */
 	public static final BooleanDefinition DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS = new BooleanDefinition(
 			MODULE + "REMOVE_STALE_DOUBLE_PRINCIPALS",
-			"Remove stale double principals.\n" + 
-			"Requires unique principals and a read-write-lock connection store.",
-			false);
+			"Remove stale double principals.\n" + "Requires unique principals.", false);
 
 	/**
 	 * Quiet time for DTLS MAC error filter.
-	 * 
+	 * <p>
 	 * To decrypt a message and calculate the MAC requires CPU. If a peer sends
 	 * many messages with a broken MAC (maybe because the message is sent by an
 	 * other peer with a spoofed source address), that may lower the overall
@@ -864,9 +863,9 @@ public final class DtlsConfig {
 	 * dropped before decryption in order to protect the CPU. This dropping last
 	 * for this quiet period and afterwards, the MAC error counter is reseted as
 	 * it is reseted, if no MAC error occurs for that time.
-	 * 
+	 * <p>
 	 * A value of {@code 0} disables the MAC error filter.
-	 * 
+	 * <p>
 	 * tn time n, c=n counter with value
 	 * 
 	 * <pre>
@@ -901,7 +900,7 @@ public final class DtlsConfig {
 
 	/**
 	 * Threshold for DTLS MAC error filter.
-	 * 
+	 * <p>
 	 * Maximum number of MAC errors, before all messages are dropped for the
 	 * {@link #DTLS_MAC_ERROR_FILTER_QUIET_TIME}. A value of {@code 0} disables
 	 * the MAC error filter.
@@ -915,11 +914,12 @@ public final class DtlsConfig {
 
 	/**
 	 * Specify the secure renegotiation mode.
-	 * 
+	 * <p>
 	 * Californium doesn't support renegotiation at all, but RFC5746 requests to
 	 * update to a minimal version of RFC 5746.
 	 * 
-	 * @see <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC 5746</a>
+	 * @see <a href="https://tools.ietf.org/html/rfc5746" target="_blank">RFC
+	 *      5746</a>
 	 * 
 	 * @since 3.8
 	 */
@@ -932,12 +932,28 @@ public final class DtlsConfig {
 	/**
 	 * Support key material export.
 	 * 
-	 * @see <a href="https://tools.ietf.org/html/rfc5705" target="_blank">RFC 5705</a>
+	 * @see <a href="https://tools.ietf.org/html/rfc5705" target="_blank">RFC
+	 *      5705</a>
 	 * 
 	 * @since 3.10
 	 */
 	public static final BooleanDefinition DTLS_SUPPORT_KEY_MATERIAL_EXPORT = new BooleanDefinition(
 			MODULE + "SUPPORT_KEY_MATERIAL_EXPORT", "Support key material export according RFC5705.", false);
+
+	/**
+	 * Application authorization timeout for anonymous clients.
+	 * <p>
+	 * Used for certificate based handshakes without client certificates. If
+	 * enabled, connections without authenticated clients are removed after this
+	 * timeout, if not authorized using the {@link ApplicationAuthorizer}.
+	 * 
+	 * @see ApplicationAuthorizer
+	 * @since 4.0
+	 */
+	public static final TimeDefinition DTLS_APPLICATION_AUTHORIZATION_TIMEOUT = new TimeDefinition(
+			MODULE + "APPLICATION_AUTHORIZATION_TIMEOUT",
+			"Timeout for application authorization of anonymous clients.\n0s to switch off.",
+			0, TimeUnit.SECONDS);
 
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
@@ -1014,6 +1030,7 @@ public final class DtlsConfig {
 			config.set(DTLS_MAC_ERROR_FILTER_THRESHOLD, 0);
 			config.set(DTLS_SECURE_RENEGOTIATION, DEFAULT_SECURE_RENEGOTIATION);
 			config.set(DTLS_SUPPORT_KEY_MATERIAL_EXPORT, false);
+			config.set(DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 0, TimeUnit.SECONDS);
 
 			DefinitionUtils.verify(DtlsConfig.class, config);
 		}

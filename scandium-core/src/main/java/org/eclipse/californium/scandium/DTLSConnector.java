@@ -142,6 +142,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -168,10 +169,13 @@ import org.eclipse.californium.elements.PersistentComponent;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
+import org.eclipse.californium.elements.auth.ApplicationPrincipal;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
+import org.eclipse.californium.elements.exception.MissingApplicationAuthorizationException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -256,7 +260,7 @@ import org.slf4j.MDC;
  * side and a separate Connector is created for each address to receive incoming
  * traffic.
  */
-public class DTLSConnector implements Connector, PersistentComponent, RecordLayer {
+public class DTLSConnector implements Connector, ApplicationAuthorizer, PersistentComponent, RecordLayer {
 
 	/**
 	 * The {@code EndpointContext} key used to store the host name indicated by
@@ -691,6 +695,10 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 				@Override
 				public void handshakeFailed(Handshaker handshaker, Throwable error) {
 					if (health != null) {
+						if (error instanceof MissingApplicationAuthorizationException) {
+							MissingApplicationAuthorizationException authorizationException = (MissingApplicationAuthorizationException) error;
+							health.applicationAuthorizationRejected(authorizationException.isRejected());
+						}
 						health.endHandshake(false);
 					}
 					List<RawData> listOut = handshaker.takeDeferredApplicationData();
@@ -721,7 +729,9 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 							// failure after established (last FINISH),
 							// but before completed (first data)
 							if (error instanceof ConnectionEvictedException) {
-								LOGGER.debug("Handshake with [{}] never get APPLICATION_DATA", peerAddress, error);
+								LOGGER.debug("Handshake with [{}] never get APPLICATION_DATA", peerAddress);
+							} else if (error instanceof MissingApplicationAuthorizationException) {
+									LOGGER.debug("Handshake with [{}] never authorized by application", peerAddress);
 							} else {
 								LOGGER.warn("Handshake with [{}] failed after session was established!", peerAddress,
 										error);
@@ -2273,7 +2283,7 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 		final Handshaker ongoingHandshake = connection.getOngoingHandshake();
 		if (ongoingHandshake != null) {
 			// the handshake has been completed successfully
-			ongoingHandshake.handshakeCompleted();
+			ongoingHandshake.handshakeCompletedWithApplicationData();
 		}
 		if (connectionListener != null) {
 			if (connectionListener.onConnectionUpdatesSequenceNumbers(connection, false)) {
@@ -3705,6 +3715,60 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 	@Override
 	public String toString() {
 		return getProtocol() + "-" + StringUtil.toString(getAddress());
+	}
+
+	@Override
+	public Future<Boolean> authorize(final EndpointContext context, final ApplicationPrincipal principal) {
+		if (principal == null) {
+			throw new NullPointerException("Principal must not be null!");
+		}
+		final ConnectionId cid = getConnectionIdFromEndpointContext(context);
+		final Connection connection = getConnection(context.getPeerAddress(), cid, false);
+		final CompletableFuture<Boolean> future = new CompletableFuture<>();
+		if (connection != null) {
+			connection.execute(() -> {
+				Principal identity = connection.getEstablishedPeerIdentity();
+				if (identity == null) {
+					connection.setEstablishedPeerIdentity(principal);
+					connectionStore.putEstablishedSession(connection);
+				}
+				Handshaker handshaker = connection.getOngoingHandshake();
+				if (handshaker != null) {
+					handshaker.handshakeCompleted();
+				}
+				future.complete(identity == null || principal.equals(identity));
+			});
+		} else {
+			future.complete(false);
+		}
+		return future;
+	}
+
+	@Override
+	public Future<Void> rejectAuthorization(EndpointContext context) {
+		final ConnectionId cid = getConnectionIdFromEndpointContext(context);
+		final Connection connection = getConnection(context.getPeerAddress(), cid, false);
+		final CompletableFuture<Void> future = new CompletableFuture<>();
+		if (connection != null) {
+			connection.execute(() -> {
+				if (datagramFilter != null) {
+					datagramFilter.onApplicationAuthorizationRejected(connection);
+				}
+				final Handshaker handshaker = connection.getOngoingHandshake();
+				if (handshaker != null) {
+					handshaker.noApplicationAuthorization(true);
+				} else {
+					if (health != null) {
+						health.applicationAuthorizationRejected(true);
+					}
+					connectionStore.remove(connection, true);
+				}
+				future.complete(null);
+			});
+		} else {
+			future.complete(null);
+		}
+		return future;
 	}
 
 	private ConnectionId getConnectionIdFromEndpointContext(EndpointContext context) {

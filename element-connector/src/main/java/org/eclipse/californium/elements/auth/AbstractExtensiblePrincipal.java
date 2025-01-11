@@ -49,11 +49,13 @@ public abstract class AbstractExtensiblePrincipal<T extends Principal> implement
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public final AdditionalInfo getExtendedInfo() {
 		return additionalInfo;
+	}
+
+	@Override
+	public boolean isAnonymous() {
+		return false;
 	}
 }

@@ -91,10 +91,12 @@ import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.exception.MissingApplicationAuthorizationException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
@@ -206,6 +208,9 @@ public abstract class Handshaker implements Destroyable {
 
 	/** Timeout in nanoseconds to expire handshakes. */
 	private final long nanosExpireTimeout;
+
+	/** Timeout in milliseconds for application authorization. */
+	private final int applicationAuthorizationTimeout;
 
 	/** The current flight number. */
 	protected int flightNumber = 0;
@@ -452,9 +457,10 @@ public abstract class Handshaker implements Destroyable {
 	private boolean eccExpected;
 	private boolean changeCipherSuiteMessageExpected;
 	private boolean contextEstablished;
+	private boolean handshakeCompletedByApplicationData;
 	private boolean handshakeCompleted;
-	private boolean handshakeAborted;
 	private boolean handshakeFailed;
+	private boolean removeConnection;
 	private boolean pskRequestPending;
 	private boolean certificateVerificationPending;
 	private boolean certificateIdentityPending;
@@ -539,6 +545,7 @@ public abstract class Handshaker implements Destroyable {
 		this.retransmissionTimeout = config.getTimeAsInt(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS);
 		this.maxRetransmissionTimeout = config.getTimeAsInt(DtlsConfig.DTLS_MAX_RETRANSMISSION_TIMEOUT, TimeUnit.MILLISECONDS);
 		this.additionalTimeoutForEcc = config.getTimeAsInt(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, TimeUnit.MILLISECONDS);
+		this.applicationAuthorizationTimeout = config.getTimeAsInt(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, TimeUnit.MILLISECONDS);
 		this.retransmissionRandomFactor = config.get(DtlsConfig.DTLS_RETRANSMISSION_INIT_RANDOM);
 		this.retransmissionTimeoutScale = config.get(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT_SCALE);
 		this.backOffRetransmission = config.getBackOffRetransmission();
@@ -2144,6 +2151,30 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Report handshake completed by application data.
+	 * <p>
+	 * In {@link DtlsConfig#DTLS_APPLICATION_AUTHORIZATION_TIMEOUT} the registered
+	 * listeners are called postponed for anonymous clients, when the
+	 * {@link ApplicationAuthorizer} is called.
+	 * 
+	 * @since 4.0
+	 */
+	public final void handshakeCompletedWithApplicationData() {
+		if (!handshakeCompleted && !handshakeCompletedByApplicationData) {
+			handshakeCompletedByApplicationData = true;
+			if (applicationAuthorizationTimeout > 0) {
+				DTLSSession session = context.getSession();
+				if (session != null && session.getPeerIdentity() == null) {
+					Runnable task = connection.createTask(() -> noApplicationAuthorization(false), false);
+					timeoutLastFlight = timer.schedule(task, applicationAuthorizationTimeout, TimeUnit.MILLISECONDS);
+					return;
+				}
+			}
+			handshakeCompleted();
+		}
+	}
+
+	/**
 	 * Forward handshake completed to registered listeners.
 	 */
 	public final void handshakeCompleted() {
@@ -2163,10 +2194,10 @@ public abstract class Handshaker implements Destroyable {
 
 	/**
 	 * Notifies all registered session listeners about a handshake failure.
-	 * 
+	 * <p>
 	 * Listeners are intended to remove the connection, if no session is
 	 * established.
-	 * 
+	 * <p>
 	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
 	 * the same cause will notify the listeners. If
 	 * {@link #setFailureCause(Throwable)} wasn't called before, sets the
@@ -2177,6 +2208,45 @@ public abstract class Handshaker implements Destroyable {
 	 * @see #handshakeAborted(Throwable)
 	 */
 	public final void handshakeFailed(Throwable cause) {
+		this.removeConnection = !connection.hasEstablishedDtlsContext();
+		failHandshake(cause);
+	}
+
+	/**
+	 * Aborts handshake.
+	 * <p>
+	 * Notifies all registered session listeners about a handshake failure.
+	 * Listeners are intended to keep the connection.
+	 * <p>
+	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
+	 * the same cause will notify the listeners. If
+	 * {@link #setFailureCause(Throwable)} wasn't called before, sets the
+	 * <em>cause</em> property to the given cause.
+	 * 
+	 * @param cause The reason for the abort.
+	 * @see #handshakeFailed(Throwable)
+	 * @see #isRemovingConnection()
+	 * @since 2.1
+	 */
+	public final void handshakeAborted(Throwable cause) {
+		this.removeConnection = false;
+		failHandshake(cause);
+	}
+
+	/**
+	 * 
+	 * @param rejected
+	 */
+	public final void noApplicationAuthorization(boolean rejected) {
+		this.removeConnection = true;
+		failHandshake(new MissingApplicationAuthorizationException(rejected));
+	}
+
+	/**
+	 * 
+	 * @param cause
+	 */
+	private final void failHandshake(Throwable cause) {
 		if (this.cause == null) {
 			this.cause = cause;
 		}
@@ -2190,27 +2260,6 @@ public abstract class Handshaker implements Destroyable {
 			SecretUtil.destroy(context);
 			SecretUtil.destroy(this);
 		}
-	}
-
-	/**
-	 * Abort handshake.
-	 * 
-	 * Notifies all registered session listeners about a handshake failure.
-	 * Listeners are intended to keep the connection.
-	 * 
-	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
-	 * the same cause will notify the listeners. If
-	 * {@link #setFailureCause(Throwable)} wasn't called before, sets the
-	 * <em>cause</em> property to the given cause.
-	 * 
-	 * @param cause The reason for the abort.
-	 * @see #handshakeFailed(Throwable)
-	 * @see #isRemovingConnection()
-	 * @since 2.1
-	 */
-	public final void handshakeAborted(Throwable cause) {
-		this.handshakeAborted = true;
-		handshakeFailed(cause);
 	}
 
 	/**
@@ -2280,16 +2329,17 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Check, if the connection must be removed.
-	 * 
+	 * Checks, if the connection must be removed.
+	 * <p>
 	 * The connection must be removed, if {@link #handshakeFailed(Throwable)}
-	 * was called, and the connection has no established session.
+	 * was called, and the connection has no established session or the
+	 * application authorization for an anonymous client is missing.
 	 * 
 	 * @return {@code true}, remove the connection, {@code false}, keep it.
 	 * @since 2.1
 	 */
 	public boolean isRemovingConnection() {
-		return !handshakeAborted && !connection.hasEstablishedDtlsContext();
+		return removeConnection;
 	}
 
 	/**
