@@ -821,7 +821,7 @@ public class DTLSConnectorResumeTest {
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		assertClientIdentity(clientPrincipalType);
 
-		peer = serverHelper.getEstablishedServerDtlsSession(client.getAddress()).getPeerIdentity();
+		peer = serverHelper.getServersClientIdentity(client.getAddress());
 		assertThat(peer, is(instanceOf(ExtensiblePrincipal.class)));
 		principal = (ExtensiblePrincipal<?>) peer;
 		assertThat(principal.getExtendedInfo().get(KEY_DEVICE_ID, String.class), is(DEVICE_ID));

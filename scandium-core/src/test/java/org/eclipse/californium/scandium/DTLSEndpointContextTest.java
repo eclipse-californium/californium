@@ -287,7 +287,7 @@ public class DTLSEndpointContextTest {
 		assertNotNull(establishedClientSession);
 	}
 
-	private static class TestEndpointContextMatcher implements EndpointContextMatcher {
+	public static class TestEndpointContextMatcher implements EndpointContextMatcher {
 
 		private final int count;
 		private final CountDownLatch latchSendMatcher;

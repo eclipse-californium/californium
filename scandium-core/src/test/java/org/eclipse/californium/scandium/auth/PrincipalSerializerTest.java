@@ -27,6 +27,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
 
+import org.eclipse.californium.elements.auth.ApplicationPrincipal;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
@@ -37,7 +38,6 @@ import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
 
 /**
  * Verifies behavior of {@link PrincipalSerializer}.
@@ -53,9 +53,8 @@ public class PrincipalSerializerTest {
 	 * Creates a public key to be used in test cases.
 	 * 
 	 * @throws GeneralSecurityException if the demo server certificate chain
-	 *              cannot be read.
-	 * @throws IOException if the demo server certificate chain
-	 *              cannot be read.
+	 *             cannot be read.
+	 * @throws IOException if the demo server certificate chain cannot be read.
 	 */
 	@BeforeClass
 	public static void init() throws IOException, GeneralSecurityException {
@@ -70,9 +69,9 @@ public class PrincipalSerializerTest {
 	}
 
 	/**
-	 * Verifies that a pre-shared key identity that has been serialized using the
-	 * serialize method can be re-instantiated properly using the deserialize
-	 * method.
+	 * Verifies that a pre-shared key identity that has been serialized using
+	 * the serialize method can be re-instantiated properly using the
+	 * deserialize method.
 	 */
 	@Test
 	public void testSerializedPSKIdentityCanBeDeserialized() {
@@ -81,9 +80,9 @@ public class PrincipalSerializerTest {
 	}
 
 	/**
-	 * Verifies that a pre-shared key identity without a virtual host that has been
-	 * serialized using the serialize method can be re-instantiated properly using
-	 * the deserialize method.
+	 * Verifies that a pre-shared key identity without a virtual host that has
+	 * been serialized using the serialize method can be re-instantiated
+	 * properly using the deserialize method.
 	 */
 	@Test
 	public void testSerializedPSKIdentityWithoutHostCanBeDeserialized() {
@@ -100,7 +99,8 @@ public class PrincipalSerializerTest {
 
 			// THEN the resulting byte array can be used to re-instantiate
 			// the identity
-			PreSharedKeyIdentity identity = (PreSharedKeyIdentity) PrincipalSerializer.deserialize(new DatagramReader(writer.toByteArray()));
+			PreSharedKeyIdentity identity = (PreSharedKeyIdentity) PrincipalSerializer
+					.deserialize(new DatagramReader(writer.toByteArray()));
 			assertThat(identity, is(pskIdentity));
 		} catch (GeneralSecurityException e) {
 			// should not happen
@@ -109,9 +109,8 @@ public class PrincipalSerializerTest {
 	}
 
 	/**
-	 * Verifies that a public key that has been serialized using the
-	 * serialize method can be re-instantiated properly using the deserialize
-	 * method.
+	 * Verifies that a public key that has been serialized using the serialize
+	 * method can be re-instantiated properly using the deserialize method.
 	 * 
 	 * @throws GeneralSecurityException if the key cannot be deserialized.
 	 */
@@ -126,7 +125,8 @@ public class PrincipalSerializerTest {
 
 		// THEN the resulting byte array can be used to re-instantiate
 		// the public key
-		RawPublicKeyIdentity identity = (RawPublicKeyIdentity) PrincipalSerializer.deserialize(new DatagramReader(writer.toByteArray()));
+		RawPublicKeyIdentity identity = (RawPublicKeyIdentity) PrincipalSerializer
+				.deserialize(new DatagramReader(writer.toByteArray()));
 		assertThat(identity.getKey(), is(publicKey));
 		assertThat(identity.getKey().getAlgorithm(), is(publicKey.getAlgorithm()));
 	}
@@ -153,6 +153,58 @@ public class PrincipalSerializerTest {
 		assertThat(identity.getName(), is(x509Identity.getName()));
 		assertThat(identity.getTarget(), is(x509Identity.getTarget()));
 		assertThat(identity.getPath(), is(x509Identity.getPath()));
+	}
+
+	/**
+	 * Verifies that an anonymous application authorization has been serialized
+	 * using the serialize method can be re-instantiated properly using the
+	 * deserialize method.
+	 * 
+	 * @throws GeneralSecurityException if the key cannot be deserialized.
+	 */
+	@Test
+	public void testSerializedAnonymousApplicationPrincipal() throws GeneralSecurityException {
+
+		// WHEN serializing the application authorization to a byte array
+		DatagramWriter writer = new DatagramWriter();
+		PrincipalSerializer.serialize(ApplicationPrincipal.ANONYMOUS, writer);
+
+		// THEN the resulting byte array can be used to re-instantiate
+		ApplicationPrincipal identity = (ApplicationPrincipal) PrincipalSerializer
+				.deserialize(new DatagramReader(writer.toByteArray()));
+		assertThat(identity, is(ApplicationPrincipal.ANONYMOUS));
+	}
+
+	/**
+	 * Verifies that an application authorization has been serialized using the
+	 * serialize method can be re-instantiated properly using the deserialize
+	 * method.
+	 * 
+	 * @throws GeneralSecurityException if the key cannot be deserialized.
+	 */
+	@Test
+	public void testSerializedApplicationPrincipal() throws GeneralSecurityException {
+
+		// WHEN serializing the application authorization to a byte array
+		DatagramWriter writer = new DatagramWriter();
+		ApplicationPrincipal principal = new ApplicationPrincipal("me", false);
+		PrincipalSerializer.serialize(principal, writer);
+
+		// THEN the resulting byte array can be used to re-instantiate
+		ApplicationPrincipal identity = (ApplicationPrincipal) PrincipalSerializer
+				.deserialize(new DatagramReader(writer.toByteArray()));
+		assertThat(identity, is(principal));
+
+		// WHEN serializing the application authorization to a byte array
+		writer = new DatagramWriter();
+		principal = new ApplicationPrincipal("you", true);
+		PrincipalSerializer.serialize(principal, writer);
+
+		// THEN the resulting byte array can be used to re-instantiate
+		identity = (ApplicationPrincipal) PrincipalSerializer
+				.deserialize(new DatagramReader(writer.toByteArray()));
+		assertThat(identity, is(principal));
+		
 	}
 
 }

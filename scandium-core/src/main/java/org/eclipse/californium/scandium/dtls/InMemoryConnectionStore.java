@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
+import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -150,8 +151,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 					connections.writeLock().lock();
 					try {
 						removeByAddressConnections(staleConnection);
-						removeByEstablishedSessions(staleConnection.getEstablishedSessionIdentifier(),
-								staleConnection);
+						removeByEstablishedSessions(staleConnection.getEstablishedSessionIdentifier(), staleConnection);
 						removeByPrincipal(staleConnection.getEstablishedPeerIdentity(), staleConnection);
 						ConnectionListener listener = connectionListener;
 						if (listener != null) {
@@ -658,6 +658,11 @@ public class InMemoryConnectionStore implements ConnectionStore {
 
 	private boolean addToPrincipalsConnections(Principal principal, Connection connection, boolean removePrevious) {
 		if (connectionsByPrincipal != null && principal != null) {
+			if (principal instanceof ExtensiblePrincipal) {
+				if (((ExtensiblePrincipal<?>) principal).isAnonymous()) {
+					return false;
+				}
+			}
 			final Connection previous = connectionsByPrincipal.put(principal, connection);
 			if (previous != null && previous != connection) {
 				if (removePrevious) {
@@ -779,8 +784,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 				}
 				if (restore) {
 					LOGGER.trace("{}read {} ts, {}s {}", tag, lastUpdate,
-							TimeUnit.NANOSECONDS.toSeconds(startNanos - lastUpdate),
-							connection.getConnectionId());
+							TimeUnit.NANOSECONDS.toSeconds(startNanos - lastUpdate), connection.getConnectionId());
 					restore(connection);
 					++count;
 				}

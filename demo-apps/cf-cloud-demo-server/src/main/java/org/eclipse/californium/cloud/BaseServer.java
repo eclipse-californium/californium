@@ -49,7 +49,9 @@ import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.observe.ObserveStatisticLogger;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.PrincipalAndAnonymousEndpointContextMatcher;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.IntegerDefinition;
@@ -62,9 +64,9 @@ import org.eclipse.californium.elements.util.EncryptedPersistentComponentUtil;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
-import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil.InetAddressFilter;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil.SimpleInetAddressFilter;
+import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.SystemResourceMonitors;
@@ -202,6 +204,7 @@ public class BaseServer extends CoapServer {
 			config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
 			config.set(CoapConfig.ACK_TIMEOUT, 2500, TimeUnit.MILLISECONDS);
 			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY);
+			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
 			config.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 2500, TimeUnit.MILLISECONDS);
 			config.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 8, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
@@ -656,7 +659,11 @@ public class BaseServer extends CoapServer {
 		// Context matcher
 		EndpointContextMatcher customContextMatcher = null;
 		if (MatcherMode.PRINCIPAL == config.get(CoapConfig.RESPONSE_MATCHING)) {
-			customContextMatcher = new PrincipalEndpointContextMatcher(true);
+			if (CertificateAuthenticationMode.NEEDED == config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE)) {
+				customContextMatcher = new PrincipalEndpointContextMatcher(true);
+			} else {
+				customContextMatcher = new PrincipalAndAnonymousEndpointContextMatcher();
+			}
 		}
 
 		// explore network interfaces

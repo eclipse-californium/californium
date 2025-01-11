@@ -45,4 +45,14 @@ public interface ExtensiblePrincipal<T extends Principal> extends Principal {
 	 */
 	AdditionalInfo getExtendedInfo();
 
+	/**
+	 * Checks, if principal is anonymous.
+	 * <p>
+	 * Anonymous principals are not used as identities.
+	 * 
+	 * @return {@code true}, if principal represents an anonymous,
+	 *         {@code false}, otherwise.
+	 * @since 4.0
+	 */
+	boolean isAnonymous();
 }
