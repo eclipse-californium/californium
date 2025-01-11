@@ -105,4 +105,13 @@ public interface DtlsHealth {
 	 */
 	void setPendingHandshakeJobs(int count);
 
+	/**
+	 * Report missing application authorization.
+	 * 
+	 * @param rejected {@code true}, if authorization was rejected,
+	 *            {@code false}, if the authorization is missing after a
+	 *            timeout.
+	 * @since 4.0
+	 */
+	void applicationAuthorizationRejected(boolean rejected);
 }

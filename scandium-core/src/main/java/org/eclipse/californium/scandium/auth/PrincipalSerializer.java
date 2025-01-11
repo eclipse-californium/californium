@@ -23,6 +23,7 @@ package org.eclipse.californium.scandium.auth;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 
+import org.eclipse.californium.elements.auth.ApplicationPrincipal;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
@@ -38,17 +39,21 @@ public final class PrincipalSerializer {
 
 	private static final int PSK_HOSTNAME_LENGTH_BITS = 16;
 	private static final int PSK_IDENTITY_LENGTH_BITS = 16;
+	private static final int APPLICATION_PRINCIPAL_NAME_LENGTH_BITS = 16;
 
 	private PrincipalSerializer() {
 	}
 
 	/**
-	 * Serializes a principal to a byte array based on the plain text encoding defined in
-	 * <a href="https://tools.ietf.org/html/rfc5077#section-4">RFC 5077, Section 4</a>.
+	 * Serializes a principal to a byte array based on the plain text encoding
+	 * defined in <a href="https://tools.ietf.org/html/rfc5077#section-4">RFC
+	 * 5077, Section 4</a>.
 	 * <p>
-	 * RFC 5077 does not explicitly define support for RawPublicKey based client authentication.
-	 * However, it supports the addition of arbitrary authentication mechanisms by extending
-	 * the <em>ClientAuthenticationType</em> which we do as follows: 
+	 * RFC 5077 does not explicitly define support for RawPublicKey based client
+	 * authentication. However, it supports the addition of arbitrary
+	 * authentication mechanisms by extending the
+	 * <em>ClientAuthenticationType</em> which we do as follows:
+	 * 
 	 * <pre>
 	 * 
 	 * enum {
@@ -86,6 +91,8 @@ public final class PrincipalSerializer {
 			throw new NullPointerException("Writer must not be null");
 		} else if (principal == null) {
 			writer.writeByte(ClientAuthenticationType.ANONYMOUS.code);
+		} else if (principal instanceof ApplicationPrincipal) {
+			serializeApplicationPrincipal((ApplicationPrincipal) principal, writer);
 		} else if (principal instanceof PreSharedKeyIdentity) {
 			serializeIdentity((PreSharedKeyIdentity) principal, writer);
 		} else if (principal instanceof RawPublicKeyIdentity) {
@@ -119,13 +126,23 @@ public final class PrincipalSerializer {
 		writer.writeBytes(principal.toByteArray());
 	}
 
+	private static void serializeApplicationPrincipal(final ApplicationPrincipal principal,
+			final DatagramWriter writer) {
+		writer.writeByte(ClientAuthenticationType.APPLICATION.code);
+		writer.writeByte(principal.isAnonymous() ? (byte) 1 : (byte) 0);
+		SerializationUtil.write(writer, principal.getName(), APPLICATION_PRINCIPAL_NAME_LENGTH_BITS);
+	}
+
 	/**
 	 * Deserializes a principal from its byte array representation.
 	 * 
 	 * @param reader The reader containing the byte array.
-	 * @return The principal object or {@code null} if the reader does not contain a supported principal type.
-	 * @throws GeneralSecurityException if the reader contains a raw public key principal that could not be recreated.
-	 * @throws IllegalArgumentException if the reader contains an unsupported ClientAuthenticationType.
+	 * @return The principal object or {@code null} if the reader does not
+	 *         contain a supported principal type.
+	 * @throws GeneralSecurityException if the reader contains a raw public key
+	 *             principal that could not be recreated.
+	 * @throws IllegalArgumentException if the reader contains an unsupported
+	 *             ClientAuthenticationType.
 	 */
 	public static Principal deserialize(final DatagramReader reader) throws GeneralSecurityException {
 		if (reader == null) {
@@ -133,11 +150,13 @@ public final class PrincipalSerializer {
 		}
 		byte code = reader.readNextByte();
 		ClientAuthenticationType type = ClientAuthenticationType.fromCode(code);
-		switch(type) {
+		switch (type) {
 		case CERT:
 			return deserializeCertChain(reader);
 		case PSK:
 			return deserializeIdentity(reader);
+		case APPLICATION:
+			return deserializeApplicationPrincipal(reader);
 		case RPK:
 			return deserializeSubjectInfo(reader);
 		default:
@@ -169,12 +188,20 @@ public final class PrincipalSerializer {
 		return new RawPublicKeyIdentity(subjectInfo);
 	}
 
+	private static ApplicationPrincipal deserializeApplicationPrincipal(final DatagramReader reader)
+			throws GeneralSecurityException {
+		byte code = reader.readNextByte();
+		String name = SerializationUtil.readString(reader, APPLICATION_PRINCIPAL_NAME_LENGTH_BITS);
+		if (ApplicationPrincipal.ANONYMOUS.getName().equals(name)) {
+			return ApplicationPrincipal.ANONYMOUS;
+		} else {
+			return new ApplicationPrincipal(name, code == 1);
+		}
+	}
+
 	private enum ClientAuthenticationType {
 
-		ANONYMOUS((byte) 0x00),
-		CERT((byte) 0x01),
-		PSK((byte) 0x02),
-		RPK((byte) 0xff);
+		ANONYMOUS((byte) 0x00), CERT((byte) 0x01), PSK((byte) 0x02), APPLICATION((byte) 0xfe), RPK((byte) 0xff);
 
 		private byte code;
 

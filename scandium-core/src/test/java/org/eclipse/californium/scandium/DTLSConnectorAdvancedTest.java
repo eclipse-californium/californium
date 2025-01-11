@@ -64,6 +64,7 @@ import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
@@ -2882,6 +2883,8 @@ public class DTLSConnectorAdvancedTest {
 	 */
 	@Test
 	public void testServerPskDoubleResponse() throws Exception {
+		logging.setLoggingLevel("ERROR", DTLSConnector.class);
+
 		// Configure and create UDP connector
 		pskHandshakeResponses = 2; // two psk responses
 		
@@ -3477,6 +3480,82 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawClient.stop();
+			serverHealth.reset();
+		}
+	}
+
+	/**
+	 * Test the server handshake fails for anonymous client without application data.
+	 * 
+	 * @throws Exception if the test fails
+	 */
+	@Test
+	public void testServerFailsAnonymousClientWithoutApplicationData() throws Exception {
+		AsyncCertificateVerifier certificateVerifier = AsyncCertificateVerifier.builder()
+				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
+				.setTrustAllRPKs()
+				.build();
+		alternativeServerHelper = new ConnectorHelper(network);
+		alternativeServerHelper.serverBuilder
+				.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+				.set(DtlsConfig.DTLS_MAX_RETRANSMISSIONS, MAX_RETRANSMISSIONS)
+				.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024)
+				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED)
+				.set(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 2000, TimeUnit.MILLISECONDS)
+				.setHealthHandler(serverHealth)
+				.setCertificateVerifier(certificateVerifier)
+				.setConnectionIdGenerator(serverCidGenerator);
+		
+		// Configure anonymous client and create UDP connector
+		clientConfigBuilder.setCertificateIdentityProvider(null);
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(LOCAL, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
+		try {
+			// create limited server
+			alternativeServerHelper.startServer();
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			Connection clientConnection = createConnection(clientCidGenerator, alternativeServerHelper.serverEndpoint);
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer,
+					clientConnection, clientConfigBuilder.build(), false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Wait to receive response from server
+			// (CHANGE CIPHER SPEC, FINISHED)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			// Handle (CHANGE CIPHER SPEC, FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake fails
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes failed", is(1L),
+					HANDSHAKE_EXPIRES_MS*2, TimeUnit.MILLISECONDS);
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes succeeded", is(0L),
+					HANDSHAKE_EXPIRES_MS, TimeUnit.MILLISECONDS);
+
+		} finally {
+			rawClient.stop();
+			alternativeServerHelper.destroyServer();
+			certificateVerifier.shutdown();
 			serverHealth.reset();
 		}
 	}

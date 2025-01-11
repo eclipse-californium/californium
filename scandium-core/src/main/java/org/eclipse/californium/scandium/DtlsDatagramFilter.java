@@ -19,6 +19,7 @@ import java.net.DatagramPacket;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ContentType;
@@ -26,9 +27,9 @@ import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
 
 /**
- * Filter valid DTLS incoming datagrams.
- * 
- * Use an advanced MAC error filter.
+ * Filter valid incoming DTLS datagrams.
+ * <p>
+ * Uses an advanced MAC error filter.
  * 
  * @since 3.5
  */
@@ -48,7 +49,7 @@ public class DtlsDatagramFilter implements DatagramFilter {
 	private final int macErrorFilterThreshold;
 
 	/**
-	 * Create dtls datagram filter without MAC error filter.
+	 * Creates DTLS datagram filter without MAC error filter.
 	 */
 	public DtlsDatagramFilter() {
 		this.macErrorFilterQuietTimeNanos = 0;
@@ -56,9 +57,12 @@ public class DtlsDatagramFilter implements DatagramFilter {
 	}
 
 	/**
-	 * Create dtls datagram filter with MAC error filter, if configured.
+	 * Creates DTLS datagram filter with MAC error filter, if configured.
 	 * 
 	 * @param config configuration for the MAC error filter.
+	 * @throws IllegalArgumentException if config contains ambiguous values for
+	 *             {@link DtlsConfig#DTLS_MAC_ERROR_FILTER_QUIET_TIME} and
+	 *             {@link DtlsConfig#DTLS_MAC_ERROR_FILTER_THRESHOLD}
 	 * @since 3.6
 	 */
 	public DtlsDatagramFilter(Configuration config) {
@@ -115,17 +119,38 @@ public class DtlsDatagramFilter implements DatagramFilter {
 	@Override
 	public boolean onMacError(Record record, Connection connection) {
 		if (macErrorFilterThreshold > 0) {
-			Object filterData = connection.getFilterData();
-			if (filterData == null) {
-				filterData = new MacErrorFilter(record.getReceiveNanos());
-				connection.setFilterData(filterData);
-			}
-			if (filterData instanceof MacErrorFilter) {
-				((MacErrorFilter) filterData).incrementMacErrors(record.getReceiveNanos(),
-						macErrorFilterQuietTimeNanos);
-			}
+			filter(record.getReceiveNanos(), connection);
 		}
 		return false;
+	}
+
+	@Override
+	public void onDrop(DatagramPacket packet) {
+		// empty by intention
+	}
+
+	@Override
+	public void onDrop(Record record) {
+		// empty by intention
+	}
+
+	@Override
+	public void onApplicationAuthorizationRejected(Connection connection) {
+		// use MAC error filter to throttle unauthorized clients
+		if (macErrorFilterThreshold > 0) {
+			filter(ClockUtil.nanoRealtime(), connection);
+		}
+	}
+
+	private void filter(long uptimeNanos, Connection connection) {
+		Object filterData = connection.getFilterData();
+		if (filterData == null) {
+			filterData = new MacErrorFilter(uptimeNanos);
+			connection.setFilterData(filterData);
+		}
+		if (filterData instanceof MacErrorFilter) {
+			((MacErrorFilter) filterData).incrementMacErrors(uptimeNanos, macErrorFilterQuietTimeNanos);
+		}
 	}
 
 	/**
@@ -192,13 +217,4 @@ public class DtlsDatagramFilter implements DatagramFilter {
 
 	}
 
-	@Override
-	public void onDrop(DatagramPacket packet) {
-		// empty by intention
-	}
-
-	@Override
-	public void onDrop(Record record) {
-		// empty by intention
-	}
 }

@@ -1539,10 +1539,18 @@ public final class DtlsConnectorConfig {
 							CertificateKeyAlgorithm.RSA)) {
 						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.RSA);
 					}
-					if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
+					if (config.get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
 						ListUtils.addIfAbsent(keyAlgorithms, CertificateKeyAlgorithm.EC);
 					}
 					config.supportedCertificatekeyAlgorithms = keyAlgorithms;
+				}
+				if (config.get(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, TimeUnit.SECONDS) > 0) {
+					if (config.get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
+						throw new IllegalStateException("application authorization enabled, is not supported for client role!");
+					}
+					if (config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) == CertificateAuthenticationMode.NEEDED) {
+						throw new IllegalStateException("application authorization enabled, but client certificate needed!");
+					}
 				}
 			} else {
 				if (!config.supportedSignatureAlgorithms.isEmpty()) {
@@ -1554,6 +1562,9 @@ public final class DtlsConnectorConfig {
 				}
 				if (config.certificateVerifier != null) {
 					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
+				}
+				if (config.get(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, TimeUnit.SECONDS) > 0) {
+					throw new IllegalStateException("application authorization enabled, but no certificate based cipher suite!");
 				}
 			}
 			if (ecc) {
@@ -1716,7 +1727,7 @@ public final class DtlsConnectorConfig {
 			if (config.certificateIdentityProvider != null || config.certificateVerifier != null) {
 				// certificate based cipher suites.
 				List<CertificateKeyAlgorithm> keyAlgorithms = new ArrayList<>();
-				if (config.getConfiguration().get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
+				if (config.get(DtlsConfig.DTLS_ROLE) == DtlsRole.CLIENT_ONLY) {
 					if (config.supportedCertificatekeyAlgorithms.isEmpty()) {
 						// clients may operate anonymous. therefore ensure,
 						// EC is added in order to comply to RFC7252
