@@ -64,6 +64,8 @@ The `DTLSConnector` uses Connection ID to identify DLTS context now also for out
 
 The `DefaultCipherSuiteSelector` supports now `CertificateAuthenticationMode.WANTED` even if no common client certificate type is available. It omits the `CertificateRequest` in this case.
 
+The `InMemoryConnectionStore` removes now `Connection`s without `Principals` when the ip-address is reused. It supports also a new configuration parameter `DTLS.APPLICATION_AUTHORIZATION`, which removes such connections also after short timeout (120s), if the application doesn't authorize them using the `ApplicationAuthorizer`.
+
 ### Element-Connector-TCP-Netty:
 
 ### Californium-Core:
