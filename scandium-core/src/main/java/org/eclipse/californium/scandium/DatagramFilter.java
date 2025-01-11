@@ -76,4 +76,12 @@ public interface DatagramFilter {
 	 */
 	void onDrop(Record record);
 
+	/**
+	 * Called, when the application rejected to authorize an anonymous client.
+	 * 
+	 * @param connection rejected connection
+	 * @since 4.0
+	 */
+	void onApplicationAuthorizationRejected(Connection connection);
+
 }

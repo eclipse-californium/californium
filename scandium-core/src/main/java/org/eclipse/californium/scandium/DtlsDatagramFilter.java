@@ -201,4 +201,9 @@ public class DtlsDatagramFilter implements DatagramFilter {
 	public void onDrop(Record record) {
 		// empty by intention
 	}
+
+	@Override
+	public void onApplicationAuthorizationRejected(Connection connection) {
+		// empty by intention
+	}
 }

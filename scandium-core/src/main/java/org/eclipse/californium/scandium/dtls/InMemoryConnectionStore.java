@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
+import org.eclipse.californium.elements.auth.ApplicationPrincipal;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -292,9 +293,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 					}
 					addToAddressConnections(connection);
 					if (session != null) {
-						if (session.getPeerIdentity() != null) {
-							addToPrincipalsConnections(session.getPeerIdentity(), connection, false);
-						}
+						addToPrincipalsConnections(session.getPeerIdentity(), connection, false);
 						addToEstablishedConnections(session.getSessionIdentifier(), connection);
 					}
 					success = true;
@@ -369,12 +368,8 @@ public class InMemoryConnectionStore implements ConnectionStore {
 		if (principal != null || hasSessionId) {
 			connections.writeLock().lock();
 			try {
-				if (principal != null) {
-					addToPrincipalsConnections(principal, connection, false);
-				}
-				if (hasSessionId) {
-					addToEstablishedConnections(sessionId, connection);
-				}
+				addToPrincipalsConnections(principal, connection, false);
+				addToEstablishedConnections(sessionId, connection);
 			} finally {
 				connections.writeLock().unlock();
 			}
@@ -500,19 +495,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 				}
 				if (connection.isDouble()) {
 					if (connections.isStale(connection.getConnectionId())) {
-						Runnable removeConnection = new Runnable() {
-
-							@Override
-							public void run() {
-								LOGGER.trace("{}Remove connection from stale principals", tag);
-								remove(connection, false);
-							}
-						};
-						if (connection.isExecuting()) {
-							connection.getExecutor().execute(removeConnection);
-						} else {
-							remove(connection, false);
-						}
+						connection.execute(()-> remove(connection, false));
 						++count;
 					} else if (!full) {
 						break;
@@ -675,7 +658,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	}
 
 	private boolean addToEstablishedConnections(SessionId sessionId, Connection connection) {
-		if (connectionsByEstablishedSession != null) {
+		if (connectionsByEstablishedSession != null && !sessionId.isEmpty()) {
 			final Connection previous = connectionsByEstablishedSession.put(sessionId, connection);
 			if (previous != null && previous != connection) {
 				removePreviousConnection("session", previous);
@@ -686,7 +669,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	}
 
 	private boolean addToPrincipalsConnections(Principal principal, Connection connection, boolean removePrevious) {
-		if (connectionsByPrincipal != null) {
+		if (connectionsByPrincipal != null && principal != null && !ApplicationPrincipal.ANONYMOUS.equals(principal)) {
 			final Connection previous = connectionsByPrincipal.put(principal, connection);
 			if (previous != null && previous != connection) {
 				if (removePrevious) {
