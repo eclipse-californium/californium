@@ -457,7 +457,7 @@ public class DTLSConnectorHandshakeTest {
 		}
 		if (incompleteConfig.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NONE) {
 			if (incompleteConfig.getCertificateVerifier() == null) {
-				serverVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier.builder()
+				serverVerifier = AsyncCertificateVerifier.builder()
 						.setTrustAllCertificates().setTrustAllRPKs().build();
 				serverBuilder.setCertificateVerifier(serverVerifier);
 				serverVerifier.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
@@ -480,7 +480,7 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	private DTLSSession startClientRpk(String hostname) throws Exception {
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllRPKs().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 		clientBuilder.setCertificateVerifier(clientCertificateVerifier);
@@ -489,7 +489,7 @@ public class DTLSConnectorHandshakeTest {
 
 	private DTLSSession startClientX509(String hostname) throws Exception {
 		if (clientBuilder.getIncompleteConfig().getCertificateVerifier() == null) {
-			AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+			AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 					.builder().setTrustAllCertificates().build();
 			clientsCertificateVerifiers.add(clientCertificateVerifier);
 			clientBuilder.setCertificateVerifier(clientCertificateVerifier);
@@ -786,7 +786,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 		clientBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true)
@@ -820,7 +820,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, true);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 		clientBuilder.setCertificateVerifier(clientCertificateVerifier)
@@ -1119,7 +1119,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.setAsList(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS, CertificateKeyAlgorithm.EC);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -1154,7 +1154,7 @@ public class DTLSConnectorHandshakeTest {
 				.setCertificateIdentityProvider(new SingleCertificateProvider(DtlsTestTools.getPrivateKey(),
 						DtlsTestTools.getServerCertificateChain()));
 		startServer();
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustedCertificates(DtlsTestTools.getServerCertificateChain()[0]).build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 		clientBuilder.setCertificateVerifier(clientCertificateVerifier);
@@ -1755,7 +1755,7 @@ public class DTLSConnectorHandshakeTest {
 				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllRPKs().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -1797,7 +1797,7 @@ public class DTLSConnectorHandshakeTest {
 				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllRPKs().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -1839,7 +1839,7 @@ public class DTLSConnectorHandshakeTest {
 				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllRPKs().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -1875,7 +1875,7 @@ public class DTLSConnectorHandshakeTest {
 				.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllRPKs().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -1908,7 +1908,7 @@ public class DTLSConnectorHandshakeTest {
 				new KeyManagerCertificateProvider(DtlsTestTools.getDtlsServerKeyManager(), CertificateType.X_509));
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -1946,7 +1946,7 @@ public class DTLSConnectorHandshakeTest {
 								CertificateType.X_509));
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -1972,7 +1972,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testX509HandshakeSignatureAlgorithmsExtensionSha256Ecdsa() throws Exception {
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -1995,7 +1995,7 @@ public class DTLSConnectorHandshakeTest {
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2020,7 +2020,7 @@ public class DTLSConnectorHandshakeTest {
 					SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2054,7 +2054,7 @@ public class DTLSConnectorHandshakeTest {
 		clientAlertCatcher.resetEvent();
 		client.destroy();
 
-		clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier.builder()
+		clientCertificateVerifier = AsyncCertificateVerifier.builder()
 				.setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2079,7 +2079,7 @@ public class DTLSConnectorHandshakeTest {
 				SignatureAndHashAlgorithm.SHA256_WITH_ECDSA);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2115,7 +2115,7 @@ public class DTLSConnectorHandshakeTest {
 		logging.setLoggingLevel("ERROR", SingleCertificateProvider.class);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2147,7 +2147,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testX509HandshakeFailingExpiredClientCertificate() throws Exception {
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2180,7 +2180,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testX509HandshakeFailingMissingClientCertificate() throws Exception {
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2212,7 +2212,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2246,7 +2246,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllCertificates().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2317,7 +2317,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllRPKs().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 
@@ -2344,7 +2344,7 @@ public class DTLSConnectorHandshakeTest {
 		serverBuilder.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
 		startServer();
 
-		AsyncCertificateVerifier clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier
+		AsyncCertificateVerifier clientCertificateVerifier = AsyncCertificateVerifier
 				.builder().setTrustAllRPKs().build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 

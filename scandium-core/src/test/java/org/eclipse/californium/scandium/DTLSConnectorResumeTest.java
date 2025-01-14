@@ -435,7 +435,7 @@ public class DTLSConnectorResumeTest {
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME_ALT);
 		serverPskStore = new AsyncPskStore(pskStore);
-		serverCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier.builder()
+		serverCertificateVerifier = AsyncCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
 		serverResumptionVerifier = new AsyncResumptionVerifier();
 
@@ -466,7 +466,7 @@ public class DTLSConnectorResumeTest {
 		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY,
 				SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
 		clientPskStore = new AsyncPskStore(clientInMemoryPskStore);
-		clientCertificateVerifier = (AsyncCertificateVerifier) AsyncCertificateVerifier.builder()
+		clientCertificateVerifier = AsyncCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
 		clientCertificateProvider = new AsyncCertificateProvider(clientPrivateKey, clientCertificateChain,
 				CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
