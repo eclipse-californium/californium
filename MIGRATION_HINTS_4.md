@@ -60,6 +60,8 @@ In some cases `SHA384` was misspelled as `SHA378`. That's fixed but causes also 
 
 Supports virtual threads for DTLS receivers, if the JVM supports it. Otherwise platform daemon threads are used. Chosen by `-1` as number of threads in `DTLS.RECEIVER_THREAD_COUNT`.
 
+The `DTLSConnector` uses Connection ID to identify DLTS context now also for outgoing messages, if available.
+
 ### Element-Connector-TCP-Netty:
 
 ### Californium-Core:
@@ -121,6 +123,8 @@ Remove the "Advanced" from PSK-stores. Replace `AdvancedPskStore` by `PskStore`,
 Remove the "NewAdvanced" from CertificateVerifier. Replace `NewAdvancedCertificateVerifier` by `CertificateVerifier`, `StaticNewAdvancedCertificateVerifier` by `StaticCertificateVerifier` and `AsyncNewAdvancedCertificateVerifier` by `AsyncCertificateVerifier`.
 
 Rename `Connection.refreshAutoResumptionTime` into `updateLastMessageNanos`.
+
+`DTLSConnector.cleanupRecentHandshakes` returns `int` instead of `void`.
 
 ### Californium-Core:
 
