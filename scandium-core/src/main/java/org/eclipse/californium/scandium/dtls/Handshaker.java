@@ -98,7 +98,6 @@ import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
-import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -852,7 +851,6 @@ public abstract class Handshaker implements Destroyable {
 				++bufferIndex;
 			}
 			if (epoch < context.getReadEpoch()) {
-				final SerialExecutor serialExecutor = connection.getExecutor();
 				final List<Record> records = takeDeferredRecordsOfNextEpoch();
 				if (deferredIncomingRecordsSize > 0) {
 					throw new HandshakeException(
@@ -860,16 +858,10 @@ public abstract class Handshaker implements Destroyable {
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 				}
 				for (Record deferredRecord : records) {
-					if (serialExecutor != null && !serialExecutor.isShutdown()) {
+					if (connection.isExecuting()) {
 						try {
 							final Record dRecord = deferredRecord;
-							serialExecutor.execute(new Runnable() {
-
-								@Override
-								public void run() {
-									recordLayer.processRecord(dRecord, connection);
-								}
-							});
+							connection.execute(() -> recordLayer.processRecord(dRecord, connection), false);
 							continue;
 						} catch (RejectedExecutionException ex) {
 							LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
@@ -1914,7 +1906,13 @@ public abstract class Handshaker implements Destroyable {
 	 * @see #sendFlight(DTLSFlight)
 	 */
 	public void sendLastFlight(DTLSFlight flight) {
-		timeoutLastFlight = timer.schedule(new TimeoutCompletedTask(), nanosExpireTimeout, TimeUnit.NANOSECONDS);
+		Runnable task = connection.createTask(() -> {
+			if (recordLayer.isRunning()) {
+				handshakeCompleted();
+			}
+		}, false);
+
+		timeoutLastFlight = timer.schedule(task, nanosExpireTimeout, TimeUnit.NANOSECONDS);
 		flight.setRetransmissionNeeded(false);
 		sendFlight(flight);
 	}
@@ -1925,7 +1923,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @param flight flight to send
 	 * @see #sendFlight(DTLSFlight)
 	 */
-	public void sendFlight(DTLSFlight flight) {
+	public void sendFlight(final DTLSFlight flight) {
 		completePendingFlight();
 		try {
 			int timeout = retransmissionTimeout;
@@ -1951,7 +1949,7 @@ public abstract class Handshaker implements Destroyable {
 			recordLayer.sendFlight(datagrams);
 			pendingFlight.set(flight);
 			if (flight.isRetransmissionNeeded()) {
-				retransmitFlight = new TimeoutPeerTask(flight);
+				retransmitFlight = connection.createTask(() -> handleTimeout(flight), true);
 				flight.scheduleRetransmission(timer, retransmitFlight);
 			}
 			int effectiveMessageSize = flight.getEffectiveMaxMessageSize();
@@ -2083,79 +2081,6 @@ public abstract class Handshaker implements Destroyable {
 							"Handshake flight " + flight.getFlightNumber() + " failed!" + message, cause));
 				}
 			}
-		}
-	}
-
-	/**
-	 * Peer related task for executing in serial executor.
-	 * 
-	 * @since 2.4
-	 */
-	private class ConnectionTask implements Runnable {
-		/**
-		 * Task to execute in serial executor.
-		 */
-		private final Runnable task;
-		/**
-		 * Flag to force execution, if serial execution is exhausted or
-		 * shutdown. The task is then executed in the context of this
-		 * {@link Runnable}.
-		 */
-		private final boolean force;
-		/**
-		 * Create peer task.
-		 * 
-		 * @param task task to be execute in serial executor
-		 * @param force flag indicating, that the task should be executed, even
-		 *            if the serial executors are exhausted or shutdown.
-		 */
-		private ConnectionTask(Runnable task, boolean force) {
-			this.task = task;
-			this.force = force;
-		}
-
-		@Override
-		public void run() {
-			final SerialExecutor serialExecutor = connection.getExecutor();
-			try {
-				serialExecutor.execute(task);
-			} catch (RejectedExecutionException e) {
-				LOGGER.debug("Execution rejected while execute task of peer: {}", connection.getPeerAddress(), e);
-				if (force) {
-					task.run();
-				}
-			}
-		}
-	}
-
-	/**
-	 * Peer task calling the {@link #handleTimeout(DTLSFlight)}.
-	 * 
-	 * @since 2.4
-	 */
-	private class TimeoutPeerTask extends ConnectionTask {
-
-		private TimeoutPeerTask(final DTLSFlight flight) {
-			super(new Runnable() {
-				@Override
-				public void run() {
-					handleTimeout(flight);
-				}
-			}, true);
-		}
-	}
-
-	private class TimeoutCompletedTask extends ConnectionTask {
-
-		private TimeoutCompletedTask() {
-			super(new Runnable() {
-				@Override
-				public void run() {
-					if (recordLayer.isRunning()) {
-						handshakeCompleted();
-					}
-				}
-			}, false);
 		}
 	}
 
