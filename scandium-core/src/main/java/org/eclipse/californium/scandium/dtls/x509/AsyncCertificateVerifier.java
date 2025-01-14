@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls.x509;
 import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,16 +38,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Simple asynchronous test implementation of
- * {@link CertificateVerifier}.
+ * Simple asynchronous test implementation of {@link CertificateVerifier}.
  * <p>
  * Use {@code 0} or negative delays for test with synchronous blocking
  * behaviour. And positive delays for test with asynchronous none-blocking
  * behaviour.
  * 
- * @since 4.0 (Renamed AsyncNewAdvancedCertificateVerifier into AsyncCertificateVerifier)
+ * @since 4.0 (Renamed AsyncNewAdvancedCertificateVerifier into
+ *        AsyncCertificateVerifier)
  */
 public class AsyncCertificateVerifier extends StaticCertificateVerifier {
+
 	/**
 	 * @since 3.10
 	 */
@@ -55,7 +57,8 @@ public class AsyncCertificateVerifier extends StaticCertificateVerifier {
 	/**
 	 * Thread factory.
 	 */
-	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncCertVerifier#", NamedThreadFactory.SCANDIUM_THREAD_GROUP);
+	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncCertVerifier#",
+			NamedThreadFactory.SCANDIUM_THREAD_GROUP);
 	/**
 	 * Executor for asynchronous behaviour.
 	 */
@@ -73,8 +76,8 @@ public class AsyncCertificateVerifier extends StaticCertificateVerifier {
 	 */
 	private HandshakeResultHandler resultHandler;
 
-	public AsyncCertificateVerifier(X509Certificate[] trustedCertificates,
-			RawPublicKeyIdentity[] trustedRPKs, List<CertificateType> supportedCertificateTypes) {
+	public AsyncCertificateVerifier(X509Certificate[] trustedCertificates, RawPublicKeyIdentity[] trustedRPKs,
+			List<CertificateType> supportedCertificateTypes) {
 		super(trustedCertificates, trustedRPKs, supportedCertificateTypes);
 		executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
 	}
@@ -144,8 +147,7 @@ public class AsyncCertificateVerifier extends StaticCertificateVerifier {
 	}
 
 	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, InetSocketAddress remotePeer,
-			boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath,
-			CertificateMessage message) {
+			boolean clientUsage, boolean verifySubject, boolean truncateCertificatePath, CertificateMessage message) {
 		CertificateVerificationResult result = super.verifyCertificate(cid, serverName, remotePeer, clientUsage,
 				verifySubject, truncateCertificatePath, message);
 		CertPath certPath = result.getCertificatePath();
@@ -174,6 +176,43 @@ public class AsyncCertificateVerifier extends StaticCertificateVerifier {
 
 	public static class Builder extends StaticCertificateVerifier.Builder {
 
+		@Override
+		public Builder setTrustedCertificates(Certificate... trustedCertificates) {
+			super.setTrustedCertificates(trustedCertificates);
+			return this;
+		}
+
+		@Override
+		public Builder setTrustAllCertificates() {
+			super.setTrustAllCertificates();
+			return this;
+		}
+
+		@Override
+		public Builder setTrustedRPKs(RawPublicKeyIdentity... trustedRPKs) {
+			super.setTrustedRPKs(trustedRPKs);
+			return this;
+		}
+
+		@Override
+		public Builder setTrustAllRPKs() {
+			super.setTrustAllRPKs();
+			return this;
+		}
+
+		@Override
+		public Builder setSupportedCertificateTypes(List<CertificateType> supportedCertificateTypes) {
+			super.setSupportedCertificateTypes(supportedCertificateTypes);
+			return this;
+		}
+
+		@Override
+		public Builder setUseEmptyAcceptedIssuers(boolean useEmptyAcceptedIssuers) {
+			super.setUseEmptyAcceptedIssuers(useEmptyAcceptedIssuers);
+			return this;
+		}
+
+		@Override
 		public AsyncCertificateVerifier build() {
 			return new AsyncCertificateVerifier(trustedCertificates, trustedRPKs, supportedCertificateTypes);
 		}

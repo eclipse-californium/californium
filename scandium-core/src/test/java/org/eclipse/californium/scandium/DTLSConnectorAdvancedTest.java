@@ -389,7 +389,7 @@ public class DTLSConnectorAdvancedTest {
 		verifyHandshakeResponses = 1;
 		resumeHandshakeResponses = 1;
 
-		clientCertificateVerifier = (AsyncCertificateVerifier)AsyncCertificateVerifier.builder()
+		clientCertificateVerifier = AsyncCertificateVerifier.builder()
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
 				.setTrustAllRPKs()
 				.build();
