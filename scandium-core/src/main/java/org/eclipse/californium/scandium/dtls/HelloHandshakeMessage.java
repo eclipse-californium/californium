@@ -43,12 +43,11 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	/** A generated random structure. */
 	protected final Random random;
 
-	/** The ID of a session the client wishes to use for this connection. */
+	/** The ID of a session of this connection. */
 	protected final SessionId sessionId;
 
 	/**
-	 * Clients MAY request extended functionality from servers by sending data
-	 * in the extensions field.
+	 * Client and server extensions.
 	 */
 	protected final HelloExtensions extensions = new HelloExtensions();
 
@@ -101,38 +100,41 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString(indent));
 		String indentation = StringUtil.indentation(indent + 1);
-		sb.append(indentation).append("Version: ").append(protocolVersion.getMajor()).append(", ").append(protocolVersion.getMinor()).append(StringUtil.lineSeparator());
+		sb.append(indentation).append("Version: ").append(protocolVersion.getMajor()).append(", ")
+				.append(protocolVersion.getMinor()).append(StringUtil.lineSeparator());
 		sb.append(indentation).append("Random:").append(StringUtil.lineSeparator());
 		sb.append(random.toString(indent + 2));
-		sb.append(indentation).append("Session ID Length: ").append(sessionId.length()).append(" bytes").append(StringUtil.lineSeparator());
-		if (sessionId.length() > 0) {
+		int len = sessionId.length();
+		sb.append(indentation).append("Session ID Length: ").append(len).append(" bytes")
+				.append(StringUtil.lineSeparator());
+		if (len > 0) {
 			sb.append(indentation).append("Session ID: ").append(sessionId).append(StringUtil.lineSeparator());
 		}
 		return sb.toString();
 	}
 
 	/**
-	 * Get protocol version.
+	 * Gets the protocol version.
 	 * 
-	 * @return protocol version.
+	 * @return the protocol version.
 	 */
 	public ProtocolVersion getProtocolVersion() {
 		return protocolVersion;
 	}
 
 	/**
-	 * Get client random
+	 * Gets the client random
 	 * 
-	 * @return client random
+	 * @return the client random
 	 */
 	public Random getRandom() {
 		return random;
 	}
 
 	/**
-	 * Get session id.
+	 * Gets the session id.
 	 * 
-	 * @return session id. May be empty.
+	 * @return the session id. May be empty.
 	 * @see #hasSessionId()
 	 */
 	public SessionId getSessionId() {
@@ -150,18 +152,18 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	}
 
 	/**
-	 * Add hello extension.
+	 * Adds hello extension.
 	 * 
-	 * @param extension hello extension to add
+	 * @param extension the hello extension to add
 	 */
 	void addExtension(HelloExtension extension) {
 		extensions.addExtension(extension);
 	}
 
 	/**
-	 * Gets the client hello extensions the client has included in this message.
+	 * Gets the hello extensions the peer has included in this message.
 	 * 
-	 * @return The extensions. May be empty, if no extensions are used.
+	 * @return the extensions. May be empty, if no extensions are used.
 	 */
 	public HelloExtensions getExtensions() {
 		return extensions;
@@ -170,7 +172,7 @@ public abstract class HelloHandshakeMessage extends HandshakeMessage {
 	/**
 	 * Gets the supported point formats.
 	 * 
-	 * @return the client's supported point formats extension if available,
+	 * @return the supported point formats extension if available,
 	 *         otherwise {@code null}.
 	 */
 	public SupportedPointFormatsExtension getSupportedPointFormatsExtension() {
