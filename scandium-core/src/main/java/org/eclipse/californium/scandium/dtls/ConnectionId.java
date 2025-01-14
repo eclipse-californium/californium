@@ -28,7 +28,7 @@ public class ConnectionId extends Bytes {
 	public static final ConnectionId EMPTY = new ConnectionId(Bytes.EMPTY);
 
 	/**
-	 * Create connection id from bytes.
+	 * Creates connection id from bytes.
 	 * 
 	 * @param connectionId connectionId bytes
 	 * @throws NullPointerException if connectionId is {@code null}
@@ -73,8 +73,8 @@ public class ConnectionId extends Bytes {
 	}
 
 	/**
-	 * Check, if provided cid is used for records.
-	 * 
+	 * Checks, if provided cid is used for records.
+	 * <p>
 	 * Only none {@link ConnectionId#isEmpty()} cids are used for records.
 	 * 
 	 * @param cid cid
@@ -84,5 +84,24 @@ public class ConnectionId extends Bytes {
 	 */
 	public static boolean useConnectionId(ConnectionId cid) {
 		return cid != null && !cid.isEmpty();
+	}
+
+	/**
+	 * Creates connection id from bytes.
+	 * 
+	 * @param bytes bytes to create connection id
+	 * @return create connection id or the provided bytes, if that is already of
+	 *         type {@link ConnectionId}.
+	 * @since 4.0
+	 */
+	public static ConnectionId create(Bytes bytes) {
+		if (bytes == null || bytes.isEmpty()) {
+			return null;
+		}
+		if (bytes instanceof ConnectionId) {
+			return (ConnectionId) bytes;
+		} else {
+			return new ConnectionId(bytes.getBytes());
+		}
 	}
 }
