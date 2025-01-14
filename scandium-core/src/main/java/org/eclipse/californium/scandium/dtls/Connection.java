@@ -61,6 +61,7 @@ import org.eclipse.californium.elements.util.SerialExecutor.ExecutionListener;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.CookieGenerator;
 import org.eclipse.californium.scandium.DatagramFilter;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -68,7 +69,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Information about the DTLS connection to a peer.
- * 
+ * <p>
  * Contains status information regarding
  * <ul>
  * <li>a potentially ongoing handshake with the peer</li>
@@ -87,10 +88,12 @@ public final class Connection {
 
 	/**
 	 * Identifier of the Client Hello used to start the handshake.
-	 * 
-	 * Maybe {@code null}, for client side connections.
-	 * 
-	 * Note: used outside of the serial-execution!
+	 * <p>
+	 * Only used on server side during a period (twice the
+	 * {@link CookieGenerator#COOKIE_LIFETIME_NANOS}) after successful
+	 * handshakes. Prevents from processing retransmitted Client Hellos.
+	 * <p>
+	 * <b>Note:</b> used outside of the serial-execution!
 	 * 
 	 * @since 3.0
 	 */
@@ -103,7 +106,7 @@ public final class Connection {
 
 	/**
 	 * Mark connection to require an abbreviated handshake.
-	 * 
+	 * <p>
 	 * Used to know when an abbreviated handshake should be initiated.
 	 */
 	private volatile boolean resumptionRequired;
@@ -124,6 +127,11 @@ public final class Connection {
 	private volatile SerialExecutor serialExecutor;
 	private InetSocketAddress peerAddress;
 	private InetSocketAddress router;
+	/**
+	 * Connection ID.
+	 * <p>
+	 * Local identifying connection ID (read connection ID).
+	 */
 	private ConnectionId cid;
 	/**
 	 * Data of this connection specific for the used {@link DatagramFilter}.
@@ -134,7 +142,7 @@ public final class Connection {
 
 	/**
 	 * Root cause of alert.
-	 * 
+	 * <p>
 	 * For some case, the root cause may be hidden and replaced by a general
 	 * cause when sending an alert message. This keeps the root cause for
 	 * internal analysis.
@@ -163,7 +171,7 @@ public final class Connection {
 
 	/**
 	 * Update connection state.
-	 * 
+	 * <p>
 	 * Calls {@link ConnectionListener#updateExecution(Connection)}.
 	 * 
 	 * @since 2.4
@@ -231,8 +239,25 @@ public final class Connection {
 	}
 
 	/**
-	 * Shutdown executor and run all pending jobs.
+	 * Execute a connection job.
+	 * <p>
+	 * If the serial execution is available, use that to run the job. Otherwise
+	 * run it directly.
 	 * 
+	 * @param job the job to execute
+	 * @since 4.0
+	 */
+	public void execute(Runnable job) {
+		if (isExecuting()) {
+			serialExecutor.executeForced(job);
+		} else {
+			job.run();
+		}
+	}
+
+	/**
+	 * Shutdown executor and run all pending jobs.
+	 * <p>
 	 * The jobs are intended to check {@link #isExecuting()} in order to detect
 	 * the shutdown.
 	 * 
@@ -284,18 +309,18 @@ public final class Connection {
 	}
 
 	/**
-	 * Gets the connection id.
+	 * Gets the local identifying connection ID.
 	 * 
-	 * @return the cid
+	 * @return the local identifying connection ID.
 	 */
 	public ConnectionId getConnectionId() {
 		return cid;
 	}
 
 	/**
-	 * Sets the connection id.
+	 * Sets the local identifying connection ID.
 	 * 
-	 * @param cid the connection id
+	 * @param cid the local identifying connection ID
 	 */
 	public void setConnectionId(ConnectionId cid) {
 		this.cid = cid;
@@ -304,7 +329,7 @@ public final class Connection {
 
 	/**
 	 * Set filter data.
-	 * 
+	 * <p>
 	 * Intended to be used by {@link DatagramFilter} implementations. The filter
 	 * data is not persisted and considered to be short living.
 	 * 
@@ -317,7 +342,7 @@ public final class Connection {
 
 	/**
 	 * Get filter data.
-	 * 
+	 * <p>
 	 * Intended to be used by {@link DatagramFilter} implementations. The filter
 	 * data is not persisted and considered to be short living.
 	 * 
@@ -350,15 +375,14 @@ public final class Connection {
 
 	/**
 	 * Update the address of this connection's peer.
-	 * 
+	 * <p>
 	 * If the new address is {@code null}, an ongoing handshake is failed. A
 	 * non-null address could only be applied, if the dtls context is
 	 * established.
-	 * 
-	 * Note: to keep track of the associated address in the connection store,
-	 * this method must not be called directly. It must be called by calling
-	 * {@link ConnectionStore#update(Connection, InetSocketAddress)}
-	 * or
+	 * <p>
+	 * <b>Note:</b> to keep track of the associated address in the connection
+	 * store, this method must not be called directly. It must be called by
+	 * calling {@link ConnectionStore#update(Connection, InetSocketAddress)} or
 	 * {@link ConnectionStore#remove(Connection, boolean)}.
 	 * 
 	 * @param peerAddress the address of the peer
@@ -378,7 +402,8 @@ public final class Connection {
 				if (pendingHandshaker != null) {
 					if (establishedDtlsContext == null
 							|| pendingHandshaker.getDtlsContext() != establishedDtlsContext) {
-						// this will only call the listener, if no other cause was set before!
+						// this will only call the listener, if no other cause
+						// was set before!
 						pendingHandshaker.handshakeFailed(new IOException(
 								StringUtil.toDisplayString(previous) + " address reused during handshake!"));
 					}
@@ -454,7 +479,6 @@ public final class Connection {
 	 * @param attributes initial attributes
 	 * @param recordsPeer peer address of record. Only used, if connection has
 	 *            no {@link #peerAddress}.
-	 * 
 	 * @return endpoint context for reading messages.
 	 * @since 3.0
 	 */
@@ -475,7 +499,7 @@ public final class Connection {
 
 	/**
 	 * Gets the session containing the connection's <em>current</em> state.
-	 * 
+	 * <p>
 	 * This is the session of the {@link #establishedDtlsContext}, if not
 	 * {@code null}, or the session negotiated in the {@link #ongoingHandshake}.
 	 * 
@@ -613,25 +637,21 @@ public final class Connection {
 	/**
 	 * Get system nanos of starting client hello.
 	 * 
-	 * @return system nanos, or {@code null}, if prevention is expired or not
-	 *         used.
+	 * @return system nanos, or {@code null}, if replay prevention is expired or
+	 *         not used.
 	 * @since 3.0
 	 */
 	public Long getStartNanos() {
 		ClientHelloIdentifier start = this.startingHelloClient;
-		if (start != null) {
-			return start.nanos;
-		} else {
-			return null;
-		}
+		return start == null ? null : start.nanos;
 	}
 
 	/**
 	 * Checks whether this connection is started for the provided CLIENT_HELLO.
-	 * 
+	 * <p>
 	 * Use the random and message sequence number contained in the CLIENT_HELLO.
-	 * 
-	 * Note: called outside of serial-execution and so requires external
+	 * <p>
+	 * <b>Note:</b> called outside of serial-execution and so requires external
 	 * synchronization!
 	 * 
 	 * @param clientHello the message to check.
@@ -653,29 +673,27 @@ public final class Connection {
 
 	/**
 	 * Set starting CLIENT_HELLO.
-	 * 
+	 * <p>
 	 * Use the random and handshake message sequence number contained in the
-	 * CLIENT_HELLO. Removed, if when the handshake fails or with configurable
-	 * timeout after handshake completion.
-	 * 
-	 * Note: called outside of serial-execution and so requires external
+	 * CLIENT_HELLO to prevent processing retransmission. Removed, when the
+	 * handshake fails or when the handshake completes, after a timeout of twice
+	 * the {@link CookieGenerator#COOKIE_LIFETIME_NANOS}.
+	 * <p>
+	 * <b>Note:</b> called outside of serial-execution and so requires external
 	 * synchronization!
 	 * 
-	 * @param clientHello message which starts the connection.
+	 * @param clientHello message which starts the connection. {@code null}, to
+	 *            remove this info after a timeout.
 	 * @see #isStartedByClientHello(ClientHello)
 	 */
 	public void startByClientHello(ClientHello clientHello) {
-		if (clientHello == null) {
-			startingHelloClient = null;
-		} else {
-			startingHelloClient = new ClientHelloIdentifier(clientHello);
-		}
+		startingHelloClient = ClientHelloIdentifier.create(clientHello);
 	}
 
 	/**
 	 * Gets the DTLS context containing the connection's <em>current</em> state
 	 * for the provided epoch.
-	 * 
+	 * <p>
 	 * This is the {@link #establishedDtlsContext}, if not {@code null} and the
 	 * read epoch is matching. Or the DTLS context negotiated in the
 	 * {@link #ongoingHandshake}, if not {@code null} and the read epoch is
@@ -705,7 +723,7 @@ public final class Connection {
 
 	/**
 	 * Gets the DTLS context containing the connection's <em>current</em> state.
-	 * 
+	 * <p>
 	 * This is the {@link #establishedDtlsContext}, if not {@code null}, or the
 	 * DTLS context negotiated in the {@link #ongoingHandshake}.
 	 * 
@@ -726,7 +744,7 @@ public final class Connection {
 
 	/**
 	 * Reset DTLS context.
-	 * 
+	 * <p>
 	 * Prepare connection for new handshake. Reset established DTLS context or
 	 * resume session and remove resumption mark.
 	 * 
@@ -758,7 +776,7 @@ public final class Connection {
 
 	/**
 	 * Close connection with record.
-	 * 
+	 * <p>
 	 * Mark session as closed. Received records with sequence numbers before
 	 * will still be processed, others are dropped. No message will be send
 	 * after this.
@@ -792,7 +810,7 @@ public final class Connection {
 
 	/**
 	 * Gets the root cause alert.
-	 * 
+	 * <p>
 	 * For some case, the root cause may be hidden and replaced by a general
 	 * cause when sending an alert message. This keeps the root cause for
 	 * internal analysis.
@@ -806,7 +824,7 @@ public final class Connection {
 
 	/**
 	 * Sets root cause alert.
-	 * 
+	 * <p>
 	 * For some case, the root cause may be hidden and replaced by a general
 	 * cause when sending an alert message. This keeps the root cause for
 	 * internal analysis.
@@ -857,7 +875,7 @@ public final class Connection {
 
 	/**
 	 * Refresh auto resumption timeout.
-	 * 
+	 * <p>
 	 * Uses {@link ClockUtil#nanoRealtime()}.
 	 * 
 	 * @see #lastMessageNanos
@@ -970,7 +988,7 @@ public final class Connection {
 
 	/**
 	 * Identifier of starting client hello.
-	 * 
+	 * <p>
 	 * Keeps random and handshake message sequence number to prevent from
 	 * accidentally starting a handshake again.
 	 * 
@@ -1012,6 +1030,10 @@ public final class Connection {
 			writer.write(clientHelloMessageSeq, Short.SIZE);
 			writer.writeVarBytes(clientHelloRandom, Byte.SIZE);
 			writer.writeLong(nanos, Long.SIZE);
+		}
+
+		private static ClientHelloIdentifier create(ClientHello clientHello) {
+			return clientHello == null ? null : new ClientHelloIdentifier(clientHello);
 		}
 	}
 
@@ -1078,9 +1100,9 @@ public final class Connection {
 
 	/**
 	 * Write connection state.
-	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * required to protect this data before exporting it.
+	 * <p>
+	 * <b>Note:</b> the stream will contain not encrypted critical credentials.
+	 * It is required to protect this data before exporting it.
 	 * 
 	 * @param writer writer for connection state
 	 * @return {@code true}, if connection is written, {@code false}, if not.
