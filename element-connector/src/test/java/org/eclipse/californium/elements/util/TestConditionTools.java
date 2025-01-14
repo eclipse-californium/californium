@@ -17,6 +17,7 @@
 
 package org.eclipse.californium.elements.util;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.concurrent.TimeUnit;
@@ -36,7 +37,7 @@ public final class TestConditionTools {
 
 	/**
 	 * Wait for condition to come {@code true}.
-	 * 
+	 * <p>
 	 * Used for none notifying conditions, which must be polled.
 	 * 
 	 * @param timeout timeout in {@code unit}
@@ -75,6 +76,24 @@ public final class TestConditionTools {
 	}
 
 	/**
+	 * Assert condition to come {@code true}.
+	 * <p>
+	 * Used for none notifying conditions, which must be polled.
+	 * 
+	 * @param timeout timeout in {@code unit}
+	 * @param interval interval of condition check in {@code unit}
+	 * @param unit time units for {@code timeout} and {@code interval}
+	 * @param check callback for condition test
+	 * @throws InterruptedException if the Thread is interrupted.
+	 * @throws AssertionError if assertion has failed
+	 * @since 4.0
+	 */
+	public static void assertCondition(long timeout, long interval, TimeUnit unit, TestCondition check)
+			throws InterruptedException {
+		assertThat(waitForCondition(timeout, interval, unit, check), is(true));
+	}
+
+	/**
 	 * Assert, that a statistic counter reaches the matcher's criterias within
 	 * the provided timeout.
 	 * 
@@ -84,6 +103,7 @@ public final class TestConditionTools {
 	 * @param timeout timeout to match
 	 * @param unit unit of timeout
 	 * @throws InterruptedException if wait is interrupted.
+	 * @throws AssertionError if assertion has failed
 	 * @see TestConditionTools#assertStatisticCounter(CounterStatisticManager,
 	 *      String, Matcher)
 	 */
@@ -113,6 +133,7 @@ public final class TestConditionTools {
 	 * @param timeout timeout to match
 	 * @param unit unit of timeout
 	 * @throws InterruptedException if wait is interrupted.
+	 * @throws AssertionError if assertion has failed
 	 * @see TestConditionTools#assertStatisticCounter(CounterStatisticManager,
 	 *      String, Matcher)
 	 * @since 2.4
@@ -138,6 +159,7 @@ public final class TestConditionTools {
 	 * @param manager statistic manager
 	 * @param name name of statistic.
 	 * @param matcher matcher for statistic counter value
+	 * @throws AssertionError if assertion has failed
 	 */
 	public static void assertStatisticCounter(CounterStatisticManager manager, String name,
 			Matcher<? super Long> matcher) {
@@ -151,6 +173,7 @@ public final class TestConditionTools {
 	 * @param manager statistic manager
 	 * @param name name of statistic.
 	 * @param matcher matcher for statistic counter value
+	 * @throws AssertionError if assertion has failed
 	 * @since 2.4
 	 */
 	public static void assertStatisticCounter(String message, CounterStatisticManager manager, String name,
