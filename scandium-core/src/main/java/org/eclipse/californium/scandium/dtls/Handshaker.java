@@ -863,13 +863,7 @@ public abstract class Handshaker implements Destroyable {
 					if (serialExecutor != null && !serialExecutor.isShutdown()) {
 						try {
 							final Record dRecord = deferredRecord;
-							serialExecutor.execute(new Runnable() {
-
-								@Override
-								public void run() {
-									recordLayer.processRecord(dRecord, connection);
-								}
-							});
+							serialExecutor.execute(() -> recordLayer.processRecord(dRecord, connection));
 							continue;
 						} catch (RejectedExecutionException ex) {
 							LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
