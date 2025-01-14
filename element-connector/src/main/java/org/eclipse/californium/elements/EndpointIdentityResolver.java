@@ -32,6 +32,7 @@ public interface EndpointIdentityResolver {
 	 * 
 	 * @param context endpoint context
 	 * @return endpoint identity object.
+	 * @throws IllegalArgumentException if context doesn't contain an identity
 	 */
 	Object getEndpointIdentity(EndpointContext context);
 
