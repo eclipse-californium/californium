@@ -27,13 +27,6 @@ package org.eclipse.californium.elements;
 public interface EndpointContextMatcher extends EndpointIdentityResolver {
 
 	/**
-	 * Return matcher name. Used for logging.
-	 * 
-	 * @return name of strategy.
-	 */
-	String getName();
-
-	/**
 	 * Check, if responses is related to the request.
 	 * 
 	 * @param requestContext endpoint context of request
