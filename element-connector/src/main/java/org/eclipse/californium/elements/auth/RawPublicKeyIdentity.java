@@ -66,7 +66,8 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	}
 
 	/**
-	 * Creates a new instance for a given ASN.1 subject public key info structure.
+	 * Creates a new instance for a given ASN.1 subject public key info
+	 * structure.
 	 * 
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
 	 * @throws NullPointerException if the subject info is {@code null}
@@ -78,35 +79,40 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	}
 
 	/**
-	 * Creates a new instance for a given ASN.1 subject public key info structure.
+	 * Creates a new instance for a given ASN.1 subject public key info
+	 * structure.
 	 * 
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
 	 * @param keyAlgorithm the algorithm name to verify, that the subject public
 	 *            key uses this key algorithm, or to support currently not
-	 *            supported key algorithms for serialization/deserialization.
-	 *            If {@code null}, the key algorithm provided by the ASN.1
-	 *            DER encoded subject public key is used.
+	 *            supported key algorithms for serialization/deserialization. If
+	 *            {@code null}, the key algorithm provided by the ASN.1 DER
+	 *            encoded subject public key is used.
 	 * @throws NullPointerException if the subject info is {@code null}
-	 * @throws GeneralSecurityException if the JVM does not support the given key algorithm.
+	 * @throws GeneralSecurityException if the JVM does not support the given
+	 *             key algorithm.
 	 */
 	public RawPublicKeyIdentity(byte[] subjectInfo, String keyAlgorithm) throws GeneralSecurityException {
 		this(subjectInfo, keyAlgorithm, null);
 	}
 
 	/**
-	 * Creates a new instance for a given ASN.1 subject public key info structure.
+	 * Creates a new instance for a given ASN.1 subject public key info
+	 * structure.
 	 * 
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
 	 * @param keyAlgorithm the algorithm name to verify, that the subject public
 	 *            key uses this key algorithm, or to support currently not
-	 *            supported key algorithms for serialization/deserialization.
-	 *            If {@code null}, the key algorithm provided by the ASN.1
-	 *            DER encoded subject public key is used.
+	 *            supported key algorithms for serialization/deserialization. If
+	 *            {@code null}, the key algorithm provided by the ASN.1 DER
+	 *            encoded subject public key is used.
 	 * @param additionalInformation Additional information for this principal.
 	 * @throws NullPointerException if the subject info is {@code null}
-	 * @throws GeneralSecurityException if the JVM does not support the given key algorithm.
+	 * @throws GeneralSecurityException if the JVM does not support the given
+	 *             key algorithm.
 	 */
-	private RawPublicKeyIdentity(byte[] subjectInfo, String keyAlgorithm, AdditionalInfo additionalInformation) throws GeneralSecurityException {
+	private RawPublicKeyIdentity(byte[] subjectInfo, String keyAlgorithm, AdditionalInfo additionalInformation)
+			throws GeneralSecurityException {
 		super(additionalInformation);
 		if (subjectInfo == null) {
 			throw new NullPointerException("SubjectPublicKeyInfo must not be null");
@@ -151,22 +157,21 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 		try {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			md.update(subjectPublicKeyInfo);
-			byte[] digest = md.digest();
-			String base64urlDigest = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
-			StringBuilder b = new StringBuilder("ni:///sha-256;").append(base64urlDigest);
-			niUri = b.toString();
+			niUri = "ni:///sha-256;" + Base64.getUrlEncoder().withoutPadding().encodeToString(md.digest());
 		} catch (NoSuchAlgorithmException e) {
-			// should not happen because SHA-256 is a mandatory message digest algorithm for any Java 7 VM
+			// should not happen because SHA-256 is a mandatory message digest
+			// algorithm for any Java 7 VM
 			// no Base64 encoding of InputStream is done
 		}
 	}
 
 	/**
 	 * Gets the <em>Named Information</em> URI representing this raw public key.
-	 * 
+	 * <p>
 	 * The URI is created using the SHA-256 hash algorithm on the key's
 	 * <em>SubjectPublicKeyInfo</em> as described in
-	 * <a href="https://tools.ietf.org/html/rfc6920#section-2" target="_blank">RFC 6920, section 2</a>.
+	 * <a href="https://tools.ietf.org/html/rfc6920#section-2" target=
+	 * "_blank">RFC 6920, section 2</a>.
 	 * 
 	 * @return the named information URI
 	 */
@@ -195,19 +200,20 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 
 	/**
 	 * Gets a string representation of this principal.
-	 * 
+	 * <p>
 	 * Clients should not assume any particular format of the returned string
 	 * since it may change over time.
-	 *  
+	 * 
 	 * @return the string representation
 	 */
 	@Override
 	public String toString() {
-		return new StringBuilder("RawPublicKey Identity [").append(niUri).append("]").toString();
+		return "RawPublicKey Identity [" + niUri + "]";
 	}
 
 	/**
-	 * Creates a hash code based on the key's ASN.1 encoded <em>SubjectPublicKeyInfo</em>.
+	 * Creates a hash code based on the key's ASN.1 encoded
+	 * <em>SubjectPublicKeyInfo</em>.
 	 * 
 	 * @return the hash code
 	 */
@@ -219,8 +225,9 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 	/**
 	 * Checks if this instance is equal to another object.
 	 * 
-	 * @return {@code true}, if the other object is a {@code RawPublicKeyIdentity}
-	 *           and has the same <em>SubjectPublicKeyInfo</em> as this instance
+	 * @return {@code true}, if the other object is a
+	 *         {@code RawPublicKeyIdentity} and has the same
+	 *         <em>SubjectPublicKeyInfo</em> as this instance
 	 */
 	@Override
 	public boolean equals(Object obj) {

@@ -46,11 +46,12 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 	 * Creates a new instance for an identity scoped to a virtual host.
 	 * 
 	 * @param virtualHost The virtual host name that the identity is scoped to.
-	 *                    The host name will be converted to lower case.
+	 *            The host name will be converted to lower case.
 	 * @param identity the identity.
 	 * @throws NullPointerException if the identity is {@code null}
 	 * @throws IllegalArgumentException if virtual host is not a valid host name
-	 *             as per <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC 1123</a>.
+	 *             as per <a href="https://tools.ietf.org/html/rfc1123" target=
+	 *             "_blank">RFC 1123</a>.
 	 */
 	public PreSharedKeyIdentity(String virtualHost, String identity) {
 		this(true, virtualHost, identity, null);
@@ -66,10 +67,11 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 	 * @param additionalInformation Additional information for this principal.
 	 * @throws NullPointerException if the identity is {@code null}
 	 * @throws IllegalArgumentException if virtual host is not a valid host name
-	 *             as per <a href="https://tools.ietf.org/html/rfc1123" target="_blank">RFC
-	 *             1123</a>.
+	 *             as per <a href="https://tools.ietf.org/html/rfc1123" target=
+	 *             "_blank">RFC 1123</a>.
 	 */
-	private PreSharedKeyIdentity(boolean sni, String virtualHost, String identity, AdditionalInfo additionalInformation) {
+	private PreSharedKeyIdentity(boolean sni, String virtualHost, String identity,
+			AdditionalInfo additionalInformation) {
 		super(additionalInformation);
 		if (identity == null) {
 			throw new NullPointerException("Identity must not be null");
@@ -99,7 +101,8 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 		}
 	}
 
-	private PreSharedKeyIdentity(boolean scopedIdentity, String virtualHost, String identity, String name, AdditionalInfo additionalInfo) {
+	private PreSharedKeyIdentity(boolean scopedIdentity, String virtualHost, String identity, String name,
+			AdditionalInfo additionalInfo) {
 		super(additionalInfo);
 		this.scopedIdentity = scopedIdentity;
 		this.virtualHost = virtualHost;
@@ -160,7 +163,7 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 
 	/**
 	 * Gets a string representation of this principal.
-	 * 
+	 * <p>
 	 * Clients should not assume any particular format of the returned string
 	 * since it may change over time.
 	 * 
@@ -169,11 +172,9 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 	@Override
 	public String toString() {
 		if (scopedIdentity) {
-			return new StringBuilder("PreSharedKey Identity [").append("virtual host: ").append(virtualHost)
-					.append(", identity: ").append(identity).append("]").toString();
+			return "PreSharedKey Identity [virtual host: " + virtualHost + ", identity: " + identity + "]";
 		} else {
-			return new StringBuilder("PreSharedKey Identity [").append("identity: ").append(identity).append("]")
-					.toString();
+			return "PreSharedKey Identity [identity: " + identity + "]";
 		}
 	}
 
@@ -185,8 +186,9 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 	/**
 	 * Compares another object to this identity.
 	 * 
-	 * @return {@code true} if the other object is a {@code PreSharedKeyIdentity} and
-	 *         its name property has the same value as this instance.
+	 * @return {@code true} if the other object is a
+	 *         {@code PreSharedKeyIdentity} and its name property has the same
+	 *         value as this instance.
 	 */
 	@Override
 	public boolean equals(Object obj) {
@@ -200,4 +202,5 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 		PreSharedKeyIdentity other = (PreSharedKeyIdentity) obj;
 		return Objects.equals(name, other.name);
 	}
+
 }
