@@ -120,6 +120,8 @@ Remove the "Advanced" from PSK-stores. Replace `AdvancedPskStore` by `PskStore`,
 
 Remove the "NewAdvanced" from CertificateVerifier. Replace `NewAdvancedCertificateVerifier` by `CertificateVerifier`, `StaticNewAdvancedCertificateVerifier` by `StaticCertificateVerifier` and `AsyncNewAdvancedCertificateVerifier` by `AsyncCertificateVerifier`.
 
+Rename `Connection.refreshAutoResumptionTime` into `updateLastMessageNanos`.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into

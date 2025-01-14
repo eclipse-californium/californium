@@ -321,7 +321,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 		connections.writeLock().lock();
 		try {
 			if (connections.update(connection.getConnectionId()) != null) {
-				connection.refreshAutoResumptionTime();
+				connection.updateLastMessageNanos();
 				if (newPeerAddress == null) {
 					LOGGER.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
 				} else if (!connection.equalsPeerAddress(newPeerAddress)) {
