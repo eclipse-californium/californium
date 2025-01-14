@@ -119,10 +119,35 @@ public class SerialExecutor extends AbstractExecutorService implements CheckedEx
 	}
 
 	/**
+	 * Execute a command forced.
+	 * <p>
+	 * Either execute the command serialized or directly, if executor is already
+	 * shutdown.
+	 * 
+	 * @param command the command to execute.
+	 * @since 4.0
+	 */
+	public void executeForced(final Runnable command) {
+		lock.lock();
+		try {
+			if (shutdown) {
+				command.run();
+			} else {
+				tasks.offer(command);
+				if (currentlyExecutedJob == null) {
+					scheduleNextJob();
+				}
+			}
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	/**
 	 * {@inheritDoc}
 	 * 
 	 * {@link #currentlyExecutedJob} is used for the current job.
-		 */
+	 */
 	@Override
 	public void assertOwner() {
 		final Thread me = Thread.currentThread();
@@ -140,7 +165,7 @@ public class SerialExecutor extends AbstractExecutorService implements CheckedEx
 	 * {@inheritDoc}
 	 * 
 	 * {@link #currentlyExecutedJob} is used for the current job.
-		 */
+	 */
 	@Override
 	public boolean checkOwner() {
 		return owner.get() == Thread.currentThread();
@@ -278,44 +303,48 @@ public class SerialExecutor extends AbstractExecutorService implements CheckedEx
 			currentlyExecutedJob = tasks.poll();
 			if (currentlyExecutedJob != null) {
 				final Runnable command = currentlyExecutedJob;
-				executor.execute(new Runnable() {
-
-					@Override
-					public void run() {
-						try {
-							setOwner();
-							ExecutionListener current = listener.get();
-							try {
-								if (current != null) {
-									current.beforeExecution();
-								}
-								command.run();
-							} catch (Throwable t) {
-								LOGGER.error("unexpected error occurred:", t);
-							} finally {
-								try {
-									if (current != null) {
-										current.afterExecution();
-									}
-								} catch (Throwable t) {
-									LOGGER.error("unexpected error occurred after execution:", t);
-								}
-								clearOwner();
-							}
-						} finally {
-							try {
-								scheduleNextJob();
-							} catch (RejectedExecutionException ex) {
-								LOGGER.debug("shutdown?", ex);
-							}
-						}
-					}
-				});
+				executor.execute(() -> run(command));
 			} else if (shutdown) {
 				terminated.signalAll();
 			}
 		} finally {
 			lock.unlock();
+		}
+	}
+
+	/**
+	 * Execute command.
+	 * 
+	 * @param command the command
+	 * @since 4.0
+	 */
+	private void run(final Runnable command) {
+		try {
+			setOwner();
+			ExecutionListener current = listener.get();
+			try {
+				if (current != null) {
+					current.beforeExecution();
+				}
+				command.run();
+			} catch (Throwable t) {
+				LOGGER.error("unexpected error occurred:", t);
+			} finally {
+				try {
+					if (current != null) {
+						current.afterExecution();
+					}
+				} catch (Throwable t) {
+					LOGGER.error("unexpected error occurred after execution:", t);
+				}
+				clearOwner();
+			}
+		} finally {
+			try {
+				scheduleNextJob();
+			} catch (RejectedExecutionException ex) {
+				LOGGER.debug("shutdown?", ex);
+			}
 		}
 	}
 
