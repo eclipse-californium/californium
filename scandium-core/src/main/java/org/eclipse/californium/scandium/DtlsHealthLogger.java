@@ -60,6 +60,10 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	private final SimpleCounterStatistic pendingOutgoing = new SimpleCounterStatistic("pending out jobs", align);
 	private final SimpleCounterStatistic pendingHandshakeJobs = new SimpleCounterStatistic("pending handshake jobs",
 			align);
+	private final SimpleCounterStatistic missingAuthorizations = new SimpleCounterStatistic(
+			"application missing authorizations", align);
+	private final SimpleCounterStatistic rejectedAuthorizations = new SimpleCounterStatistic(
+			"application rejected authorizations", align);
 
 	/**
 	 * Create passive dtls health logger.
@@ -91,6 +95,8 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 		add(pendingIncoming);
 		add(pendingOutgoing);
 		add(pendingHandshakeJobs);
+		add(missingAuthorizations);
+		add(rejectedAuthorizations);
 	}
 
 	@Override
@@ -116,6 +122,10 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 					log.append(eol).append(head).append(pendingIncoming);
 					log.append(eol).append(head).append(pendingOutgoing);
 					log.append(eol).append(head).append(pendingHandshakeJobs);
+					if (rejectedAuthorizations.isStarted() || missingAuthorizations.isStarted()) {
+						log.append(eol).append(head).append(missingAuthorizations);
+						log.append(eol).append(head).append(rejectedAuthorizations);
+					}
 					dump(head, log);
 					LOGGER.debug("{}", log);
 				}
@@ -126,6 +136,7 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 		}
 	}
 
+	@Override
 	public void dump(String tag, int maxConnections, int remainingCapacity) {
 		try {
 			if (isEnabled()) {
@@ -159,6 +170,10 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 					log.append(eol).append(head).append(pendingIncoming);
 					log.append(eol).append(head).append(pendingOutgoing);
 					log.append(eol).append(head).append(pendingHandshakeJobs);
+					if (rejectedAuthorizations.isStarted() || missingAuthorizations.isStarted()) {
+						log.append(eol).append(head).append(missingAuthorizations);
+						log.append(eol).append(head).append(rejectedAuthorizations);
+					}
 					dump(head, log);
 					LOGGER.debug("{}", log);
 				}
@@ -254,6 +269,15 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	@Override
 	public void setPendingHandshakeJobs(int count) {
 		pendingHandshakeJobs.set(count);
+	}
+
+	@Override
+	public void applicationAuthorizationRejected(boolean rejected) {
+		if (rejected) {
+			rejectedAuthorizations.increment();
+		} else {
+			missingAuthorizations.increment();
+		}
 	}
 
 }

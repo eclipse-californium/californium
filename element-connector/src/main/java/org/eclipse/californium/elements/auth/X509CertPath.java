@@ -231,7 +231,7 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 
 	/**
 	 * Gets a string representation of this principal.
-	 * 
+	 * <p>
 	 * Clients should not assume any particular format of the returned string
 	 * since it may change over time.
 	 * 

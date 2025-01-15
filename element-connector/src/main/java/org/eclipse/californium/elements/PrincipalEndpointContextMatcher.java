@@ -19,8 +19,9 @@ import java.security.Principal;
 
 /**
  * Principal based endpoint context matcher.
- * 
- * Matches DTLS based on the used principal. Requires unique and stable credentials.
+ * <p>
+ * Matches DTLS based on the used principal. Requires unique and stable
+ * credentials.
  */
 public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 
@@ -66,11 +67,13 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 	}
 
 	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
-		if (requestedContext.getPeerIdentity() != null) {
-			if (availableContext.getPeerIdentity() == null) {
+		Principal identity = requestedContext.getPeerIdentity();
+		if (identity != null) {
+			Principal availableIdentity = availableContext.getPeerIdentity();
+			if (availableIdentity == null) {
 				return false;
 			}
-			if (!matchPrincipals(requestedContext.getPeerIdentity(), availableContext.getPeerIdentity())) {
+			if (!matchPrincipals(identity, availableIdentity)) {
 				return false;
 			}
 		}
@@ -102,7 +105,7 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 
 	/**
 	 * Match principals.
-	 * 
+	 * <p>
 	 * Intended to be overwritten, when asymmetric principal implementations are
 	 * used, and {@link #equals(Object)} doesn't work.
 	 * 
