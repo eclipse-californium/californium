@@ -131,6 +131,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -229,6 +230,8 @@ public class CoapEndpoint implements Endpoint, Executor {
 	/** The connector over which the endpoint connects to the network */
 	private final Connector connector;
 
+	private final ApplicationAuthorizer authorizer;
+	
 	private final String scheme;
 
 	/**
@@ -389,6 +392,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 		}
 		this.config = config;
 		this.connector = connector;
+		this.authorizer = (connector instanceof ApplicationAuthorizer) ? (ApplicationAuthorizer) connector : null;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
 		this.multicastBaseMid = config.get(CoapConfig.MULTICAST_BASE_MID);
@@ -1337,6 +1341,11 @@ public class CoapEndpoint implements Endpoint, Executor {
 	@Override
 	public void cancelObservation(Token token) {
 		matcher.cancelObserve(token);
+	}
+
+	@Override
+	public ApplicationAuthorizer getApplicationAuthorizer() {
+		return authorizer;
 	}
 
 	/**
