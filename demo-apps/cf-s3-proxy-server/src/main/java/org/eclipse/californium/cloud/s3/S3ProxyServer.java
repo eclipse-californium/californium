@@ -71,6 +71,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.option.MapBasedOptionRegistry;
 import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.IntegerDefinition;
@@ -78,6 +79,7 @@ import org.eclipse.californium.elements.config.TimeDefinition;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.proxy2.config.Proxy2Config;
 import org.eclipse.californium.proxy2.http.HttpClientFactory;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -420,6 +422,8 @@ public class S3ProxyServer extends BaseServer {
 		@Override
 		public void applyDefinitions(Configuration config) {
 			BaseServer.DEFAULTS.applyDefinitions(config);
+			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+			config.set(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 15, TimeUnit.SECONDS);
 			config.set(USER_CREDENTIALS_RELOAD_INTERVAL, 30, TimeUnit.SECONDS);
 			config.set(S3_PROCESSING_INITIAL_DELAY, 20, TimeUnit.SECONDS);
 			config.set(S3_PROCESSING_INTERVAL, 0, TimeUnit.HOURS);

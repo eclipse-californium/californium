@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.cloud.s3.util.Domains;
 import org.eclipse.californium.cloud.util.DeviceParser;
 
@@ -230,7 +231,7 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 	 * {@link HttpForwardConfigurationProvider} providing itself.
 	 */
 	@Override
-	public HttpForwardConfiguration getConfiguration(String domain, String name) {
+	public HttpForwardConfiguration getConfiguration(DomainPrincipalInfo principalInfo) {
 		return this;
 	}
 

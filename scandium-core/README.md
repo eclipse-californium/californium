@@ -83,6 +83,30 @@ DTLSConnector connector = new DTLSConnector(builder.build());
 
 Starting with Californium 4.0 the support for anonymous clients is extended in order to match existing http authentication mechanisms. In those case the server authenticates itself using a certificate (RPK or x509) but the client stays anonymous in the DTLS handshake. It is the consider that such a client gets authorized by the application using an `ApplicationAuthorizer` by the means of the application. The new configuration parameter `DTLS.APPLICATION_AUTHORIZATION_TIMEOUT` enables to remove such anonymous clients after that timeout when the application doesn't authorize it. One simple implementation may be to support an CoAP2HTTP-cross-proxy, with a HTTP server using username/password or tokens to authorize the clients. The actual authentication, e.g. converting a custom coap-option into an http token header is then intended to be implemented in the proxy-application.
 
+The `ApplicationAuthorizer` is implemented by the `DTLSConnector`and is available at the `CoapEndpoint` and the `Exchange`.
+
+Specific `CoapResource` implementation:
+
+```
+@Override
+public void handlePOST(final CoapExchange exchange) {
+   // ... do some check, e.g. forward request using http
+   // authorized := result of authorization
+   if (exchange.getSourcePrincipal() == null) {
+      // anonymous client
+      ApplicationAuthorizer authorizer = getApplicationAuthorizer();
+      if (authorizer != null) {
+        if (authorized) {
+           authorizer.authorize(exchange.getSourceContext(),
+              ApplicationPrincipal.ANONYMOUS);
+        } else {
+           authorizer.rejectAuthorization(exchange.getSourceContext());
+        }
+     }
+   }
+}
+```
+
 ## Additional Parameters
 
 In order to limit the usage of some parameter, it is possible to provide them by the 

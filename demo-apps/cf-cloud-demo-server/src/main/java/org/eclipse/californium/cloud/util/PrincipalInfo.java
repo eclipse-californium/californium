@@ -44,6 +44,14 @@ public class PrincipalInfo {
 	public enum Type {
 
 		/**
+		 * Device principal info for anonymous device.
+		 */
+		ANONYMOUS_DEVICE("anon"),
+		/**
+		 * Device principal info for application authorized device.
+		 */
+		APPL_AUTH_DEVICE("appl_auth"),
+		/**
 		 * Device principal info.
 		 */
 		DEVICE("dev"),
@@ -122,6 +130,15 @@ public class PrincipalInfo {
 	 * @param type type of principal
 	 */
 	public PrincipalInfo(String group, String name, Type type) {
+		if (group == null) {
+			throw new NullPointerException("group must not be null!");
+		}
+		if (name == null) {
+			throw new NullPointerException("name must not be null!");
+		}
+		if (type == null) {
+			throw new NullPointerException("type must not be null!");
+		}
 		this.name = name;
 		this.group = group;
 		this.type = type;
@@ -130,6 +147,35 @@ public class PrincipalInfo {
 	@Override
 	public String toString() {
 		return name + " (" + group + "," + type.getShortName() + ")";
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + group.hashCode();
+		result = prime * result + name.hashCode();
+		result = prime * result + type.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		PrincipalInfo other = (PrincipalInfo) obj;
+		if (!group.equals(other.group)) {
+			return false;
+		} else if (!name.equals(other.name)) {
+			return false;
+		} else if (type != other.type) {
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -141,15 +187,19 @@ public class PrincipalInfo {
 	 * @param principal the principal
 	 * @return principal info, or {@code null}, if not available.
 	 * @see EndpointContext#getPeerIdentity()
+	 * @since 4.0 (supports {@link ApplicationAnonymous#ANONYMOUS_INFO}, if
+	 *        {@code null} is provided as principal.)
 	 */
 	public static PrincipalInfo getPrincipalInfo(Principal principal) {
-		if (principal instanceof ExtensiblePrincipal) {
+		if (principal == null) {
+			return ApplicationAnonymous.ANONYMOUS_INFO;
+		} else if (principal instanceof ExtensiblePrincipal) {
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
 			PrincipalInfoProvider provider = extensiblePrincipal.getExtendedInfo().get(INFO_PROVIDER,
 					PrincipalInfoProvider.class);
 			if (provider != null) {
-				return provider.getPrincipalInfo(extensiblePrincipal);
+				return provider.getPrincipalInfo(principal);
 			}
 		}
 		return null;
