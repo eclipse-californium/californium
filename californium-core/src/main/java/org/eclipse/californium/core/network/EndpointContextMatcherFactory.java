@@ -30,6 +30,7 @@ import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.PrincipalAndAnonymousEndpointContextMatcher;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.RelaxedDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
@@ -43,64 +44,106 @@ import org.eclipse.californium.elements.config.Configuration;
  */
 public class EndpointContextMatcherFactory {
 
-
 	/**
-	 * Create endpoint context matcher related to connector according the
+	 * Creates endpoint context matcher related to connector according the
 	 * configuration.
-	 * 
-	 * If connector supports "coaps:", RESPONSE_MATCHING is used to determine,
-	 * if {@link StrictDtlsEndpointContextMatcher},
+	 * <p>
+	 * If connector supports "DTLS", COAP.RESPONSE_MATCHING is used to
+	 * determine, if {@link StrictDtlsEndpointContextMatcher},
 	 * {@link RelaxedDtlsEndpointContextMatcher}, or
 	 * {@link PrincipalEndpointContextMatcher} is used.
-	 * 
-	 * If connector supports "coap:", RESPONSE_MATCHING is used to determine, if
-	 * {@link UdpEndpointContextMatcher} is used with disabled
+	 * <p>
+	 * If connector supports "UDP", COAP.RESPONSE_MATCHING is used to determine,
+	 * if {@link UdpEndpointContextMatcher} is used with disabled
 	 * ({@link MatcherMode#RELAXED}) or enabled address check (otherwise).
-	 * 
+	 * <p>
 	 * For other protocol flavors the corresponding matcher is used.
 	 * 
 	 * @param connector connector to create related endpoint context matcher.
 	 * @param config configuration.
 	 * @return endpoint context matcher
-	 * @since 3.0 (changed parameter to Configuration)
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}
+	 * @throws IllegalArgumentException if the protocol of the connector is not
+	 *             supported.
+	 * @since 4.0 (added exceptions)
 	 */
 	public static EndpointContextMatcher create(Connector connector, Configuration config) {
-		String protocol = null;
-		if (null != connector) {
-			protocol = connector.getProtocol();
-			if (CoAP.PROTOCOL_TCP.equalsIgnoreCase(protocol)) {
-				return new TcpEndpointContextMatcher();
-			} else if (CoAP.PROTOCOL_TLS.equalsIgnoreCase(protocol)) {
-				return new TlsEndpointContextMatcher();
-			}
+		if (connector == null) {
+			throw new NullPointerException("Connector must not be null!");
 		}
+		return create(connector.getProtocol(), false, config);
+	}
+
+	/**
+	 * Creates endpoint context matcher related to the protocol according the
+	 * configuration.
+	 * <p>
+	 * For "DTLS" COAP.RESPONSE_MATCHING is used to determine, if
+	 * {@link StrictDtlsEndpointContextMatcher},
+	 * {@link RelaxedDtlsEndpointContextMatcher}, or
+	 * {@link PrincipalEndpointContextMatcher} is used. If PRINCIPAL_IDENTITY is
+	 * used for COAP.RESPONSE_MATCHING and anonymous clients are enabled, then
+	 * {@link PrincipalAndAnonymousEndpointContextMatcher} is used. Anonymous
+	 * clients are only implemented for DTLS, see
+	 * DTLS.CLIENT_AUTHENTICATION_MODE and DTLS.DTLS_APPLICATION_AUTHORIZATION.
+	 * <p>
+	 * For "UDP", COAP.RESPONSE_MATCHING is used to determine, if
+	 * {@link UdpEndpointContextMatcher} is used with disabled
+	 * ({@link MatcherMode#RELAXED}) or enabled address check (otherwise).
+	 * <p>
+	 * For other protocol flavors the corresponding matcher is used.
+	 * 
+	 * @param protocol protocol.
+	 * @param anonymous {@code true} if anonymous clients must be supported.
+	 * @param config configuration.
+	 * @return endpoint context matcher
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}
+	 * @throws IllegalArgumentException if the protocol is not supported.
+	 * @since 4.0
+	 */
+	public static EndpointContextMatcher create(String protocol, boolean anonymous, Configuration config) {
+		if (protocol == null) {
+			throw new NullPointerException("Protocol must not be null!");
+		}
+		if (config == null) {
+			throw new NullPointerException("Configuration must not be null!");
+		}
+		if (CoAP.PROTOCOL_TCP.equalsIgnoreCase(protocol)) {
+			return new TcpEndpointContextMatcher();
+		} else if (CoAP.PROTOCOL_TLS.equalsIgnoreCase(protocol)) {
+			return new TlsEndpointContextMatcher();
+		}
+
 		MatcherMode mode = config.get(CoapConfig.RESPONSE_MATCHING);
-		switch (mode) {
-		case RELAXED:
-			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
+		if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
+			switch (mode) {
+			case RELAXED:
 				return new UdpEndpointContextMatcher(false);
-			} else {
+			case PRINCIPAL:
+			case PRINCIPAL_IDENTITY:
+			case STRICT:
+			default:
+				return new UdpEndpointContextMatcher(true);
+			}
+		} else if (CoAP.PROTOCOL_DTLS.equalsIgnoreCase(protocol)) {
+			switch (mode) {
+			case RELAXED:
 				return new RelaxedDtlsEndpointContextMatcher();
-			}
-		case PRINCIPAL:
-			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
-				return new UdpEndpointContextMatcher(true);
-			} else {
+			case PRINCIPAL:
 				return new PrincipalEndpointContextMatcher();
-			}
-		case PRINCIPAL_IDENTITY:
-			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
-				return new UdpEndpointContextMatcher(true);
-			} else {
-				return new PrincipalEndpointContextMatcher(true);
-			}
-		case STRICT:
-		default:
-			if (CoAP.PROTOCOL_UDP.equalsIgnoreCase(protocol)) {
-				return new UdpEndpointContextMatcher(true);
-			} else {
+			case PRINCIPAL_IDENTITY:
+				if (anonymous) {
+					return new PrincipalAndAnonymousEndpointContextMatcher();
+				} else {
+					return new PrincipalEndpointContextMatcher(true);
+				}
+			case STRICT:
+			default:
 				return new StrictDtlsEndpointContextMatcher();
 			}
 		}
+		throw new IllegalArgumentException("Protocol " + protocol + " is not supported!");
 	}
 }

@@ -41,6 +41,7 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -242,6 +243,11 @@ public class ResourceAttributesTest {
 
 		@Override
 		public List<MessageInterceptor> getPostProcessInterceptors() {
+			return null;
+		}
+
+		@Override
+		public ApplicationAuthorizer getApplicationAuthorizer() {
 			return null;
 		}
 
