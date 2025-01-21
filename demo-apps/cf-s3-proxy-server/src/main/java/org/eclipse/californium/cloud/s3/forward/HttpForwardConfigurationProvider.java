@@ -26,6 +26,8 @@ public interface HttpForwardConfigurationProvider {
 
 	/**
 	 * Gets http forward configuration.
+	 * <p>
+	 * For anonymous clients the domain and name is "anonymous".
 	 * 
 	 * @param domain domain name
 	 * @param name device name

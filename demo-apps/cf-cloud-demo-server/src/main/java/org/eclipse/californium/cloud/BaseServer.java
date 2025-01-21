@@ -41,16 +41,16 @@ import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.DeviceProvisioningConsumer;
 import org.eclipse.californium.cloud.util.ResourceStore;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointContextMatcherFactory;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.observe.ObserveStatisticLogger;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.EndpointContextMatcher;
-import org.eclipse.californium.elements.PrincipalAndAnonymousEndpointContextMatcher;
-import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -204,7 +204,6 @@ public class BaseServer extends CoapServer {
 			config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
 			config.set(CoapConfig.ACK_TIMEOUT, 2500, TimeUnit.MILLISECONDS);
 			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY);
-			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
 			config.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 2500, TimeUnit.MILLISECONDS);
 			config.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 8, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
@@ -657,14 +656,11 @@ public class BaseServer extends CoapServer {
 		}
 
 		// Context matcher
-		EndpointContextMatcher customContextMatcher = null;
-		if (MatcherMode.PRINCIPAL == config.get(CoapConfig.RESPONSE_MATCHING)) {
-			if (CertificateAuthenticationMode.NEEDED == config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE)) {
-				customContextMatcher = new PrincipalEndpointContextMatcher(true);
-			} else {
-				customContextMatcher = new PrincipalAndAnonymousEndpointContextMatcher();
-			}
-		}
+		boolean applicationAuthentication = config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NEEDED &&
+				config.get(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, TimeUnit.SECONDS) > 0; 
+
+		EndpointContextMatcher customContextMatcher = EndpointContextMatcherFactory.create(CoAP.PROTOCOL_DTLS,
+				applicationAuthentication, config);
 
 		// explore network interfaces
 		Collection<InetAddress> localAddresses;

@@ -36,6 +36,7 @@ import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
@@ -81,7 +82,7 @@ public class S3ProxyResource extends ProtectedCoapResource {
 	 * @param s3Clients S3 clients
 	 */
 	public S3ProxyResource(String name, int pathStartIndex, Configuration config, S3ProxyClientProvider s3Clients) {
-		super(name);
+		super(name, Type.DEVICE, Type.ANONYMOUS_DEVICE, Type.APPL_AUTH_DEVICE);
 		if (s3Clients == null) {
 			throw new NullPointerException("s3client must not be null!");
 		}
