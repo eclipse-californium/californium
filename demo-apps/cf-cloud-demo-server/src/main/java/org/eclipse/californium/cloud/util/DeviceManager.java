@@ -40,6 +40,7 @@ import javax.security.auth.x500.X500Principal;
 import org.eclipse.californium.cloud.util.DeviceParser.Device;
 import org.eclipse.californium.cloud.util.ResultConsumer.ResultCode;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.ApplicationPrincipal;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
@@ -268,6 +269,9 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 		if (devices == null) {
 			return null;
 		}
+		if (ApplicationPrincipal.ANONYMOUS.equals(clientIdentity)) {
+			return ApplicationAnonymous.APPL_AUTH_PRINCIPAL.getExtendedInfo();
+		}
 		return createAdditionalInfo(devices.getResource().getByPrincipal(clientIdentity));
 	}
 
@@ -388,12 +392,12 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 					LOGGER.info("Certificate validation failed: Raw public key is not trusted");
 					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 					return new CertificateVerificationResult(cid,
-							new HandshakeException("Raw public key is not trusted!", alert), null);
+							new HandshakeException("Raw public key is not trusted!", alert));
 				} else if (info.isEmpty()) {
 					LOGGER.info("Certificate validation failed: Raw public key is banned");
 					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 					return new CertificateVerificationResult(cid,
-							new HandshakeException("Raw public key is banned!", alert), null);
+							new HandshakeException("Raw public key is banned!", alert));
 				} else {
 					return new CertificateVerificationResult(cid, publicKey, info);
 				}
@@ -408,7 +412,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 							LOGGER.debug("Certificate validation failed: key usage doesn't match");
 							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 							return new CertificateVerificationResult(cid,
-									new HandshakeException("Key Usage doesn't match!", alert), null);
+									new HandshakeException("Key Usage doesn't match!", alert));
 						}
 						X509Certificate[] trustedCertificates = getTrustedCertificates();
 						if (trustedCertificates == null || trustedCertificates.length == 0) {
@@ -439,12 +443,12 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 							LOGGER.info("Certificate validation failed: x509 certificate is not trusted");
 							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 							return new CertificateVerificationResult(cid,
-									new HandshakeException("x509 certificate is not trusted!", alert), null);
+									new HandshakeException("x509 certificate is not trusted!", alert));
 						} else if (info.isEmpty()) {
 							LOGGER.info("{}Certificate validation failed: x509 certificate is banned", role);
 							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 							return new CertificateVerificationResult(cid,
-									new HandshakeException(role + "x509 certificate is banned!", alert), null);
+									new HandshakeException(role + "x509 certificate is banned!", alert));
 						} else {
 							return new CertificateVerificationResult(cid, certChain, info);
 						}
@@ -458,8 +462,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 				if (cause instanceof CertificateExpiredException) {
 					LOGGER.debug("Certificate expired: {}", cause.getMessage());
 					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.CERTIFICATE_EXPIRED);
-					return new CertificateVerificationResult(cid, new HandshakeException("Certificate expired", alert),
-							null);
+					return new CertificateVerificationResult(cid, new HandshakeException("Certificate expired", alert));
 				} else if (cause != null) {
 					LOGGER.debug("Certificate validation failed: {}/{}", e.getMessage(), cause.getMessage());
 				} else {
@@ -467,7 +470,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 				}
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 				return new CertificateVerificationResult(cid,
-						new HandshakeException("Certificate chain could not be validated", alert, e), null);
+						new HandshakeException("Certificate chain could not be validated", alert, e));
 			} catch (GeneralSecurityException e) {
 				if (LOGGER.isTraceEnabled()) {
 					LOGGER.trace("Certificate validation failed", e);
@@ -476,7 +479,7 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 				}
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
 				return new CertificateVerificationResult(cid,
-						new HandshakeException("Certificate chain could not be validated", alert, e), null);
+						new HandshakeException("Certificate chain could not be validated", alert, e));
 			}
 		}
 

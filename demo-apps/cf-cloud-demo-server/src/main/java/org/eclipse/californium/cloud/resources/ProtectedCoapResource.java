@@ -160,9 +160,12 @@ public abstract class ProtectedCoapResource extends CoapResource {
 		final PrincipalInfo info = getPrincipalInfo(exchange);
 		if (info == null) {
 			return UNAUTHORIZED;
-		}
-		if (!allowed(info.type)) {
-			return FORBIDDEN;
+		} else if (!allowed(info.type)) {
+			if (info.type == Type.ANONYMOUS_DEVICE) {
+				return UNAUTHORIZED;
+			} else {
+				return FORBIDDEN;
+			}
 		}
 		return checkOperationPermission(info, exchange, exchange.getRequest().getCode().write);
 	}

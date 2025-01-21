@@ -81,6 +81,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.util.CheckedExecutor;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -859,6 +860,18 @@ public class Exchange {
 	 */
 	public Object getPeersIdentity() {
 		return peersIdentity;
+	}
+
+	/**
+	 * Gets application authorizer.
+	 * 
+	 * @return application authorizer, or {@code null}, if not supported by this
+	 *         exchange.
+	 * @since 4.0
+	 */
+	public ApplicationAuthorizer getApplicationAuthorizer() {
+		Endpoint endpoint = getEndpoint();
+		return endpoint == null ? null : endpoint.getApplicationAuthorizer();
 	}
 
 	/**

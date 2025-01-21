@@ -39,13 +39,13 @@ import javax.net.ssl.X509KeyManager;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.config.CoapConfig;
-import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointContextMatcherFactory;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.IntegerDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
@@ -69,8 +69,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.MultiPskFileStore;
 import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
-import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.AsyncCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.AsyncKeyManagerCertificateProvider;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -375,9 +375,10 @@ public abstract class AbstractTestServer extends CoapServer {
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
-					if (MatcherMode.PRINCIPAL == dtlsConfig.get(CoapConfig.RESPONSE_MATCHING)) {
-						builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
-					}
+					boolean anonymous = CertificateAuthenticationMode.NEEDED != dtlsConfig
+							.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE);
+					builder.setEndpointContextMatcher(
+							EndpointContextMatcherFactory.create(CoAP.PROTOCOL_DTLS, anonymous, dtlsConfig));
 					builder.setConfiguration(dtlsConfig);
 					CoapEndpoint endpoint = builder.build();
 					addEndpoint(endpoint);

@@ -64,12 +64,16 @@ public class PskSecretResult extends HandshakeResult {
 	 * @param pskIdentity PSK identity
 	 * @param secret secret, {@code null}, if generation failed. Algorithm must
 	 *            be "MAC" or "PSK".
-	 * @param customArgument custom argument. May be {@code null}. Passed to
+	 * @param customArgument custom argument. Must be {@code null}, if secret is
+	 *            {@code null}. May be {@code null}. Passed to
 	 *            {@link ApplicationLevelInfoSupplier} by the
-	 *            {@link Handshaker}, if a
-	 *            {@link ApplicationLevelInfoSupplier} is available.
-	 * @throws IllegalArgumentException if algorithm is neither "MAC" nor "PSK"
+	 *            {@link Handshaker}, if a {@link ApplicationLevelInfoSupplier}
+	 *            is available.
+	 * @throws IllegalArgumentException if algorithm is neither "MAC" nor "PSK".
+	 *             Or when a custom argument is provided without a secret
 	 * @throws NullPointerException if cid or pskIdentity is {@code null}
+	 * @since 4.0 (throws IllegalArgumentException, when a custom argument is
+	 *       provided without a secret)
 	 */
 	public PskSecretResult(ConnectionId cid, PskPublicInformation pskIdentity, SecretKey secret,
 			Object customArgument) {
@@ -84,6 +88,8 @@ public class PskSecretResult extends HandshakeResult {
 						"Secret must be either MAC for master secret, or PSK for secret key, but not " + algorithm
 								+ "!");
 			}
+		} else if (customArgument != null) {
+			throw new IllegalArgumentException("Custom argument must be null, if no secret is provided!");
 		}
 		this.pskIdentity = pskIdentity;
 		this.secret = secret;

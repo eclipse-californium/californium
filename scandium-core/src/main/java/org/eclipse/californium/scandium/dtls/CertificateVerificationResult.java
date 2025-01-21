@@ -92,14 +92,11 @@ public final class CertificateVerificationResult extends HandshakeResult {
 	 * 
 	 * @param cid connection id
 	 * @param exception handshake exception.
-	 * @param customArgument custom argument. May be {@code null}. Passed to
-	 *            {@link ApplicationLevelInfoSupplier} by the
-	 *            {@link Handshaker}, if a
-	 *            {@link ApplicationLevelInfoSupplier} is available.
 	 * @throws NullPointerException if cid or exception is {@code null}.
+	 * @since 4.0 (removed customArgument)
 	 */
-	public CertificateVerificationResult(ConnectionId cid, HandshakeException exception, Object customArgument) {
-		super(cid, customArgument);
+	public CertificateVerificationResult(ConnectionId cid, HandshakeException exception) {
+		super(cid, null);
 		if (exception == null) {
 			throw new NullPointerException("exception must not be null!");
 		}

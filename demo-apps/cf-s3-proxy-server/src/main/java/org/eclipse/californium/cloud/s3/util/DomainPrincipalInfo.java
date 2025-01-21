@@ -59,6 +59,38 @@ public class DomainPrincipalInfo extends PrincipalInfo {
 		return name + "@" + domain + " (" + group + "," + type.getShortName() + ")";
 	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + domain.hashCode();
+		result = prime * result + group.hashCode();
+		result = prime * result + name.hashCode();
+		result = prime * result + type.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		DomainPrincipalInfo other = (DomainPrincipalInfo) obj;
+		if (!domain.equals(other.domain)) {
+			return false;
+		} else if (!group.equals(other.group)) {
+			return false;
+		} else if (!name.equals(other.name)) {
+			return false;
+		} else if (type != other.type) {
+			return false;
+		}
+		return true;
+	}
+
 	/**
 	 * Gets principal info.
 	 * <p>
@@ -68,9 +100,13 @@ public class DomainPrincipalInfo extends PrincipalInfo {
 	 * @param principal the principal
 	 * @return principal info, or {@code null}, if not available.
 	 * @see EndpointContext#getPeerIdentity()
+	 * @since 4.0 (supports {@link DomainApplicationAnonymous#ANONYMOUS_INFO}, if {@code null} is provided as
+	 *        principal.)
 	 */
 	public static DomainPrincipalInfo getPrincipalInfo(Principal principal) {
-		if (principal instanceof ExtensiblePrincipal) {
+		if (principal == null) {
+			return DomainApplicationAnonymous.ANONYMOUS_INFO;
+		} else if (principal instanceof ExtensiblePrincipal) {
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
 			DomainPrincipalInfoProvider provider = extensiblePrincipal.getExtendedInfo().get(INFO_PROVIDER,

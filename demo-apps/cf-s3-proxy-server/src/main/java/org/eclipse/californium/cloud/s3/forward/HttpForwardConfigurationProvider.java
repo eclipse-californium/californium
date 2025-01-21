@@ -14,6 +14,8 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.forward;
 
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
+
 /**
  * Http forward provider.
  * <p>
@@ -27,11 +29,10 @@ public interface HttpForwardConfigurationProvider {
 	/**
 	 * Gets http forward configuration.
 	 * 
-	 * @param domain domain name
-	 * @param name device name
+	 * @param principalInfo principal info (with domain and device name)
 	 * @return http forward configuration, or {@code null}, if http forwarding
 	 *         is not used.
 	 */
-	HttpForwardConfiguration getConfiguration(String domain, String name);
+	HttpForwardConfiguration getConfiguration(DomainPrincipalInfo principalInfo);
 
 }

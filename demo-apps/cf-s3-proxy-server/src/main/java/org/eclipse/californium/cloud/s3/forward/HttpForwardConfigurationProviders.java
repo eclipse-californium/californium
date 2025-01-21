@@ -17,6 +17,8 @@ package org.eclipse.californium.cloud.s3.forward;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
+
 /**
  * Http forward providers.
  * <p>
@@ -71,10 +73,10 @@ public class HttpForwardConfigurationProviders implements HttpForwardConfigurati
 	 * the one from the general configuration.
 	 */
 	@Override
-	public HttpForwardConfiguration getConfiguration(String domain, String name) {
+	public HttpForwardConfiguration getConfiguration(DomainPrincipalInfo principalInfo) {
 		HttpForwardConfiguration configuration = null;
 		for (HttpForwardConfigurationProvider provider : list) {
-			configuration = BasicHttpForwardConfiguration.merge(configuration, provider.getConfiguration(domain, name));
+			configuration = BasicHttpForwardConfiguration.merge(configuration, provider.getConfiguration(principalInfo));
 		}
 		return configuration;
 	}

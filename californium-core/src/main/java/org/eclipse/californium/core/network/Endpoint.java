@@ -35,6 +35,7 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ProtocolScheduledExecutorService;
 
@@ -286,4 +287,13 @@ public interface Endpoint {
 	 * @throws IllegalArgumentException if the token has client-local scope.
 	 */
 	void cancelObservation(Token token);
+
+	/**
+	 * Gets application authorizer.
+	 * 
+	 * @return application authorizer, or {@code null}, if not supported by this
+	 *         endpoint.
+	 * @since 4.0
+	 */
+	ApplicationAuthorizer getApplicationAuthorizer();
 }

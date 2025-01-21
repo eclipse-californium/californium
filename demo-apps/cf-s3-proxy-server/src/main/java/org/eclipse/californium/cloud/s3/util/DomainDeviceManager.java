@@ -42,6 +42,7 @@ import org.eclipse.californium.cloud.util.ResourceStore;
 import org.eclipse.californium.cloud.util.ResultConsumer;
 import org.eclipse.californium.cloud.util.ResultConsumer.ResultCode;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.ApplicationPrincipal;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
@@ -159,6 +160,9 @@ public class DomainDeviceManager extends DeviceManager
 
 	@Override
 	public AdditionalInfo createAdditionalInfo(Principal clientIdentity) {
+		if (ApplicationPrincipal.ANONYMOUS.equals(clientIdentity)) {
+			return DomainApplicationAnonymous.APPL_AUTH_PRINCIPAL.getExtendedInfo();
+		}
 		for (Entry<String, ResourceStore<DeviceParser>> domain : domains.entrySet()) {
 			Device device = domain.getValue().getResource().getByPrincipal(clientIdentity);
 			if (device != null) {
@@ -237,10 +241,10 @@ public class DomainDeviceManager extends DeviceManager
 	}
 
 	@Override
-	public HttpForwardConfiguration getConfiguration(String domain, String name) {
-		ResourceStore<DeviceParser> resource = domains.get(domain);
+	public HttpForwardConfiguration getConfiguration(DomainPrincipalInfo principalInfo) {
+		ResourceStore<DeviceParser> resource = domains.get(principalInfo.domain);
 		if (resource != null) {
-			Device device = resource.getResource().get(name);
+			Device device = resource.getResource().get(principalInfo.name);
 			if (device != null) {
 				try {
 					return BasicHttpForwardConfiguration.create(device.customFields);

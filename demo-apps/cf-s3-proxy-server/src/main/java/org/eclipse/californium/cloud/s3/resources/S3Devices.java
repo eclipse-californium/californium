@@ -29,6 +29,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XM
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
+import java.security.Principal;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -58,26 +59,31 @@ import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest.Builder;
+import org.eclipse.californium.cloud.s3.util.DomainApplicationAnonymous;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.cloud.s3.util.MultiConsumer;
 import org.eclipse.californium.cloud.util.PrincipalInfo;
+import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
-import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
+import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -251,7 +257,7 @@ public class S3Devices extends ProtectedCoapResource {
 	 */
 	public S3Devices(Configuration config, S3ProxyClientProvider s3Clients,
 			HttpForwardConfigurationProvider httpForwardConfigurationProvider) {
-		super(RESOURCE_NAME);
+		super(RESOURCE_NAME, Type.DEVICE, Type.ANONYMOUS_DEVICE, Type.APPL_AUTH_DEVICE);
 		if (s3Clients == null) {
 			throw new NullPointerException("s3client must not be null!");
 		}
@@ -263,6 +269,17 @@ public class S3Devices extends ProtectedCoapResource {
 		domains = new ConcurrentHashMap<>();
 		this.s3Clients = s3Clients;
 		this.httpForwardConfigurationProvider = httpForwardConfigurationProvider;
+	}
+
+	@Override
+	protected ResponseCode checkOperationPermission(PrincipalInfo info, Exchange exchange, boolean write) {
+		if (info.type == Type.DEVICE || info.type == Type.APPL_AUTH_DEVICE) {
+			return null;
+		}
+		if (info.type == Type.ANONYMOUS_DEVICE && exchange.getRequest().getCode() == Code.POST) {
+			return null;
+		}
+		return FORBIDDEN;
 	}
 
 	@Override
@@ -319,7 +336,8 @@ public class S3Devices extends ProtectedCoapResource {
 			return;
 		}
 
-		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(getPrincipal(exchange));
+		final Principal principal = getPrincipal(exchange);
+		final DomainPrincipalInfo info = DomainPrincipalInfo.getPrincipalInfo(principal);
 		boolean forward = false;
 		String read = null;
 		String write = null;
@@ -354,13 +372,45 @@ public class S3Devices extends ProtectedCoapResource {
 		final TimeOption timeOption = TimeOption.getMessageTime(request);
 		final long time = timeOption.getLongValue();
 
+		if (info.type == Type.ANONYMOUS_DEVICE ||
+			info.type == Type.APPL_AUTH_DEVICE) {
+
+			if (forward && read == null && write == null) {
+				// forward support for anonymous clients.
+				if (forward && httpForwardConfigurationProvider != null) {
+					final HttpForwardConfiguration configuration = httpForwardConfigurationProvider
+							.getConfiguration(info);
+					if (configuration != null && configuration.isValid()) {
+						String serviceName = configuration.getServiceName();
+						HttpForwardService service = HttpForwardServiceManager.getService(serviceName);
+						if (service != null) {
+							service.forwardPOST(request, info, configuration, (response) -> {
+								if (principal == null && response.isSuccess()) {
+									ApplicationAuthorizer authorizer = exchange.advanced().getApplicationAuthorizer();
+									if (authorizer != null) {
+										LOGGER.info("HTTP-forward: {} anonymous client authorized!",
+												StringUtil.toLog(request.getSourceContext().getPeerAddress()));
+										authorizer.authorize(request.getSourceContext(),
+												DomainApplicationAnonymous.APPL_AUTH_PRINCIPAL);
+									}
+								}
+								exchange.respond(response);
+							});
+							return;
+						}
+					}
+				}
+			}
+			Response response = new Response(ResponseCode.UNAUTHORIZED);
+			exchange.respond(response);
+			return;
+		}
 		Response response = new Response(CHANGED);
 		final String timestamp = format(time, ChronoUnit.MILLIS);
-		final String domain = info.domain;
-		S3ProxyClient s3Client = s3Clients.getProxyClient(domain);
+		S3ProxyClient s3Client = s3Clients.getProxyClient(info.domain);
 		String position = null;
 
-		LOGGER.info("S3: {}, {}", domain, s3Client.getExternalEndpoint());
+		LOGGER.info("S3: {}, {}", info.domain, s3Client.getExternalEndpoint());
 		String writeExpanded = replaceVars(write, timestamp);
 		request.setProtectFromOffload();
 		String acl = S3ProxyRequest.getAcl(request, s3Client.getAcl());
@@ -443,8 +493,7 @@ public class S3Devices extends ProtectedCoapResource {
 		};
 
 		if (forward && httpForwardConfigurationProvider != null) {
-			final HttpForwardConfiguration configuration = httpForwardConfigurationProvider.getConfiguration(domain,
-					info.name);
+			final HttpForwardConfiguration configuration = httpForwardConfigurationProvider.getConfiguration(info);
 			if (configuration != null && configuration.isValid()) {
 				String serviceName = configuration.getServiceName();
 				HttpForwardService service = HttpForwardServiceManager.getService(serviceName);

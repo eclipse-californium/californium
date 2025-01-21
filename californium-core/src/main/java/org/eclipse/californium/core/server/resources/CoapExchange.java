@@ -22,6 +22,7 @@ package org.eclipse.californium.core.server.resources;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.Principal;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -37,6 +38,7 @@ import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 
 /**
@@ -70,13 +72,34 @@ public class CoapExchange {
 	}
 
 	/**
+	 * Gets the source principal.
+	 *
+	 * @return the source principal. May be {@code null}, if source is
+	 *         anonymous.
+	 * @since 4.0
+	 */
+	public final Principal getSourcePrincipal() {
+		return getSourceContext().getPeerIdentity();
+	}
+
+	/**
+	 * Gets the source context.
+	 *
+	 * @return the source context.
+	 * @since 4.0
+	 */
+	public final EndpointContext getSourceContext() {
+		return exchange.getRequest().getSourceContext();
+	}
+
+	/**
 	 * Gets the source socket address of the request.
 	 *
 	 * @return the source socket address
 	 * @since 2.1
 	 */
-	public InetSocketAddress getSourceSocketAddress() {
-		return exchange.getRequest().getSourceContext().getPeerAddress();
+	public final InetSocketAddress getSourceSocketAddress() {
+		return getSourceContext().getPeerAddress();
 	}
 
 	/**
@@ -84,8 +107,8 @@ public class CoapExchange {
 	 *
 	 * @return the source address
 	 */
-	public InetAddress getSourceAddress() {
-		return exchange.getRequest().getSourceContext().getPeerAddress().getAddress();
+	public final InetAddress getSourceAddress() {
+		return getSourceSocketAddress().getAddress();
 	}
 
 	/**
@@ -93,8 +116,19 @@ public class CoapExchange {
 	 *
 	 * @return the source port
 	 */
-	public int getSourcePort() {
-		return exchange.getRequest().getSourceContext().getPeerAddress().getPort();
+	public final int getSourcePort() {
+		return getSourceSocketAddress().getPort();
+	}
+
+	/**
+	 * Gets application authorizer.
+	 * 
+	 * @return application authorizer, or {@code null}, if not supported by this
+	 *         exchange.
+	 * @since 4.0
+	 */
+	public ApplicationAuthorizer getApplicationAuthorizer() {
+		return exchange.getApplicationAuthorizer();
 	}
 
 	/**

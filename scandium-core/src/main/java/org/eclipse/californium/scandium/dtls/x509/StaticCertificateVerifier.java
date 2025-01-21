@@ -247,7 +247,7 @@ public class StaticCertificateVerifier implements CertificateVerifier, Configura
 			}
 		} catch (HandshakeException e) {
 			LOGGER.debug("Certificate validation failed!", e);
-			return new CertificateVerificationResult(cid, e, null);
+			return new CertificateVerificationResult(cid, e);
 		}
 	}
 
