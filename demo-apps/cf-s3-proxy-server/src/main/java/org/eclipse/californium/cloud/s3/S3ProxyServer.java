@@ -560,6 +560,7 @@ public class S3ProxyServer extends BaseServer {
 		DomainDeviceManager deviceManager = new DomainDeviceManager(singleDomain, credentials, addTimeout);
 		deviceGroupProvider = deviceManager;
 		deviceCredentials = deviceManager;
+		deviceHttpForwardProvider = deviceManager;
 
 		createS3Client(cliArguments.mode.single.s3Config);
 	}
@@ -594,7 +595,7 @@ public class S3ProxyServer extends BaseServer {
 				add(new Diagnose(this));
 			}
 			HttpForwardConfigurationProvider forward = domains;
-			if (domains == null) {
+			if (forward == null) {
 				if (cliS3Arguments.mode.single != null && cliS3Arguments.mode.single.httpForward != null) {
 					S3ProxyConfig.HttpForward httpForward = cliS3Arguments.mode.single.httpForward;
 					String forwardDestination = httpForward.httpForward;
