@@ -62,6 +62,8 @@ Supports virtual threads for DTLS receivers, if the JVM supports it. Otherwise p
 
 The `DTLSConnector` uses Connection ID to identify DLTS context now also for outgoing messages, if available.
 
+The `DefaultCipherSuiteSelector` supports now `CertificateAuthenticationMode.WANTED` even if no common client certificate type is available. It omits the `CertificateRequest` in this case.
+
 ### Element-Connector-TCP-Netty:
 
 ### Californium-Core:
