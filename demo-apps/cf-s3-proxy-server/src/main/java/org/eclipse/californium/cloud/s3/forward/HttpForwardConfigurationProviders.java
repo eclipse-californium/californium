@@ -35,15 +35,12 @@ public class HttpForwardConfigurationProviders implements HttpForwardConfigurati
 	/**
 	 * Creates list of {@link HttpForwardConfigurationProvider}.
 	 * 
-	 * @param provider primary http-forward configuration provider
-	 * @param extraProviders additional http-forward configuration provider
+	 * @param providers ordered list of http-forward configuration provider
 	 */
-	public HttpForwardConfigurationProviders(HttpForwardConfigurationProvider provider,
-			HttpForwardConfigurationProvider... extraProviders) {
-		add(provider);
-		if (extraProviders != null) {
-			for (HttpForwardConfigurationProvider extraProvider : extraProviders) {
-				add(extraProvider);
+	public HttpForwardConfigurationProviders(HttpForwardConfigurationProvider... providers) {
+		if (providers != null) {
+			for (HttpForwardConfigurationProvider provider : providers) {
+				add(provider);
 			}
 		}
 	}
