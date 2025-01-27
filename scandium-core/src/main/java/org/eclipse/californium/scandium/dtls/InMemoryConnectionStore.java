@@ -36,7 +36,6 @@ import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
-import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache.Timestamped;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -46,18 +45,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An in-memory {@code ConnectionStore} with a configurable maximum
- * capacity and support for evicting stale connections based on a <em>least
- * recently update</em> policy.
+ * An in-memory {@code ConnectionStore} with a configurable maximum capacity and
+ * support for evicting stale connections based on a <em>least recently
+ * update</em> policy.
  * <p>
  * The store keeps track of the connections' last-access time automatically.
  * Every time a verified record is received or a record is sent for a
  * connection, the access-time is updated.
- * </p>
  * <p>
  * A connection can be successfully added to the store if any of the following
  * conditions is met:
- * </p>
  * <ul>
  * <li>The store's remaining capacity is greater than zero.</li>
  * <li>The store contains at least one <em>stale</em> connection, i.e. a
@@ -72,13 +69,10 @@ import org.slf4j.LoggerFactory;
  * key, one with the session id as key, and one with the principal as key. In
  * addition to that the store keeps a doubly-linked list of the connections in
  * update-time order.
- * </p>
  * <p>
  * Insertion, lookup and removal of connections is done in <em>O(log n)</em>.
- * </p>
  * <p>
  * Storing and reading to/from the store is thread safe.
- * </p>
  * <p>
  * Supports also a {@link SessionStore} implementation to keep sessions for
  * longer or in a distribute system. If the connection store evicts a connection
@@ -86,14 +80,15 @@ import org.slf4j.LoggerFactory;
  * in the session store. Therefore the session store requires a own, independent
  * cleanup for stale sessions. If a connection is removed by a critical ALERT,
  * the session get's removed also from the session store.
- * </p>
  * 
- * @since 4.0 (Rename InMemoryReadWriteLockConnectionStore into InMemoryConnectionStore)
+ * @since 4.0 (Rename InMemoryReadWriteLockConnectionStore into
+ *        InMemoryConnectionStore)
  */
 public class InMemoryConnectionStore implements ConnectionStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryConnectionStore.class);
-	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER.getName(), 3, TimeUnit.SECONDS.toNanos(10));
+	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER.getName(), 3,
+			TimeUnit.SECONDS.toNanos(10));
 
 	// extra cid bytes additionally to required bytes for small capacity.
 	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2;
@@ -132,8 +127,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	 * @param uniquePrincipals {@code true}, to limit stale connections by
 	 *            unique principals, {@code false}, if not.
 	 */
-	public InMemoryConnectionStore(int capacity, long threshold, SessionStore sessionStore,
-			boolean uniquePrincipals) {
+	public InMemoryConnectionStore(int capacity, long threshold, SessionStore sessionStore, boolean uniquePrincipals) {
 		this.connections = new LeastRecentlyUpdatedCache<>(capacity, threshold, TimeUnit.SECONDS);
 		this.connectionsByAddress = new ConcurrentHashMap<>();
 		this.connectionsByPrincipal = uniquePrincipals ? new ConcurrentHashMap<Principal, Connection>() : null;
@@ -148,31 +142,25 @@ public class InMemoryConnectionStore implements ConnectionStore {
 
 			@Override
 			public void onEviction(final Connection staleConnection) {
-				Runnable remove = new Runnable() {
-
-					@Override
-					public void run() {
-						Handshaker handshaker = staleConnection.getOngoingHandshake();
-						if (handshaker != null) {
-							handshaker.handshakeFailed(new ConnectionEvictedException("Evicted!"));
-						}
-						synchronized (InMemoryConnectionStore.this) {
-							removeByAddressConnections(staleConnection);
-							removeByEstablishedSessions(staleConnection.getEstablishedSessionIdentifier(),
-									staleConnection);
-							removeByPrincipal(staleConnection.getEstablishedPeerIdentity(), staleConnection);
-							ConnectionListener listener = connectionListener;
-							if (listener != null) {
-								listener.onConnectionRemoved(staleConnection);
-							}
-						}
+				staleConnection.execute(() -> {
+					Handshaker handshaker = staleConnection.getOngoingHandshake();
+					if (handshaker != null) {
+						handshaker.handshakeFailed(new ConnectionEvictedException("Evicted!"));
 					}
-				};
-				if (staleConnection.isExecuting()) {
-					staleConnection.getExecutor().execute(remove);
-				} else {
-					remove.run();
-				}
+					connections.writeLock().lock();
+					try {
+						removeByAddressConnections(staleConnection);
+						removeByEstablishedSessions(staleConnection.getEstablishedSessionIdentifier(),
+								staleConnection);
+						removeByPrincipal(staleConnection.getEstablishedPeerIdentity(), staleConnection);
+						ConnectionListener listener = connectionListener;
+						if (listener != null) {
+							listener.onConnectionRemoved(staleConnection);
+						}
+					} finally {
+						connections.writeLock().unlock();
+					}
+				});
 			}
 		});
 
@@ -284,6 +272,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 			connections.writeLock().lock();
 			try {
 				if (connections.put(connectionId, connection)) {
+					connection.updateLastMessageNanos();
 					if (LOGGER.isTraceEnabled()) {
 						LOGGER.trace("{}connection: add {} (size {})", tag, connection, connections.size(),
 								new Throwable("connection added!"));
@@ -292,9 +281,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 					}
 					addToAddressConnections(connection);
 					if (session != null) {
-						if (session.getPeerIdentity() != null) {
-							addToPrincipalsConnections(session.getPeerIdentity(), connection, false);
-						}
+						addToPrincipalsConnections(session.getPeerIdentity(), connection, false);
 						addToEstablishedConnections(session.getSessionIdentifier(), connection);
 					}
 					success = true;
@@ -369,12 +356,8 @@ public class InMemoryConnectionStore implements ConnectionStore {
 		if (principal != null || hasSessionId) {
 			connections.writeLock().lock();
 			try {
-				if (principal != null) {
-					addToPrincipalsConnections(principal, connection, false);
-				}
-				if (hasSessionId) {
-					addToEstablishedConnections(sessionId, connection);
-				}
+				addToPrincipalsConnections(principal, connection, false);
+				addToEstablishedConnections(sessionId, connection);
 			} finally {
 				connections.writeLock().unlock();
 			}
@@ -443,7 +426,9 @@ public class InMemoryConnectionStore implements ConnectionStore {
 			} else {
 				LOGGER.warn("{}connection {} lost session {}!", tag, connection.getConnectionId(), id);
 			}
-			connections.update(connection.getConnectionId());
+			if (connections.update(connection.getConnectionId()) != null) {
+				connection.updateLastMessageNanos();
+			}
 		}
 		return connection;
 	}
@@ -500,19 +485,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 				}
 				if (connection.isDouble()) {
 					if (connections.isStale(connection.getConnectionId())) {
-						Runnable removeConnection = new Runnable() {
-
-							@Override
-							public void run() {
-								LOGGER.trace("{}Remove connection from stale principals", tag);
-								remove(connection, false);
-							}
-						};
-						if (connection.isExecuting()) {
-							connection.getExecutor().execute(removeConnection);
-						} else {
-							remove(connection, false);
-						}
+						connection.execute(() -> remove(connection, false));
 						++count;
 					} else if (!full) {
 						break;
@@ -644,27 +617,25 @@ public class InMemoryConnectionStore implements ConnectionStore {
 		if (peerAddress != null) {
 			final Connection previous = connectionsByAddress.put(peerAddress, connection);
 			if (previous != null && previous != connection) {
-				Runnable removeAddress = new Runnable() {
-
-					@Override
-					public void run() {
-						if (previous.equalsPeerAddress(peerAddress)) {
-							previous.updatePeerAddress(null);
-							if (connectionsByEstablishedSession == null) {
-								if (!previous.expectCid()) {
-									remove(previous, false);
-								}
-							}
-						}
-					}
-				};
 				LOGGER.debug("{}connection: {} - {} added! {} removed from address.", tag, connection.getConnectionId(),
 						StringUtil.toLog(peerAddress), previous.getConnectionId());
-				if (previous.isExecuting()) {
-					previous.getExecutor().execute(removeAddress);
-				} else {
-					removeAddress.run();
-				}
+				previous.execute(() -> {
+					if (previous.equalsPeerAddress(peerAddress)) {
+						previous.updatePeerAddress(null);
+						// remove anonymous previous connection from all stores.
+						// Connections without CID nor session ID are removed
+						// from internal stores. Connections without CID but
+						// with session ID are removed from internal stores, if
+						// an external session store is used to keep them for
+						// resumption.
+						boolean fullRemove = previous.getEstablishedPeerIdentity() == null;
+						boolean internalRemove = !previous.expectCid() && (connectionsByEstablishedSession == null
+								|| previous.getEstablishedSessionIdentifier().isEmpty());
+						if (fullRemove || internalRemove) {
+							remove(previous, fullRemove);
+						}
+					}
+				});
 			} else {
 				LOGGER.debug("{}connection: {} - {} added!", tag, connection.getConnectionId(),
 						StringUtil.toLog(peerAddress));
@@ -675,7 +646,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	}
 
 	private boolean addToEstablishedConnections(SessionId sessionId, Connection connection) {
-		if (connectionsByEstablishedSession != null) {
+		if (connectionsByEstablishedSession != null && !sessionId.isEmpty()) {
 			final Connection previous = connectionsByEstablishedSession.put(sessionId, connection);
 			if (previous != null && previous != connection) {
 				removePreviousConnection("session", previous);
@@ -686,7 +657,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	}
 
 	private boolean addToPrincipalsConnections(Principal principal, Connection connection, boolean removePrevious) {
-		if (connectionsByPrincipal != null) {
+		if (connectionsByPrincipal != null && principal != null) {
 			final Connection previous = connectionsByPrincipal.put(principal, connection);
 			if (previous != null && previous != connection) {
 				if (removePrevious) {
@@ -703,19 +674,10 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	}
 
 	private void removePreviousConnection(final String cause, final Connection connection) {
-		Runnable removePreviousConnection = new Runnable() {
-
-			@Override
-			public void run() {
-				LOGGER.debug("{}Remove connection from {}", tag, cause);
-				remove(connection, false);
-			}
-		};
-		if (connection.isExecuting()) {
-			connection.getExecutor().execute(removePreviousConnection);
-		} else {
-			removePreviousConnection.run();
-		}
+		connection.execute(() -> {
+			LOGGER.debug("{}Remove connection from {}", tag, cause);
+			remove(connection, false);
+		}, true);
 	}
 
 	@Override
@@ -763,16 +725,16 @@ public class InMemoryConnectionStore implements ConnectionStore {
 		long startNanos = ClockUtil.nanoRealtime();
 		boolean writeProgress = false;
 		long progressNanos = startNanos;
-		Iterator<Timestamped<Connection>> iterator = connections.timestampedIterator();
+		Iterator<Connection> iterator = connections.ascendingIterator();
 		while (iterator.hasNext()) {
-			Timestamped<Connection> connection = iterator.next();
-			long updateNanos = connection.getLastUpdate();
+			Connection connection = iterator.next();
+			long updateNanos = connection.getLastMessageNanos();
 			long quiet = TimeUnit.NANOSECONDS.toSeconds(startNanos - updateNanos);
 			if (quiet > maxQuietPeriodInSeconds) {
-				LOGGER.trace("{}skip {} ts, {}s too quiet!", tag, updateNanos, quiet);
+				LOGGER.trace("{}skip {} ts, {}s too quiet! {}", tag, updateNanos, quiet, connection.getConnectionId());
 			} else {
-				LOGGER.trace("{}write {} ts, {}s ", tag, updateNanos, quiet);
-				if (connection.getValue().writeTo(writer)) {
+				LOGGER.trace("{}write {} ts, {}s {}", tag, updateNanos, quiet, connection.getConnectionId());
+				if (connection.writeTo(writer)) {
 					writer.writeTo(out);
 					++count;
 				} else {
@@ -816,8 +778,9 @@ public class InMemoryConnectionStore implements ConnectionStore {
 					restore = !connections.isStale(connection.getConnectionId());
 				}
 				if (restore) {
-					LOGGER.trace("{}read {} ts, {}s", tag, lastUpdate,
-							TimeUnit.NANOSECONDS.toSeconds(startNanos - lastUpdate));
+					LOGGER.trace("{}read {} ts, {}s {}", tag, lastUpdate,
+							TimeUnit.NANOSECONDS.toSeconds(startNanos - lastUpdate),
+							connection.getConnectionId());
 					restore(connection);
 					++count;
 				}
@@ -857,10 +820,10 @@ public class InMemoryConnectionStore implements ConnectionStore {
 		try {
 			if (connections.put(connectionId, connection, connection.getLastMessageNanos())) {
 				if (LOGGER.isTraceEnabled()) {
-					LOGGER.trace("{}connection: add {} (size {})", tag, connection, connections.size(),
-							new Throwable("connection added!"));
+					LOGGER.trace("{}connection: restore {} (size {})", tag, connection, connections.size(),
+							new Throwable("connection restored!"));
 				} else {
-					LOGGER.debug("{}connection: add {} (size {})", tag, connectionId, connections.size());
+					LOGGER.debug("{}connection: restore {} (size {})", tag, connectionId, connections.size());
 				}
 				addToAddressConnections(connection);
 				if (!connection.isExecuting()) {

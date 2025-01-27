@@ -96,8 +96,8 @@ public final class DebugInMemoryConnectionStore extends InMemoryConnectionStore
 	 */
 	private void dump(Connection connection) {
 		if (connection.hasEstablishedDtlsContext()) {
-			LOG.info("  {}connection: {} - {} : {}", tag, connection.getConnectionId(), connection.getPeerAddress(),
-					connection.getEstablishedSession().getSessionIdentifier());
+			LOG.info("  {}connection: {} - {} : {} {}", tag, connection.getConnectionId(), connection.getPeerAddress(),
+					connection.getEstablishedPeerIdentity(), connection.getEstablishedSession().getSessionIdentifier());
 		} else {
 			LOG.info("  {}connection: {} - {}", tag, connection.getConnectionId(), connection.getPeerAddress());
 		}
