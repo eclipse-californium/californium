@@ -1474,10 +1474,6 @@ public class DTLSConnector implements Connector, PersistentComponent, RecordLaye
 		return res;
 	}
 
-	public boolean restoreConnection(Connection connection) {
-		return connectionStore.restore(connection);
-	}
-
 	/**
 	 * Start to terminate connections related to the provided principals.
 	 * 
