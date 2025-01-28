@@ -141,7 +141,7 @@ public class DTLSConnectorStartStopTest {
 		clientChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
 		if (restoreClientConnection != null) {
-			client.restoreConnection(restoreClientConnection);
+			clientConnectionStore.restore(restoreClientConnection);
 			restoreClientConnection = null;
 		}
 	}

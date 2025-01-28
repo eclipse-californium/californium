@@ -128,6 +128,8 @@ Rename `Connection.refreshAutoResumptionTime` into `updateLastMessageNanos`.
 
 `DTLSConnector.cleanupRecentHandshakes` returns `int` instead of `void`.
 
+Remove `restoreConnection` from `DTLSConnector`.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into
