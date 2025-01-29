@@ -39,12 +39,15 @@ import org.eclipse.californium.elements.util.Asn1DerDecoder.Keys;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Verifies behavior of {@link Asn1DerDecoder}.
  */
 @Category(Small.class)
 public class Asn1DerDecoderTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(Asn1DerDecoderTest.class);
 
 	/**
 	 * DH subject public key, ASN.1 DER / Base64 encoded.
@@ -331,9 +334,9 @@ public class Asn1DerDecoderTest {
 			boolean valid = signature.verify(ghost);
 			if (valid) {
 				broken = true;
-				System.err.println(info + " is vulnerable for ECDSA R := 0, CVE-2022-21449!");
+				LOGGER.warn("{} is vulnerable for ECDSA R := 0, CVE-2022-21449!", info);
 			} else {
-				System.out.println(info + " is not vulnerable for ECDSA R := 0, CVE-2022-21449!");
+				LOGGER.info("{} is not vulnerable for ECDSA R := 0, CVE-2022-21449!", info);
 			}
 			try {
 				Asn1DerDecoder.checkEcDsaSignature(ghost, keys.getPublicKey());
@@ -358,14 +361,14 @@ public class Asn1DerDecoderTest {
 			try {
 				valid = signature.verify(ghost2);
 			} catch (SignatureException e) {
-				System.out.println(info + ", possible: " + e.getMessage());
+				LOGGER.info("{}, possible: {}", info, e.getMessage());
 				valid = false;
 			}
 			if (valid) {
 				broken = true;
-				System.err.println(info + " is vulnerable for ECDSA R := N, CVE-2022-21449!");
+				LOGGER.warn("{} is vulnerable for ECDSA R := N, CVE-2022-21449!", info);
 			} else {
-				System.out.println(info + " is not vulnerable for ECDSA R := N, CVE-2022-21449!");
+				LOGGER.info("{} is not vulnerable for ECDSA R := N, CVE-2022-21449!", info);
 			}
 			try {
 				Asn1DerDecoder.checkEcDsaSignature(ghost2, keys.getPublicKey());

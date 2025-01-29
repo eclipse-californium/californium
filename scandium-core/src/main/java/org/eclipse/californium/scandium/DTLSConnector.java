@@ -948,7 +948,7 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 										health.applicationAuthorizationRejected(false);
 									}
 								}
-							});
+							}, true);
 						}
 					} else if (!full) {
 						break;
