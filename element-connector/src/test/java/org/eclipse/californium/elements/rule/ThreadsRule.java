@@ -279,10 +279,10 @@ public class ThreadsRule implements TestRule {
 				} else {
 					LOGGER.info("Threads {} : {}{}", description, thread.getName(), mark);
 				}
-				if (LOGGER.isTraceEnabled()) {
+				if (LOGGER.isDebugEnabled()) {
 					StackTraceElement[] stackTrace = thread.getStackTrace();
 					for (StackTraceElement trace : stackTrace) {
-						LOGGER.trace("   {}", trace);
+						LOGGER.debug("   {}", trace);
 					}
 				}
 			} else {
@@ -351,7 +351,7 @@ public class ThreadsRule implements TestRule {
 	protected void shutdown() {
 		int hooks = cleanup.size();
 		if (hooks > 0) {
-			LOGGER.debug("{} shutdown hooks", hooks);
+			LOGGER.trace("{} shutdown hooks", hooks);
 			for (Runnable hook : cleanup) {
 				try {
 					hook.run();
@@ -363,7 +363,7 @@ public class ThreadsRule implements TestRule {
 		hooks = shutdown.size();
 		if (hooks > 0) {
 			try {
-				LOGGER.debug("{} shutdown executor services", hooks);
+				LOGGER.trace("{} shutdown executor services", hooks);
 				ExecutorsUtil.shutdownExecutorGracefully(1000, shutdown.toArray(new ExecutorService[hooks]));
 			} catch (RuntimeException ex) {
 				LOGGER.warn("shutdown failed!", ex);
