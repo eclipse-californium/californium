@@ -16,7 +16,7 @@
 		<appender-ref ref="STDOUT" />
 	</logger>
 
-	<logger name="org.eclipse.californium.elements.rule.ThreadsRule" level="TRACE" additivity="false">
+	<logger name="org.eclipse.californium.elements.rule.ThreadsRule" level="DEBUG" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 
