@@ -685,7 +685,13 @@ public class ConnectorHelper {
 			if (processor != null) {
 				RawData response = processor.process(raw);
 				if (response != null && connector != null) {
-					connector.send(response);
+					try {
+						connector.send(response);
+					} catch (IllegalStateException ex) {
+						if (connector.isRunning()) {
+							throw ex;
+						}
+					}
 				}
 			}
 		}

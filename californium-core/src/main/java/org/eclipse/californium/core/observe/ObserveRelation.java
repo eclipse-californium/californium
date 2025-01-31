@@ -569,7 +569,7 @@ public class ObserveRelation {
 		}
 		boolean noNotification = result == State.NONE || result == State.CANCELED;
 		if (response.isNotification() && (!response.isSuccess() || noNotification)) {
-			LOGGER.warn("Application notification, not longer observing, remove observe-option {}", response);
+			LOGGER.info("Application notification, not longer observing, remove observe-option {}", response);
 			response.getOptions().removeObserve();
 		}
 		return result;
