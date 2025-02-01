@@ -14,7 +14,6 @@
  *    Bosch Software Innovations GmbH - initial creation
  *******************************************************************************/
 
-
 package org.eclipse.californium.elements.auth;
 
 import java.security.Principal;
@@ -27,10 +26,11 @@ import java.security.Principal;
 public interface ExtensiblePrincipal<T extends Principal> extends Principal {
 
 	/**
-	 * Creates a shallow copy of this principal which contains additional information.
+	 * Creates a shallow copy of this principal which contains additional
+	 * information.
 	 * <p>
-	 * The additional information can be retrieved from the returned copy using the
-	 * {@link #getExtendedInfo()} method.
+	 * The additional information can be retrieved from the returned copy using
+	 * the {@link #getExtendedInfo()} method.
 	 * 
 	 * @param additionalInfo The additional information.
 	 * @return The copy.
@@ -44,4 +44,15 @@ public interface ExtensiblePrincipal<T extends Principal> extends Principal {
 	 *         The map will be empty if no additional information is available.
 	 */
 	AdditionalInfo getExtendedInfo();
+
+	/**
+	 * Checks, if principal is anonymous.
+	 * <p>
+	 * Anonymous principals are not used as identities.
+	 * 
+	 * @return {@code true}, if principal represents an anonymous,
+	 *         {@code false}, otherwise.
+	 * @since 4.0
+	 */
+	boolean isAnonymous();
 }

@@ -67,6 +67,7 @@ import org.eclipse.californium.elements.util.SerializationUtil.SupportedVersions
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
@@ -90,6 +91,11 @@ public final class DTLSSession implements Destroyable {
 	 * An arbitrary byte sequence chosen by the server to identify this session.
 	 */
 	private SessionId sessionIdentifier = SessionId.emptySessionId();
+	/**
+	 * An alternative transient ID, if the {@link DTLSSession#sessionIdentifier}
+	 * is empty by intention.
+	 */
+	private Bytes hostInternalIdentifier;
 
 	/**
 	 * Protocol version.
@@ -268,7 +274,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Gets this session's identifier.
 	 * 
-	 * @return the identifier or {@code null} if this session does not have an
+	 * @return the identifier. May be empty, if this session does not have an
 	 *         identifier (yet).
 	 */
 	public SessionId getSessionIdentifier() {
@@ -295,6 +301,7 @@ public final class DTLSSession implements Destroyable {
 			SecretUtil.destroy(this.masterSecret);
 			this.masterSecret = null;
 			this.sessionIdentifier = sessionIdentifier;
+			this.hostInternalIdentifier = null;
 		} else {
 			throw new IllegalArgumentException("no new session identifier?");
 		}
@@ -424,8 +431,18 @@ public final class DTLSSession implements Destroyable {
 	 * @param attributes attributes to add the entries
 	 */
 	public void addEndpointContext(MapBasedEndpointContext.Attributes attributes) {
-		Bytes id = sessionIdentifier.isEmpty() ? new Bytes(("TIME:" + Long.toString(creationTime)).getBytes())
-				: sessionIdentifier;
+		Bytes id = sessionIdentifier;
+		if (id.isEmpty()) {
+			if (hostInternalIdentifier == null) {
+				byte[] tag = ("TIME:" + Long.toString(creationTime)).getBytes();
+				int fill = 24 - tag.length;
+				if (fill > 0) {
+					tag = Bytes.concatenate(tag, Bytes.createBytes(RandomManager.currentSecureRandom(), fill));
+				}
+				hostInternalIdentifier= new Bytes(tag);
+			}
+			id = hostInternalIdentifier;
+		}
 		attributes.add(DtlsEndpointContext.KEY_SESSION_ID, id);
 		attributes.add(DtlsEndpointContext.KEY_CIPHER, cipherSuite.name());
 		if (extendedMasterSecret) {
@@ -834,7 +851,7 @@ public final class DTLSSession implements Destroyable {
 
 	@Override
 	public int hashCode() {
-		return sessionIdentifier == null ? (int) creationTime : sessionIdentifier.hashCode();
+		return sessionIdentifier.isEmpty() ? (int) creationTime : sessionIdentifier.hashCode();
 	}
 
 	@Override

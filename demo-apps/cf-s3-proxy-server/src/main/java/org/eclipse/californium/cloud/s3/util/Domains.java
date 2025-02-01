@@ -37,6 +37,7 @@ import org.eclipse.californium.cloud.s3.proxy.S3ResourceStore;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.LinuxConfigParser;
 import org.eclipse.californium.cloud.util.ResourceStore;
+import org.eclipse.californium.elements.auth.ApplicationPrincipal;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -180,6 +181,10 @@ public class Domains
 	 */
 	public static final String WEB_SECTION = "web";
 	/**
+	 * Section for anonymous clients.
+	 */
+	public static final String ANONYOUS_SECTION = "anonymous";
+	/**
 	 * Field name for maximum devices.
 	 */
 	public static final String FIELD_MAX_DEVICES = "max_devices";
@@ -238,6 +243,8 @@ public class Domains
 	 */
 	private final Domain webDomain;
 
+	private final HttpForwardConfiguration anonymousHttpForwardingConfiguration;
+
 	/**
 	 * Create domains setup.
 	 * 
@@ -250,6 +257,7 @@ public class Domains
 		int maxDevices = config.get(BaseServer.CACHE_MAX_DEVICES);
 		String web = domainDefinition.get(WEB_SECTION, "domain");
 		Domain webDomain = null;
+		HttpForwardConfiguration httpForwardingConfiguration = null;
 
 		this.monitors = monitors;
 		this.configuration = domainDefinition;
@@ -295,12 +303,31 @@ public class Domains
 						webDomain = domain;
 					}
 				}
+			} else if (ANONYOUS_SECTION.equals(section)) {
+				List<String> domainConfigFields = HttpForwardServiceManager.getDomainConfigFields();
+				if (domainConfigFields != null) {
+					Map<String, String> fields = new HashMap<>();
+					for (String field : domainConfigFields) {
+						String value = domainDefinition.get(section, field);
+						fields.put(field, value);
+					}
+					try {
+						httpForwardingConfiguration = BasicHttpForwardConfiguration.create(fields);
+						if (httpForwardingConfiguration != null) {
+							LOGGER.info("{}: http forward {}, {}", name, httpForwardingConfiguration.getDestination(),
+									httpForwardingConfiguration.getDeviceIdentityMode());
+						}
+					} catch (URISyntaxException e) {
+						LOGGER.warn("Failed to configure http forward '{}' for domain {}.", e.getInput(), section);
+					}
+				}
 			}
 		}
 		if (web != null && webDomain == null) {
 			webDomain = domains.get(web);
 		}
 		this.webDomain = webDomain;
+		this.anonymousHttpForwardingConfiguration = httpForwardingConfiguration;
 	}
 
 	/**
@@ -463,6 +490,10 @@ public class Domains
 		Domain domain = domains.get(domainName);
 		if (domain != null) {
 			return domain.httpForwardingConfiguration;
+		}
+		if (ApplicationPrincipal.ANONYMOUS.getName().equals(domainName)
+				&& ApplicationPrincipal.ANONYMOUS.getName().equals(name)) {
+			return anonymousHttpForwardingConfiguration;
 		}
 		return null;
 	}

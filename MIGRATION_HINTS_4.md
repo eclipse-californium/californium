@@ -60,6 +60,14 @@ In some cases `SHA384` was misspelled as `SHA378`. That's fixed but causes also 
 
 Supports virtual threads for DTLS receivers, if the JVM supports it. Otherwise platform daemon threads are used. Chosen by `-1` as number of threads in `DTLS.RECEIVER_THREAD_COUNT`.
 
+The `DTLSConnector` uses Connection ID to identify DLTS context now also for outgoing messages, if available.
+
+The `DefaultCipherSuiteSelector` supports now `CertificateAuthenticationMode.WANTED` even if no common client certificate type is available. It omits the `CertificateRequest` in this case.
+
+The `InMemoryConnectionStore` removes now `Connection`s without `Principals` when the ip-address is reused.
+
+Using the `DTLS.APPLICATION_AUTHORIZATION_TIMEOUT` removes now connections with anonymous clients after that timeout, if the application doesn't authorize them using the `ApplicationAuthorizer`.
+
 ### Element-Connector-TCP-Netty:
 
 ### Californium-Core:
@@ -119,6 +127,12 @@ Uses the new introduced `ProtocolScheduledExecutorService`.
 Remove the "Advanced" from PSK-stores. Replace `AdvancedPskStore` by `PskStore`, `AdvancedSinglePskStore` by `SingelPskStore`, `AdvancedMultiPskStore` by `MultiPskStore`, and `AsyncAdvancedPskStore` by `AsyncPskStore`. Rename `advancedPskStore` field and variables into `pskStore`, `DtlsConnectorConfig.getAdvancedPskStore()` into `DtlsConnectorConfig.getPskStore()`, and `DtlsConnectorConfig.Builder.setAdvancedPskStore(AdvancedPskStore)` into `DtlsConnectorConfig.Builder.setPskStore(PskStore)`.
 
 Remove the "NewAdvanced" from CertificateVerifier. Replace `NewAdvancedCertificateVerifier` by `CertificateVerifier`, `StaticNewAdvancedCertificateVerifier` by `StaticCertificateVerifier` and `AsyncNewAdvancedCertificateVerifier` by `AsyncCertificateVerifier`.
+
+Rename `Connection.refreshAutoResumptionTime` into `updateLastMessageNanos`.
+
+`DTLSConnector.cleanupRecentHandshakes` returns `int` instead of `void`.
+
+Remove `restoreConnection` from `DTLSConnector`.
 
 ### Californium-Core:
 

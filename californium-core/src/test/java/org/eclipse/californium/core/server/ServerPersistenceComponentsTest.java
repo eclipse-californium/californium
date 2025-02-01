@@ -47,6 +47,7 @@ import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.EncryptedPersistentComponentUtil;
+import org.eclipse.californium.elements.util.EncryptedStreamUtil;
 import org.eclipse.californium.elements.util.PersistentComponentUtil;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -106,6 +107,7 @@ public class ServerPersistenceComponentsTest {
 		util.saveComponents(out, 1000);
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
 		util = setup(connector2);
+		logging.setLoggingLevel("ERROR", PersistentComponentUtil.class);
 		util.loadComponents(in);
 		assertThat(connector1.data, is(nullValue()));
 		assertArrayEquals(connector2.mark, connector2.data);
@@ -118,6 +120,7 @@ public class ServerPersistenceComponentsTest {
 		util.saveComponents(out, 1000);
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
 		util = setup(connector1);
+		logging.setLoggingLevel("ERROR", PersistentComponentUtil.class);
 		util.loadComponents(in);
 		assertArrayEquals(connector1.mark, connector1.data);
 		assertThat(connector2.data, is(nullValue()));
@@ -155,6 +158,7 @@ public class ServerPersistenceComponentsTest {
 		util.saveComponents(out, key, 1000);
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
 		util = setup(connector2);
+		logging.setLoggingLevel("ERROR", PersistentComponentUtil.class);
 		util.loadComponents(in, key);
 		assertThat(connector1.data, is(nullValue()));
 		assertArrayEquals(connector2.mark, connector2.data);
@@ -168,6 +172,7 @@ public class ServerPersistenceComponentsTest {
 		util.saveComponents(out, key, 1000);
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
 		util = setup(connector1);
+		logging.setLoggingLevel("ERROR", PersistentComponentUtil.class);
 		util.loadComponents(in, key);
 		assertArrayEquals(connector1.mark, connector1.data);
 		assertThat(connector2.data, is(nullValue()));
@@ -181,6 +186,7 @@ public class ServerPersistenceComponentsTest {
 		util.saveComponents(out, key, 1000);
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
 		util = setup(connector1, connector3);
+		logging.setLoggingLevel("ERROR", PersistentComponentUtil.class);
 		util.loadComponents(in, key);
 		assertArrayEquals(connector1.mark, connector1.data);
 		assertThat(connector2.data, is(nullValue()));
@@ -220,7 +226,7 @@ public class ServerPersistenceComponentsTest {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		util.saveComponents(out, 1000);
 		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
-		logging.setLoggingLevel("ERROR", PersistentComponentUtil.class);
+		logging.setLoggingLevel("ERROR", EncryptedStreamUtil.class);
 		util.loadComponents(in, key);
 		assertThat(connector1.data, is(nullValue()));
 		assertThat(connector2.data, is(nullValue()));

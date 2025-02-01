@@ -35,6 +35,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
@@ -48,7 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UDPConnectorTest {
-	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnectorTest.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(UDPConnectorTest.class);
 
 	private static final long TIMEOUT_MILLIS = 1500;
 
@@ -57,6 +58,9 @@ public class UDPConnectorTest {
 
 	@Rule
 	public ThreadsRule cleanup = new ThreadsRule();
+
+	@Rule
+	public LoggingRule logging = new LoggingRule();
 
 	UDPConnector connector;
 	UDPConnector destination;
@@ -179,6 +183,7 @@ public class UDPConnectorTest {
 
 		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
 		RawData message = RawData.outbound(data, context, callback, false);
+		logging.setLoggingLevel("ERROR", UDPConnector.class);
 		connector.send(message);
 		assertThat(callback.await(TIMEOUT_MILLIS), is(true));
 		assertThat(callback.toString(), callback.getError(), is(notNullValue()));

@@ -516,6 +516,11 @@ public class Aws4Authorizer {
 		public AdditionalInfo getExtendedInfo() {
 			return additionalInfo;
 		}
+
+		@Override
+		public boolean isAnonymous() {
+			return false;
+		}
 	}
 
 	/**

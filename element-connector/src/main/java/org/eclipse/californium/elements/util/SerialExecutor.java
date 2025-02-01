@@ -103,15 +103,34 @@ public class SerialExecutor extends AbstractExecutorService implements CheckedEx
 	}
 
 	@Override
-	public void execute(final Runnable command) {
+	public void execute(Runnable command) {
+		execute(command, false);
+	}
+
+	/**
+	 * Execute a command.
+	 * 
+	 * @param command the command to execute.
+	 * @param force {@code true} to execute command even on shutdown.
+	 * @throws RejectedExecutionException if this task cannot be accepted for
+	 *             execution
+	 * @throws NullPointerException if command is null
+	 * @since 4.0
+	 */
+	public void execute(Runnable command, boolean force) {
 		lock.lock();
 		try {
 			if (shutdown) {
-				throw new RejectedExecutionException("SerialExecutor already shutdown!");
-			}
-			tasks.offer(command);
-			if (currentlyExecutedJob == null) {
-				scheduleNextJob();
+				if (force) {
+					command.run();
+				} else {
+					throw new RejectedExecutionException("SerialExecutor already shutdown!");
+				}
+			} else {
+				tasks.offer(command);
+				if (currentlyExecutedJob == null) {
+					scheduleNextJob();
+				}
 			}
 		} finally {
 			lock.unlock();
@@ -122,7 +141,7 @@ public class SerialExecutor extends AbstractExecutorService implements CheckedEx
 	 * {@inheritDoc}
 	 * 
 	 * {@link #currentlyExecutedJob} is used for the current job.
-		 */
+	 */
 	@Override
 	public void assertOwner() {
 		final Thread me = Thread.currentThread();
@@ -140,7 +159,7 @@ public class SerialExecutor extends AbstractExecutorService implements CheckedEx
 	 * {@inheritDoc}
 	 * 
 	 * {@link #currentlyExecutedJob} is used for the current job.
-		 */
+	 */
 	@Override
 	public boolean checkOwner() {
 		return owner.get() == Thread.currentThread();
@@ -278,44 +297,48 @@ public class SerialExecutor extends AbstractExecutorService implements CheckedEx
 			currentlyExecutedJob = tasks.poll();
 			if (currentlyExecutedJob != null) {
 				final Runnable command = currentlyExecutedJob;
-				executor.execute(new Runnable() {
-
-					@Override
-					public void run() {
-						try {
-							setOwner();
-							ExecutionListener current = listener.get();
-							try {
-								if (current != null) {
-									current.beforeExecution();
-								}
-								command.run();
-							} catch (Throwable t) {
-								LOGGER.error("unexpected error occurred:", t);
-							} finally {
-								try {
-									if (current != null) {
-										current.afterExecution();
-									}
-								} catch (Throwable t) {
-									LOGGER.error("unexpected error occurred after execution:", t);
-								}
-								clearOwner();
-							}
-						} finally {
-							try {
-								scheduleNextJob();
-							} catch (RejectedExecutionException ex) {
-								LOGGER.debug("shutdown?", ex);
-							}
-						}
-					}
-				});
+				executor.execute(() -> run(command));
 			} else if (shutdown) {
 				terminated.signalAll();
 			}
 		} finally {
 			lock.unlock();
+		}
+	}
+
+	/**
+	 * Execute command.
+	 * 
+	 * @param command the command
+	 * @since 4.0
+	 */
+	private void run(final Runnable command) {
+		try {
+			setOwner();
+			ExecutionListener current = listener.get();
+			try {
+				if (current != null) {
+					current.beforeExecution();
+				}
+				command.run();
+			} catch (Throwable t) {
+				LOGGER.error("unexpected error occurred:", t);
+			} finally {
+				try {
+					if (current != null) {
+						current.afterExecution();
+					}
+				} catch (Throwable t) {
+					LOGGER.error("unexpected error occurred after execution:", t);
+				}
+				clearOwner();
+			}
+		} finally {
+			try {
+				scheduleNextJob();
+			} catch (RejectedExecutionException ex) {
+				LOGGER.debug("shutdown?", ex);
+			}
 		}
 	}
 
