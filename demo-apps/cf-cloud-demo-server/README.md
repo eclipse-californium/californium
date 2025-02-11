@@ -298,9 +298,9 @@ or
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out privkey.pem
 ```
 
-as already introduced above.
+as already introduced above for creating device key-pairs.
 
-(The PEM created by that commands contains both, the private and the public key. Therefore the server needs only this one. Other formats or tools may have other results and you may need then two files, one `privkey.pem` and one `publickey.pem`.)
+(As already mentioned, the PEM created by that commands contains both, the private and the public key. Therefore the server needs only this one. Other formats or tools may have other results and you may need then two files, one `privkey.pem` and one `publickey.pem`.)
 
 The `public key` of that server pair must be provided to devices, which then use that to trust this server. How the `public key` is provided depends on the device. If that requires the `public key` in base64 pem, then export it as show above for the device's `key-pair`.
 
