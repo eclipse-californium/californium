@@ -32,10 +32,10 @@ For more details, please look at [https://www.eclipse.org/security](https://www.
 
 | Californium Version | Vulnerability
 | ------------------- | ----------
-| < 3.7 <br/> < 2.7.4 | Failing DTLS handshake [CVE-2022-39368](https://cve.report/CVE-2022-39368)
-| < 3.6 <br/> < 2.7.3 | DTLS resumption handshake [CVE-2022-2576](https://cve.report/CVE-2022-2576)
-| < 3.0-M3 <br/> < 2.6.5 | DTLS certificates verification bypass [CVE-2021-34433](https://cve.report/CVE-2021-34433)
-| < 2.6.0 | DTLS certificates verification fails sticky [CVE-2020-27222](https://cve.report/CVE-2020-27222)
+| < 3.7 <br/> < 2.7.4 | Failing DTLS handshake [CVE-2022-39368](https://www.cve.org/CVERecord?id=CVE-2022-39368)
+| < 3.6 <br/> < 2.7.3 | DTLS resumption handshake [CVE-2022-2576](https://www.cve.org/CVERecord?id=CVE-2022-2576)
+| < 3.0-M3 <br/> < 2.6.5 | DTLS certificates verification bypass [CVE-2021-34433](https://www.cve.org/CVERecord?id=CVE-2021-34433)
+| < 2.6.0 | DTLS certificates verification fails sticky [CVE-2020-27222](https://www.cve.org/CVERecord?id=CVE-2020-27222)
 
 See also [NIST database of known Californium vulnerabilities](https://nvd.nist.gov/vuln/search/results?form_type=Basic&results_type=overview&query=Californium&search_type=all)
 
@@ -43,10 +43,10 @@ See also [NIST database of known Californium vulnerabilities](https://nvd.nist.g
 
 | Californium Version | Dependency | Affected Version | Usage | Vulnerability
 | ------------------- | ---------- | ---------------- | ----- | -------------
-| 3.9.0 - 4.0.0-M2 <br/> 2.8.0 | io.netty | 4.1.91.Final - 4.1.117.Final | (experimental) coaps-tcp | [CVE-2025-24970](https://cve.report/CVE-2025-24970)
-| < 3.6 <br/> < 2.7.3 | com.google.code.gson |  < 2.8.9 | demo-apps | [CVE 2022-25647](https://cve.report/CVE-2022-25647)
+| 3.9.0 - 4.0.0-M2 <br/> 2.8.0 | io.netty | 4.1.91.Final - 4.1.117.Final | (experimental) coaps-tcp | [CVE-2025-24970](https://www.cve.org/CVERecord?id=CVE-2025-24970)
+| < 3.6 <br/> < 2.7.3 | com.google.code.gson |  < 2.8.9 | demo-apps | [CVE 2022-25647](https://www.cve.org/CVERecord?id=CVE-2022-25647)
 | < 3.3 <br/> < 2.7.2 | com.upokecenter.cbor | 4.0 - 4.5.0 | cf-oscore <br/> demo-apps | [GHSA-fj2w-wfgv-mwq6](https://github.com/peteroupc/CBOR-Java/security/advisories/GHSA-fj2w-wfgv-mwq6)
-| < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | demo-apps | [CVE-2021-42550](https://cve.report/CVE-2021-42550)
+| < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | demo-apps | [CVE-2021-42550](https://www.cve.org/CVERecord?id=CVE-2021-42550)
 
 ## Known Vulnerabilities Of Runtime Dependencies
 
