@@ -14,9 +14,12 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.util;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -25,6 +28,10 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.concurrent.Semaphore;
 
@@ -263,7 +270,7 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 	 * @see #load(Reader)
 	 */
 	public ResourceStore<T> load(String file) {
-		try (InputStream in = new FileInputStream(file)) {
+		try (InputStream in = createInputStream(file)) {
 			try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
 				load(reader);
 			}
@@ -298,8 +305,9 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 	 * @see #load(Reader)
 	 */
 	public ResourceStore<T> load(String file, SecretKey password) {
-		try (InputStream in = new FileInputStream(file)) {
+		try (InputStream in = createInputStream(file)) {
 			load(in, password);
+		} catch (FileNotFoundException e) {
 		} catch (IOException e) {
 			LOGGER.warn("{}read encrypted {}:", tag, file, e);
 		}
@@ -508,6 +516,9 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 
 	public class AppendFileMonitor extends FileMonitor implements ResourceChangedHandler {
 
+		private static final String BACKUP = ".bak";
+		private static final String NEW = ".new";
+
 		private final String file;
 		private final SecretKey password;
 
@@ -515,6 +526,52 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 			super(file);
 			this.file = file;
 			this.password = SecretUtil.create(password);
+			cleanup();
+		}
+
+		public void cleanup() {
+			if (getFile().exists()) {
+				// cleanup
+				File[] list = list("");
+				if (list != null) {
+					for (File file : list) {
+						try {
+							file.delete();
+							LOGGER.info("{} cleanup {}", tag, file.getName());
+						} catch (SecurityException ex) {
+						}
+					}
+				}
+			} else {
+				// recover
+				File[] backup = list(BACKUP);
+				File[] newFile = list(NEW);
+				if (backup != null && backup.length == 1 && newFile != null && newFile.length == 1) {
+					// one backup, one new
+					try {
+						Files.move(newFile[0].toPath(), getFile().toPath(), StandardCopyOption.REPLACE_EXISTING);
+						Files.deleteIfExists(backup[0].toPath());
+					} catch (Exception ex) {
+						LOGGER.info("{} append failed!", tag, ex);
+					}
+				}
+			}
+		}
+
+		public File getParentDirectory() {
+			return getFile().getAbsoluteFile().getParentFile();
+		}
+
+		public File[] list(final String suffix) {
+			final String filename = getFile().getName();
+			File directory = getParentDirectory();
+			return directory.listFiles(new FilenameFilter() {
+
+				@Override
+				public boolean accept(File dir, String name) {
+					return !name.equals(filename) && name.startsWith(filename) && name.endsWith(suffix);
+				}
+			});
 		}
 
 		@Override
@@ -548,12 +605,13 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 				response.results(ResultCode.SERVER_ERROR, "no AppendResourceParser.");
 				return;
 			}
-			AppendingResourceParser<?> resource =(AppendingResourceParser<?>) currentResource;
+			AppendingResourceParser<?> resource = (AppendingResourceParser<?>) currentResource;
 			try {
 				int result = 0;
-				File temp = File.createTempFile(file, null);
+				File targetFile = getFile();
+				File temp = File.createTempFile(file, NEW, getParentDirectory());
 				if (password != null) {
-					try (InputStream in = new FileInputStream(file)) {
+					try (InputStream in = createInputStream(targetFile)) {
 						byte[] seed = encryptionUtility.readSeed(in);
 						try (InputStream inEncrypted = encryptionUtility.prepare(seed, in, password)) {
 							try (OutputStream out = new FileOutputStream(temp)) {
@@ -567,7 +625,7 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 						throw e;
 					}
 				} else {
-					try (InputStream in = new FileInputStream(file)) {
+					try (InputStream in = createInputStream(targetFile)) {
 						try (OutputStream out = new FileOutputStream(temp)) {
 							result = appendNewEntries(resource, in, out);
 						}
@@ -578,9 +636,22 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 				}
 				if (result > 0) {
 					MonitoredValues values = checkMonitoredValues();
-					File currentFile = getFile();
-					currentFile.delete();
-					temp.renameTo(currentFile);
+					Path current = targetFile.toPath();
+					Path backup = Paths.get(file + BACKUP);
+					Path temporary = temp.toPath();
+					try {
+						Files.move(current, backup, StandardCopyOption.REPLACE_EXISTING);
+					} catch (Exception ex) {
+						LOGGER.info("{} backup failed!", tag, ex);
+					}
+					try {
+						Files.move(temporary, current, StandardCopyOption.REPLACE_EXISTING);
+					} catch (Exception ex) {
+						LOGGER.info("{} append failed!", tag, ex);
+						response.results(ResultCode.SERVER_ERROR, "failed to append file.");
+						return;
+					}
+					cleanup();
 					if (values == null) {
 						values = checkMonitoredValues();
 						ready(values);
@@ -625,4 +696,37 @@ public class ResourceStore<T extends ResourceParser<T>> implements Destroyable {
 		return result;
 	}
 
+	/**
+	 * Create input stream from file.
+	 * <p>
+	 * If file doesn't exists, return an empty input stream.
+	 * 
+	 * @param file file to read
+	 * @return input stream
+	 * @since 4.0
+	 */
+	protected static InputStream createInputStream(File file) {
+		try {
+			return new FileInputStream(file);
+		} catch (FileNotFoundException e) {
+			return new ByteArrayInputStream(Bytes.EMPTY);
+		}
+	}
+
+	/**
+	 * Create input stream from file.
+	 * <p>
+	 * If file doesn't exists, return an empty input stream.
+	 * 
+	 * @param file file to read
+	 * @return input stream
+	 * @since 4.0
+	 */
+	protected static InputStream createInputStream(String file) {
+		try {
+			return new FileInputStream(file);
+		} catch (FileNotFoundException e) {
+			return new ByteArrayInputStream(Bytes.EMPTY);
+		}
+	}
 }

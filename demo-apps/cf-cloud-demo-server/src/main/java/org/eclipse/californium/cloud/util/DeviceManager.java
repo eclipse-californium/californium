@@ -115,16 +115,16 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 	/**
 	 * Creates device manager.
 	 * 
-	 * @param devices device store with PreSharedKey and RawPublicKey
-	 *            credentials
+	 * @param devices device store with PreSharedKey, RawPublicKey and x509
+	 *            credentials. May be {@code null}.
 	 * @param credentials server's credentials for DTLS 1.2 certificate based
-	 *            authentication
+	 *            authentication. May be {@code null}.
 	 * @param addTimeoutMillis timeout in milliseconds configuration values
 	 * @since 4.0 (added parameter addTimeoutMillis)
 	 */
 	public DeviceManager(ResourceStore<DeviceParser> devices, Credentials credentials, long addTimeoutMillis) {
 		this.devices = devices;
-		if (credentials.getPrivateKey() != null && credentials.getPublicKey() != null) {
+		if (credentials != null && credentials.getPrivateKey() != null && credentials.getPublicKey() != null) {
 			this.credentials = credentials;
 		} else {
 			this.credentials = null;
