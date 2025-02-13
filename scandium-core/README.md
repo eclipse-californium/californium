@@ -291,6 +291,26 @@ Supported extensions:
 - [RFC 8422 - Elliptic Curve Cryptography (ECC) Update](https://tools.ietf.org/html/rfc8422)
 - [RFC 8449 - Record Size Limit Extension](https://tools.ietf.org/html/rfc8449)
 - [RFC 9146 - Connection Identifiers for DTLS 1.2](https://www.rfc-editor.org/rfc/rfc9146.html)
+- [draft-ietf-tls-keylogfile - The SSLKEYLOGFILE Format for TLS](https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html)
+
+### Using WireShark with TLSKEYLOGFILE
+
+Since 4.0.0-M3 Californium support [draft-ietf-tls-keylogfile - The SSLKEYLOGFILE Format for TLS](https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html).
+
+To use it, enable it in the "Californium3.properties" using
+
+```
+# Enable TLSKEYLOG_FILE. The file contains sensitive keys for encryption!
+# Use it with reasonable care!
+# Default: false
+DTLS.TLSKEYLOG_FILE=logs/sslkeylogs.log
+```
+
+Then also add that file to the Wireshark 
+
+Settings -> Protocols -> TLS (Pre)-Master-Secret log filename.
+
+See also [Decrypt messages using the TLSKEYLOG File](https://github.com/eclipse-californium/californium/wiki/Logs-and-IP-Capturing-%E2%80%90-How-To-Provide-The-Right-Information#decrypt-messages-using-the-tlskeylog-file).
 
 ## Support for x25519 and ed25519
 
