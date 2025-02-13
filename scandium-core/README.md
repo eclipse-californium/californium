@@ -292,6 +292,8 @@ Supported extensions:
 - [RFC 8449 - Record Size Limit Extension](https://tools.ietf.org/html/rfc8449)
 - [RFC 9146 - Connection Identifiers for DTLS 1.2](https://www.rfc-editor.org/rfc/rfc9146.html)
 
+- [draft-ietf-tls-keylogfile - Connection Identifiers for DTLS 1.2](https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html)
+
 ## Support for x25519 and ed25519
 
 Support for X25519 is only available using java 11 (or newer) for execution.
