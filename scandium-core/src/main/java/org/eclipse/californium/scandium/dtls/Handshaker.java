@@ -101,6 +101,7 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.TlsKeyLog;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -442,6 +443,17 @@ public abstract class Handshaker implements Destroyable {
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	/**
+	 * The TLSKEYLOG.
+	 * <p>
+	 * The resource contains sensitive keys for encryption! Use it with reasonable care!
+	 * 
+	 * @see <a href="https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html" target="_blank">
+	 *         draft-ietf-tls-keylogfile</a>
+	 * @since 4.0
+	 */
+	private final TlsKeyLog tlsKeyLog;
+
+	/**
 	 * Indicates, that {@link #setExpectedStates(HandshakeState[])} has been called
 	 * during the last processing of {@link #processNextHandshakeMessages}.
 	 * 
@@ -567,6 +579,7 @@ public abstract class Handshaker implements Destroyable {
 		this.extendedMasterSecretMode = config.get(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE);
 		this.useTruncatedCertificatePathForVerification = config.get(DtlsConfig.DTLS_TRUNCATE_CERTIFICATE_PATH_FOR_VALIDATION);
 		this.useEarlyStopRetransmission = config.get(DtlsConfig.DTLS_USE_EARLY_STOP_RETRANSMISSION);
+		this.tlsKeyLog = config.getTlsKeyLog();
 		this.certificateIdentityProvider = config.getCertificateIdentityProvider();
 		this.certificateVerifier = config.getCertificateVerifier();
 		this.pskStore = config.getPskStore();
@@ -2167,6 +2180,9 @@ public abstract class Handshaker implements Destroyable {
 				contextEstablished = true;
 				for (SessionListener sessionListener : sessionListeners) {
 					sessionListener.contextEstablished(this, context);
+				}
+				if (tlsKeyLog != null) {
+					tlsKeyLog.append(peer, getPeerIdentity(), clientRandom, masterSecret);
 				}
 			} else {
 				handshakeFailed(

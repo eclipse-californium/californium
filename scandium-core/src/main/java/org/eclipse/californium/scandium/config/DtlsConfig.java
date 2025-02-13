@@ -33,6 +33,7 @@ import org.eclipse.californium.elements.config.EnumDefinition;
 import org.eclipse.californium.elements.config.EnumListDefinition;
 import org.eclipse.californium.elements.config.FloatDefinition;
 import org.eclipse.californium.elements.config.IntegerDefinition;
+import org.eclipse.californium.elements.config.StringDefinition;
 import org.eclipse.californium.elements.config.StringSetDefinition;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.TimeDefinition;
@@ -955,6 +956,20 @@ public final class DtlsConfig {
 			"Timeout for application authorization of anonymous clients.\n0s to switch off.",
 			0, TimeUnit.SECONDS);
 
+	/**
+	 * TLSKEYLOG file.
+	 * <p>
+	 * The file contains sensitive keys for encryption! Use it with reasonable care!
+	 * 
+	 * @see <a href="https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html" target="_blank">
+	 *         draft-ietf-tls-keylogfile</a>
+	 * @since 4.0
+	 */
+	public static final StringDefinition DTLS_TLSKEYLOG_FILE = new StringDefinition(
+			MODULE + "TLSKEYLOG_FILE", 
+			"Fiel to write TLSKEYLOG. The file contains sensitive keys for encryption!\n" +
+			"!!! Use it with reasonable care !!!", null);
+
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
 
 		@Override
@@ -1031,6 +1046,7 @@ public final class DtlsConfig {
 			config.set(DTLS_SECURE_RENEGOTIATION, DEFAULT_SECURE_RENEGOTIATION);
 			config.set(DTLS_SUPPORT_KEY_MATERIAL_EXPORT, false);
 			config.set(DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 0, TimeUnit.SECONDS);
+			config.set(DTLS_TLSKEYLOG_FILE, null);
 
 			DefinitionUtils.verify(DtlsConfig.class, config);
 		}
