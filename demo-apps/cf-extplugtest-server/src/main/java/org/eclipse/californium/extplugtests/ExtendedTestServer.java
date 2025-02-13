@@ -57,6 +57,7 @@ import org.eclipse.californium.core.observe.ObserveStatisticLogger;
 import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.config.SystemConfig;
@@ -162,6 +163,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD, 8);
 			config.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 3, TimeUnit.SECONDS);
 			config.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 8, TimeUnit.SECONDS);
+			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+			config.set(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 15, TimeUnit.SECONDS);
 			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS);
 			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 60, TimeUnit.MINUTES);
 			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);

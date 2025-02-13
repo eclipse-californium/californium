@@ -398,14 +398,18 @@ public class ClientInitializer {
 				dtlsConfig.setCertificateVerifier(verifierBuilder.build());
 			}
 
-			if (clientConfig.authentication != null && clientConfig.authentication.credentials != null) {
-				Credentials identity = clientConfig.authentication.credentials;
-				if (certificateTypes.contains(CertificateType.X_509)) {
-					dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(identity.getPrivateKey(),
-							identity.getCertificateChain(), certificateTypes));
-				} else if (certificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
-					dtlsConfig.setCertificateIdentityProvider(
-							new SingleCertificateProvider(identity.getPrivateKey(), identity.getPublicKey()));
+			if (clientConfig.authentication != null) {
+				if (clientConfig.authentication.credentials != null) {
+					Credentials identity = clientConfig.authentication.credentials;
+					if (certificateTypes.contains(CertificateType.X_509)) {
+						dtlsConfig.setCertificateIdentityProvider(new SingleCertificateProvider(
+								identity.getPrivateKey(), identity.getCertificateChain(), certificateTypes));
+					} else if (certificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
+						dtlsConfig.setCertificateIdentityProvider(
+								new SingleCertificateProvider(identity.getPrivateKey(), identity.getPublicKey()));
+					}
+				} else if (keyExchangeAlgorithms.isEmpty()) {
+					ListUtils.addIfAbsent(keyExchangeAlgorithms, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
 				}
 			}
 

@@ -1386,6 +1386,7 @@ public class BenchmarkClient {
 						config.observe.reregister, config.observe.register);
 		}
 		initialConnectDownCounter.set(clients);
+		final boolean anonymous = config.authentication.anonymous;
 		final boolean psk = config.authenticationModes.contains(AuthenticationMode.PSK)
 				|| config.authenticationModes.contains(AuthenticationMode.ECDHE_PSK);
 		final boolean rpk = config.authenticationModes.contains(AuthenticationMode.RPK);
@@ -1412,7 +1413,7 @@ public class BenchmarkClient {
 				break;
 			}
 		}
-		final ThreadLocalKeyPairGenerator keyPairGenerator = rpk ? createKeyPairGenerator() : null;
+		final ThreadLocalKeyPairGenerator keyPairGenerator = (secure && rpk && !anonymous) ? createKeyPairGenerator() : null;
 		// Create & start clients
 		final AtomicBoolean errors = new AtomicBoolean();
 		health = new HealthStatisticLogger(uri.getScheme(), CoAP.isUdpScheme(uri.getScheme()));
@@ -1426,7 +1427,7 @@ public class BenchmarkClient {
 			final int currentIndex = index;
 			final String identity;
 			final SecretKey secret;
-			if (secure && psk) {
+			if (secure && psk && !anonymous) {
 				if (config.pskStore != null) {
 					int pskIndex = (pskOffset + index) % config.pskStore.size();
 					identity = config.pskStore.getIdentity(pskIndex);
@@ -1451,7 +1452,7 @@ public class BenchmarkClient {
 						return;
 					}
 					ClientConfig connectionConfig = config;
-					if (secure) {
+					if (secure && !anonymous) {
 						if (rpk) {
 							if (keyPairGenerator != null) {
 								try {
