@@ -55,17 +55,18 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DatagramFilter;
 import org.eclipse.californium.scandium.DtlsDatagramFilter;
 import org.eclipse.californium.scandium.DtlsHealth;
+import org.eclipse.californium.scandium.TlsKeyLog;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
-import org.eclipse.californium.scandium.dtls.ConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
@@ -83,12 +84,13 @@ import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptio
 import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateConfigurationHelper;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.ConfigurationHelperSetup;
 import org.eclipse.californium.scandium.dtls.x509.KeyManagerCertificateProvider;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.eclipse.californium.scandium.util.ListUtils;
+import org.eclipse.californium.scandium.util.TlsKeyLogFile;
 
 /**
  * A container for all configuration options of a {@link DTLSConnector}.
@@ -282,6 +284,19 @@ public final class DtlsConnectorConfig {
 	private ResumptionVerifier resumptionVerifier;
 
 	private DtlsHealth healthHandler;
+
+	/**
+	 * TLSKEYLOG.
+	 * <p>
+	 * The resource contains sensitive keys for encryption! Use it with
+	 * reasonable care!
+	 * 
+	 * @see <a href=
+	 *      "https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html"
+	 *      target="_blank"> draft-ietf-tls-keylogfile</a>
+	 * @since 4.0
+	 */
+	private TlsKeyLog tlsKeyLog;
 
 	/**
 	 * Creates a new instance for configuration options for a
@@ -808,6 +823,23 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets TLSKEYLOG.
+	 * <p>
+	 * The resource contains sensitive keys for encryption! Use it with
+	 * reasonable care!
+	 * 
+	 * @return the TLSKEYLOG.
+	 * 
+	 * @see <a href=
+	 *      "https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html"
+	 *      target="_blank"> draft-ietf-tls-keylogfile</a>
+	 * @since 4.0
+	 */
+	public TlsKeyLog getTlsKeyLog() {
+		return tlsKeyLog;
+	}
+
+	/**
 	 * @return a copy of this configuration
 	 */
 	@Override
@@ -835,6 +867,7 @@ public final class DtlsConnectorConfig {
 		cloned.sessionStore = sessionStore;
 		cloned.resumptionVerifier = resumptionVerifier;
 		cloned.healthHandler = healthHandler;
+		cloned.tlsKeyLog = tlsKeyLog;
 		return cloned;
 	}
 
@@ -1088,6 +1121,24 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setHealthHandler(DtlsHealth healthHandler) {
 			config.healthHandler = healthHandler;
+			return this;
+		}
+
+		/**
+		 * Sets TLSKEYLOG.
+		 * <p>
+		 * The resource contains sensitive keys for encryption! Use it with
+		 * reasonable care!
+		 * 
+		 * @return the TLSKEYLOG.
+		 * 
+		 * @see <a href=
+		 *      "https://tlswg.org/sslkeylogfile/draft-ietf-tls-keylogfile.html"
+		 *      target="_blank"> draft-ietf-tls-keylogfile</a>
+		 * @since 4.0
+		 */
+		public Builder setTlsKeyLog(TlsKeyLog tlsKeyLog) {
+			config.tlsKeyLog = tlsKeyLog;
 			return this;
 		}
 
@@ -1373,7 +1424,7 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException(
 						"Maximum retransmissions " + maxRetransmission + " must not be less than 1!");
 			}
-			Integer backoff = config.configuration.get(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF);
+			Integer backoff = config.get(DtlsConfig.DTLS_RETRANSMISSION_BACKOFF);
 			if (backoff != null && backoff >= maxRetransmission) {
 				throw new IllegalStateException("Backoff for handshake retransmissions (" + backoff
 						+ ") must be less than the maximum retransmissions (" + maxRetransmission + ")!");
@@ -1446,17 +1497,15 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("Enabled DTLS MAC error filter requires a record-filter!");
 			}
 
-			config.supportedGroups = config.configuration.get(DtlsConfig.DTLS_CURVES);
+			config.supportedGroups = config.get(DtlsConfig.DTLS_CURVES);
 			if (config.supportedGroups == null) {
 				config.supportedGroups = Collections.emptyList();
 			}
-			config.supportedSignatureAlgorithms = config.configuration
-					.get(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS);
+			config.supportedSignatureAlgorithms = config.get(DtlsConfig.DTLS_SIGNATURE_AND_HASH_ALGORITHMS);
 			if (config.supportedSignatureAlgorithms == null) {
 				config.supportedSignatureAlgorithms = Collections.emptyList();
 			}
-			config.supportedCertificatekeyAlgorithms = config.configuration
-					.get(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS);
+			config.supportedCertificatekeyAlgorithms = config.get(DtlsConfig.DTLS_CERTIFICATE_KEY_ALGORITHMS);
 			if (config.supportedCertificatekeyAlgorithms == null) {
 				config.supportedCertificatekeyAlgorithms = Collections.emptyList();
 			}
@@ -1484,7 +1533,7 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			config.supportedCipherSuites = config.configuration.get(DtlsConfig.DTLS_CIPHER_SUITES);
+			config.supportedCipherSuites = config.get(DtlsConfig.DTLS_CIPHER_SUITES);
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				determineCipherSuitesFromConfig();
 			}
@@ -1618,8 +1667,8 @@ public final class DtlsConnectorConfig {
 			config.supportedGroups = ListUtils.init(config.supportedGroups);
 			config.supportedSignatureAlgorithms = ListUtils.init(config.supportedSignatureAlgorithms);
 			if (config.connectionIdGenerator == null) {
-				Integer cidLength = config.configuration.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
-				Integer cidNode = config.configuration.get(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID);
+				Integer cidLength = config.get(DtlsConfig.DTLS_CONNECTION_ID_LENGTH);
+				Integer cidNode = config.get(DtlsConfig.DTLS_CONNECTION_ID_NODE_ID);
 				if (cidLength != null && cidLength >= 0) {
 					if (cidNode != null) {
 						if (cidLength <= 4) {
@@ -1630,6 +1679,12 @@ public final class DtlsConnectorConfig {
 					} else {
 						setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 					}
+				}
+			}
+			if (config.tlsKeyLog == null) {
+				String filename = config.get(DtlsConfig.DTLS_TLSKEYLOG_FILE);
+				if (filename != null && !filename.isEmpty()) {
+					config.tlsKeyLog = TlsKeyLogFile.get(filename);
 				}
 			}
 			return config;
