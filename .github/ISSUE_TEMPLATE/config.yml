@@ -1,0 +1,15 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Californium Core
+    url: https://github.com/eclipse-californium/californium/tree/main/californium-core#readme
+    about: How to use the CoAP
+  - name: Californium Scandium 
+    url: https://github.com/eclipse-californium/californium/tree/main/scandium-core#readme
+    about: How to use DTLS 1.2 CID
+  - name: Californium S3-Proxy 
+    url: https://github.com/eclipse-californium/californium/tree/main/demo-apps/cf-s3-proxy-server#readme
+    about: How to use the CoAP-S3-Proxy demo server.
+  - name: Logs and IP Capturing
+    url: https://github.com/eclipse-californium/californium/wiki/Logs-and-IP-Capturing-%E2%80%90-How-To-Provide-The-Right-Information
+    about: How to provide the right information
+ 

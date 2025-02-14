@@ -1,3 +1,12 @@
+---
+name: all issues
+about: Californium's usage, bugs, feature request, or what ever you want to ask about Californium
+title: ''
+labels: ''
+assignees: ''
+
+---
+
 # Please provide basic issue information
 
 Issues may be answered much faster, if you provide more details ahead!
@@ -17,8 +26,9 @@ Network environment, e.g. k8s, docker, NATs, firewalls, virtual machines. All th
 * branch/release your faced the issue. Currently
     * (1.0 is a previous release, usually no bugfixes are applied)
     * (1.1 is the previous master, no plans to continue this)
-    * 2.7.x is the last previous major release
-    * and main is the development branch include the current major release 3.x.y
+    * (2.x is a previous release,  usually no bugfixes are applied)
+    * 3.13.0 is the last previous major release
+    * and main is the development branch include the current major release 4.x.y
 * If you use a SNAPSHOT, ensure your updated to the latest. Please provide the commit your using
 * If your issue is related to a combination with other implementations, please mention that implementation (including proprietary ones). And the sides your using it, client or server.
 * If your issue is related to your own snippet, please provide that
