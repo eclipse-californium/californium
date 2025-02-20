@@ -55,7 +55,7 @@ android {
 
 
 dependencies {
-    def californiumVersion = '4.0.0-M2'
+    def californiumVersion = '4.0.0-M3'
 
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'org.eclipse.californium:californium-core:' + californiumVersion

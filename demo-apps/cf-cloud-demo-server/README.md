@@ -49,12 +49,12 @@ It includes also an optional `diagnose` resource. That records the number of mes
 
 ## General Usage
 
-The Cloud Demo Server is available at the eclipse repository and can be downloaded [cf-cloud-demo-server-3.13.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-cloud-demo-server/3.13.0/cf-cloud-demo-server-3.13.0.jar).
+The Cloud Demo Server is available at the eclipse repository and can be downloaded [cf-cloud-demo-server-4.0.0-M3.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-cloud-demo-server/4.0.0-M3/cf-cloud-demo-server-4.0.0-M3.jar).
 
-Start the cf-cloud-demo-server-3.13.0.jar with:
+Start the cf-cloud-demo-server-4.0.0-M3.jar with:
 
 ```sh
-java -jar cf-cloud-demo-server-3.13.0.jar -h
+java -jar cf-cloud-demo-server-4.0.0-M3.jar -h
 
 Usage: CloudDemoServer [-h] [--diagnose] [--wildcard-interface | [[--[no-]
                        loopback] [--[no-]external] [--[no-]ipv4] [--[no-]ipv6]
