@@ -28,7 +28,7 @@ public class Bytes {
 	 */
 	public static final byte[] EMPTY = new byte[0];
 	/**
-	 * bytes.
+	 * Bytes.
 	 */
 	private final byte[] bytes;
 	/**
@@ -38,6 +38,9 @@ public class Bytes {
 	 */
 	private final int hash;
 
+	/**
+	 * Includes class in {@link #equals(Object)}. 
+	 */
 	private final boolean useClassInEquals;
 
 	/**
@@ -50,7 +53,7 @@ public class Bytes {
 	private String asString;
 
 	/**
-	 * Create bytes array.
+	 * Creates bytes array.
 	 * 
 	 * @param bytes bytes (not copied!)
 	 * @throws NullPointerException if bytes is {@code null}
@@ -61,7 +64,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Create bytes array.
+	 * Creates bytes array.
 	 * 
 	 * @param bytes bytes
 	 * @param maxLength maximum length of bytes
@@ -75,7 +78,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Create bytes array.
+	 * Creates bytes array.
 	 * 
 	 * @param bytes bytes
 	 * @param maxLength maximum length of bytes
@@ -111,7 +114,7 @@ public class Bytes {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * Note: since 3.0 the sub-class may be ignored. This depends on the
+	 * <b>Note:</b> since 3.0 the sub-class may be ignored. This depends on the
 	 * provided value of the {@code useClassInEquals} parameter in
 	 * {@link Bytes#Bytes(byte[], int, boolean, boolean)} for {@code this}, or
 	 * the {@code other} object. The default behavior is changed to ignore the
@@ -138,7 +141,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Get bytes array.
+	 * Gets bytes array.
 	 * 
 	 * @return bytes array. Not Copied!
 	 */
@@ -147,7 +150,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Get bytes as (hexadecimal) string.
+	 * Gets bytes as (hexadecimal) string.
 	 * 
 	 * @return bytes as (hexadecimal) string
 	 */
@@ -159,7 +162,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Check, if byte array is empty.
+	 * Checks, if byte array is empty.
 	 * 
 	 * @return {@code true}, if byte array is empty, {@code false}, otherwise
 	 */
@@ -168,7 +171,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Return number of bytes.
+	 * Returns number of bytes.
 	 * 
 	 * @return number of bytes. 0 to 255.
 	 */
@@ -177,7 +180,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Create byte array initialized with random bytes.
+	 * Creates byte array initialized with random bytes.
 	 * 
 	 * @param generator random generator
 	 * @param size number of bytes
@@ -239,7 +242,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Clear provided byte array.
+	 * Clears provided byte array.
 	 * 
 	 * Fill it with 0s.
 	 * 
@@ -265,4 +268,29 @@ public class Bytes {
 		}
 		return a.equals(b);
 	}
+
+	/**
+	 * Checks, if Bytes contains bytes.
+	 * 
+	 * @param bytes bytes to check
+	 * @return {@code true}, if the bytes is not {@code null} and not empty,
+	 *         {@code false}, otherwise.
+	 * @since 4.0
+	 */
+	public static boolean hasBytes(Bytes bytes) {
+		return bytes != null && !bytes.isEmpty();
+	}
+
+	/**
+	 * Checks, if Bytes is empty.
+	 * 
+	 * @param bytes bytes to check
+	 * @return {@code true}, if the bytes is {@code null} or empty,
+	 *         {@code false}, otherwise.
+	 * @since 4.0
+	 */
+	public static boolean isEmpty(Bytes bytes) {
+		return bytes == null || bytes.isEmpty();
+	}
+
 }
