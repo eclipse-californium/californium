@@ -32,6 +32,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -384,7 +385,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	@Override
 	public DTLSSession find(SessionId id) {
 
-		if (id == null || id.isEmpty()) {
+		if (Bytes.isEmpty(id)) {
 			return null;
 		} else {
 			DTLSSession session = null;
@@ -587,7 +588,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	}
 
 	private void removeByEstablishedSessions(SessionId sessionId, Connection connection) {
-		if (connectionsByEstablishedSession != null && sessionId != null && !sessionId.isEmpty()) {
+		if (connectionsByEstablishedSession != null && Bytes.hasBytes(sessionId)) {
 			connectionsByEstablishedSession.remove(sessionId, connection);
 		}
 	}
@@ -607,7 +608,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 	}
 
 	private void removeSessionFromStore(SessionId sessionId) {
-		if (sessionStore != null && sessionId != null && !sessionId.isEmpty()) {
+		if (sessionStore != null && Bytes.hasBytes(sessionId)) {
 			sessionStore.remove(sessionId);
 		}
 	}
@@ -630,7 +631,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 						// resumption.
 						boolean fullRemove = previous.getEstablishedPeerIdentity() == null;
 						boolean internalRemove = !previous.expectCid() && (connectionsByEstablishedSession == null
-								|| previous.getEstablishedSessionIdentifier().isEmpty());
+								|| Bytes.isEmpty(previous.getEstablishedSessionIdentifier()));
 						if (fullRemove || internalRemove) {
 							remove(previous, fullRemove);
 						}

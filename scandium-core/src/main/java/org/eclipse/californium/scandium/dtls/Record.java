@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -814,7 +815,7 @@ public class Record {
 	 * @see #Record(ContentType, int, DTLSMessage, DTLSContext, boolean, int)
 	 */
 	boolean useConnectionId() {
-		return connectionId != null && !connectionId.isEmpty();
+		return Bytes.hasBytes(connectionId);
 	}
 
 	private void setType(ContentType type) {

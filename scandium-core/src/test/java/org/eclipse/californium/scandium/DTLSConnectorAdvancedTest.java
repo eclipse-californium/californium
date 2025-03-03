@@ -3560,6 +3560,93 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
+	/**
+	 * Test the server does report NullPointerException when removing connection
+	 * without established sessions.
+	 * !!! Requires to check the logs ;-( !!!
+	 */
+	@Test
+	public void testServerRemovesPendingHandshakesOnNewOnes() throws Exception {
+
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(LOCAL, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
+		try {
+			// create limited server
+			int remain = serverHelper.serverConnectionStore.remainingCapacity();
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			Connection clientConnection = createClientConnection();
+			DtlsConnectorConfig clientConfig = clientConfigBuilder.build();
+
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer, clientConnection,
+					clientConfig, false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+
+			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain - 1));
+
+			// new handshake before previous one is established
+
+			// Create new handshaker
+			clientConnection = createClientConnection();
+			sessionListener = new LatchSessionListener();
+			clientHandshaker = new ClientHandshaker(null, clientRecordLayer, timer, clientConnection, clientConfig,
+					false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Wait to receive response from server
+			// (CHANGE CIPHER SPEC, FINISHED)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			// Handle (CHANGE CIPHER SPEC, FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake is successfully done
+			assertTrue("client handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain - 1));
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes failed", is(1L),
+					HANDSHAKE_EXPIRES_MS * 2, TimeUnit.MILLISECONDS);
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes succeeded", is(1L),
+					HANDSHAKE_EXPIRES_MS, TimeUnit.MILLISECONDS);
+
+		} finally {
+			rawClient.stop();
+			serverHelper.destroyServer();
+			serverHealth.reset();
+		}
+	}
+
 	private void send(Connection connection, TestRecordLayer recordLayer, DTLSMessage... messages)
 			throws GeneralSecurityException, IOException {
 		List<DatagramPacket> datagrams = encode(connection, messages);

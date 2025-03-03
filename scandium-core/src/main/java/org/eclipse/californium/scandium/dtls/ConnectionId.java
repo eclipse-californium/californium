@@ -83,7 +83,7 @@ public class ConnectionId extends Bytes {
 	 * @since 3.0
 	 */
 	public static boolean useConnectionId(ConnectionId cid) {
-		return cid != null && !cid.isEmpty();
+		return Bytes.hasBytes(cid);
 	}
 
 	/**
@@ -95,7 +95,7 @@ public class ConnectionId extends Bytes {
 	 * @since 4.0
 	 */
 	public static ConnectionId create(Bytes bytes) {
-		if (bytes == null || bytes.isEmpty()) {
+		if (Bytes.isEmpty(bytes)) {
 			return null;
 		}
 		if (bytes instanceof ConnectionId) {

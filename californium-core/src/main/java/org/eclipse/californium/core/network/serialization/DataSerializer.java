@@ -75,7 +75,7 @@ public abstract class DataSerializer {
 			// https://tools.ietf.org/html/rfc7252#section-4.1
 			if (message.getType() == Type.NON) {
 				throw new IllegalArgumentException("NON message must not use code 0 (empty message)!");
-			} else if (!message.getToken().isEmpty()) {
+			} else if (!message.hasEmptyToken()) {
 				throw new IllegalArgumentException("Empty messages must not use a token!");
 			} else if (message.getPayloadSize() > 0) {
 				throw new IllegalArgumentException("Empty messages must not contain payload!");

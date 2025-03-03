@@ -59,7 +59,7 @@ public class PrincipalAndAnonymousEndpointContextMatcher implements EndpointCont
 			return identity;
 		}
 		Bytes id = context.get(DtlsEndpointContext.KEY_SESSION_ID);
-		if (id != null && !id.isEmpty()) {
+		if (Bytes.hasBytes(id)) {
 			return id;
 		}
 		return null;

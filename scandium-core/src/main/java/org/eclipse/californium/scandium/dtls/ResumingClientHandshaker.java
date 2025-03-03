@@ -142,7 +142,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			DtlsConnectorConfig config, boolean probe) {
 		super(null, recordLayer, timer, connection, config, probe);
 		SessionId sessionId = session.getSessionIdentifier();
-		if (sessionId == null || sessionId.isEmpty()) {
+		if (sessionId.isEmpty()) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
 		getSession().set(session);
