@@ -1007,7 +1007,7 @@ public final class Connection {
 			if (handshaker != null) {
 				builder.append(", ongoing handshake ");
 				SessionId id = handshaker.getDtlsContext().getSession().getSessionIdentifier();
-				if (id != null && !id.isEmpty()) {
+				if (Bytes.hasBytes(id)) {
 					// during handshake this may by not already set
 					builder.append(StringUtil.byteArray2HexString(id.getBytes(), StringUtil.NO_SEPARATOR, 6));
 				}

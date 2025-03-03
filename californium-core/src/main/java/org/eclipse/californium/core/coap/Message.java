@@ -484,8 +484,7 @@ public abstract class Message {
 	 *         length 0.
 	 */
 	public final boolean hasEmptyToken() {
-		Token token = this.token;
-		return token == null || token.isEmpty();
+		return Bytes.isEmpty(token);
 	}
 
 	/**

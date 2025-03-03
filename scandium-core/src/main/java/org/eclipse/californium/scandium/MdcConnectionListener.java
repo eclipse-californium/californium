@@ -17,6 +17,7 @@ package org.eclipse.californium.scandium;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -73,14 +74,14 @@ public class MdcConnectionListener implements ConnectionListener {
 			DTLSContext context = connection.getEstablishedDtlsContext();
 			if (context != null) {
 				ConnectionId writeConnectionId = context.getWriteConnectionId();
-				if (writeConnectionId != null && !writeConnectionId.isEmpty()) {
+				if (Bytes.hasBytes(writeConnectionId)) {
 					MDC.put("WRITE_CONNECTION_ID", writeConnectionId.getAsString());
 				}
 			}
 			DTLSSession session = connection.getSession();
 			if (session != null) {
 				SessionId sid = session.getSessionIdentifier();
-				if (sid != null && !sid.isEmpty()) {
+				if (Bytes.hasBytes(sid)) {
 					MDC.put("SESSION_ID", sid.toString());
 				}
 			}

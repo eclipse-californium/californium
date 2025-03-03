@@ -343,7 +343,7 @@ public class DTLSFlight {
 
 		if (epochMessage.epoch > 0) {
 			ConnectionId connectionId = context.getWriteConnectionId();
-			if (connectionId != null && !connectionId.isEmpty()) {
+			if (Bytes.hasBytes(connectionId)) {
 				useCid = true;
 				// reduce fragment length by connection id
 				maxPayloadLength -= connectionId.length();
