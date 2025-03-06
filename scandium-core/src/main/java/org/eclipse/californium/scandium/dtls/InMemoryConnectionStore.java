@@ -32,6 +32,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -630,7 +631,7 @@ public class InMemoryConnectionStore implements ConnectionStore {
 						// resumption.
 						boolean fullRemove = previous.getEstablishedPeerIdentity() == null;
 						boolean internalRemove = !previous.expectCid() && (connectionsByEstablishedSession == null
-								|| previous.getEstablishedSessionIdentifier().isEmpty());
+								|| Bytes.isEmpty(previous.getEstablishedSessionIdentifier()));
 						if (fullRemove || internalRemove) {
 							remove(previous, fullRemove);
 						}
