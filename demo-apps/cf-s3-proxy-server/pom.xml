@@ -19,7 +19,7 @@
 		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
 		<skipStaging>false</skipStaging>
 		<maven.javadoc.skip>false</maven.javadoc.skip>
-		<aws.sdk.version>2.30.17</aws.sdk.version>
+		<aws.sdk.version>2.30.33</aws.sdk.version>
 	</properties>
 
 	<dependencies>
