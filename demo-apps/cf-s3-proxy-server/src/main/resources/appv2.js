@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 2 0.27.1, 2. January 2025";
+const version = "Version 2 0.27.2, 6. March 2025";
 
 let timeShift = 0;
 
@@ -895,8 +895,15 @@ class DeviceMessage {
 	}
 
 	static isTempValue(value) {
-		// -0.6 Thingy Temperature offset.
-		return value != null && value != 0 && value != -0.6;
+		return value != null && -40.0 <= value && value <= 85.0;
+	}
+
+	static isAirPressureValue(value) {
+		return value != null && 300.0 <= value && value <= 1100.0;
+	}
+
+	static isHumidityValue(value) {
+		return value != null && 0.0 < value && value <= 100.0;
 	}
 
 	static isScaleValue(value) {
@@ -917,7 +924,7 @@ class DeviceMessage {
 	static scaleBIndex = getChartConfigIndex("kg B");
 	static retransIndex = getChartConfigIndex("Retr.");
 
-	static parseValueSet(line, values) {
+	static parseValueSet(line, values, time) {
 		let foundValues = 0;
 		for (let i = 0; i < chartConfig.length; ++i) {
 			if (values[i] == undefined && chartConfig[i].regex) {
@@ -927,6 +934,11 @@ class DeviceMessage {
 					if (n !== undefined) {
 						values[i] = n;
 						++foundValues;
+						if (i == DeviceMessage.tempIndex && n > 40) {
+							console.warn("Temp " + n);
+							console.warn("'" + line + "'");
+							console.warn(new Date(time).toISOString());
+						}
 					}
 				}
 			}
@@ -951,25 +963,27 @@ class DeviceMessage {
 		if (DeviceMessage.isValue(line[DeviceMessage.humIndex])) {
 			++sensors;
 			hum = line[DeviceMessage.humIndex];
+		} else {
+			if (DeviceMessage.removeSensor(line, DeviceMessage.humIndex)) {
+				++removed;
+			}
 		}
-		if (DeviceMessage.isValue(line[DeviceMessage.presIndex])) {
+		if (DeviceMessage.isAirPressureValue(line[DeviceMessage.presIndex])) {
 			++sensors;
+		} else {
+			if (DeviceMessage.removeSensor(line, DeviceMessage.presIndex)) {
+				++removed;
+			}
 		}
 		if (DeviceMessage.isTempValue(line[DeviceMessage.tempIndex])) {
 			++sensors;
 			temp = line[DeviceMessage.tempIndex];
-		}
-		if (sensors == 0) {
-			if (DeviceMessage.removeSensor(line, DeviceMessage.humIndex)) {
-				++removed;
-			}
-			if (DeviceMessage.removeSensor(line, DeviceMessage.presIndex)) {
-				++removed;
-			}
+		} else {
 			if (DeviceMessage.removeSensor(line, DeviceMessage.tempIndex)) {
 				++removed;
 			}
 		}
+
 		if (temp != null && hum != null) {
 			line[DeviceMessage.dewPointIndex] = calcDewPoint(temp, hum);
 		}
@@ -1025,7 +1039,7 @@ class DeviceMessage {
 		const message = new DeviceMessage();
 		message.time = time;
 		const values = Array(chartConfig.length);
-		const foundValues = DeviceMessage.parseValueSet(line, values);
+		const foundValues = DeviceMessage.parseValueSet(line, values, time);
 		const leftValues = foundValues ? foundValues - DeviceMessage.checkSensors(values) : foundValues;
 		if (leftValues) {
 			values.unshift(time);
@@ -1053,7 +1067,7 @@ class DeviceMessage {
 				let foundValues = 0;
 				const lines = text.split(/\r?\n/);
 				lines.forEach((line) => {
-					foundValues += DeviceMessage.parseValueSet(line, values);
+					foundValues += DeviceMessage.parseValueSet(line, values, this.time);
 				});
 				const leftValues = foundValues ? foundValues - DeviceMessage.checkSensors(values) : foundValues;
 				if (leftValues) {
