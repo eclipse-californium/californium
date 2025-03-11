@@ -88,12 +88,11 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 			KEY_PREFIX_NONE_CRITICAL + "DTLS_VIA_ROUTER", String.class, ATTRIBUTE_DEFINITIONS);
 	/**
 	 * The name of the attribute that contains a handshake mode. Values see
-	 * {@link #HANDSHAKE_MODE_FORCE_FULL}, {@link #HANDSHAKE_MODE_FORCE},
-	 * {@link #HANDSHAKE_MODE_PROBE}, and {@link #HANDSHAKE_MODE_NONE}. Only
-	 * considered, if endpoint is not configured as "server only". If not
-	 * provided, a handshake will be started, if required and the connector is
-	 * not configured to act as server only. None critical attribute, not
-	 * considered for matching.
+	 * {@link #HANDSHAKE_MODE_FORCE_FULL}, {@link #HANDSHAKE_MODE_FORCE}, and
+	 * {@link #HANDSHAKE_MODE_NONE}. Only considered, if endpoint is not
+	 * configured as "server only". If not provided, a handshake will be
+	 * started, if required and the connector is not configured to act as server
+	 * only. None critical attribute, not considered for matching.
 	 */
 	public static final Definition<String> KEY_HANDSHAKE_MODE = new Definition<>(
 			KEY_PREFIX_NONE_CRITICAL + "DTLS_HANDSHAKE_MODE", String.class, ATTRIBUTE_DEFINITIONS);
@@ -161,11 +160,6 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public static final String HANDSHAKE_MODE_FORCE = "force";
 	/**
-	 * Force handshake probe before send this message. Doesn't start a
-	 * handshake, if the connector is configured to act as server only.
-	 */
-	public static final String HANDSHAKE_MODE_PROBE = "probe";
-	/**
 	 * Start a handshake, if no session is available.
 	 */
 	public static final String HANDSHAKE_MODE_AUTO = "auto";
@@ -187,13 +181,6 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public static final Attributes ATTRIBUTE_HANDSHAKE_MODE_AUTO = new Attributes()
 			.add(KEY_HANDSHAKE_MODE, HANDSHAKE_MODE_AUTO).lock();
-	/**
-	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_PROBE}.
-	 * 
-	 * @since 3.0
-	 */
-	public static final Attributes ATTRIBUTE_HANDSHAKE_MODE_PROBE = new Attributes()
-			.add(KEY_HANDSHAKE_MODE, HANDSHAKE_MODE_PROBE).lock();
 	/**
 	 * Attribute to set HANDSHAKE_MODE to {@link #HANDSHAKE_MODE_FORCE}.
 	 * 
