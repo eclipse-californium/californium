@@ -164,11 +164,6 @@ public class ClientHandshaker extends Handshaker {
 	private ProtocolVersion maxProtocolVersion = ProtocolVersion.VERSION_DTLS_1_2;
 
 	/**
-	 * Indicates probing for this handshake.
-	 */
-	private boolean probe;
-
-	/**
 	 * Indicates received server hello done.
 	 * 
 	 * @since 3.0
@@ -276,13 +271,11 @@ public class ClientHandshaker extends Handshaker {
 	 * @param timer scheduled executor for flight retransmission (since 2.4).
 	 * @param connection the connection related with the session.
 	 * @param config the DTLS configuration.
-	 * @param probe {@code true} enable probing for this handshake,
-	 *            {@code false}, not probing handshake.
 	 * @throws NullPointerException if any of the provided parameter is
 	 *             {@code null}, except the hostname.
 	 */
 	public ClientHandshaker(String hostname, RecordLayer recordLayer, ScheduledExecutorService timer,
-			Connection connection, DtlsConnectorConfig config, boolean probe) {
+			Connection connection, DtlsConnectorConfig config) {
 		super(0, 0, recordLayer, timer, connection, config);
 
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
@@ -304,7 +297,6 @@ public class ClientHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAlgorithms = config.getSupportedSignatureAlgorithms();
 		this.verifyServerCertificatesSubject = config.get(DtlsConfig.DTLS_VERIFY_SERVER_CERTIFICATES_SUBJECT);
-		this.probe = probe;
 		getSession().setHostName(hostname);
 	}
 
@@ -1003,25 +995,5 @@ public class ClientHandshaker extends Handshaker {
 			}
 		}
 		return pskIdentity;
-	}
-
-	@Override
-	public boolean isProbing() {
-		return probe;
-	}
-
-	@Override
-	public void resetProbing() {
-		probe = false;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * Connections of probing handshakes are not intended to be removed.
-	 */
-	@Override
-	public boolean isRemovingConnection() {
-		return !probe && super.isRemovingConnection();
 	}
 }

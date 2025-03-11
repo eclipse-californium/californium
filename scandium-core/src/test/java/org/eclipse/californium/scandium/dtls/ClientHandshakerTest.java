@@ -301,8 +301,7 @@ public class ClientHandshakerTest {
 				recordLayer,
 				timer,
 				connection,
-				config,
-				false);
+				config);
 		recordLayer.setHandshaker(handshaker);
 	}
 
@@ -322,8 +321,7 @@ public class ClientHandshakerTest {
 				recordLayer,
 				timer,
 				connection,
-				config,
-				false);
+				config);
 		recordLayer.setHandshaker(handshaker);
 	}
 

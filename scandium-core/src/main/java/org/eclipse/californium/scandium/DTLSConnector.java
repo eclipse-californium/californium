@@ -714,8 +714,6 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 					final Connection connection = handshaker.getConnection();
 					if (handshaker.isRemovingConnection()) {
 						connectionStore.remove(connection, false);
-					} else if (handshaker.isProbing()) {
-						LOGGER.debug("Handshake with [{}] failed within probe!", peerAddress);
 					} else if (connection.getEstablishedDtlsContext() == context) {
 						if (error instanceof HandshakeException) {
 							AlertMessage alert = ((HandshakeException) error).getAlert();
@@ -2049,14 +2047,6 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 				record.decodeFragment(context.getReadState());
 			}
 
-			if (handshaker != null && handshaker.isProbing()) {
-				// received record, probe successful
-				connectionStore.removeFromEstablishedSessions(connection);
-				connection.resetContext();
-				handshaker.resetProbing();
-				LOGGER.trace("handshake probe successful {}", StringUtil.toLog(connection.getPeerAddress()));
-			}
-
 			switch (record.getType()) {
 			case APPLICATION_DATA:
 				processApplicationDataRecord(record, connection);
@@ -2995,12 +2985,6 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 				// handshake expired during Android / OS "deep sleep"
 				// on sending, abort, keep connection for new handshake
 				handshaker.handshakeAborted(new Exception("handshake already expired!"));
-			} else if (handshaker.isProbing()) {
-				if (checkOutboundEndpointContext(message, null)) {
-					message.onConnecting();
-					handshaker.addApplicationDataForDeferredProcessing(message);
-				}
-				return;
 			}
 		}
 
@@ -3052,7 +3036,7 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 			// no session with peer established nor handshaker started yet,
 			// create new empty session & start handshake
 			ClientHandshaker clientHandshaker = new ClientHandshaker(hostname, this, executorService, connection,
-					config, false);
+					config);
 			initializeHandshaker(clientHandshaker);
 			message.onConnecting();
 			clientHandshaker.addApplicationDataForDeferredProcessing(message);
@@ -3092,8 +3076,7 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 			}
 		} else {
 			boolean full = DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL.equals(handshakeMode);
-			final boolean probing = DtlsEndpointContext.HANDSHAKE_MODE_PROBE.equals(handshakeMode);
-			final boolean force = probing || full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
+			final boolean force = full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
 			if (force || markedAsClosed || connection.isAutoResumptionRequired(getAutoHandshakeTimeout(message))) {
 				// create the session to resume from the previous one.
 				if (dtlsRole == DtlsRole.SERVER_ONLY) {
@@ -3140,20 +3123,12 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 					// server may use a empty session id to indicate,
 					// that resumption is not supported
 					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
-					newHandshaker = new ClientHandshaker(hostname, this, executorService, connection, config, probing);
+					newHandshaker = new ClientHandshaker(hostname, this, executorService, connection, config);
 				} else {
-					newHandshaker = new ResumingClientHandshaker(resume, this, executorService, connection, config,
-							probing);
+					newHandshaker = new ResumingClientHandshaker(resume, this, executorService, connection, config);
 				}
-				if (probing) {
-					// Only reset the resumption trigger, but keep the session
-					// for now
-					// the session will be reseted with the first received data
-					connection.setResumptionRequired(false);
-				} else {
-					connectionStore.removeFromEstablishedSessions(connection);
-					connection.resetContext();
-				}
+				connectionStore.removeFromEstablishedSessions(connection);
+				connection.resetContext();
 				initializeHandshaker(newHandshaker);
 				if (previousHandshaker != null) {
 					newHandshaker.takeDeferredApplicationData(previousHandshaker);

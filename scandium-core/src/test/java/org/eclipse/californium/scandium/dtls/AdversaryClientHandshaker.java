@@ -50,7 +50,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	 */
 	public AdversaryClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config) {
-		super(null, recordLayer, timer, connection, config, false);
+		super(null, recordLayer, timer, connection, config);
 		getSession().set(session);
 	}
 
