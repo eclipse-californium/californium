@@ -131,16 +131,14 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration parameters to use for the handshake.
-	 * @param probe {@code true} enable probing for this resumption handshake,
-	 *            {@code false}, not probing handshake.
 	 * @throws IllegalArgumentException
 	 *            if the given session does not contain an identifier.
 	 * @throws NullPointerException if any of the provided parameter is
 	 *             {@code null}
 	 */
 	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
-			DtlsConnectorConfig config, boolean probe) {
-		super(null, recordLayer, timer, connection, config, probe);
+			DtlsConnectorConfig config) {
+		super(null, recordLayer, timer, connection, config);
 		SessionId sessionId = session.getSessionIdentifier();
 		if (sessionId.isEmpty()) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");

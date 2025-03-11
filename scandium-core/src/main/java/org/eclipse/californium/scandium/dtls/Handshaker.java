@@ -2019,7 +2019,7 @@ public abstract class Handshaker implements Destroyable {
 		if (!flight.isResponseCompleted()) {
 			Handshaker handshaker = connection.getOngoingHandshake();
 			if (null != handshaker) {
-				if (!handshaker.isProbing() && connection.hasEstablishedDtlsContext()) {
+				if (connection.hasEstablishedDtlsContext()) {
 					return;
 				}
 				Exception cause = null;
@@ -2342,35 +2342,6 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	public boolean hasContextEstablished() {
 		return contextEstablished;
-	}
-
-	/**
-	 * Test, if handshake was started in probing mode.
-	 * 
-	 * Usually a resuming client handshake removes the DTLS context from the
-	 * connection store with the start. Probing removes DTLS context only with
-	 * the first data received back. If the handshake expires before some data
-	 * is received back, the original DTLS context is used again.
-	 * 
-	 * @return {@code true}, if handshake is in probing mode, {@code false},
-	 *         otherwise.
-	 * @see ResumingClientHandshaker
-	 * @see ClientHandshaker
-	 * @since 2.1
-	 */
-	public boolean isProbing() {
-		// intended to be overridden by the ResumingClientHandshaker
-		return false;
-	}
-
-	/**
-	 * Reset probing mode, when data is received during.
-	 * 
-	 * @see ResumingClientHandshaker
-	 * @since 2.1
-	 */
-	public void resetProbing() {
-		// intended to be overriden by the ResumingClientHandshaker
 	}
 
 	/**
