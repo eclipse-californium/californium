@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.cloud.BaseServer;
 import org.eclipse.californium.cloud.http.HttpService;
@@ -62,6 +63,7 @@ import org.eclipse.californium.cloud.s3.util.WebAppDomainUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserParser;
 import org.eclipse.californium.cloud.s3.util.WebAppUserProvider;
+import org.eclipse.californium.cloud.util.DeviceIdentifier;
 import org.eclipse.californium.cloud.util.DeviceParser;
 import org.eclipse.californium.cloud.util.DeviceProvisioningConsumer;
 import org.eclipse.californium.cloud.util.LinuxConfigParser;
@@ -493,6 +495,12 @@ public class S3ProxyServer extends BaseServer {
 	 * @since 4.0
 	 */
 	private HttpForwardConfigurationProvider deviceHttpForwardProvider;
+	/**
+	 * Device notifier.
+	 * 
+	 * @since 4.0
+	 */
+	private BiConsumer<String, DeviceIdentifier> deviceNotifier;
 
 	/**
 	 * Create CoAP-S3-proxy server
@@ -631,7 +639,9 @@ public class S3ProxyServer extends BaseServer {
 			HttpForwardConfigurationProvider provider = new HttpForwardConfigurationProviders(deviceHttpForwardProvider,
 					forward);
 			add(new MyContext(MyContext.RESOURCE_NAME, CALIFORNIUM_BUILD_VERSION, false));
-			add(new S3Devices(getConfig(), s3clients, provider));
+			S3Devices s3Devices = new S3Devices(getConfig(), s3clients, provider);
+			add(s3Devices);
+			this.deviceNotifier = s3Devices.getDeviceNotifier();
 			add(new S3ProxyResource("fw", 0, getConfig(), s3clients));
 			if (cliArguments.provisioning != null && cliArguments.provisioning.provisioning
 					&& deviceCredentials instanceof DeviceProvisioningConsumer) {
@@ -651,67 +661,65 @@ public class S3ProxyServer extends BaseServer {
 			if (cliSpaArguments == null) {
 				throw new RuntimeException("http-service requires one of the '--spa-???' parameter.");
 			}
-			if (cliSpaArguments != null) {
-				LOGGER.info("Create Single Page Application.");
-				boolean withDiagnose = false;
-				if (domains != null) {
-					setupMultiDomainHttpService(cliS3Arguments);
-				} else {
-					setupSingleDomainHttpService(cliS3Arguments);
+			LOGGER.info("Create Single Page Application.");
+			boolean withDiagnose = false;
+			if (domains != null) {
+				setupMultiDomainHttpService(cliS3Arguments);
+			} else {
+				setupSingleDomainHttpService(cliS3Arguments);
+			}
+			Aws4Authorizer aws4 = new Aws4Authorizer(domainUserProvider, S3ProxyClient.DEFAULT_REGION);
+			if (cliArguments.diagnose && !cliArguments.noCoap) {
+				AuthorizedCoapProxyHandler proxy = new AuthorizedCoapProxyHandler("proxy", aws4, webAppConfigProvider,
+						this, httpService.getExecutor(), "/" + Diagnose.RESOURCE_NAME);
+				httpService.createContext("/proxy", proxy);
+				withDiagnose = true;
+			}
+			httpService.createContext("/login",
+					new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider, withDiagnose));
+			if (deviceGroupProvider != null) {
+				httpService.createContext("/groups", new GroupsHandler(aws4, deviceGroupProvider));
+				Integer maxDeviceConfigSize = getConfig().get(MAX_DEVICE_CONFIG_SIZE);
+				if (maxDeviceConfigSize > 0) {
+					httpService.createContext("/config/", new ConfigHandler(maxDeviceConfigSize, aws4, s3clients,
+							webAppConfigProvider, deviceGroupProvider, deviceNotifier));
 				}
-				Aws4Authorizer aws4 = new Aws4Authorizer(domainUserProvider, S3ProxyClient.DEFAULT_REGION);
-				if (cliArguments.diagnose && !cliArguments.noCoap) {
-					AuthorizedCoapProxyHandler proxy = new AuthorizedCoapProxyHandler("proxy", aws4,
-							webAppConfigProvider, this, httpService.getExecutor(), "/" + Diagnose.RESOURCE_NAME);
-					httpService.createContext("/proxy", proxy);
-					withDiagnose = true;
-				}
-				httpService.createContext("/login",
-						new S3Login(aws4, s3clients, webAppConfigProvider, deviceGroupProvider, withDiagnose));
-				if (deviceGroupProvider != null) {
-					httpService.createContext("/groups", new GroupsHandler(aws4, deviceGroupProvider));
-					Integer maxDeviceConfigSize = getConfig().get(MAX_DEVICE_CONFIG_SIZE);
-					if (maxDeviceConfigSize > 0) {
-						httpService.createContext("/config/", new ConfigHandler(maxDeviceConfigSize, aws4, s3clients,
-								webAppConfigProvider, deviceGroupProvider));
-					}
-				}
-				S3ProxyClient webClient = cliSpaArguments.s3 ? s3clients.getWebClient() : null;
+			}
+			S3ProxyClient webClient = cliSpaArguments.s3 ? s3clients.getWebClient() : null;
 
-				SinglePageApplication spa = new SinglePageApplication("CloudCoap", webClient,
-						cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScript);
-				httpService.createContext("/", spa);
+			SinglePageApplication spa = new SinglePageApplication("CloudCoap", webClient,
+					cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScript);
+			httpService.createContext("/", spa);
 
-				if (cliSpaArguments.singlePageApplicationScriptV2 != null) {
-					SinglePageApplication spaV2 = new SinglePageApplication("CloudCoap V2", webClient,
-							cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScriptV2);
-					httpService.createContext("/v2", spaV2);
-				}
+			if (cliSpaArguments.singlePageApplicationScriptV2 != null) {
+				SinglePageApplication spaV2 = new SinglePageApplication("CloudCoap V2", webClient,
+						cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScriptV2);
+				httpService.createContext("/v2", spaV2);
+			}
 
-				if (cliSpaArguments.singlePageApplicationScriptV1 != null) {
-					SinglePageApplication spaV1 = new SinglePageApplication("CloudCoap V1", webClient,
-							cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScriptV1);
-					httpService.createContext("/v1", spaV1);
-				}
+			if (cliSpaArguments.singlePageApplicationScriptV1 != null) {
+				SinglePageApplication spaV1 = new SinglePageApplication("CloudCoap V1", webClient,
+						cliSpaArguments.singlePageApplicationCss, cliSpaArguments.singlePageApplicationScriptV1);
+				httpService.createContext("/v1", spaV1);
+			}
 
-				String defaultScheme = cliSpaArguments.s3 ? S3_SCHEME : HTTPS_SCHEME;
-				if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationScript, defaultScheme)
+			String defaultScheme = cliSpaArguments.s3 ? S3_SCHEME : HTTPS_SCHEME;
+			if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationScript, defaultScheme)
+					.equals(HTTPS_SCHEME)) {
+				httpService.createFileHandler(cliSpaArguments.singlePageApplicationScript,
+						"text/javascript; charset=utf-8", cliSpaArguments.singlePageApplicationReload);
+			}
+			if (cliSpaArguments.singlePageApplicationScriptV2 != null) {
+				if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationScriptV2, defaultScheme)
 						.equals(HTTPS_SCHEME)) {
-					httpService.createFileHandler(cliSpaArguments.singlePageApplicationScript,
+					httpService.createFileHandler(cliSpaArguments.singlePageApplicationScriptV2,
 							"text/javascript; charset=utf-8", cliSpaArguments.singlePageApplicationReload);
 				}
-				if (cliSpaArguments.singlePageApplicationScriptV2 != null) {
-					if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationScriptV2, defaultScheme)
-							.equals(HTTPS_SCHEME)) {
-						httpService.createFileHandler(cliSpaArguments.singlePageApplicationScriptV2,
-								"text/javascript; charset=utf-8", cliSpaArguments.singlePageApplicationReload);
-					}
-				}
-				if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationCss, defaultScheme)
-						.equals(HTTPS_SCHEME)) {
-					httpService.createFileHandler(cliSpaArguments.singlePageApplicationCss, "text/css; charset=utf-8",
-							cliSpaArguments.singlePageApplicationReload);
-				}
+			}
+			if (SinglePageApplication.getScheme(cliSpaArguments.singlePageApplicationCss, defaultScheme)
+					.equals(HTTPS_SCHEME)) {
+				httpService.createFileHandler(cliSpaArguments.singlePageApplicationCss, "text/css; charset=utf-8",
+						cliSpaArguments.singlePageApplicationReload);
 			}
 		}
 	}

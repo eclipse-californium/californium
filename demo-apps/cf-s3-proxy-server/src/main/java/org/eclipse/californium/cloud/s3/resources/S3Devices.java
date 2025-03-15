@@ -29,6 +29,14 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XM
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.net.SocketException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -43,6 +51,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import org.eclipse.californium.cloud.BaseServer;
@@ -62,6 +71,7 @@ import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest.Builder;
 import org.eclipse.californium.cloud.s3.util.DomainApplicationAnonymous;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.cloud.s3.util.MultiConsumer;
+import org.eclipse.californium.cloud.util.DeviceIdentifier;
 import org.eclipse.californium.cloud.util.PrincipalInfo;
 import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
 import org.eclipse.californium.core.CoapExchange;
@@ -77,6 +87,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.coap.option.OpaqueOption;
+import org.eclipse.californium.core.coap.option.StringOption;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
@@ -244,6 +255,10 @@ public class S3Devices extends ProtectedCoapResource {
 
 	private final HttpForwardConfigurationProvider httpForwardConfigurationProvider;
 
+	private final DatagramSocket notifySocket;
+
+	private final byte[] notifyMessage = "up".getBytes(StandardCharsets.UTF_8);
+
 	private final int[] CONTENT_TYPES = { TEXT_PLAIN, APPLICATION_OCTET_STREAM, APPLICATION_JSON, APPLICATION_CBOR,
 			APPLICATION_XML, APPLICATION_JAVASCRIPT, APPLICATION_LINK_FORMAT };
 
@@ -269,6 +284,13 @@ public class S3Devices extends ProtectedCoapResource {
 		domains = new ConcurrentHashMap<>();
 		this.s3Clients = s3Clients;
 		this.httpForwardConfigurationProvider = httpForwardConfigurationProvider;
+		DatagramSocket socket = null;
+		try {
+			socket = new DatagramSocket(15684);
+		} catch (SocketException e) {
+			LOGGER.warn("Notify-Socket error", e);
+		}
+		this.notifySocket = socket;
 	}
 
 	@Override
@@ -372,8 +394,7 @@ public class S3Devices extends ProtectedCoapResource {
 		final TimeOption timeOption = TimeOption.getMessageTime(request);
 		final long time = timeOption.getLongValue();
 
-		if (info.type == Type.ANONYMOUS_DEVICE ||
-			info.type == Type.APPL_AUTH_DEVICE) {
+		if (info.type == Type.ANONYMOUS_DEVICE || info.type == Type.APPL_AUTH_DEVICE) {
 
 			if (forward && read == null && write == null) {
 				// forward support for anonymous clients.
@@ -645,6 +666,10 @@ public class S3Devices extends ProtectedCoapResource {
 			return null;
 		}
 
+		protected synchronized Request getPost() {
+			return post;
+		}
+
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			Request devicePost = post;
@@ -709,5 +734,66 @@ public class S3Devices extends ProtectedCoapResource {
 			value = value.replaceAll("(?<!\\$)\\$\\{time\\}", timestamp.substring(11, timestamp.length() - 1));
 		}
 		return value;
+	}
+
+	/**
+	 * Gets device notifier.
+	 * <p>
+	 * A device, which supports to be notified, must send it's requests with an
+	 * {@link S3ProxyCustomOptions#RECV_ADDRESS} option. This enables to use
+	 * different ip routes for device initiated requests and the
+	 * notification/wake-up message.
+	 * <p>
+	 * To notify a device, provide the device domain and the
+	 * {@link DeviceIdentifier} to the returned function.
+	 * 
+	 * @return device notifier with the device domain as first parameter and the
+	 *         {@link DeviceIdentifier} as second.
+	 * @since 4.0
+	 */
+	public BiConsumer<String, DeviceIdentifier> getDeviceNotifier() {
+		return (domain, device) -> {
+			LOGGER.debug("Wakeup {}@{}", device.getName(), domain);
+			Resource resource = domains.get(domain);
+			if (resource == null) {
+				LOGGER.info("Wakeup {}@{} failed, domain missing!", device.getName(), domain);
+				return;
+			}
+			resource = resource.getChild(device.getName());
+			if (!(resource instanceof Device)) {
+				LOGGER.info("Wakeup {}@{} failed, device missing!", device.getName(), domain);
+				return;
+			}
+			Request post = ((Device) resource).getPost();
+			if (post == null) {
+				LOGGER.info("Wakeup {}@{} failed, post missing!", device.getName(), domain);
+				return;
+			}
+			StringOption dest = post.getOptions().getOtherOption(S3ProxyCustomOptions.RECV_ADDRESS);
+			if (dest == null) {
+				LOGGER.info("Wakeup {}@{} failed, recv. address missing!", device.getName(), domain);
+				return;
+			}
+			String destination = dest.getStringValue();
+			if (!destination.contains("://")) {
+				destination = "w://" + destination;
+			}
+			try {
+				URI uri = new URI(destination);
+				InetSocketAddress destAddr = new InetSocketAddress(uri.getHost(), uri.getPort());
+				DatagramPacket msg = new DatagramPacket(notifyMessage, notifyMessage.length, destAddr);
+				try {
+					notifySocket.send(msg);
+					LOGGER.info("Sent wakeup to {} for {}@{} ({})", StringUtil.toLog(destAddr), device.getName(),
+							domain, device.getLabel());
+				} catch (IOException e) {
+					LOGGER.info("Sent wakeup to {} for {}@{} failed", StringUtil.toLog(destAddr), device.getName(),
+							domain);
+				}
+			} catch (URISyntaxException e) {
+				LOGGER.info("Wakeup {}@{} failed, recv. address {} malformed!", device.getName(), domain,
+						dest.getStringValue(), e.getCause());
+			}
+		};
 	}
 }
