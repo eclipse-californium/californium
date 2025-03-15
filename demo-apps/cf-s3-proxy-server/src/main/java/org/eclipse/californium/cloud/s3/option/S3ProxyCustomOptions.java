@@ -17,6 +17,7 @@ package org.eclipse.californium.cloud.s3.option;
 import org.eclipse.californium.cloud.option.ResponseCodeOption;
 import org.eclipse.californium.core.coap.option.IntegerOption;
 import org.eclipse.californium.core.coap.option.OptionDefinition;
+import org.eclipse.californium.core.coap.option.StringOption;
 
 /**
  * CoAP custom option for response code of combined forwarded request.
@@ -41,6 +42,22 @@ public class S3ProxyCustomOptions {
 	public static final IntegerOption.Definition INTERVAL = new IntegerOption.Definition(COAP_OPTION_INTERVAL,
 			"Interval", true);
 
-	public static final OptionDefinition[] CUSTOM = { FORWARD_RESPONSE, INTERVAL };
+	/**
+	 * Number of custom option receive interval.
+	 */
+	public static final int COAP_OPTION_RECV_INTERVAL = 0xfdfc;
+
+	public static final IntegerOption.Definition RECV_INTERVAL = new IntegerOption.Definition(COAP_OPTION_RECV_INTERVAL,
+			"Recv. interval", true);
+
+	/**
+	 * Number of custom option receive address.
+	 */
+	public static final int COAP_OPTION_RECV_ADDRESS = 0xfe00;
+
+	public static final StringOption.Definition RECV_ADDRESS = new StringOption.Definition(COAP_OPTION_RECV_ADDRESS,
+			"Recv. address", true, 1, 64);
+
+	public static final OptionDefinition[] CUSTOM = { FORWARD_RESPONSE, INTERVAL, RECV_INTERVAL, RECV_ADDRESS };
 
 }

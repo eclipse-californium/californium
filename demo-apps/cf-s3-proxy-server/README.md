@@ -721,6 +721,10 @@ A device POST its data to the "coaps://${host}/devices". Using query parameters 
 
 - **CUSTOM_OPTION_INTERVAL** 65012: used in request. It contains the time in seconds to the next regular message (send interval). If available, used to detect device with missing regular messages.
 
+- **CUSTOM_OPTION_RECEIVE_INTERVAL** 65020: used in request. It contains the time in seconds to the next receive window. If available, used to detect device with support for notifications/wake-up function.
+
+- **CUSTOM_OPTION_RECEIVE_ADDRESS** 65024: used in request. It contains the `ip-address:port` of the device to receive a notification/wake-up message. Please note: both, the network and the device setup must support to sent the data to this address and wake-up on receiving the message. For cellular devices this is usually a device in eDRX mode and using a VPN.
+
 Examples using coap-client of libcoap:
 
 ```sh

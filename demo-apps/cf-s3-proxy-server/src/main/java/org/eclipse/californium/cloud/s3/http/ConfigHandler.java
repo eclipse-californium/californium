@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.cloud.http.HttpService;
 import org.eclipse.californium.cloud.s3.http.Aws4Authorizer.Authorization;
@@ -58,9 +59,28 @@ public class ConfigHandler extends S3Login {
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigHandler.class);
 	/**
+	 * HTTP attribute name for device information.
+	 * 
+	 * @since 4.0
+	 */
+	private static final String ATTRIBUTE_DEVICE_INFO = "device";
+	/**
+	 * HTTP attribute name for device information.
+	 * 
+	 * @since 4.0
+	 */
+	private static final String ATTRIBUTE_DOMAIN = "domain";
+	/**
 	 * Maximum size of configuration.
 	 */
 	private final int maxConfigSize;
+
+	/**
+	 * Device notifier.
+	 * 
+	 * @since 4.0
+	 */
+	private final BiConsumer<String, DeviceIdentifier> deviceNotifier;
 
 	/**
 	 * Creates http S3 configuration handler.
@@ -74,11 +94,15 @@ public class ConfigHandler extends S3Login {
 	 * @param clientProvider S3 client provider.
 	 * @param webAppConfigs web application configuration provider.
 	 * @param groups device groups provider
+	 * @param deviceNotifier device notifier. May be {@code null}, if device
+	 *            notification is not supported.
+	 * @since 4.0 (added deviceNotifier)
 	 */
 	public ConfigHandler(int maxConfigSize, Aws4Authorizer authorizer, S3ProxyClientProvider clientProvider,
-			WebAppConfigProvider webAppConfigs, DeviceGroupProvider groups) {
+			WebAppConfigProvider webAppConfigs, DeviceGroupProvider groups, BiConsumer<String, DeviceIdentifier> deviceNotifier) {
 		super(authorizer, clientProvider, webAppConfigs, groups, false);
 		this.maxConfigSize = maxConfigSize;
+		this.deviceNotifier = deviceNotifier;
 	}
 
 	@Override
@@ -146,6 +170,8 @@ public class ConfigHandler extends S3Login {
 				Set<DeviceIdentifier> devices = groups.getGroup(domain, group);
 				for (DeviceIdentifier device : devices) {
 					if (configDevice.equals(device.getName())) {
+						httpExchange.setAttribute(ATTRIBUTE_DEVICE_INFO, device);
+						httpExchange.setAttribute(ATTRIBUTE_DOMAIN, domain);
 						return 200;
 					}
 				}
@@ -203,6 +229,13 @@ public class ConfigHandler extends S3Login {
 		int httpCode = response.getHttpStatusCode();
 		try {
 			HttpService.respond(httpExchange, httpCode, contentType, null);
+			Object info = httpExchange.getAttribute(ATTRIBUTE_DEVICE_INFO);
+			Object domain = httpExchange.getAttribute(ATTRIBUTE_DOMAIN);
+			if (deviceNotifier != null && info instanceof DeviceIdentifier && domain instanceof String) {
+				deviceNotifier.accept((String) domain, (DeviceIdentifier) info);
+			} else {
+				LOGGER.info("No wakeup");
+			}
 		} catch (IOException e) {
 			LOGGER.info("Config send response", e);
 		}
