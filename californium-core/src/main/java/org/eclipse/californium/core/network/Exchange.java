@@ -1331,6 +1331,19 @@ public class Exchange {
 	}
 
 	/**
+	 * Reset transmission of observe relation.
+	 * 
+	 * @param relation observe relation
+	 * @since 3.14
+	 */
+	public void resetRelationTransmission(ObserveRelation relation) {
+		assertOwner();
+		if (this.relation == relation) {
+			this.failedTransmissionCount = 0;
+		}
+	}
+
+	/**
 	 * Remove past notifications from message exchange store.
 	 * 
 	 * To be able to react on RST for notifications, the NON notifications are
