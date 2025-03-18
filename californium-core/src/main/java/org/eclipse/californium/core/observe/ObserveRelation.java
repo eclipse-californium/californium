@@ -462,6 +462,10 @@ public class ObserveRelation {
 	public Response getNextNotification(Response response, boolean acknowledged) {
 		Response next = null;
 		if (recentControlNotification == response) {
+			if (acknowledged) {
+				// reset transmission
+				exchange.resetRelationTransmission(this);
+			}
 			next = nextControlNotification;
 			if (next != null) {
 				// next may be null

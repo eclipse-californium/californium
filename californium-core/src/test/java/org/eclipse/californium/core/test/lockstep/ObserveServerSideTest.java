@@ -192,6 +192,8 @@ public class ObserveServerSideTest {
 		testObsResource.setObserveType(CON);
 		testObsResource.change("Third notification");
 		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("MID").checkObs("B", "C").payload(respPayload).go();
+		serverInterceptor.log(" // lost");
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("MID").loadObserve("C").payload(respPayload).go();
 		client.sendEmpty(ACK).loadMID("MID").go();
 
 		// Forth notification
