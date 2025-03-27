@@ -16,8 +16,8 @@ For more details, please look at [https://www.eclipse.org/security](https://www.
 | ------- | ------------------ |
 | 4.0.0-SNAPSHOT (main) | :heavy_check_mark: |
 | 4.0.0-M3 | :heavy_check_mark: |
-| 3.13.0 | :heavy_check_mark: |
-| 3.12.1, 3.11.0, 3.10.0,<br/> 3.9.1, 3.8.0, 3.7.0,<br/> 3.6.0, 3.5.0, 3.4.0,<br/> 3.3.1, 3.2.0, 3.1.0,<br/> 3.0.0 | :question: |
+| 3.14.0 | :heavy_check_mark: |
+| 3.13.0, 3.12.1, 3.11.0,<br/> 3.10.0, 3.9.1, 3.8.0,<br/> 3.7.0, 3.6.0, 3.5.0,<br/>  3.4.0,3.3.1, 3.2.0,<br/>  3.1.0, 3.0.0 | :question: |
 | 2.8.0   | :question: |
 | 2.7.4, 2.6.6, 2.5.0,<br/> 2.4.1, 2.3.1, 2.2.3,<br/> 2.1.0, 2.0.0 | :question: |
 | before 2.0.0   | :x: |
@@ -43,7 +43,7 @@ See also [NIST database of known Californium vulnerabilities](https://nvd.nist.g
 
 | Californium Version | Dependency | Affected Version | Usage | Vulnerability
 | ------------------- | ---------- | ---------------- | ----- | -------------
-| 3.9.0 - 4.0.0-M2 <br/> 2.8.0 | io.netty | 4.1.91.Final - 4.1.117.Final | (experimental) coaps-tcp | [CVE-2025-24970](https://www.cve.org/CVERecord?id=CVE-2025-24970)
+| 3.9.0 - 3.13.0 <br/> 4.0.0-M1, 4.0.0-M2 <br/> 2.8.0 | io.netty | 4.1.91.Final - 4.1.117.Final | (experimental) coaps-tcp | [CVE-2025-24970](https://www.cve.org/CVERecord?id=CVE-2025-24970)
 | < 3.6 <br/> < 2.7.3 | com.google.code.gson |  < 2.8.9 | demo-apps | [CVE 2022-25647](https://www.cve.org/CVERecord?id=CVE-2022-25647)
 | < 3.3 <br/> < 2.7.2 | com.upokecenter.cbor | 4.0 - 4.5.0 | cf-oscore <br/> demo-apps | [GHSA-fj2w-wfgv-mwq6](https://github.com/peteroupc/CBOR-Java/security/advisories/GHSA-fj2w-wfgv-mwq6)
 | < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | demo-apps | [CVE-2021-42550](https://www.cve.org/CVERecord?id=CVE-2021-42550)
