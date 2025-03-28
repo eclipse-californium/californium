@@ -43,7 +43,7 @@ See also [NIST database of known Californium vulnerabilities](https://nvd.nist.g
 
 | Californium Version | Dependency | Affected Version | Usage | Vulnerability
 | ------------------- | ---------- | ---------------- | ----- | -------------
-| 3.9.0 - 3.13.0 <br/> 4.0.0-M1, 4.0.0-M2 <br/> 2.8.0 | io.netty | 4.1.91.Final - 4.1.117.Final | (experimental) coaps-tcp | [CVE-2025-24970](https://www.cve.org/CVERecord?id=CVE-2025-24970)
+| 4.0.0-M1 - 4.0.0-M3 | org.apache.httpcomponents.client5 | 5.4 - 5.4.2 | coap-http-cross-proxy | [CVE-2025-27820](https://www.cve.org/CVERecord?id=CVE-2025-27820)| 3.9.0 - 3.13.0 <br/> 4.0.0-M1, 4.0.0-M2 <br/> 2.8.0 | io.netty | 4.1.91.Final - 4.1.117.Final | (experimental) coaps-tcp | [CVE-2025-24970](https://www.cve.org/CVERecord?id=CVE-2025-24970)
 | < 3.6 <br/> < 2.7.3 | com.google.code.gson |  < 2.8.9 | demo-apps | [CVE 2022-25647](https://www.cve.org/CVERecord?id=CVE-2022-25647)
 | < 3.3 <br/> < 2.7.2 | com.upokecenter.cbor | 4.0 - 4.5.0 | cf-oscore <br/> demo-apps | [GHSA-fj2w-wfgv-mwq6](https://github.com/peteroupc/CBOR-Java/security/advisories/GHSA-fj2w-wfgv-mwq6)
 | < 3.2 <br/> < 2.7.1 | ch.qos.logback.logback-classic | < 1.2.9 | demo-apps | [CVE-2021-42550](https://www.cve.org/CVERecord?id=CVE-2021-42550)

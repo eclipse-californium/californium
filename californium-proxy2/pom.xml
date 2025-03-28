@@ -18,9 +18,9 @@
 	<description>Cross-proxy2 module</description>
 
 	<properties>
-		<httpclient5.version>5.4</httpclient5.version>
+		<httpclient5.version>5.4.3</httpclient5.version>
 		<httpclient5.version.spec>version="[${versionmask;==;${httpclient5.version}},${versionmask;+;${httpclient5.version}})"</httpclient5.version.spec>
-		<httpcore5.version>5.3</httpcore5.version>
+		<httpcore5.version>5.3.4</httpcore5.version>
 		<httpcore5.version.spec>version="[${versionmask;==;${httpcore5.version}},${versionmask;+;${httpcore5.version}})"</httpcore5.version.spec>
 		<guava.version>33.3.1-jre</guava.version>
 	</properties>
