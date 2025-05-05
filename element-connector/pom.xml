@@ -82,9 +82,13 @@
 							org.eclipse.californium.elements*
 						</Export-Package>
 						<Import-Package>
+							org.slf4j.bridge;resolution:=optional,
+							org.slf4j;version="[1.7,3)",
+							org.slf4j.event;version="[1.7,3)",
 							*
 						</Import-Package>
 						<Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
+						<_noclassforname>true</_noclassforname>
 					</instructions>
 				</configuration>
 			</plugin>
