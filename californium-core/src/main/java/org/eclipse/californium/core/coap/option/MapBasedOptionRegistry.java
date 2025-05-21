@@ -168,7 +168,7 @@ public class MapBasedOptionRegistry implements OptionRegistry {
 		OptionDefinition current = numberMap.get(key);
 		if (current != null) {
 			throw new IllegalArgumentException(
-					"Number " + definition.getNumber() + " already in use for " + current.getName());
+					definition.getName() +  " " + definition.getNumber() + "/0x" + Integer.toHexString(definition.getNumber()) + " already in use for " + current.getName());
 		}
 		current = nameMap.get(definition.getName());
 		if (current != null) {
