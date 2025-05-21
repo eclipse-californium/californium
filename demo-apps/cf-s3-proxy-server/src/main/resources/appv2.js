@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 2 0.27.2, 6. March 2025";
+const version = "Version 2 0.27.3, 21. May 2025";
 
 let timeShift = 0;
 
@@ -2027,8 +2027,6 @@ class DeviceData {
 			if (!center) {
 				await this.readOverview(true);
 			}
-			const lastValues = DeviceData.getTimeFromKey(this.lastStatusKey);
-			let range = null;
 
 			// fetch all arch-date files
 			xmlArchs.xml.querySelectorAll("Contents>Key").forEach((e) => insertItem(allKeys, e.textContent));
@@ -2042,6 +2040,10 @@ class DeviceData {
 				}
 			}
 			console.log(allKeys.length + " archs (" + (allKeys.length - previousKeys) + " new)");
+
+			const lastValues = this.lastStatusKey ? DeviceData.getTimeFromKey(this.lastStatusKey) : null;
+			let range = null;
+
 			if (allKeys.length > 0) {
 				const firstValues = DeviceData.getTimeFromArchKey(allKeys.at(0));
 				range = new DateRange(firstValues, lastValues, center, days, true);
