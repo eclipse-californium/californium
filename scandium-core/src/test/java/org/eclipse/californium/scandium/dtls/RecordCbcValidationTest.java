@@ -299,7 +299,7 @@ public class RecordCbcValidationTest {
 	@Test
 	@Ignore
 	public void testBenchmarkMac() throws GeneralSecurityException {
-		hmac.init(state.getMacKey());
+		state.initMac(hmac);
 		byte[] mac = new byte[cipherSuite.getMacLength()];
 		hmac.update(payloadData, 0, minMacPayloadLength);
 		hmac.doFinal(mac, 0);
@@ -329,7 +329,7 @@ public class RecordCbcValidationTest {
 		}
 		time = System.nanoTime() - time;
 		System.out.format("%s-%d-%d-%d: %d%n", hmac.getAlgorithm(), hmac.getMacLength(),
-				state.getMacKey().getEncoded().length, size, time);
+				state.getMacKeyLength(), size, time);
 		return count;
 	}
 
@@ -515,8 +515,9 @@ public class RecordCbcValidationTest {
 		plaintext.writeBytes(payload);
 
 		// add MAC
-		plaintext.writeBytes(CbcBlockCipher.getBlockCipherMac(state.getCipherSuite().getThreadLocalMac(),
-				state.getMacKey(), additionalData, payload, payload.length));
+		Mac hmac = state.getCipherSuite().getThreadLocalMac();
+		state.initMac(hmac);
+		plaintext.writeBytes(CbcBlockCipher.getBlockCipherMac(hmac, additionalData, payload, payload.length));
 
 		// determine padding length
 		int ciphertextLength = payload.length + cipherSuite.getMacLength() + 1;
@@ -577,7 +578,9 @@ public class RecordCbcValidationTest {
 			fragmentLength = fullLength;
 			paddingLength = 0;
 		}
-		byte[] mac = CbcBlockCipher.getBlockCipherMac(state.getCipherSuite().getThreadLocalMac(), state.getMacKey(),
+		Mac hmac = state.getCipherSuite().getThreadLocalMac();
+		state.initMac(hmac);
+		byte[] mac = CbcBlockCipher.getBlockCipherMac(hmac,
 				additionalData, plaintextOversized, fragmentLength);
 		md.reset();
 		// estimate additional MAC calculations to decouple from padding
@@ -635,11 +638,12 @@ public class RecordCbcValidationTest {
 		if (0 > fragmentLength) {
 			throw new InvalidMacException();
 		}
+		Mac hmac = state.getCipherSuite().getThreadLocalMac();
+		state.initMac(hmac);
 		DatagramReader reader = new DatagramReader(plaintext);
 		byte[] content = reader.readBytes(fragmentLength);
 		byte[] macFromMessage = reader.readBytes(currentReadState.getCipherSuite().getMacLength());
-		byte[] mac = CbcBlockCipher.getBlockCipherMac(state.getCipherSuite().getThreadLocalMac(), state.getMacKey(),
-				additionalData, content, fragmentLength);
+		byte[] mac = CbcBlockCipher.getBlockCipherMac(hmac, additionalData, content, fragmentLength);
 		int macMessageBlockLength = currentReadState.getCipherSuite().getMacMessageBlockLength();
 		// only to estimate the expected timing difference! No compensation is calculated!
 		int extraBlocks = extra;
