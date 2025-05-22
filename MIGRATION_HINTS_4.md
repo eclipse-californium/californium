@@ -134,6 +134,8 @@ Rename `Connection.refreshAutoResumptionTime` into `updateLastMessageNanos`.
 
 Remove `restoreConnection` from `DTLSConnector`.
 
+Remove obsolete `destroy(PrivateKey key)`, `destroy(SecretKey key)`, `isDestroyed(PrivateKey key)`, and `isDestroyed(SecretKey key)` from `SecretUtil`. Java 8 supports the `Destroyable` for both `PrivateKey` and `SecretKey` obsoletes that workaround.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into
