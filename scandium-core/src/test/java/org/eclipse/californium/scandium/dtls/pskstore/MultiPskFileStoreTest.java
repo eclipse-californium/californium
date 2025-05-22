@@ -79,34 +79,28 @@ public class MultiPskFileStoreTest {
 		store.loadPskCredentials(new ByteArrayInputStream(DATA));
 		assertThat(store.size(), is(3));
 
-		SecretKey expected = SecretUtil.create("secret".getBytes(), PskSecretResult.ALGORITHM_PSK);
+		SecretKey expected = SecretUtil.create("secret".getBytes(), "PSK");
 		SecretKey key = store.getSecret("me");
 		assertThat(key, is(expected));
-		SecretUtil.destroy(key);
 
 		key = store.getSecret(0);
 		assertThat(key, is(expected));
-		SecretUtil.destroy(key);
 		SecretUtil.destroy(expected);
 
-		expected = SecretUtil.create("public".getBytes(), PskSecretResult.ALGORITHM_PSK);
+		expected = SecretUtil.create("public".getBytes(), "PSK");
 		key = store.getSecret("you");
 		assertThat(key, is(expected));
-		SecretUtil.destroy(key);
 
 		key = store.getSecret(1);
 		assertThat(key, is(expected));
-		SecretUtil.destroy(key);
 		SecretUtil.destroy(expected);
 
-		expected = SecretUtil.create("hex".getBytes(), PskSecretResult.ALGORITHM_PSK);
+		expected = SecretUtil.create("hex".getBytes(), "PSK");
 		key = store.getSecret("it");
 		assertThat(key, is(expected));
-		SecretUtil.destroy(key);
 
 		key = store.getSecret(2);
 		assertThat(key, is(expected));
-		SecretUtil.destroy(key);
 		SecretUtil.destroy(expected);
 	}
 

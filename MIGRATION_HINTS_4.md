@@ -68,6 +68,8 @@ The `InMemoryConnectionStore` removes now `Connection`s without `Principals` whe
 
 Using the `DTLS.APPLICATION_AUTHORIZATION_TIMEOUT` removes now connections with anonymous clients after that timeout, if the application doesn't authorize them using the `ApplicationAuthorizer`.
 
+The `PskSecretResult` supports now to optional destroy the `SecretKey`. This enables to implement a `PskStore` returning `SecretKey`without cloning them.
+
 ### Element-Connector-TCP-Netty:
 
 ### Californium-Core:
@@ -137,6 +139,11 @@ Remove `restoreConnection` from `DTLSConnector`.
 Replace `DtlsBlockConnectionState.getMac` by `DtlsBlockConnectionState.initMac`. Adapt `CbcBlockCipher.getBlockCipherMac()` to use a already initialized `Mac` and remove the `macKey` from the parameter list.
 
 Remove obsolete `destroy(PrivateKey key)`, `destroy(SecretKey key)`, `isDestroyed(PrivateKey key)`, and `isDestroyed(SecretKey key)` from `SecretUtil`. Java 8 supports the `Destroyable` for both `PrivateKey` and `SecretKey` obsoletes that workaround.
+
+Add `Destroyable` to `PskSecretResult`. Enables to implement a `PskStore` returning `SecretKey` without cloning them. The type of the `SecretKey` is not longer defined by the algorithm, it's passed in as parameter creating a `PskSecretResult`.
+
+The function `generateMasterSecret` is moved from `AsyncPskStore` to `PskSecretResult`.
+
 
 ### Californium-Core:
 

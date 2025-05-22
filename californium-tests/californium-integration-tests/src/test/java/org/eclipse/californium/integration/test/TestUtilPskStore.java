@@ -91,12 +91,12 @@ public class TestUtilPskStore implements PskStore {
 		synchronized (this) {
 			if (this.identity != null && this.identity.equals(identity)) {
 				pskIdentity = this.identity;
-				secret = SecretUtil.create(this.secret);
+				secret = this.secret;
 			} else if (this.catchAll) {
-				secret = SecretUtil.create(this.secret);
+				secret = this.secret;
 			}
 		}
-		return new PskSecretResult(cid, pskIdentity, secret);
+		return new PskSecretResult(cid, pskIdentity, secret, false, false);
 	}
 
 	@Override

@@ -54,7 +54,6 @@ import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
-import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -279,7 +278,7 @@ public class DomainDeviceManager extends DeviceManager
 					Device device = resource.getResource().getByPreSharedKeyIdentity(domainName.name);
 					if (device != null) {
 						AdditionalInfo info = createAdditionalInfo(domainName.domain, device);
-						return new PskSecretResult(cid, identity, SecretUtil.create(device.pskSecret, "PSK"), info);
+						return new PskSecretResult(cid, identity, device.pskSecret, info, false, false);
 					}
 				}
 			} else {
@@ -300,10 +299,10 @@ public class DomainDeviceManager extends DeviceManager
 				}
 				if (device != null) {
 					AdditionalInfo info = createAdditionalInfo(domain, device);
-					return new PskSecretResult(cid, identity, SecretUtil.create(device.pskSecret, "PSK"), info);
+					return new PskSecretResult(cid, identity, device.pskSecret, info, false, false);
 				}
 			}
-			return new PskSecretResult(cid, identity, null);
+			return new PskSecretResult(cid, identity);
 		}
 
 		@Override

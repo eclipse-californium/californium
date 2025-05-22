@@ -64,7 +64,6 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
-import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -345,9 +344,9 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 			Device device = devices.getResource().getByPreSharedKeyIdentity(identity.getPublicInfoAsString());
 			AdditionalInfo additionalInfo = createAdditionalInfo(device);
 			if (additionalInfo != null && !additionalInfo.isEmpty()) {
-				return new PskSecretResult(cid, identity, SecretUtil.create(device.pskSecret, "PSK"), additionalInfo);
+				return new PskSecretResult(cid, identity, device.pskSecret, additionalInfo, false, false);
 			} else {
-				return new PskSecretResult(cid, identity, null);
+				return new PskSecretResult(cid, identity);
 			}
 		}
 

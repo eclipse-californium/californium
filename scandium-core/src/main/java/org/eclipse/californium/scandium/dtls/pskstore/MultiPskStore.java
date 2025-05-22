@@ -72,9 +72,9 @@ public class MultiPskStore implements PskStore, Destroyable {
 
 		PskCredentials credentials = getCredentials(serverNames, identity);
 		if (credentials != null) {
-			return new PskSecretResult(cid, credentials.getIdentity(), credentials.getKey());
+			return new PskSecretResult(cid, credentials.getIdentity(), credentials.getKey(), false, false);
 		} else {
-			return new PskSecretResult(cid, identity, null);
+			return new PskSecretResult(cid, identity);
 		}
 	}
 
@@ -173,7 +173,7 @@ public class MultiPskStore implements PskStore, Destroyable {
 
 		private PskCredentials(PskPublicInformation identity, byte[] key) {
 			this.identity = identity;
-			this.key = SecretUtil.create(key, PskSecretResult.ALGORITHM_PSK);
+			this.key = SecretUtil.create(key, "PSK");
 		}
 
 		public PskPublicInformation getIdentity() {
@@ -181,7 +181,7 @@ public class MultiPskStore implements PskStore, Destroyable {
 		}
 
 		public SecretKey getKey() {
-			return SecretUtil.create(key);
+			return key;
 		}
 
 		@Override

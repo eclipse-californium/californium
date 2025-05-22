@@ -472,7 +472,7 @@ public abstract class AbstractTestServer extends CoapServer {
 				SecretKey key = getWildcardKey(identity.getPublicInfoAsString());
 				LOGGER.trace("{}: {}", identity, key != null ? "found wildcard key" : "no wildcard key");
 				if (key != null) {
-					result = new PskSecretResult(cid, identity, SecretUtil.create(key));
+					result = new PskSecretResult(cid, identity, key, false, false);
 				}
 			}
 			return result;

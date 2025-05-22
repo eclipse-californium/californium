@@ -29,10 +29,6 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalMac;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -50,15 +46,6 @@ import org.slf4j.LoggerFactory;
 public class AsyncPskStore implements PskStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncPskStore.class);
-
-	protected static final ThreadLocalCryptoMap<ThreadLocalMac> MAC = new ThreadLocalCryptoMap<>(
-			new Factory<ThreadLocalMac>() {
-
-				@Override
-				public ThreadLocalMac getInstance(String algorithm) {
-					return new ThreadLocalMac(algorithm);
-				}
-			});
 
 	/**
 	 * Thread factory.
@@ -218,22 +205,13 @@ public class AsyncPskStore implements PskStore {
 			String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
 		PskSecretResult result = pskStore.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret,
 				seed, useExtendedMasterSecret);
-		if (generateMasterSecret && result.getSecret() != null
-				&& PskSecretResult.ALGORITHM_PSK.equals(result.getSecret().getAlgorithm())) {
-			SecretKey masterSecret = generateMasterSecret(hmacAlgorithm, result.getSecret(), otherSecret, seed, useExtendedMasterSecret);
-			SecretUtil.destroy(result.getSecret());
-			return new PskSecretResult(cid, result.getPskPublicInformation(), masterSecret);
+		if (generateMasterSecret && result.isPskSecret()) {
+			SecretKey masterSecret = result.generateMasterSecret(hmacAlgorithm, otherSecret, seed,
+					useExtendedMasterSecret);
+			SecretUtil.destroy(result);
+			return new PskSecretResult(cid, result.getPskPublicInformation(), masterSecret, true, true);
 		}
 		return result;
-	}
-
-	protected SecretKey generateMasterSecret(String hmacAlgorithm, SecretKey pskSecret, SecretKey otherSecret,
-			byte[] seed, boolean useExtendedMasterSecret) {
-		ThreadLocalMac hmac = MAC.get(hmacAlgorithm);
-		SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret, pskSecret);
-		SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac.current(), premasterSecret, seed, useExtendedMasterSecret);
-		SecretUtil.destroy(premasterSecret);
-		return masterSecret;
 	}
 
 	@Override
