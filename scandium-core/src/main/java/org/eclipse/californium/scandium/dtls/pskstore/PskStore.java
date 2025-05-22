@@ -25,8 +25,8 @@ import javax.crypto.SecretKey;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
-import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -34,10 +34,10 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * <p>
  * It could also be used to delegate the master secret generation to a HSM.
  * <p>
- * Returns psk secret result instead of PSK's secret key. The secret must either
- * be a master secret (algorithm "MAC"), or a PSK secret key (algorithm "PSK").
- * If required, the psk secret result maybe returned asynchronously using a
- * {@link HandshakeResultHandler}.
+ * Returns psk secret result instead of PSK's secret key. The secret is either a
+ * master secret {@link PskSecretResult#isMasterSecret()} or a PSK secret key
+ * {@link PskSecretResult#isPskSecret()}. If required, the psk secret result
+ * maybe returned asynchronously using a {@link HandshakeResultHandler}.
  * 
  * <p>
  * Synchronous example returning the PSK secret key:
@@ -45,10 +45,10 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 
  * <pre>
  * &#64;Override
- * public PskSecretResult generateMasterSecret(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
+ * public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
  * 			String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
  * 		SecretKey pskSecret = ... func ... identity ...; // identity maybe normalized!
- * 		return new PskSecretResult(cid, identity, pskSecret);
+ * 		return new PskSecretResult(cid, identity, pskSecret, false, false);
  * }
  * </pre>
  *
@@ -58,9 +58,8 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 
  * <pre>
  * &#64;Override
- * public PskSecretResult generateMasterSecret(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
+ * public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName, PskPublicInformation identity,
  * 			String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
- * 	
  * 		start ... func ... cid, servernames, identity, otherSecret, seed, useExtendedMasterSecret
  * 			// calls processResult with generate master secret asynchronous;
  * 		return null; // returns null for asynchronous processing
@@ -74,7 +73,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * private void processResult(PskPublicInformation identity, ConnectionId cid,
  * 			SecretKey masterSecret) {
  * 		// executed by different thread!
- * 		PskSecretResult result = new PskSecretResult(cid, identity, masterSecret);
+ * 		PskSecretResult result = new PskSecretResult(cid, identity, masterSecret, true, false);
  * 		resultHandler.apply(result);
  * }
  * </pre>
@@ -109,8 +108,8 @@ public interface PskStore {
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
 	 * @param otherSecret other secret from ECDHE, or {@code null}. Must be
 	 *            cloned for asynchronous use. See
-	 *            <a href="https://tools.ietf.org/html/rfc5489#page-4" target="_blank"> RFC
-	 *            5489, other secret</a>
+	 *            <a href="https://tools.ietf.org/html/rfc5489#page-4" target=
+	 *            "_blank"> RFC 5489, other secret</a>
 	 * @param seed seed for PRF.
 	 * @param useExtendedMasterSecret If the master secret is created,
 	 *            {@code true}, creates extended master secret (RFC 7627),

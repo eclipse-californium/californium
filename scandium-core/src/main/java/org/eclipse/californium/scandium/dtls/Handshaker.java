@@ -1159,8 +1159,8 @@ public abstract class Handshaker implements Destroyable {
 			DTLSSession session = getSession();
 			String hostName = sniEnabled ? session.getHostName() : null;
 			PskPublicInformation pskIdentity = pskSecretResult.getPskPublicInformation();
-			SecretKey newPskSecret = pskSecretResult.getSecret();
-			if (newPskSecret != null) {
+			SecretKey newSecret = pskSecretResult.getSecret();
+			if (newSecret != null) {
 				if (hostName != null) {
 					LOGGER.trace("client [{}] uses PSK identity [{}] for server [{}]", peerToLog, pskIdentity,
 							hostName);
@@ -1174,19 +1174,19 @@ public abstract class Handshaker implements Destroyable {
 					pskPrincipal = new PreSharedKeyIdentity(pskIdentity.getPublicInfoAsString());
 				}
 				session.setPeerIdentity(pskPrincipal);
-				if (PskSecretResult.ALGORITHM_PSK.equals(newPskSecret.getAlgorithm())) {
-					Mac hmac = session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac();
-					SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret,
-							newPskSecret);
-					SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac, premasterSecret,
-							masterSecretSeed, session.useExtendedMasterSecret());
-					SecretUtil.destroy(premasterSecret);
-					SecretUtil.destroy(newPskSecret);
-					newPskSecret = masterSecret;
-				}
 				setCustomArgument(pskSecretResult);
-				applyMasterSecret(newPskSecret);
-				SecretUtil.destroy(newPskSecret);
+
+				if (pskSecretResult.isPskSecret()) {
+					Mac hmac = session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac();
+					SecretKey masterSecret = pskSecretResult.generateMasterSecret(hmac, otherSecret, masterSecretSeed,
+							session.useExtendedMasterSecret());
+					applyMasterSecret(masterSecret);
+					SecretUtil.destroy(masterSecret);
+				} else {
+					applyMasterSecret(newSecret);
+				}
+
+				SecretUtil.destroy(pskSecretResult);
 				processMasterSecret();
 			} else {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY);

@@ -463,7 +463,7 @@ public class ClientInitializer {
 		public PlugPskStore(String id, byte[] secret) {
 			this.identity = new PskPublicInformation(id);
 			this.secret = secret == null ? ConnectorConfig.PSK_SECRET
-					: SecretUtil.create(secret, PskSecretResult.ALGORITHM_PSK);
+					: SecretUtil.create(secret, "PSK");
 			LOGGER.trace("DTLS-PSK-Identity: {}", identity);
 		}
 
@@ -493,12 +493,12 @@ public class ClientInitializer {
 			if (this.identity.equals(identity)) {
 				if (this.secret == null
 						&& identity.getPublicInfoAsString().startsWith(ConnectorConfig.PSK_IDENTITY_PREFIX)) {
-					secret = SecretUtil.create(ConnectorConfig.PSK_SECRET);
+					secret = ConnectorConfig.PSK_SECRET;
 				} else {
-					secret = SecretUtil.create(this.secret);
+					secret = this.secret;
 				}
 			}
-			return new PskSecretResult(cid, this.identity, secret);
+			return new PskSecretResult(cid, this.identity, secret, false, false);
 		}
 
 		@Override

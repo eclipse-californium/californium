@@ -97,9 +97,9 @@ public class SinglePskStore implements PskStore, Destroyable {
 			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
 		SecretKey secret = null;
 		if (this.identity.equals(identity)) {
-			secret = SecretUtil.create(this.secret);
+			secret = this.secret;
 		}
-		return new PskSecretResult(cid, this.identity, secret);
+		return new PskSecretResult(cid, this.identity, secret, false, false);
 	}
 
 	/**

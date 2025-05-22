@@ -182,7 +182,7 @@ public class MultiPskFileStore implements PskStore, Destroyable {
 			} finally {
 				lock.readLock().unlock();
 			}
-			return SecretUtil.create(key);
+			return key;
 		}
 
 		/**
@@ -838,7 +838,7 @@ public class MultiPskFileStore implements PskStore, Destroyable {
 	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
 			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
 			boolean useExtendedMasterSecret) {
-		return new PskSecretResult(cid, identity, credentials.getSecret(identity));
+		return new PskSecretResult(cid, identity, credentials.getSecret(identity), false, false);
 	}
 
 	@Override

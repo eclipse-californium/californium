@@ -42,6 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
 import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
@@ -231,7 +232,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 * PreSharedKey secret. {@code null}, if no PreSharedKey credentials are
 		 * used.
 		 */
-		public final byte[] pskSecret;
+		public final SecretKey pskSecret;
 		/**
 		 * RawPublicKey certificate. {@code null}, if no RawPublicKey
 		 * certificate is used.
@@ -303,7 +304,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		 *             provided.
 		 * @since 4.0 (added more fields)
 		 */
-		public Device(String name, String label, String comment, String group, String pskIdentity, byte[] pskSecret,
+		public Device(String name, String label, String comment, String group, String pskIdentity, SecretKey pskSecret,
 				PublicKey publicKey, byte[] sign, String x509PemTag, X509Certificate x509, Type type, boolean ban,
 				Map<String, String> customFields) {
 			if (name == null) {
@@ -357,9 +358,11 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 		}
 
 		/**
-		 * Create device credentials from device with additional label and custom fields.
+		 * Create device credentials from device with additional label and
+		 * custom fields.
 		 * 
-		 * @param device device. The {@link #customFields} of this device may get modified!
+		 * @param device device. The {@link #customFields} of this device may
+		 *            get modified!
 		 * @param label additional label
 		 * @param customFields map of custom field values. May be {@code null}.
 		 * @since 4.0 (added customFields)
@@ -463,7 +466,7 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			 * PreSharedKey secret. {@code null}, if no PreSharedKey credentials
 			 * are used.
 			 */
-			public byte[] pskSecret;
+			public SecretKey pskSecret;
 			/**
 			 * RawPublicKey certificate. {@code null}, if no RawPublicKey
 			 * certificate is used.
@@ -1100,7 +1103,9 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 					writer.write('=');
 					writer.write(credentials.pskIdentity);
 					writer.write(',');
-					writer.write(encode64(credentials.pskSecret));
+					byte[] encoded = credentials.pskSecret.getEncoded();
+					writer.write(encode64(encoded));
+					Bytes.clear(encoded);
 					writer.write(StringUtil.lineSeparator());
 				}
 				if (credentials.publicKey != null) {
@@ -1385,8 +1390,12 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			return false;
 		}
 		builder.pskIdentity = decodeText(values[0]);
-		builder.pskSecret = binDecodeTextOr64(values[1]);
-		return !builder.pskIdentity.isEmpty() && builder.pskSecret.length > 0;
+		byte[] secret = binDecodeTextOr64(values[1]);
+		if (secret.length > 0) {
+			builder.pskSecret = SecretUtil.create(secret, "PSK");
+		}
+		Bytes.clear(secret);
+		return !builder.pskIdentity.isEmpty() && secret.length > 0;
 	}
 
 	/**
