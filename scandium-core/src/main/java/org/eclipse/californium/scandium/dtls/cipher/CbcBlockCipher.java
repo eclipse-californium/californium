@@ -18,7 +18,6 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
-import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -45,8 +44,8 @@ public class CbcBlockCipher {
 	/**
 	 * Converts a given TLSCiphertext.fragment to a TLSCompressed.fragment
 	 * structure as defined by
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.2" target="_blank"> RFC 5246,
-	 * section 6.2.3.2</a>:
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.2" target=
+	 * "_blank"> RFC 5246, section 6.2.3.2</a>:
 	 * 
 	 * <pre>
 	 * struct {
@@ -77,9 +76,11 @@ public class CbcBlockCipher {
 	public static byte[] decrypt(CipherSuite suite, SecretKey key, SecretKey macKey, byte[] additionalData,
 			byte[] ciphertext) throws GeneralSecurityException {
 		/*
-		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for explanation
+		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
+		 * explanation
 		 */
-		// extend/oversize the plaintext for MAC compensation and 256 padding checks 
+		// extend/oversize the plaintext for MAC compensation and 256 padding
+		// checks
 		byte[] plaintextOversized = new byte[ciphertext.length + Math.max(suite.getMacMessageBlockLength(), 256)];
 		int ivlength = suite.getRecordIvLength();
 		Cipher blockCipher = suite.getThreadLocalCipher();
@@ -109,12 +110,13 @@ public class CbcBlockCipher {
 		// adjust fragment length
 		int additionalIndex = additionalData.length - (Record.LENGTH_BITS / 8);
 		additionalData[additionalIndex] = (byte) ((fragmentLength >> 8) & 0xff);
-		additionalData[additionalIndex+1] = (byte)(fragmentLength & 0xff);
+		additionalData[additionalIndex + 1] = (byte) (fragmentLength & 0xff);
 
 		MessageDigest md = suite.getThreadLocalMacMessageDigest();
 		md.reset();
-		byte[] mac = getBlockCipherMac(suite.getThreadLocalMac(), macKey, additionalData, plaintextOversized,
-				fragmentLength);
+		Mac hmac = suite.getThreadLocalMac();
+		hmac.init(macKey);
+		byte[] mac = getBlockCipherMac(hmac, additionalData, plaintextOversized, fragmentLength);
 
 		// estimate additional MAC Hash compressions to decouple calculation
 		// times from padding. The MAC Hash compressions are done in blocks,
@@ -151,8 +153,8 @@ public class CbcBlockCipher {
 	/**
 	 * Converts a given TLSCompressed.fragment to a TLSCiphertext.fragment
 	 * structure as defined by
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.2" target="_blank"> RFC 5246,
-	 * section 6.2.3.2</a>
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.2" target=
+	 * "_blank"> RFC 5246, section 6.2.3.2</a>
 	 * 
 	 * <pre>
 	 * struct {
@@ -183,11 +185,14 @@ public class CbcBlockCipher {
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
 		 * explanation
 		 */
-		DatagramWriter plainMessage = new DatagramWriter(payload.length + suite.getMacLength() + suite.getRecordIvLength(), true);
+		DatagramWriter plainMessage = new DatagramWriter(
+				payload.length + suite.getMacLength() + suite.getRecordIvLength(), true);
 		plainMessage.writeBytes(payload);
 
 		// add MAC
-		byte[] mac = getBlockCipherMac(suite.getThreadLocalMac(), macKey, additionalData, payload, payload.length);
+		Mac hmac = suite.getThreadLocalMac();
+		hmac.init(macKey);
+		byte[] mac = getBlockCipherMac(hmac, additionalData, payload, payload.length);
 		plainMessage.writeBytes(mac);
 		Bytes.clear(mac);
 
@@ -216,20 +221,17 @@ public class CbcBlockCipher {
 
 	/**
 	 * Calculates a MAC for use with CBC block ciphers as specified by
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.2" target="_blank"> RFC 5246,
-	 * section 6.2.3.2</a>.
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-6.2.3.2" target=
+	 * "_blank"> RFC 5246, section 6.2.3.2</a>.
 	 * 
-	 * @param hmac mac function
-	 * @param macKey mac key
+	 * @param hmac initialized mac function
 	 * @param additionalData additional data
 	 * @param content payload
 	 * @param length length of payload to be used
 	 * @return mac bytes
-	 * @throws InvalidKeyException if the mac keys doesn't fit the mac
+	 * @since 4.0 (removed macKey and uses requires an already initialized Mac)
 	 */
-	public static byte[] getBlockCipherMac(Mac hmac, SecretKey macKey, byte[] additionalData, byte[] content,
-			int length) throws InvalidKeyException {
-		hmac.init(macKey);
+	public static byte[] getBlockCipherMac(Mac hmac, byte[] additionalData, byte[] content, int length) {
 		hmac.update(additionalData);
 		hmac.update(content, 0, length);
 		byte[] mac = hmac.doFinal();
@@ -244,13 +246,13 @@ public class CbcBlockCipher {
 	 * comparing 256 bytes.
 	 * 
 	 * @param padding padding to be checked
-	 * @param data data to be checked. Must contain at least 256 + 1 bytes from the
-	 *            offset on. The value of the last byte will be changed!
+	 * @param data data to be checked. Must contain at least 256 + 1 bytes from
+	 *            the offset on. The value of the last byte will be changed!
 	 * @param offset offset of the padding field.
 	 * @return {@code true}, if padding bytes in data from the offset on
 	 *         contains the value of the padding byte.
-	 * @throws IllegalArgumentException if the data array doesn't contain
-	 *             257 bytes after the offset.
+	 * @throws IllegalArgumentException if the data array doesn't contain 257
+	 *             bytes after the offset.
 	 */
 	public static boolean checkPadding(int padding, byte[] data, int offset) {
 		if (data.length < offset + 257) {

@@ -16,17 +16,20 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CbcBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.SecretSerializationUtil;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * DTLS connection state for block cipher.
@@ -96,20 +99,34 @@ public class DtlsBlockConnectionState extends DTLSConnectionState {
 		} else if (ciphertextFragment.length < cipherSuite.getRecordIvLength() + cipherSuite.getMacLength() + 1) {
 			throw new GeneralSecurityException("Ciphertext too short!");
 		}
-		// additional data for MAC, use length 0 
+		// additional data for MAC, use length 0
 		// and overwrite it after decryption
 		byte[] additionalData = record.generateAdditionalData(0);
 		return CbcBlockCipher.decrypt(cipherSuite, encryptionKey, macKey, additionalData, ciphertextFragment);
 	}
 
 	/**
-	 * Gets the MAC algorithm key.
+	 * Initialize Mac with {@link #macKey}.
 	 * 
-	 * @return the key. To be destroyed after usage.
-	 * @see SecretUtil#destroy(SecretKey)
+	 * @param mac Mac to initialize
+	 * @throws InvalidKeyException if the {@link #macKey} is inappropriate for
+	 *             initializing this MAC.
+	 * @since 4.0
 	 */
-	SecretKey getMacKey() {
-		return SecretUtil.create(macKey);
+	void initMac(Mac mac) throws InvalidKeyException {
+		mac.init(macKey);
+	}
+
+	/**
+	 * Get Mac key length.
+	 * 
+	 * @return mac key length
+	 * @since 4.0
+	 */
+	int getMacKeyLength() {
+		byte[] encoded = macKey.getEncoded();
+		Bytes.clear(encoded);
+		return encoded.length;
 	}
 
 	@Override
