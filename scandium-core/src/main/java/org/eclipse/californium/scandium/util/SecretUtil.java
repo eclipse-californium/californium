@@ -16,7 +16,6 @@
 package org.eclipse.californium.scandium.util;
 
 import java.security.MessageDigest;
-import java.security.PrivateKey;
 import java.security.spec.KeySpec;
 import java.util.Arrays;
 
@@ -36,30 +35,7 @@ public class SecretUtil {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SecretUtil.class);
 
 	/**
-	 * Destroy private key.
-	 * 
-	 * @param key private key to destroy. If {@code null}, nothing is destroyed.
-	 * @since 3.12
-	 */
-	public static void destroy(PrivateKey key) {
-		if (key instanceof Destroyable) {
-			destroy((Destroyable) key);
-		}
-	}
-
-	/**
-	 * Destroy secret key.
-	 * 
-	 * @param key secret key to destroy. If {@code null}, nothing is destroyed.
-	 */
-	public static void destroy(SecretKey key) {
-		if (key instanceof Destroyable) {
-			destroy((Destroyable) key);
-		}
-	}
-
-	/**
-	 * Destroy provided security destroyable.
+	 * Destroy provided security {@code Destroyable}.
 	 * 
 	 * @param destroyable object to destroy. Maybe {@code null}.
 	 */
@@ -74,43 +50,6 @@ public class SecretUtil {
 				LOGGER.warn("Destroy on {} failed!", destroyable.getClass(), e);
 			}
 		}
-	}
-
-	/**
-	 * Checks if a private key has already been destroyed.
-	 * 
-	 * @param key private key to check (may be {@code null}).
-	 * @return {@code true} if the key either is {@code null} or has been
-	 *         destroyed.
-	 * @since 3.12
-	 */
-	public static boolean isDestroyed(PrivateKey key) {
-		if (key != null) {
-			if (key instanceof Destroyable) {
-				return ((Destroyable) key).isDestroyed();
-			} else {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * Checks if a secret key has already been destroyed.
-	 * 
-	 * @param key secret key to check (may be {@code null}).
-	 * @return {@code true} if the key either is {@code null} or has been
-	 *         destroyed.
-	 */
-	public static boolean isDestroyed(SecretKey key) {
-		if (key != null) {
-			if (key instanceof Destroyable) {
-				return ((Destroyable) key).isDestroyed();
-			} else {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	/**

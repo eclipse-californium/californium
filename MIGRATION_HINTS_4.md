@@ -136,6 +136,8 @@ Remove `restoreConnection` from `DTLSConnector`.
 
 Replace `DtlsBlockConnectionState.getMac` by `DtlsBlockConnectionState.initMac`. Adapt `CbcBlockCipher.getBlockCipherMac()` to use a already initialized `Mac` and remove the `macKey` from the parameter list.
 
+Remove obsolete `destroy(PrivateKey key)`, `destroy(SecretKey key)`, `isDestroyed(PrivateKey key)`, and `isDestroyed(SecretKey key)` from `SecretUtil`. Java 8 supports the `Destroyable` for both `PrivateKey` and `SecretKey` obsoletes that workaround.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into

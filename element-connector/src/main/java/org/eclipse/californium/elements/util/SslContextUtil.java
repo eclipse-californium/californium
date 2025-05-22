@@ -1365,13 +1365,6 @@ public class SslContextUtil {
 	public static class Credentials implements Destroyable {
 
 		/**
-		 * Indicates, that this instance has been {@link #destroy()}ed.
-		 * 
-		 * @since 3.12
-		 */
-		private volatile boolean destroyed;
-
-		/**
 		 * Private key.
 		 */
 		private final PrivateKey privateKey;
@@ -1552,10 +1545,9 @@ public class SslContextUtil {
 		 */
 		@Override
 		public void destroy() throws DestroyFailedException {
-			if (privateKey instanceof Destroyable) {
-				((Destroyable) privateKey).destroy();
+			if (privateKey != null) {
+				privateKey.destroy();
 			}
-			destroyed = true;
 		}
 
 		/**
@@ -1565,7 +1557,7 @@ public class SslContextUtil {
 		 */
 		@Override
 		public boolean isDestroyed() {
-			return destroyed || (privateKey == null && trusts == null && publicKey == null);
+			return privateKey == null || privateKey.isDestroyed();
 		}
 	}
 
