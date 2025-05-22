@@ -134,6 +134,8 @@ Rename `Connection.refreshAutoResumptionTime` into `updateLastMessageNanos`.
 
 Remove `restoreConnection` from `DTLSConnector`.
 
+Replace `DtlsBlockConnectionState.getMac` by `DtlsBlockConnectionState.initMac`. Adapt `CbcBlockCipher.getBlockCipherMac()` to use a already initialized `Mac` and remove the `macKey` from the parameter list.
+
 ### Californium-Core:
 
 The functions of the obsolete and removed `ExtendedCoapStack` are moved into
