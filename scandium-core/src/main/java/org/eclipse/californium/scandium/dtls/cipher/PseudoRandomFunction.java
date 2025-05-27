@@ -30,7 +30,8 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 /**
  * The Pseudo Random Function as defined in TLS 1.2.
  * 
- * @see <a href="https://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>
+ * @see <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
+ *      "_blank">RFC 5246</a>
  */
 public final class PseudoRandomFunction {
 
@@ -122,9 +123,10 @@ public final class PseudoRandomFunction {
 
 	/**
 	 * Does the pseudo random function as defined in
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>.
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
+	 * "_blank">RFC 5246</a>.
 	 * 
-	 * @param hmac MAC algorithm.  e.g. HmacSHA256
+	 * @param hmac MAC algorithm. e.g. HmacSHA256
 	 * @param secret the secret to use for the secure hash function
 	 * @param label the label to use for creating the original data.
 	 * @param seed the seed to use for creating the original data
@@ -149,13 +151,13 @@ public final class PseudoRandomFunction {
 	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
 	 * "_blank">RFC 5246</a>.
 	 * 
-	 * @param hmac MAC algorithm.  e.g. HmacSHA256
+	 * @param hmac MAC algorithm. e.g. HmacSHA256
 	 * @param secret the secret to use for the secure hash function
 	 * @param label the label to use for creating the original data.
 	 * @param seed the seed to use for creating the original data
 	 * @param length the length of data to create
 	 * @return the expanded data
-     * @throws IllegalArgumentException if label is not allowed for exporter
+	 * @throws IllegalArgumentException if label is not allowed for exporter
 	 * @see <a href="https://tools.ietf.org/html/rfc5705" target="_blank">RFC
 	 *      5705</a>
 	 * @since 3.10
@@ -169,9 +171,10 @@ public final class PseudoRandomFunction {
 
 	/**
 	 * Does the pseudo random function as defined in
-	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>.
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
+	 * "_blank">RFC 5246</a>.
 	 * 
-	 * @param hmac MAC algorithm.  e.g. HmacSHA256
+	 * @param hmac MAC algorithm. e.g. HmacSHA256
 	 * @param secret the secret to use for the secure hash function
 	 * @param label the label to use for creating the original data. Uses the
 	 *            length from the label.
@@ -183,8 +186,9 @@ public final class PseudoRandomFunction {
 	}
 
 	/**
-	 * Does the pseudo random function as defined in <a
-	 * href="https://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>.
+	 * Does the pseudo random function as defined in
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
+	 * "_blank">RFC 5246</a>.
 	 * 
 	 * @param hmac MAC algorithm. e.g. HmacSHA256
 	 * @param secret the secret to use for the secure hash function
@@ -198,8 +202,9 @@ public final class PseudoRandomFunction {
 	}
 
 	/**
-	 * Performs the secret expansion as described in <a
-	 * href="https://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>.
+	 * Performs the secret expansion as described in
+	 * <a href="https://tools.ietf.org/html/rfc5246#section-5" target=
+	 * "_blank">RFC 5246</a>.
 	 * 
 	 * @param hmac the cryptographic hash function to use for expansion.
 	 * @param label the label to use for creating the original data
@@ -243,7 +248,8 @@ public final class PseudoRandomFunction {
 					// too large for expansion!
 					// write HMAC_hash result temporary to "A(n) + seed"
 					hmac.doFinal(aAndSeed, 0);
-					// write head of result from temporary "A(n) + seed" to expansion
+					// write head of result from temporary "A(n) + seed" to
+					// expansion
 					System.arraycopy(aAndSeed, 0, expansion, offset, length - offset);
 					break;
 				} else {
@@ -289,11 +295,12 @@ public final class PseudoRandomFunction {
 	 * concatenate a uint16 with the value N, N zero octets, a second uint16
 	 * with the value N, and the PSK itself.
 	 * 
-	 * @param otherSecret either is zeroes (plain PSK case) or comes from the
-	 *            EC Diffie-Hellman exchange (ECDHE_PSK).
+	 * @param otherSecret other secret derived from the EC Diffie-Hellman
+	 *            exchange (ECDHE_PSK). Or {@code null} for plain PSK exchange.
 	 * @param pskSecret PSK secret.
 	 * @return byte array with generated premaster secret.
-	 * @see <a href="https://tools.ietf.org/html/rfc4279#section-2" target="_blank">RFC 4279</a>
+	 * @see <a href="https://tools.ietf.org/html/rfc4279#section-2" target=
+	 *      "_blank">RFC 4279</a>
 	 */
 	public static SecretKey generatePremasterSecretFromPSK(SecretKey otherSecret, SecretKey pskSecret) {
 		/*
