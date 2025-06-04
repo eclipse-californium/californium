@@ -56,7 +56,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 public final class RawData {
 
 	/** The raw message. */
-	public final byte[] bytes;
+	private final byte[] bytes;
 
 	/**
 	 * Nano timestamp of receive time.

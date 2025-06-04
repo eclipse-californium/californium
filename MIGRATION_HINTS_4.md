@@ -106,6 +106,8 @@ Introduce `ProtocolScheduledExecutorService` interface to simplify main and seco
 Add `ExecutorsUtil.newProtocolScheduledThreadPool(int, ThreadFactory)` and
 `ExecutorsUtil.newSingleThreadedProtocolExecutor(ThreadFactory)` to created implementations of `ProtocolScheduledExecutorService`.
 
+Change scope of `RawData.bytes` to `private`. Use `RawData.getBytes()` instead.
+
 ### Scandium:
 
 The removing of the deprecated function `DTLSConnector.onInitializeHandshaker` showed, that a single custom `SessionListener` is not enough, if a derived class has overridden it. Therefore `DTLSConnector.addSessionListener` has been added.

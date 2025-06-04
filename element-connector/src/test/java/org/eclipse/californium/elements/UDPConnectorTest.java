@@ -154,7 +154,7 @@ public class UDPConnectorTest {
 
 		receivedData = channel.poll(TIMEOUT_MILLIS, TimeUnit.SECONDS);
 		assertThat("second received data:", receivedData, is(notNullValue()));
-		assertThat("bytes received:", receivedData.bytes, is(equalTo(data)));
+		assertThat("bytes received:", receivedData.getBytes(), is(equalTo(data)));
 	}
 
 	@Test
@@ -169,7 +169,7 @@ public class UDPConnectorTest {
 
 		RawData receivedData = channel.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 		assertThat("second received data:", receivedData, is(notNullValue()));
-		assertThat("bytes received:", receivedData.bytes, is(equalTo(data)));
+		assertThat("bytes received:", receivedData.getBytes(), is(equalTo(data)));
 	}
 
 	@Test
