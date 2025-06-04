@@ -308,6 +308,30 @@ public class MaliciousClientTest {
 	}
 
 	/**
+	 * Malformed CON request.
+	 * 
+	 * Standard processing, responds with BAD_OPTION.
+	 * 
+	 * @throws Exception if an error occurs
+	 */
+	@Test
+	public void testConRequestWithUnknownMethodCode() throws Exception {
+		byte code = 0b00001000; // 0.08 is currently unassigned
+		Request get = newGet();
+
+		DataSerializer serializer = new UdpDataSerializer();
+		RawData rawData = serializer.serializeRequest(get);
+		// tweak the method code
+		rawData.getBytes()[1] = code;
+		clientConnector.send(rawData);
+
+		assertStatisticCounter(healthStatistic, "recv-malformed", is(1L), 1000, TimeUnit.MILLISECONDS);
+		Response response = waitForResponse(1000);
+		assertThat("expected response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.METHOD_NOT_ALLOWED));
+	}
+
+	/**
 	 * Malformed CON response.
 	 * 
 	 * Standard processing, reject.

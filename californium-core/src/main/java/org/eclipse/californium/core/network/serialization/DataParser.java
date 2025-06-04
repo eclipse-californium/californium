@@ -117,11 +117,13 @@ public abstract class DataParser {
 	public final Message parseMessage(final byte[] msg) {
 
 		String errorMsg = "illegal message code";
+		ResponseCode errorCode = null;
 		DatagramReader reader = new DatagramReader(msg);
 		MessageHeader header = parseHeader(reader);
 		try {
 			Message message = null;
 			if (CoAP.isRequest(header.getCode())) {
+				errorCode = ResponseCode.METHOD_NOT_ALLOWED;
 				message = parseMessage(reader, header, new Request(CoAP.Code.valueOf(header.getCode())));
 			} else if (CoAP.isResponse(header.getCode())) {
 				message = parseMessage(reader, header, new Response(CoAP.ResponseCode.valueOf(header.getCode())));
@@ -141,7 +143,7 @@ public abstract class DataParser {
 			errorMsg = e.getMessage();
 		}
 		throw new CoAPMessageFormatException(errorMsg, header.getToken(), header.getMID(), header.getCode(),
-				CoAP.Type.CON == header.getType());
+				CoAP.Type.CON == header.getType(), errorCode);
 	}
 
 	/**

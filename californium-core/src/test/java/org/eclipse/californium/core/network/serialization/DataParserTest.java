@@ -25,6 +25,7 @@ package org.eclipse.californium.core.network.serialization;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
@@ -164,16 +165,17 @@ public class DataParserTest {
 			parser.parseMessage(malformedRequest);
 			fail("Parser should have detected that message is not a request");
 		} catch (CoAPMessageFormatException e) {
+			// THEN an exception is thrown by the parser
 			assertEquals(0b00100001, e.getCode());
 			assertEquals(true, e.isConfirmable());
-			// THEN an exception is thrown by the parser
+			assertNull(e.getErrorCode());
 		}
 	}
 
 	@Test
 	public void testParseMessageDetectsIllegalCode() {
 		byte code = 0b00001000; // 0.08 is currently unassigned
-		// GIVEN a message with a class code of 0.07, i.e. not a request
+		// GIVEN a request with code 0.08
 		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token
 															// length: 0
 				code, 0x00, 0x10 // message ID
@@ -182,12 +184,27 @@ public class DataParserTest {
 		// WHEN parsing the request
 		try {
 			parser.parseMessage(malformedRequest);
-			fail("Parser should have detected that message is not a request");
+			fail("Parser should have detected that message has no valid request code");
 		} catch (CoAPMessageFormatException e) {
+			// THEN an exception is thrown by the parser
 			assertEquals(code, e.getCode());
 			assertEquals(true, e.isConfirmable());
-			// THEN an exception is thrown by the parser
+			assertEquals(ResponseCode.METHOD_NOT_ALLOWED, e.getErrorCode());
 		}
+	}
+
+	@Test
+	public void testParseMessageDetectsIllegalResponseCode() {
+		byte code = 0b01001000; // 2.08 is currently unassigned
+		// GIVEN a response message with 2.08
+		byte[] malformedRequest = new byte[] { 0b01000000, // ver 1, CON, token
+															// length: 0
+				code, 0x00, 0x10 // message ID
+		};
+
+		// WHEN parsing the request
+		parser.parseMessage(malformedRequest);
+		// THEN no exception is thrown by the parser
 	}
 
 	@Test
