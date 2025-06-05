@@ -23,6 +23,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -329,6 +330,49 @@ public class MaliciousClientTest {
 		Response response = waitForResponse(1000);
 		assertThat("expected response", response, is(notNullValue()));
 		assertThat(response.getCode(), is(ResponseCode.METHOD_NOT_ALLOWED));
+	}
+
+	@Test
+	public void testConRequestWithRepeatedNonRepeatableCriticalOption() throws Exception {
+		Request get = newGet();
+		get.getOptions().setUriPort(5683);
+		DataSerializer serializer = new UdpDataSerializer();
+		RawData rawData = serializer.serializeRequest(get);
+		byte[] data = rawData.getBytes();
+		int pos = data.length;
+		data = Arrays.copyOf(data, pos + 3);
+		data[pos++] = 0x02;
+		data[pos++] = 0x16;
+		data[pos++] = 0x34;
+		rawData = RawData.outbound(data, rawData.getEndpointContext(), null, false);
+
+		clientConnector.send(rawData);
+
+		assertStatisticCounter(healthStatistic, "recv-malformed", is(1L), 1000, TimeUnit.MILLISECONDS);
+		Response response = waitForResponse(1000);
+		assertThat("expected response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.BAD_OPTION));
+	}
+
+	@Test
+	public void testConRequestWithRepeatedNonRepeatableElectiveOption() throws Exception {
+		Request get = newGet();
+		get.getOptions().setMaxAge(120);
+		DataSerializer serializer = new UdpDataSerializer();
+		RawData rawData = serializer.serializeRequest(get);
+		byte[] data = rawData.getBytes();
+		int pos = data.length;
+		data = Arrays.copyOf(data, pos + 2);
+		data[pos++] = 0x01;
+		data[pos++] = 0x7f;
+		rawData = RawData.outbound(data, rawData.getEndpointContext(), null, false);
+
+		clientConnector.send(rawData);
+
+		Response response = waitForResponse(1000);
+		assertThat("expected response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.CONTENT));
+		assertStatisticCounter(healthStatistic, "recv-malformed", is(0L));
 	}
 
 	/**

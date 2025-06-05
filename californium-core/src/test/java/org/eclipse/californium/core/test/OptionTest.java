@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -28,7 +29,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-
+import static org.junit.Assert.fail;
 import java.util.List;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -60,16 +61,18 @@ public class OptionTest {
 
 	private static final int CUSTOM_OPTION_1 = 0xff1c;
 	private static final int CUSTOM_OPTION_2 = 0xff9c;
-	private static final StringOption.Definition CUSTOM_1 = new StringOption.Definition(CUSTOM_OPTION_1, "custom1", true,
-			0, 64);
-	private static final StringOption.Definition CUSTOM_2 = new StringOption.Definition(CUSTOM_OPTION_2, "custom2", false,
-			0, 64);
+	private static final int CUSTOM_OPTION_3 = 0xff1d;
+	private static final StringOption.Definition CUSTOM_1 = new StringOption.Definition(CUSTOM_OPTION_1, "custom1",
+			true, 0, 64);
+	private static final StringOption.Definition CUSTOM_2 = new StringOption.Definition(CUSTOM_OPTION_2, "custom2",
+			false, 0, 64);
+	private static final StringOption.Definition CUSTOM_3 = new StringOption.Definition(CUSTOM_OPTION_3, "custom3",
+			true, 0, 64);
 	private static final OpaqueOption.Definition OPAQUE = new OpaqueOption.Definition(OptionNumberRegistry.RESERVED_0,
 			"Reserved 0");
-	private static final IntegerOption.Definition INTEGER = new IntegerOption.Definition(0xff7c,
-			"custom3", false, 0, 4);
-	private static final IntegerOption.Definition LONG = new IntegerOption.Definition(0xff8c, "custom4",
-			false, 0, 8);
+	private static final IntegerOption.Definition INTEGER = new IntegerOption.Definition(0xff7c, "custom3", false, 0,
+			4);
+	private static final IntegerOption.Definition LONG = new IntegerOption.Definition(0xff8c, "custom4", false, 0, 8);
 
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
@@ -368,8 +371,8 @@ public class OptionTest {
 		assertEquals(0x9823749837239845L, option.getLongValue());
 
 		option = LONG.create(0xFFFFFFFFFFFFFFFFL);
-		assertArrayEquals(new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
-				(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF }, option.encode());
+		assertArrayEquals(new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
+				(byte) 0xFF, (byte) 0xFF }, option.encode());
 		assertEquals(0xFFFFFFFFFFFFFFFFL, option.getLongValue());
 	}
 
@@ -487,8 +490,7 @@ public class OptionTest {
 	@Test
 	public void testOthersCustomOptionRegistry() {
 		OptionRegistry registry = MapBasedOptionRegistry.builder()
-				.add(StandardOptionRegistry.getDefaultOptionRegistry())
-				.add(CUSTOM_1, CUSTOM_2).build();
+				.add(StandardOptionRegistry.getDefaultOptionRegistry()).add(CUSTOM_1, CUSTOM_2, CUSTOM_3).build();
 		StandardOptionRegistry.setDefaultOptionRegistry(registry);
 		testOthers();
 	}
@@ -498,67 +500,165 @@ public class OptionTest {
 		OptionSet options = new OptionSet();
 		Option other1 = CUSTOM_1.create("other1");
 		options.addOtherOption(other1);
-		Option other2 = CUSTOM_2.create("other2");
-		options.addOtherOption(other2);
-		Option other3 = CUSTOM_2.create("other3");
+		Option other2_1 = CUSTOM_2.create("other2-1");
+		options.addOtherOption(other2_1);
+		Option other2_2 = CUSTOM_2.create("other2-2");
+		options.addOtherOption(other2_2);
+		Option other3 = CUSTOM_3.create("other3");
 		options.addOtherOption(other3);
+
 		Option port = StandardOptionRegistry.URI_PORT.create(5684);
 		options.addOption(port);
 
 		Option no = StandardOptionRegistry.OBSERVE.create(0);
 
 		List<Option> list = options.asSortedList();
-		assertThat(list.size(), is(4));
+		assertThat(list.size(), is(5));
 		assertThat(list, hasItem(other1));
-		assertThat(list, hasItem(other2));
-		assertThat(list, hasItem(other3));
+		assertThat(list, hasItem(other2_1));
+		assertThat(list, hasItem(other2_2));
 		assertThat(list, hasItem(port));
 		assertThat(list, not(hasItem(no)));
 
 		list = options.getOthers();
-		assertThat(list.size(), is(3));
+		assertThat(list.size(), is(4));
 		assertThat(list, hasItem(other1));
-		assertThat(list, hasItem(other2));
-		assertThat(list, hasItem(other3));
+		assertThat(list, hasItem(other2_1));
+		assertThat(list, hasItem(other2_2));
 		assertThat(list, not(hasItem(port)));
 		assertThat(list, not(hasItem(no)));
 
-		// add single value option, removes previous
+		// add second elective single value option => ignore
 		Option other1a = CUSTOM_1.create("other1a");
 		options.addOtherOption(other1a);
 		list = options.asSortedList();
-		assertThat(list.size(), is(4));
+		assertThat(list.size(), is(5));
+		// since 4.0 comply with RFC7252 5.4.1, 4.5.5
+		assertThat(list, hasItem(other1));
+		assertThat(list, not(hasItem(other1a)));
+
+		// clear and add new elective single value option
+		options.clearOtherOption(CUSTOM_1);
+		options.addOtherOption(other1a);
+		list = options.asSortedList();
+		assertThat(list.size(), is(5));
 		assertThat(list, not(hasItem(other1)));
 		assertThat(list, hasItem(other1a));
+
+		// add second critical single value option => exception
+		Option other3a = CUSTOM_3.create("other3a");
+		try {
+			options.addOtherOption(other3a);
+			fail("add second critical single value option didn't fail.");
+		} catch (IllegalArgumentException ex) {
+			assertThat(ex.getMessage(), containsString(CUSTOM_3.toString()));
+			assertThat(list, is(options.asSortedList()));
+		}
 
 		list = options.getOthers(CUSTOM_1);
 		assertThat(list.size(), is(1));
 		assertThat(list, hasItem(other1a));
-		assertThat(list, not(hasItem(other2)));
-		assertThat(list, not(hasItem(other3)));
+		assertThat(list, not(hasItem(other2_1)));
+		assertThat(list, not(hasItem(other2_2)));
 		assertThat(list, not(hasItem(port)));
 		assertThat(list, not(hasItem(no)));
 
 		assertThat(options.getOtherOption(CUSTOM_1), is(other1a));
-		assertThat(options.getOtherOption(CUSTOM_2), is(other2));
+		assertThat(options.getOtherOption(CUSTOM_2), is(other2_1));
 
-		options.addOtherOption(other2);
-		options.clearOtherOption(other2);
+		options.addOtherOption(other2_1);
+		options.clearOtherOption(other2_1);
+
+		list = options.getOthers();
+		assertThat(list.size(), is(3));
+		assertThat(list, hasItem(other1a));
+		assertThat(list, not(hasItem(other2_1)));
+		assertThat(list, hasItem(other2_2));
+
+		options.addOtherOption(other2_1);
+		options.clearOtherOption(other2_1.getDefinition());
 
 		list = options.getOthers();
 		assertThat(list.size(), is(2));
 		assertThat(list, hasItem(other1a));
-		assertThat(list, not(hasItem(other2)));
-		assertThat(list, hasItem(other3));
+		assertThat(list, not(hasItem(other2_1)));
+		assertThat(list, not(hasItem(other2_2)));
+	}
 
-		options.addOtherOption(other2);
-		options.clearOtherOption(other2.getDefinition());
+	@Test
+	public void testUriHostOption() {
+		OptionSet options = new OptionSet();
+		options.setUriHost("host1");
+		assertThat(options.getUriHost(), is("host1"));
+		options.setUriHost("host2");
+		assertThat(options.getUriHost(), is("host2"));
+		try {
+			options.addOption(StandardOptionRegistry.URI_HOST.create("host3"));
+			fail("add second critical single value option didn't fail.");
+		} catch (IllegalArgumentException ex) {
+			assertThat(ex.getMessage(), containsString(StandardOptionRegistry.URI_HOST.toString()));
+			assertThat(options.getUriHost(), is("host2"));
+		}
+	}
 
-		list = options.getOthers();
-		assertThat(list.size(), is(1));
-		assertThat(list, hasItem(other1a));
-		assertThat(list, not(hasItem(other2)));
-		assertThat(list, not(hasItem(other3)));
+	@Test
+	public void testUriPortOption() {
+		OptionSet options = new OptionSet();
+		options.setUriPort(5683);
+		assertThat(options.getUriPort(), is(5683));
+		options.setUriPort(5684);
+		assertThat(options.getUriPort(), is(5684));
+		try {
+			options.addOption(StandardOptionRegistry.URI_PORT.create(5685));
+			fail("add second critical single value option didn't fail.");
+		} catch (IllegalArgumentException ex) {
+			assertThat(ex.getMessage(), containsString(StandardOptionRegistry.URI_PORT.toString()));
+			assertThat(options.getUriPort(), is(5684));
+		}
+	}
+
+	@Test
+	public void testProxyUriOption() {
+		OptionSet options = new OptionSet();
+		options.setProxyUri("http://host1");
+		assertThat(options.getProxyUri(), is("http://host1"));
+		options.setProxyUri("http://host2");
+		assertThat(options.getProxyUri(), is("http://host2"));
+		try {
+			options.addOption(StandardOptionRegistry.PROXY_URI.create("http://host3"));
+			fail("add second critical single value option didn't fail.");
+		} catch (IllegalArgumentException ex) {
+			assertThat(ex.getMessage(), containsString(StandardOptionRegistry.PROXY_URI.toString()));
+			assertThat(options.getProxyUri(), is("http://host2"));
+		}
+	}
+
+	@Test
+	public void testProxySchemeOption() {
+		OptionSet options = new OptionSet();
+		options.setProxyScheme("http");
+		assertThat(options.getProxyScheme(), is("http"));
+		options.setProxyScheme("https");
+		assertThat(options.getProxyScheme(), is("https"));
+		try {
+			options.addOption(StandardOptionRegistry.PROXY_SCHEME.create("http3"));
+			fail("add second critical single value option didn't fail.");
+		} catch (IllegalArgumentException ex) {
+			assertThat(ex.getMessage(), containsString(StandardOptionRegistry.PROXY_SCHEME.toString()));
+			assertThat(options.getProxyScheme(), is("https"));
+		}
+	}
+
+	@Test
+	public void testMaxAgeOption() {
+		OptionSet options = new OptionSet();
+		options.setMaxAge(120);
+		assertThat(options.getMaxAge(), is(120L));
+		options.setMaxAge(150);
+		assertThat(options.getMaxAge(), is(150L));
+		// non-repeatable, elective => ignore
+		options.addOption(StandardOptionRegistry.MAX_AGE.create(200));
+		assertThat(options.getMaxAge(), is(150L));
 	}
 
 	@After

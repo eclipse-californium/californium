@@ -76,7 +76,7 @@ The `PskSecretResult` supports now to optional destroy the `SecretKey`. This ena
 
 The `Option` is changed to be immutable, removing the setters.
 
-The `OptionSet` uses now instances of `Option` subclasses instead of the representing java types.
+The `OptionSet` uses now instances of `Option` subclasses instead of the representing java types.  Adding more than one `non-repeatable` and `critical` `Option` fails now with a `IllegalArgumentException`. And adding more than one `non-repeatable` and `elective` `Option` is now silently ignored. Both has been change to comply with [RFC7252, 5.4.1 Options - Critical/Elective](https://www.rfc-editor.org/rfc/rfc7252#section-5.4.1) and [RFC7252, 5.4.5 Options - Repeatable Options](https://www.rfc-editor.org/rfc/rfc7252#section-5.4.5).
 
 The `DataParser` and `DataSerializer` detect multiple ETAGs in responses and reject such
 messages.
@@ -177,6 +177,8 @@ The `StringOption` now extends `OpaqueOption`.
 The specific `OptionDefinition`s are moved into static classes, e.g. `IntegerOptionDefinition` to `IntegerOption.Definition`. The `OptionDefinition.create(byte[] data)` is replaced by `OptionDefinition.create(DatagramReader reader, int lengt)`. `OptionDefinition.assertValue(byte[] data)` is replaced by `void OptionDefinition.assertValueLength(int length)` and `IntegerOption.Definition.assertValue(long value)`.
 
 The `OptionSet` functions returning `List<String>` or `List<byte[]>` returns now `List<Stringoption>` or `List<OpaqueOption>`. `List<String> OptionSet.getValues(final List<StringOption> options)` has been added. `OptionSet.setBlock1(byte[] value)` and  `OptionSet.setBlock2(byte[] value)` have been removed.
+
+The `OptionSet` functions `addOptions`, `addOption` and `addOtherOption` are now throwing an `IllegalArgumentExcpetion`, if an `non-repeatable` and `critical` `Option` is added more than once.
 
 The `assertValidOptions` function of `DataParser` and `DataSerializer` uses now a `Message` as parameter instead of an `OptionSet` to distinguish between requests and responses.
 
