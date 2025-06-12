@@ -346,9 +346,9 @@
 					<version>3.5.0</version>
 				</plugin>
 				<plugin>
-					<groupId>org.sonatype.plugins</groupId>
-					<artifactId>nexus-staging-maven-plugin</artifactId>
-					<version>1.7.0</version>
+					<groupId>org.sonatype.central</groupId>
+					<artifactId>central-publishing-maven-plugin</artifactId>
+					<version>0.7.0</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-gpg-plugin</artifactId>
@@ -522,25 +522,13 @@
 				<artifactId>license-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
-				<!-- Use the Nexus Staging plugin as a full replacement for the
-				standard 
-					Maven Deploy plugin. See
-				https://github.com/sonatype/nexus-maven-plugins/tree/master/staging/maven-plugin 
-					why this makes sense :-) We can control whether we want to deploy to the 
-					Eclipse repo or Maven Central by a combination of the version being a SNAPHOT 
-					or release version and property skipStaging=true/false. In any case we can 
-					take advantage of the plugin's "deferred deploy" feature which makes sure 
-					that all artifacts of a multi-module project are deployed as a whole at the 
-					end of the build process instead of deploying each module's artifacts
-				individually 
-					as part of building the module. -->
-				<groupId>org.sonatype.plugins</groupId>
-				<artifactId>nexus-staging-maven-plugin</artifactId>
+				<!-- Use the Central Publishing Plugin as full replacement for
+				 standard -->
+				<groupId>org.sonatype.central</groupId>
+				<artifactId>central-publishing-maven-plugin</artifactId>
 				<extensions>true</extensions>
 				<configuration>
-					<serverId>ossrh</serverId>
-					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
-					<autoReleaseAfterClose>false</autoReleaseAfterClose>
+					<publishingServerId>central</publishingServerId>
 				</configuration>
 			</plugin>
 			<plugin>
