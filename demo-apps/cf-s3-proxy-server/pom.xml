@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>demo-apps</artifactId>
-		<version>4.0.0-M4</version>
+		<version>4.0.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>cf-s3-proxy-server</artifactId>
 	<packaging>jar</packaging>
