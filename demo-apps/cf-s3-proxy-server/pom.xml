@@ -18,6 +18,7 @@
 		<assembly.mainClass>org.eclipse.californium.cloud.s3.S3ProxyServer</assembly.mainClass>
 		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
 		<skipStaging>false</skipStaging>
+		<skipPublishing>false</skipPublishing>
 		<maven.javadoc.skip>false</maven.javadoc.skip>
 		<aws.sdk.version>2.30.33</aws.sdk.version>
 	</properties>

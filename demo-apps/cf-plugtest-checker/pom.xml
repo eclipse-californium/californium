@@ -24,6 +24,7 @@
 		<assembly.mainClass>org.eclipse.californium.plugtests.PlugtestChecker</assembly.mainClass>
 		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
 		<skipStaging>false</skipStaging>
+		<skipPublishing>false</skipPublishing>
 		<maven.javadoc.skip>false</maven.javadoc.skip>
 	</properties>
 

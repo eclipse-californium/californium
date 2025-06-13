@@ -48,6 +48,11 @@
 		 -->
 		<skipStaging>true</skipStaging>
 		<!-- 
+			this property prevents the central-publishing-maven-plugin to
+			deploy this module's artifacts to Maven Central' staging repo
+		 -->
+		<skipPublishing>true</skipPublishing>
+		<!-- 
 			never create JavaDoc for this module
 		 -->
 		<maven.javadoc.skip>true</maven.javadoc.skip>
