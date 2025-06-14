@@ -32,6 +32,7 @@ public class Large extends CoapResource {
 		getAttributes().setTitle("Large resource");
 		getAttributes().addResourceType("block");
 		getAttributes().setMaximumSizeEstimate(1280);
+		addSupportedContentFormats(TEXT_PLAIN);
 	}
 
 	@Override

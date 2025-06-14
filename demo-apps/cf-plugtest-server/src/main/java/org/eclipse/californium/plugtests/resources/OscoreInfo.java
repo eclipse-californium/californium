@@ -41,6 +41,7 @@ public class OscoreInfo extends CoapResource {
 	public OscoreInfo(HashMapCtxDB db, byte[] serverRid) {
 		super("oscoreInfo", true);
 		getAttributes().setTitle("Resource for retreiving the OSCORE security material used by this server");
+		addSupportedContentFormats(TEXT_PLAIN);
 
 		this.db = db;
 		this.serverRid = serverRid;

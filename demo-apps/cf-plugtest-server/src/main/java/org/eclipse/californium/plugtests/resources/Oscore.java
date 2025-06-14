@@ -33,6 +33,7 @@ public class Oscore extends OSCoreResource {
 	public Oscore() {
 		super("oscore", true);
 		getAttributes().setTitle("Resource only accesible when using OSCORE");
+		addSupportedContentFormats(TEXT_PLAIN);
 	}
 
 	@Override
