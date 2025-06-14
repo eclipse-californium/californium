@@ -53,6 +53,7 @@ public class ObserveLarge extends CoapResource {
 		getAttributes().addResourceType("observe");
 		getAttributes().setObservable();
 		setObserveType(Type.CON);
+		addSupportedContentFormats(TEXT_PLAIN);
 
 		// Set timer task scheduling
 		Timer timer = new Timer("OBSERVE-LARGE", true);

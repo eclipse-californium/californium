@@ -30,7 +30,7 @@ public class Path extends CoapResource {
 	public Path() {
 		super("path");
 		getAttributes().setTitle("Hierarchical link description entry");
-		getAttributes().addContentType(APPLICATION_LINK_FORMAT);
+		addSupportedContentFormats(APPLICATION_LINK_FORMAT);
 		add(new PathSub("sub1"));
 		add(new PathSub("sub2"));
 		add(new PathSub("sub3"));

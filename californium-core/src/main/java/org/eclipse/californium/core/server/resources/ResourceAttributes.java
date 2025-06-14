@@ -113,6 +113,7 @@ public class ResourceAttributes {
 	 * Adds a resource type.
 	 *
 	 * @param type the type
+	 * @since 4.0 duplicate values are not longer added
 	 */
 	public void addResourceType(String type) {
 		findAttributeValues(LinkFormat.RESOURCE_TYPE).add(type);
@@ -138,6 +139,7 @@ public class ResourceAttributes {
 	 * Adds an interface description.
 	 *
 	 * @param description the description
+	 * @since 4.0 duplicate values are not longer added
 	 */
 	public void addInterfaceDescription(String description) {
 		findAttributeValues(LinkFormat.INTERFACE_DESCRIPTION).add(description);
@@ -192,6 +194,7 @@ public class ResourceAttributes {
 	 * Adds a content type specified by an integer.
 	 *
 	 * @param type the type
+	 * @since 4.0 duplicate values are not longer added
 	 */
 	public void addContentType(int type) {
 		findAttributeValues(LinkFormat.CONTENT_TYPE).add(Integer.toString(type));
@@ -201,7 +204,7 @@ public class ResourceAttributes {
 	 * Adds a content types specified by an array of integers.
 	 *
 	 * @param types the array of types
-	 * @since 3.7
+	 * @since 4.0 duplicate values are not longer added
 	 */
 	public void addContentTypes(int... types) {
 		AttributeValues attributeValues = findAttributeValues(LinkFormat.CONTENT_TYPE);
@@ -317,6 +320,7 @@ public class ResourceAttributes {
 	 * @param attr the attribute
 	 * @param value the value
 	 * @see #addAttribute(String, List)
+	 * @since 4.0 duplicate values are not longer added
 	 */
 	public void addAttribute(String attr, String value) {
 		findAttributeValues(attr).add(value);
@@ -329,7 +333,7 @@ public class ResourceAttributes {
 	 * @param attr the attribute
 	 * @param values the values
 	 * @see #addAttribute(String, String)
-	 * @since 3.7
+	 * @since 4.0 duplicate values are not longer added
 	 */
 	public void addAttribute(String attr, List<String> values) {
 		findAttributeValues(attr).addAll(values);
@@ -358,12 +362,12 @@ public class ResourceAttributes {
 	 * Returns a {@link Set} view of the attribute names.
 	 * 
 	 * If the map is modified while an iteration over the set is in progress
-	 * (except through the iterator's own {@code remove} operation), the
-	 * results of the iteration are undefined. The set supports element removal,
-	 * which removes the corresponding mapping from the map, via the
+	 * (except through the iterator's own {@code remove} operation), the results
+	 * of the iteration are undefined. The set supports element removal, which
+	 * removes the corresponding mapping from the map, via the
 	 * {@code Iterator.remove}, {@code Set.remove}, {@code removeAll},
-	 * {@code retainAll}, and {@code clear} operations. It does not support
-	 * the {@code add} nor {@code addAll} operations.
+	 * {@code retainAll}, and {@code clear} operations. It does not support the
+	 * {@code add} nor {@code addAll} operations.
 	 * 
 	 * @return a set view of the attribute names
 	 */
@@ -475,18 +479,24 @@ public class ResourceAttributes {
 		 * Adds the specified value to the list.
 		 *
 		 * @param value the value
+		 * @since 4.0 duplicate values are not longer added
 		 */
 		private synchronized void add(String value) {
-			list.add(value);
+			if (!list.contains(value)) {
+				list.add(value);
+			}
 		}
 
 		/**
 		 * Adds the specified values to the list.
 		 *
 		 * @param values the values
+		 * @since 4.0 duplicate values are not longer added
 		 */
 		private synchronized void addAll(List<String> values) {
-			list.addAll(values);
+			for (String value : values) {
+				add(value);
+			}
 		}
 
 		/**

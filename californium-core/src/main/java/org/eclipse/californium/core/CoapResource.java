@@ -33,6 +33,7 @@
 package org.eclipse.californium.core;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -41,9 +42,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -151,7 +152,24 @@ public class CoapResource implements Resource, ObservableResource {
 	 * {@link ResourceAttributes}.
 	 */
 	private volatile ResourceAttributes attributes;
+	/**
+	 * The list of supported content formats.
+	 * <p>
+	 * Intended to be used for static lists applied to all methods. If single
+	 * methods needs a specific list or a dynamic list of content formats is
+	 * required, use {@link #checkContentFormat(CoapExchange, int...)} instead.
+	 * If the list contains at least one content format, requests with an
+	 * {@code ACCEPT} option not contained in the list fails with
+	 * {@code 4.06 Not Acceptable}.
+	 * 
+	 * @since 4.0
+	 */
+	private final List<Integer> supportedContentFormats;
 
+	/**
+	 * Lock to protect {@link #changed(ObserveRelationFilter)} from being called
+	 * recusive.
+	 */
 	private final ReentrantLock recursionProtection = new ReentrantLock();
 
 	/**
@@ -249,6 +267,7 @@ public class CoapResource implements Resource, ObservableResource {
 		this.path = "";
 		this.visible = visible;
 		this.attributes = new ResourceAttributes();
+		this.supportedContentFormats = new CopyOnWriteArrayList<>();
 		this.children = new ConcurrentHashMap<>();
 		this.observers = new CopyOnWriteArrayList<>();
 		this.observeRelations = new CopyOnWriteArrayList<>();
@@ -272,32 +291,34 @@ public class CoapResource implements Resource, ObservableResource {
 	 */
 	@Override
 	public void handleRequest(final Exchange exchange) {
-		Code code = exchange.getRequest().getCode();
-		switch (code) {
-		case GET:
-			handleGET(new CoapExchange(exchange));
-			break;
-		case POST:
-			handlePOST(new CoapExchange(exchange));
-			break;
-		case PUT:
-			handlePUT(new CoapExchange(exchange));
-			break;
-		case DELETE:
-			handleDELETE(new CoapExchange(exchange));
-			break;
-		case FETCH:
-			handleFETCH(new CoapExchange(exchange));
-			break;
-		case PATCH:
-			handlePATCH(new CoapExchange(exchange));
-			break;
-		case IPATCH:
-			handleIPATCH(new CoapExchange(exchange));
-			break;
-		default:
-			exchange.sendResponse(new Response(ResponseCode.METHOD_NOT_ALLOWED, true));
-			break;
+		CoapExchange coapExchange = new CoapExchange(exchange);
+		if (checkSupportedContentFormat(coapExchange)) {
+			switch (coapExchange.getRequestCode()) {
+			case GET:
+				handleGET(coapExchange);
+				break;
+			case POST:
+				handlePOST(coapExchange);
+				break;
+			case PUT:
+				handlePUT(coapExchange);
+				break;
+			case DELETE:
+				handleDELETE(coapExchange);
+				break;
+			case FETCH:
+				handleFETCH(coapExchange);
+				break;
+			case PATCH:
+				handlePATCH(coapExchange);
+				break;
+			case IPATCH:
+				handleIPATCH(coapExchange);
+				break;
+			default:
+				coapExchange.respond(new Response(ResponseCode.METHOD_NOT_ALLOWED, true));
+				break;
+			}
 		}
 	}
 
@@ -620,6 +641,89 @@ public class CoapResource implements Resource, ObservableResource {
 	 */
 	public void setAttributes(ResourceAttributes attributes) {
 		this.attributes = attributes;
+	}
+
+	/**
+	 * Get list of supported content formats.
+	 * <p>
+	 * If the list contains at least one content format, requests with an
+	 * {@code ACCEPT} option not contained in the list fails with
+	 * {@code 4.06 Not Acceptable}.
+	 * 
+	 * @return unmodifiable list of supported content formats
+	 * @since 4.0
+	 */
+	public List<Integer> getSupportedContentFormats() {
+		return Collections.unmodifiableList(supportedContentFormats);
+	}
+
+	/**
+	 * Add content formats to list of supported content formats.
+	 * <p>
+	 * Adds value also to the attribute {@code content-type}. Intended to be
+	 * used for static lists applied to all methods. If single methods needs a
+	 * specific list or a dynamic list of content formats is required, use
+	 * {@link #checkContentFormat(CoapExchange, int...)} instead.
+	 * 
+	 * @param contentFormats content formats to add
+	 * @since 4.0
+	 */
+	public void addSupportedContentFormats(int... contentFormats) {
+		for (int contentFormat : contentFormats) {
+			supportedContentFormats.add(contentFormat);
+			getAttributes().addContentType(contentFormat);
+		}
+	}
+
+	/**
+	 * Checks the exchange to accept one of the supported content formats.
+	 * <p>
+	 * If the list of supported content formats contains at least one content
+	 * format, requests with an {@code ACCEPT} option not contained in the list
+	 * fails with {@code 4.06 Not Acceptable}.
+	 * 
+	 * @param coapExchange the coap exchange with the request
+	 * @return {@code true} if the exchange is acceptable, {@code false}
+	 *         otherwise.
+	 * @since 4.0
+	 */
+	protected boolean checkSupportedContentFormat(CoapExchange coapExchange) {
+		if (!supportedContentFormats.isEmpty()) {
+			int accept = coapExchange.getRequestOptions().getAccept();
+			if (accept != MediaTypeRegistry.UNDEFINED) {
+				if (!supportedContentFormats.contains(accept)) {
+					coapExchange.respond(new Response(ResponseCode.NOT_ACCEPTABLE, true));
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Checks the exchange to accept one of the provided content formats.
+	 * <p>
+	 * Requests with an {@code ACCEPT} option not contained in the provided ones
+	 * fails with {@code 4.06 Not Acceptable}.
+	 * 
+	 * @param coapExchange the coap exchange with the request
+	 * @param contentFormats list of content formats to check
+	 * @return {@code true} if the exchange is acceptable, {@code false}
+	 *         otherwise.
+	 * @since 4.0
+	 */
+	public boolean checkContentFormat(CoapExchange coapExchange, int... contentFormats) {
+		int accept = coapExchange.getRequestOptions().getAccept();
+		if (accept != MediaTypeRegistry.UNDEFINED) {
+			for (int contentFormat : contentFormats) {
+				if (contentFormat == accept) {
+					return true;
+				}
+			}
+			coapExchange.respond(new Response(ResponseCode.NOT_ACCEPTABLE, true));
+			return false;
+		}
+		return true;
 	}
 
 	@Override

@@ -32,6 +32,7 @@ public class Separate extends CoapResource {
 	public Separate() {
 		super("separate");
 		getAttributes().setTitle("Resource which cannot be served immediately and which cannot be acknowledged in a piggy-backed way");
+		addSupportedContentFormats(TEXT_PLAIN);
 	}
 
 	@Override

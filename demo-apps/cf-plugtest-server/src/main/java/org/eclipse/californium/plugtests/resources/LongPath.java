@@ -31,6 +31,7 @@ public class LongPath extends CoapResource {
 
 	public LongPath() {
 		this("seg1");
+		addSupportedContentFormats(TEXT_PLAIN);
 
 		Resource seg2 = new LongPath("seg2");
 		Resource seg3 = new LongPath("seg3");

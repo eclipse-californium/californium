@@ -31,6 +31,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
  * Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class Validate extends CoapResource {
+
 	private static final byte[] EMPTY_ETAG = { 0 };
 
 	private byte[] data = null;
@@ -59,10 +60,12 @@ public class Validate extends CoapResource {
 			// automatically change now
 			storeData(null, UNDEFINED);
 		} else {
+			int cf = data == null ? TEXT_PLAIN : dataCf;
+			if (!checkContentFormat(exchange, cf)) {
+				return;
+			}
 			response = new Response(CONTENT);
-
 			if (data == null) {
-
 				StringBuilder payload = new StringBuilder();
 				payload.append(String.format("Type: %d (%s)\nCode: %d (%s)\nMID: %d", request.getType().value,
 						request.getType(), request.getCode().value, request.getCode(), request.getMID()));
@@ -77,11 +80,10 @@ public class Validate extends CoapResource {
 					payload.append('»');
 				}
 				response.setPayload(payload.toString());
-				response.getOptions().setContentFormat(TEXT_PLAIN);
 			} else {
 				response.setPayload(data);
-				response.getOptions().setContentFormat(dataCf);
 			}
+			response.getOptions().setContentFormat(cf);
 			response.getOptions().addETag(etag);
 		}
 		exchange.respond(response);
@@ -117,8 +119,8 @@ public class Validate extends CoapResource {
 	// Internal ////////////////////////////////////////////////////////////////
 
 	/*
-	 * Convenience function to store data contained in a PUT/POST-Request. Notifies
-	 * observing endpoints about the change of its contents.
+	 * Convenience function to store data contained in a PUT/POST-Request.
+	 * Notifies observing endpoints about the change of its contents.
 	 */
 	private synchronized void storeData(byte[] payload, int cf) {
 

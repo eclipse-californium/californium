@@ -31,8 +31,8 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
 
 /**
- * This resource implements a test of specification for the
- * ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
+ * This resource implements a test of specification for the ETSI IoT CoAP
+ * Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class ObserveNon extends CoapResource {
 
@@ -91,17 +91,18 @@ public class ObserveNon extends CoapResource {
 
 	@Override
 	public void handleGET(CoapExchange exchange) {
-		
-		exchange.setMaxAge(5);
-		
-		if (wasUpdated) {
-			exchange.respond(CONTENT, data, dataCf);
-			wasUpdated = false;
-		} else {
-			exchange.respond(CONTENT, time, dataCf);
+		if (checkContentFormat(exchange, dataCf)) {
+			exchange.setMaxAge(5);
+
+			if (wasUpdated) {
+				exchange.respond(CONTENT, data, dataCf);
+				wasUpdated = false;
+			} else {
+				exchange.respond(CONTENT, time, dataCf);
+			}
 		}
 	}
-	
+
 	@Override
 	public void handlePUT(CoapExchange exchange) {
 
@@ -109,7 +110,7 @@ public class ObserveNon extends CoapResource {
 			exchange.respond(BAD_REQUEST, "Content-Format not set");
 			return;
 		}
-		
+
 		// store payload
 		storeData(exchange.getRequestPayload(), exchange.getRequestOptions().getContentFormat());
 
@@ -120,35 +121,33 @@ public class ObserveNon extends CoapResource {
 	@Override
 	public void handleDELETE(CoapExchange exchange) {
 		wasUpdated = false;
-		
+
 		clearAndNotifyObserveRelations(NOT_FOUND);
-		
+
 		exchange.respond(DELETED);
 	}
-	
 
 	// Internal ////////////////////////////////////////////////////////////////
-	
+
 	/*
-	 * Convenience function to store data contained in a 
-	 * PUT/POST-Request. Notifies observing endpoints about
-	 * the change of its contents.
+	 * Convenience function to store data contained in a PUT/POST-Request.
+	 * Notifies observing endpoints about the change of its contents.
 	 */
 	private synchronized void storeData(byte[] payload, int format) {
 
 		wasUpdated = true;
-		
+
 		if (format != dataCf) {
 			clearAndNotifyObserveRelations(NOT_ACCEPTABLE);
 		}
-		
+
 		// set payload and content type
 		data = payload != null ? payload : Bytes.EMPTY;
 		dataCf = format;
 
 		getAttributes().clearContentType();
 		getAttributes().addContentType(dataCf);
-		
+
 		// signal that resource state changed
 		changed();
 	}
