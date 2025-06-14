@@ -19,6 +19,7 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.util.Bytes;
 
@@ -59,7 +60,12 @@ public class Create extends CoapResource {
 	@Override
 	public void handleGET(CoapExchange exchange) {
 		if (data!=null) {
-			exchange.respond(CONTENT, data, dataCf);
+			int accept = exchange.getRequestOptions().getAccept();
+			if (accept != MediaTypeRegistry.UNDEFINED && accept != dataCf) {
+				exchange.respond(NOT_ACCEPTABLE);
+			} else {
+				exchange.respond(CONTENT, data, dataCf);
+			}
 		} else {
 			exchange.respond(NOT_FOUND);
 		}

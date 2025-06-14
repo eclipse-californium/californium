@@ -31,6 +31,7 @@ public class Query extends CoapResource {
 	public Query() {
 		super("query");
 		getAttributes().setTitle("Resource accepting query parameters");
+		addSupportedContentFormats(TEXT_PLAIN);
 	}
 
 	@Override
