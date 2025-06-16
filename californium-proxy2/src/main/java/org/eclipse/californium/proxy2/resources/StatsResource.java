@@ -141,7 +141,7 @@ public class StatsResource extends CoapResource {
 		 */
 		public CacheStatResource(String resourceIdentifier, CacheResource cacheResource) {
 			super(resourceIdentifier);
-
+			addSupportedContentFormats(MediaTypeRegistry.TEXT_PLAIN);
 			this.cacheResource = cacheResource;
 			relativeCacheStats = cacheResource.getCacheStats();
 		}
@@ -232,6 +232,7 @@ public class StatsResource extends CoapResource {
 
 		public ProxyStatResource(String resourceIdentifier) {
 			super(resourceIdentifier);
+			addSupportedContentFormats(MediaTypeRegistry.TEXT_PLAIN);
 		}
 
 		@Override

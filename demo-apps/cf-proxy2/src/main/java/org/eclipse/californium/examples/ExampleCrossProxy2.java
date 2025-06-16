@@ -346,6 +346,7 @@ public class ExampleCrossProxy2 {
 			// set the resource hidden
 			super(name);
 			getAttributes().setTitle("Simple local coap resource.");
+			addSupportedContentFormats(MediaTypeRegistry.TEXT_PLAIN);
 			this.value = value;
 		}
 
