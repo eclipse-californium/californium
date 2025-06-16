@@ -50,6 +50,7 @@ public class LargeCreate extends CoapResource {
 		super(resourceIdentifier);
 		getAttributes().setTitle("Large resource that can be created using POST method");
 		getAttributes().addResourceType("block");
+		addSupportedContentFormats(APPLICATION_LINK_FORMAT);
 	}
 
 	// REST Operations /////////////////////////////////////////////////////////
@@ -89,8 +90,7 @@ public class LargeCreate extends CoapResource {
 			
 			this.data = post != null ? post : Bytes.EMPTY;
 			this.dataCt = ct;
-			
-			getAttributes().addContentType(dataCt);
+			addSupportedContentFormats(ct);
 			getAttributes().setMaximumSizeEstimate(data.length);
 		}
 		

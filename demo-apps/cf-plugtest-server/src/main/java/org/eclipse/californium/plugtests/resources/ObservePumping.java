@@ -48,6 +48,7 @@ public class ObservePumping extends CoapResource {
 		getAttributes().addResourceType("observe");
 		getAttributes().setObservable();
 		setObserveType(type);
+		addSupportedContentFormats(TEXT_PLAIN);
 
 		// Set timer task scheduling
 		Timer timer = new Timer("OBSERVE-PUMP", true);

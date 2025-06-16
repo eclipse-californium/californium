@@ -20,6 +20,7 @@
 		<assembly.mainClass>org.eclipse.californium.examples.Proxy2</assembly.mainClass>
 		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
 		<skipStaging>false</skipStaging>
+		<skipPublishing>false</skipPublishing>
 		<maven.javadoc.skip>false</maven.javadoc.skip>
 	</properties>
 

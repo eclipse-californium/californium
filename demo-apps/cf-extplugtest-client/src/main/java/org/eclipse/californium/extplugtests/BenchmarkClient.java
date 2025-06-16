@@ -1386,7 +1386,6 @@ public class BenchmarkClient {
 						config.observe.reregister, config.observe.register);
 		}
 		initialConnectDownCounter.set(clients);
-		final boolean anonymous = config.authentication.anonymous;
 		final boolean psk = config.authenticationModes.contains(AuthenticationMode.PSK)
 				|| config.authenticationModes.contains(AuthenticationMode.ECDHE_PSK);
 		final boolean rpk = config.authenticationModes.contains(AuthenticationMode.RPK);
@@ -1413,6 +1412,7 @@ public class BenchmarkClient {
 				break;
 			}
 		}
+		final boolean anonymous = config.authentication != null && config.authentication.anonymous;
 		final ThreadLocalKeyPairGenerator keyPairGenerator = (secure && rpk && !anonymous) ? createKeyPairGenerator() : null;
 		// Create & start clients
 		final AtomicBoolean errors = new AtomicBoolean();

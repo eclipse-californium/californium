@@ -31,6 +31,7 @@ public class DefaultTest extends CoapResource {
 	public DefaultTest() {
 		super("test");
 		getAttributes().setTitle("Default test resource");
+		addSupportedContentFormats(TEXT_PLAIN);
 	}
 
 	@Override

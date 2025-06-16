@@ -23,6 +23,7 @@
 		<maven.test.skip>true</maven.test.skip>
 		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
 		<skipStaging>false</skipStaging>
+		<skipPublishing>false</skipPublishing>
 		<maven.javadoc.skip>false</maven.javadoc.skip>
 		<assembly.mainClass>org.eclipse.californium.plugtests.PlugtestClient</assembly.mainClass>
 	</properties>

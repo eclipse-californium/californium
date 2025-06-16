@@ -23,12 +23,12 @@ import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 /**
- * This resource implements a test of specification for the
- * ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
+ * This resource implements a test of specification for the ETSI IoT CoAP
+ * Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class LargePost extends CoapResource {
 
-// Constructors ////////////////////////////////////////////////////////////
+	// Constructors ////////////////////////////////////////////////////////////
 
 	/*
 	 * Default constructor.
@@ -36,7 +36,7 @@ public class LargePost extends CoapResource {
 	public LargePost() {
 		this("large-post");
 	}
-	
+
 	/*
 	 * Constructs a new storage resource with the given resourceIdentifier.
 	 */
@@ -53,16 +53,20 @@ public class LargePost extends CoapResource {
 	 */
 	@Override
 	public void handleGET(CoapExchange exchange) {
-		exchange.respond(CONTENT, LinkFormat.serializeTree(this), APPLICATION_LINK_FORMAT);
+		if (checkContentFormat(exchange, APPLICATION_LINK_FORMAT)) {
+			exchange.respond(CONTENT, LinkFormat.serializeTree(this), APPLICATION_LINK_FORMAT);
+		}
 	}
-	
+
 	/*
 	 * POST content for action result (text changed to upper case).
 	 */
 	@Override
 	public void handlePOST(CoapExchange exchange) {
 		if (exchange.getRequestOptions().hasContentFormat()) {
-			exchange.respond(CHANGED, exchange.getRequestText().toUpperCase(), TEXT_PLAIN);
+			if (checkContentFormat(exchange, TEXT_PLAIN)) {
+				exchange.respond(CHANGED, exchange.getRequestText().toUpperCase(), TEXT_PLAIN);
+			}
 		} else {
 			exchange.respond(BAD_REQUEST, "Content-Format not set");
 		}

@@ -22,7 +22,6 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.SERVICE_UNAVAILABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_OCTET_STREAM;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
-import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -160,8 +159,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		super(RESOURCE_NAME);
 		this.executor = executor;
 		getAttributes().setTitle("Reverse Observe");
-		getAttributes().addContentType(TEXT_PLAIN);
-		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
+		addSupportedContentFormats(TEXT_PLAIN, APPLICATION_OCTET_STREAM);
 		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			executor.scheduleWithFixedDelay(new Runnable() {
@@ -181,14 +179,6 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	@Override
 	public void handlePOST(CoapExchange exchange) {
 
-		// get request to read out details
-		Request request = exchange.advanced().getRequest();
-
-		int accept = request.getOptions().getAccept();
-		if (accept != UNDEFINED && accept != TEXT_PLAIN && accept != APPLICATION_OCTET_STREAM) {
-			exchange.respond(NOT_ACCEPTABLE);
-			return;
-		}
 		IncomingExchange incomingExchange = new IncomingExchange(exchange);
 		if (!incomingExchange.isProcessed()) {
 			processPOST(incomingExchange);
