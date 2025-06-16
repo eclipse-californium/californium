@@ -67,6 +67,7 @@ public class DiscoveryResource extends CoapResource {
 	public DiscoveryResource(String name, Resource root) {
 		super(name);
 		setVisible(false);
+		addSupportedContentFormats(MediaTypeRegistry.APPLICATION_LINK_FORMAT);
 		this.root = root;
 	}
 
@@ -77,11 +78,6 @@ public class DiscoveryResource extends CoapResource {
 	 */
 	@Override
 	public void handleGET(CoapExchange exchange) {
-		if (exchange.getRequestOptions().hasAccept()
-				&& exchange.getRequestOptions().getAccept() != MediaTypeRegistry.APPLICATION_LINK_FORMAT) {
-			exchange.respond(ResponseCode.NOT_ACCEPTABLE);
-			return;
-		}
 		List<String> query = exchange.getRequestOptions().getUriQueryStrings();
 		if (query.size() > 1) {
 			exchange.respond(ResponseCode.BAD_OPTION, "only one search query is supported!",

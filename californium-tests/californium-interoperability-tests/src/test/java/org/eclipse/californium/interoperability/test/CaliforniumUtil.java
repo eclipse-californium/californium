@@ -194,12 +194,12 @@ public class CaliforniumUtil extends ConnectorUtil {
 				@Override
 				public void handlePOST(CoapExchange exchange) {
 					addReceivedExchange(exchange);
+					checkContentFormat(exchange, MediaTypeRegistry.MAX_TYPE - 10);
 					Response response = new Response(ResponseCode.CHANGED);
 					response.setPayload("Custom Greetings!");
 					response.getOptions().setContentFormat(MediaTypeRegistry.MAX_TYPE - 10);
 					Option custom = OPTION_TRACE_CONTEXT.create("test".getBytes());
 					response.getOptions().addOption(custom);
-					response.getOptions().setContentFormat(MediaTypeRegistry.MAX_TYPE - 10);
 					exchange.respond(response);
 				}
 			});
@@ -208,6 +208,7 @@ public class CaliforniumUtil extends ConnectorUtil {
 				@Override
 				public void handlePOST(CoapExchange exchange) {
 					addReceivedExchange(exchange);
+					checkContentFormat(exchange, MediaTypeRegistry.TEXT_PLAIN);
 					Response response = new Response(ResponseCode.CHANGED);
 					response.getOptions().setLocationPath("/command/1234-abcde");
 					response.getOptions().setLocationQuery("hono-command=blink");
