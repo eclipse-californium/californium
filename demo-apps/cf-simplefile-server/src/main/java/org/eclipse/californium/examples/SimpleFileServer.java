@@ -206,6 +206,7 @@ public class SimpleFileServer extends AbstractTestServer {
 		 */
 		public FileResource(Configuration config, String coapRootPath, File filesRoot) {
 			super(coapRootPath);
+			addSupportedContentFormats(MediaTypeRegistry.APPLICATION_OCTET_STREAM);
 			this.config = config;
 			this.filesRoot = filesRoot;
 		}
@@ -233,14 +234,6 @@ public class SimpleFileServer extends AbstractTestServer {
 		public void handleGET(final CoapExchange exchange) {
 			Request request = exchange.advanced().getRequest();
 			LOG.info("Get received : {}", request);
-
-			int accept = request.getOptions().getAccept();
-			if (MediaTypeRegistry.UNDEFINED == accept) {
-				accept = MediaTypeRegistry.APPLICATION_OCTET_STREAM;
-			} else if (MediaTypeRegistry.APPLICATION_OCTET_STREAM != accept) {
-				exchange.respond(CoAP.ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
-				return;
-			}
 
 			String myURI = getURI() + "/";
 			String path = "/" + request.getOptions().getUriPathString();
@@ -286,7 +279,7 @@ public class SimpleFileServer extends AbstractTestServer {
 					Response response = new Response(CoAP.ResponseCode.CONTENT);
 					response.setPayload(content);
 					response.getOptions().setSize2((int) length);
-					response.getOptions().setContentFormat(accept);
+					response.getOptions().setContentFormat(MediaTypeRegistry.APPLICATION_OCTET_STREAM);
 					exchange.respond(response);
 				} else {
 					LOG.warn("File {} could not be read in!", file.getAbsolutePath());

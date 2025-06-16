@@ -100,6 +100,7 @@ public class ExampleCoapServer {
 
 			@Override
 			public void handleGET(CoapExchange exchange) {
+				checkContentFormat(exchange, MediaTypeRegistry.TEXT_PLAIN);
 				String payload = "Hi! I am the " + scheme + " server on port " + port + ". Request "
 						+ counter.incrementAndGet() + ".";
 				exchange.setMaxAge(15);
@@ -112,6 +113,7 @@ public class ExampleCoapServer {
 
 			@Override
 			public void handlePOST(CoapExchange exchange) {
+				checkContentFormat(exchange, MediaTypeRegistry.TEXT_PLAIN);
 				String message = exchange.advanced().getRequest().getPayloadString();
 				String payload = "Hi, " + message + "! I am the " + scheme + " server on port " + port + ". Request "
 						+ counter.incrementAndGet() + ".";

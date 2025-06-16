@@ -17,10 +17,8 @@ package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_OCTET_STREAM;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
-import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -128,8 +126,7 @@ public class ReverseRequest extends CoapResource {
 		super(RESOURCE_NAME);
 		this.executor = executor;
 		getAttributes().setTitle("Reverse Request");
-		getAttributes().addContentType(TEXT_PLAIN);
-		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
+		addSupportedContentFormats(TEXT_PLAIN, APPLICATION_OCTET_STREAM);
 		long healthStatusInterval = config.get(SystemConfig.HEALTH_STATUS_INTERVAL, TimeUnit.MILLISECONDS);
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
 			executor.scheduleWithFixedDelay(new Runnable() {
@@ -150,13 +147,7 @@ public class ReverseRequest extends CoapResource {
 
 		// get request to read out details
 		Request request = exchange.advanced().getRequest();
-
 		int accept = request.getOptions().getAccept();
-		if (accept != UNDEFINED && accept != TEXT_PLAIN && accept != APPLICATION_OCTET_STREAM) {
-			exchange.respond(NOT_ACCEPTABLE);
-			return;
-		}
-
 		List<String> requestUriQuery = new ArrayList<>();
 		Integer numberOfRequests = null;
 		String resource = null;
