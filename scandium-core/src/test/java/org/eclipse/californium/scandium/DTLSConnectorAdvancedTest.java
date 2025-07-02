@@ -435,12 +435,15 @@ public class DTLSConnectorAdvancedTest {
 		if (serverHelper != null) {
 			serverHelper.cleanUpServer();
 		}
-		TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
-		TestConditionTools.assertStatisticCounter(serverHealth, "dropped sending records", is(0L));
-		TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(0L));
-		TestConditionTools.assertStatisticCounter(clientHealth, "dropped sending records", is(0L));
-		clientHealth.reset();
-		serverHealth.reset();
+		try {
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped sending records", is(0L));
+			TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(0L));
+			TestConditionTools.assertStatisticCounter(clientHealth, "dropped sending records", is(0L));
+		} finally {
+			clientHealth.reset();
+			serverHealth.reset();
+		}
 	}
 
 	private void startClient() throws IOException {
@@ -578,7 +581,7 @@ public class DTLSConnectorAdvancedTest {
 					TimeUnit.SECONDS);
 		} finally {
 			rawClient.stop();
-			alternativeServerHelper.destroyServer();
+			// cleanup drops
 			serverHealth.reset();
 		}
 	}
@@ -812,6 +815,7 @@ public class DTLSConnectorAdvancedTest {
 			TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(2L));
 		} finally {
 			rawServer.stop();
+			// cleanup drops
 			clientHealth.reset();
 		}
 	}
@@ -889,6 +893,7 @@ public class DTLSConnectorAdvancedTest {
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(4L));
 		} finally {
 			rawClient.stop();
+			// cleanup drops
 			serverHealth.reset();
 		}
 	}
@@ -995,7 +1000,7 @@ public class DTLSConnectorAdvancedTest {
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(8L));
 		} finally {
 			rawClient.stop();
-			alternativeServerHelper.destroyServer();
+			// cleanup drops
 			serverHealth.reset();
 		}
 	}
@@ -1153,6 +1158,7 @@ public class DTLSConnectorAdvancedTest {
 					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		} finally {
 			rawClient.stop();
+			// cleanup drops
 			serverHealth.reset();
 		}
 	}
@@ -1245,6 +1251,7 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawClient.stop();
+			// cleanup drops
 			serverHealth.reset();
 		}
 	}
@@ -1340,7 +1347,7 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawClient.stop();
-			alternativeServerHelper.destroyServer();
+			// cleanup drops
 			serverHealth.reset();
 		}
 	}
@@ -1449,6 +1456,7 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawServer.stop();
+			// cleanup drops
 			clientHealth.reset();
 		}
 	}
@@ -1552,6 +1560,7 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawServer.stop();
+			// cleanup drops
 			clientHealth.reset();
 		}
 	}
@@ -2906,8 +2915,6 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawClient.stop();
-			alternativeServerHelper.destroyServer();
-			serverHealth.reset();
 		}
 	}
 
@@ -3008,7 +3015,6 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawClient.stop();
-			serverHealth.reset();
 		}
 	}
 
@@ -3082,9 +3088,7 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawClient.stop();
-			alternativeServerHelper.destroyServer();
 			certificateVerifier.shutdown();
-			serverHealth.reset();
 		}
 	}
 
@@ -3169,8 +3173,6 @@ public class DTLSConnectorAdvancedTest {
 
 		} finally {
 			rawClient.stop();
-			serverHelper.destroyServer();
-			serverHealth.reset();
 		}
 	}
 
