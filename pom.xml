@@ -522,18 +522,6 @@
 				<artifactId>license-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
-				<!-- Use the Central Publishing Plugin as full replacement for
-				 standard -->
-				<groupId>org.sonatype.central</groupId>
-				<artifactId>central-publishing-maven-plugin</artifactId>
-				<extensions>true</extensions>
-				<configuration>
-					<publishingServerId>central</publishingServerId>
-					<autoPublish>true</autoPublish>
-					<waitUntil>published</waitUntil>
-				</configuration>
-			</plugin>
-			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
 				<executions>
@@ -984,6 +972,12 @@
 							</execution>
 						</executions>
 					</plugin>
+					<plugin>
+						<!-- Use the Central Publishing Plugin as full
+						 replacement for standard -->
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+					</plugin>
 				</plugins>
 			</build>
 		</profile>
@@ -1016,6 +1010,18 @@
 								</configuration>
 							</execution>
 						</executions>
+					</plugin>
+					<plugin>
+						<!-- Use the Central Publishing Plugin as full
+						 replacement for standard -->
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<extensions>true</extensions>
+						<configuration>
+							<publishingServerId>central</publishingServerId>
+							<!-- autoPublish>true</autoPublish>
+							<waitUntil>published</waitUntil-->
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>
