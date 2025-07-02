@@ -522,18 +522,6 @@
 				<artifactId>license-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
-				<!-- Use the Central Publishing Plugin as full replacement for
-				 standard -->
-				<groupId>org.sonatype.central</groupId>
-				<artifactId>central-publishing-maven-plugin</artifactId>
-				<extensions>true</extensions>
-				<configuration>
-					<publishingServerId>central</publishingServerId>
-					<autoPublish>true</autoPublish>
-					<waitUntil>published</waitUntil>
-				</configuration>
-			</plugin>
-			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
 				<executions>
@@ -947,7 +935,7 @@
 		</profile>
 		<profile>
 			<!-- this profile signs artifacts so that they can be deployed to
-			repo.eclipse.org -->
+			repo.eclipse.org and publishs these artifacts -->
 			<id>eclipse_jar_signing</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
@@ -984,11 +972,16 @@
 							</execution>
 						</executions>
 					</plugin>
+					<plugin>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+					</plugin>
 				</plugins>
 			</build>
 		</profile>
 		<profile>
-			<!-- this profile generates GPG signatures -->
+			<!-- this profile generates GPG signatures and publishs these
+			 artifacts to maven central -->
 			<id>create_gpg_signature</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
@@ -1016,6 +1009,16 @@
 								</configuration>
 							</execution>
 						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<extensions>true</extensions>
+						<configuration>
+							<publishingServerId>central</publishingServerId>
+							<autoPublish>true</autoPublish>
+							<waitUntil>published</waitUntil>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>
