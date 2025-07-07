@@ -120,6 +120,7 @@ public class SecureObserveTest {
 		createSecureServer(MatcherMode.STRICT, null);
 
 		CoapClient client = new CoapClient(uri);
+		cleanup.add(() -> client.shutdown());
 		CountingCoapHandler handler = new CountingCoapHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -140,9 +141,9 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
-		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says client for the " + (REPEATS + 1) +" time\""));
+		assertThat(resource.getCurrentResponse().getPayloadString(),
+				is("\"resource says client for the " + (REPEATS + 1) + " time\""));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
-		client.shutdown();
 	}
 
 	@Test(expected = ConnectorException.class)
@@ -151,23 +152,21 @@ public class SecureObserveTest {
 		createSecureServer(MatcherMode.STRICT, null);
 
 		CoapClient client = new CoapClient(uri);
-		try {
-			CoapResponse response = client.get();
+		cleanup.add(() -> client.shutdown());
 
-			assertEquals("\"resource says hi for the 1 time\"", response.getResponseText());
+		CoapResponse response = client.get();
 
-			clientConnector.clearConnectionState();
+		assertEquals("\"resource says hi for the 1 time\"", response.getResponseText());
 
-			// new handshake with already set endpoint context => exception 
-			response = client.get();
-		} finally {
-			client.shutdown();
-		}
+		clientConnector.clearConnectionState();
+
+		// new handshake with already set endpoint context => exception
+		response = client.get();
 	}
 
 	/**
-	 * Test observe using a DTLS connection with new session.
-	 * After the new handshake, the server is intended not to send notifies.
+	 * Test observe using a DTLS connection with new session. After the new
+	 * handshake, the server is intended not to send notifies.
 	 */
 	@Test
 	public void testSecureObserveWithNewSession() throws Exception {
@@ -175,6 +174,7 @@ public class SecureObserveTest {
 		createSecureServer(MatcherMode.STRICT, null);
 
 		CoapClient client = new CoapClient(uri);
+		cleanup.add(() -> client.shutdown());
 		CountingCoapHandler handler = new CountingCoapHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -195,7 +195,8 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
-		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says client for the " + (REPEATS + 1) +" time\""));
+		assertThat(resource.getCurrentResponse().getPayloadString(),
+				is("\"resource says client for the " + (REPEATS + 1) + " time\""));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
 
 		// clean up session and endpoint context => force new session
@@ -209,12 +210,13 @@ public class SecureObserveTest {
 		// notify (in scope of old DTLS session) should be rejected by the server 
 		resource.changed("new client");
 
-		assertFalse("Unexpected notify", handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertFalse("Unexpected notify",
+				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
-		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says new client for the " + (REPEATS + 2) +" time\""));
+		assertThat(resource.getCurrentResponse().getPayloadString(),
+				is("\"resource says new client for the " + (REPEATS + 2) + " time\""));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
-		client.shutdown();
 	}
 
 	/**
@@ -229,6 +231,7 @@ public class SecureObserveTest {
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
+		cleanup.add(() -> client.shutdown());
 		CountingCoapHandler handler = new CountingCoapHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -254,12 +257,12 @@ public class SecureObserveTest {
 		nat.reassignNewLocalAddresses();
 
 		// trigger handshake
-		resource.changed("client");
+		resource.changed("client_a");
 		// wait for established session
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing 1. notify after address changed", handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		for (int i = 0; i < REPEATS; ++i) {
-			resource.changed("client");
+			resource.changed("client_a");
 			Thread.sleep(50);
 		}
 
@@ -273,13 +276,13 @@ public class SecureObserveTest {
 		assertThat(context2.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP),
 				is(context1.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP)));
 
-		String natURI = uri.replace(":" + context1.getPeerAddress().getPort() + "/", ":" + context2.getPeerAddress().getPort() + "/");
+		String natURI = uri.replace(":" + context1.getPeerAddress().getPort() + "/",
+				":" + context2.getPeerAddress().getPort() + "/");
 		System.out.println("URI: change " + uri + " to " + natURI);
-		
+
 		client.setURI(natURI);
 		CoapResponse coapResponse = client.get();
 		assertThat("response missing", coapResponse, is(notNullValue()));
-		client.shutdown();
 	}
 
 	/**
@@ -296,6 +299,8 @@ public class SecureObserveTest {
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
+		cleanup.add(() -> client.shutdown());
+
 		CountingCoapHandler handler = new CountingCoapHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -322,12 +327,13 @@ public class SecureObserveTest {
 		serverConnector.forceResumeAllSessions();
 
 		// trigger handshake
-		resource.changed("client");
+		resource.changed("client_a");
 		// wait for established session
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing 1. notify after address changed",
+				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		for (int i = 0; i < REPEATS; ++i) {
-			resource.changed("client");
+			resource.changed("client_a");
 			Thread.sleep(50);
 		}
 
@@ -340,7 +346,6 @@ public class SecureObserveTest {
 		assertThat("context-2 missing", context2, is(notNullValue()));
 		assertThat(context2.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP),
 				not(context1.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP)));
-		client.shutdown();
 	}
 
 	/**
@@ -354,6 +359,7 @@ public class SecureObserveTest {
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
+		cleanup.add(() -> client.shutdown());
 		CountingCoapHandler handler = new CountingCoapHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -376,7 +382,7 @@ public class SecureObserveTest {
 
 		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
-		resource.changed("client");
+		resource.changed("client_a");
 
 		assertFalse("Unexpected notifies after address changed",
 				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
@@ -385,7 +391,7 @@ public class SecureObserveTest {
 				is(instanceOf(EndpointMismatchException.class)));
 
 		for (int i = 0; i < REPEATS; ++i) {
-			resource.changed("client");
+			resource.changed("client_a");
 			Thread.sleep(50);
 		}
 
@@ -394,7 +400,6 @@ public class SecureObserveTest {
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
-		client.shutdown();
 	}
 
 	/**
@@ -408,6 +413,7 @@ public class SecureObserveTest {
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
+		cleanup.add(() -> client.shutdown());
 		CountingCoapHandler handler = new CountingCoapHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -430,12 +436,12 @@ public class SecureObserveTest {
 
 		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
-		resource.changed("client");
+		resource.changed("client_a");
 
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing 1. notify after address changed", handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		for (int i = 0; i < REPEATS; ++i) {
-			resource.changed("client");
+			resource.changed("client_a");
 			Thread.sleep(50);
 		}
 
@@ -443,7 +449,6 @@ public class SecureObserveTest {
 				handler.waitOnLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
-		client.shutdown();
 	}
 
 	/**
@@ -457,6 +462,7 @@ public class SecureObserveTest {
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
+		cleanup.add(() -> client.shutdown());
 		CountingCoapHandler handler = new CountingCoapHandler();
 		CoapObserveRelation rel = client.observeAndWait(handler);
 
@@ -496,7 +502,6 @@ public class SecureObserveTest {
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
-		client.shutdown();
 	}
 
 	private void createSecureServer(MatcherMode mode, ConnectionIdGenerator cidGenerator) {
@@ -518,7 +523,6 @@ public class SecureObserveTest {
 				.setLoggingTag("server")
 				.setConnectionIdGenerator(cidGenerator)
 				.setPskStore(serverPskStore).build();
-
 
 		serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.Builder builder = CoapEndpoint.builder();
@@ -554,6 +558,8 @@ public class SecureObserveTest {
 		setPskCredentials(IDENITITY, KEY);
 		System.out.println("coap-server " + uri);
 		System.out.println("coap-client " + clientEndpoint.getUri());
+
+		cleanup.add(() -> EndpointManager.reset());
 	}
 
 	private void setPskCredentials(String identity, String key) {

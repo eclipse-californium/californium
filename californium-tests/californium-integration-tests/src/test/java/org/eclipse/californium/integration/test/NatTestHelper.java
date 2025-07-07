@@ -126,6 +126,7 @@ public class NatTestHelper {
 		for (CoapEndpoint endpoint : clientEndpoints) {
 			endpoint.destroy();
 		}
+		EndpointManager.reset();
 	}
 
 	void forceResumption(List<Integer> resumeEndpoints, int percent) throws InterruptedException {

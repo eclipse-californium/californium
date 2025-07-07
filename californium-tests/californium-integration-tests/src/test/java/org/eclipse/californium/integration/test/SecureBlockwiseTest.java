@@ -167,6 +167,7 @@ public class SecureBlockwiseTest {
 		builder.setConnector(clientConnector);
 		builder.setConfiguration(configuration);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(builder.build());
+		cleanup.add(() -> EndpointManager.reset());
 	}
 
 	private static String createRandomPayload(int size) {
