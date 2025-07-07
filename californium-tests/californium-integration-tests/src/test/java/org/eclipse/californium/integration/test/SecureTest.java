@@ -124,6 +124,7 @@ public class SecureTest {
 
 			// Send a request to an absent peer
 			CoapClient client = new CoapClient("coaps", TestTools.LOCALHOST_EPHEMERAL.getHostString(), freePort);
+			cleanup.add(() -> client.shutdown());
 			CountingCoapHandler handler = new CountingCoapHandler();
 			client.get(handler);
 
@@ -136,7 +137,6 @@ public class SecureTest {
 
 			// Ensure there is no leak : all exchanges are completed
 			assertAllExchangesAreCompleted(coapTestEndpoint, time);
-			client.shutdown();
 		}
 	}
 
