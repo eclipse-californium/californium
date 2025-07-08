@@ -1778,14 +1778,11 @@ public class CoapClient {
 		 * @param response the response
 		 */
 		protected void succeeded(final CoapResponse response) {
-			execute(new Runnable() {
-
-				public void run() {
-					try {
-						deliver(response);
-					} catch (Throwable t) {
-						LOGGER.warn("exception while handling response", t);
-					}
+			execute(() -> {
+				try {
+					deliver(response);
+				} catch (Throwable t) {
+					LOGGER.warn("exception while handling response", t);
 				}
 			});
 		}
@@ -1808,14 +1805,11 @@ public class CoapClient {
 		 */
 		@Override
 		protected void failed() {
-			execute(new Runnable() {
-
-				public void run() {
-					try {
-						handler.onError();
-					} catch (Throwable t) {
-						LOGGER.warn("exception while handling failure", t);
-					}
+			execute(() -> {
+				try {
+					handler.onError();
+				} catch (Throwable t) {
+					LOGGER.warn("exception while handling failure", t);
 				}
 			});
 		}
@@ -1858,7 +1852,6 @@ public class CoapClient {
 					handler.onLoad(response);
 				} else {
 					LOGGER.debug("dropping old notification: {}", response.advanced());
-					return;
 				}
 			}
 		}
