@@ -1281,6 +1281,8 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 			if (healthStatusIntervalMillis == 0 || healthStatusIntervalMillis > 2000) {
 				intervalMillis = 2000;
 			}
+			health.setMaxConnections(maxConnections);
+			updateHealth();
 			if (intervalMillis > 0) {
 				statusLogger = executorService.scheduleBackgroundAtFixedRate(new Runnable() {
 
@@ -1288,19 +1290,17 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 
 					@Override
 					public void run() {
+						updateHealth();
 						long now = ClockUtil.nanoRealtime();
 						if (healthStatusIntervalMillis > 0
 								&& TimeUnit.NANOSECONDS.toMillis(now - lastNanos) > healthStatusIntervalMillis) {
-							health.dump(loggingTag, maxConnections, connectionStore.remainingCapacity());
+							health.dump();
 							lastNanos = now;
-						} else {
-							updateHealth();
 						}
 					}
 
 				}, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
 			}
-			updateHealth();
 		}
 
 		recentHandshakeCleaner = executorService.scheduleBackgroundWithFixedDelay(new Runnable() {
