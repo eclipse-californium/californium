@@ -707,7 +707,14 @@ public class DTLSConnectorAdvancedTest {
 			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// Handle and answer ( CHANGE CIPHER SPEC, FINISHED, flight 3)
+			// inject app-data in wrong order
+			clientRecordLayer.pauseSending();
 			processAll(resumingClientHandshaker, rs);
+			clientRecordLayer.addData(clientConnection, "too early".getBytes());
+			clientRecordLayer.continueSending();
+
+			// wait to receive ACK for app-data.
+			rs = waitForFlightReceived("app-data", collector, 1);
 
 			// Ensure handshake is successfully done
 			assertTrue("client handshake failed",
@@ -3422,8 +3429,11 @@ public class DTLSConnectorAdvancedTest {
 
 		private final AtomicInteger droppedRecords = new AtomicInteger();
 		private final AtomicBoolean reverse = new AtomicBoolean();
+		private final AtomicBoolean pause = new AtomicBoolean();
 		private final AtomicInteger drop = new AtomicInteger(0);
 		private final AtomicInteger lastSentDatagrams = new AtomicInteger(0);
+		private final List<DatagramPacket> pauseMessages = new ArrayList<>();
+
 		protected final UdpConnector connector;
 
 		public TestRecordLayer(UdpConnector connector) {
@@ -3439,6 +3449,35 @@ public class DTLSConnectorAdvancedTest {
 			this.drop.set(drop);
 		}
 
+		public void pauseSending() {
+			pause.set(true);
+		}
+
+		public void continueSending() throws IOException {
+			pause.set(false);
+			for (DatagramPacket datagram : pauseMessages) {
+				connector.send(datagram);
+				lastSentDatagrams.incrementAndGet();
+			}
+			pauseMessages.clear();
+		}
+
+		public void addData(Connection connection, byte[] data)
+				throws GeneralSecurityException {
+			if (pause.get()) {
+				DTLSContext dtlsContext = connection.getDtlsContext();
+				Record record = new Record(ContentType.APPLICATION_DATA, dtlsContext.getWriteEpoch(),
+						new ApplicationMessage(data), dtlsContext, true, 0);
+				byte[] recordBytes = record.toByteArray();
+				DatagramPacket datagram = new DatagramPacket(recordBytes, recordBytes.length, connection.getPeerAddress());
+				if (reverse.get()) {
+					pauseMessages.add(0, datagram);
+				} else {
+					pauseMessages.add(datagram);
+				}
+			}
+		}
+
 		public void setReverse(boolean reverse) {
 			this.reverse.set(reverse);
 		}
@@ -3450,9 +3489,13 @@ public class DTLSConnectorAdvancedTest {
 		@Override
 		public void sendFlight(List<DatagramPacket> flight) throws IOException {
 			lastSentDatagrams.set(0);
-			for (DatagramPacket datagram : getMessagesOfFlight(flight)) {
-				connector.send(datagram);
-				lastSentDatagrams.incrementAndGet();
+			if (pause.get()) {
+				pauseMessages.addAll(getMessagesOfFlight(flight));
+			} else {
+				for (DatagramPacket datagram : getMessagesOfFlight(flight)) {
+					connector.send(datagram);
+					lastSentDatagrams.incrementAndGet();
+				}
 			}
 		}
 
