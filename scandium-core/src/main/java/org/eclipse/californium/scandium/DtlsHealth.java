@@ -23,11 +23,9 @@ public interface DtlsHealth {
 	/**
 	 * Dump health data.
 	 * 
-	 * @param tag logging tag
-	 * @param maxConnections maximum number of connections
-	 * @param remainingCapacity remaining capacity for connections
+	 * @since 4.0 (removed parameter)
 	 */
-	void dump(String tag, int maxConnections, int remainingCapacity);
+	void dump();
 
 	/**
 	 * Check, if collecting health data is enabled.
@@ -64,6 +62,15 @@ public interface DtlsHealth {
 	 *            is to be sent.
 	 */
 	void sendingRecord(boolean drop);
+
+	/**
+	 * Set maximum number of connections.
+	 * 
+	 * @param max maximum number of connections
+	 * 
+	 * @since 4.0
+	 */
+	void setMaxConnections(int max);
 
 	/**
 	 * Set number of connections.

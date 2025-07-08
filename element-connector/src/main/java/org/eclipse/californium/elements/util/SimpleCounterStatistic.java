@@ -196,6 +196,16 @@ public class SimpleCounterStatistic {
 	}
 
 	/**
+	 * Decrement current counter.
+	 * 
+	 * @return resulting value of the current counter
+	 * @since 4.0
+	 */
+	public long decrement() {
+		return currentCounter.decrementAndGet();
+	}
+
+	/**
 	 * Get counter value.
 	 * 
 	 * @return counter value
