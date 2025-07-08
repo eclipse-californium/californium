@@ -2008,10 +2008,21 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 				return;
 			}
 
-			if (record.getType() == ContentType.TLS12_CID) {
-				// !useCid already dropped in Record.fromByteArray
-				if (epoch == 0) {
-					DROP_LOGGER.debug("Discarding TLS_CID record received from peer [{}] during handshake",
+			if (!record.isDecoded()) {
+				if (record.getType() == ContentType.TLS12_CID) {
+					// !useCid already dropped in Record.fromReader
+					if (epoch == 0) {
+						DROP_LOGGER.debug("Discarding TLS_CID record received from peer [{}] during handshake",
+								StringUtil.toLog(record.getPeerAddress()));
+						informListenerOfRecordDrop(record);
+						if (health != null) {
+							health.receivingRecord(true);
+						}
+						return;
+					}
+				} else if (epoch > 0 && connection.expectCid() ) {
+					DROP_LOGGER.debug("Discarding {} record received from peer [{}], CID required!",
+							record.getType(),
 							StringUtil.toLog(record.getPeerAddress()));
 					informListenerOfRecordDrop(record);
 					if (health != null) {
@@ -2019,17 +2030,7 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 					}
 					return;
 				}
-			} else if (epoch > 0 && connection.expectCid()) {
-				DROP_LOGGER.debug("Discarding record received from peer [{}], CID required!",
-						StringUtil.toLog(record.getPeerAddress()));
-				informListenerOfRecordDrop(record);
-				if (health != null) {
-					health.receivingRecord(true);
-				}
-				return;
-			}
 
-			if (!record.isDecoded()) {
 				if (datagramFilter != null) {
 					if (!datagramFilter.onReceiving(record, connection)) {
 						DROP_LOGGER.trace("Filter out record with {} bytes from [{}]", record.size(),
@@ -2041,7 +2042,6 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 						return;
 					}
 				}
-
 				// application data may be deferred again until the session is
 				// really established
 				record.decodeFragment(context.getReadState());
@@ -3147,9 +3147,9 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 
 	private void sendMessage(final RawData message, final Connection connection) {
 		try {
-			DTLSContext dltsContext = connection.getEstablishedDtlsContext();
+			DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
 			LOGGER.trace("send {}-{} using {}", connection.getConnectionId(),
-					StringUtil.toLog(connection.getPeerAddress()), dltsContext.getSession().getSessionIdentifier());
+					StringUtil.toLog(connection.getPeerAddress()), dtlsContext.getSession().getSessionIdentifier());
 			Attributes attributes = new Attributes();
 			final DtlsEndpointContext context = connection.getWriteContext(attributes);
 			if (!checkOutboundEndpointContext(message, context)) {
@@ -3157,8 +3157,8 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 			}
 
 			message.onContextEstablished(context);
-			Record record = new Record(ContentType.APPLICATION_DATA, dltsContext.getWriteEpoch(),
-					new ApplicationMessage(message.getBytes()), dltsContext, true, TLS12_CID_PADDING);
+			Record record = new Record(ContentType.APPLICATION_DATA, dtlsContext.getWriteEpoch(),
+					new ApplicationMessage(message.getBytes()), dtlsContext, true, TLS12_CID_PADDING);
 			record.setAddress(connection.getPeerAddress(), connection.getRouter());
 			sendRecord(record);
 			message.onSent();

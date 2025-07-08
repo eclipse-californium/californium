@@ -735,6 +735,9 @@ public class Record {
 			if (actualType == null) {
 				throw new GeneralSecurityException("unknown inner type! " + typeCode);
 			}
+			if (ContentType.TLS12_CID == actualType) {
+				throw new GeneralSecurityException("Invalid use of TLS12_CID as inner type!");
+			}
 			decryptedMessage = Arrays.copyOf(decryptedMessage, index);
 		}
 
@@ -766,7 +769,11 @@ public class Record {
 			break;
 
 		default:
-			LOGGER.debug("Cannot decrypt message of unsupported type [{}]", type);
+			if (actualType != type) {
+				LOGGER.debug("Cannot decrypt message of unsupported type [{}/{}]", actualType, type);
+			} else {
+				LOGGER.debug("Cannot decrypt message of unsupported type [{}]", type);
+			}
 		}
 		type = actualType;
 	}
