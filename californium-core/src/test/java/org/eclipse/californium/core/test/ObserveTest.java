@@ -258,6 +258,7 @@ public class ObserveTest {
 		}
 
 		// still only one notification (the response) is received
+		handler.noLogOnFail();
 		assertFalse(handler.waitOnLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
 		assertEquals(repeat, resetCounter.get()); // repeat RST received
 		// no RST delivered (interceptor)
