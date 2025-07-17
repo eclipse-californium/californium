@@ -23,6 +23,7 @@
  ******************************************************************************/
 package org.eclipse.californium.integration.test;
 
+import static org.eclipse.californium.matcher.IsMessage.isMessage;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -63,6 +64,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.DtlsHealthLogger;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -100,6 +102,8 @@ public class SecureObserveTest {
 	private DTLSConnector clientConnector;
 	private CoapEndpoint serverEndpoint;
 	private CoapEndpoint clientEndpoint;
+	private DtlsHealthLogger serverHealth;
+	private DtlsHealthLogger clientHealth;
 	private MyResource resource;
 
 	private String uri;
@@ -108,6 +112,28 @@ public class SecureObserveTest {
 	public void shutdownServer() {
 		if (nat != null) {
 			nat.stop();
+		}
+		// dumpHealth();
+		clientConnector = null;
+		clientPskStore = null;
+		clientHealth = null;
+		serverConnector = null;
+		serverPskStore = null;
+		serverHealth = null;
+	}
+
+	public void dumpHealth() {
+		if (serverHealth != null) {
+			if (serverConnector != null) {
+				serverConnector.updateHealth();
+			}
+			serverHealth.dump();
+		}
+		if (clientHealth != null) {
+			if (clientConnector != null) {
+				clientConnector.updateHealth();
+			}
+			clientHealth.dump();
 		}
 	}
 
@@ -139,11 +165,13 @@ public class SecureObserveTest {
 			Thread.sleep(50);
 		}
 
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing notifies", handler.waitOnLoadAndDropCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat(resource.getCurrentResponse().getPayloadString(),
 				is("\"resource says client for the " + (REPEATS + 1) + " time\""));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+		assertThat("last notify missing", handler.getResponse(-1), is(notNullValue()));
+		assertThat("last notify mismatch", resource.getCurrentResponse(), isMessage(handler.getResponse(-1)));
 	}
 
 	@Test(expected = ConnectorException.class)
@@ -193,11 +221,13 @@ public class SecureObserveTest {
 			Thread.sleep(50);
 		}
 
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing notifies", handler.waitOnLoadAndDropCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat(resource.getCurrentResponse().getPayloadString(),
 				is("\"resource says client for the " + (REPEATS + 1) + " time\""));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+		assertThat("last notify missing", handler.getResponse(-1), is(notNullValue()));
+		assertThat("last notify mismatch", resource.getCurrentResponse(), isMessage(handler.getResponse(-1)));
 
 		// clean up session and endpoint context => force new session
 		clientConnector.clearConnectionState();
@@ -207,11 +237,13 @@ public class SecureObserveTest {
 		CoapResponse response = client.get();
 		assertThat("Response not received", response, is(notNullValue()));
 
-		// notify (in scope of old DTLS session) should be rejected by the server 
+		// notify (in scope of old DTLS session) should be rejected by the
+		// server
 		resource.changed("new client");
 
+		handler.noLogOnFail();
 		assertFalse("Unexpected notify",
-				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+				handler.waitOnLoadAndDropCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat(resource.getCurrentResponse().getPayloadString(),
 				is("\"resource says new client for the " + (REPEATS + 2) + " time\""));
@@ -252,14 +284,15 @@ public class SecureObserveTest {
 			Thread.sleep(50);
 		}
 
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing notifies", handler.waitOnLoadAndDropCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		nat.reassignNewLocalAddresses();
 
 		// trigger handshake
 		resource.changed("client_a");
 		// wait for established session
-		assertTrue("Missing 1. notify after address changed", handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing 1. notify after address changed",
+				handler.waitOnLoadAndDropCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		for (int i = 0; i < REPEATS; ++i) {
 			resource.changed("client_a");
@@ -267,9 +300,11 @@ public class SecureObserveTest {
 		}
 
 		assertTrue("Missing notifies after address changed",
-				handler.waitOnLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+				handler.waitOnLoadAndDropCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+		assertThat("last notify missing", handler.getResponse(-1), is(notNullValue()));
+		assertThat("last notify mismatch", resource.getCurrentResponse(), isMessage(handler.getResponse(-1)));
 
 		EndpointContext context2 = rel.getCurrent().advanced().getSourceContext();
 		assertThat("context-2 missing", context2, is(notNullValue()));
@@ -321,7 +356,7 @@ public class SecureObserveTest {
 			Thread.sleep(50);
 		}
 
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing notifies", handler.waitOnLoadAndDropCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		nat.reassignNewLocalAddresses();
 		serverConnector.forceResumeAllSessions();
@@ -330,7 +365,7 @@ public class SecureObserveTest {
 		resource.changed("client_a");
 		// wait for established session
 		assertTrue("Missing 1. notify after address changed",
-				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+				handler.waitOnLoadAndDropCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		for (int i = 0; i < REPEATS; ++i) {
 			resource.changed("client_a");
@@ -338,9 +373,11 @@ public class SecureObserveTest {
 		}
 
 		assertTrue("Missing notifies after address changed",
-				handler.waitOnLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+				handler.waitOnLoadAndDropCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+		assertThat("last notify missing", handler.getResponse(-1), is(notNullValue()));
+		assertThat("last notify mismatch", resource.getCurrentResponse(), isMessage(handler.getResponse(-1)));
 
 		EndpointContext context2 = rel.getCurrent().advanced().getSourceContext();
 		assertThat("context-2 missing", context2, is(notNullValue()));
@@ -378,14 +415,15 @@ public class SecureObserveTest {
 			Thread.sleep(50);
 		}
 
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing notifies", handler.waitOnLoadAndDropCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		resource.changed("client_a");
 
-		assertFalse("Unexpected notifies after address changed",
-				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		handler.noLogOnFail();
+		assertFalse("Unexpected 1. notify after address changed",
+				handler.waitOnLoadAndDropCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
@@ -396,7 +434,7 @@ public class SecureObserveTest {
 		}
 
 		assertFalse("Unexpected notifies after address changed",
-				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+				handler.waitOnLoadAndDropCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
@@ -432,13 +470,14 @@ public class SecureObserveTest {
 			Thread.sleep(50);
 		}
 
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing notifies", handler.waitOnLoadAndDropCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		resource.changed("client_a");
 
-		assertTrue("Missing 1. notify after address changed", handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing 1. notify after address changed",
+				handler.waitOnLoadAndDropCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		for (int i = 0; i < REPEATS; ++i) {
 			resource.changed("client_a");
@@ -446,9 +485,11 @@ public class SecureObserveTest {
 		}
 
 		assertTrue("Missing notifies after address changed",
-				handler.waitOnLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+				handler.waitOnLoadAndDropCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+		assertThat("last notify missing", handler.getResponse(-1), is(notNullValue()));
+		assertThat("last notify mismatch", resource.getCurrentResponse(), isMessage(handler.getResponse(-1)));
 	}
 
 	/**
@@ -481,24 +522,25 @@ public class SecureObserveTest {
 			Thread.sleep(50);
 		}
 
-		assertTrue("Missing notifies", handler.waitOnLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertTrue("Missing notifies", handler.waitOnLoadAndDropCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		// change principal
 		setPskCredentials("stranger", "danger");
-		resource.changed("client");
+		resource.changed("client_a");
 
-		assertFalse("Unexpected notifies after address and principal changed",
-				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		handler.noLogOnFail();
+		assertFalse("Unexpected 1 notify after address and principal changed",
+				handler.waitOnLoadAndDropCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
 		for (int i = 0; i < REPEATS; ++i) {
-			resource.changed("client");
+			resource.changed("client_a");
 			Thread.sleep(50);
 		}
 
 		assertFalse("Unexpected notifies after address and principal changed",
-				handler.waitOnLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+				handler.waitOnLoadAndDropCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
@@ -506,22 +548,18 @@ public class SecureObserveTest {
 
 	private void createSecureServer(MatcherMode mode, ConnectionIdGenerator cidGenerator) {
 		serverPskStore = new TestUtilPskStore();
+		serverHealth = new DtlsHealthLogger("server");
 
 		Configuration config = network.createTestConfig()
 				// retransmit constantly all 200 milliseconds
-				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS)
-				.set(CoapConfig.ACK_INIT_RANDOM, 1f)
+				.set(CoapConfig.ACK_TIMEOUT, 200, TimeUnit.MILLISECONDS).set(CoapConfig.ACK_INIT_RANDOM, 1f)
 				.set(CoapConfig.ACK_TIMEOUT_SCALE, 1f)
 				// set response timeout (indirect) to 10s
-				.set(CoapConfig.EXCHANGE_LIFETIME, 10, TimeUnit.SECONDS)
-				.set(CoapConfig.RESPONSE_MATCHING, mode)
-				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2)
-				.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
+				.set(CoapConfig.EXCHANGE_LIFETIME, 10, TimeUnit.SECONDS).set(CoapConfig.RESPONSE_MATCHING, mode)
+				.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2).set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
 
-		DtlsConnectorConfig dtlsConfig = DtlsConnectorConfig.builder(config)
-				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
-				.setLoggingTag("server")
-				.setConnectionIdGenerator(cidGenerator)
+		DtlsConnectorConfig dtlsConfig = DtlsConnectorConfig.builder(config).setAddress(TestTools.LOCALHOST_EPHEMERAL)
+				.setLoggingTag("server").setHealthHandler(serverHealth).setConnectionIdGenerator(cidGenerator)
 				.setPskStore(serverPskStore).build();
 
 		serverConnector = new DTLSConnector(dtlsConfig);
@@ -544,11 +582,10 @@ public class SecureObserveTest {
 
 		// prepare secure client endpoint
 		clientPskStore = new TestUtilPskStore();
+		clientHealth = new DtlsHealthLogger("client");
 		DtlsConnectorConfig clientdtlsConfig = DtlsConnectorConfig.builder(config)
-				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
-				.setLoggingTag("client")
-				.setConnectionIdGenerator(cidGenerator)
-				.setPskStore(clientPskStore).build();
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL).setLoggingTag("client").setHealthHandler(clientHealth)
+				.setConnectionIdGenerator(cidGenerator).setPskStore(clientPskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);

@@ -33,7 +33,17 @@ public interface CoapHandler {
 	 * @param response the response
 	 */
 	public void onLoad(CoapResponse response);
-	
+
+	/**
+	 * Invoked when a CoAP deprecated notification has arrived.
+	 *
+	 * @param deprecatedNotify the deprecated notification
+	 * @since 4.0
+	 */
+	default public void onDrop(CoapResponse deprecatedNotify) {
+		// empty by intention
+	}
+
 	/**
 	 * Invoked when a request timeouts or has been rejected by the server.
 	 */
