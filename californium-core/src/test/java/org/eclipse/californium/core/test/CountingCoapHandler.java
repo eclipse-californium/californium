@@ -18,16 +18,18 @@ package org.eclipse.californium.core.test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Counting coap handler for unit tests.
- * 
+ * <p>
  * Counts callbacks, records responses, and forwards failures to main testing
  * thread on all "wait???" methods.
  */
@@ -44,11 +46,21 @@ public class CountingCoapHandler implements CoapHandler {
 	 */
 	public List<CoapResponse> responses = new ArrayList<>();
 	/**
-	 * counter for {@link #onLoad(CoapResponse)} calls.
+	 * Flag to enable logging when failing.
+	 * 
+	 * @since 4.0
+	 */
+	public AtomicBoolean logOnFail = new AtomicBoolean(true);
+	/**
+	 * Counter for {@link #onLoad(CoapResponse)} calls.
 	 */
 	public AtomicInteger loadCalls = new AtomicInteger();
 	/**
-	 * counter for {@link #onError()} calls.
+	 * Counter for {@link #onDrop(CoapResponse)} calls.
+	 */
+	public AtomicInteger dropCalls = new AtomicInteger();
+	/**
+	 * Counter for {@link #onError()} calls.
 	 */
 	public AtomicInteger errorCalls = new AtomicInteger();
 	/**
@@ -56,6 +68,14 @@ public class CountingCoapHandler implements CoapHandler {
 	 * {@link #assertLoad(CoapResponse)}.
 	 */
 	private volatile Throwable exception;
+
+	public void logOnFail() {
+		this.logOnFail.set(true);
+	}
+
+	public void noLogOnFail() {
+		this.logOnFail.set(false);
+	}
 
 	@Override
 	public final void onLoad(CoapResponse response) {
@@ -77,9 +97,14 @@ public class CountingCoapHandler implements CoapHandler {
 		LOGGER.info("Received {}. Notification: {}", counter, response.advanced());
 	}
 
+	@Override
+	public void onDrop(CoapResponse deprecatedNotify) {
+		dropCalls.incrementAndGet();
+	}
+
 	/**
 	 * Intended to be overwritten to check the response.
-	 * 
+	 * <p>
 	 * Failing asserts will be forwarded to main testing thread in all "wait???"
 	 * methods.
 	 * 
@@ -98,8 +123,28 @@ public class CountingCoapHandler implements CoapHandler {
 		LOGGER.info("{} Errors!", counter);
 	}
 
+	public CoapResponse getCoapResponse(int pos) {
+		int size = responses.size();
+		if (pos < 0) {
+			pos = size + pos;
+		}
+		if (0 <= pos && pos < size) {
+			return responses.get(pos);
+		}
+		return null;
+	}
+
+	public Response getResponse(int pos) {
+		CoapResponse response = getCoapResponse(pos);
+		return response == null ? null : response.advanced();
+	}
+
 	public int getOnLoadCalls() {
 		return loadCalls.get();
+	}
+
+	public int getOnDropCalls() {
+		return dropCalls.get();
 	}
 
 	public int getOnErrorCalls() {
@@ -112,7 +157,7 @@ public class CountingCoapHandler implements CoapHandler {
 
 	/**
 	 * Wait for number of calls to {@link #onLoad(CoapResponse)}.
-	 * 
+	 * <p>
 	 * Also forwards {@link Error} or {@link RuntimeException} during execution
 	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
 	 * 
@@ -132,8 +177,39 @@ public class CountingCoapHandler implements CoapHandler {
 	}
 
 	/**
-	 * Wait for number of calls to {@link #onError()}.
+	 * Wait for number of calls to {@link #onDrop(CoapResponse)}.
 	 * 
+	 * @param counter number of expected calls
+	 * @param timeout time to wait
+	 * @param unit unit of time to wait
+	 * @return {@code true}, if number of calls is reached in time,
+	 *         {@code false}, otherwise.
+	 * @throws InterruptedException if thread was interrupted.
+	 * @since 4.0
+	 */
+	public boolean waitOnDropCalls(int counter, long timeout, TimeUnit unit) throws InterruptedException {
+		return waitOnCalls(counter, timeout, unit, dropCalls);
+	}
+
+	/**
+	 * Wait for number of calls to {@link #onLoad(CoapResponse)} or
+	 * {@link #onDrop(CoapResponse)}.
+	 * 
+	 * @param counter number of expected calls
+	 * @param timeout time to wait
+	 * @param unit unit of time to wait
+	 * @return {@code true}, if number of calls is reached in time,
+	 *         {@code false}, otherwise.
+	 * @throws InterruptedException if thread was interrupted.
+	 * @since 4.0
+	 */
+	public boolean waitOnLoadAndDropCalls(int counter, long timeout, TimeUnit unit) throws InterruptedException {
+		return waitOnCalls(counter, timeout, unit, loadCalls, dropCalls);
+	}
+
+	/**
+	 * Wait for number of calls to {@link #onError()}.
+	 * <p>
 	 * Also forwards {@link Error} or {@link RuntimeException} during execution
 	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
 	 * 
@@ -155,7 +231,7 @@ public class CountingCoapHandler implements CoapHandler {
 	/**
 	 * Wait for number of calls to {@link #onLoad(CoapResponse)} or
 	 * {@link #onError()}.
-	 * 
+	 * <p>
 	 * Also forwards {@link Error} or {@link RuntimeException} during execution
 	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
 	 * 
@@ -171,12 +247,12 @@ public class CountingCoapHandler implements CoapHandler {
 	 *             {@link #assertLoad(CoapResponse)}
 	 */
 	public boolean waitOnCalls(final int counter, final long timeout, final TimeUnit unit) throws InterruptedException {
-		return waitOnCalls(counter, timeout, unit, loadCalls, errorCalls);
+		return waitOnCalls(counter, timeout, unit, loadCalls, dropCalls, errorCalls);
 	}
 
 	/**
 	 * Wait for number of calls.
-	 * 
+	 * <p>
 	 * Also forwards {@link Error} or {@link RuntimeException} during execution
 	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
 	 * 
@@ -206,7 +282,14 @@ public class CountingCoapHandler implements CoapHandler {
 				}
 			}
 		}
-		return sum(calls) >= counter;
+		int sum = sum(calls);
+		if (sum < counter && logOnFail.get()) {
+			LOGGER.warn("Waiting for {}, reached {}", counter, sum);
+			for (CoapResponse response : responses) {
+				LOGGER.warn("   received {}", response.getResponseText());
+			}
+		}
+		return sum >= counter;
 	}
 
 	/**
@@ -233,7 +316,7 @@ public class CountingCoapHandler implements CoapHandler {
 
 	/**
 	 * Sum values of AtomicIntegers.
-	 * 
+	 * <p>
 	 * Also forwards {@link Error} or {@link RuntimeException} during execution
 	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
 	 * 
@@ -256,7 +339,7 @@ public class CountingCoapHandler implements CoapHandler {
 
 	/**
 	 * Wait for next response.
-	 * 
+	 * <p>
 	 * If the next response is already received, it's returned immediately. Also
 	 * forwards {@link Error} or {@link RuntimeException} during execution of
 	 * {@link #assertLoad(CoapResponse)} to the caller's thread.
@@ -290,6 +373,9 @@ public class CountingCoapHandler implements CoapHandler {
 			builder.append("loads:").append(loadCalls.get());
 			builder.append(", read:").append(readIndex);
 			builder.append(", errs:").append(errorCalls.get());
+			if (dropCalls.get() > 0) {
+				builder.append(", drops:").append(dropCalls.get());
+			}
 		}
 		return builder.toString();
 	}

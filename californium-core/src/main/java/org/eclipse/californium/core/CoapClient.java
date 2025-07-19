@@ -1852,6 +1852,7 @@ public class CoapClient {
 					handler.onLoad(response);
 				} else {
 					LOGGER.debug("dropping old notification: {}", response.advanced());
+					handler.onDrop(response);
 				}
 			}
 		}
