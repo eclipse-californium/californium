@@ -17,6 +17,8 @@
  ******************************************************************************/
 package org.eclipse.californium.rule;
 
+import java.util.function.Function;
+
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -25,7 +27,6 @@ import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.NetworkRule;
-import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,12 +52,12 @@ public class CoapNetworkRule extends NetworkRule {
 	/**
 	 * CoAP datagram formatter. Used for logging.
 	 */
-	private static final DatagramFormatter FORMATTER = new DatagramFormatter() {
+	private static final Function<byte[], String> FORMATTER = new Function<byte[], String>() {
 
 		private DataParser parser = new UdpDataParser();
 
 		@Override
-		public String format(byte[] data) {
+		public String apply(byte[] data) {
 			if (null == data) {
 				return "<null>";
 			} else if (0 == data.length) {
@@ -90,7 +91,7 @@ public class CoapNetworkRule extends NetworkRule {
 	 * @param formatter datagram formatter to be used
 	 * @param modes supported datagram socket implementation modes.
 	 */
-	protected CoapNetworkRule(DatagramFormatter formatter, Mode... modes) {
+	protected CoapNetworkRule(Function<byte[], String> formatter, Mode... modes) {
 		super(formatter, modes);
 	}
 

@@ -76,7 +76,6 @@ import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
-import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
@@ -387,12 +386,8 @@ public class DTLSConnectorHandshakeTest {
 			assertThat(serverHelper.server.isRunning(), is(true));
 			try {
 				// wait until no pending jobs left
-				TestConditionTools.waitForCondition(6000, 100, TimeUnit.MILLISECONDS, new TestCondition() {
-
-					@Override
-					public boolean isFulFilled() throws IllegalStateException {
-						return !serverHelper.server.updateHealth();
-					}
+				TestConditionTools.waitForCondition(6000, 100, TimeUnit.MILLISECONDS, () -> {
+					return !serverHelper.server.updateHealth();
 				});
 				TestConditionTools.assertStatisticCounter("jobs left", serverHealth, "pending in jobs", is(0L));
 				TestConditionTools.assertStatisticCounter("jobs left", serverHealth, "pending out jobs", is(0L));

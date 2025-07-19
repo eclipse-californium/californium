@@ -21,6 +21,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 import org.hamcrest.Matcher;
 
@@ -48,7 +49,7 @@ public final class TestConditionTools {
 	 *         {@code false} otherwise.
 	 * @throws InterruptedException if the Thread is interrupted.
 	 */
-	public static boolean waitForCondition(long timeout, long interval, TimeUnit unit, TestCondition check)
+	public static boolean waitForCondition(long timeout, long interval, TimeUnit unit, BooleanSupplier check)
 			throws InterruptedException {
 		if (0 >= timeout) {
 			throw new IllegalArgumentException("timeout must be greather than 0!");
@@ -63,7 +64,7 @@ public final class TestConditionTools {
 		long sleepTimeInMilliseconds = unit.toMillis(interval);
 		long end = System.nanoTime() + unit.toNanos(timeout);
 		while (0 < leftTimeInMilliseconds) {
-			if (check.isFulFilled()) {
+			if (check.getAsBoolean()) {
 				return true;
 			}
 			Thread.sleep(sleepTimeInMilliseconds);
@@ -72,7 +73,7 @@ public final class TestConditionTools {
 				sleepTimeInMilliseconds = leftTimeInMilliseconds;
 			}
 		}
-		return check.isFulFilled();
+		return check.getAsBoolean();
 	}
 
 	/**
@@ -88,7 +89,7 @@ public final class TestConditionTools {
 	 * @throws AssertionError if assertion has failed
 	 * @since 4.0
 	 */
-	public static void assertCondition(long timeout, long interval, TimeUnit unit, TestCondition check)
+	public static void assertCondition(long timeout, long interval, TimeUnit unit, BooleanSupplier check)
 			throws InterruptedException {
 		assertThat(waitForCondition(timeout, interval, unit, check), is(true));
 	}
@@ -111,12 +112,8 @@ public final class TestConditionTools {
 			final Matcher<? super Long> matcher, long timeout, TimeUnit unit) throws InterruptedException {
 		if (timeout > 0) {
 			long timeoutMillis = unit.toMillis(timeout);
-			waitForCondition(timeoutMillis, timeoutMillis / 10l, TimeUnit.MILLISECONDS, new TestCondition() {
-
-				@Override
-				public boolean isFulFilled() throws IllegalStateException {
-					return matcher.matches(manager.getCounterByKey(name));
-				}
+			waitForCondition(timeoutMillis, timeoutMillis / 10l, TimeUnit.MILLISECONDS, () -> {
+				return matcher.matches(manager.getCounterByKey(name));
 			});
 		}
 		assertThat(prepareMessage(null, name, manager), manager.getCounterByKey(name), matcher);
@@ -142,12 +139,8 @@ public final class TestConditionTools {
 			final Matcher<? super Long> matcher, long timeout, TimeUnit unit) throws InterruptedException {
 		if (timeout > 0) {
 			long timeoutMillis = unit.toMillis(timeout);
-			waitForCondition(timeoutMillis, timeoutMillis / 10l, TimeUnit.MILLISECONDS, new TestCondition() {
-
-				@Override
-				public boolean isFulFilled() throws IllegalStateException {
-					return matcher.matches(manager.getCounterByKey(name));
-				}
+			waitForCondition(timeoutMillis, timeoutMillis / 10l, TimeUnit.MILLISECONDS, () -> {
+				return matcher.matches(manager.getCounterByKey(name));
 			});
 		}
 		assertThat(prepareMessage(message, name, manager), manager.getCounterByKey(name), matcher);
