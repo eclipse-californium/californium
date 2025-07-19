@@ -43,7 +43,6 @@ import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
 import org.eclipse.californium.scandium.config.DtlsConfig;
@@ -140,12 +139,8 @@ public class ApplicationAuthorizationTest {
 			assertThat(serverHelper.server.isRunning(), is(true));
 			try {
 				// wait until no pending jobs left
-				TestConditionTools.waitForCondition(6000, 100, TimeUnit.MILLISECONDS, new TestCondition() {
-
-					@Override
-					public boolean isFulFilled() throws IllegalStateException {
-						return !serverHelper.server.updateHealth();
-					}
+				TestConditionTools.waitForCondition(6000, 100, TimeUnit.MILLISECONDS, () -> {
+					return !serverHelper.server.updateHealth();
 				});
 				TestConditionTools.assertStatisticCounter("jobs left", serverHealth, "pending in jobs", is(0L));
 				TestConditionTools.assertStatisticCounter("jobs left", serverHealth, "pending out jobs", is(0L));

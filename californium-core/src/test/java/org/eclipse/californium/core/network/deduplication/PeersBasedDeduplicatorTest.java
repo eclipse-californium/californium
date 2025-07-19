@@ -38,7 +38,6 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
-import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.elements.util.TestSynchroneExecutor;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -138,13 +137,8 @@ public class PeersBasedDeduplicatorTest {
 		int sweepInterval = config.getTimeAsInt(CoapConfig.MARK_AND_SWEEP_INTERVAL, TimeUnit.MILLISECONDS);
 		time.setTestTimeShift(exchangeLifetime + 1000L, TimeUnit.MILLISECONDS);
 
-		TestConditionTools.waitForCondition(exchangeLifetime, sweepInterval, TimeUnit.MILLISECONDS, new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				return deduplicator.size() == 0;
-			}
-
+		TestConditionTools.waitForCondition(exchangeLifetime, sweepInterval, TimeUnit.MILLISECONDS, () -> {
+			return deduplicator.size() == 0;
 		});
 		int sizeAfterLifetime = deduplicator.size();
 		assertThat(size + " exchanges", sizeAfterLifetime, is(0));
