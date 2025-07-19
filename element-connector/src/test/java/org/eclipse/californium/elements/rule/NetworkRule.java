@@ -24,12 +24,12 @@ import java.net.SocketException;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 import org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.config.UdpConfig;
-import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.eclipse.californium.elements.util.DirectDatagramSocketImpl;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -138,7 +138,7 @@ public class NetworkRule implements TestRule {
 	/**
 	 * Default datagram formatter.
 	 */
-	private static final DatagramFormatter DEFAULT_FORMATTER = null;
+	private static final Function<byte[], String> DEFAULT_FORMATTER = null;
 	/**
 	 * Default message processing delay.
 	 */
@@ -222,7 +222,7 @@ public class NetworkRule implements TestRule {
 	 * 
 	 * @see #DEFAULT_FORMATTER
 	 */
-	private final DatagramFormatter formatter;
+	private final Function<byte[], String> formatter;
 	/**
 	 * Number of message processing threads. Used to setup test
 	 * {@link Configuration}.
@@ -259,7 +259,7 @@ public class NetworkRule implements TestRule {
 	 * @param formatter datagram formatter to be used
 	 * @param modes supported datagram socket implementation modes.
 	 */
-	protected NetworkRule(DatagramFormatter formatter, Mode... modes) {
+	protected NetworkRule(Function<byte[], String> formatter, Mode... modes) {
 		this.supportedModes = modes;
 		this.formatter = formatter;
 		this.delayInMillis = DEFAULT_DELAY_IN_MILLIS;

@@ -55,6 +55,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import org.eclipse.californium.elements.runner.BufferedLoggingTestRunner;
 import org.slf4j.Logger;
@@ -442,7 +443,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			String destination = "";
 			if (null != currentSetup) {
 				if (null != currentSetup.formatter) {
-					content = currentSetup.formatter.format(data);
+					content = currentSetup.formatter.apply(data);
 				}
 				if (0 < currentSetup.delayInMs) {
 					delay = String.format("%dms", currentSetup.delayInMs);
@@ -590,7 +591,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * @param delayInMs delay processing of incoming message. Value in
 	 *            milliseconds. 0 for no delay.
 	 */
-	public static void configure(final DatagramFormatter formatter, final int delayInMs) {
+	public static void configure(final Function<byte[], String> formatter, final int delayInMs) {
 		setup.set(new Setup(formatter, delayInMs));
 	}
 
@@ -648,7 +649,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		/**
 		 * Datagram formatter.
 		 */
-		public final DatagramFormatter formatter;
+		public final Function<byte[], String> formatter;
 
 		/**
 		 * Delay processing of incoming message. Value in milliseconds. 0 for no
@@ -663,7 +664,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		 * @param delayInMs delay processing of incoming message. Value in
 		 *            milliseconds. 0 for no delay.
 		 */
-		public Setup(final DatagramFormatter formatter, final int delayInMs) {
+		public Setup(final Function<byte[], String> formatter, final int delayInMs) {
 			this.formatter = formatter;
 			this.delayInMs = delayInMs;
 		}
