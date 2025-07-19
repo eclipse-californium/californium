@@ -30,7 +30,7 @@ import org.eclipse.californium.core.network.Endpoint;
  * MessageInterceptors will be called by a {@link Endpoint} at specific
  * processing stage defined by the method to register it at the
  * {@link Endpoint}.
- * 
+ * <p>
  * In difference to the Californium API version 2.0.0, where such
  * MessageInterceptors are only intended to be called, when messages arrive from
  * the connector, or when a message is about to be sent over a connector, the
@@ -39,7 +39,7 @@ import org.eclipse.californium.core.network.Endpoint;
  * {@link Endpoint#addInterceptor(MessageInterceptor)} to register a interceptor
  * results in the exact same behaviour specified as the only scenario supported
  * for 2.0.0.
- * 
+ * <p>
  * The callbacks are only supported to cancel a message to stop it, if that is
  * documented at the method to register.
  * {@link Endpoint#addInterceptor(MessageInterceptor)} permits that, and
@@ -52,40 +52,52 @@ public interface MessageInterceptor {
 	 *
 	 * @param request the request
 	 */
-	void sendRequest(Request request);
+	default void sendRequest(Request request) {
+		// empty by intention
+	}
 
 	/**
 	 * Override this method to be notified when a response is send.
 	 *
 	 * @param response the response
 	 */
-	void sendResponse(Response response);
+	default void sendResponse(Response response) {
+		// empty by intention
+	}
 
 	/**
 	 * Override this method to be notified when an empty message is send.
 	 * 
 	 * @param message the empty message
 	 */
-	void sendEmptyMessage(EmptyMessage message);
+	default void sendEmptyMessage(EmptyMessage message) {
+		// empty by intention
+	}
 
 	/**
 	 * Override this method to be notified when request is received.
 	 *
 	 * @param request the request
 	 */
-	void receiveRequest(Request request);
+	default void receiveRequest(Request request) {
+		// empty by intention
+	}
 
 	/**
 	 * Override this method to be notified when response is received.
 	 *
 	 * @param response the response
 	 */
-	void receiveResponse(Response response);
+	default void receiveResponse(Response response) {
+		// empty by intention
+	}
 
 	/**
 	 * Override this method to be notified when an empty message is received.
 	 * 
 	 * @param message the message
 	 */
-	void receiveEmptyMessage(EmptyMessage message);
+	default void receiveEmptyMessage(EmptyMessage message) {
+		// empty by intention
+	}
 }

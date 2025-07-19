@@ -21,11 +21,11 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.IntendedTestException;
 
-public class ErrorInjector extends MessageInterceptorAdapter {
+public class ErrorInjector implements MessageInterceptor {
 
 	private AtomicBoolean errorOnEstablishedContext = new AtomicBoolean(false);
 	private AtomicBoolean errorOnSent = new AtomicBoolean(false);

@@ -61,7 +61,6 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
@@ -997,7 +996,7 @@ public class ObserveTest {
 		return server;
 	}
 
-	private class ClientMessageInterceptor extends MessageInterceptorAdapter {
+	private class ClientMessageInterceptor implements MessageInterceptor {
 
 		private int counter = 0; // counts the incoming responses
 
@@ -1050,7 +1049,7 @@ public class ObserveTest {
 		}
 	}
 
-	private class ServerMessageInterceptor extends MessageInterceptorAdapter {
+	private class ServerMessageInterceptor implements MessageInterceptor {
 
 		private final AtomicInteger resetCounter;
 
@@ -1074,7 +1073,7 @@ public class ObserveTest {
 		}
 	}
 
-	private class MessageObserverCounterMessageInterceptor extends MessageInterceptorAdapter {
+	private class MessageObserverCounterMessageInterceptor implements MessageInterceptor {
 
 		private int messageObserverCounter = 0;
 
