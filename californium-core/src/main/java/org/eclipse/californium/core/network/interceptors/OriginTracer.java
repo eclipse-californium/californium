@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * The gathered data is used for the Eclipse IoT metrics.
  */
-public final class OriginTracer extends MessageInterceptorAdapter {
+public final class OriginTracer implements MessageInterceptor {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(OriginTracer.class);
 

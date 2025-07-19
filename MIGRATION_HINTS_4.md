@@ -81,6 +81,8 @@ The `OptionSet` uses now instances of `Option` subclasses instead of the represe
 The `DataParser` and `DataSerializer` detect multiple ETAGs in responses and reject such
 messages.
 
+The `MessageInterceptorAdapter` has been replaced by default implementations in `MessageInterceptor`.
+
 ### Californium-Proxy2:
 
 The apache http libraries haven been update to http-client 5.4 and http-core 5.3. The previous version used a pre-processing filter to implement a generic proxy (catch all), which added the path "proxy" to the incoming request. With this update the `RequestRouter` is used and so the routing may have changed slightly according the details. The proxy handler is now called with the original path without additional "proxy".
