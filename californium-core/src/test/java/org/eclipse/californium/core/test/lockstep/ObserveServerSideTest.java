@@ -70,7 +70,6 @@ import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
-import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -743,12 +742,8 @@ public class ObserveServerSideTest {
 
 	private int waitForObservers(long timeoutMillis, final int count) throws InterruptedException {
 
-		TestConditionTools.waitForCondition(timeoutMillis, 50, TimeUnit.MILLISECONDS, new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				return testObsResource.getObserverCount() == count;
-			}
+		TestConditionTools.waitForCondition(timeoutMillis, 50, TimeUnit.MILLISECONDS, () -> {
+			return testObsResource.getObserverCount() == count;
 		});
 
 		return testObsResource.getObserverCount();

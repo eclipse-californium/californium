@@ -84,7 +84,6 @@ import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.LoggingRule;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
-import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -410,12 +409,8 @@ public class BlockwiseServerSideTest {
 
 		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
-		TestConditionTools.waitForCondition(TEST_BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS,  new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				return serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty();
-			}
+		TestConditionTools.waitForCondition(TEST_BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS,  () -> {
+			return serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty();
 		});
 
 		assertTrue(serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty());
@@ -558,12 +553,8 @@ public class BlockwiseServerSideTest {
 
 		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
-		TestConditionTools.waitForCondition(TEST_BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS,  new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				return serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty();
-			}
+		TestConditionTools.waitForCondition(TEST_BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS,  () -> {
+			return serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty();
 		});
 
 		assertTrue(serverEndpoint.getStack().getLayer(BlockwiseLayer.class).isEmpty());

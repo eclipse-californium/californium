@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -48,7 +49,6 @@ import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.IntendedTestException;
-import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,12 +79,8 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				return clientExchangeStore.isEmpty() && serverExchangeStore.isEmpty();
-			}
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, () -> {
+			return clientExchangeStore.isEmpty() && serverExchangeStore.isEmpty();
 		});
 		assertTrue("Client side message exchange store still contains exchanges", isEmptyWithDump(clientExchangeStore));
 		assertTrue("Server side message exchange store still contains exchanges", isEmptyWithDump(serverExchangeStore));
@@ -105,12 +101,8 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				return exchangeStore.isEmpty();
-			}
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, () -> {
+			return exchangeStore.isEmpty();
 		});
 		assertTrue("message exchange store still contains exchanges", isEmptyWithDump(exchangeStore));
 	}
@@ -125,13 +117,9 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.addTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				LOGGER.info("check empty {}", new Date());
-				return endpoint.isEmpty() && endpoint.getRequestChecker().allRequestsTerminated();
-			}
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, () -> {
+			LOGGER.info("check empty {}", new Date());
+			return endpoint.isEmpty() && endpoint.getRequestChecker().allRequestsTerminated();
 		});
 		assertTrue("endpoint still contains states", isEmptyWithDump(endpoint));
 		assertTrue(endpoint.getRequestChecker().getUnterminatedRequests() + " not terminated with an event",
@@ -139,7 +127,7 @@ public class MessageExchangeStoreTool {
 	}
 
 	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval,
-			TestCondition check) {
+			BooleanSupplier check) {
 		try {
 			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
 			LOGGER.info("Wait until deduplicator should be empty ({} seconds)", timeToWait / 1000f);
