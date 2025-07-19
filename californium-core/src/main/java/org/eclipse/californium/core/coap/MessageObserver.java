@@ -62,21 +62,16 @@ import org.eclipse.californium.elements.EndpointContext;
  * <li>{@link #onTransferComplete()} if transfer is successfully complete</li>
  * </ul>
  * <p>
- * The class that is interested in processing a message event either implements
- * this interface (and all the methods it contains) or extends the abstract
- * {@link MessageObserverAdapter} class (overriding only the methods of
- * interest).
- * <p>
  * The observer object created from that class is then registered with a message
  * using the message's {@link Message#addMessageObserver(MessageObserver)}
  * method.
  * <p>
- * Note: This class is unrelated to CoAP's observe relationship between an
- * endpoint and a resource. However, when a request establishes a CoAP observe
- * relationship to a resource which sends notifications, the method
+ * <b>Note:</b> This class is unrelated to CoAP's observe relationship between
+ * an endpoint and a resource. However, when a request establishes a CoAP
+ * observe relationship to a resource which sends notifications, the method
  * {@link #onResponse(Response)} can be used to react to each such notification.
  * <p>
- * Note: Due to the execution model of Californium, all callbacks must be
+ * <b>Note:</b> Due to the execution model of Californium, all callbacks must be
  * processed in a none-blocking manner. Otherwise the performance will get
  * downgraded and deadlocks are risked. The order of the callbacks is also not
  * strictly defined. Especially {@link #onSent(boolean)} may be called after
@@ -89,19 +84,25 @@ public interface MessageObserver {
 	 * 
 	 * @return {@code true}, internal, {@code false}, maybe cloned.
 	 */
-	boolean isInternal();
+	default boolean isInternal() {
+		return false;
+	}
 
 	/**
 	 * Invoked when a message is about to be re-transmitted.
 	 */
-	void onRetransmission();
+	default void onRetransmission() {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when a response arrives.
 	 * 
 	 * @param response the response that arrives
 	 */
-	void onResponse(Response response);
+	default void onResponse(Response response) {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when the message has been acknowledged by the remote endpoint.
@@ -109,12 +110,16 @@ public interface MessageObserver {
 	 * Note: since 3.0 this is only called for separate ACKs, not longer for
 	 * piggy-backed responses.
 	 */
-	void onAcknowledgement();
+	default void onAcknowledgement() {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when the message has been rejected by the remote endpoint.
 	 */
-	void onReject();
+	default void onReject() {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when the client stops retransmitting the message and still has
@@ -122,7 +127,9 @@ public interface MessageObserver {
 	 * <p>
 	 * By default this is the case after 5 unsuccessful transmission attempts.
 	 */
-	void onTimeout();
+	default void onTimeout() {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when the message has been canceled.
@@ -130,7 +137,9 @@ public interface MessageObserver {
 	 * For instance, a user might cancel a request or a CoAP resource that is
 	 * being observed might cancel a response to send another one instead.
 	 */
-	void onCancel();
+	default void onCancel() {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when the message was built and is ready to be sent.
@@ -138,13 +147,17 @@ public interface MessageObserver {
 	 * Triggered, before the message was sent by a connector. MID and token is
 	 * prepared.
 	 */
-	void onReadyToSend();
+	default void onReadyToSend() {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked, when connector requires to establish a connection before sending
 	 * the message.
 	 */
-	void onConnecting();
+	default void onConnecting() {
+		// empty by intention
+	}
 
 	/**
 	 * Indicate, that this message triggered the connector to establish a
@@ -152,20 +165,25 @@ public interface MessageObserver {
 	 * 
 	 * @param flight {@code 1 ... 6}, number of retransmitted flight.
 	 */
-	void onDtlsRetransmission(int flight);
+	default void onDtlsRetransmission(int flight) {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked right after the message has been sent.
 	 * <p>
 	 * Triggered, when the message was sent by a connector.
-	 * 
-	 * Note: the callback may occur "out of order" due the used threading!
+	 * <p>
+	 * <b>Note:</b> the callback may occur "out of order" due the used
+	 * threading!
 	 * 
 	 * @param retransmission {@code true}, if the message is sent by
 	 *            retransmission, {@code false}, if the message is sent the
 	 *            first time.
 	 */
-	void onSent(boolean retransmission);
+	default void onSent(boolean retransmission) {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when sending the message caused an error.
@@ -175,30 +193,39 @@ public interface MessageObserver {
 	 * 
 	 * @param error The cause of the failure to send the message.
 	 */
-	void onSendError(Throwable error);
+	default void onSendError(Throwable error) {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when an error happens during response handling.
 	 * 
 	 * @param cause The cause of the failure.
 	 */
-	void onResponseHandlingError(Throwable cause);
+	default void onResponseHandlingError(Throwable cause) {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked when the resulting endpoint context is reported by the connector.
-	 * 
-	 * Note: usually this callback must be processed in a synchronous manner,
-	 * because on returning, the message is sent. Therefore take special care in
-	 * methods called on this callback.
+	 * <p>
+	 * <b>Note:</b> usually this callback must be processed in a synchronous
+	 * manner, because on returning, the message is sent. Therefore take special
+	 * care in methods called on this callback.
 	 * 
 	 * @param endpointContext resulting endpoint context
 	 */
-	void onContextEstablished(EndpointContext endpointContext);
+	default void onContextEstablished(EndpointContext endpointContext) {
+		// empty by intention
+	}
 
 	/**
 	 * Invoked, when transfer is successfully complete.
 	 * 
 	 * @since 3.0 (was onComplete())
 	 */
-	void onTransferComplete();
+	default void onTransferComplete() {
+		// empty by intention
+	}
+
 }
