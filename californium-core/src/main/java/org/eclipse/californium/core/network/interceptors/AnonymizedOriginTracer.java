@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * generated at startup, the addresses will only match to the same values
  * between restarts.
  */
-public final class AnonymizedOriginTracer extends MessageInterceptorAdapter {
+public final class AnonymizedOriginTracer implements MessageInterceptor {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AnonymizedOriginTracer.class);
 	/**

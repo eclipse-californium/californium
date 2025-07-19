@@ -31,6 +31,8 @@ public interface MalformedMessageInterceptor extends MessageInterceptor {
 	 * 
 	 * @param message received malformed message.
 	 */
-	void receivedMalformedMessage(RawData message);
+	default void receivedMalformedMessage(RawData message) {
+		// empty by intention
+	}
 
 }
