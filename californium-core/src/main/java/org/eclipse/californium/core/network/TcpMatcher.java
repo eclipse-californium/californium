@@ -73,7 +73,12 @@ import org.slf4j.LoggerFactory;
 public final class TcpMatcher extends BaseMatcher {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TcpMatcher.class);
-	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
+	private final RemoveHandler exchangeRemoveHandler = (exchange, keyToken, keyMID) -> {
+		if (keyToken != null) {
+			exchangeStore.remove(keyToken, exchange);
+		}
+		// ignore key, MID is not used for TCP!
+	};
 	private final EndpointContextMatcher endpointContextMatcher;
 
 	/**
@@ -236,16 +241,5 @@ public final class TcpMatcher extends BaseMatcher {
 	private void cancel(Response response, EndpointReceiver receiver) {
 		response.setCanceled(true);
 		receiver.receiveResponse(null, response);
-	}
-
-	private class RemoveHandlerImpl implements RemoveHandler {
-
-		@Override
-		public void remove(Exchange exchange, KeyToken keyToken, KeyMID keyMID) {
-			if (keyToken != null) {
-				exchangeStore.remove(keyToken, exchange);
-			}
-			// ignore key, MID is not used for TCP!
-		}
 	}
 }

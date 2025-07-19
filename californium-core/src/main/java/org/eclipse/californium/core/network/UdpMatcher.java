@@ -87,7 +87,14 @@ public final class UdpMatcher extends BaseMatcher {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMatcher.class);
 
-	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
+	private final RemoveHandler exchangeRemoveHandler = (exchange, keyToken, keyMID) -> {
+		if (keyToken != null) {
+			exchangeStore.remove(keyToken, exchange);
+		}
+		if (keyMID != null) {
+			exchangeStore.remove(keyMID, exchange);
+		}
+	};
 	private final EndpointContextMatcher endpointContextMatcher;
 
 	/**
@@ -547,18 +554,5 @@ public final class UdpMatcher extends BaseMatcher {
 	private void cancel(EmptyMessage message, EndpointReceiver receiver) {
 		message.setCanceled(true);
 		receiver.receiveEmptyMessage(null, message);
-	}
-
-	private class RemoveHandlerImpl implements RemoveHandler {
-
-		@Override
-		public void remove(Exchange exchange, KeyToken keyToken, KeyMID keyMID) {
-			if (keyToken != null) {
-				exchangeStore.remove(keyToken, exchange);
-			}
-			if (keyMID != null) {
-				exchangeStore.remove(keyMID, exchange);
-			}
-		}
 	}
 }

@@ -67,7 +67,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.TestResource;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.UdpMatcher;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
@@ -430,7 +430,7 @@ public class BlockwiseServerSideTest {
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 32).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 32).payload(respPayload.substring(32, 64)).go();
 
-		serverEndpoint.addInterceptor(new MessageInterceptorAdapter() {
+		serverEndpoint.addInterceptor(new MessageInterceptor() {
 
 			@Override
 			public void receiveRequest(Request request) {
@@ -781,7 +781,7 @@ public class BlockwiseServerSideTest {
 
 		logging.setLoggingLevel("ERROR", UdpMatcher.class);
 
-		serverEndpoint.addInterceptor(new MessageInterceptorAdapter() {
+		serverEndpoint.addInterceptor(new MessageInterceptor() {
 
 			@Override
 			public void receiveRequest(Request request) {
