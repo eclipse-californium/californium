@@ -16,11 +16,11 @@
 package org.eclipse.californium.scandium.rule;
 
 import java.util.List;
+import java.util.function.Function;
 
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.ClockUtil;
-import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.dtls.ContentType;
@@ -52,53 +52,49 @@ public class DtlsNetworkRule extends NetworkRule {
 	/**
 	 * CoAP datagram formatter. Used for logging.
 	 */
-	private static final DatagramFormatter FORMATTER = new DatagramFormatter() {
+	private static final Function<byte[], String> FORMATTER = (data) -> {
 
-		@Override
-		public String format(byte[] data) {
-			if (null == data) {
-				return "<null>";
-			} else if (0 == data.length) {
-				return "[] (empty)";
-			}
-			try {
-				List<Record> records = DtlsTestTools.fromByteArray(data, null, ClockUtil.nanoRealtime());
-				int max = records.size();
-				StringBuilder builder = new StringBuilder();
-				for (int index = 0; index < max;) {
-					Record record = records.get(index);
-					if (max == 1) {
-						builder.append("rec(");
-					} else {
-						builder.append("rec(#").append(index).append(", ");
-					}
-					builder.append(record.getFragmentLength()).append(" bytes, ");
-					if (record.isNewClientHello()) {
-						builder.append("NEW CLIENT_HELLO");
-					} else {
-						builder.append(record.getType());
-						builder.append(", Epoch=").append(record.getEpoch());
-						builder.append(", RSeqNo=").append(record.getSequenceNumber());
-						if (record.getType() == ContentType.HANDSHAKE && record.getEpoch() == 0) {
-							byte[] fragment = record.getFragmentBytes();
-							if (fragment != null && fragment.length > 6) {
-								HandshakeType type = HandshakeType.getTypeByCode(fragment[0] & 0xff);
-								int seqn = (fragment[4] & 0xff) << 8 | (fragment[5] & 0xff);
-								builder.append(", ").append(type).append(", HSeqNo=").append(seqn);
-							}
+		if (null == data) {
+			return "<null>";
+		} else if (0 == data.length) {
+			return "[] (empty)";
+		}
+		try {
+			List<Record> records = DtlsTestTools.fromByteArray(data, null, ClockUtil.nanoRealtime());
+			int max = records.size();
+			StringBuilder builder = new StringBuilder();
+			for (int index = 0; index < max;) {
+				Record record = records.get(index);
+				if (max == 1) {
+					builder.append("rec(");
+				} else {
+					builder.append("rec(#").append(index).append(", ");
+				}
+				builder.append(record.getFragmentLength()).append(" bytes, ");
+				if (record.isNewClientHello()) {
+					builder.append("NEW CLIENT_HELLO");
+				} else {
+					builder.append(record.getType());
+					builder.append(", Epoch=").append(record.getEpoch());
+					builder.append(", RSeqNo=").append(record.getSequenceNumber());
+					if (record.getType() == ContentType.HANDSHAKE && record.getEpoch() == 0) {
+						byte[] fragment = record.getFragmentBytes();
+						if (fragment != null && fragment.length > 6) {
+							HandshakeType type = HandshakeType.getTypeByCode(fragment[0] & 0xff);
+							int seqn = (fragment[4] & 0xff) << 8 | (fragment[5] & 0xff);
+							builder.append(", ").append(type).append(", HSeqNo=").append(seqn);
 						}
 					}
-					builder.append(")");
-					if (++index < max) {
-						builder.append(",");
-					}
 				}
-				return builder.toString();
-			} catch (RuntimeException ex) {
-				return "decode " + data.length + " received bytes with " + ex.getMessage();
+				builder.append(")");
+				if (++index < max) {
+					builder.append(",");
+				}
 			}
+			return builder.toString();
+		} catch (RuntimeException ex) {
+			return "decode " + data.length + " received bytes with " + ex.getMessage();
 		}
-
 	};
 
 	/**

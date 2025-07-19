@@ -15,7 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.integration.test.util;
 
-import org.eclipse.californium.elements.util.DatagramFormatter;
+import java.util.function.Function;
+
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public class CoapsNetworkRule extends CoapNetworkRule {
 	/**
 	 * Null formatter, data is encrypted, so nothign useful for logging.
 	 */
-	private static final DatagramFormatter NO_FORMATTER = null;
+	private static final Function<byte[], String> NO_FORMATTER = null;
 
 	/**
 	 * Create rule supporting provided modes.
