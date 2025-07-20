@@ -188,6 +188,8 @@ The `DataParser.createOption(int code, int optionNumber, DatagramReader reader, 
 
 Move `CoapExchange` from package `org.eclipse.californium.core.server.resources` into package `org.eclipse.californium.core`.
 
+Replace `ObserveRelationFilter` by `Predicate<ObserveRelation>`.
+
 ### Californium-Proxy2:
 
 Rename `HttpServer.registerVirtual` into `register`.
