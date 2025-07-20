@@ -69,24 +69,19 @@ public class BasicForwardingProxy2 {
 	/**
 	 * Special configuration defaults handler.
 	 */
-	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			config.set(CoapConfig.MAX_ACTIVE_PEERS, 20000);
-			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
-			config.set(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, 10, TimeUnit.SECONDS); // 10s
-			config.set(Proxy2Config.HTTP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS); // 15s
-			config.set(Proxy2Config.HTTPS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS); // 30s
-			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
-			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
-		}
-
+	private static final DefinitionsProvider DEFAULTS = (config) -> {
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, 20000);
+		config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+		config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+		config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
+		config.set(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, 10, TimeUnit.SECONDS); // 10s
+		config.set(Proxy2Config.HTTP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS); // 15s
+		config.set(Proxy2Config.HTTPS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS); // 30s
+		config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
+		config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
+		config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
 	};
 
 	private static final String COAP2HTTP = "coap2http";

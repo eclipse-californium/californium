@@ -50,7 +50,6 @@ import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.TcpConfig;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.exception.ConnectorException;
@@ -109,16 +108,12 @@ public class ReceivetestClient {
 
 	}
 
-	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
-			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
-		}
+	private static DefinitionsProvider DEFAULTS = (config) -> {
+		config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+		config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+		config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
 	};
 
 	/**

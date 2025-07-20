@@ -67,13 +67,9 @@ public class ExampleCoapServer {
 	/**
 	 * Special configuration defaults handler.
 	 */
-	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			config.set(CoapConfig.COAP_PORT, DEFAULT_COAP_PORT);
-			config.set(CoapConfig.COAP_SECURE_PORT, DEFAULT_COAP_SECURE_PORT);
-		}
+	private static final DefinitionsProvider DEFAULTS = (config) -> {
+		config.set(CoapConfig.COAP_PORT, DEFAULT_COAP_PORT);
+		config.set(CoapConfig.COAP_SECURE_PORT, DEFAULT_COAP_SECURE_PORT);
 	};
 
 	private CoapServer coapServer;

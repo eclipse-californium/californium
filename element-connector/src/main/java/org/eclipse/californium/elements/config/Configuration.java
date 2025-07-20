@@ -219,14 +219,10 @@ import org.slf4j.LoggerFactory;
  * 
  * <pre>
  * <code>
- * private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
- * 
- * 		&#064;Override
- * 		public void applyDefinitions(Configuration config) {
- * 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 100);
- * 			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);
- * 			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
- * 		}
+ * private static DefinitionsProvider DEFAULTS = (config) -> {
+ * 		config.set(CoapConfig.MAX_ACTIVE_PEERS, 100);
+ * 		config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);
+ * 		config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
  * };
  * 
  * Configuration config = Configuration.createWithFile(new File("My3.properties"), "My properties", DEFAULTS);
@@ -297,14 +293,10 @@ public final class Configuration {
 		 * 
 		 * <pre>
 		 * <code>
-		 * private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-		 * 
-		 * 		&#064;Override
-		 * 		public void applyDefinitions(Configuration config) {
-		 * 			config.set(CoapConfig.MAX_ACTIVE_PEERS, 100);
-		 * 			config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);
-		 * 			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
-		 * 		}
+		 * private static DefinitionsProvider DEFAULTS = (config) -> {
+		 * 		config.set(CoapConfig.MAX_ACTIVE_PEERS, 100);
+		 * 		config.set(CoapConfig.PROTOCOL_STAGE_THREAD_COUNT, 2);
+		 * 		config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
 		 * };
 		 * 
 		 * Configuration config = Configuration.createWithFile(new File("My3.properties"), "My properties", DEFAULTS);

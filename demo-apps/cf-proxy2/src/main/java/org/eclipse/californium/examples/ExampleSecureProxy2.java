@@ -106,31 +106,26 @@ public class ExampleSecureProxy2 {
 	/**
 	 * Special configuration defaults handler.
 	 */
-	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			config.set(CoapConfig.MAX_ACTIVE_PEERS, 20000);
-			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
-			config.set(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, 10, TimeUnit.SECONDS);
-			config.set(Proxy2Config.HTTP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS);
-			config.set(Proxy2Config.HTTPS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
-			config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
-			config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
-			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 8192);
-			config.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, 8192);
-			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
-			config.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 1);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
-			config.set(OUTGOING_MAX_ACTIVE_PEERS, 32);
-			config.set(OUTGOING_DTLS_MAX_CONNECTIONS, 32);
-			config.set(MAX_CONNECTION_POOL_SIZE, 1000);
-			config.set(INIT_CONNECTION_POOL_SIZE, 250);
-		}
-
+	private static final DefinitionsProvider DEFAULTS = (config) -> {
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, 20000);
+		config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+		config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 24, TimeUnit.HOURS);
+		config.set(Proxy2Config.HTTP_CONNECTION_IDLE_TIMEOUT, 10, TimeUnit.SECONDS);
+		config.set(Proxy2Config.HTTP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS);
+		config.set(Proxy2Config.HTTPS_HANDSHAKE_TIMEOUT, 30, TimeUnit.SECONDS);
+		config.set(UdpConfig.UDP_RECEIVE_BUFFER_SIZE, 8192);
+		config.set(UdpConfig.UDP_SEND_BUFFER_SIZE, 8192);
+		config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 8192);
+		config.set(DtlsConfig.DTLS_SEND_BUFFER_SIZE, 8192);
+		config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 1);
+		config.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 1);
+		config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
+		config.set(OUTGOING_MAX_ACTIVE_PEERS, 32);
+		config.set(OUTGOING_DTLS_MAX_CONNECTIONS, 32);
+		config.set(MAX_CONNECTION_POOL_SIZE, 1000);
+		config.set(INIT_CONNECTION_POOL_SIZE, 250);
 	};
 
 	private static final String COAP2COAP = "coap2coap";

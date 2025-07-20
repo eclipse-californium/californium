@@ -73,15 +73,10 @@ public class ExampleDTLSClient {
 	/**
 	 * Special configuration defaults handler.
 	 */
-	private static final DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0);
-			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2);
-			config.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
-		}
-
+	private static final DefinitionsProvider DEFAULTS = (config) -> {
+		config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0);
+		config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, 2);
+		config.set(DtlsConfig.DTLS_CONNECTOR_THREAD_COUNT, 2);
 	};
 
 	private DTLSConnector dtlsConnector;

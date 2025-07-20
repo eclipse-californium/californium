@@ -44,7 +44,6 @@ import org.eclipse.californium.core.config.CoapConfig.MatcherMode;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.HashMapCtxDB;
@@ -70,24 +69,19 @@ public class PlugtestChecker {
 	private static final int DEFAULT_BLOCK_SIZE = 64;
 	public static final int PLUGTEST_BLOCK_SZX = 2; // 64 bytes
 
-	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			// adjust defaults for plugtest
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
-			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
-			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
-			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
-			config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
-			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
-			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
-		}
-
+	private static DefinitionsProvider DEFAULTS = (config) -> {
+		// adjust defaults for plugtest
+		config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
+		config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+		config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
+		config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+		config.set(CoapConfig.TCP_NUMBER_OF_BULK_BLOCKS, 1);
+		config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+		config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+		config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 10);
 	};
 
 	static volatile boolean verbose;

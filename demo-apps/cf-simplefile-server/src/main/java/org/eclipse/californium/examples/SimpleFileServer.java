@@ -70,18 +70,14 @@ public class SimpleFileServer extends AbstractTestServer {
 		TcpConfig.register();
 	}
 
-	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setTransient(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE);
-			config.setTransient(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE);
-			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
-			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
-		}
+	private static DefinitionsProvider DEFAULTS = (config) -> {
+		config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+		config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		config.setTransient(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE);
+		config.setTransient(TcpConfig.TLS_CLIENT_AUTHENTICATION_MODE);
+		config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
+		config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
 	};
 
 	private static final String DEFAULT_PATH = "data";

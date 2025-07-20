@@ -133,49 +133,44 @@ public class ExtendedTestServer extends AbstractTestServer {
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
 	private static final long MEGA = 1024 * 1024L;
 
-	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			// start on alternative port, 5783 and 5784
-			int processors = Runtime.getRuntime().availableProcessors();
-			config.set(DTLS_HANDSHAKE_RESULT_DELAY, 0, TimeUnit.MILLISECONDS);
-			config.set(CoapConfig.COAP_PORT, CoapConfig.COAP_PORT.getDefaultValue() + 100);
-			config.set(CoapConfig.COAP_SECURE_PORT, CoapConfig.COAP_SECURE_PORT.getDefaultValue() + 100);
-			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
-			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.set(CoapConfig.MAX_ACTIVE_PEERS, 1000000);
-			config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 3, TimeUnit.MINUTES);
-			config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
-			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1000000);
-			config.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 3, TimeUnit.MINUTES);
-			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
-			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
-			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PlugtestServer.PRESELECTED_CIPHER_SUITES);
-			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 1000000);
-			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
-			config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, true);
-			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, 4, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD, 8);
-			config.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 3, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 8, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
-			config.set(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 15, TimeUnit.SECONDS);
-			config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS);
-			config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 60, TimeUnit.MINUTES);
-			config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
-			config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
-			config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, processors > 3 ? processors : 2);
-			config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
-			config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
-			config.set(UDP_DROPS_READ_INTERVAL, 2000, TimeUnit.MILLISECONDS);
-		}
-
+	private static DefinitionsProvider DEFAULTS = (config) -> {
+		// start on alternative port, 5783 and 5784
+		int processors = Runtime.getRuntime().availableProcessors();
+		config.set(DTLS_HANDSHAKE_RESULT_DELAY, 0, TimeUnit.MILLISECONDS);
+		config.set(CoapConfig.COAP_PORT, CoapConfig.COAP_PORT.getDefaultValue() + 100);
+		config.set(CoapConfig.COAP_SECURE_PORT, CoapConfig.COAP_SECURE_PORT.getDefaultValue() + 100);
+		config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+		config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
+		config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, 1000000);
+		config.set(CoapConfig.MAX_PEER_INACTIVITY_PERIOD, 3, TimeUnit.MINUTES);
+		config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
+		config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, 1000000);
+		config.set(DtlsConfig.DTLS_STALE_CONNECTION_THRESHOLD, 3, TimeUnit.MINUTES);
+		config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+		config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+		config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
+		config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PlugtestServer.PRESELECTED_CIPHER_SUITES);
+		config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 1000000);
+		config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
+		config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, true);
+		config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, 4, TimeUnit.SECONDS);
+		config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD, 8);
+		config.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 3, TimeUnit.SECONDS);
+		config.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 8, TimeUnit.SECONDS);
+		config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+		config.set(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 15, TimeUnit.SECONDS);
+		config.set(TcpConfig.TCP_CONNECT_TIMEOUT, 15, TimeUnit.SECONDS);
+		config.set(TcpConfig.TCP_CONNECTION_IDLE_TIMEOUT, 60, TimeUnit.MINUTES);
+		config.set(TcpConfig.TLS_HANDSHAKE_TIMEOUT, 60, TimeUnit.SECONDS);
+		config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 60, TimeUnit.SECONDS);
+		config.set(UdpConfig.UDP_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
+		config.set(UdpConfig.UDP_SENDER_THREAD_COUNT, processors > 3 ? processors : 2);
+		config.set(EXTERNAL_UDP_MAX_MESSAGE_SIZE, 64);
+		config.set(EXTERNAL_UDP_PREFERRED_BLOCK_SIZE, 64);
+		config.set(UDP_DROPS_READ_INTERVAL, 2000, TimeUnit.MILLISECONDS);
 	};
 
 	@Command(name = "ExtendedTestServer", version = "(c) 2017-2020, Bosch.IO GmbH and others.")

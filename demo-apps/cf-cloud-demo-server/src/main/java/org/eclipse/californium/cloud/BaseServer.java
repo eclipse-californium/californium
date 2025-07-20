@@ -187,41 +187,37 @@ public class BaseServer extends CoapServer {
 	 * 
 	 * @see Configuration#createWithFile(File, String, DefinitionsProvider)
 	 */
-	public static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			int processors = Runtime.getRuntime().availableProcessors();
-			config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
-			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
-			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
-			config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
-			config.set(CoapConfig.MAX_ACTIVE_PEERS, DEFAULT_MAX_CONNECTIONS);
-			config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
-			config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
-			config.set(CoapConfig.ACK_TIMEOUT, 2500, TimeUnit.MILLISECONDS);
-			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY);
-			config.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 2500, TimeUnit.MILLISECONDS);
-			config.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 8, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
-			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PRESELECTED_CIPHER_SUITES);
-			config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, DEFAULT_MAX_CONNECTIONS);
-			config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, true);
-			config.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
-			config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 1000000);
-			config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
-			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, 4, TimeUnit.SECONDS);
-			config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD, 8);
-			config.set(UDP_DROPS_READ_INTERVAL, 2000, TimeUnit.MILLISECONDS);
-			config.set(CACHE_MAX_DEVICES, 5000);
-			config.set(CACHE_STALE_DEVICE_THRESHOLD, 24, TimeUnit.HOURS);
-			config.set(HTTPS_CREDENTIALS_RELOAD_INTERVAL, 30, TimeUnit.MINUTES);
-			config.set(DEVICE_CREDENTIALS_RELOAD_INTERVAL, 30, TimeUnit.SECONDS);
-		}
+	public static DefinitionsProvider DEFAULTS = (config) -> {
+		int processors = Runtime.getRuntime().availableProcessors();
+		config.set(SystemConfig.HEALTH_STATUS_INTERVAL, 300, TimeUnit.SECONDS);
+		config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+		config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
+		config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
+		config.set(CoapConfig.NOTIFICATION_CHECK_INTERVAL_TIME, 30, TimeUnit.SECONDS);
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, DEFAULT_MAX_CONNECTIONS);
+		config.set(CoapConfig.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
+		config.set(CoapConfig.DEDUPLICATOR, CoapConfig.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+		config.set(CoapConfig.RESPONSE_MATCHING, MatcherMode.PRINCIPAL_IDENTITY);
+		config.set(CoapConfig.ACK_TIMEOUT, 2500, TimeUnit.MILLISECONDS);
+		config.set(DtlsConfig.DTLS_ROLE, DtlsRole.SERVER_ONLY);
+		config.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 2500, TimeUnit.MILLISECONDS);
+		config.set(DtlsConfig.DTLS_ADDITIONAL_ECC_TIMEOUT, 8, TimeUnit.SECONDS);
+		config.set(DtlsConfig.DTLS_AUTO_HANDSHAKE_TIMEOUT, null, TimeUnit.SECONDS);
+		config.set(DtlsConfig.DTLS_CONNECTION_ID_LENGTH, 6);
+		config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, PRESELECTED_CIPHER_SUITES);
+		config.set(DtlsConfig.DTLS_MAX_CONNECTIONS, DEFAULT_MAX_CONNECTIONS);
+		config.set(DtlsConfig.DTLS_REMOVE_STALE_DOUBLE_PRINCIPALS, true);
+		config.set(DtlsConfig.DTLS_SERVER_USE_SESSION_ID, false);
+		config.set(DtlsConfig.DTLS_RECEIVE_BUFFER_SIZE, 1000000);
+		config.set(DtlsConfig.DTLS_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
+		config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_QUIET_TIME, 4, TimeUnit.SECONDS);
+		config.set(DtlsConfig.DTLS_MAC_ERROR_FILTER_THRESHOLD, 8);
+		config.set(UDP_DROPS_READ_INTERVAL, 2000, TimeUnit.MILLISECONDS);
+		config.set(CACHE_MAX_DEVICES, 5000);
+		config.set(CACHE_STALE_DEVICE_THRESHOLD, 24, TimeUnit.HOURS);
+		config.set(HTTPS_CREDENTIALS_RELOAD_INTERVAL, 30, TimeUnit.MINUTES);
+		config.set(DEVICE_CREDENTIALS_RELOAD_INTERVAL, 30, TimeUnit.SECONDS);
 	};
 
 	public static class ServerConfig {

@@ -469,15 +469,11 @@ public class ConnectorConfig implements Cloneable {
 		CoapConfig.register();
 		UdpConfig.register();
 		DtlsConfig.register();
-		DefinitionsProvider provider = new DefinitionsProvider() {
-
-			@Override
-			public void applyDefinitions(Configuration config) {
-				config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
-				config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
-				if (customConfigurationDefaultsProvider != null) {
-					customConfigurationDefaultsProvider.applyDefinitions(config);
-				}
+		DefinitionsProvider provider = (config) -> {
+			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+			if (customConfigurationDefaultsProvider != null) {
+				customConfigurationDefaultsProvider.applyDefinitions(config);
 			}
 		};
 		configuration = Configuration.createWithFile(configurationFile, configurationHeader, provider);
