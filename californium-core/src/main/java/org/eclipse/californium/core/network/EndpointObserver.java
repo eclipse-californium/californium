@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-
 /**
  * An EndpointObserver registers on an endpoint to be notified when the endpoint
  * starts, stops or destroys itself.
@@ -31,20 +30,26 @@ public interface EndpointObserver {
 	 *
 	 * @param endpoint the endpoint
 	 */
-	public void started(Endpoint endpoint);
-	
+	default public void started(Endpoint endpoint) {
+		// empty by intention
+	}
+
 	/**
 	 * This method is called when the endpoint stops.
 	 *
 	 * @param endpoint the endpoint
 	 */
-	public void stopped(Endpoint endpoint);
-	
+	default public void stopped(Endpoint endpoint) {
+		// empty by intention
+	}
+
 	/**
 	 * This method is called when the endpoint is being destroyed.
 	 *
 	 * @param endpoint the endpoint
 	 */
-	public void destroyed(Endpoint endpoint);
-	
+	default public void destroyed(Endpoint endpoint) {
+		// empty by intention
+	}
+
 }

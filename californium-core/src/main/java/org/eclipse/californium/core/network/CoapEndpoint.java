@@ -474,16 +474,6 @@ public class CoapEndpoint implements Endpoint, Executor {
 			addObserver(new EndpointObserver() {
 
 				@Override
-				public void started(final Endpoint endpoint) {
-					// do nothing
-				}
-
-				@Override
-				public void stopped(final Endpoint endpoint) {
-					// do nothing
-				}
-
-				@Override
 				public void destroyed(final Endpoint endpoint) {
 					ExecutorsUtil.shutdownExecutorGracefully(1000, executorService);
 				}
