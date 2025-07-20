@@ -86,6 +86,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -119,7 +120,6 @@ import org.eclipse.californium.core.network.stack.ExchangeCleanupLayer;
 import org.eclipse.californium.core.network.stack.ObserveLayer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
@@ -299,7 +299,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 	private List<MalformedMessageInterceptor> malformedMessageCounters = new CopyOnWriteArrayList<>();
 
 	/** The list of Notification listener (use for CoAP observer relations) */
-	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
+	private List<BiConsumer<Request, Response> > notificationListeners = new CopyOnWriteArrayList<>();
 
 	private ScheduledFuture<?> statusLogger;
 
@@ -565,12 +565,12 @@ public class CoapEndpoint implements Endpoint, Executor {
 	}
 
 	@Override
-	public void addNotificationListener(final NotificationListener listener) {
+	public void addNotificationListener(final BiConsumer<Request, Response>  listener) {
 		notificationListeners.add(listener);
 	}
 
 	@Override
-	public void removeNotificationListener(final NotificationListener listener) {
+	public void removeNotificationListener(final BiConsumer<Request, Response>  listener) {
 		notificationListeners.remove(listener);
 	}
 
@@ -788,16 +788,16 @@ public class CoapEndpoint implements Endpoint, Executor {
 		return connector;
 	}
 
-	private class NotificationDispatcher implements NotificationListener {
+	private class NotificationDispatcher implements BiConsumer<Request, Response> {
 
 		@Override
-		public void onNotification(final Request request, final Response response) {
+		public void accept(final Request request, final Response response) {
 
 			// we can rely on the fact that the CopyOnWriteArrayList just
 			// provides a
 			// "snapshot" iterator over the notification listeners
-			for (NotificationListener notificationListener : notificationListeners) {
-				notificationListener.onNotification(request, response);
+			for (BiConsumer<Request, Response>  notificationListener : notificationListeners) {
+				notificationListener.accept(request, response);
 			}
 		}
 	}

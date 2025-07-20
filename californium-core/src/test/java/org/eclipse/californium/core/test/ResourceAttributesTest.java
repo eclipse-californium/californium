@@ -25,6 +25,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -37,7 +38,6 @@ import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -177,11 +177,11 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public void addNotificationListener(NotificationListener listener) {
+		public void addNotificationListener(BiConsumer<Request, Response> listener) {
 		}
 
 		@Override
-		public void removeNotificationListener(NotificationListener lis) {
+		public void removeNotificationListener(BiConsumer<Request, Response> lis) {
 		}
 
 		@Override

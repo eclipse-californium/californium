@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
@@ -32,7 +33,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.stack.CoapStack;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
@@ -137,7 +137,7 @@ public interface Endpoint {
 	 * 
 	 * @param listener the listener
 	 */
-	void addNotificationListener(NotificationListener listener);
+	void addNotificationListener(BiConsumer<Request, Response> listener);
 
 	/**
 	 * Removes a listener for observe notification. This is related to CoAP
@@ -145,7 +145,7 @@ public interface Endpoint {
 	 * 
 	 * @param listener the listener
 	 */
-	void removeNotificationListener(NotificationListener listener);
+	void removeNotificationListener(BiConsumer<Request, Response> listener);
 
 	/**
 	 * Adds a message interceptor to this endpoint to be called, when messages

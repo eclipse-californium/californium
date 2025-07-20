@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
@@ -48,7 +49,6 @@ import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
@@ -91,7 +91,7 @@ import org.slf4j.LoggerFactory;
  * client. "feed-CON" resource will send notifies using CON, "feed-NON" using
  * NON)
  */
-public class ReverseObserve extends CoapResource implements NotificationListener {
+public class ReverseObserve extends CoapResource implements BiConsumer<Request, Response> {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseObserve.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
@@ -242,7 +242,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	}
 
 	@Override
-	public void onNotification(Request request, Response response) {
+	public void accept(Request request, Response response) {
 		overallNotifies.incrementAndGet();
 		Token token = response.getToken();
 		Observation observation = observesByToken.get(token);

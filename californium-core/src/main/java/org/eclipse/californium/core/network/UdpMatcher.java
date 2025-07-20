@@ -61,6 +61,7 @@ package org.eclipse.californium.core.network;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -69,7 +70,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
@@ -115,7 +115,7 @@ public final class UdpMatcher extends BaseMatcher {
 	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @since 3.0 (changed parameter to Configuration)
 	 */
-	public UdpMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+	public UdpMatcher(Configuration config, BiConsumer<Request, Response> notificationListener, TokenGenerator tokenGenerator,
 			ObservationStore observationStore, MessageExchangeStore exchangeStore, Executor executor,
 			EndpointContextMatcher matchingStrategy) {
 		super(config, notificationListener, tokenGenerator, observationStore, exchangeStore, matchingStrategy, executor);

@@ -33,11 +33,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
+import java.util.function.BiConsumer;
+
 import org.eclipse.californium.core.coap.ClientObserveRelation;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.observe.NotificationListener;
 
 /**
  * A CoapObserveRelation is a client-side control handle. It represents a CoAP
@@ -50,7 +51,7 @@ public class CoapObserveRelation extends ClientObserveRelation {
 	/** The current notification. */
 	private volatile CoapResponse current = null;
 
-	private volatile NotificationListener notificationListener;
+	private volatile BiConsumer<Request, Response> notificationListener;
 
 	/**
 	 * Constructs a new CoapObserveRelation with the specified request.
@@ -114,7 +115,7 @@ public class CoapObserveRelation extends ClientObserveRelation {
 		}
 	}
 
-	public void setNotificationListener(NotificationListener listener) {
+	public void setNotificationListener(BiConsumer<Request, Response>  listener) {
 		notificationListener = listener;
 	}
 

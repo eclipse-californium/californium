@@ -66,6 +66,7 @@ package org.eclipse.californium.core.network;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -73,7 +74,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
@@ -95,7 +95,7 @@ public abstract class BaseMatcher implements Matcher {
 	protected final TokenGenerator tokenGenerator;
 	protected final Executor executor;
 	protected boolean running = false;
-	private final NotificationListener notificationListener;
+	private final BiConsumer<Request, Response> notificationListener;
 	private final EndpointIdentityResolver identityResolver;
 
 	/**
@@ -115,7 +115,7 @@ public abstract class BaseMatcher implements Matcher {
 	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @since 3.0 (changed parameter to Configuration, added EndpointIdentityResolver)
 	 */
-	public BaseMatcher(Configuration config, NotificationListener notificationListener, TokenGenerator tokenGenerator,
+	public BaseMatcher(Configuration config, BiConsumer<Request, Response> notificationListener, TokenGenerator tokenGenerator,
 			ObservationStore observationStore, MessageExchangeStore exchangeStore,
 			EndpointIdentityResolver identityResolver, Executor executor) {
 		if (config == null) {
@@ -247,7 +247,7 @@ public abstract class BaseMatcher implements Matcher {
 					@Override
 					public void onResponse(Response response) {
 						try {
-							notificationListener.onNotification(request, response);
+							notificationListener.accept(request, response);
 						} finally {
 							if (!response.isNotification()) {
 								// Observe response received with no observe
