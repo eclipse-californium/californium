@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -66,7 +67,6 @@ import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.observe.ObservationStoreException;
 import org.eclipse.californium.core.observe.ObservationUtil;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.config.Configuration;

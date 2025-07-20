@@ -29,12 +29,12 @@ import static org.junit.Assert.assertNull;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
 import org.eclipse.californium.elements.category.Medium;

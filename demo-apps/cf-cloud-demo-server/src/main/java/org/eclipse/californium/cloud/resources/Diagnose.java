@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.cloud.EndpointNetSocketObserver;
 import org.eclipse.californium.cloud.util.PrincipalInfo.Type;
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -44,7 +45,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.ServerInterface;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.util.ClockUtil;

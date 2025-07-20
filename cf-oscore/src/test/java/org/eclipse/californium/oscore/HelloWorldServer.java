@@ -16,10 +16,10 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
 
 /**

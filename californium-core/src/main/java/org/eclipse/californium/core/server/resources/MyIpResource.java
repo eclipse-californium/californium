@@ -25,6 +25,7 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;

@@ -25,6 +25,7 @@ package org.eclipse.californium.core.server.resources;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.WebLink;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
