@@ -24,6 +24,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.WebLink;
@@ -42,7 +43,6 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -347,7 +347,7 @@ public abstract class TestClientAbstract {
 	 * Notification listener forwarding notifies as response. Backwards
 	 * compatibility to 1.0.0 notification implementation.
 	 */
-	protected class TestNotificationListener implements NotificationListener {
+	protected class TestNotificationListener implements BiConsumer<Request, Response> {
 
 		private Endpoint endpoint;
 
@@ -356,7 +356,7 @@ public abstract class TestClientAbstract {
 		}
 
 		@Override
-		public void onNotification(Request request, Response response) {
+		public void accept(Request request, Response response) {
 			Request origin = observe;
 			if (origin != null && origin.getToken().equals(response.getToken())) {
 				synchronized (notification) {

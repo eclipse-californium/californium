@@ -19,14 +19,14 @@ package org.eclipse.californium.core.test.lockstep;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SynchronousNotificationListener implements NotificationListener {
+public class SynchronousNotificationListener implements BiConsumer<Request, Response> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(SynchronousNotificationListener.class);
 
 	private final Request request; // request to listen
@@ -63,7 +63,7 @@ public class SynchronousNotificationListener implements NotificationListener {
 	}
 
 	@Override
-	public void onNotification(final Request req, final Response resp) {
+	public void accept(final Request req, final Response resp) {
 		if (request == null || request.getToken().equals(req.getToken())) {
 			synchronized (lock) {
 				notifies.add(resp);

@@ -54,6 +54,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -68,7 +69,6 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -1501,7 +1501,7 @@ public class CoapClient {
 					relation);
 			request.addMessageObserver(messageObserver);
 			// add notification listener to all notification
-			NotificationListener notificationListener = new Adapter(messageObserver, relation);
+			BiConsumer<Request, Response>  notificationListener = new Adapter(messageObserver, relation);
 			outEndpoint.addNotificationListener(notificationListener);
 			// relation should remove this listener when the request is
 			// cancelled
@@ -1540,7 +1540,7 @@ public class CoapClient {
 					relation);
 			request.addMessageObserver(messageObserver);
 			// add notification listener to all notification
-			NotificationListener notificationListener = new Adapter(messageObserver, relation);
+			BiConsumer<Request, Response>  notificationListener = new Adapter(messageObserver, relation);
 			outEndpoint.addNotificationListener(notificationListener);
 			// relation should remove this listener when the request is
 			// cancelled
@@ -1714,7 +1714,7 @@ public class CoapClient {
 	/*
 	 * Adapt MessageObserver for a given request in NotificationListener
 	 */
-	private class Adapter implements NotificationListener {
+	private class Adapter implements BiConsumer<Request, Response>  {
 
 		private final MessageObserver observer;
 		private final CoapObserveRelation relation;
@@ -1725,7 +1725,7 @@ public class CoapClient {
 		}
 
 		@Override
-		public void onNotification(Request request, Response response) {
+		public void accept(Request request, Response response) {
 			if (relation.matchRequest(request)) {
 				observer.onResponse(response);
 			}

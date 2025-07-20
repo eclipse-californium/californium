@@ -190,6 +190,8 @@ Move `CoapExchange` from package `org.eclipse.californium.core.server.resources`
 
 Replace `ObserveRelationFilter` by `Predicate<ObserveRelation>`.
 
+Replace `NotificationListener` by `BiConsumer<Request, Response>`.
+
 ### Californium-Proxy2:
 
 Rename `HttpServer.registerVirtual` into `register`.

@@ -21,6 +21,7 @@ package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.BiConsumer;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -29,7 +30,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
-import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
@@ -49,13 +49,7 @@ public final class MatcherTestUtils {
 	private MatcherTestUtils() {
 	}
 
-	private static final NotificationListener notificationListener = new NotificationListener() {
-
-		@Override
-		public void onNotification(Request request, Response response) {
-		}
-		
-	};
+	private static final BiConsumer<Request, Response> notificationListener = (req,resp) -> {};
 
 	static ScheduledExecutorService newScheduler() {
 		return ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("MatcherTest-"));
