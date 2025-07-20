@@ -18,13 +18,12 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - apply source formatter
  ******************************************************************************/
-package org.eclipse.californium.core.server.resources;
+package org.eclipse.californium.core;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
-import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.option.NoResponseOption;
@@ -45,6 +44,8 @@ import org.eclipse.californium.elements.UdpMulticastConnector;
  * The Class CoapExchange represents an exchange of a CoAP request and response
  * and provides a user-friendly API to subclasses of {@link CoapResource} for
  * responding to requests.
+ * 
+ * @since 4.0 (moved from org.eclipse.californium.core.server.resources)
  */
 public class CoapExchange {
 

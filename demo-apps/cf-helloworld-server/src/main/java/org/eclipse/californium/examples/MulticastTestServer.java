@@ -27,13 +27,13 @@ import java.net.UnknownHostException;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.MyIpResource;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;

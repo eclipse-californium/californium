@@ -22,9 +22,9 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_OCTET_STREAM;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 
 /**
  * This resource implements a simple test for hono clients.

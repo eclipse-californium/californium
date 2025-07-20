@@ -27,6 +27,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -34,7 +35,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.SystemConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;

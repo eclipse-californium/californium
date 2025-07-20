@@ -34,6 +34,7 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
@@ -41,7 +42,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
 import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.config.Configuration;

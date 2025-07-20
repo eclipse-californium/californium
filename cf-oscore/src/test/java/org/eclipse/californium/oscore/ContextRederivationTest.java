@@ -25,6 +25,7 @@ import java.util.Arrays;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
@@ -36,7 +37,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.elements.EndpointContext;

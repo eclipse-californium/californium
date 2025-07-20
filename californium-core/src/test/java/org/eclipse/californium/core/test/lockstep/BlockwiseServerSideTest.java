@@ -60,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
@@ -71,7 +72,6 @@ import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;

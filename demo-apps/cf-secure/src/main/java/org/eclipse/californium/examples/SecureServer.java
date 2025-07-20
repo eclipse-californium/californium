@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -30,7 +31,6 @@ import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;

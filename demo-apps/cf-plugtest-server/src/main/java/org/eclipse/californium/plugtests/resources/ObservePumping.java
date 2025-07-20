@@ -21,9 +21,9 @@ import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;

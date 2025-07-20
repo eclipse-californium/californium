@@ -33,13 +33,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.util.FilteredLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

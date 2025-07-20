@@ -186,6 +186,8 @@ The `assertValidOptions` function of `DataParser` and `DataSerializer` uses now 
 
 The `DataParser.createOption(int code, int optionNumber, DatagramReader reader, int length)` uses now a reader and length instead of a temporary byte array copy of the value.
 
+Move `CoapExchange` from package `org.eclipse.californium.core.server.resources` into package `org.eclipse.californium.core`.
+
 ### Californium-Proxy2:
 
 Rename `HttpServer.registerVirtual` into `register`.

@@ -29,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
@@ -41,7 +42,6 @@ import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;

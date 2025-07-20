@@ -18,10 +18,10 @@ package org.eclipse.californium.plugtests.resources;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import org.eclipse.californium.core.CoapExchange;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
