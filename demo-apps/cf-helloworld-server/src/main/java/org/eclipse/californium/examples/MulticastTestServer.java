@@ -63,13 +63,8 @@ public class MulticastTestServer {
 	/**
 	 * Special configuration defaults handler.
 	 */
-	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			config.set(CoapConfig.LEISURE, 2, TimeUnit.SECONDS);
-		}
-
+	private static DefinitionsProvider DEFAULTS = (config) -> {
+		config.set(CoapConfig.LEISURE, 2, TimeUnit.SECONDS);
 	};
 
 	public static void main(String[] args) throws UnknownHostException {

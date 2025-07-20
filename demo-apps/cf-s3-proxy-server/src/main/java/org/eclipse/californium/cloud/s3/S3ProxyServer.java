@@ -417,19 +417,15 @@ public class S3ProxyServer extends BaseServer {
 	public static final IntegerDefinition MAX_DEVICE_CONFIG_SIZE = new IntegerDefinition("MAX_DEVICE_CONFIG_SIZE",
 			"Maximum size of device configuration.", 1024);
 
-	public static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			BaseServer.DEFAULTS.applyDefinitions(config);
-			config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
-			config.set(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 15, TimeUnit.SECONDS);
-			config.set(USER_CREDENTIALS_RELOAD_INTERVAL, 30, TimeUnit.SECONDS);
-			config.set(S3_PROCESSING_INITIAL_DELAY, 20, TimeUnit.SECONDS);
-			config.set(S3_PROCESSING_INTERVAL, 0, TimeUnit.HOURS);
-			config.set(S3_PROCESSING_DAILY_TIME, 5, TimeUnit.MINUTES);
-			config.set(MAX_DEVICE_CONFIG_SIZE, 1024);
-		}
+	public static DefinitionsProvider DEFAULTS = (config) -> {
+		BaseServer.DEFAULTS.applyDefinitions(config);
+		config.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.WANTED);
+		config.set(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, 15, TimeUnit.SECONDS);
+		config.set(USER_CREDENTIALS_RELOAD_INTERVAL, 30, TimeUnit.SECONDS);
+		config.set(S3_PROCESSING_INITIAL_DELAY, 20, TimeUnit.SECONDS);
+		config.set(S3_PROCESSING_INTERVAL, 0, TimeUnit.HOURS);
+		config.set(S3_PROCESSING_DAILY_TIME, 5, TimeUnit.MINUTES);
+		config.set(MAX_DEVICE_CONFIG_SIZE, 1024);
 	};
 
 	public static void main(String[] args) {

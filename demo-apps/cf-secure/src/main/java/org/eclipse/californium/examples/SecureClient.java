@@ -53,17 +53,13 @@ public class SecureClient {
 		DtlsConfig.register();
 	}
 
-	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
-
-		@Override
-		public void applyDefinitions(Configuration config) {
-			config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
-			config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
-			config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
-			config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
-			config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, CipherSuite.STRONG_ENCRYPTION_PREFERENCE);
-			config.setTransient(DtlsConfig.DTLS_CIPHER_SUITES);
-		}
+	private static DefinitionsProvider DEFAULTS = (config) -> {
+		config.set(CoapConfig.MAX_ACTIVE_PEERS, 10);
+		config.set(DtlsConfig.DTLS_ROLE, DtlsRole.CLIENT_ONLY);
+		config.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
+		config.set(DtlsConfig.DTLS_RECOMMENDED_CIPHER_SUITES_ONLY, false);
+		config.set(DtlsConfig.DTLS_PRESELECTED_CIPHER_SUITES, CipherSuite.STRONG_ENCRYPTION_PREFERENCE);
+		config.setTransient(DtlsConfig.DTLS_CIPHER_SUITES);
 	};
 
 	public static final List<Mode> SUPPORTED_MODES = Arrays.asList(Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509,
