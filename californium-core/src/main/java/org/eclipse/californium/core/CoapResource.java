@@ -41,6 +41,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -50,7 +51,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.core.observe.ObserveRelation;
-import org.eclipse.californium.core.observe.ObserveRelationFilter;
 import org.eclipse.californium.core.server.resources.ObservableResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
@@ -564,7 +564,7 @@ public class CoapResource implements Resource, ObservableResource {
 	 * @throws IllegalArgumentException if code is not an error code.
 	 * @since 3.0
 	 */
-	public void clearAndNotifyObserveRelations(final ObserveRelationFilter filter, final ResponseCode code) {
+	public void clearAndNotifyObserveRelations(final Predicate<ObserveRelation> filter, final ResponseCode code) {
 		if (code != null && code.isSuccess()) {
 			throw new IllegalArgumentException(
 					"Only error-responses are supported, not a " + code + "/" + code.name() + "!");
@@ -585,7 +585,7 @@ public class CoapResource implements Resource, ObservableResource {
 				public void run() {
 					ObserveRelation relation = exchange.getRelation();
 					if (relation != null && relation.isEstablished()) {
-						if (code != null && (null == filter || filter.accept(relation))) {
+						if (code != null && (null == filter || filter.test(relation))) {
 							Response response = new Response(code, true);
 							response.setType(Type.CON);
 							exchange.sendResponse(response);
@@ -926,7 +926,7 @@ public class CoapResource implements Resource, ObservableResource {
 	 *             current thread (without executor).
 	 * @see #changed()
 	 */
-	public void changed(final ObserveRelationFilter filter) {
+	public void changed(final Predicate<ObserveRelation> filter) {
 		final Executor executor = getExecutor();
 		if (executor == null) {
 			// use thread from the protocol stage
@@ -960,10 +960,10 @@ public class CoapResource implements Resource, ObservableResource {
 	 * @param filter filter to select set of relations. {@code null}, if all
 	 *            clients should be notified.
 	 */
-	protected void notifyObserverRelations(final ObserveRelationFilter filter) {
+	protected void notifyObserverRelations(final Predicate<ObserveRelation> filter) {
 		notificationOrderer.getNextObserveNumber();
 		for (ObserveRelation relation : observeRelations) {
-			if (null == filter || filter.accept(relation)) {
+			if (null == filter || filter.test(relation)) {
 				handleRequest(relation.getExchange());
 			}
 		}
