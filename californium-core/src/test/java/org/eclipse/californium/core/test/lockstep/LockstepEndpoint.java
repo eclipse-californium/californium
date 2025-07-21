@@ -60,7 +60,6 @@ import static org.junit.Assert.fail;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -744,11 +743,10 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
-					List<Option> options = message.getOptions().asSortedList();
 					for (OptionDefinition definition : definitions) {
-						int pos = Collections.binarySearch(options, definition);
-						if (pos >= 0) {
-							fail("Must not have option " + definition + " but has " + options.get(pos));
+						Option option = message.getOptions().getOption(definition);
+						if (option != null) {
+							fail("Must not have option " + definition + " but has " + option);
 						}
 					}
 				}
@@ -778,9 +776,9 @@ public class LockstepEndpoint {
 					if (options.contains(option)) {
 						print("Correct option: " + option);
 					} else {
-						int pos = Collections.binarySearch(options, option.getDefinition());
-						if (pos >= 0) {
-							fail("Must have option " + option + ", but has " + options.get(pos).toValueString());
+						Option opt = message.getOptions().getOption(option.getDefinition());
+						if (opt != null) {
+							fail("Must have option " + option + ", but has " + opt.toValueString());
 						} else {
 							fail("Must have option " + option);
 						}
