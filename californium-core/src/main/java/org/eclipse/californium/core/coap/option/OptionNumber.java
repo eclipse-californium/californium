@@ -14,6 +14,8 @@
  ********************************************************************************/
 package org.eclipse.californium.core.coap.option;
 
+import java.util.Comparator;
+
 /**
  * Option number.
  * 
@@ -41,4 +43,41 @@ public interface OptionNumber {
 	 */
 	boolean isSingleValue();
 
+	/**
+	 * Checks if is this option is critical.
+	 *
+	 * @return true, if is critical
+	 */
+	default boolean isCritical() {
+		// Critical = (onum & 1);
+		return (getNumber() & 1) != 0;
+	}
+
+	/**
+	 * Checks if is this option is unsafe.
+	 *
+	 * @return true, if is unsafe
+	 */
+	default boolean isUnSafe() {
+		// UnSafe = (onum & 2);
+		return (getNumber() & 2) != 0;
+	}
+
+	/**
+	 * Checks if this option is a NoCacheKey.
+	 *
+	 * @return true, if is NoCacheKey
+	 */
+	default boolean isNoCacheKey() {
+		// NoCacheKey = ((onum & 0x1e) == 0x1c);
+		return (getNumber() & 0x1E) == 0x1C;
+	}
+
+	public static final Comparator<OptionNumber> BY_NUMBER = new Comparator<OptionNumber>() {
+
+		@Override
+		public final int compare(OptionNumber o1, OptionNumber o2) {
+			return o1.getNumber() - o2.getNumber();
+		}
+	};
 }

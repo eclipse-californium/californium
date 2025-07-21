@@ -28,7 +28,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * Both requests and responses may include a list of one or more options.
- * 
+ * <p>
  * An option number is constructed with a bit mask to indicate if an option is
  * Critical/Elective, Unsafe/Safe and in the case of Safe, also a Cache-Key
  * indication. See
@@ -96,7 +96,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  *
  * @see OptionSet
  */
-public abstract class Option implements OptionNumber, Comparable<OptionNumber> {
+public abstract class Option implements OptionNumber {
 
 	/**
 	 * The option definition.
@@ -172,36 +172,6 @@ public abstract class Option implements OptionNumber, Comparable<OptionNumber> {
 	}
 
 	/**
-	 * Checks if is this option is critical.
-	 *
-	 * @return true, if is critical
-	 */
-	public boolean isCritical() {
-		// Critical = (onum & 1);
-		return (getNumber() & 1) != 0;
-	}
-
-	/**
-	 * Checks if is this option is unsafe.
-	 *
-	 * @return true, if is unsafe
-	 */
-	public boolean isUnSafe() {
-		// UnSafe = (onum & 2);
-		return (getNumber() & 2) != 0;
-	}
-
-	/**
-	 * Checks if this option is a NoCacheKey.
-	 *
-	 * @return true, if is NoCacheKey
-	 */
-	public boolean isNoCacheKey() {
-		// NoCacheKey = ((onum & 0x1e) == 0x1c);
-		return (getNumber() & 0x1E) == 0x1C;
-	}
-
-	/**
 	 * Checks if this options is a single value.
 	 * 
 	 * @return {@code true} for single value, {@code false} for repeatable
@@ -210,16 +180,6 @@ public abstract class Option implements OptionNumber, Comparable<OptionNumber> {
 	 */
 	public boolean isSingleValue() {
 		return getDefinition().isSingleValue();
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see java.lang.Comparable#compareTo(java.lang.Object)
-	 */
-	@Override
-	public int compareTo(OptionNumber o) {
-		return getNumber() - o.getNumber();
 	}
 
 	/*

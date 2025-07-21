@@ -158,8 +158,6 @@ Rename `ExtendedCoapStackFactory` into `CoapStackFactory`.
 
 Remove setters from `Option`.
 
-Introduce `OptionNumber` to compare `Option` and `OptionDefintion` based on their `number`.
-
 Remove `CropRotation`. Please use an other available deduplication algorithms.
 
 Remove `ResponseConsumer`. Replaced by `Consumer<Response>`.
@@ -191,6 +189,10 @@ Move `CoapExchange` from package `org.eclipse.californium.core.server.resources`
 Replace `ObserveRelationFilter` by `Predicate<ObserveRelation>`.
 
 Replace `NotificationListener` by `BiConsumer<Request, Response>`.
+
+Remove `Comparable<Option>` interface from `Option`. The `Comparable<Option>` is not the natural order, though there are different option values for the same option number. The  `OptionNumber` comes now with a `Comparator<OptionNumber> BY_NUMBER` to enable sorting by that option number and `Option` .
+
+Introduce `OptionNumber` to compare `Option` and `OptionDefintion` based on their `number`. The `OptionNumber` comes with a `Comparator<OptionNumber> BY_NUMBER` to enable sorting `Option`s by that option number.
 
 ### Californium-Proxy2:
 

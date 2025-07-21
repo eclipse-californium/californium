@@ -39,6 +39,8 @@ import org.eclipse.californium.core.coap.option.OptionDefinition;
 import org.eclipse.californium.core.coap.option.OptionNumber;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.coap.option.StringOption;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@code OptionSet} is a collection of all options of a request or a response.
@@ -75,6 +77,11 @@ import org.eclipse.californium.core.coap.option.StringOption;
  * @see Option
  */
 public final class OptionSet {
+
+	/**
+	 * The logger.
+	 */
+	private final static Logger LOGGER = LoggerFactory.getLogger(OptionSet.class);
 
 	/*
 	 * Options defined by the CoAP protocol
@@ -301,7 +308,7 @@ public final class OptionSet {
 		int pos = list.size();
 		while (pos > 0) {
 			--pos;
-			int cmp = list.get(pos).compareTo(option);
+			int cmp = OptionNumber.BY_NUMBER.compare(list.get(pos), option);
 			if (cmp <= 0) {
 				if (cmp == 0 && option.isSingleValue()) {
 					handleAdditionalNonRepeatableOption(option);
@@ -330,10 +337,10 @@ public final class OptionSet {
 		if (option == null) {
 			throw new NullPointerException("Option must not be null!");
 		}
-		for (int index = 0; index < list.size(); ++index) {
-			int cmp = list.get(index).compareTo(option);
+		for (int pos = 0; pos < list.size(); ++pos) {
+			int cmp = OptionNumber.BY_NUMBER.compare(list.get(pos), option);
 			if (cmp == 0) {
-				return index;
+				return pos;
 			} else if (cmp > 0) {
 				break;
 			}
@@ -351,7 +358,7 @@ public final class OptionSet {
 	private static final void assertOrder(List<Option> list) {
 		Option last = null;
 		for (Option option : list) {
-			if (last != null && last.compareTo(option) > 0) {
+			if (last != null && OptionNumber.BY_NUMBER.compare(last, option) > 0) {
 				throw new IllegalArgumentException("List not sorted! " + last + " > " + option);
 			}
 			last = option;
@@ -383,8 +390,9 @@ public final class OptionSet {
 			throw new IllegalArgumentException(
 					option.getDefinition() + " critical single option provided multiple times.");
 		} else {
-			// "unrecognized options of class "elective" MUST be silently
-			// ignored."
+			// repeated non-repeatable options of class "elective" MUST be
+			// silently ignored.
+			LOGGER.debug("Drop repeated non-repeatable elective option {}.", option);
 		}
 	}
 
@@ -1747,15 +1755,143 @@ public final class OptionSet {
 
 	/**
 	 * Checks, if an arbitrary option is present.
-	 * <p>
-	 * <b>Note:</b> implementation uses {@link #asSortedList()} and is therefore
-	 * not recommended to be called too frequently.
 	 * 
 	 * @param definition the option definition
 	 * @return {@code true}, if present
 	 */
 	public boolean hasOption(OptionDefinition definition) {
-		return Collections.binarySearch(asSortedList(), definition) >= 0;
+		return getOptionsInternal(definition, false) != null;
+	}
+
+	/**
+	 * Gets list of options.
+	 * 
+	 * @param definition the option definition
+	 * @return an list of options of the provided definition. The list may be
+	 *         empty, if no option for the provided definition is available.
+	 * @since 4.0
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends Option> List<T> getOptions(OptionDefinition definition) {
+		return (List<T>) getOptionsInternal(definition, true);
+	}
+
+	/**
+	 * Gets option.
+	 * <p>
+	 * If the option is contained more than once, return the first.
+	 * 
+	 * @param definition the option definition
+	 * @return an option of the provided definition, or {@code null}, if not
+	 *         available.
+	 * @since 4.0
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends Option> T getOption(OptionDefinition definition) {
+		return (T) getOptionsInternal(definition, false);
+	}
+
+	/**
+	 * Gets options by definition.
+	 * 
+	 * @param definition option definition to get options
+	 * @param asList {@code true} to get a list of options of the provided
+	 *            definition, {@code false} to get the first option of the
+	 *            provided definition.
+	 * @return either the option or a list of options depending on the parameter
+	 *         asList. If a single option is requested, but not available,
+	 *         {@code null} will be returned.
+	 * @since 4.0
+	 */
+	private Object getOptionsInternal(OptionDefinition definition, boolean asList) {
+		if (definition == null) {
+			throw new NullPointerException("Option must not be null!");
+		}
+		Option result = null;
+		List<? extends Option> results = null;
+		switch (definition.getNumber()) {
+		case OptionNumberRegistry.IF_MATCH:
+			results = if_match_list;
+			break;
+		case OptionNumberRegistry.URI_HOST:
+			result = uri_host;
+			break;
+		case OptionNumberRegistry.ETAG:
+			results = etag_list;
+			break;
+		case OptionNumberRegistry.IF_NONE_MATCH:
+			result = if_none_match;
+			break;
+		case OptionNumberRegistry.URI_PORT:
+			result = uri_port;
+			break;
+		case OptionNumberRegistry.LOCATION_PATH:
+			results = location_path_list;
+			break;
+		case OptionNumberRegistry.URI_PATH:
+			results = uri_path_list;
+			break;
+		case OptionNumberRegistry.CONTENT_FORMAT:
+			result = content_format;
+			break;
+		case OptionNumberRegistry.MAX_AGE:
+			result = max_age;
+			break;
+		case OptionNumberRegistry.URI_QUERY:
+			results = uri_query_list;
+			break;
+		case OptionNumberRegistry.ACCEPT:
+			result = accept;
+			break;
+		case OptionNumberRegistry.LOCATION_QUERY:
+			results = location_query_list;
+			break;
+		case OptionNumberRegistry.PROXY_URI:
+			result = proxy_uri;
+			break;
+		case OptionNumberRegistry.PROXY_SCHEME:
+			result = proxy_scheme;
+			break;
+		case OptionNumberRegistry.BLOCK1:
+			result = block1;
+			break;
+		case OptionNumberRegistry.BLOCK2:
+			result = block2;
+			break;
+		case OptionNumberRegistry.SIZE1:
+			result = size1;
+			break;
+		case OptionNumberRegistry.SIZE2:
+			result = size2;
+			break;
+		case OptionNumberRegistry.OBSERVE:
+			result = observe;
+			break;
+		case OptionNumberRegistry.OSCORE:
+			result = oscore;
+			break;
+		case OptionNumberRegistry.NO_RESPONSE:
+			result = no_response;
+			break;
+		default:
+			result = getOtherOption(definition);
+		}
+		if (asList) {
+			if (results == null) {
+				if (result == null) {
+					return Collections.emptyList();
+				} else {
+					return Collections.singletonList(result);
+				}
+			} else {
+				return Collections.unmodifiableList(results);
+			}
+		} else {
+			if (results != null && !results.isEmpty()) {
+				result = results.get(0);
+			}
+			return result;
+		}
 	}
 
 	/**
@@ -1775,7 +1911,7 @@ public final class OptionSet {
 	/**
 	 * Gets list of other options.
 	 * 
-	 * @return an unmodifiable and unsorted list of other options.
+	 * @return an unmodifiable and sorted list of other options.
 	 */
 	public List<Option> getOthers() {
 		List<Option> others = this.others;
@@ -1905,7 +2041,7 @@ public final class OptionSet {
 		if (others != null) {
 			Option last = options.isEmpty() ? null : options.get(options.size() - 1);
 			for (Option other : others) {
-				if (last == null || last.compareTo(other) <= 0) {
+				if (last == null || OptionNumber.BY_NUMBER.compare(last, other) <= 0) {
 					options.add(other);
 					last = other;
 				} else {

@@ -402,6 +402,12 @@ public class OptionTest {
 		options.addUriPath("");
 		options.addUriPath("bar");
 		assertEquals("Uri-Path", "foo//bar", options.getUriPathString());
+
+		StringOption option = options.getOption(StandardOptionRegistry.URI_PATH);
+		assertEquals("Uri-Path (first)", "foo", option.getStringValue());
+
+		List<StringOption> list = options.getOptions(StandardOptionRegistry.URI_PATH);
+		assertEquals("Uri-Path (first)", options.getUriPath(), list);
 	}
 
 	@Test
@@ -454,6 +460,9 @@ public class OptionTest {
 		assertFalse(noResponse.suppress(ResponseCode.CONTENT));
 		assertTrue(noResponse.suppress(ResponseCode.BAD_REQUEST));
 		assertFalse(noResponse.suppress(ResponseCode.SERVICE_UNAVAILABLE));
+
+		NoResponseOption option = options.getOption(StandardOptionRegistry.NO_RESPONSE);
+		assertEquals("NoResponse", noResponse, option);
 	}
 
 	@Test
@@ -592,6 +601,8 @@ public class OptionTest {
 		assertThat(options.getUriHost(), is("host1"));
 		options.setUriHost("host2");
 		assertThat(options.getUriHost(), is("host2"));
+		StringOption option = options.getOption(StandardOptionRegistry.URI_HOST);
+		assertEquals("Uri-Host", "host2", option.getStringValue());
 		try {
 			options.addOption(StandardOptionRegistry.URI_HOST.create("host3"));
 			fail("add second critical single value option didn't fail.");
@@ -608,6 +619,14 @@ public class OptionTest {
 		assertThat(options.getUriPort(), is(5683));
 		options.setUriPort(5684);
 		assertThat(options.getUriPort(), is(5684));
+
+		IntegerOption option = options.getOption(StandardOptionRegistry.URI_PORT);
+		assertEquals("Uri-Port", 5684, option.getIntegerValue());
+
+		List<IntegerOption> list = options.getOptions(StandardOptionRegistry.URI_PORT);
+		assertEquals(1, list.size());
+		assertEquals("Uri-Port", 5684, list.get(0).getIntegerValue());
+
 		try {
 			options.addOption(StandardOptionRegistry.URI_PORT.create(5685));
 			fail("add second critical single value option didn't fail.");
@@ -624,6 +643,8 @@ public class OptionTest {
 		assertThat(options.getProxyUri(), is("http://host1"));
 		options.setProxyUri("http://host2");
 		assertThat(options.getProxyUri(), is("http://host2"));
+		StringOption option = options.getOption(StandardOptionRegistry.PROXY_URI);
+		assertEquals("Proxy-Uri", "http://host2", option.getStringValue());
 		try {
 			options.addOption(StandardOptionRegistry.PROXY_URI.create("http://host3"));
 			fail("add second critical single value option didn't fail.");
@@ -640,6 +661,8 @@ public class OptionTest {
 		assertThat(options.getProxyScheme(), is("http"));
 		options.setProxyScheme("https");
 		assertThat(options.getProxyScheme(), is("https"));
+		StringOption option = options.getOption(StandardOptionRegistry.PROXY_SCHEME);
+		assertEquals("Proxy-Scheme", "https", option.getStringValue());
 		try {
 			options.addOption(StandardOptionRegistry.PROXY_SCHEME.create("http3"));
 			fail("add second critical single value option didn't fail.");
@@ -659,6 +682,9 @@ public class OptionTest {
 		// non-repeatable, elective => ignore
 		options.addOption(StandardOptionRegistry.MAX_AGE.create(200));
 		assertThat(options.getMaxAge(), is(150L));
+
+		IntegerOption option = options.getOption(StandardOptionRegistry.MAX_AGE);
+		assertEquals("Max-Age", 150, option.getIntegerValue());
 	}
 
 	@After
