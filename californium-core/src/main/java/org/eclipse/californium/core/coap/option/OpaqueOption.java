@@ -98,7 +98,7 @@ public class OpaqueOption extends Option {
 
 	@Override
 	public int hashCode() {
-		return 31 * super.hashCode() + Arrays.hashCode(value);
+		return 31 * getDefinition().hashCode() + Arrays.hashCode(value);
 	}
 
 	/**

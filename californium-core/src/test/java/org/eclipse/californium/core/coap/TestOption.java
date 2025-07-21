@@ -44,6 +44,22 @@ public final class TestOption {
 		return new Option(definition) {
 
 			@Override
+			public boolean equals(Object o) {
+				if (o == this) {
+					return true;
+				} else if (!(o instanceof Option)) {
+					return false;
+				}
+				Option op = (Option) o;
+				return getDefinition().equals(op.getDefinition());
+			}
+
+			@Override
+			public int hashCode() {
+				return getDefinition().hashCode();
+			}
+
+			@Override
 			public int getLength() {
 				return value.length;
 			}

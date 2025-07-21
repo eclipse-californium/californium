@@ -102,7 +102,7 @@ public class IntegerOption extends Option {
 
 	@Override
 	public int hashCode() {
-		return 31 * super.hashCode() + Long.hashCode(value);
+		return 31 * getDefinition().hashCode() + Long.hashCode(value);
 	}
 
 	/**
