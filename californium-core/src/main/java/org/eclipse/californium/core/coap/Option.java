@@ -182,31 +182,11 @@ public abstract class Option implements OptionNumber {
 		return getDefinition().isSingleValue();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
 	@Override
-	public boolean equals(Object o) {
-		if (o == this) {
-			return true;
-		} else if (!(o instanceof Option)) {
-			return false;
-		}
-		Option op = (Option) o;
-		return definition.equals(op.definition);
-	}
+	abstract public boolean equals(Object o);
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see java.lang.Object#hashCode()
-	 */
 	@Override
-	public int hashCode() {
-		return definition.hashCode();
-	}
+	abstract public int hashCode();
 
 	/*
 	 * (non-Javadoc)
