@@ -89,7 +89,7 @@ public class CredentialsStore implements Destroyable {
 	 * 
 	 * @see #clearSeed()
 	 * @see #load(SecretKey, String...)
-	 * @see #load(InputStream, SecretKey)
+	 * @see #load(String, InputStream, SecretKey)
 	 */
 	private byte[] seed;
 
@@ -224,7 +224,7 @@ public class CredentialsStore implements Destroyable {
 	 * reloading that same file. To force loading the file, clear the "seed".
 	 * 
 	 * @see #load(SecretKey, String...)
-	 * @see #load(InputStream, SecretKey)
+	 * @see #load(String, InputStream, SecretKey)
 	 */
 	public void clearSeed() {
 		if (seed != null) {
@@ -238,13 +238,13 @@ public class CredentialsStore implements Destroyable {
 	 * 
 	 * @param file filename of credentials.
 	 * @return credentials loaded, {@code null}, otherwise
-	 * @see #load(Reader)
+	 * @see #load(String, Reader)
 	 * @since 4.0
 	 */
 	private Credentials loadCredentials(String file) {
 		try (InputStream in = new FileInputStream(file)) {
 			try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-				return load(reader);
+				return load(file, reader);
 			}
 		} catch (IOException e) {
 			if (LOGGER.isDebugEnabled()) {
@@ -296,12 +296,12 @@ public class CredentialsStore implements Destroyable {
 	 * @param file filename of credentials.
 	 * @param password password of credentials.
 	 * @return credentials loaded, {@code null}, otherwise
-	 * @see #load(InputStream, SecretKey)
+	 * @see #load(String, InputStream, SecretKey)
 	 * @since 4.0
 	 */
 	private Credentials loadCredentials(String file, SecretKey password) {
 		try (InputStream in = new FileInputStream(file)) {
-			return load(in, password);
+			return load(file, in, password);
 		} catch (IOException e) {
 			LOGGER.warn("{}read encrypted credentials {}:", tag, file, e);
 		}
@@ -368,17 +368,18 @@ public class CredentialsStore implements Destroyable {
 	/**
 	 * Load encrypted credentials from {@link InputStream}.
 	 * 
+	 * @param file file name.
 	 * @param in input stream of resource.
 	 * @param password password of resource.
 	 * @return loaded credentials, or {@code null}, if not successful
-	 * @see #load(Reader)
+	 * @see #load(String, Reader)
 	 */
-	private Credentials load(InputStream in, SecretKey password) {
+	private Credentials load(String file, InputStream in, SecretKey password) {
 		byte[] seed = encryptionUtility.readSeed(in);
 		if (this.seed == null || !Arrays.equals(this.seed, seed)) {
 			try (InputStream inEncrypted = encryptionUtility.prepare(seed, in, password)) {
 				try (Reader reader = new InputStreamReader(inEncrypted, StandardCharsets.UTF_8)) {
-					Credentials newCredentials = load(reader);
+					Credentials newCredentials = load(file, reader);
 					if (newCredentials != null) {
 						this.seed = seed;
 						return newCredentials;
@@ -396,15 +397,16 @@ public class CredentialsStore implements Destroyable {
 	/**
 	 * Load credentials from {@link Reader}.
 	 * 
+	 * @param file file name.
 	 * @param reader reader of resource.
 	 * @return loaded credentials, or {@code null}, if not successful
 	 * @throws IOException if an I/O error occurred
 	 */
-	private Credentials load(Reader reader) throws IOException {
+	private Credentials load(String file, Reader reader) throws IOException {
 		try {
 			Credentials newCredentials = SslContextUtil.loadPemCredentials(new PemReader(reader));
+			LOGGER.info("Loaded {}: {}", file, newCredentials);
 			if (newCredentials.isDestroyed()) {
-				LOGGER.info("Loaded credentials are empty!", newCredentials);
 				if (currentCredentials.isDestroyed()) {
 					destroyed = true;
 				}
@@ -413,11 +415,10 @@ public class CredentialsStore implements Destroyable {
 				// if encryption is used, it will be
 				// set in the calling function.
 				this.seed = null;
-				LOGGER.info("Loaded {}", newCredentials);
 				return newCredentials;
 			}
 		} catch (GeneralSecurityException e) {
-			LOGGER.warn("Loading credentials failed {}", e.getMessage());
+			LOGGER.warn("Loading {} credentials failed {}", file, e.getMessage());
 			if (currentCredentials.isDestroyed()) {
 				destroyed = true;
 			}
@@ -557,13 +558,13 @@ public class CredentialsStore implements Destroyable {
 				createMonitor(key, first, files);
 			}
 			SecretUtil.destroy(key);
-			LOGGER.info("{}loaded encrypted stores {}", getTag(), first);
+			LOGGER.info("{}loaded encrypted stores, 1. {}", getTag(), first);
 		} else {
 			String first = load(files);
 			if (createMonitor) {
 				createMonitor(null, first, files);
 			}
-			LOGGER.info("{}loaded stores {}", getTag(), first);
+			LOGGER.info("{}loaded stores, 1. {}", getTag(), first);
 		}
 		return currentCredentials;
 	}
