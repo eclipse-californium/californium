@@ -15,10 +15,13 @@
 
 'use strict';
 
-const version = "Version 2 0.27.3, 21. May 2025";
+const version = "Version 2 0.27.4, 25. July 2025";
 
 let timeShift = 0;
 
+/*
+* Return value with head removed from begin, or null
+*/
 function strip(value, head) {
 	if (value && value.startsWith(head)) {
 		return value.slice(head.length);
@@ -26,6 +29,9 @@ function strip(value, head) {
 	return null;
 }
 
+/*
+* Return value with tail removed from end, or null
+*/
 function trunc(value, tail) {
 	if (value && value.endsWith(tail)) {
 		return value.slice(0, -tail.length);
@@ -1631,7 +1637,7 @@ class DeviceData {
 		let lastStatusKey = null;
 		let key = null;
 		if (this.lastDayKey) {
-			// limit to year 2xxx, exclude "series"
+			// limit to year 2xxx, exclude "series" and "arch"
 			key = await s3.fetchXmlListLast(this.key + "2", "CommonPrefixes>Prefix", this.lastDayKey);
 			if (key) {
 				this.lastDayKey = key;
@@ -1644,7 +1650,7 @@ class DeviceData {
 		} else {
 			for (let i = 0; i < DeviceData.lastDayStartKeys.length; ++i) {
 				key = this.key + DeviceData.lastDayStartKeys[i];
-				// limit to year 2xxx, exclude "series"
+				// limit to year 2xxx, exclude "series" and "arch"
 				key = await s3.fetchXmlListLast(this.key + "2", "CommonPrefixes>Prefix", key);
 				if (key) {
 					this.lastDayKey = key;
@@ -1760,6 +1766,15 @@ class DeviceData {
 		});
 	}
 
+	static getStartOfDay(dayTime) {
+		const day = new Date(dayTime);
+		day.setUTCHours(0);
+		day.setUTCMinutes(0);
+		day.setUTCSeconds(0);
+		day.setUTCMilliseconds(0);
+		return day.getTime();
+	}
+
 	async downloadArchDays(to, allJobs) {
 		let lastKey = null;
 		let last = 0;
@@ -1768,39 +1783,30 @@ class DeviceData {
 			lastKey = this.lastArchDayMessage.key;
 		}
 		if (this.lastArchMessage) {
-			const lastDay = new Date(this.lastArchMessage.time);
-			lastDay.setUTCHours(0);
-			lastDay.setUTCMinutes(0);
-			lastDay.setUTCSeconds(0);
-			lastDay.setUTCMilliseconds(0);
-			const nextDay = lastDay.getTime() + dayInMillis;
+			const nextDay = DeviceData.getStartOfDay(this.lastArchMessage.time) + dayInMillis;
 			if (last < nextDay) {
 				last = nextDay;
 				lastKey = null;
 			}
 		}
+		to ??= Date.now();
+		const current = DeviceData.getStartOfDay(to);
 		if (!last) {
-			to ??= Date.now();
-			const lastDay = new Date(to);
-			lastDay.setUTCHours(0);
-			lastDay.setUTCMinutes(0);
-			lastDay.setUTCSeconds(0);
-			lastDay.setUTCMilliseconds(0);
-			last = lastDay.getTime() - (dayInMillis * 3);
+			// day before
+			last = current - dayInMillis;
 		}
 		console.log("Days from " + new Date(last).toISOString() + " to " + new Date(to).toISOString());
 		const jobs = new Array();
-		let i = 1;
-		while (last <= to && i < 8) {
+		if (last <= to) {
 			const date = new Date(last).toISOString().slice(0, 10);
-			const tag = i <= 1 ? "day " : i + ". day ";
-			jobs.push(this.downloadArchDay(tag, date, lastKey, allJobs));
-			last += dayInMillis;
-			lastKey = null;
-			++i;
+			jobs.push(this.downloadArchDay("next day ", date, lastKey, allJobs));
+			if (last < current) {
+				const date2 = new Date(current).toISOString().slice(0, 10);
+				jobs.push(this.downloadArchDay("current day ", date2, lastKey, allJobs));
+			}
 		}
 		await Promise.allSettled(jobs);
-		console.log("arch loaded " + jobs.length + " days.");
+		console.log("arch started downloading " + jobs.length + " days.");
 	}
 
 	async downloadArch(archKey, force, to, allJobs) {
@@ -1820,7 +1826,7 @@ class DeviceData {
 						if (message) {
 							message = message.addTo(this.allMessages);
 							message.parseValues();
-							if (to) {
+							if (newMessages) {
 								message.addTo(newMessages);
 							}
 						}
