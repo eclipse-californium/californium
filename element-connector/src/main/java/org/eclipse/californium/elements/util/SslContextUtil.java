@@ -862,7 +862,7 @@ public class SslContextUtil {
 	 * @throws IOException if input stream is not available
 	 * @throws NullPointerException if the keyStoreUri is {@code null}
 	 */
-	private static InputStream getInputStreamFromUri(String keyStoreUri) throws IOException {
+	public static InputStream getInputStreamFromUri(String keyStoreUri) throws IOException {
 		if (null == keyStoreUri) {
 			throw new NullPointerException("keyStoreUri must be provided!");
 		}
@@ -1380,6 +1380,12 @@ public class SslContextUtil {
 		 * Certificate trusts.
 		 */
 		private final Certificate[] trusts;
+		/**
+		 * {@code true} if credentials are destroyed.
+		 * 
+		 * @since 4.0
+		 */
+		private volatile boolean destroyed;
 
 		/**
 		 * Create credentials.
@@ -1544,20 +1550,27 @@ public class SslContextUtil {
 		 * @since 3.12
 		 */
 		@Override
-		public void destroy() throws DestroyFailedException {
-			if (privateKey != null) {
-				privateKey.destroy();
+		public void destroy() {
+			if (!destroyed && privateKey != null) {
+				try {
+					privateKey.destroy();
+				} catch (DestroyFailedException e) {
+					LOGGER.debug("Destroy on {} failed!", privateKey.getClass(), e);
+				}
 			}
+			destroyed = true;
 		}
 
 		/**
 		 * {@inheritDoc}
 		 * 
+		 * Indicates either the credentials are destroyed or not available.
+		 * 
 		 * @since 3.12
 		 */
 		@Override
 		public boolean isDestroyed() {
-			return privateKey == null || privateKey.isDestroyed();
+			return destroyed || (privateKey == null && trusts == null && publicKey == null);
 		}
 	}
 

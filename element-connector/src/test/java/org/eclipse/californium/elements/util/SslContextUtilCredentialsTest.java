@@ -21,9 +21,12 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsNull.notNullValue;
+import static org.hamcrest.core.IsNull.nullValue;
 import static org.junit.Assume.assumeTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -31,6 +34,7 @@ import java.security.cert.X509Certificate;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.X509KeyManager;
+import javax.security.auth.DestroyFailedException;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.category.Small;
@@ -47,6 +51,8 @@ public class SslContextUtilCredentialsTest {
 	public static final String SERVER_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/server.pem";
 	public static final String SERVER_LARGE_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/serverLarge.pem";
 	public static final String PUBLIC_KEY_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/ec_public.pem";
+	public static final String PRIVATE_KEY_V2_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/ec_private.pem";
+	public static final String PRIVATE_ONLY_KEY_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/ec_private_only.pem";
 
 	public static final String ALIAS_SERVER = "server";
 	public static final String ALIAS_CLIENT = "client";
@@ -62,6 +68,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain(), is(notNullValue()));
 		assertThat(credentials.getCertificateChain().length, is(greaterThan(0)));
 		assertThat(credentials.getCertificateChain()[0], is(instanceOf(X509Certificate.class)));
+		assertThat(credentials.isDestroyed(), is(false));
 		X509Certificate x509 = (X509Certificate) credentials.getCertificateChain()[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
 		assertThat(x509.getSubjectX500Principal(), is(DN_SERVER));
@@ -143,6 +150,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain(), is(notNullValue()));
 		assertThat(credentials.getCertificateChain().length, is(greaterThan(0)));
 		assertThat(credentials.getCertificateChain()[0], is(instanceOf(X509Certificate.class)));
+		assertThat(credentials.isDestroyed(), is(false));
 		X509Certificate x509 = (X509Certificate) credentials.getCertificateChain()[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
 		assertThat(x509.getSubjectX500Principal(), is(DN_SERVER));
@@ -226,6 +234,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain(), is(notNullValue()));
 		assertThat(credentials.getCertificateChain().length, is(greaterThan(0)));
 		assertThat(credentials.getCertificateChain()[0], is(instanceOf(X509Certificate.class)));
+		assertThat(credentials.isDestroyed(), is(false));
 		X509Certificate x509 = (X509Certificate) credentials.getCertificateChain()[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
 		assertThat(x509.getSubjectX500Principal(), is(DN_SERVER));
@@ -248,9 +257,50 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain(), is(notNullValue()));
 		assertThat(credentials.getCertificateChain().length, is(greaterThan(0)));
 		assertThat(credentials.getCertificateChain()[0], is(instanceOf(X509Certificate.class)));
+		assertThat(credentials.isDestroyed(), is(false));
 		X509Certificate x509 = (X509Certificate) credentials.getCertificateChain()[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
 		assertThat(x509.getSubjectX500Principal(), is(DN_SERVER));
+	}
+
+	@Test
+	public void testLoadPemCredentialsOnlyPrivateKey() throws IOException, GeneralSecurityException, DestroyFailedException {
+		try (InputStream inputStream = SslContextUtil.getInputStreamFromUri(PRIVATE_ONLY_KEY_PEM_LOCATION)) {
+			Credentials credentials = SslContextUtil.loadPemCredentials(new PemReader(inputStream));
+			assertThat(credentials, is(notNullValue()));
+			assertThat(credentials.getPrivateKey(), is(notNullValue()));
+			assertThat(credentials.getPublicKey(), is(nullValue()));
+			assertThat(credentials.getCertificateChain(), is(nullValue()));
+			assertThat(credentials.isDestroyed(), is(false));
+			credentials.destroy();
+			assertThat(credentials.isDestroyed(), is(true));
+		}
+	}
+
+	@Test
+	public void testLoadPemCredentialsOnlyPublicKey() throws IOException, GeneralSecurityException, DestroyFailedException {
+		try (InputStream inputStream = SslContextUtil.getInputStreamFromUri(PUBLIC_KEY_PEM_LOCATION)) {
+			Credentials credentials = SslContextUtil.loadPemCredentials(new PemReader(inputStream));
+			assertThat(credentials, is(notNullValue()));
+			assertThat(credentials.getPrivateKey(), is(nullValue()));
+			assertThat(credentials.getPublicKey(), is(notNullValue()));
+			assertThat(credentials.getCertificateChain(), is(nullValue()));
+			assertThat(credentials.isDestroyed(), is(false));
+			credentials.destroy();
+			assertThat(credentials.isDestroyed(), is(true));
+		}
+	}
+
+	@Test
+	public void testLoadPemCredentialsFromEmptyFile() throws IOException, GeneralSecurityException, DestroyFailedException {
+		try (InputStream inputStream = new ByteArrayInputStream(Bytes.EMPTY)) {
+			Credentials credentials = SslContextUtil.loadPemCredentials(new PemReader(inputStream));
+			assertThat(credentials, is(notNullValue()));
+			assertThat(credentials.getPrivateKey(), is(nullValue()));
+			assertThat(credentials.getPublicKey(), is(nullValue()));
+			assertThat(credentials.getCertificateChain(), is(nullValue()));
+			assertThat(credentials.isDestroyed(), is(true));
+		}
 	}
 
 	@Test
@@ -285,16 +335,17 @@ public class SslContextUtilCredentialsTest {
 
 	@Test
 	public void testLoadPemPrivateKeyV2() throws IOException, GeneralSecurityException {
-		PrivateKey privateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ec_private.pem", null, null, null);
+		PrivateKey privateKey = SslContextUtil.loadPrivateKey(PRIVATE_KEY_V2_PEM_LOCATION, null, null, null);
 		assertThat(privateKey, is(notNullValue()));
 	}
 
 	@Test
 	public void testLoadPemCredentialsV2() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + "certs/ec_private.pem", null, null, null);
+		Credentials credentials = SslContextUtil.loadCredentials(PRIVATE_KEY_V2_PEM_LOCATION, null, null, null);
 		assertThat(credentials, is(notNullValue()));
 		assertThat(credentials.getPrivateKey(), is(notNullValue()));
 		assertThat(credentials.getPublicKey(), is(notNullValue()));
+		assertThat(credentials.isDestroyed(), is(false));
 		assertSigning("PEMv2", credentials.getPrivateKey(), credentials.getPublicKey(), "SHA256withECDSA");
 	}
 
@@ -309,6 +360,7 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials.getCertificateChain(), is(notNullValue()));
 		assertThat(credentials.getCertificateChain().length, is(greaterThan(0)));
 		assertThat(credentials.getCertificateChain()[0].getPublicKey(), is(notNullValue()));
+		assertThat(credentials.isDestroyed(), is(false));
 		assertSigning("JKS", credentials.getPrivateKey(), credentials.getPublicKey(), "ED25519");
 	}
 
