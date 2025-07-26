@@ -115,7 +115,14 @@ public class CoapObserveRelation extends ClientObserveRelation {
 		}
 	}
 
-	public void setNotificationListener(BiConsumer<Request, Response>  listener) {
+	/**
+	 * Set notification listener.
+	 * 
+	 * @param listener listener. Gets called with the observe request and the
+	 *            current notification response.
+	 * @since 4.0 (use BiConsumer as argument)
+	 */
+	public void setNotificationListener(BiConsumer<Request, Response> listener) {
 		notificationListener = listener;
 	}
 
