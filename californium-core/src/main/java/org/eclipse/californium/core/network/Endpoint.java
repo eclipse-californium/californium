@@ -135,7 +135,8 @@ public interface Endpoint {
 	 * Adds a listener for observe notification. This is related to CoAP
 	 * observe.
 	 * 
-	 * @param listener the listener
+	 * @param listener the listener. Gets called with the observe request and
+	 *            the current notification response.
 	 */
 	void addNotificationListener(BiConsumer<Request, Response> listener);
 
