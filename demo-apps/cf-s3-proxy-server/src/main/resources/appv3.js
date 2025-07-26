@@ -1,5 +1,5 @@
 /********************************************************************************
-* Copyright (c) 2024 Contributors to the Eclipse Foundation
+* Copyright (c) 2025 Contributors to the Eclipse Foundation
 * 
 * See the NOTICE file(s) distributed with this work for additional
 * information regarding copyright ownership.
@@ -15,13 +15,20 @@
 
 'use strict';
 
-const version = "Version 2 0.30.0, 30. July 2025";
+const version = "Version 3 0.32.0, 8. August 2025";
 
+/**
+ * Timeshift relative to server time.
+ */
 let timeShift = 0;
 
-/*
-* Return value with head removed from begin, or null
-*/
+/**
+ * Remove head from value's begin.
+ * 
+ * @param {string} value 
+ * @param {string} head 
+ * @returns value with removed head or null
+ */
 function strip(value, head) {
 	if (value && value.startsWith(head)) {
 		return value.slice(head.length);
@@ -29,9 +36,13 @@ function strip(value, head) {
 	return null;
 }
 
-/*
-* Return value with tail removed from end, or null
-*/
+/**
+ * Remove tail from value's end.
+ * 
+ * @param {string} value 
+ * @param {string} tail 
+ * @returns value with removed tail or null
+ */
 function trunc(value, tail) {
 	if (value && value.endsWith(tail)) {
 		return value.slice(0, -tail.length);
@@ -59,6 +70,24 @@ function conv(value, hexLen) {
 		return n;
 	}
 	return undefined;
+}
+
+function formatInt(value, mode, length) {
+	if (value && Number.isInteger(value) && mode != 0) {
+		let text = new Number(value).toString(16).toUpperCase();
+		if (length) {
+			text = text.padStart(length, "0");
+		}
+		switch (mode) {
+			case 1:
+				return text;
+			case 2:
+				return "0x" + text;
+			default:
+				return value + " / 0x" + text;
+		}
+	}
+	return value;
 }
 
 function getElement(page) {
@@ -163,6 +192,14 @@ function deleteItem(sortedArray, item, fn) {
 		sortedArray.splice(pos, 1);
 	}
 	return pos;
+}
+
+function appendCsv(csv, value) {
+	csv += ",";
+	if (value != undefined && value != null) {
+		csv += value;
+	}
+	return csv;
 }
 
 class S3Request {
@@ -711,8 +748,9 @@ const regexDateEnding = /-([0-9]{2,4}-[0-1][0-9]-[0-3][0-9])(Z(.gz)?|\+[0-9]+(.g
  * sides[3] : both
  */
 class ChartConfig {
-	constructor(regex, units, color, min, max, sides, scale = 1, text) {
+	constructor(regex, label, units, color, min, max, sides, scale = 1, text) {
 		this.regex = regex;
+		this.label = label;
 		this.units = units;
 		this.color = color;
 		this.min = min;
@@ -728,22 +766,22 @@ class ChartConfig {
 }
 
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, [1, 3, 0, 1], 1000),
-	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100, [1, 1, 0, 1]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100, [4, 0, 3, 4]),
-	new ChartConfig(null, "°C dp", "steelblue", 10, 40, [0, 0, 4, 0], 1, "dew point"),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500, [1, 0, 2, 2]),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75, [0, 4, 0, 1]),
-	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15, [0, 4, 0, 1]),
-	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400, [1, 3, 0, 1]),
-	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400, [0, 3, 0, 1]),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50, [4, 0, 4, 4]),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50, [4, 0, 4, 4]),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, [4, 0, 4, 4], 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, [0, 3, 0, 1], 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, [2, 4, 0, 1], 1000),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", "blue", 3400, 4300, [1, 3, 0, 1], 1000),
+	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", "navy", 20, 100, [1, 1, 0, 1]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", "red", 10, 40, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", "green", 10, 80, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", "SkyBlue", 900, 1100, [4, 0, 3, 4]),
+	new ChartConfig(null, "dew point in °C", "°C dp", "steelblue", 10, 40, [0, 0, 4, 0], 1, "dew point"),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "IAQ", "lightblue", 0, 500, [1, 0, 2, 2]),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", "orange", -125, -75, [0, 4, 0, 1]),
+	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "SNR in dB", "dB", "gold", -15, 15, [0, 4, 0, 1]),
+	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "energy in mAs", "mAs", "DarkGoldenrod", 50, 400, [1, 3, 0, 1]),
+	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "quiescent energy in mAs", "mAs0", "tomato", 50, 400, [0, 3, 0, 1]),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", "olive", 0, 50, [4, 0, 4, 4]),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", "teal", 0, 50, [4, 0, 4, 4]),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", "lime", 8000, 16000, [4, 0, 4, 4], 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", "red", 0, 3, [0, 3, 0, 1], 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", "salmon", 0, 60000, [2, 4, 0, 1], 1000),
 ];
 
 function getChartConfigIndex(units) {
@@ -756,6 +794,7 @@ defaultProviderMap.set("flolive.net", "Flo.Live");
 defaultProviderMap.set("gigsky-02", "Flo*Live");
 defaultProviderMap.set("globaldata.iot", "iBASIS");
 defaultProviderMap.set("global.melita.io", "gMelita");
+defaultProviderMap.set("web.melita", "wMelita");
 defaultProviderMap.set("ibasis.iot", "iBASIS");
 defaultProviderMap.set("internet.m2mportal.de", "DTAG");
 defaultProviderMap.set("iot.1nce.net", "1nce");
@@ -1045,30 +1084,6 @@ class DeviceMessage {
 		return null;
 	}
 
-	static parseSeries(line) {
-		const isoTime = line.match(regexTimeHeader);
-		if (!isoTime) {
-			return null;
-		}
-		const time = Date.parse(isoTime[0]);
-		if (!time) {
-			return null;
-		}
-		const message = new DeviceMessage();
-		message.time = time;
-		const values = Array(chartConfig.length);
-		const foundValues = DeviceMessage.parseValueSet(line, values, time);
-		const leftValues = foundValues ? foundValues - DeviceMessage.checkSensors(values) : foundValues;
-		if (leftValues) {
-			values.unshift(time);
-			message.values = values;
-			console.log("series add " + leftValues + " values");
-		} else {
-			console.log("series " + foundValues + " values");
-		}
-		return message;
-	}
-
 	parseValues() {
 		try {
 			if (!this.time) {
@@ -1188,6 +1203,7 @@ class DeviceMessage {
 						const parts = pdn.split(/,/);
 						if (parts.length > 1) {
 							const apn = parts[0].trim();
+							status.apn = apn;
 							status.pdn = providerMap.get(apn) ?? apn;
 						}
 						return;
@@ -1399,7 +1415,6 @@ class DeviceData {
 	lastInterval = null;
 	lastDetails = null;
 	lastModifiedTime = null;
-	lastModifiedDateTime = null;
 	lastDayKey = null;
 	lastStatusKey = null;
 	lastStatusNew = false;
@@ -1621,8 +1636,8 @@ class DeviceData {
 			this.updated = this.lastStatusNew;
 			if (this.updated) {
 				console.info("overview: " + lastMessageKey + " update" + (details ? " with details" : ""));
-				this.lastModifiedDateTime = DeviceData.getISODateTimeFromKey(lastMessageKey, false)
-				this.lastModifiedTime = Date.parse(this.lastModifiedDateTime);
+				const lastModifiedDateTime = DeviceData.getISODateTimeFromKey(lastMessageKey, false)
+				this.lastModifiedTime = Date.parse(lastModifiedDateTime);
 				if (details) {
 					const message = await this.downloadMessage(lastMessageKey);
 					this.setStatus(message);
@@ -1633,6 +1648,17 @@ class DeviceData {
 			}
 		} else {
 			console.info(this.key + " no last message!")
+			await this.loadDataArchKeys();
+			if (this.allKeys.length > 0) {
+				await this.downloadArch(this.allKeys.at(-1));
+				if (this.allMessages.length > 0) {
+					const message = this.allMessages.at(-1);
+					this.lastModifiedTime = message.time;
+					this.setStatus(message);
+					this.lastDetails = message.getDetails();
+					console.info("overview: from arch " + this.allKeys.at(-1));
+				}
+			}
 		}
 	}
 
@@ -1648,8 +1674,19 @@ class DeviceData {
 		this.lastStatusNew = false;
 		let lastStatusKey = null;
 		let key = null;
+		if (this.lastDayKey == null) {
+			if (this.allKeys.length == 0) {
+				await this.loadDataArchKeys();
+			}
+			if (this.allKeys.length > 0) {
+				const lastArchDate = DeviceData.getISODateFromArchKey(this.allKeys.at(-1));
+				if (lastArchDate.length == 10) {
+					this.lastDayKey = this.key + lastArchDate;
+				}
+			}
+		}
 		if (this.lastDayKey) {
-			// limit to year 2xxx, exclude "series" and "arch"
+			// limit to year 2xxx, exclude "arch"
 			key = await s3.fetchXmlListLast(this.key + "2", "CommonPrefixes>Prefix", this.lastDayKey);
 			if (key) {
 				this.lastDayKey = key;
@@ -1662,7 +1699,7 @@ class DeviceData {
 		} else {
 			for (let i = 0; i < DeviceData.lastDayStartKeys.length; ++i) {
 				key = this.key + DeviceData.lastDayStartKeys[i];
-				// limit to year 2xxx, exclude "series" and "arch"
+				// limit to year 2xxx, exclude "arch"
 				key = await s3.fetchXmlListLast(this.key + "2", "CommonPrefixes>Prefix", key);
 				if (key) {
 					this.lastDayKey = key;
@@ -1872,36 +1909,6 @@ class DeviceData {
 		}
 	}
 
-	async downloadSeries(seriesKey, force) {
-		const etag = this.loaded.get(seriesKey)
-		if (etag == undefined || force) {
-
-			const download = await s3.fetchContent(seriesKey, etag);
-			if (download == null) {
-				console.log("Missing " + seriesKey);
-				return;
-			}
-			if (download.text) {
-				download.text.split(/\r?\n/).forEach((line) => {
-					try {
-						let message = DeviceMessage.parseSeries(line);
-						if (message) {
-							message = message.addTo(this.allMessages);
-						}
-					} catch (e) {
-						console.warn(e);
-					}
-				});
-				const newEtag = download.headers.get("etag") ?? (etag ?? "");
-				this.loaded.set(seriesKey, newEtag);
-			} else if (download.status != 304) {
-				console.log("Missing payload " + seriesKey);
-			}
-		} else {
-			console.log("Cache " + seriesKey + " " + etag);
-		}
-	}
-
 	async loadData(allJobs, range, readConfig) {
 		let configRequest = null;
 		if (readConfig) {
@@ -1946,7 +1953,7 @@ class DeviceData {
 			console.log("Filter from " + range);
 			let rangeValues = range.filterMessages(this.allMessages);
 			if (rangeValues.length > 0) {
-				starts[0] = rangeValues[0].time;
+				starts[0] = rangeValues.at(0).time;
 				ends[0] = rangeValues.at(-1).time;
 				this.rawStarts = starts;
 				this.rawEnds = ends;
@@ -1978,7 +1985,7 @@ class DeviceData {
 		return { device: this, error: error ? error.reason : null };
 	}
 
-	downloads(tag, range, lastDate, allKeys, startKey, download) {
+	downloads(tag, range, lastDate, allKeys, startKey) {
 		const allJobs = Array();
 		const start = range.isoDateTimeFrom();
 		const end = range.isoDateTimeTo();
@@ -1991,7 +1998,7 @@ class DeviceData {
 			// arch-date contains all days to lastDate
 			if (start <= lastDate && date <= end) {
 				if (key.endsWith(".gz") || !allKeys[i + 1].endsWith(".gz")) {
-					allJobs.push(this[download](key, startKey == key));
+					allJobs.push(this.downloadArch(key, startKey == key));
 				} else {
 					console.log(tag + " skip " + key + ", '.gz' available!");
 				}
@@ -2001,63 +2008,22 @@ class DeviceData {
 		return allJobs;
 	}
 
-	async loadDataSeries(center, days, readConfig) {
-		const allKeys = this.allKeys;
-		const startKey = allKeys.at(-1);
-		const xmlSeries = await s3.fetchXmlList(this.key + "series-2", startKey);
-		if (xmlSeries) {
-			// date/time
-			// series-dateTtimeZ
-			const allJobs = Array();
-			const previousKeys = allKeys.length;
-			if (!center) {
-				await this.readOverview(true);
-			}
-			const lastValues = DeviceData.getTimeFromKey(this.lastStatusKey);
-			let range = null;
-
-			// fetch all series-dateTtimeZ files
-			xmlSeries.xml.querySelectorAll("Contents>Key").forEach((e) => insertItem(allKeys, e.textContent));
-			console.log(allKeys.length + " series (" + (allKeys.length - previousKeys) + " new)");
-
-			if (allKeys.length > 0) {
-				const firstValues = DeviceData.getTimeFromKey(allKeys.at(0));
-				range = new DateRange(firstValues, lastValues, center, days);
-
-				const lastKey = allKeys.at(-1);
-				let lastDate = DeviceData.getISODateTimeFromKey(lastKey);
-				if (lastDate <= range.isoDateTimeTo()) {
-					allJobs.push(this.downloadSeries(lastKey, startKey == lastKey));
-				}
-				let jobs = (allKeys.length > 1) ? this.downloads("series: ", range, lastDate, allKeys, startKey, "downloadSeries") : [];
-				allJobs.push(...jobs);
-				console.log(allJobs.length + " series used");
-			} else {
-				range = new DateRange(null, lastValues, center, days);
-			}
-			return this.loadData(allJobs, range, readConfig);
-		} else {
-			return { error: `No series found for ${key}!` };
-		}
-	}
-
-	async loadDataArch(center, days, readConfig) {
+	async loadDataArchKeys() {
 		const allKeys = this.allKeys;
 		const startKey = allKeys.at(-1);
 		const xmlArchs = await s3.fetchXmlList(this.key + "arch-2", startKey);
 		if (xmlArchs) {
 			// date/time
 			// arch-date
-			const allJobs = Array();
 			let previousKeys = allKeys.length;
-			if (!center) {
-				await this.readOverview(true);
-			}
-
 			// fetch all arch-date files
-			xmlArchs.xml.querySelectorAll("Contents>Key").forEach((e) => insertItem(allKeys, e.textContent));
+			xmlArchs.xml.querySelectorAll("Contents>Key").forEach((e) => {
+				if (insertItem(allKeys, e.textContent) < 0) {
+					console.log("add: " + e.textContent);
+				}
+			});
 			if (startKey && allKeys.at(-1) != startKey) {
-				const m = startKey.match(/.*(\+[0-9]+)$/);
+				const m = startKey.match(/.*(\+[0-9]+(\.gz)?)$/);
 				if (m) {
 					console.log("Remove temp. arch " + startKey);
 					deleteItem(allKeys, startKey);
@@ -2066,44 +2032,112 @@ class DeviceData {
 				}
 			}
 			console.log(allKeys.length + " archs (" + (allKeys.length - previousKeys) + " new)");
-
-			const lastValues = this.lastStatusKey ? DeviceData.getTimeFromKey(this.lastStatusKey) : null;
-			let range = null;
-
-			if (allKeys.length > 0) {
-				const firstValues = DeviceData.getTimeFromArchKey(allKeys.at(0));
-				range = new DateRange(firstValues, lastValues, center, days, true);
-
-				const lastKey = allKeys.at(-1);
-				let lastArch = null;
-				let lastDate = DeviceData.getISODateFromArchKey(lastKey);
-				if (lastDate <= range.isoDateTimeTo()) {
-					lastArch = this.downloadArch(lastKey, startKey == lastKey, range.to, allJobs);
-				}
-				let jobs = (allKeys.length > 1) ? this.downloads("", range, lastDate, allKeys, startKey, "downloadArch") : [];
-				allJobs.push(...jobs);
-				if (lastArch) {
-					await lastArch;
-					// only until the archs are filled ...
-					if (jobs.length == 0 && allKeys.length > 1 && this.allMessages.length > 0) {
-						const last = this.allMessages.at(-1).time;
-						if (last < range.from) {
-							range.setTo(last);
-							lastDate = range.isoDateTimeTo();
-							jobs = this.downloads("2. ", range, lastDate, allKeys, startKey, "downloadArch");
-							allJobs.push(...jobs);
-						}
-					}
-				}
-			} else {
-				range = new DateRange(null, lastValues, center, days, true);
-				await this.downloadArchDays(range.to, allJobs);
-			}
-			return this.loadData(allJobs, range, readConfig);
+			return allKeys.length - previousKeys;
 		} else {
-			return { error: `No archs found for ${key}!` };
+			return -1;
 		}
 	}
+
+	async loadDataArch(center, days, readConfig) {
+		const allKeys = this.allKeys;
+		const startKey = allKeys.at(-1);
+		const newKeys = await this.loadDataArchKeys();
+		if (newKeys < 0) {
+			return { error: `No archs found for ${key}!` };
+		}
+		// date/time
+		// arch-date
+		const allJobs = Array();
+		if (!center) {
+			await this.fetchLastMessageKey();
+		}
+		let lastValues = this.lastStatusKey ? DeviceData.getTimeFromKey(this.lastStatusKey) : null;
+		if (!lastValues) {
+			// no last days/time message
+			lastValues = this.allMessages.at(-1).time;
+		}
+		let range = null;
+
+		if (allKeys.length > 0) {
+			const firstValues = DeviceData.getTimeFromArchKey(allKeys.at(0));
+			range = new DateRange(firstValues, lastValues, center, days, true);
+
+			const lastKey = allKeys.at(-1);
+			let lastArch = null;
+			let lastDate = DeviceData.getISODateFromArchKey(lastKey);
+			if (lastDate <= range.isoDateTimeTo()) {
+				lastArch = this.downloadArch(lastKey, startKey == lastKey, range.to, allJobs);
+			}
+			let jobs = (allKeys.length > 1) ? this.downloads("", range, lastDate, allKeys, startKey) : [];
+			allJobs.push(...jobs);
+			if (lastArch) {
+				await lastArch;
+				// only until the archs are filled ...
+				if (jobs.length == 0 && allKeys.length > 1 && this.allMessages.length > 0) {
+					const last = this.allMessages.at(-1).time;
+					if (last < range.from) {
+						range.setTo(last);
+						lastDate = range.isoDateTimeTo();
+						jobs = this.downloads("2. ", range, lastDate, allKeys, startKey);
+						allJobs.push(...jobs);
+					}
+				}
+			}
+		} else {
+			range = new DateRange(null, lastValues, center, days, true);
+			await this.downloadArchDays(range.to, allJobs);
+		}
+		return this.loadData(allJobs, range, readConfig);
+	}
+
+	exportDataCsv() {
+		let csv = "time,date";
+		const numberOfSensors = this.rawStarts.length;
+		const available = new Array(numberOfSensors);
+		const values = this.rangeValues;
+		for (let i = 1; i < numberOfSensors; ++i) {
+			if (this.rawStarts[i] != undefined) {
+				available[i] = chartConfig[i - 1].label;
+				csv = appendCsv(csv, available[i]);
+			}
+		}
+		csv += ",type,PLMN,TAC,cell,band,earfcn,f in MHz,apn\n";
+		values.forEach((msg) => {
+			csv += msg.time;
+			csv += "," + new Date(msg.time).toISOString();
+			for (let i = 1; i < numberOfSensors; ++i) {
+				if (available[i] != undefined) {
+					csv = appendCsv(csv, msg.values[i]);
+				}
+			}
+			let status = msg.parseStatus();
+			if (status) {
+				if (status.network) {
+					const network = status.network;
+					csv = appendCsv(csv, network.type);
+					csv = appendCsv(csv, network.plmn);
+
+					csv = appendCsv(csv, formatInt(network.tac, 1, 4));
+					csv = appendCsv(csv, formatInt(network.cell, 1, 8));
+					csv = appendCsv(csv, network.band);
+					csv += ","
+					if (network.earfcn > 0) {
+						csv += network.earfcn;
+						const f = earfcn2frequency(network.band, network.earfcn);
+						csv = appendCsv(csv, f);
+					} else {
+						csv += ","
+					}
+				} else {
+					csv += ",,,,,,,";
+				}
+				csv = appendCsv(csv, status.apn);
+			}
+			csv += "\n";
+		});
+		return new Blob([csv], { type: "text/csv; charset=utf-8" });
+	}
+
 }
 
 class DeviceGroups {
@@ -2775,7 +2809,7 @@ class UiChart {
 	}
 
 	textSpan(cfg) {
-		return `<span style='color:${cfg.color}'>${cfg.units} ${cfg.text}</span>&nbsp;`;
+		return `<span style='color:${cfg.color}'>${cfg.units} := ${cfg.text}</span>&nbsp;`;
 	}
 
 	mark(dateTimeMillis, x, y) {
@@ -2869,7 +2903,7 @@ class UiList {
 	}
 
 	cmpLastUpdate(dev1, dev2) {
-		return compareItem(dev1.lastModifiedDateTime, dev2.lastModifiedDateTime);
+		return compareItem(dev1.lastModifiedTime, dev2.lastModifiedTime);
 	}
 
 	cmpState(dev1, dev2) {
@@ -2984,7 +3018,7 @@ class UiList {
 			const info = device.getDetails();
 			const viewState = this.getViewState(device);
 			page += `<tr ${viewState.cls}><td colspan='2'><button class='tb1' onclick='ui.loadDeviceData("${device.key}")'>${device.label}</button></td>`;
-			const lm = device.lastModifiedDateTime ?? "";
+			const lm = device.lastModifiedTime ? new Date(device.lastModifiedTime).toISOString().replace(/\.\d+/, '') : "";
 			page += `<td colspan='2'>${lm}</td><td>${viewState.mark}</td>`;
 			if (details && info) {
 				if (details.provider) {
@@ -3208,8 +3242,6 @@ class UiLoadProgress {
 	}
 }
 
-const defaultLoadMode = "loadDataArch";
-
 class UiManager {
 
 	width = 630;
@@ -3268,6 +3300,7 @@ class UiManager {
 		this.enableDiagnose = false;
 		this.enableConfig = true;
 		this.enableConfigWrite = false;
+		this.enableExportData = false;
 		this.userTitle = null;
 		if (this.diagnoseUi) {
 			this.diagnoseUi.reset(true)
@@ -3275,7 +3308,6 @@ class UiManager {
 		}
 		this.showDiagnose = false;
 		this.showDeviceList = false;
-		this.download = defaultLoadMode;
 		if (s3) {
 			s3.reset();
 			s3 = null;
@@ -3358,7 +3390,7 @@ class UiManager {
 		const dev = this.state.deviceList.find((dev) => dev.key == key);
 		const days = this.uiChart.getDays();
 		const center = this.uiChart.getCenter(refresh);
-		const result = await dev[this.download](center, days, this.enableConfig);
+		const result = await dev.loadDataArch(center, days, this.enableConfig);
 		if (result.device) {
 			this.uiChart.render(result.device);
 			this.showDeviceList = false;
@@ -3441,6 +3473,28 @@ class UiManager {
 							}
 						}
 					}
+				}
+			} catch (error) {
+				if (!this.state.error) {
+					this.setState({ error: error });
+				}
+			}
+		}
+	}
+
+	async exportData() {
+		if (this.enableExportData) {
+			try {
+				const dev = this.state.currentDevice;
+				if (dev) {
+					let csv = dev.exportDataCsv();
+					let url = window.URL.createObjectURL(csv);
+					let a = document.createElement("a");
+					a.href = url;
+					a.download = `${dev.label}.csv`
+					a.click();
+					window.URL.revokeObjectURL(url);
+					a.remove();
 				}
 			} catch (error) {
 				if (!this.state.error) {
@@ -3553,8 +3607,8 @@ class UiManager {
 						this.enableDiagnose = this.loginValue(json.config, "diagnose", false);
 						this.enableConfig = this.loginValue(json.config, "configRead", true);
 						this.enableConfigWrite = this.loginValue(json.config, "configWrite", false);
+						this.enableExportData = this.loginValue(json.config, "exportData", false);
 						this.userTitle = this.loginValue(json.config, "title", null);
-						this.download = this.loginValue(json.config, "download", defaultLoadMode);
 						logo = this.loginValue(json.config, "logo", null);
 						const period = this.loginValue(json.config, "period", null);
 						const signals = this.loginValue(json.config, "signals", false);
@@ -3777,8 +3831,8 @@ class UiManager {
 					const band = network.band ?? "";
 					const earfcn = network.earfcn > 0 ? network.earfcn : "";
 					const plmn = network.plmn ?? "";
-					const tac = this.form(network.tac);
-					const cell = this.form(network.cell);
+					const tac = formatInt(network.tac);
+					const cell = formatInt(network.cell);
 					let freq = "";
 					const f = earfcn2frequency(network.band, network.earfcn);
 					if (f) {
@@ -3795,7 +3849,7 @@ class UiManager {
 <tr><td>PLMN:</td><td>${plmn}</td><td>TAC:</td><td>${tac}</td></tr>\n`;
 					if (Number.isInteger(network.cell)) {
 						const tower = Math.floor(network.cell / 256);
-						const towerText = this.form(tower);
+						const towerText = formatInt(tower);
 						page += `<tr><td>Cell:</td><td>${cell}</td><td>Tower:</td><td>${towerText}</td></tr>\n`;
 					} else {
 						page += `<tr><td>Cell:</td><td>${cell}</td></tr>\n`;
@@ -3841,7 +3895,10 @@ class UiManager {
 			page += `<tr><td colspan='4'><textarea id='deviceconfig' ${mode} rows='${rows}' cols='${cols}'>${config}</textarea></td></tr>\n`;
 		}
 		page += `<tr><td colspan='2'><button onclick='ui.loadDeviceData("${dev.key}", true)'>refresh/most recent</button>`;
-		if (pageMode == 2 && this.enableConfig) {
+		if (pageMode == 0) {
+			const exportMode = this.enableExportData && dev.fit ? "" : " disabled";
+			page += ` <button onclick='ui.exportData()'${exportMode}>export .csv</button>`;
+		} else if (pageMode == 2 && this.enableConfig) {
 			const writeMode = this.enableConfigWrite && dev.fit ? "" : " disabled";
 			page += ` <button onclick='ui.writeDeviceConfig()'${writeMode}>write</button>`;
 		}

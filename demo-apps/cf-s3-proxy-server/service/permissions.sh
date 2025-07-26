@@ -23,7 +23,7 @@
 
 prot () {
   if [ -e "$1" ] ; then
-    chmod o-r $1
+    chmod o-rw $1
     chown cali:cali $1
     echo "Protected $1";  
   else
@@ -33,6 +33,8 @@ prot () {
 
 chmod o-r /etc/systemd/system/cali.service
 
+prot /home/cali/logback.xml
+prot /home/cali/domains.txt
 prot /home/cali/demo-devices.txt
 prot /home/cali/fullchain.pem
 prot /home/cali/privkey.pem

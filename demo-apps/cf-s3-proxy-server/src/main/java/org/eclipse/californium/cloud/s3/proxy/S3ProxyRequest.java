@@ -105,6 +105,7 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * @param etags coap-etags for GET requests.
 	 * @param content content for PUT requests
 	 * @param contentType content type for PUT requests
+	 * @param contentEncoding content encoding for PUT requests
 	 * @param timestamp timestamp for PUT requests
 	 * @param interval interval for PUT requests
 	 * @param coapContentType content-type of coap-request
@@ -112,12 +113,13 @@ public class S3ProxyRequest extends S3PutRequest {
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating.
 	 * @param cacheMode cache mode.
-	 * @since 3.13 interval added
+	 * @since 4.0 (added contentEncoding)
 	 */
 	public S3ProxyRequest(Request request, String key, int pathStartIndex, int pathPrincipalIndex, String subPath,
-			List<OpaqueOption> etags, byte[] content, String contentType, Long timestamp, Integer interval,
-			Integer coapContentType, Map<String, String> meta, Redirect redirect, CacheMode cacheMode) {
-		super(key, content, contentType, timestamp, meta, redirect, cacheMode);
+			List<OpaqueOption> etags, byte[] content, String contentType, String contentEncoding, Long timestamp,
+			Integer interval, Integer coapContentType, Map<String, String> meta, Redirect redirect,
+			CacheMode cacheMode) {
+		super(key, null, content, contentType, contentEncoding, timestamp, meta, redirect, cacheMode);
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
 		}
@@ -198,6 +200,19 @@ public class S3ProxyRequest extends S3PutRequest {
 			}
 		}
 		return key;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Proxy requests supports only the CoAP etag option.
+	 * 
+	 * @throws RuntimeException if used
+	 * @since 4.0
+	 */
+	@Override
+	public String getEtag() {
+		throw new RuntimeException("etag not supported for proxy requests!");
 	}
 
 	/**
@@ -368,6 +383,19 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		/**
+		 * {@inheritDoc}
+		 * 
+		 * Proxy requests supports only the CoAP etag option.
+		 * 
+		 * @throws RuntimeException if used
+		 * @since 4.0
+		 */
+		@Override
+		public Builder etag(String etag) {
+			throw new RuntimeException("etag not supported for proxy requests!");
+		}
+
+		/**
 		 * Sets coap-path start index of S3-path.
 		 * <p>
 		 * Only applied, when {@link #key} is {@code null}.
@@ -454,6 +482,12 @@ public class S3ProxyRequest extends S3PutRequest {
 		}
 
 		@Override
+		public Builder contentEncoding(String contentEncoding) {
+			super.contentEncoding(contentEncoding);
+			return this;
+		}
+
+		@Override
 		public Builder timestamp(Long timestamp) {
 			super.timestamp(timestamp);
 			return this;
@@ -508,7 +542,7 @@ public class S3ProxyRequest extends S3PutRequest {
 				}
 			}
 			return new S3ProxyRequest(request, key, pathStartIndex, pathPrincipalIndex, subPath, etags, content,
-					contentType, timestamp, interval, coapContentType, meta, redirect, cacheMode);
+					contentType, contentEncoding, timestamp, interval, coapContentType, meta, redirect, cacheMode);
 		}
 	}
 }

@@ -17,10 +17,16 @@ package org.eclipse.californium.cloud.s3.proxy;
 /**
  * S3 list request.
  * 
- * @since 3.13
+ * @since 4.0 (replace base class with S3BaseRequest)
  */
-public class S3ListRequest extends S3Request {
+public class S3ListRequest extends S3BaseRequest {
 
+	/**
+	 * S3 prefix.
+	 * 
+	 * @since 4.0
+	 */
+	private final String prefix;
 	/**
 	 * S3 delimiter.
 	 */
@@ -37,18 +43,30 @@ public class S3ListRequest extends S3Request {
 	/**
 	 * Creates S3 list request.
 	 * 
-	 * @param key S3 key.
+	 * @param prefix S3 prefix of list.
 	 * @param delimiter content for S3 PUT requests
 	 * @param startAfter content type for S3 PUT requests
 	 * @param maxKeys maximum number of keys to fetch
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating.
+	 * @since 4.0 (replaced key by prefix)
 	 */
-	public S3ListRequest(String key, String delimiter, String startAfter, Integer maxKeys, Redirect redirect) {
-		super(key, redirect, CacheMode.NONE);
+	public S3ListRequest(String prefix, String delimiter, String startAfter, Integer maxKeys, Redirect redirect) {
+		super(redirect);
+		this.prefix = prefix;
 		this.delimiter = delimiter;
 		this.startAfter = startAfter;
 		this.maxKeys = maxKeys;
+	}
+
+	/**
+	 * Gets prefix for S3 LIST.
+	 * 
+	 * @return prefix for S3 LIST.
+	 * @since 4.0
+	 */
+	public String getPrefix() {
+		return prefix;
 	}
 
 	/**
@@ -100,8 +118,12 @@ public class S3ListRequest extends S3Request {
 	/**
 	 * S3 LIST request builder.
 	 */
-	public static class Builder extends S3Request.Builder {
+	public static class Builder extends S3BaseRequest.Builder {
 
+		/**
+		 * S3 prefix.
+		 */
+		protected String prefix;
 		/**
 		 * S3 delimiter.
 		 */
@@ -128,14 +150,21 @@ public class S3ListRequest extends S3Request {
 		 */
 		protected Builder(S3ListRequest request) {
 			super(request);
+			this.prefix = request.prefix;
 			this.delimiter = request.delimiter;
 			this.startAfter = request.startAfter;
 			this.maxKeys = request.maxKeys;
 		}
 
-		@Override
-		public Builder key(String key) {
-			super.key(key);
+		/**
+		 * Sets prefix for S3 LIST request.
+		 * 
+		 * @param prefix prefix
+		 * @return builder for command chaining
+		 * @since 4.0
+		 */
+		public Builder prefix(String prefix) {
+			this.prefix = prefix;
 			return this;
 		}
 
@@ -184,7 +213,7 @@ public class S3ListRequest extends S3Request {
 		 * @return S3 LIST request
 		 */
 		public S3ListRequest build() {
-			return new S3ListRequest(key, delimiter, startAfter, maxKeys, redirect);
+			return new S3ListRequest(prefix, delimiter, startAfter, maxKeys, redirect);
 		}
 	}
 }

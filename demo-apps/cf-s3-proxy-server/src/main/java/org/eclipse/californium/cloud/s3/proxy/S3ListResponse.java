@@ -42,7 +42,7 @@ public class S3ListResponse extends S3Response {
 	 * @param objects list of objects.
 	 */
 	public S3ListResponse(List<String> prefixes, List<S3Object> objects) {
-		super(200, null, null, null, null, null, null);
+		super(200, null, null, null, null, null, null, null, null);
 		this.prefixes = prefixes;
 		this.objects = objects;
 	}
@@ -54,13 +54,16 @@ public class S3ListResponse extends S3Response {
 	 * @param content content as string
 	 * @param contentAsStream content as input stream
 	 * @param contentType content type
+	 * @param contentEncoding content encoding
 	 * @param contentLength content length
 	 * @param timestamp timestamp
 	 * @param meta map of meta data
+	 * @since 4.0 (added contentEncoding)
 	 */
 	public S3ListResponse(int httpStatusCode, String content, InputStream contentAsStream, String contentType,
-			Long contentLength, Long timestamp, Map<String, String> meta) {
-		super(httpStatusCode, content, contentAsStream, contentType, contentLength, timestamp, meta);
+			String contentEncoding, Long contentLength, Long timestamp, String etag, Map<String, String> meta) {
+		super(httpStatusCode, content, contentAsStream, contentType, contentEncoding, contentLength, timestamp, etag,
+				meta);
 		this.prefixes = Collections.emptyList();
 		this.objects = Collections.emptyList();
 	}
@@ -81,6 +84,39 @@ public class S3ListResponse extends S3Response {
 	 */
 	public List<S3Object> getObjects() {
 		return objects;
+	}
+
+	/**
+	 * Checks, if key is contained.
+	 * 
+	 * @param key key to check
+	 * @return {@code true} if key is contained, {@code false} otherwise.
+	 * @since 4.0
+	 */
+	public boolean hasKey(String key) {
+		if (prefixes != null && prefixes.contains(key)) {
+			return true;
+		}
+		return hasKey(objects, key);
+	}
+
+	/**
+	 * Checks, if key is contained.
+	 * 
+	 * @param objects list of objects
+	 * @param key key to check
+	 * @return {@code true} if key is contained, {@code false} otherwise.
+	 * @since 4.0
+	 */
+	public static boolean hasKey(List<S3Object> objects, String key) {
+		if (objects != null) {
+			for (S3Object object : objects) {
+				if (object.key.equals(key)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -137,6 +173,12 @@ public class S3ListResponse extends S3Response {
 		}
 
 		@Override
+		public Builder contentEncoding(String contentEncoding) {
+			super.contentEncoding(contentEncoding);
+			return this;
+		}
+
+		@Override
 		public Builder contentLength(Long contentLength) {
 			super.contentLength(contentLength);
 			return this;
@@ -145,6 +187,12 @@ public class S3ListResponse extends S3Response {
 		@Override
 		public Builder timestamp(Long timestamp) {
 			super.timestamp(timestamp);
+			return this;
+		}
+
+		@Override
+		public Builder etag(String etag) {
+			super.etag(etag);
 			return this;
 		}
 
@@ -185,8 +233,8 @@ public class S3ListResponse extends S3Response {
 			if (prefixes != null && objects != null) {
 				return new S3ListResponse(prefixes, objects);
 			} else {
-				return new S3ListResponse(httpStatusCode, content, contentAsStream, contentType, contentLength,
-						timestamp, meta);
+				return new S3ListResponse(httpStatusCode, content, contentAsStream, contentType, contentEncoding,
+						contentLength, timestamp, etag, meta);
 			}
 		}
 	}
@@ -214,6 +262,11 @@ public class S3ListResponse extends S3Response {
 		public S3Object(String key, String etag) {
 			this.key = key;
 			this.etag = etag;
+		}
+
+		@Override
+		public String toString() {
+			return key;
 		}
 
 		@Override

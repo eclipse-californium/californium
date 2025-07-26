@@ -7,6 +7,8 @@
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>*</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>Content-Encoding</ExposeHeader>
+    <ExposeHeader>Content-Length</ExposeHeader>
     <ExposeHeader>x-amz-meta-interval</ExposeHeader>
     <ExposeHeader>x-amz-meta-coap-ct</ExposeHeader>
   </CORSRule>
@@ -17,6 +19,8 @@
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>*</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>Content-Encoding</ExposeHeader>
+    <ExposeHeader>Content-Length</ExposeHeader>
     <ExposeHeader>x-amz-meta-interval</ExposeHeader>
     <ExposeHeader>x-amz-meta-coap-ct</ExposeHeader>
   </CORSRule>

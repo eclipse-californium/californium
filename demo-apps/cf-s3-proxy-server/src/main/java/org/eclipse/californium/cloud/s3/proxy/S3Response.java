@@ -23,7 +23,6 @@ import java.util.Map;
  * @since 3.13
  */
 public class S3Response {
-
 	/**
 	 * Http status code.
 	 */
@@ -41,6 +40,12 @@ public class S3Response {
 	 */
 	private final String contentType;
 	/**
+	 * Content encoding.
+	 * 
+	 * @since 4.0
+	 */
+	private final String contentEncoding;
+	/**
 	 * Content length.
 	 */
 	private final Long contentLength;
@@ -48,6 +53,12 @@ public class S3Response {
 	 * Timestamp.
 	 */
 	private final Long timestamp;
+	/**
+	 * S3 resource ETAG.
+	 * 
+	 * @since 4.0
+	 */
+	private final String etag;
 	/**
 	 * Map of meta data.
 	 */
@@ -60,18 +71,23 @@ public class S3Response {
 	 * @param content content as string
 	 * @param contentAsStream content as input stream
 	 * @param contentType content type
+	 * @param contentEncoding content encoding
 	 * @param contentLength content length
 	 * @param timestamp timestamp
+	 * @param etag etag of response
 	 * @param meta map of meta data
+	 * @since 4.0 (added contentEncoding, and etag)
 	 */
 	public S3Response(int httpStatusCode, String content, InputStream contentAsStream, String contentType,
-			Long contentLength, Long timestamp, Map<String, String> meta) {
+			String contentEncoding, Long contentLength, Long timestamp, String etag, Map<String, String> meta) {
 		this.httpStatusCode = httpStatusCode;
 		this.content = content;
 		this.contentAsStream = contentAsStream;
 		this.contentType = contentType;
+		this.contentEncoding = contentEncoding;
 		this.contentLength = contentLength;
 		this.timestamp = timestamp;
+		this.etag = etag;
 		this.meta = meta;
 	}
 
@@ -112,6 +128,33 @@ public class S3Response {
 	}
 
 	/**
+	 * Gets content encoding.
+	 * 
+	 * @return content encoding
+	 * @since 4.0
+	 */
+	public String getContentEncoding() {
+		return contentEncoding;
+	}
+
+	/**
+	 * Checks content encoding.
+	 * 
+	 * @param contentEncoding content encoding to check
+	 * @return {@code true}, if content encoding matches, {@code false}
+	 *         otherwise
+	 * @since 4.0
+	 */
+	public boolean hasContentEncoding(String contentEncoding) {
+		if (this.contentEncoding == contentEncoding) {
+			return true;
+		} else if (this.contentEncoding != null) {
+			return this.contentEncoding.equalsIgnoreCase(contentEncoding);
+		}
+		return false;
+	}
+
+	/**
 	 * Gets content length.
 	 * 
 	 * @return content length
@@ -127,6 +170,16 @@ public class S3Response {
 	 */
 	public Long getTimestamp() {
 		return timestamp;
+	}
+
+	/**
+	 * Gets etag.
+	 * 
+	 * @return etag
+	 * @since 4.0
+	 */
+	public String getEtag() {
+		return etag;
 	}
 
 	/**
@@ -179,6 +232,12 @@ public class S3Response {
 		 */
 		protected String contentType;
 		/**
+		 * Content encoding.
+		 * 
+		 * @since 4.0
+		 */
+		protected String contentEncoding;
+		/**
 		 * Content length.
 		 */
 		protected Long contentLength;
@@ -186,6 +245,12 @@ public class S3Response {
 		 * Timestamp.
 		 */
 		protected Long timestamp;
+		/**
+		 * S3 resource ETAG.
+		 * 
+		 * @since 4.0
+		 */
+		protected String etag;
 		/**
 		 * Map of meta data.
 		 */
@@ -204,9 +269,11 @@ public class S3Response {
 		 */
 		protected Builder(S3Response response) {
 			this.httpStatusCode = response.httpStatusCode;
+			this.etag = response.etag;
 			this.content = response.content;
 			this.contentAsStream = response.contentAsStream;
 			this.contentType = response.contentType;
+			this.contentEncoding = response.contentEncoding;
 			this.contentLength = response.contentLength;
 			this.timestamp = response.timestamp;
 			this.meta = response.meta;
@@ -257,6 +324,18 @@ public class S3Response {
 		}
 
 		/**
+		 * Sets content encoding.
+		 * 
+		 * @param contentEncoding content encoding.
+		 * @return builder for command chaining
+		 * @since 4.0
+		 */
+		public Builder contentEncoding(String contentEncoding) {
+			this.contentEncoding = contentEncoding;
+			return this;
+		}
+
+		/**
 		 * Sets content length.
 		 * 
 		 * @param contentLength content length.
@@ -279,6 +358,18 @@ public class S3Response {
 		}
 
 		/**
+		 * Sets etag.
+		 * 
+		 * @param etag etag.
+		 * @return builder for command chaining
+		 * @since 4.0
+		 */
+		public Builder etag(String etag) {
+			this.etag = etag;
+			return this;
+		}
+
+		/**
 		 * Sets map of meta data.
 		 * 
 		 * @param meta map of meta data.
@@ -295,8 +386,8 @@ public class S3Response {
 		 * @return S3 response
 		 */
 		public S3Response build() {
-			return new S3Response(httpStatusCode, content, contentAsStream, contentType, contentLength, timestamp,
-					meta);
+			return new S3Response(httpStatusCode, content, contentAsStream, contentType, contentEncoding, contentLength,
+					timestamp, etag, meta);
 		}
 	}
 }

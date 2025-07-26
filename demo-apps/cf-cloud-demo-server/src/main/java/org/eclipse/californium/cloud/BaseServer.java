@@ -517,6 +517,8 @@ public class BaseServer extends CoapServer {
 
 	protected List<CounterStatisticManager> diagnoseStatistics = new ArrayList<>();
 
+	protected boolean noCoap;
+
 	public BaseServer(Configuration config) {
 		super(config);
 		setVersion(CALIFORNIUM_BUILD_VERSION);
@@ -554,6 +556,7 @@ public class BaseServer extends CoapServer {
 	 * @throws SocketException if an I/O error occurred.
 	 */
 	public void initialize(ServerConfig cliArguments) throws SocketException {
+		noCoap = cliArguments.noCoap;
 		Configuration config = getConfig();
 		// executors
 		ProtocolScheduledExecutorService executor = ExecutorsUtil.newProtocolScheduledThreadPool(//
@@ -564,7 +567,7 @@ public class BaseServer extends CoapServer {
 
 		setupDeviceCredentials(cliArguments);
 
-		if (!cliArguments.noCoap) {
+		if (!noCoap) {
 			addEndpoints(cliArguments);
 
 			addResource(cliArguments, executor);
@@ -576,7 +579,7 @@ public class BaseServer extends CoapServer {
 			setupObserveHealthLogger();
 		}
 		setupHttpService(cliArguments);
-		setupProcessors(executor.getBackgroundExecutor());
+		setupProcessors(cliArguments, executor.getBackgroundExecutor());
 
 		LOGGER.info("{} initialized.", getTag());
 	}
@@ -836,9 +839,11 @@ public class BaseServer extends CoapServer {
 	/**
 	 * Setup processors.
 	 * 
+	 * @param cliArguments cli arguments
 	 * @param secondaryExecutor secondary executor for slow interval jobs
+	 * @since 4.0 (added cliArguments)
 	 */
-	public void setupProcessors(ScheduledExecutorService secondaryExecutor) {
+	public void setupProcessors(ServerConfig cliArguments, ScheduledExecutorService secondaryExecutor) {
 	}
 
 	/**
@@ -852,8 +857,8 @@ public class BaseServer extends CoapServer {
 		if (child instanceof Diagnose) {
 			((Diagnose) child).update(diagnoseStatistics);
 			LOGGER.info("{} {} added to diagnose resource.", health.getTag(), health.getClass().getSimpleName());
-		} else {
-			LOGGER.info("{} {} not added, diagnose resource missing.", health.getTag(),
+		} else if (!noCoap) {
+			LOGGER.info("{} {} diagnose resource missing.", health.getTag(),
 					health.getClass().getSimpleName());
 		}
 	}

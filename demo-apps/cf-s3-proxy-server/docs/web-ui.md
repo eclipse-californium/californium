@@ -46,7 +46,7 @@ The chart view shows some selected values as chart. The unit and scale of that u
 
 ![browser-chart](./S3-proxy-chart.png)
 
-With the slidebar the displayed period is selected. Short periods up to 10 days may be selected by steps in single days, larger periods are selected in steps of multiple days.
+With the slidebar the displayed `Period` is selected. Short periods up to 10 days are selected by steps in single days, larger periods are selected in steps of multiple days. The `refresh/most recent` button reloads the chart with the most recent data and with `export .csv` it is possible to download the data of the selected period into a `.csv` file.
 
 At the top of the chart several checkboxes are available. With `Signals` you select the technical values, battery voltage, battery level, signal level, signal quality, number of retransmissions, and RTT. With `Sensors` you get for a `Thingy:91` the temperature, air pressure and humidity. For other devices you may get other values. With `Average` and `Min/Max` you select, how multiple values are mapped into a single point. `Zoom` extends the value range to the mostly full y-axis.
 
