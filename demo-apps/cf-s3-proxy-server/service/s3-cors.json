@@ -14,6 +14,8 @@
         ],
         "ExposeHeaders": [
             "ETag",
+            "Content-Encoding",
+            "Content-Length",
             "x-amz-meta-interval",
             "x-amz-meta-coap-ct"
         ]

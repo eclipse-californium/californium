@@ -92,4 +92,20 @@ public interface S3ProxyClient extends ExternalEndpointProvider {
 	 */
 	void delete(S3Request request, final Consumer<S3Response> handler);
 
+	/**
+	 * Executes S3 deletes list request.
+	 * 
+	 * @param request deletes list request
+	 * @param handler callback for delete response
+	 * @since 4.0
+	 */
+	void deletes(S3DeletesRequest request, final Consumer<S3Response> handler);
+
+	/**
+	 * Use compression for archive files.
+	 * 
+	 * @return {@code true} to compress, {@code false} otherwise.
+	 * @since 4.0
+	 */
+	boolean useCompression();
 }

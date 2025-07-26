@@ -21,7 +21,7 @@ Example message sent by device:
 ```
 22-03:02:30 [d-hh:mm:ss], nRF9160 feather/scale v0.9.0+0, 0*1061, 1*0, 2*0, 3*1, failures 0
 NCS: 2.5.1, HW: B1A, MFW: 1.3.5, IMEI: 350457799486418
-!3836 mV 56% (104 days left)
+3836 mV 56% (104 days left)
 Last code: 2024-01-30T19:59:07Z update
 Restart: Power-On
 ICCID: ?????280666074879390, eDRX cycle: off, HPPLMN 26201 interval: 2 [h]
@@ -29,17 +29,15 @@ IMSI: ?????5107487939
 Network: CAT-M1,roaming,Band 20,PLMN 26201,TAC 26553,Cell 30157572,EARFCN 6400
 PDN: ???.???,???.???.???.???
 PSM: TAU 86400 [s], Act 0 [s], no RAI, Released: 10823 ms
-!CE: down: 8, up: 1, RSRP: -93 dBm, CINR: 5 dB, SNR: 6 dB
+CE: down: 8, up: 1, RSRP: -93 dBm, CINR: 5 dB, SNR: 6 dB
 Stat: tx 1032 kB, rx 72 kB, max 1003 B, avg 529 B
 Cell updates 162, Network searchs 1 (1 s), PSM delays 0 (0 s)
 Modem Restarts 0, Sockets 1, DTLS handshakes 1
 Wakeups 1062, 428 s, connected 12371 s, asleep 72 s
 Last calibration: A 2024-02-28T20:10:11Z, B 2024-02-28T20:19:55Z
-!CHA 37.20 kg, 31.1°C, CHB 34.55 kg, 31.9°C
-!26 C
+CHA 37.20 kg, 31.1°C, CHB 34.55 kg, 31.9°C
+26 C
 ```
-
-**Note:** If you are irritated by the usage of '!' in some lines, that is obsoleted. The previous implementation uses the lines starting with an `!` for a accumulated data file named "series-date-time". That has changed and the current version accumulates the complete data into a "arch-date" file.
 
 Web-Browser application login page:
 
@@ -84,7 +82,7 @@ Cloud CoAP-S3-Proxy Server is available at the eclipse repository and can be dow
 Start the cf-s3-proxy-server with:
 
 ```
-java -jar cf-s3-proxy-server-4.0.0-M3.jar -h
+java -jar cf-s3-proxy-server-4.0.0-M6.jar -h
 
 Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [[--[no-]loopback] [--[no-]external] [--[no-]ipv4] [--[no-]
@@ -101,9 +99,10 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [--s3-bucket=<bucket>] [--s3-acl=<acl>]
                      [--s3-concurrency=<concurrency>]
                      [--s3-external-endpoint=<externalEndpoint>]
-                     [--s3-redirect] (--s3-config=<s3ConfigFile> |
-                     [--s3-access-key=<accessKey> --s3-secret=<secret>])]
-                     [--user-file=<file> [--user-file-password64=<password64>]]
+                     [--s3-redirect] [--s3-compress]
+                     (--s3-config=<s3ConfigFile> | [--s3-access-key=<accessKey>
+                     --s3-secret=<secret>])] [--user-file=<file>
+                     [--user-file-password64=<password64>]]
                      [--config-file=<file>
                      [--config-file-password64=<password64>]]
                      [--http-forward=<httpForward>
@@ -118,6 +117,9 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [--spa-s3]
                      [--spa-script-v2=<singlePageApplicationScriptV2>]
                      [--spa-script-v1=<singlePageApplicationScriptV1>]]
+                     [[--s3p-function=<function>] [--s3p-upto=<upTo>]
+                     [--s3p-domains=<domains>[,<domains>...]]...
+                     [--s3p-devices=<devices>[,<devices>...]]... [--s3p-test]]
       --coaps-credentials=<credentials>
                              Folder containing coaps credentials in 'privkey.
                                pem' and 'pubkey.pem'
@@ -173,6 +175,7 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                              s3 access key.
       --s3-acl=<acl>         s3 canned acl. e.g. public-read
       --s3-bucket=<bucket>   s3 bucket. Default: devices
+      --s3-compress          s3 use compression for archive files. Default true.
       --s3-concurrency=<concurrency>
                              s3 concurrency. Default 200
       --s3-config=<s3ConfigFile>
@@ -189,6 +192,19 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                                Default: 'us-east-1'. (For other providers, try,
                                if the default works).
       --s3-secret=<secret>   s3 secret access key.
+      --s3p-devices=<devices>[,<devices>...]
+                             S3Processor list of devices. Separated by ','.
+                               Default all devices.
+      --s3p-domains=<domains>[,<domains>...]
+                             S3Processor list of domains. Separated by ','.
+                               Default all domains.
+      --s3p-function=<function>
+                             S3Processor function. Default arch.
+      --s3p-test             S3Processor test run, don't save nor delete files.
+      --s3p-upto=<upTo>      S3Processor up to date. Either a date in format
+                               yyyy-mm-dd, or a number. Negative numbers are
+                               replaced by the date that days ago, positive
+                               numbers keeps that last available days.
       --spa-css=<singlePageApplicationCss>
                              Single-Page-Application Cascading Style Sheets.
                                See applied search path below. Default
@@ -198,7 +214,7 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                                ccs from S3.
       --spa-script=<singlePageApplicationScript>
                              Single-Page-Application script. See applied search
-                               path below. Default appv2.js
+                               path below. Default appv3.js
       --spa-script-v1=<singlePageApplicationScriptV1>
                              Single-Page-Application script v1. See applied
                                search path below.
@@ -217,9 +233,6 @@ Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
       --wildcard-interface   Use local wildcard-address for coap endpoints.
                                Default mode.
 
-Examples:
-  S3ProxyServer --no-loopback --device-file devices.txt \
-                --s3-config ~/.s3cfg
     (S3ProxyServer listening only on external network interfaces.)
 
   S3ProxyServer --store-file dtls.bin --store-max-age 168 \
@@ -370,6 +383,7 @@ The configurations of the web application are stored in a text-file, e.g. [confi
 logo=logo.svg
 ConfigRead=true
 ConfigWrite=true
+exportData=true
 Details=all
 Diagnose=true
 period=64
@@ -381,7 +395,7 @@ ConfigWrite=false
 period=64
 ```
 
-The values are mainly passed to the java script application on login. Only `Diagnose=true` is also used as permission to read the `diagnose` resource via https and the `ConfigWrite=true` enables to write a device configuration to the `config` resource via https for the devices in the `groups`ot the user.
+The values are mainly passed to the java script application on login. Only `Diagnose=true` is also used as permission to read the `diagnose` resource via https and the `ConfigWrite=true` enables to write a device configuration to the `config` resource via https for the devices in the `groups`ot the user. `exportData` enables to export the chart data in a ".csv" file.
 
 ## DTLS Graceful Restart
 
@@ -424,22 +438,16 @@ And for each device:
 ```
 Format:
 FILE s3://<bucket>/devices/<device>/<date>/<time>
-FILE s3://<bucket>/devices/<device>/series-<date>T<time>Z
-FILE s3://<bucket>/devices/<device>/arch-<date>Z
-FILE s3://<bucket>/devices/<device>/arch-<date>+<days>
+FILE s3://<bucket>/devices/<device>/arch-<date>Z.gz
+FILE s3://<bucket>/devices/<device>/arch-<date>+<days>.gz
 
 Example:
 FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/20:49:53.249
 FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/21:49:47.530
 FILE s3://<bucket>/devices/cali.350457798680938/2024-10-01/22:49:47.551
-FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-09-22Z
-FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-09-29+2
-FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-24T14:42:47.950Z
-FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-25T00:37:59.798Z
-FILE s3://<bucket>/devices/cali.350457798680938/series-2024-09-26T00:11:02.989Z
+FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-09-22Z.gz
+FILE s3://<bucket>/devices/cali.350457798680938/arch-2024-09-29+02.gz
 ```
-
-(The previous version only supported the series file accumulates all lines starting with '!'. This requires the payload as plain-text. The current version replaced that with an archive file supporting other formats and just accumulates all the payload, regardless of the content-type.)
 
 In order to have the permission for accessing that S3 device data, so called api-keys are required. It depends on the S3 provider, which granularity for that permissions are provided. Some (e.g. Digital Ocean) only support a key for general S3 access, others offer to grant read or write on a specific bucket. If supported, it's recommended to use 3 api-keys following this patter.
 
@@ -448,7 +456,7 @@ In order to have the permission for accessing that S3 device data, so called api
 | S3-coap-proxy-key | read/write |
 | S3-web-user-key | read only |
 
-The `S3-coap-proxy-key` is used by the proxy to forward the data from the device to the S3 bucket and to read the configuration from s3 bucket to send it as response to the device back. It is also used to write the device configuration via the https service to the S3 bucket. Additionally it is used to accumulate the device data into `arch-${date}`. As long as not all days for an archive are available, the number of the current days is appended with `arch-${date}+${days}`. The next run will the create a new arch file with one more day, or if ready, with `arch-${date}Z`. The previous archive with `arch-${date}+${days}` will be deleted, when the new one is successfully written. Similar the `S3-web-user-key` with read only permissions are used by the web application for limited read access directly to S3.
+The `S3-coap-proxy-key` is used by the proxy to forward the data from the device to the S3 bucket and to read the configuration from s3 bucket to send it as response to the device back. It is also used to write the device configuration via the https service to the S3 bucket. Additionally it is used to accumulate the device data into `arch-${date}`. As long as not all days for an archive are available, the number of the current days is appended with `arch-${date}+${days}`. The next run will the create a new arch file with one more day, or if ready, with `arch-${date}Z`. The previous archive with `arch-${date}+${days}` will be deleted, when the new one is successfully written. Similar the `S3-web-user-key` with read only permissions are used by the web application for limited read access directly to S3. If "gzip" is enabled, the resulting file names will be `arch-${date}+${days}.gz` and `arch-${date}Z.gz`
 
 To create and prepare the S3 bucket, [s3cmd](https://s3tools.org/s3cmd) is used. This requires also some api-key in a `.s3cfg` file, here we need also the permission to create a S3 bucket.
 
@@ -466,6 +474,8 @@ If you create the S3 bucket on your own, then you need to setup [CORSConfigurati
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>*</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>Content-Encoding</ExposeHeader>
+    <ExposeHeader>Content-Length</ExposeHeader>
     <ExposeHeader>x-amz-meta-interval</ExposeHeader>
     <ExposeHeader>x-amz-meta-coap-ct</ExposeHeader>
   </CORSRule>
@@ -476,6 +486,8 @@ If you create the S3 bucket on your own, then you need to setup [CORSConfigurati
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedHeader>*</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>Content-Encoding</ExposeHeader>
+    <ExposeHeader>Content-Length</ExposeHeader>
     <ExposeHeader>x-amz-meta-interval</ExposeHeader>
     <ExposeHeader>x-amz-meta-coap-ct</ExposeHeader>
   </CORSRule>
@@ -483,6 +495,7 @@ If you create the S3 bucket on your own, then you need to setup [CORSConfigurati
 ```
 
 Enter your `dns-domain` name in the first `CORSRule` in order grant that access.
+The `Content-Encoding` and `Content-Length` are added for supporting "gzip" files.
 
 In some cases it's comfortable to test changes in the javascript app from a local running CoAP-S3-proxy accessed with `https://localhost:8080`. If you want that, please keep the second rule, otherwise remove it.
 
@@ -491,7 +504,7 @@ The [javascript web application](./src/main/resources/app.js) and the [cascading
 ```
 bucket=<bucket-name>
 
-s3cmd put -P -m "text/javascript; charset=utf-8" --add-header "Cache-Control:no-cache" src/main/resources/app.js s3://${bucket}/app.js
+s3cmd put -P -m "text/javascript; charset=utf-8" --add-header "Cache-Control:no-cache" src/main/resources/appv3.js s3://${bucket}/appv3.js
 
 s3cmd put -P -m "text/css; charset=utf-8" --add-header "Cache-Control:no-cache" src/main/resources/stylesheet.css s3://${bucket}/stylesheet.css
 
@@ -500,7 +513,7 @@ s3cmd put -m "image/svg+xml" docs/coap.svg s3://${bucket}/logo.svg
 
 (Replace the `<bucket-name>` by your bucket's name.)
 
-If you want to use a [logo](./docs/coap.svg), copy that as well to the S3 bucket. This file we be loaded authorized by the javascrip app and doesn't require public read access.
+If you want to use a [logo](./docs/coap.svg), copy that as well to the S3 bucket. This file we be loaded authorized by the javascript app and doesn't require public read access.
 
 ## HTTP forwarding
 
@@ -560,7 +573,7 @@ The response from the http server will then be sent back to the device, if the h
 
 This instructions assumes to be already common with tools used around "headless compute units" and "cloud computing". It does not contain the basic instruction for using them. For some more details, see the script's [README](./service/cloud-installs/README.md)
 
-Cloud CoAP-S3-Proxy Server is available at the eclipse repository and can be downloaded [cf-s3-proxy-server-3.13.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-s3-proxy-server/3.13.0/cf-s3-proxy-server-3.13.0.jar).
+Cloud CoAP-S3-Proxy Server is available at the eclipse repository and can be downloaded [cf-s3-proxy-server-4.0.0-M6.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-s3-proxy-server/4.0.0-M6/cf-s3-proxy-server-4.0.0-M6.jar).
 
 The server runs as [systemd service](./service/cali.service). It may be installed either manually or using the [installation script](./service/cloud-installs/deploy-dev.sh). 
 
@@ -638,6 +651,7 @@ host_bucket = %(bucket)s.sos-de-fra-1.exo.io
 bucket = devices1
 access_key = <S3-access-key-id1>
 secret_key = <S3-access-key-secret1>
+compress = true
 
 [domain1.management]
 
@@ -658,6 +672,7 @@ host_bucket = %(bucket)s.sos-de-fra-1.exo.io
 bucket = devices2
 access_key = <S3-access-key-id3>
 secret_key = <S3-access-key-secret3>
+compress = true
 
 [domain2.management]
 
@@ -704,8 +719,6 @@ The CoAP API offers two kind of resources. One is specific for each device and t
 A device POST its data to the "coaps://${host}/devices". Using query parameters enables then the S3 proxy function.
 
 - **write** writes the payload of the request to S3. Path is "s3://${devicedomain}/devices/${devicename}/". The subpath may be provided as argument. A "${now}", "${date}" and "${time}" will be replaced with the requests time. The default subpath is "${date}/${time}", which results in "s3://${devicedomain}/devices/${devicename}/${date}/${time}" as S3 path for each payload.
-
-- **series** write all lines of the payload starting with "!" concated to a single line to a series resource "s3://${devicedomain}/devices/${devicename}/series-${now-at-start}". Thus function is now obsoleted by the archive file.
 
 - **read** piggybacks a S3 read operation to a POST request. Default subpath is "config", which results in "s3://${devicedomain}/devices/${devicename}/config". ETAGs are supported to reduce the amount of data preventing transmission of a non-changed config twice. Read [S3Devices - Javadoc](src/main/java/org/eclipse/californium/cloud/s3/resources/S3Devices.java) for details. This function is intended to efficiently provide configuration to the device with the next request.
 
@@ -785,90 +798,88 @@ Sends the next payload "3755mV 50%25" with a piggybacked read and the custom opt
 
 ```sh
 s3cmd ls s3://${domainbucket}/devices/Client_identity/
-                          DIR  s3://${domainbucket}/devices/Client_identity/2024-05-15/
-2024-05-15 13:02           13  s3://${domainbucket}/devices/Client_identity/config
-2024-05-15 13:03          107  s3://${domainbucket}/devices/Client_identity/arch-2024-05-14+1
+                          DIR  s3://${domainbucket}/devices/Client_identity/2025-08-11/
+2025-08-11 08:57           13  s3://${domainbucket}/devices/Client_identity/config
 
-s3cmd ls s3://${domainbucket}/devices/Client_identity/2024-05-15/
-2024-05-14 23:57           11  s3://${domainbucket}/devices/Client_identity/2024-05-14/23:57:05.134
-2024-05-15 12:57            9  s3://${domainbucket}/devices/Client_identity/2024-05-15/12:57:45.097
-2024-05-15 12:59           10  s3://${domainbucket}/devices/Client_identity/2024-05-15/12:59:17.513
-2024-05-15 13:02           11  s3://${domainbucket}/devices/Client_identity/2024-05-15/13:02:05.645
-2024-05-15 13:03           12  s3://${domainbucket}/devices/Client_identity/2024-05-15/13:03:16.053
+s3cmd ls s3://${domainbucket}/devices/Client_identity/2025-08-11/
+2025-08-11 08:57           11  s3://${domainbucket}/devices/Client_identity/2025-08-11/08:57:07.397
+2025-08-11 08:57           11  s3://${domainbucket}/devices/Client_identity/2025-08-11/08:57:38.628
+2025-08-11 08:57           11  s3://${domainbucket}/devices/Client_identity/2025-08-11/08:57:57.984
+2025-08-11 08:58           11  s3://${domainbucket}/devices/Client_identity/2025-08-11/08:58:18.582
+2025-08-11 09:03           11  s3://${domainbucket}/devices/Client_identity/2025-08-11/09:03:14.133
+2025-08-11 09:04           11  s3://${domainbucket}/devices/Client_identity/2025-08-11/09:04:08.164
 ```
 
-Shows the content in S3. A "config" file, a "series" file, and the POSTed payloads using paths with "/devices/Client_identity/${date}/${time}".
+Shows the content in S3. A "config" file and the POSTed payloads using paths with "/devices/Client_identity/${date}/${time}".
 
 The data may then be shows using the javascript browser app, or read by an other backend application via S3.
 
 ### CoAP API - coaps://devices - Charts support.
 
-The javascript browser app displays data as chart. In the previous version it was required to use the "series" file. To add data to that, it was required to place the data in ASCII with lines starting with "!". Also an additional query parameters "series" was required to copy these lines into the "series" file. The current version comes with support for "arch" files, which obsoletes that.
-
-Deprecated example:
-
-```sh
-coap-client -v 6 -m POST -e '!4237 mV 98%25' -t 0 -u Client_identity -k secretPSK coaps://${s3proxy}/devices?write\&read\&series
-v:1 t:CON c:POST i:c9f6 {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read, Uri-Query:series ] :: '!4237 mV 98%'
-INFO Identity Hint '' provided
-v:1 t:ACK c:2.04 i:c9f6 {} [ Content-Format:text/plain, 65004:\x30\xA4\xBE\x81\x48\x34, 65008:\x45 ]
-```
-
-Writes
-
-```
-2024-10-04T05:49:11.890Z: 4237 mV 98%
-```
-
-to "series".
-
-With the introduction of the archive files, that has changed. The archive file accumulates all payloads of several days into a single file without using "!" lines (therefore works also for other content types) and without the "series" query parameter. The messages are accumulated once a day and appended to the archive file. To read the data, read to related archive files and the left messages of the current day.
+The javascript browser app displays data as chart. To improve the efficiency, the data files of single POST request are accumulated once a day and appended to the archive file. To read the data, read to related archive files and the left messages of the current day.
 
 Example:
 
 ```sh
+coap-client -v 6 -m POST -e '4237 mV 98%25' -t 0 -u Client_identity -k secretPSK coaps://${s3proxy}/devices?write\&read\&series
+v:1 t:CON c:POST i:c9f6 {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read, Uri-Query:series ] :: '4237 mV 98%'
+INFO Identity Hint '' provided
+v:1 t:ACK c:2.04 i:c9f6 {} [ Content-Format:text/plain, 65004:\x30\xA4\xBE\x81\x48\x34, 65008:\x45 ]
+
 coap-client -v 6 -m POST -e '4104 mV 96%25' -t 0 -u Client_identity -k secretPSK coaps://${s3proxy}/devices?write\&read
 v:1 t:CON c:POST i:a2f2 {} [ Uri-Host:${s3proxy}, Uri-Path:devices, Content-Format:text/plain, Uri-Query:write, Uri-Query:read ] :: '4104 mV 96%'
 INFO Identity Hint '' provided
 v:1 t:ACK c:2.04 i:a2f2 {} [ Content-Format:text/plain, 65004:\x30\xA4\xBE\x81\x48\x34, 65008:\x45 ]
 ```
 
-Writes, when processed
+That will result in
+
+```sh
+s3cmd ls s3://${domainbucket}/devices/Client_identity/
+                          DIR  s3://${domainbucket}/devices/Client_identity/2025-08-11/
+2025-08-11 08:57           13  s3://${domainbucket}/devices/Client_identity/config
+2025-08-12 00:05          128  s3://${domainbucket}/devices/Client_identity/arch-2025-08-11+01.gz
+```
 
 ```
-##L12#D2024-10-04T05:49:11.890Z#C0#
-!4237 mV 98%
-##L11#D2024-10-04T05:50:07.838Z#C0#
+##L11#D2025-08-11T08:57:07.397Z#C0#
+3765 mV 50%
+##L11#D2025-08-11T08:57:38.628Z#C0#
+3760 mV 50%
+##L11#D2025-08-11T08:57:57.984Z#C0#
+3755 mV 50%
+##L11#D2025-08-11T08:58:18.582Z#C0#
+3755 mV 50%
+##L11#D2025-08-11T09:03:14.133Z#C0#
+4237 mV 98%
+##L11#D2025-08-11T09:04:08.164Z#C0#
 4104 mV 96%
-...
 ```
-
-to the archive file. The first message is from the previous example and shows, that "!" lines also works for archive files, even if that is not longer required.
 
 (**Note:** the messages are accumulated usually once a day and so it will take some time until the messages are appended.)
 
 The javascript browser app extracts the values for the chart from the lines of that files with regular expressions:
 
-[javascript - chartConfig](src/main/resources/appv2.js#L687-L728)
+[javascript - chartConfig](src/main/resources/appv3.js#L769-L785)
 
 ```
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "mV", "blue", 3400, 4300, [1, 3, 0, 1], 1000),
-	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "%", "navy", 20, 100, [1, 1, 0, 1]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "°C", "red", 10, 40, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "%H", "green", 10, 80, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "hPa", "SkyBlue", 900, 1100, [4, 0, 3, 4]),
-	new ChartConfig(null, "°C dp", "steelblue", 10, 40, [0, 0, 4, 0], 1, "dew point"),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "lightblue", 0, 500, [1, 0, 2, 2]),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "dBm", "orange", -125, -75, [0, 4, 0, 1]),
-	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "dB", "gold", -15, 15, [0, 4, 0, 1]),
-	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "mAs", "DarkGoldenrod", 50, 400, [1, 3, 0, 1]),
-	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "mAs0", "tomato", 50, 400, [0, 3, 0, 1]),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "kg A", "olive", 0, 50, [4, 0, 4, 4]),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "kg B", "teal", 0, 50, [4, 0, 4, 4]),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "mV Ext.", "lime", 8000, 16000, [4, 0, 4, 4], 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "Retr.", "red", 0, 3, [0, 3, 0, 1], 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "ms", "salmon", 0, 60000, [2, 4, 0, 1], 1000),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", "blue", 3400, 4300, [1, 3, 0, 1], 1000),
+	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", "navy", 20, 100, [1, 1, 0, 1]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", "red", 10, 40, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", "green", 10, 80, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", "SkyBlue", 900, 1100, [4, 0, 3, 4]),
+	new ChartConfig(null, "dew point in °C", "°C dp", "steelblue", 10, 40, [0, 0, 4, 0], 1, "dew point"),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "IAQ", "lightblue", 0, 500, [1, 0, 2, 2]),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", "orange", -125, -75, [0, 4, 0, 1]),
+	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "SNR in dB", "dB", "gold", -15, 15, [0, 4, 0, 1]),
+	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "energy in mAs", "mAs", "DarkGoldenrod", 50, 400, [1, 3, 0, 1]),
+	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "quiescent energy in mAs", "mAs0", "tomato", 50, 400, [0, 3, 0, 1]),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", "olive", 0, 50, [4, 0, 4, 4]),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", "teal", 0, 50, [4, 0, 4, 4]),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", "lime", 8000, 16000, [4, 0, 4, 4], 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", "red", 0, 3, [0, 3, 0, 1], 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", "salmon", 0, 60000, [2, 4, 0, 1], 1000),
 ];
 ```
 

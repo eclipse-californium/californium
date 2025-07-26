@@ -57,6 +57,8 @@ Environment="ARGS2=--device-file=demo-devices.txt --coaps-credentials . --provis
 Environment="HTTPS_ARGS=--https-port=8080 --user-file users.txt --config-file configs.txt"
 Environment="HTTPS_CERT_ARGS=--https-credentials=/etc/letsencrypt/live/<domain>"
 Environment="S3_ARGS=--s3-config /home/cali/.s3cfg --s3-concurrency 400 --s3-redirect --spa-s3 --spa-script-v2 appv2.js"
+Environment="COAP_ROOT_RESOURCE_NOTE=S3-Proxy server."
+Environment="COAP_ROOT_RESOURCE_FOOTER=    <your e-mail>"
 ExecStartPre=/bin/cp -u cf-s3-proxy-server-update.jar ${JAR}
 ExecStart=/usr/bin/java $OPTS -jar ${JAR} $ARGS $ARGS2 $HTTPS_ARGS $HTTPS_CERT_ARGS $S3_ARGS
 RestartSec=10

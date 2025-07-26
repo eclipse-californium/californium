@@ -20,6 +20,7 @@ import static org.eclipse.californium.cloud.s3.http.SinglePageApplication.S3_SCH
 import java.io.File;
 import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,8 +49,8 @@ import org.eclipse.californium.cloud.s3.http.GroupsHandler;
 import org.eclipse.californium.cloud.s3.http.S3Login;
 import org.eclipse.californium.cloud.s3.http.SinglePageApplication;
 import org.eclipse.californium.cloud.s3.option.S3ProxyCustomOptions;
+import org.eclipse.californium.cloud.s3.processor.S3Processor;
 import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
-import org.eclipse.californium.cloud.s3.proxy.S3Processor;
 import org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealthLogger;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
@@ -288,6 +289,9 @@ public class S3ProxyServer extends BaseServer {
 			@Option(names = "--s3-redirect", required = false, description = "s3 supports redirects for endpoint.")
 			public boolean redirect;
 
+			@Option(names = "--s3-compress", defaultValue = "true", fallbackValue = "true", required = false, description = "s3 use compression for archive files. Default true.")
+			public boolean compress = true;
+
 			private void httpsEndpoints() {
 				// ensure https
 				if (endpoint != null) {
@@ -325,6 +329,10 @@ public class S3ProxyServer extends BaseServer {
 				if (value != null) {
 					redirect = Boolean.parseBoolean(value);
 				}
+				value = s3Cmd.get(domain, "compress");
+				if (value != null) {
+					compress = Boolean.parseBoolean(value);
+				}
 				httpsEndpoints();
 			}
 
@@ -350,7 +358,7 @@ public class S3ProxyServer extends BaseServer {
 
 		public static class SinglePageApplication extends HttpsConfig {
 
-			@Option(names = "--spa-script", defaultValue = "appv2.js", description = "Single-Page-Application script. See applied search path below. Default ${DEFAULT-VALUE}")
+			@Option(names = "--spa-script", defaultValue = "appv3.js", description = "Single-Page-Application script. See applied search path below. Default ${DEFAULT-VALUE}")
 			public String singlePageApplicationScript;
 
 			@Option(names = "--spa-css", defaultValue = "stylesheet.css", description = "Single-Page-Application Cascading Style Sheets. See applied search path below. Default ${DEFAULT-VALUE}")
@@ -372,6 +380,27 @@ public class S3ProxyServer extends BaseServer {
 
 		@Option(names = "--no-coap", negatable = true, description = "Disable coap endpoints.")
 		public boolean coap = true;
+
+		@ArgGroup(exclusive = false)
+		public S3ProcessorConfig s3Processor;
+
+		public static class S3ProcessorConfig {
+
+			@Option(names = "--s3p-function", description = "S3Processor function. Default arch.")
+			public String function;
+
+			@Option(names = "--s3p-upto", description = "S3Processor up to date. Either a date in format yyyy-mm-dd, or a number. Negative numbers are replaced by the date that days ago, positive numbers keeps that last available days.")
+			public String upTo;
+
+			@Option(names = "--s3p-domains", split = ",", required = false, description = "S3Processor list of domains. Separated by ','. Default all domains.")
+			public List<String> domains;
+
+			@Option(names = "--s3p-devices", split = ",", required = false, description = "S3Processor list of devices. Separated by ','. Default all devices.")
+			public List<String> devices;
+
+			@Option(names = "--s3p-test", required = false, description = "S3Processor test run, don't save nor delete files.")
+			public boolean test;
+		}
 
 		@Override
 		public void defaults() {
@@ -882,16 +911,18 @@ public class S3ProxyServer extends BaseServer {
 			builder.minEtags(minDevices);
 			builder.maxEtags(maxDevices);
 			builder.supportRedirect(s3Arguments.redirect);
+			builder.useCompression(s3Arguments.compress);
 			return builder.build();
 		}
 		return null;
 	}
 
 	@Override
-	public void setupProcessors(ScheduledExecutorService secondaryExecutor) {
+	public void setupProcessors(ServerConfig cliArguments, ScheduledExecutorService secondaryExecutor) {
 		if (s3clients != null) {
+			S3ProxyConfig cli = (S3ProxyConfig) cliArguments;
 			S3ProcessorHealthLogger health = new S3ProcessorHealthLogger(getTag(), s3clients.getDomains());
-			s3processor = new S3Processor(getConfig(), s3clients, health, secondaryExecutor);
+			s3processor = new S3Processor(cli.s3Processor, getConfig(), s3clients, health, secondaryExecutor);
 			if (health.isEnabled()) {
 				addServerStatistic(health);
 			}

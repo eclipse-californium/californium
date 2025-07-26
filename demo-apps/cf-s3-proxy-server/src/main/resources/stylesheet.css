@@ -70,8 +70,17 @@
 	font-size: small;
 }
 
+#periodlabel {
+	padding: 2px 15px 2px 1px;
+}
+
 #period {
-	width: 70%
+	padding: 2px 5px 2px 5px;
+	width: 40%
+}
+
+#periodoutput {
+	padding: 2px 1px 2px 15px;
 }
 
 #devicelist {
@@ -146,13 +155,18 @@
 	font-size: small;
 }
 
+#progresstext {
+	display: inline-block;
+	width: 13em;
+}
+
 #loadprogress {
-	margin-left: 2em;
+	display: inline-block;
+	width: 50%;
 	accent-color: lightyellow;
 }
 
 #loadprogress.ready {
-	margin-left: 2em;
 	accent-color: lightgreen;
 }
 

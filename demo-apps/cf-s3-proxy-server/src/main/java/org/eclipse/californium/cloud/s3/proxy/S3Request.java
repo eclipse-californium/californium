@@ -14,14 +14,12 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.proxy;
 
-import java.net.URI;
-
 /**
  * S3 request.
  * 
  * @since 3.12
  */
-public class S3Request {
+public class S3Request extends S3BaseRequest {
 
 	/**
 	 * Cache/ETAG mode.
@@ -48,9 +46,11 @@ public class S3Request {
 	 */
 	private final String key;
 	/**
-	 * Redirect info, if S3 bucket is temporary redirected after creating.
+	 * eTag.
+	 * 
+	 * @since 4.0
 	 */
-	private final Redirect redirect;
+	private final String etag;
 	/**
 	 * Cache/ETAG mode.
 	 * 
@@ -62,14 +62,17 @@ public class S3Request {
 	 * Creates S3 request.
 	 * 
 	 * @param key S3 key
+	 * @param etag S3 etag
 	 * @param redirect redirect info, if S3 bucket is temporary redirected after
 	 *            creating. Otherwise {@code null}.
 	 * @param cacheMode cache mode.
+	 * @since 4.0 (added etag)
 	 */
-	public S3Request(String key, Redirect redirect, CacheMode cacheMode) {
+	public S3Request(String key, String etag, Redirect redirect, CacheMode cacheMode) {
+		super(redirect);
 		this.key = key;
-		this.redirect = redirect;
 		this.cacheMode = cacheMode;
+		this.etag = etag;
 	}
 
 	/**
@@ -82,16 +85,13 @@ public class S3Request {
 	}
 
 	/**
-	 * Gets redirect info.
-	 * <p>
-	 * Used, if S3 bucket is temporary redirected after creating. Otherwise
-	 * {@code null}.
+	 * Gets etag.
 	 * 
-	 * @return redirect info, if S3 bucket is temporary redirected after
-	 *         creating. Otherwise {@code null}.
+	 * @return etag
+	 * @since 4.0
 	 */
-	public Redirect getRedirect() {
-		return redirect;
+	public String getEtag() {
+		return etag;
 	}
 
 	/**
@@ -102,39 +102,6 @@ public class S3Request {
 	 */
 	public CacheMode getCacheMode() {
 		return cacheMode;
-	}
-
-	/**
-	 * Redirect info.
-	 * <p>
-	 * Info if S3 bucket is temporary redirected after creating.
-	 */
-	public static class Redirect {
-
-		/**
-		 * Redirected endpoint.
-		 */
-		public final URI endpoint;
-		/**
-		 * Redirected external https endpoint.
-		 */
-		public final String externalEndpoint;
-
-		/**
-		 * Creates redirect info.
-		 * 
-		 * @param endpoint redirected endpoint
-		 * @param externalEndpoint Redirected external https endpoint
-		 */
-		public Redirect(URI endpoint, String externalEndpoint) {
-			this.endpoint = endpoint;
-			this.externalEndpoint = externalEndpoint;
-		}
-
-		@Override
-		public String toString() {
-			return externalEndpoint;
-		}
 	}
 
 	/**
@@ -159,16 +126,18 @@ public class S3Request {
 	/**
 	 * S3-request-builder.
 	 */
-	public static class Builder {
+	public static class Builder extends S3BaseRequest.Builder {
 
 		/**
 		 * Key.
 		 */
 		protected String key;
 		/**
-		 * Redirect info, if S3 bucket is temporary redirected after creating.
+		 * Etag.
+		 * 
+		 * @since 4.0
 		 */
-		protected Redirect redirect;
+		protected String etag;
 		/**
 		 * Cache/ETAG mode.
 		 * 
@@ -188,8 +157,9 @@ public class S3Request {
 		 * @param request S3-request.
 		 */
 		protected Builder(S3Request request) {
+			super(request);
 			this.key = request.key;
-			this.redirect = request.redirect;
+			this.etag = request.etag;
 			this.cacheMode = request.cacheMode;
 		}
 
@@ -205,14 +175,14 @@ public class S3Request {
 		}
 
 		/**
-		 * Sets redirect info.
+		 * Sets S3 etag
 		 * 
-		 * @param redirect redirect info, if S3 bucket is temporary redirected
-		 *            after creating.
+		 * @param etag S3 etag
 		 * @return builder for command chaining
+		 * @since 4.0
 		 */
-		public Builder redirect(Redirect redirect) {
-			this.redirect = redirect;
+		public Builder etag(String etag) {
+			this.etag = etag;
 			return this;
 		}
 
@@ -228,13 +198,19 @@ public class S3Request {
 			return this;
 		}
 
+		@Override
+		public Builder redirect(Redirect redirect) {
+			super.redirect(redirect);
+			return this;
+		}
+
 		/**
 		 * Creates S3-request.
 		 * 
 		 * @return S3-request
 		 */
 		public S3Request build() {
-			return new S3Request(key, redirect, cacheMode);
+			return new S3Request(key, etag, redirect, cacheMode);
 		}
 	}
 }
