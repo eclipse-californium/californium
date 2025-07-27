@@ -219,11 +219,6 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 		return serviceName;
 	}
 
-	@Override
-	public boolean isValid() {
-		return destination != null && identityMode != null;
-	}
-
 	/**
 	 * {@inheritDoc}
 	 * 
@@ -233,59 +228,6 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 	@Override
 	public HttpForwardConfiguration getConfiguration(DomainPrincipalInfo principalInfo) {
 		return this;
-	}
-
-	/**
-	 * Merge to http forward configurations.
-	 * <p>
-	 * Merges two configuration field by field, preferring the fields of the
-	 * first configuration and only use the fields of the second, if the first
-	 * doesn't provide that field. If only one configuration is provided, return
-	 * that unmodified. And if no configuration is provided return {@code null}.
-	 * 
-	 * @param configuration1 first configuration with the preferred values
-	 * @param configuration2 second configuration with the values to consider,
-	 *            if the first doesn't provide the,
-	 * @return merged configuration. May be {@code null}, if no configuration is
-	 *         provided.
-	 */
-	public static HttpForwardConfiguration merge(HttpForwardConfiguration configuration1,
-			HttpForwardConfiguration configuration2) {
-		if (configuration1 == null) {
-			return configuration2;
-		} else if (configuration2 == null) {
-			return configuration1;
-		}
-		URI destination = configuration1.getDestination();
-		String authentication = configuration1.getAuthentication();
-		DeviceIdentityMode mode = configuration1.getDeviceIdentityMode();
-		Pattern responseFilter = configuration1.getResponseFilter();
-		String serviceName = configuration1.getServiceName();
-		boolean merge = false;
-		if (destination == null && configuration2.getDestination() != null) {
-			destination = configuration2.getDestination();
-			merge = true;
-		}
-		if (authentication == null && configuration2.getAuthentication() != null) {
-			authentication = configuration2.getAuthentication();
-			merge = true;
-		}
-		if (mode == null && configuration2.getDeviceIdentityMode() != null) {
-			mode = configuration2.getDeviceIdentityMode();
-			merge = true;
-		}
-		if (responseFilter == null && configuration2.getResponseFilter() != null) {
-			responseFilter = configuration2.getResponseFilter();
-			merge = true;
-		}
-		if (serviceName == null && configuration2.getServiceName() != null) {
-			serviceName = configuration2.getServiceName();
-			merge = true;
-		}
-		if (merge) {
-			return new BasicHttpForwardConfiguration(destination, authentication, mode, responseFilter, serviceName);
-		}
-		return configuration1;
 	}
 
 	/**
