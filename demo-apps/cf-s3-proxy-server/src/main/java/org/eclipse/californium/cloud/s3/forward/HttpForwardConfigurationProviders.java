@@ -76,7 +76,7 @@ public class HttpForwardConfigurationProviders implements HttpForwardConfigurati
 	public HttpForwardConfiguration getConfiguration(DomainPrincipalInfo principalInfo) {
 		HttpForwardConfiguration configuration = null;
 		for (HttpForwardConfigurationProvider provider : list) {
-			configuration = BasicHttpForwardConfiguration.merge(configuration, provider.getConfiguration(principalInfo));
+			configuration = HttpForwardConfiguration.merge(configuration, provider.getConfiguration(principalInfo));
 		}
 		return configuration;
 	}
