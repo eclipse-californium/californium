@@ -725,13 +725,15 @@ public class Asn1DerDecoder {
 				KeySpec privateKeySpec = new ECPrivateKeySpec(new BigInteger(1, privateKeyValue), ecParameterSpec);
 				keys = new Keys();
 				keys.privateKey = KeyFactory.getInstance(JceNames.EC).generatePrivate(privateKeySpec);
-				// BIT_STRING
-				DatagramReader value = CONTEXT_SPECIFIC_1.createRangeReader(reader, false);
-				value = BIT_STRING.createRangeReader(value, false);
-				// BIT_STRING, unused bits in last byte
-				int unusedBits = value.read(Byte.SIZE);
-				if (unusedBits == 0) {
-					keys.publicKey = readEcPublicKey(value, ecParameterSpec);
+				if (reader.bytesAvailable()) {
+					// BIT_STRING
+					DatagramReader value = CONTEXT_SPECIFIC_1.createRangeReader(reader, false);
+					value = BIT_STRING.createRangeReader(value, false);
+					// BIT_STRING, unused bits in last byte
+					int unusedBits = value.read(Byte.SIZE);
+					if (unusedBits == 0) {
+						keys.publicKey = readEcPublicKey(value, ecParameterSpec);
+					}
 				}
 			} catch (IllegalArgumentException e) {
 				throw new GeneralSecurityException(e.getMessage(), e);
