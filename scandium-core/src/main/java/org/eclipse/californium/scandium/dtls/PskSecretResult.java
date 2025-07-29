@@ -91,7 +91,7 @@ public class PskSecretResult extends HandshakeResult implements Destroyable {
 	 * @param pskIdentity PSK identity
 	 * @param secret secret, or {@code null}, if generation failed.
 	 * @param masterSecret {@code true} if secret contains master secret,
-	 *            {@code true} if secret contains PSK secret.
+	 *            {@code false} if secret contains PSK secret.
 	 * @param destroy {@code true} to destroy secret key with {@link #destroy()}
 	 *            after usage. Intended to cleanup generated secrets.
 	 * @throws NullPointerException if cid or pskIdentity is {@code null}
