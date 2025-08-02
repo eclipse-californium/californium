@@ -921,7 +921,10 @@ public class CoapResource implements Resource, ObservableResource {
 	 * occur, if resources are intended to change fast.
 	 * 
 	 * @param filter filter to select set of relations. {@code null}, if all
-	 *            clients should be notified.
+	 *            clients should be notified. The filter is called with the
+	 *            {@link ObserveRelation} and returns {@code true} for the
+	 *            relations to notify, {@code false} for relations to ignore
+	 *            that change.
 	 * @throws IllegalStateException if method is called recursively from
 	 *             current thread (without executor).
 	 * @see #changed()

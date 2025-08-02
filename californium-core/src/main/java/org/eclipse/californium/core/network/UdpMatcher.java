@@ -102,7 +102,8 @@ public final class UdpMatcher extends BaseMatcher {
 	 * 
 	 * @param config the configuration to use.
 	 * @param notificationListener the callback to invoke for notifications
-	 *            received from peers.
+	 *            received from peers. Gets called with the observe request and
+	 *            the current notification response.
 	 * @param tokenGenerator token generator to create tokens for observations
 	 *            created by the endpoint this matcher is part of.
 	 * @param observationStore the object to use for keeping track of
