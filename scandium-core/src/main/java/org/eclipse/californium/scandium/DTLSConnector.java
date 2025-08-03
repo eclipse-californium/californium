@@ -694,11 +694,15 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 
 				@Override
 				public void handshakeFailed(Handshaker handshaker, Throwable error) {
-					if (health != null) {
-						if (error instanceof MissingApplicationAuthorizationException) {
-							MissingApplicationAuthorizationException authorizationException = (MissingApplicationAuthorizationException) error;
+					if (error instanceof MissingApplicationAuthorizationException) {
+						MissingApplicationAuthorizationException authorizationException = (MissingApplicationAuthorizationException) error;
+						String cause = authorizationException.isRejected() ? "Rejected" : "Missing";
+						DROP_LOGGER_HANDSHAKE_RESULTS_FILTERED.info("{} application authorization for {}", cause, handshaker.getPeerAddress());
+						if (health != null) {
 							health.applicationAuthorizationRejected(authorizationException.isRejected());
 						}
+					}
+					if (health != null) {
 						health.endHandshake(false);
 					}
 					List<RawData> listOut = handshaker.takeDeferredApplicationData();
@@ -3733,6 +3737,7 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 				if (handshaker != null) {
 					handshaker.noApplicationAuthorization(true);
 				} else {
+					DROP_LOGGER_HANDSHAKE_RESULTS_FILTERED.info("Rejected application authorization for {}", connection.getPeerAddress());
 					if (health != null) {
 						health.applicationAuthorizationRejected(true);
 					}
