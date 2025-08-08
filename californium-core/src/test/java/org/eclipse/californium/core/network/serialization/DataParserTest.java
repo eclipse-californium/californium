@@ -311,8 +311,7 @@ public class DataParserTest {
 
 		// GIVEN a request with an option value shorter than specified
 		byte[] malformedGetRequest = new byte[] { 0b01000000, // ver 1, CON,
-																// token length:
-																// 0
+															// token length: 0
 				0b00000001, // code: 0.01 (GET request)
 				0x00, 0x10, // message ID
 				(byte) 0xd1, 0x0c, // option number 25, length: 1
@@ -333,6 +332,34 @@ public class DataParserTest {
 			assertEquals(true, e.isConfirmable());
 			assertEquals(ResponseCode.BAD_OPTION, e.getErrorCode());
 		}
+	}
+
+	@Test
+	public void testParseMessageIgnoresUnknownElectiveOption() {
+
+		// GIVEN a request with an option value shorter than specified
+		byte[] getRequest = new byte[] { 0b01000000, // ver 1, CON,
+													// token length: 0
+				0b00000001, // code: 0.01 (GET request)
+				0x00, 0x10, // message ID
+				(byte) 0xd1, 0x0b, // option number 24, length: 1
+				0x64, // option value
+				0x01, // option number 24, length: 1
+				0x65, // option value
+				(byte) 0xb4, // option number 35, length: 4
+				0x61, 0x62, 0x63, 0x64 // option value "abcd"
+		};
+		if (tcp) {
+			getRequest[0] = 0x32; // cheat, 2 bytes mid => 2 bytes
+											// token
+		}
+
+		// WHEN parsing the request
+		Message message = parser.parseMessage(getRequest);
+		List<Option> asSortedList = message.getOptions().asSortedList();
+		assertEquals("expected only 1 option", 1, asSortedList.size());
+		String proxyUri = message.getOptions().getProxyUri();
+		assertEquals("abcd", proxyUri);
 	}
 
 	@Test
