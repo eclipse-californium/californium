@@ -309,6 +309,7 @@ public abstract class DataParser {
 		} else if (OptionNumberRegistry.isCritical(optionNumber)) {
 			throw new IllegalArgumentException("Unknown critical option " + optionNumber + " is not supported!");
 		} else {
+			reader.skip(length * Byte.SIZE);
 			return null;
 		}
 	}
