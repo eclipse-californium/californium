@@ -167,7 +167,7 @@ public class CoapResource implements Resource, ObservableResource {
 
 	/**
 	 * Lock to protect {@link #changed(ObserveRelationFilter)} from being called
-	 * recusive.
+	 * recursive.
 	 */
 	private final ReentrantLock recursionProtection = new ReentrantLock();
 
@@ -503,7 +503,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Delete this resource from its parents and notify all observing CoAP
+	 * Deletes this resource from its parents and notify all observing CoAP
 	 * clients that this resource is no longer accessible.
 	 */
 	public synchronized void delete() {
@@ -518,7 +518,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Cancel all observe relations to CoAP clients.
+	 * Cancels all observe relations to CoAP clients.
 	 * <p>
 	 * The relations are canceled asynchronous using
 	 * {@link Exchange#execute(Runnable)}. Therefore the relations may still be
@@ -531,7 +531,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Remove all observe relations to CoAP clients and notify them that the
+	 * Removes all observe relations to CoAP clients and notify them that the
 	 * observe relation has been canceled.
 	 * <p>
 	 * The relations are canceled asynchronous using
@@ -549,7 +549,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Remove all observe relations to CoAP clients and notify them that the
+	 * Removes all observe relations to CoAP clients and notify them that the
 	 * observe relation has been canceled.
 	 * <p>
 	 * The relations are canceled asynchronous using
@@ -633,7 +633,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Set resource attributes.
+	 * Sets resource attributes.
 	 * 
 	 * @param attributes resource attributes
 	 * @since 3.7
@@ -643,7 +643,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Get list of supported content formats.
+	 * Gets list of supported content formats.
 	 * <p>
 	 * If the list contains at least one content format, requests with an
 	 * {@code ACCEPT} option not contained in the list fails with
@@ -657,7 +657,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Add content formats to list of supported content formats.
+	 * Adds content formats to list of supported content formats.
 	 * <p>
 	 * Adds value also to the attribute {@code content-type}. Intended to be
 	 * used for static lists applied to all methods. If single methods needs a
@@ -668,6 +668,24 @@ public class CoapResource implements Resource, ObservableResource {
 	 * @since 4.0
 	 */
 	public void addSupportedContentFormats(int... contentFormats) {
+		for (int contentFormat : contentFormats) {
+			supportedContentFormats.add(contentFormat);
+			getAttributes().addContentType(contentFormat);
+		}
+	}
+
+	/**
+	 * Adds content formats to list of supported content formats.
+	 * <p>
+	 * Adds value also to the attribute {@code content-type}. Intended to be
+	 * used for static lists applied to all methods. If single methods needs a
+	 * specific list or a dynamic list of content formats is required, use
+	 * {@link #checkContentFormat(CoapExchange, int...)} instead.
+	 * 
+	 * @param contentFormats content formats to add
+	 * @since 4.0
+	 */
+	public void addSupportedContentFormats(List<Integer> contentFormats) {
 		for (int contentFormat : contentFormats) {
 			supportedContentFormats.add(contentFormat);
 			getAttributes().addContentType(contentFormat);
@@ -789,7 +807,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Adjust the path of all children.
+	 * Adjusts the path of all children.
 	 * <p>
 	 * This method is invoked when the URI of this resource has changed, e.g.,
 	 * if its name or the name of an ancestor has changed.
@@ -984,7 +1002,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Execute an arbitrary task on the executor of this resource or the first
+	 * Executes an arbitrary task on the executor of this resource or the first
 	 * parent that defines its own executor.
 	 * <p>
 	 * If no parent defines an executor, the thread that calls this method
@@ -1004,7 +1022,7 @@ public class CoapResource implements Resource, ObservableResource {
 	}
 
 	/**
-	 * Execute an arbitrary task on the executor of this resource or the first
+	 * Executes an arbitrary task on the executor of this resource or the first
 	 * parent that defines its own executor and wait until it the task is
 	 * completed.
 	 * <p>
@@ -1016,12 +1034,9 @@ public class CoapResource implements Resource, ObservableResource {
 	 */
 	public void executeAndWait(final Runnable task) throws InterruptedException {
 		final Semaphore semaphore = new Semaphore(0);
-		execute(new Runnable() {
-
-			public void run() {
-				task.run();
-				semaphore.release();
-			}
+		execute(() -> {
+			task.run();
+			semaphore.release();
 		});
 		semaphore.acquire();
 	}

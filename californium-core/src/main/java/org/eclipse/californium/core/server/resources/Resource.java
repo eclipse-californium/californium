@@ -20,6 +20,8 @@
 package org.eclipse.californium.core.server.resources;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executor;
 
 import org.eclipse.californium.core.CoapResource;
@@ -100,11 +102,11 @@ public interface Resource {
 
 	/**
 	 * Sets the name of the resource.
-	 * 
-	 * Note that changing the name of a resource changes the path and URI of all
+	 * <p>
+	 * <b>Note:</b> that changing the name of a resource changes the path and URI of all
 	 * children.
-	 * 
-	 * Note that the parent of this resource must be notified that the name has
+	 * <p>
+	 * <b>Note:</b> that the parent of this resource must be notified that the name has
 	 * changed so that it finds the resource under the correct new URI when
 	 * another request arrives. The easiest way to achieve this is by removing
 	 * the resource before changing the name and adding it again after the name
@@ -119,7 +121,7 @@ public interface Resource {
 	/**
 	 * Gets the path to the resource which is equal to the URI of its parent
 	 * plus a slash.
-	 * 
+	 * <p>
 	 * Note that that the name of a resource is not part of its path but instead
 	 * it holds that getURI().equals(getPath() + getName()).
 	 * 
@@ -130,7 +132,7 @@ public interface Resource {
 	/**
 	 * Sets the path of the resource.
 	 * 
-	 * Note that changing the path of a resource also changes the path of all
+	 * <b>Note:</b> that changing the path of a resource also changes the path of all
 	 * its children.
 	 * 
 	 * @param path the new path
@@ -153,7 +155,7 @@ public interface Resource {
 
 	/**
 	 * Checks if is the URI of the resource can be cached.
-	 * 
+	 * <p>
 	 * If another request with the same destination URI arrives, it can be
 	 * forwarded to this resource right away instead of traveling through the
 	 * resource tree looking for it.
@@ -177,9 +179,23 @@ public interface Resource {
 	public ResourceAttributes getAttributes();
 
 	/**
+	 * Gets list of supported content formats.
+	 * <p>
+	 * If the list contains at least one content format, requests with an
+	 * {@code ACCEPT} option not contained in the list fails with
+	 * {@code 4.06 Not Acceptable}.
+	 * 
+	 * @return unmodifiable list of supported content formats
+	 * @since 4.0
+	 */
+	default public List<Integer> getSupportedContentFormats() {
+		return Collections.emptyList();
+	};
+
+	/**
 	 * Adds the specified resource as child.
 	 * 
-	 * Note that the resource should set the correct path of the child when
+	 * <b>Note:</b> that the resource should set the correct path of the child when
 	 * added.
 	 * 
 	 * @param child the child
@@ -189,7 +205,7 @@ public interface Resource {
 	/**
 	 * Removes the the specified child.
 	 * 
-	 * Note that an implementation should set the path of the child to
+	 * <b>Note:</b> that an implementation should set the path of the child to
 	 * {@code null}.
 	 * 
 	 * @param child the child
@@ -206,8 +222,8 @@ public interface Resource {
 
 	/**
 	 * Gets the child with the specified name.
-	 * 
-	 * Note that a resource is allowed to return any resource that it likes to
+	 * <p>
+	 * <b>Note:</b> that a resource is allowed to return any resource that it likes to
 	 * associate with that name. This allows to support URIs containing
 	 * wildcards for example. That implies, returning children not contained in
 	 * {@link #getChildren()} nor being discovered via a
@@ -234,8 +250,8 @@ public interface Resource {
 
 	/**
 	 * Adds the specified ResourceObserver.
-	 * 
-	 * Note that ResourceObserver have nothing to do with CoAP's observe
+	 * <p>
+	 * <b>Note:</b> that ResourceObserver have nothing to do with CoAP's observe
 	 * relations (@see {@link #addObserveRelation(ObserveRelation)}.
 	 * ResourceObserver simply is the observer pattern used in Java to observe a
 	 * certain object.
@@ -253,7 +269,7 @@ public interface Resource {
 
 	/**
 	 * Adds the specified CoAP observe relation.
-	 * 
+	 * <p>
 	 * If this resource's state changes, all observer should be notified with a
 	 * new response.
 	 * 

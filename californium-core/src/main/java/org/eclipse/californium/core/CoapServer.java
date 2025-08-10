@@ -114,6 +114,13 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
 
+	/**
+	 * Name of wellknown resources.
+	 * 
+	 * @since 4.0
+	 */
+	public static final String WELLKNOWN = ".well-known";
+
 	/** The root resource. */
 	private final Resource root;
 
@@ -207,7 +214,7 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 		this.root = createRoot();
 		this.deliverer = new ServerMessageDeliverer(root, config);
 
-		CoapResource wellKnown = new CoapResource(".well-known");
+		CoapResource wellKnown = new CoapResource(WELLKNOWN);
 		wellKnown.setVisible(false);
 		wellKnown.add(new DiscoveryResource(root));
 		root.add(wellKnown);
@@ -648,11 +655,11 @@ public class CoapServer implements ServerInterface, PersistentComponentProvider 
 			if (note != null) {
 				builder.append(note).append("\n\n");
 			}
-			builder.append("(c) 2014-2023 Institute for Pervasive Computing, ETH Zurich\n" + 
-			               "              and others\n");
+			builder.append("(c) 2014-2025 Institute for Pervasive Computing, ETH Zurich\n" + 
+			               "              and others.\n");
 			String footer = StringUtil.getConfiguration("COAP_ROOT_RESOURCE_FOOTER");
 			if (footer != null) {
-				builder.append(footer).append("\n");
+				builder.append("\n").append(footer).append("\n");
 			}
 			builder.append("****************************************************************");
 			msg = builder.toString();

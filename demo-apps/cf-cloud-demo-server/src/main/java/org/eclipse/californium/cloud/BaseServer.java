@@ -33,6 +33,7 @@ import org.eclipse.californium.cloud.http.HttpService.WebAnonymous;
 import org.eclipse.californium.cloud.resources.Devices;
 import org.eclipse.californium.cloud.resources.Diagnose;
 import org.eclipse.californium.cloud.resources.MyContext;
+import org.eclipse.californium.cloud.resources.ProtectedProxyResource;
 import org.eclipse.californium.cloud.resources.Provisioning;
 import org.eclipse.californium.cloud.util.CredentialsStore;
 import org.eclipse.californium.cloud.util.DeviceGredentialsProvider;
@@ -49,6 +50,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointContextMatcherFactory;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.observe.ObserveStatisticLogger;
+import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
@@ -519,6 +521,10 @@ public class BaseServer extends CoapServer {
 		super(config);
 		setVersion(CALIFORNIUM_BUILD_VERSION);
 		setTag("CLOUD-DEMO");
+		Resource wellKnown = getRoot().getChild(WELLKNOWN);
+		Resource discovery = wellKnown.getChild(DiscoveryResource.CORE);
+		Resource protectedDiscovery = new ProtectedProxyResource(discovery);
+		wellKnown.add(protectedDiscovery);
 	}
 
 	@Override
@@ -652,8 +658,9 @@ public class BaseServer extends CoapServer {
 		}
 
 		// Context matcher
-		boolean applicationAuthentication = config.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NEEDED &&
-				config.get(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, TimeUnit.SECONDS) > 0; 
+		boolean applicationAuthentication = config
+				.get(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE) != CertificateAuthenticationMode.NEEDED
+				&& config.get(DtlsConfig.DTLS_APPLICATION_AUTHORIZATION_TIMEOUT, TimeUnit.SECONDS) > 0;
 
 		EndpointContextMatcher customContextMatcher = EndpointContextMatcherFactory.create(CoAP.PROTOCOL_DTLS,
 				applicationAuthentication, config);
