@@ -14,7 +14,6 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.util;
 
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -280,15 +279,11 @@ public class Domains
 							String value = domainDefinition.get(managementSection, field);
 							fields.put(field, value);
 						}
-						try {
-							domain.httpForwardingConfiguration = BasicHttpForwardConfiguration.create(fields);
-							if (domain.httpForwardingConfiguration != null) {
-								LOGGER.info("{}: http forward {}, {}", name,
-										domain.httpForwardingConfiguration.getDestination(),
-										domain.httpForwardingConfiguration.getDeviceIdentityMode());
-							}
-						} catch (URISyntaxException e) {
-							LOGGER.warn("Failed to configure http forward '{}' for domain {}.", e.getInput(), section);
+						domain.httpForwardingConfiguration = BasicHttpForwardConfiguration.create(fields);
+						if (domain.httpForwardingConfiguration != null) {
+							LOGGER.info("{}: http forward {}, {}", name,
+									domain.httpForwardingConfiguration.getDestination(),
+									domain.httpForwardingConfiguration.getDeviceIdentityMode());
 						}
 					}
 					s3Config = new S3Config();
@@ -310,14 +305,10 @@ public class Domains
 						String value = domainDefinition.get(section, field);
 						fields.put(field, value);
 					}
-					try {
-						httpForwardingConfiguration = BasicHttpForwardConfiguration.create(fields);
-						if (httpForwardingConfiguration != null) {
-							LOGGER.info("{}: http forward {}, {}", name, httpForwardingConfiguration.getDestination(),
-									httpForwardingConfiguration.getDeviceIdentityMode());
-						}
-					} catch (URISyntaxException e) {
-						LOGGER.warn("Failed to configure http forward '{}' for domain {}.", e.getInput(), section);
+					httpForwardingConfiguration = BasicHttpForwardConfiguration.create(fields);
+					if (httpForwardingConfiguration != null) {
+						LOGGER.info("{}: http forward {}, {}", name, httpForwardingConfiguration.getDestination(),
+								httpForwardingConfiguration.getDeviceIdentityMode());
 					}
 				}
 			}

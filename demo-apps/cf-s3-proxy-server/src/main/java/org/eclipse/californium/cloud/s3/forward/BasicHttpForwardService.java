@@ -17,9 +17,8 @@ package org.eclipse.californium.cloud.s3.forward;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 
 import org.eclipse.californium.cloud.s3.forward.HttpForwardConfiguration.DeviceIdentityMode;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
@@ -55,6 +54,16 @@ public class BasicHttpForwardService implements HttpForwardService {
 	@Override
 	public String getName() {
 		return SERVICE_NAME;
+	}
+
+	@Override
+	public List<String> getDeviceConfigFields() {
+		return BasicHttpForwardConfiguration.CUSTOM_DEVICE_CONFIG_FIELDS;
+	}
+
+	@Override
+	public List<String> getDomainConfigFields() {
+		return BasicHttpForwardConfiguration.CUSTOM_DOMAIN_CONFIG_FIELDS;
 	}
 
 	@Override
@@ -105,7 +114,7 @@ public class BasicHttpForwardService implements HttpForwardService {
 	 * {@code id=name} to the query parameter.
 	 * 
 	 * @param info domain principal information.
-	 * @param configuration htpp forward configuration
+	 * @param configuration http forward configuration
 	 * @return http forward destination
 	 */
 	public URI getDestination(DomainPrincipalInfo info, HttpForwardConfiguration configuration) {
@@ -124,15 +133,16 @@ public class BasicHttpForwardService implements HttpForwardService {
 	 * 
 	 * @param request incoming coap-request
 	 * @param info domain principal information.
-	 * @param configuration htpp forward configuration
+	 * @param configuration http forward configuration
 	 * @return prepared request
-	 * @throws IllegalArgumentException if the content type is not text/plain.
+	 * @throws IllegalArgumentException If {@link DeviceIdentityMode#HEADLINE}
+	 *             is selected and the content type is not text/plain.
 	 */
 	public Request preparePOST(Request request, DomainPrincipalInfo info, HttpForwardConfiguration configuration) {
-		if (request.getOptions().getContentFormat() != MediaTypeRegistry.TEXT_PLAIN) {
-			throw new IllegalArgumentException("Only text/plain is supported!");
-		}
 		if (configuration.getDeviceIdentityMode() == DeviceIdentityMode.HEADLINE) {
+			if (request.getOptions().getContentFormat() != MediaTypeRegistry.TEXT_PLAIN) {
+				throw new IllegalArgumentException("Only text/plain is supported!");
+			}
 			Request outgoing = new Request(request.getCode(), request.getType());
 			outgoing.setOptions(request.getOptions());
 			byte[] payload = request.getPayload();
@@ -144,66 +154,4 @@ public class BasicHttpForwardService implements HttpForwardService {
 			return request;
 		}
 	}
-
-	/**
-	 * Filter response.
-	 * <p>
-	 * For {@link MediaTypeRegistry#isPrintable(int)} content types, apply
-	 * regular expression {@link HttpForwardConfiguration#getResponseFilter()}
-	 * and on match, drop the payload to prevent forwarding that to the device.
-	 * For other content types, the filter is converted into the UTF-8 byte
-	 * representation and that bytes are compared with the bytes of the payload.
-	 * On match, the payload is dropped as well. If no
-	 * {@link HttpForwardConfiguration#getResponseFilter()} is given, all
-	 * content will be removed.
-	 * 
-	 * @param response response from http forward request
-	 * @param info domain principal information.
-	 * @param configuration htpp forward configuration
-	 * @return response, if dropped without payload
-	 */
-	public Response filterResponse(Response response, DomainPrincipalInfo info,
-			HttpForwardConfiguration configuration) {
-		if (response != null && response.isSuccess() && response.getPayloadSize() > 0) {
-			Pattern filter = configuration.getResponseFilter();
-			boolean drop = false;
-			if (filter == null) {
-				LOGGER.info("HTTP-{}: {} => drop {} bytes, no response-filter.", getName(), info,
-						response.getPayloadSize());
-				drop = true;
-			} else {
-				int contentForward = response.getOptions().getContentFormat();
-				if (MediaTypeRegistry.isPrintable(contentForward)) {
-					LOGGER.debug("HTTP-{}: {} => response-filter '{}'", getName(), info, filter);
-					String responsePayload = response.getPayloadString();
-					drop = filter.matcher(responsePayload).matches();
-					if (drop) {
-						final int maxSize = 32;
-						if (responsePayload.length() > maxSize) {
-							responsePayload = responsePayload.substring(0, maxSize - 3) + "...";
-						}
-						LOGGER.info("HTTP-{}: {} => drop '{}' {} bytes", getName(), info, responsePayload,
-								response.getPayloadSize());
-					} else {
-						LOGGER.info("HTTP-{}: {} => respond '{}' {} bytes", getName(), info, responsePayload,
-								response.getPayloadSize());
-					}
-				} else {
-					byte[] bytes = filter.pattern().getBytes(StandardCharsets.UTF_8);
-					drop = Arrays.equals(bytes, response.getPayload());
-					if (drop) {
-						LOGGER.info("HTTP-{}: {} => drop {} bytes", getName(), info, response.getPayloadSize());
-					} else {
-						LOGGER.info("HTTP-{}: {} => respond {} bytes", getName(), info, response.getPayloadSize());
-					}
-				}
-			}
-			if (drop) {
-				// remove payload prevents forwarding
-				response.setPayload(Bytes.EMPTY);
-			}
-		}
-		return response;
-	}
-
 }

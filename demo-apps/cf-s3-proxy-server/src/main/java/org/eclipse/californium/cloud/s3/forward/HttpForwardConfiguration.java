@@ -15,6 +15,10 @@
 package org.eclipse.californium.cloud.s3.forward;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -112,6 +116,30 @@ public interface HttpForwardConfiguration {
 	String getServiceName();
 
 	/**
+	 * Gets extra field.
+	 *
+	 * @param name name of extra field.
+	 * @return extra field, or {@code null}, if not available.
+	 */
+	String getExtraField(String name);
+
+	/**
+	 * Gets extra field also by alternative name.
+	 *
+	 * @param name name of extra field.
+	 * @param alternativeName alternative name of extra field.
+	 * @return extra field, or {@code null}, if not available.
+	 */
+	String getExtraField(String name, String alternativeName);
+
+	/**
+	 * Gets map of extra fields values.
+	 * 
+	 * @return map of extra fields
+	 */
+	Map<String, String> getExtraFields();
+
+	/**
 	 * Checks, if the configuration is valid.
 	 * 
 	 * @return {@code true}, if the destination and device identity mode is
@@ -120,6 +148,57 @@ public interface HttpForwardConfiguration {
 	 */
 	default boolean isValid() {
 		return getDestination() != null && getDeviceIdentityMode() != null;
+	}
+
+	/**
+	 * Merge configurations.
+	 * <p>
+	 * Add fields of provided configuration for fields missing in this one.
+	 * 
+	 * @param configuration configuration to merge.
+	 * @return merged configuration, or this, if no fields has been added
+	 */
+	default HttpForwardConfiguration merge(HttpForwardConfiguration configuration) {
+		if (configuration == null) {
+			return this;
+		}
+		URI destination = getDestination();
+		String authentication = getAuthentication();
+		DeviceIdentityMode mode = getDeviceIdentityMode();
+		Pattern responseFilter = getResponseFilter();
+		String serviceName = getServiceName();
+		boolean merge = false;
+		if (destination == null && configuration.getDestination() != null) {
+			destination = configuration.getDestination();
+			merge = true;
+		}
+		if (authentication == null && configuration.getAuthentication() != null) {
+			authentication = configuration.getAuthentication();
+			merge = true;
+		}
+		if (mode == null && configuration.getDeviceIdentityMode() != null) {
+			mode = configuration.getDeviceIdentityMode();
+			merge = true;
+		}
+		if (responseFilter == null && configuration.getResponseFilter() != null) {
+			responseFilter = configuration.getResponseFilter();
+			merge = true;
+		}
+		if (serviceName == null && configuration.getServiceName() != null) {
+			serviceName = configuration.getServiceName();
+			merge = true;
+		}
+		final Map<String, String> extraFieldsMerged = new HashMap<>(getExtraFields());
+		configuration.getExtraFields().forEach((key, value) -> extraFieldsMerged.putIfAbsent(key, value));
+		Map<String, String> extraFields = getExtraFields();
+		if (extraFields.size() != extraFieldsMerged.size()) {
+			extraFields = extraFieldsMerged;
+		}
+		if (merge) {
+			return new BasicHttpForwardConfiguration(destination, authentication, mode, responseFilter, serviceName,
+					extraFields);
+		}
+		return this;
 	}
 
 	/**
@@ -135,45 +214,33 @@ public interface HttpForwardConfiguration {
 	 *            if the first doesn't provide the,
 	 * @return merged configuration. May be {@code null}, if no configuration is
 	 *         provided.
-	 * @since 4.0
 	 */
-	public static HttpForwardConfiguration merge(HttpForwardConfiguration configuration1,
+	static HttpForwardConfiguration merge(HttpForwardConfiguration configuration1,
 			HttpForwardConfiguration configuration2) {
 		if (configuration1 == null) {
 			return configuration2;
 		} else if (configuration2 == null) {
 			return configuration1;
 		}
-		URI destination = configuration1.getDestination();
-		String authentication = configuration1.getAuthentication();
-		DeviceIdentityMode mode = configuration1.getDeviceIdentityMode();
-		Pattern responseFilter = configuration1.getResponseFilter();
-		String serviceName = configuration1.getServiceName();
-		boolean merge = false;
-		if (destination == null && configuration2.getDestination() != null) {
-			destination = configuration2.getDestination();
-			merge = true;
-		}
-		if (authentication == null && configuration2.getAuthentication() != null) {
-			authentication = configuration2.getAuthentication();
-			merge = true;
-		}
-		if (mode == null && configuration2.getDeviceIdentityMode() != null) {
-			mode = configuration2.getDeviceIdentityMode();
-			merge = true;
-		}
-		if (responseFilter == null && configuration2.getResponseFilter() != null) {
-			responseFilter = configuration2.getResponseFilter();
-			merge = true;
-		}
-		if (serviceName == null && configuration2.getServiceName() != null) {
-			serviceName = configuration2.getServiceName();
-			merge = true;
-		}
-		if (merge) {
-			return new BasicHttpForwardConfiguration(destination, authentication, mode, responseFilter, serviceName);
-		}
-		return configuration1;
+		return configuration1.merge(configuration2);
 	}
 
+	/**
+	 * Adds items to copy of list, if not already contained.
+	 * 
+	 * @param <T> type of times
+	 * @param list list of items
+	 * @param items items to add
+	 * @return copied list with additional items
+	 */
+	@SafeVarargs
+	static <T> List<T> concatIfAbsent(List<T> list, T... items) {
+		List<T> newList = new ArrayList<>(list);
+		for (T item : items) {
+			if (!newList.contains(item)) {
+				newList.add(item);
+			}
+		}
+		return newList;
+	}
 }
