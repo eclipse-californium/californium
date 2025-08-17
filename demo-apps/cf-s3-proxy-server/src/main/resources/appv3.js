@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.32.0, 8. August 2025";
+const version = "Version 3 0.32.3, 16. August 2025";
 
 /**
  * Timeshift relative to server time.
@@ -951,6 +951,10 @@ class DeviceMessage {
 		return value != null && value != 0;
 	}
 
+	static isVoltageValue(value) {
+		return value != null && 1000 <= value && value <= 30000;
+	}
+
 	static isTempValue(value) {
 		return value != null && -40.0 <= value && value <= 85.0;
 	}
@@ -971,6 +975,7 @@ class DeviceMessage {
 		return value != null && 0 <= value && value < 10;
 	}
 
+	static voltageIndex = getChartConfigIndex("mV");
 	static levelIndex = getChartConfigIndex("%");
 	static tempIndex = getChartConfigIndex("°C");
 	static humIndex = getChartConfigIndex("%H");
@@ -1057,6 +1062,14 @@ class DeviceMessage {
 		}
 		if (!DeviceMessage.isRetransValue(line[DeviceMessage.retransIndex])) {
 			if (DeviceMessage.removeSensor(line, DeviceMessage.retransIndex)) {
+				++removed;
+			}
+		}
+		if (!DeviceMessage.isVoltageValue(line[DeviceMessage.voltageIndex])) {
+			if (DeviceMessage.removeSensor(line, DeviceMessage.voltageIndex)) {
+				++removed;
+			}
+			if (DeviceMessage.removeSensor(line, DeviceMessage.levelIndex)) {
 				++removed;
 			}
 		}
@@ -1227,6 +1240,9 @@ class DeviceMessage {
 	}
 
 	getDetails() {
+		if (!this.status) {
+			this.parseStatus();
+		}
 		if (this.status) {
 			const status = this.status;
 			// details for overview
@@ -1250,22 +1266,11 @@ class DeviceMessage {
 		return null;
 	}
 
-	merge(message) {
-		this.contentType ??= message.contentType;
-		this.interval ??= message.interval;
-		this.payload ??= message.payload;
-		this.values ??= message.values;
-		this.status ??= message.status;
-	}
-
 	addTo(allMessages) {
 		if (this.time) {
 			const pos = insertItem(allMessages, this, DeviceMessage.cmpMsg);
 			if (pos >= 0) {
-				console.log("message " + new Date(this.time).toISOString() + " already added, merge fields!");
-				const message = allMessages.at(pos);
-				message.merge(this);
-				return message;
+				console.error("message " + new Date(this.time).toISOString() + " already added!");
 			}
 		}
 		return this;
@@ -1406,26 +1411,46 @@ class DateRange {
 	}
 }
 
+class LastMessageInfos {
+	updated = false;
+	modifiedTime = null;
+	statusKey = null;
+	dayKey = null;
+	details = null;
+
+	constructor(infos) {
+		if (infos) {
+			this.updated = infos.updated;
+			this.modifiedTime = infos.modifiedTime;
+			this.statusKey = infos.statusKey;
+			this.dayKey = infos.dayKey;
+			this.details = infos.details;
+		}
+	}
+}
+
+class ConfigInfos {
+
+	constructor(text, time, etag) {
+		this.text = text;
+		this.time = time;
+		this.etag = etag;
+	}
+}
 
 class DeviceData {
 
 	static lastDayStartKeys = new Array();
 
 	// last message
-	lastInterval = null;
-	lastDetails = null;
-	lastModifiedTime = null;
-	lastDayKey = null;
-	lastStatusKey = null;
-	lastStatusNew = false;
-	updated = false;
+	lastMessageInfos = new LastMessageInfos();
 
-	// selected (center) message
+	// status / selected (center) message
 	statusMessage = null;
+	statusLastInterval = null;
 
-	config = null;
-	configTime = null;
-	configEtag = null;
+	// device config
+	config = new ConfigInfos();
 
 	lastArchDayMessage = null;
 	lastArchMessage = null;
@@ -1448,15 +1473,27 @@ class DeviceData {
 	}
 
 	getDetail(property) {
-		return this.lastDetails ? this.lastDetails[property] : null;
+		return this.lastMessageInfos.details ? this.lastMessageInfos.details[property] : null;
 	}
 
 	getDetails() {
-		return this.lastDetails;
+		return this.lastMessageInfos.details;
+	}
+
+	getLastModifiedTime() {
+		return this.lastMessageInfos.modifiedTime;
+	}
+
+	isUpdated() {
+		return this.lastMessageInfos.updated;
 	}
 
 	getStatus() {
 		return this.statusMessage ? this.statusMessage.status : null;
+	}
+
+	getStatusIntervalDescription() {
+		return this.statusLastInterval ? `Interval: ${this.statusLastInterval}` : "";
 	}
 
 	static initLastDayStartKeys() {
@@ -1631,17 +1668,13 @@ class DeviceData {
 
 
 	async readOverview(details) {
-		const lastMessageKey = await this.fetchLastMessageKey();
+		const lastMessageKey = await this.fetchLastMessageInfos();
 		if (lastMessageKey) {
-			this.updated = this.lastStatusNew;
-			if (this.updated) {
+			if (this.isUpdated()) {
 				console.info("overview: " + lastMessageKey + " update" + (details ? " with details" : ""));
-				const lastModifiedDateTime = DeviceData.getISODateTimeFromKey(lastMessageKey, false)
-				this.lastModifiedTime = Date.parse(lastModifiedDateTime);
 				if (details) {
 					const message = await this.downloadMessage(lastMessageKey);
-					this.setStatus(message);
-					this.lastDetails = message.getDetails();
+					this.setStatus(message, true);
 				}
 			} else {
 				console.info("overview: " + lastMessageKey + " (no update)");
@@ -1653,48 +1686,50 @@ class DeviceData {
 				await this.downloadArch(this.allKeys.at(-1));
 				if (this.allMessages.length > 0) {
 					const message = this.allMessages.at(-1);
-					this.lastModifiedTime = message.time;
-					this.setStatus(message);
-					this.lastDetails = message.getDetails();
+					const infos = new LastMessageInfos();
+					infos.modifiedTime = message.time;
+					this.lastMessageInfos = infos;
+					this.setStatus(message, true);
 					console.info("overview: from arch " + this.allKeys.at(-1));
 				}
 			}
 		}
 	}
 
-	setStatus(message) {
+	setStatus(message, last) {
 		if (!message) {
 			return;
 		}
 		this.statusMessage = message;
 		message.parseStatus();
+		if (last) {
+			this.lastMessageInfos.details = message.getDetails();
+		}
 	}
 
-	async fetchLastMessageKey() {
-		this.lastStatusNew = false;
-		let lastStatusKey = null;
+	async fetchLastMessageInfos() {
+		let lastDayKey = this.lastMessageInfos.dayKey;
+		let lastStatusKey = this.lastMessageInfos.statusKey;
 		let key = null;
-		if (this.lastDayKey == null) {
+		if (lastDayKey == null) {
 			if (this.allKeys.length == 0) {
 				await this.loadDataArchKeys();
 			}
 			if (this.allKeys.length > 0) {
 				const lastArchDate = DeviceData.getISODateFromArchKey(this.allKeys.at(-1));
 				if (lastArchDate.length == 10) {
-					this.lastDayKey = this.key + lastArchDate;
+					lastDayKey = this.key + lastArchDate;
 				}
 			}
 		}
-		if (this.lastDayKey) {
+		if (lastDayKey) {
 			// limit to year 2xxx, exclude "arch"
-			key = await s3.fetchXmlListLast(this.key + "2", "CommonPrefixes>Prefix", this.lastDayKey);
+			key = await s3.fetchXmlListLast(this.key + "2", "CommonPrefixes>Prefix", lastDayKey);
 			if (key) {
-				this.lastDayKey = key;
-				console.log("new " + key);
+				lastDayKey = key;
+				lastStatusKey = null;
 			} else {
-				key = this.lastDayKey;
-				lastStatusKey = this.lastStatusKey;
-				console.log("last " + key);
+				key = lastDayKey;
 			}
 		} else {
 			for (let i = 0; i < DeviceData.lastDayStartKeys.length; ++i) {
@@ -1702,7 +1737,8 @@ class DeviceData {
 				// limit to year 2xxx, exclude "arch"
 				key = await s3.fetchXmlListLast(this.key + "2", "CommonPrefixes>Prefix", key);
 				if (key) {
-					this.lastDayKey = key;
+					lastDayKey = key;
+					lastStatusKey = null;
 					console.log("found " + key);
 					break;
 				}
@@ -1710,12 +1746,21 @@ class DeviceData {
 		}
 		if (key) {
 			key = await s3.fetchXmlListLast(key, "Contents>Key", lastStatusKey);
+			let infos = null;
 			if (key) {
-				this.lastStatusNew = true;
-				this.lastStatusKey = key;
-				console.log("new " + key);
+				infos = new LastMessageInfos();
+				infos.modifiedTime = DeviceData.getTimeFromKey(key);
+				infos.updated = true;
+				infos.statusKey = key;
+				infos.dayKey = lastDayKey;
+				console.log("new last message" + key);
+			} else {
+				infos = new LastMessageInfos(this.lastMessageInfos);
+				infos.updated = false;
+				console.log("keep last message" + infos.statusKey);
 			}
-			return this.lastStatusKey;
+			this.lastMessageInfos = infos;
+			return infos.statusKey;
 		} else {
 			return null;
 		}
@@ -1723,23 +1768,21 @@ class DeviceData {
 
 	async readConfig() {
 		let changed = false;
-		const fetch = s3.fetchContent(this.key + "config", this.configEtag, true);
+		const fetch = s3.fetchContent(this.key + "config", this.config.etag, true);
 		s3.allStarted();
 		const config = await fetch;
 		if (config) {
 			if (config.status != 304) {
-				changed = this.config != config.text;
-				this.config = config.text;
-				this.configEtag = config.headers.get("etag");
-				const lastModified = config.headers.get("last-modified");
-				this.configTime = Date.parse(lastModified);
-				console.log("config: " + new Date(this.configTime).toISOString());
+				changed = this.config.text != config.text;
+				const infos = new ConfigInfos(config.text,
+					Date.parse(config.headers.get("last-modified")),
+					config.headers.get("etag"));
+				this.config = infos;
+				console.log("config: " + new Date(infos.time).toISOString());
 			}
 		} else {
-			changed = this.config != null;
-			this.config = null;
-			this.configTime = null;
-			this.configEtag = null;
+			changed = this.config.text != null;
+			this.config = new ConfigInfos();
 		}
 		return changed;
 	}
@@ -1757,15 +1800,6 @@ class DeviceData {
 			await this.readConfig();
 		}
 		return result;
-	}
-
-	async downloadStatus(message) {
-		const dateTime = new Date(message.time).toISOString();
-		const date = dateTime.slice(0, 10);
-		const time = dateTime.slice(11, -1);
-		const msgKey = this.key + date + "/" + time;
-		message = await this.downloadMessage(msgKey);
-		message.parseStatus();
 	}
 
 	async downloadMessage(msgKey, arch) {
@@ -1926,29 +1960,29 @@ class DeviceData {
 		console.log(this.allMessages.length + " msgs");
 
 		if (this.allMessages.length > 0) {
-			let i = -1;
+			const last = this.allMessages.length - 1;
+			let i = last;
 			if (range.center) {
 				i = indexNearestItem(this.allMessages, range.center, DeviceMessage.cmpTime);
 			}
 			const message = this.allMessages.at(i);
-			if (this.allMessages.length > 1) {
-				if (i == 0) {
-					++i;
-				}
+			if (i > 0) {
 				const last = message.time;
 				const before = this.allMessages.at(i - 1).time;
 				const seconds = Math.round((last - before) / 1000);
 				if (seconds < 55) {
-					this.lastInterval = `${seconds} sec`;
+					this.statusLastInterval = `${seconds} sec`;
 				} else {
 					const minutes = Math.round(seconds / 60);
 					if (minutes > 50) {
 						const hours = Math.round(minutes / 60);
-						this.lastInterval = `${hours} h`;
+						this.statusLastInterval = `${hours} h`;
 					} else {
-						this.lastInterval = `${minutes} min`;
+						this.statusLastInterval = `${minutes} min`;
 					}
 				}
+			} else {
+				this.statusLastInterval = null;
 			}
 			console.log("Filter from " + range);
 			let rangeValues = range.filterMessages(this.allMessages);
@@ -1969,10 +2003,7 @@ class DeviceData {
 				});
 			}
 			this.rangeValues = rangeValues;
-			if (!message.payload) {
-				await this.downloadStatus(message);
-			}
-			this.setStatus(message);
+			this.setStatus(message, i == last);
 		} else {
 			this.rangeValues = Array();
 			range.center = 0;
@@ -2049,9 +2080,9 @@ class DeviceData {
 		// arch-date
 		const allJobs = Array();
 		if (!center) {
-			await this.fetchLastMessageKey();
+			await this.fetchLastMessageInfos();
 		}
-		let lastValues = this.lastStatusKey ? DeviceData.getTimeFromKey(this.lastStatusKey) : null;
+		let lastValues = this.getLastModifiedTime();
 		if (!lastValues) {
 			// no last days/time message
 			lastValues = this.allMessages.at(-1).time;
@@ -2659,7 +2690,7 @@ class UiChart {
 
 		const statusTime = dev.statusMessage.time;
 		const statusDateTime = new Date(statusTime).toUTCString();
-		const interval = dev.lastInterval ? `Interval: ${dev.lastInterval}` : "";
+		const interval = dev.getStatusIntervalDescription();
 		for (let i = 1; i < dev.paths.length; ++i) {
 			if (dev.paths[i].length > 0) {
 				const cfg = chartConfig[i - 1];
@@ -2903,7 +2934,7 @@ class UiList {
 	}
 
 	cmpLastUpdate(dev1, dev2) {
-		return compareItem(dev1.lastModifiedTime, dev2.lastModifiedTime);
+		return compareItem(dev1.getLastModifiedTime(), dev2.getLastModifiedTime());
 	}
 
 	cmpState(dev1, dev2) {
@@ -3018,7 +3049,8 @@ class UiList {
 			const info = device.getDetails();
 			const viewState = this.getViewState(device);
 			page += `<tr ${viewState.cls}><td colspan='2'><button class='tb1' onclick='ui.loadDeviceData("${device.key}")'>${device.label}</button></td>`;
-			const lm = device.lastModifiedTime ? new Date(device.lastModifiedTime).toISOString().replace(/\.\d+/, '') : "";
+			const time = device.getLastModifiedTime();
+			const lm = time ? new Date(time).toISOString().replace(/\.\d+/, '') : "";
 			page += `<td colspan='2'>${lm}</td><td>${viewState.mark}</td>`;
 			if (details && info) {
 				if (details.provider) {
@@ -3043,7 +3075,7 @@ class UiList {
 		}
 		page += `<tr><td></td></tr>`;
 
-		page += `<tr><td colspan='${cols}'><button onclick='ui.loadDeviceList()'>refresh</button>`;
+		page += `<tr><td colspan='${cols}'><button onclick='ui.loadDeviceList()'>refresh list</button>`;
 
 		const modeBackward = index == list.length ? " disabled" : "";
 		let text = "(no devices)";
@@ -3069,10 +3101,11 @@ class UiList {
 		};
 
 		const info = device.getDetails();
-		if (this.currentTime && device.lastModifiedTime && info && info.interval) {
+		const lastTime = device.getLastModifiedTime();
+		if (this.currentTime && lastTime && info && info.interval) {
 			const intervalMillis = info.interval * 1000;
 			const extraMillis = 30000;
-			const delta = this.currentTime - device.lastModifiedTime;
+			const delta = this.currentTime - lastTime;
 			if ((intervalMillis * 10) <= delta) {
 				state.mark = "-";
 				state.cls = "";
@@ -3091,7 +3124,7 @@ class UiList {
 		if (!state.order && this.previousList) {
 			const prev = this.previousList.find((dev) => dev.key == device.key);
 			if (prev) {
-				if (device.updated) {
+				if (device.isUpdated()) {
 					state.mark = "*";
 					state.cls = "class='changed'";
 					state.order = 70;
@@ -3449,14 +3482,14 @@ class UiManager {
 					this.showDiagnose = false;
 					this.showDeviceList = false;
 					const newConfig = config.value;
-					const oldConfig = dev.config ?? "";
+					const oldConfig = dev.config.text ?? "";
 					if (oldConfig == newConfig) {
 						this.setState({ error: "No change to write." });
 					} else {
 						this.resetProgress("Read");
 						const changed = await dev.readConfig();
 						if (changed) {
-							if (newConfig != dev.config) {
+							if (newConfig != dev.config.text) {
 								this.setState({ error: "Changed in the meantime." });
 							} else {
 								this.setState({ error: "Already changed." });
@@ -3817,9 +3850,9 @@ class UiManager {
 			page += `<tbody id='devicestatuspage'>`;
 			const statusMsg = dev.statusMessage;
 			if (statusMsg.time) {
-				const now = new Date(statusMsg.time).toUTCString();
-				const interval = dev.lastInterval ? `Interval: ${dev.lastInterval}` : "";
-				page += `<tr><td colspan='3'>${now}</td><td>${interval}</td></tr>\n`;
+				const statusDateTime = new Date(statusMsg.time).toUTCString();
+				const interval = dev.getStatusIntervalDescription();
+				page += `<tr><td colspan='3'>${statusDateTime}</td><td>${interval}</td></tr>\n`;
 			}
 			let statusText = "";
 			const status = dev.getStatus();
@@ -3877,21 +3910,22 @@ class UiManager {
 
 		} else if (pageMode == 2 && this.enableConfig) {
 			page += `<tbody id='deviceconfigpage'>`;
-			if (dev.configTime) {
-				const configDate = new Date(dev.configTime);
-				const now = configDate.toUTCString();
+			const configTime = dev.config.time;
+			if (configTime) {
+				const configDate = new Date(configTime).toUTCString();
+				const lastTime = dev.getLastModifiedTime();
 				let cls = "";
 				let mark = "";
-				if (dev.lastModifiedTime) {
-					if (dev.lastModifiedTime <= dev.configTime) {
+				if (lastTime) {
+					if (lastTime <= configTime) {
 						mark = " *";
 						cls = " class='changed'";
 					}
 				}
-				page += `<tr${cls}><td colspan='3'>${now}${mark}</td></tr>\n`;
+				page += `<tr${cls}><td colspan='3'>${configDate}${mark}</td></tr>\n`;
 			}
 			const mode = this.enableConfigWrite ? 'tabindex="0"' : 'tabindex="-1" readOnly';
-			const config = dev.config == null ? "" : dev.config;
+			const config = dev.config.text == null ? "" : dev.config.text;
 			page += `<tr><td colspan='4'><textarea id='deviceconfig' ${mode} rows='${rows}' cols='${cols}'>${config}</textarea></td></tr>\n`;
 		}
 		page += `<tr><td colspan='2'><button onclick='ui.loadDeviceData("${dev.key}", true)'>refresh/most recent</button>`;
