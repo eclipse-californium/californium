@@ -32,6 +32,8 @@ public interface HttpForwardConfigurationProvider {
 	 * @param principalInfo principal info (with domain and device name)
 	 * @return http forward configuration, or {@code null}, if http forwarding
 	 *         is not used.
+	 * @throws IllegalArgumentException if provided values are not valid for a
+	 *             http forward configuration
 	 */
 	HttpForwardConfiguration getConfiguration(DomainPrincipalInfo principalInfo);
 
