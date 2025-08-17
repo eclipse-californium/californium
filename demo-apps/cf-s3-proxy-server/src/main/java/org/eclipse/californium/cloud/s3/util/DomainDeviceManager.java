@@ -15,7 +15,6 @@
 package org.eclipse.californium.cloud.s3.util;
 
 import java.net.InetSocketAddress;
-import java.net.URISyntaxException;
 import java.security.Principal;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
@@ -245,11 +244,7 @@ public class DomainDeviceManager extends DeviceManager
 		if (resource != null) {
 			Device device = resource.getResource().get(principalInfo.name);
 			if (device != null) {
-				try {
-					return BasicHttpForwardConfiguration.create(device.customFields);
-				} catch (URISyntaxException e) {
-					LOGGER.warn("Failed to configure http forward '{}'.", e.getMessage());
-				}
+				return BasicHttpForwardConfiguration.create(device.customFields);
 			}
 		}
 		return null;

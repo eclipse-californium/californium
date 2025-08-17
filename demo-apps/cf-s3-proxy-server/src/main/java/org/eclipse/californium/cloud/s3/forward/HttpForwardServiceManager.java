@@ -14,6 +14,7 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.forward;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,9 +40,11 @@ public class HttpForwardServiceManager {
 	 */
 	private static Map<String, HttpForwardService> httpForwards = new HashMap<>();
 	private static final HttpForwardService defaultService;
+	private static final List<String> deviceConfigFields = new ArrayList<>();
+	private static final List<String> domainConfigFields = new ArrayList<>();
 
 	/**
-	 * Load all available services.
+	 * Loads all available services.
 	 */
 	static {
 		ServiceLoader<HttpForwardService> loader = ServiceLoader.load(HttpForwardService.class);
@@ -53,7 +56,11 @@ public class HttpForwardServiceManager {
 				LOGGER.warn("HttpForwardService {} already loaded {}!", service.getName(),
 						service.getClass().getSimpleName());
 			}
+			addIfAbsent(deviceConfigFields, service.getDeviceConfigFields());
+			addIfAbsent(domainConfigFields, service.getDomainConfigFields());
 		});
+		deviceConfigFields.forEach((name) -> LOGGER.info("Extra-Field : {}", name));
+		domainConfigFields.forEach((name) -> LOGGER.info("Extra-Config: {}", name));
 		if (httpForwards.isEmpty()) {
 			LOGGER.info("No HttpForwardService loaded!");
 			defaultService = null;
@@ -67,8 +74,8 @@ public class HttpForwardServiceManager {
 	}
 
 	/**
-	 * Get default service.
-	 * 
+	 * Gets default service.
+	 * <p>
 	 * Either {@link BasicHttpForwardService}, if available, or any loaded
 	 * {@link HttpForwardService} implementation, if that's the only one.
 	 * 
@@ -80,7 +87,7 @@ public class HttpForwardServiceManager {
 	}
 
 	/**
-	 * Get service by name.
+	 * Gets service by name.
 	 * 
 	 * @param name name of service. {@code null} for default service
 	 * @return service, or {@code null}, if not available
@@ -95,21 +102,44 @@ public class HttpForwardServiceManager {
 	}
 
 	/**
-	 * Get additional device configuration fields for http forwarding.
+	 * Gets additional device configuration fields for http forwarding.
 	 * 
 	 * @return list of additional device configuration fields
 	 */
 	public static List<String> getDeviceConfigFields() {
-		return httpForwards.isEmpty() ? null : BasicHttpForwardConfiguration.CUSTOM_DEVICE_CONFIG_FIELDS;
+		return deviceConfigFields;
 	}
 
 	/**
-	 * Get additional domain configuration fields for http forwarding.
+	 * Gets additional domain configuration fields for http forwarding.
 	 * 
 	 * @return list of additional domain configuration fields
 	 */
 	public static List<String> getDomainConfigFields() {
-		return httpForwards.isEmpty() ? null : BasicHttpForwardConfiguration.CUSTOM_DOMAIN_CONFIG_FIELDS;
+		return domainConfigFields;
 	}
 
+	/**
+	 * Adds items of list to other list, if absent.
+	 * 
+	 * @param list list to add items if absent
+	 * @param items list of items to add
+	 */
+	private static void addIfAbsent(List<String> list, List<String> items) {
+		for (String item : items) {
+			addIfAbsent(list, item);
+		}
+	}
+
+	/**
+	 * Adds items to list, if absent.
+	 * 
+	 * @param list list to add item if absent
+	 * @param item item to add
+	 */
+	private static void addIfAbsent(List<String> list, String item) {
+		if (!list.contains(item)) {
+			list.add(item);
+		}
+	}
 }

@@ -18,7 +18,6 @@ import static org.eclipse.californium.cloud.s3.http.SinglePageApplication.HTTPS_
 import static org.eclipse.californium.cloud.s3.http.SinglePageApplication.S3_SCHEME;
 
 import java.io.File;
-import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -639,22 +638,18 @@ public class S3ProxyServer extends BaseServer {
 					if (forwardDestination != null) {
 						String serviceName = httpForward.httpServiceName;
 						if (HttpForwardServiceManager.getService(serviceName) != null) {
-							try {
-								final String authentication = httpForward.httpAuthentication;
-								final String responseFilter = httpForward.httpResponseFilter;
-								final DeviceIdentityMode deviceIdentityMode = httpForward.httpDeviceIdentityMode;
-								LOGGER.info("http forward {}, {}", forwardDestination, deviceIdentityMode);
-								if (responseFilter != null) {
-									LOGGER.info("http forward response filter {}", responseFilter);
-								}
-								if (serviceName != null) {
-									LOGGER.info("http forward java-service {}", serviceName);
-								}
-								forward = new BasicHttpForwardConfiguration(forwardDestination, authentication,
-										deviceIdentityMode, responseFilter, serviceName);
-							} catch (URISyntaxException e) {
-								LOGGER.warn("Failed to configure http forward '{}'.", forwardDestination);
+							final String authentication = httpForward.httpAuthentication;
+							final String responseFilter = httpForward.httpResponseFilter;
+							final DeviceIdentityMode deviceIdentityMode = httpForward.httpDeviceIdentityMode;
+							LOGGER.info("http forward {}, {}", forwardDestination, deviceIdentityMode);
+							if (responseFilter != null) {
+								LOGGER.info("http forward response filter {}", responseFilter);
 							}
+							if (serviceName != null) {
+								LOGGER.info("http forward java-service {}", serviceName);
+							}
+							forward = new BasicHttpForwardConfiguration(forwardDestination, authentication,
+									deviceIdentityMode, responseFilter, serviceName, Collections.emptyMap());
 						} else if (serviceName == null) {
 							LOGGER.warn("Failed to configure http forward '{}', default java-service not available.",
 									forwardDestination);

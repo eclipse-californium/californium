@@ -871,6 +871,11 @@ public class DeviceParser implements AppendingResourceParser<DeviceParser> {
 			LOGGER.info("added {}{}{}{}{} {}{}", device.name, device.pskIdentity != null ? " psk" : "",
 					device.publicKey != null ? " rpk" : "", device.sign != null ? " (sign)" : "",
 					device.x509 != null ? " x509" : "", device.type.getShortName(), device.ban ? " (banned)" : "");
+			if (device.customFields != null && LOGGER.isDebugEnabled()) {
+				for (String field : device.customFields.keySet()) {
+					LOGGER.debug("   {}={}", field, device.customFields.get(field));
+				}
+			}
 			Set<DeviceIdentifier> group = new HashSet<>();
 			Set<DeviceIdentifier> prev = groups.putIfAbsent(device.group, group);
 			if (prev != null) {

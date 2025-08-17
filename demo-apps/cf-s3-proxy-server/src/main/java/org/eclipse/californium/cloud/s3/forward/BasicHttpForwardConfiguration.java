@@ -17,6 +17,7 @@ package org.eclipse.californium.cloud.s3.forward;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -24,6 +25,8 @@ import java.util.regex.Pattern;
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.cloud.s3.util.Domains;
 import org.eclipse.californium.cloud.util.DeviceParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Http forward configuration.
@@ -32,8 +35,8 @@ import org.eclipse.californium.cloud.util.DeviceParser;
  * filter.
  * <p>
  * This http forward configuration is currently supported by cli arguments (use
- * {@code -h} as cli argument to see the help), by the {@link Domains} configuration
- * and by the {@link DeviceParser} configuration.
+ * {@code -h} as cli argument to see the help), by the {@link Domains}
+ * configuration and by the {@link DeviceParser} configuration.
  * <p>
  * {@link Domains} configuration:
  * 
@@ -69,6 +72,8 @@ import org.eclipse.californium.cloud.util.DeviceParser;
  * @since 4.0
  */
 public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, HttpForwardConfigurationProvider {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(BasicHttpForwardConfiguration.class);
 
 	/**
 	 * Postfix in field name for http forward destination.
@@ -148,6 +153,8 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 	 */
 	private final String serviceName;
 
+	private final Map<String, String> extraFields;
+
 	/**
 	 * Http forward configuration.
 	 * 
@@ -158,18 +165,25 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 	 *            {@code null} to not forward it.
 	 * @param serviceName service name, or {@code null} to use the default
 	 *            service.
-	 * @throws URISyntaxException
+	 * @throws IllegalArgumentException if provided values are not valid
 	 * @see HttpForwardServiceManager#getDefaultService()
 	 * @see HttpForwardServiceManager#getService(String)
 	 */
 	public BasicHttpForwardConfiguration(String destination, String authentication, DeviceIdentityMode identityMode,
-			String responseFilter, String serviceName) throws URISyntaxException {
-		this.destination = destination != null ? new URI(destination) : null;
+			String responseFilter, String serviceName, Map<String, String> extraFields) {
+		try {
+			this.destination = destination != null ? new URI(destination) : null;
+			LOGGER.warn("{} OK", destination);
+		} catch (URISyntaxException ex) {
+			LOGGER.warn("{} : {}", ex.getMessage(), destination);
+			throw new IllegalArgumentException(ex.getMessage());
+		}
 		this.authentication = authentication;
 		this.identityMode = identityMode;
 		this.responseFilter = responseFilter != null && !responseFilter.isEmpty() ? Pattern.compile(responseFilter)
 				: null;
 		this.serviceName = serviceName;
+		this.extraFields = extraFields;
 	}
 
 	/**
@@ -186,12 +200,13 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 	 * @see HttpForwardServiceManager#getService(String)
 	 */
 	public BasicHttpForwardConfiguration(URI destination, String authentication, DeviceIdentityMode identityMode,
-			Pattern responseFilter, String serviceName) {
+			Pattern responseFilter, String serviceName, Map<String, String> extraFields) {
 		this.destination = destination;
 		this.authentication = authentication;
 		this.identityMode = identityMode;
 		this.responseFilter = responseFilter;
 		this.serviceName = serviceName;
+		this.extraFields = extraFields;
 	}
 
 	@Override
@@ -219,6 +234,25 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 		return serviceName;
 	}
 
+	@Override
+	public String getExtraField(String name) {
+		return extraFields.get(name);
+	}
+
+	@Override
+	public String getExtraField(String name, String alternativeName) {
+		String value = extraFields.get(name);
+		if (value == null) {
+			value = extraFields.get(alternativeName);
+		}
+		return value;
+	}
+
+	@Override
+	public Map<String, String> getExtraFields() {
+		return extraFields;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 * 
@@ -231,14 +265,18 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 	}
 
 	/**
-	 * Create http forward configuration from custom fields or postfix maps.
+	 * Create http forward configuration from device or domain configuration
+	 * fields.
 	 * 
 	 * @param fields custom fields. May be {@code null}.
 	 * @return http forward configuration, or {@code null}, if no http forward
-	 *         fields are available.
+	 *         fields are provided.
+	 * @throws IllegalArgumentException if provided values are not valid for a
+	 *             http forward configuration
 	 */
-	public static HttpForwardConfiguration create(Map<String, String> fields) throws URISyntaxException {
+	public static HttpForwardConfiguration create(Map<String, String> fields) {
 		if (fields != null && !fields.isEmpty()) {
+			boolean domain = false;
 			String destination = fields.get(DEVICE_CONFIG_HTTP_FORWARD);
 			String authentication = fields.get(DEVICE_CONFIG_HTTP_AUTHENTICATION);
 			String identityMode = fields.get(DEVICE_CONFIG_HTTP_DEVICE_IDENTITY_MODE);
@@ -246,21 +284,37 @@ public class BasicHttpForwardConfiguration implements HttpForwardConfiguration, 
 			String serviceName = fields.get(DEVICE_CONFIG_HTTP_SERVICE_NAME);
 			if (destination == null && authentication == null && identityMode == null && responseFilter == null
 					&& serviceName == null) {
+				domain = true;
 				destination = fields.get(DOMAIN_CONFIG_HTTP_FORWARD);
 				authentication = fields.get(DOMAIN_CONFIG_HTTP_AUTHENTICATION);
 				identityMode = fields.get(DOMAIN_CONFIG_HTTP_DEVICE_IDENTITY_MODE);
 				responseFilter = fields.get(DOMAIN_CONFIG_HTTP_RESPONSE_FILTER);
 				serviceName = fields.get(DOMAIN_CONFIG_HTTP_SERVICE_NAME);
 			}
-			if (destination != null || authentication != null || identityMode != null || responseFilter != null
-					|| serviceName != null) {
-				DeviceIdentityMode mode = identityMode != null ? DeviceIdentityMode.valueOf(identityMode) : null;
-				try {
-					return new BasicHttpForwardConfiguration(destination, authentication, mode, responseFilter,
-							serviceName);
-				} catch (URISyntaxException ex) {
-
+			final Map<String, String> extraFields = new HashMap<>();
+			fields.forEach((key, value) -> {
+				if (CUSTOM_DEVICE_CONFIG_FIELDS.contains(key)) {
+					LOGGER.info("Device field {}: {}", key, value);
+				} else if (CUSTOM_DOMAIN_CONFIG_FIELDS.contains(key)) {
+					LOGGER.info("Domain field {}: {}", key, value);
+				} else {
+					extraFields.putIfAbsent(key, value);
+					LOGGER.info("Extra-Field {}: {}", key, value);
 				}
+			});
+			if (destination != null || authentication != null || identityMode != null || responseFilter != null
+					|| serviceName != null || !extraFields.isEmpty()) {
+				DeviceIdentityMode mode;
+				try {
+					mode = identityMode != null ? DeviceIdentityMode.valueOf(identityMode) : null;
+				} catch (IllegalArgumentException e) {
+					String field = domain ? DOMAIN_CONFIG_HTTP_DEVICE_IDENTITY_MODE
+							: DEVICE_CONFIG_HTTP_DEVICE_IDENTITY_MODE;
+					throw new IllegalArgumentException("Value '" + identityMode + "' not supported for " + field + "!");
+				}
+				return new BasicHttpForwardConfiguration(destination, authentication, mode, responseFilter, serviceName,
+						extraFields);
+
 			}
 		}
 		return null;

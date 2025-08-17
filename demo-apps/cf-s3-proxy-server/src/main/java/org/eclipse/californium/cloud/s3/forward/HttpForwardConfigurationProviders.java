@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Http forward providers.
@@ -28,6 +30,8 @@ import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
  * @since 4.0
  */
 public class HttpForwardConfigurationProviders implements HttpForwardConfigurationProvider {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(HttpForwardConfigurationProviders.class);
 
 	/**
 	 * List of {@link HttpForwardConfigurationProvider}.
@@ -71,14 +75,22 @@ public class HttpForwardConfigurationProviders implements HttpForwardConfigurati
 	 * </ul>
 	 * results in the device specific configurations and as default destination
 	 * the one from the general configuration.
+	 * <p>
+	 * If one provider fails with an {@link IllegalArgumentException}, a log
+	 * message is written and {@code null} is returned.
 	 */
 	@Override
 	public HttpForwardConfiguration getConfiguration(DomainPrincipalInfo principalInfo) {
-		HttpForwardConfiguration configuration = null;
-		for (HttpForwardConfigurationProvider provider : list) {
-			configuration = HttpForwardConfiguration.merge(configuration, provider.getConfiguration(principalInfo));
+		try {
+			HttpForwardConfiguration configuration = null;
+			for (HttpForwardConfigurationProvider provider : list) {
+				configuration = HttpForwardConfiguration.merge(configuration, provider.getConfiguration(principalInfo));
+			}
+			return configuration;
+		} catch (IllegalArgumentException e) {
+			LOGGER.warn("{}: {}", principalInfo, e.getMessage());
+			return null;
 		}
-		return configuration;
 	}
 
 }
