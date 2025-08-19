@@ -19,7 +19,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +73,24 @@ public class HttpForwardServiceManager {
 			defaultService = httpForwards.get(BasicHttpForwardService.SERVICE_NAME);
 			LOGGER.info("{} HttpForwardServices loaded!", httpForwards.size());
 		}
+	}
+
+	/**
+	 * Creates health statistics for all http forward services.
+	 * 
+	 * @param tag service tag for logging
+	 * @param domains set of domains
+	 * @return list of health statistics
+	 */
+	public static List<CounterStatisticManager> createHealthStatistics(String tag, Set<String> domains) {
+		List<CounterStatisticManager> healths = new ArrayList<>();
+		httpForwards.values().forEach((service) -> {
+			CounterStatisticManager health = service.createHealthStatistic(tag, domains);
+			if (health != null) {
+				healths.add(health);
+			}
+		});
+		return healths;
 	}
 
 	/**
