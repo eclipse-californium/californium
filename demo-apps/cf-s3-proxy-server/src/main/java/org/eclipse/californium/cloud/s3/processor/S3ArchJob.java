@@ -35,7 +35,6 @@ import org.eclipse.californium.cloud.s3.option.S3ProxyCustomOptions;
 import org.eclipse.californium.cloud.s3.proxy.S3ListRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3ListResponse;
 import org.eclipse.californium.cloud.s3.proxy.S3ListResponse.S3Object;
-import org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealth;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3PutRequest;

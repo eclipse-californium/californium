@@ -19,7 +19,6 @@ import java.util.function.Consumer;
 
 import org.eclipse.californium.cloud.s3.proxy.S3ListRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3ListResponse.S3Object;
-import org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealth;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
