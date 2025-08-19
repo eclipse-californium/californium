@@ -534,7 +534,7 @@ public class S3Processor {
 				Consumer<Integer> ready = (res) -> {
 					try {
 						if (!arch.hasMore()) {
-							health.processingDevices(arch.domain, -1);
+							health.processingDevices(arch.domain, 0);
 						}
 						processJobs(domains, jobs, index + 1);
 					} catch (RuntimeException ex) {

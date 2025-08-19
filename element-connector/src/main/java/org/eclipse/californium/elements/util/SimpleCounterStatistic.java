@@ -139,6 +139,20 @@ public class SimpleCounterStatistic {
 	}
 
 	/**
+	 * Gets head of key.
+	 * <p>
+	 * Truncates the name of the statistic from the key tail.
+	 * 
+	 * @param key key of statistic
+	 * @return head of key
+	 * @since 4.0
+	 */
+	public String getHead(String key) {
+		String head = StringUtil.truncateTail(key, name);
+		return StringUtil.truncateTail(head, "-");
+	}
+
+	/**
 	 * Set start value.
 	 * 
 	 * @param value start value

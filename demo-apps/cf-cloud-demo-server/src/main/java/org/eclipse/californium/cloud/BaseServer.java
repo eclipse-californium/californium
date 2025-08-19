@@ -515,6 +515,9 @@ public class BaseServer extends CoapServer {
 
 	protected DeviceGredentialsProvider deviceCredentials;
 
+	/**
+	 * Not endpoint related server statistics.
+	 */
 	protected List<CounterStatisticManager> diagnoseStatistics = new ArrayList<>();
 
 	protected boolean noCoap;
@@ -810,8 +813,7 @@ public class BaseServer extends CoapServer {
 		ObserveStatisticLogger obsStatLogger = new ObserveStatisticLogger(getTag());
 		if (obsStatLogger.isEnabled()) {
 			setObserveHealth(obsStatLogger);
-			add(obsStatLogger);
-			addServerStatistic(obsStatLogger);
+			addServerStatistic(obsStatLogger, true);
 		}
 	}
 
@@ -847,19 +849,29 @@ public class BaseServer extends CoapServer {
 	}
 
 	/**
-	 * Add {@link CounterStatisticManager} to {@link Diagnose} resource.
+	 * Adds {@link CounterStatisticManager} to {@link Diagnose} resource.
+	 * <p>
+	 * Adds the statistic only if it's {@link CounterStatisticManager#isEnabled()}.
 	 * 
 	 * @param health {@link CounterStatisticManager} to add.
+	 * @param dump {@code true} to add health also to the frequently dumped
+	 *            statistics with {@link #add}.
+	 * @since 4.0 (added parameter dump)
 	 */
-	protected void addServerStatistic(CounterStatisticManager health) {
-		diagnoseStatistics.add(health);
-		Resource child = getRoot().getChild(Diagnose.RESOURCE_NAME);
-		if (child instanceof Diagnose) {
-			((Diagnose) child).update(diagnoseStatistics);
-			LOGGER.info("{} {} added to diagnose resource.", health.getTag(), health.getClass().getSimpleName());
-		} else if (!noCoap) {
-			LOGGER.info("{} {} diagnose resource missing.", health.getTag(),
-					health.getClass().getSimpleName());
+	protected void addServerStatistic(CounterStatisticManager health, boolean dump) {
+		if (health.isEnabled()) {
+			if (dump) {
+				add(health);
+			}
+			diagnoseStatistics.add(health);
+			Resource child = getRoot().getChild(Diagnose.RESOURCE_NAME);
+			if (child instanceof Diagnose) {
+				((Diagnose) child).update(diagnoseStatistics);
+				LOGGER.info("{}{} added to diagnose resource {}.", health.getTag(), health.getClass().getSimpleName(),
+						diagnoseStatistics.size());
+			} else if (!noCoap) {
+				LOGGER.info("{}{} diagnose resource missing.", health.getTag(), health.getClass().getSimpleName());
+			}
 		}
 	}
 }

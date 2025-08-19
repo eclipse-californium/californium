@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Counter statistic manager.
- * 
- * Manage {@link SimpleCounterStatistic}.
- * 
+ * <p>
+ * Manages {@link SimpleCounterStatistic}.
+ * <p>
  * Since 3.1: {@link #isEnabled()} is now coupled to the logger info level, if a
  * logger is assigned. In order to write the statistic, the logger must have at
  * least level debug. That enables to collect statistics without writing them.
@@ -68,9 +68,7 @@ abstract public class CounterStatisticManager {
 	private AtomicLong lastTransfer = new AtomicLong(ClockUtil.nanoRealtime());
 
 	/**
-	 * Create passive statistic manager.
-	 * 
-	 * {@link #dump()} is intended to be called externally.
+	 * Creates statistic manager.
 	 * 
 	 * @param tag describing information
 	 */
@@ -79,20 +77,23 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Add {@link SimpleCounterStatistic} to {@link #statistics} map by head and
-	 * name.
+	 * Adds {@link SimpleCounterStatistic} to {@link #statistics} map by head
+	 * and name.
+	 * <p>
+	 * The head may be used to group sections.
 	 * 
 	 * @param head head appended with {@link SimpleCounterStatistic#getName()}
 	 *            to build the key for the map.
 	 * @param statistic statistic to be added.
 	 * @see #getByKey(String)
+	 * @see #useSections()
 	 */
 	protected void add(String head, SimpleCounterStatistic statistic) {
 		addByKey(head + statistic.getName(), statistic);
 	}
 
 	/**
-	 * Add {@link SimpleCounterStatistic} to {@link #statistics} map by name.
+	 * Adds {@link SimpleCounterStatistic} to {@link #statistics} map by name.
 	 * 
 	 * @param statistic statistic to be added by name.
 	 * @see #getByKey(String)
@@ -102,7 +103,10 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Add {@link SimpleCounterStatistic} to {@link #statistics} map by key.
+	 * Adds {@link SimpleCounterStatistic} to {@link #statistics} map by key.
+	 * <p>
+	 * If a statistic is replaced, the previous one is removed and the new one
+	 * is added at the end.
 	 * 
 	 * @param key the key for the map.
 	 * @param statistic statistic to be added.
@@ -118,7 +122,7 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Remove {@link SimpleCounterStatistic} to {@link #statistics} map by key.
+	 * Removes {@link SimpleCounterStatistic} to {@link #statistics} map by key.
 	 * 
 	 * @param key the key for the map.
 	 * @param statistic statistic to be added.
@@ -134,7 +138,7 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Remove {@link SimpleCounterStatistic} to {@link #statistics} map by key.
+	 * Removes {@link SimpleCounterStatistic} to {@link #statistics} map by key.
 	 * 
 	 * @param key the key for the map.
 	 * @see #addByKey(String, SimpleCounterStatistic)
@@ -150,7 +154,7 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Get {@link SimpleCounterStatistic} by key.
+	 * Gets {@link SimpleCounterStatistic} by key.
 	 * 
 	 * @param key key the map
 	 * @return the counter statistic, or {@code null}, if not available.
@@ -163,7 +167,7 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Get ordered list of keys.
+	 * Gets ordered list of keys.
 	 * 
 	 * @return ordered list of keys.
 	 * @since 3.1
@@ -173,8 +177,8 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Get ordered list of selected keys by principal.
-	 * 
+	 * Gets ordered list of selected keys by principal.
+	 * <p>
 	 * Intended to be overwritten, if principal specific selection is intended.
 	 * 
 	 * @param principal principal. May be {@code null}.
@@ -186,7 +190,16 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Check, if statistic manager is enabled.
+	 * Indicates to use heads as section.
+	 * 
+	 * @return {@code true} to use heads as sections, {@code false} otherwise.
+	 */
+	public boolean useSections() {
+		return false;
+	}
+
+	/**
+	 * Checks, if statistic manager is enabled.
 	 * 
 	 * @return {@code true}, if statistic logger is enabled, {@code false},
 	 *         otherwise.
@@ -194,12 +207,12 @@ abstract public class CounterStatisticManager {
 	public abstract boolean isEnabled();
 
 	/**
-	 * Dump statistic.
+	 * Dumps statistic.
 	 */
 	public abstract void dump();
 
 	/**
-	 * Get the nano-realtime of the last transfer.
+	 * Gets the nano-realtime of the last transfer.
 	 * 
 	 * @return the nano-realtime of the last transfer
 	 * @see ClockUtil#nanoRealtime()
@@ -212,7 +225,7 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Transfer all current counters to overall counters.
+	 * Transfers all current counters to overall counters.
 	 * 
 	 * @since 3.1
 	 */
@@ -234,7 +247,7 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Get counter of {@link SimpleCounterStatistic}.
+	 * Gets counter of {@link SimpleCounterStatistic}.
 	 * 
 	 * @param key key to lookup. If added by
 	 *            {@link #add(SimpleCounterStatistic)}, use
@@ -250,7 +263,7 @@ abstract public class CounterStatisticManager {
 	}
 
 	/**
-	 * Get logging tag.
+	 * Gets logging tag.
 	 * 
 	 * @return logging tag.
 	 * @since 2.5
