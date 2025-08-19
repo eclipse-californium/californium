@@ -191,7 +191,7 @@ public class SimpleCounterStatistic {
 	 * @param delta delta to be applied to current counter
 	 * @return resulting value of the current counter
 	 */
-	public long increment(int delta) {
+	public long increment(long delta) {
 		return currentCounter.addAndGet(delta);
 	}
 
