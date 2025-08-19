@@ -27,7 +27,6 @@ import java.util.zip.GZIPOutputStream;
 
 import org.eclipse.californium.cloud.s3.proxy.S3ListRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3ListResponse.S3Object;
-import org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealth;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3PutRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3Request;

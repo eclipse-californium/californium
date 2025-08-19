@@ -24,7 +24,6 @@ import org.eclipse.californium.cloud.s3.proxy.S3ListRequest;
 import org.eclipse.californium.cloud.s3.proxy.S3ListResponse.S3Object;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealth;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 
 /**

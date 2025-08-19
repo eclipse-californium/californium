@@ -12,7 +12,7 @@
  * 
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  ********************************************************************************/
-package org.eclipse.californium.cloud.s3.proxy;
+package org.eclipse.californium.cloud.s3.processor;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -61,7 +61,7 @@ public class S3ProcessorHealthLogger extends CounterStatisticManager implements 
 
 	@Override
 	public void processedDay(String domain, int days) {
-		String name = (days >= 0 ? SUCCESS : FAILURE);
+		String name = days >= 0 ? SUCCESS : FAILURE;
 		if (days < 0) {
 			days = 1;
 		}
