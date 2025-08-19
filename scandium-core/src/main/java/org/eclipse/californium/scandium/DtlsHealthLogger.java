@@ -40,7 +40,6 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 
 	private volatile int maxConnections = 0;
 
-	protected final SimpleCounterStatistic.AlignGroup align = new SimpleCounterStatistic.AlignGroup();
 	private final SimpleCounterStatistic connections = new SimpleCounterStatistic("associations", align);
 	private final SimpleCounterStatistic pendingHandshakes = new SimpleCounterStatistic("handshakes pending", align);
 	private final SimpleCounterStatistic succeededHandshakes = new SimpleCounterStatistic("handshakes succeeded",
