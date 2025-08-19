@@ -6,10 +6,10 @@ Californium contains a plugtest server, that implements the test specification f
 
 ## General Usage
 
-Start the [cf-plugtest-server-3.6.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/3.6.0/cf-plugtest-server-3.6.0.jar) with:
+Start the [cf-plugtest-server-4.0.0-M6.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/4.0.0-M6/cf-plugtest-server-4.0.0-M6.jar) with:
 
 ```sh
-java -jar cf-plugtest-server-3.6.0.jar -h
+java -jar cf-plugtest-server-<version>.jar -h
 
 Usage: PlugtestServer [-h] [--dtls-only] [--[no-]echo-delay] [--[no-]external]
                       [--[no-]ipv4] [--[no-]ipv6] [--[no-]loopback] [--[no-]

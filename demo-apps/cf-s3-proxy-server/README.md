@@ -77,12 +77,12 @@ Some more details about the web-UI can be found in [web-UI documentation](./docs
 
 ## General Usage
 
-Cloud CoAP-S3-Proxy Server is available at the eclipse repository and can be downloaded [cf-s3-proxy-server-4.0.0-M3.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-s3-proxy-server/4.0.0-M3/cf-s3-proxy-server-4.0.0-M3.jar).
+Cloud CoAP-S3-Proxy Server is available at the eclipse repository and can be downloaded [cf-s3-proxy-server-4.0.0-M6.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-s3-proxy-server/4.0.0-M6/cf-s3-proxy-server-4.0.0-M6.jar).
 
 Start the cf-s3-proxy-server with:
 
 ```
-java -jar cf-s3-proxy-server-4.0.0-M6.jar -h
+java -jar cf-s3-proxy-server-<version>.jar -h
 
 Usage: S3ProxyServer [-h] [--diagnose] [--[no-]coap] [--wildcard-interface |
                      [[--[no-]loopback] [--[no-]external] [--[no-]ipv4] [--[no-]

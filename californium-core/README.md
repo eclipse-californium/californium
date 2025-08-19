@@ -243,7 +243,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>3.2.0</version>
+            <version>4.0.0-M6</version>
     </dependency>
     ...
   </dependencies>

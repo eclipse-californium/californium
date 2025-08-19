@@ -67,7 +67,7 @@ With that, it gets very time consuming to test all combinations. Therefore, if y
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:4.0.0-M3).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:4.0.0-M6).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots `...`):
 
@@ -77,7 +77,7 @@ to your `pom.xml` (without the dots `...`):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>3.13.0</version>
+            <version>3.14.0</version>
     </dependency>
     ...
   </dependencies>
@@ -92,14 +92,14 @@ or
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>4.0.0-M3</version>
+            <version>4.0.0-M6</version>
     </dependency>
     ...
   </dependencies>
   ...
 ```
 
-**Note:** the API of milestone release `4.0.0-M3` isn't stable yet.
+**Note:** the API of milestone release `4.0.0-M6` isn't stable yet.
 
 ##### Current Builds
 
@@ -141,7 +141,7 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 
 A test server is running at <a href="coap://californium.eclipseprojects.io:5683/">coap://californium.eclipseprojects.io:5683/</a>
 
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/4.0.0-M3/cf-plugtest-server-4.0.0-M3.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/4.0.0-M6/cf-plugtest-server-4.0.0-M6.jar) from the demo-apps.
 The root resource responds with its current version.
 
 For a preview to the [Return Routability Check for DTLS 1.2 and DTLS 1.3](https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html) experimental support, please read [feature/rrc - branch](https://github.com/eclipse-californium/californium/tree/feature/rrc).
@@ -239,7 +239,7 @@ Examples:
 
 ip: 2a02:????:915b
 port: 15683
-server: Cf 4.0.0-M3
+server: Cf 4.0.0-M6
 ```
 
 ```
@@ -256,7 +256,7 @@ secure-renegotiation: true
 ext-master-secret: true
 newest-record: true
 message-size-limit: 1343
-server: Cf 4.0.0-M3
+server: Cf 4.0.0-M6
 ```
 
 `ip` and `port` may be used to detect some NATs on the ip-route. If the `port:` in the response differs from the provided port in the cli (`-p`), then that's a first indication of some NAT. If a client send a new request a couple of minutes later and `ip` or `port` are changing, then that may also indicate a NAT. If the client uses DTLS without the Connection ID extension (no `read-cid`), then the request may timeout. In that case, try to use CoAP without encryption to see,  if the `ip` or `port` changes.
@@ -266,7 +266,7 @@ server: Cf 4.0.0-M3
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-4.0.0-M3.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-4.0.0-M6.jar MulticastTestServer`
 
 # Contact
 

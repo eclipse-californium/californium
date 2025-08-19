@@ -27,7 +27,7 @@ echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 75% of the available
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=75\" argument in \"CF_OPT\" may be used instead."
 echo
 echo "The required server may be started using:"
-echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-4.0.0-M2.jar --no-external --no-plugtest"
+echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-<version>.jar --no-external --no-plugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 75% of the available RAM."
 echo "For newer JVMs the \"-XX:MaxRAMPercentage=50\" argument in \"CF_OPT\" may also be used instead."
 echo "If the benchmark is mainly used with the loopback interface (localhost), use the --no-external as above."

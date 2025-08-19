@@ -620,7 +620,7 @@ java -jar cf-client-<version>.jar --method GET coaps://<nat>:5784/mycontext
 
 ### Test the dtls-cid-cluster with Cf-NAT 
 
-To test, that the dtls-cid-cluster even works, if the client's address is changed, such a address change can be simulated using [Cf-NAT](https://github.com/eclipse/californium/tree/main/cf-utils/cf-nat) (download available in the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/4.0.0-M3/cf-nat-4.0.0-M3.jar)).
+To test, that the dtls-cid-cluster even works, if the client's address is changed, such a address change can be simulated using [Cf-NAT](https://github.com/eclipse/californium/tree/main/cf-utils/cf-nat) (download available in the [Eclipse Release Repository](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-nat/4.0.0-M6/cf-nat-4.0.0-M6.jar)).
 
 ```sh
 java -jar cf-nat-<version>.jar :5784 <host>:30784
@@ -641,7 +641,7 @@ remove <host:port> - remove destination from load balancer
 reverse (on|off) - enable/disable reverse address updates.
 ```
 
-Start two [cf-browser](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/4.0.0-M3/cf-browser-4.0.0-M3.jar) instances. Enter as destination `coaps://<nat-host>:5784/mycontext` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium3.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
+Start two [cf-browser](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/4.0.0-M6/cf-browser-4.0.0-M6.jar) instances. Enter as destination `coaps://<nat-host>:5784/mycontext` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium3.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
 
 ```
 ip: ?.?.?.?

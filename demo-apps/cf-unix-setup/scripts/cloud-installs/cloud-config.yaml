@@ -32,7 +32,7 @@ users:
 
 runcmd:
  - [ wget, "https://github.com/eclipse-californium/californium/raw/main/demo-apps/cf-unix-setup/scripts/cali.service", -O, "/etc/systemd/system/cali.service" ]
- - [ wget, "https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/4.0.0-M3/cf-plugtest-server-4.0.0-M3.jar", -O, "/home/cali/cf-plugtest-server-update.jar" ]
+ - [ wget, "https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/4.0.0-M6/cf-plugtest-server-4.0.0-M6.jar", -O, "/home/cali/cf-plugtest-server-update.jar" ]
  - [ wget, "https://github.com/eclipse-californium/californium/raw/main/demo-apps/cf-plugtest-server/src/main/resources/logback.xml", -O, "/home/cali/logback.xml" ]
  - [ systemctl, start, cali ]
  - [ systemctl, enable, cali ]

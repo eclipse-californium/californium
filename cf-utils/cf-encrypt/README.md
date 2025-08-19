@@ -6,7 +6,7 @@ This utility app provides encryption and decryption of configuration files as we
 
 # Download
 
-[Eclipse Release Repository (3.12)](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-encrypt/3.12.0/cf-encrypt-3.12.0.jar)
+[Eclipse Release Repository (4.0.0-M6)](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-encrypt/4.0.0-M6/cf-encrypt-4.0.0-M6.jar)
 
 #Usage
 
@@ -90,7 +90,7 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfLWngmsAJNXFkHmZnzGYFi1x4exUghzNR8zoAnLeHKcL
 Extract raw public key in hexadecimal (2x32 bytes):
 
 ```sh
-java -jar target/cf-encrypt-3.13.0-SNAPSHOT.jar key privkey.pem --raw --hex
+java -jar target/cf-encrypt-<version>.jar key privkey.pem --raw --hex
 :0x7CB5A7826B0024D5C59079999F3198162D71E1EC54821CCD47CCE80272DE1CA70B55963806D26DF6B6B46B432B829C76DB499B6E05D9529BBFEB9062ED25B2A6
 ```
 

@@ -49,12 +49,12 @@ It includes also an optional `diagnose` resource. That records the number of mes
 
 ## General Usage
 
-The Cloud Demo Server is available at the eclipse repository and can be downloaded [cf-cloud-demo-server-4.0.0-M3.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-cloud-demo-server/4.0.0-M3/cf-cloud-demo-server-4.0.0-M3.jar).
+The Cloud Demo Server is available at the eclipse repository and can be downloaded [cf-cloud-demo-server-4.0.0-M6.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-cloud-demo-server/4.0.0-M6/cf-cloud-demo-server-4.0.0-M6.jar).
 
-Start the cf-cloud-demo-server-4.0.0-M3.jar with:
+Start the cf-cloud-demo-server-<version>.jar with:
 
 ```sh
-java -jar cf-cloud-demo-server-4.0.0-M3.jar -h
+java -jar cf-cloud-demo-server-<version>.jar -h
 
 Usage: CloudDemoServer [-h] [--diagnose] [--wildcard-interface | [[--[no-]
                        loopback] [--[no-]external] [--[no-]ipv4] [--[no-]ipv6]
@@ -545,7 +545,7 @@ Status for the jail: cali-https
 
 This instructions assumes to be already common with tools used around "headless compute units" and "cloud computing". It does not contain the basic instruction for using them. For some more details, see the script's [README](./service/cloud-installs/README.md)
 
-The Cloud Demo Server is available at the eclipse repository and can be downloaded [cf-cloud-demo-server-3.13.0.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-cloud-demo-server/3.13.0/cf-cloud-demo-server-3.13.0.jar).
+The Cloud Demo Server is available at the eclipse repository and can be downloaded [cf-cloud-demo-server-4.0.0-M6.jar](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-cloud-demo-server/4.0.0-M6/cf-cloud-demo-server-4.0.0-M6.jar).
 
 The server runs as [systemd service](./service/cali.service). It may be installed either manually or using the [installation script](./service/cloud-installs/deploy-dev.sh). In order to be able to apply updates to the server software, the `systemd service` uses a second jar with "update" in its name, that will be copied to the executed jar before starting the execution.
 
