@@ -50,8 +50,8 @@ import org.eclipse.californium.cloud.s3.http.S3Login;
 import org.eclipse.californium.cloud.s3.http.SinglePageApplication;
 import org.eclipse.californium.cloud.s3.option.S3ProxyCustomOptions;
 import org.eclipse.californium.cloud.s3.processor.S3Processor;
+import org.eclipse.californium.cloud.s3.processor.S3ProcessorHealthLogger;
 import org.eclipse.californium.cloud.s3.proxy.S3AsyncProxyClient;
-import org.eclipse.californium.cloud.s3.proxy.S3ProcessorHealthLogger;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClient;
 import org.eclipse.californium.cloud.s3.proxy.S3ProxyClientProvider;
 import org.eclipse.californium.cloud.s3.resources.S3Devices;
@@ -923,9 +923,9 @@ public class S3ProxyServer extends BaseServer {
 			S3ProxyConfig cli = (S3ProxyConfig) cliArguments;
 			S3ProcessorHealthLogger health = new S3ProcessorHealthLogger(getTag(), s3clients.getDomains());
 			s3processor = new S3Processor(cli.s3Processor, getConfig(), s3clients, health, secondaryExecutor);
-			if (health.isEnabled()) {
-				addServerStatistic(health);
-			}
+			// S3ProcessorHealthLogger are dumped based on the jobs,
+			// not on intervals
+			addServerStatistic(health, false);
 		}
 	}
 }
