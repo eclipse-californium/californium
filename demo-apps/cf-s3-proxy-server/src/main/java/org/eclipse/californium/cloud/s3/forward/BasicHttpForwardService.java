@@ -18,6 +18,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.eclipse.californium.cloud.s3.forward.HttpForwardConfiguration.DeviceIdentityMode;
@@ -27,6 +28,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.proxy2.http.Coap2HttpProxy;
 import org.slf4j.Logger;
@@ -48,12 +50,21 @@ public class BasicHttpForwardService implements HttpForwardService {
 
 	protected final Coap2HttpProxy httpForward = new Coap2HttpProxy(null);
 
+	protected volatile HttpForwardHealth health;
+
 	public BasicHttpForwardService() {
 	}
 
 	@Override
 	public String getName() {
 		return SERVICE_NAME;
+	}
+
+	@Override
+	public CounterStatisticManager createHealthStatistic(String tag, Set<String> domains) {
+		HttpforwardHealthLogger statistics = new HttpforwardHealthLogger(tag, domains);
+		health = statistics;
+		return statistics;
 	}
 
 	@Override
@@ -77,6 +88,10 @@ public class BasicHttpForwardService implements HttpForwardService {
 
 		httpForward.handleForward(httpDestinationUri, configuration.getAuthentication(), outgoing,
 				(forwardResponse) -> {
+					HttpForwardHealth health = this.health;
+					if (health != null) {
+						health.forwarded(info.domain, forwardResponse != null && forwardResponse.isSuccess());
+					}
 					result.accept(filterResponse(forwardResponse, info, configuration));
 				});
 

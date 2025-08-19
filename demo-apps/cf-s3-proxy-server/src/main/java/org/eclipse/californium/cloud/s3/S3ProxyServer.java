@@ -662,6 +662,10 @@ public class S3ProxyServer extends BaseServer {
 			}
 			HttpForwardConfigurationProvider provider = new HttpForwardConfigurationProviders(deviceHttpForwardProvider,
 					forward);
+			HttpForwardServiceManager.createHealthStatistics(getTag(), s3clients.getDomains()).forEach((health) -> {
+				addServerStatistic(health, true);
+			});
+
 			add(new MyContext(MyContext.RESOURCE_NAME, CALIFORNIUM_BUILD_VERSION, false));
 			S3Devices s3Devices = new S3Devices(getConfig(), s3clients, provider);
 			add(s3Devices);
