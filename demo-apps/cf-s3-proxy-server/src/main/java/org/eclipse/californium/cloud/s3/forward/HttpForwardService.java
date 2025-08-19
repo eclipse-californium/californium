@@ -14,11 +14,13 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.s3.forward;
 
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.eclipse.californium.cloud.s3.util.DomainPrincipalInfo;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 
 /**
  * Http forward service.
@@ -33,6 +35,17 @@ public interface HttpForwardService {
 	 * @return name of service
 	 */
 	String getName();
+
+	/**
+	 * Creates health statistics for http forward services.
+	 * 
+	 * @param tag service tag for logging
+	 * @param domains set of domains
+	 * @return health statistics
+	 */
+	default CounterStatisticManager createHealthStatistic(String tag, Set<String> domains) {
+		return null;
+	}
 
 	/**
 	 * Forwards coap-request to http destination.
