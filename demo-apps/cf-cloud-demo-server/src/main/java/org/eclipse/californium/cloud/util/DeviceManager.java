@@ -132,24 +132,6 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 		this.addTimeoutMillis = addTimeoutMillis;
 	}
 
-	/**
-	 * Create application level info supplier.
-	 * 
-	 * @return application level info supplier
-	 */
-	protected ApplicationLevelInfoSupplier createInfoSupplier() {
-		return new ApplicationLevelInfoSupplier() {
-
-			@Override
-			public AdditionalInfo getInfo(Principal clientIdentity, Object customArgument) {
-				if (customArgument instanceof AdditionalInfo) {
-					return (AdditionalInfo) customArgument;
-				}
-				return createAdditionalInfo(clientIdentity);
-			}
-		};
-	}
-
 	@Override
 	public void add(PrincipalInfo info, long time, String data, final ResultConsumer response) {
 		add(devices, info, time, data, response);
@@ -251,6 +233,11 @@ public class DeviceManager implements DeviceGredentialsProvider, DeviceProvision
 					if (customArgument instanceof AdditionalInfo) {
 						return (AdditionalInfo) customArgument;
 					}
+					return createAdditionalInfo(clientIdentity);
+				}
+
+				@Override
+				public AdditionalInfo restoreInfo(Principal clientIdentity) {
 					return createAdditionalInfo(clientIdentity);
 				}
 			};
