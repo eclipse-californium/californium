@@ -428,6 +428,11 @@ public class DTLSConnectorResumeTest {
 			public AdditionalInfo getInfo(Principal clientIdentity, Object customArgument) {
 				return applicationInfo.get();
 			}
+
+			@Override
+			public AdditionalInfo restoreInfo(Principal clientIdentity) {
+				return applicationInfo.get();
+			}
 		};
 
 		MultiPskStore pskStore = new MultiPskStore();
