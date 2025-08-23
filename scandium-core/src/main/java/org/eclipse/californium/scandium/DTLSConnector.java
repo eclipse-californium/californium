@@ -1476,7 +1476,7 @@ public class DTLSConnector implements Connector, ApplicationAuthorizer, Persiste
 					// additional application level information
 					@SuppressWarnings("unchecked")
 					ExtensiblePrincipal<? extends Principal> extensiblePrincipal = (ExtensiblePrincipal<? extends Principal>) principal;
-					AdditionalInfo additionalInfo = infoSupplier.getInfo(principal, null);
+					AdditionalInfo additionalInfo = infoSupplier.restoreInfo(principal);
 					if (additionalInfo != null) {
 						connection.setEstablishedPeerIdentity(extensiblePrincipal.amend(additionalInfo));
 					}

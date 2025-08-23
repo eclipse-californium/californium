@@ -37,4 +37,14 @@ public interface ApplicationLevelInfoSupplier {
 	 */
 	AdditionalInfo getInfo(Principal peerIdentity, Object customArgument);
 
+	/**
+	 * Restores additional information about an authenticated peer.
+	 * 
+	 * @param peerIdentity The peer identity.
+	 * @return The additional information about the peer. {@code null}, if no
+	 *         new additional information is available.
+	 * @since 4.0
+	 */
+	AdditionalInfo restoreInfo(Principal peerIdentity);
+
 }
