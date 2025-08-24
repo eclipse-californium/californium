@@ -651,7 +651,7 @@ public class S3ProxyServer extends BaseServer {
 									LOGGER.info("http forward java-service {}", serviceName);
 								}
 								forward = new BasicHttpForwardConfiguration(forwardDestination, authentication,
-										deviceIdentityMode, responseFilter, serviceName);
+										deviceIdentityMode, responseFilter, serviceName, Collections.emptyMap());
 							} catch (URISyntaxException e) {
 								LOGGER.warn("Failed to configure http forward '{}'.", forwardDestination);
 							}
