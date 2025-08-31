@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.32.3, 16. August 2025";
+const version = "Version 3 0.33.0, 31. August 2025";
 
 /**
  * Timeshift relative to server time.
@@ -584,12 +584,15 @@ class S3Request {
 			const s3Request = await this.signedRequest(request);
 			return await fetch(s3Request);
 		} catch (error) {
-			if (error.message == "NetworkError when attempting to fetch resource." && this.id) {
-				error = new TypeError(`NetworkError when attempting to fetch resource with user ${this.id.slice(0, 6)}...`);
-			}
-			console.error(error);
-			const id = this.id.length > 9 ? this.id.slice(0, 6) + "..." : this.id
-			const msg = `${id}@/${url}: ${error.message}`;
+			/*			
+						if (error.message == "NetworkError when attempting to fetch resource." && this.id) {
+							error = new TypeError(`NetworkError when attempting to fetch resource with user ${this.id.slice(0, 6)}...`);
+						}
+						console.error(error);
+						const id = this.id.length > 9 ? this.id.slice(0, 6) + "..." : this.id
+						const msg = `${id}@/${url}: ${error.message}`;
+						*/
+			const msg = error.message;
 			if (stateHandler) {
 				stateHandler(false, 0, 1, 0, msg, error.login);
 			}
@@ -3277,7 +3280,7 @@ class UiLoadProgress {
 
 class UiManager {
 
-	width = 630;
+	width = 635;
 
 	constructor(devices) {
 		this.state = {
@@ -3356,11 +3359,17 @@ class UiManager {
 			this.state[field] = state[field];
 		}
 		if ('deviceList' in state) {
-			this.uiList.setDeviceList(state.deviceList)
-			if (state.deviceList && state.deviceList.length == 1) {
-				const device = state.deviceList[0];
-				this.loadDeviceData(device.key);
-				return;
+			let loadList = true;
+			if ('error' in state && state.error) {
+				loadList = state.deviceList != null;
+			}
+			if (loadList) {
+				this.uiList.setDeviceList(state.deviceList)
+				if (state.deviceList && state.deviceList.length == 1) {
+					const device = state.deviceList[0];
+					this.loadDeviceData(device.key);
+					return;
+				}
 			}
 		}
 		this.render();
@@ -3940,20 +3949,19 @@ class UiManager {
 		return page;
 	}
 
-	createTabView(list, dev) {
-		const withChart = dev && dev.starts[0] && dev.ends[0];
+	createTabView() {
 		const tab1 = this.loginView();
-		const tab2 = list ? this.listView(list) : "";
-		const tab3 = withChart ? this.deviceView(dev, 0) : "";
-		const tab4 = dev ? this.deviceView(dev, 1) : "";
-		const tab5 = (dev && this.enableConfig) ? this.deviceView(dev, 2) : "";
-		const tab6 = this.enableDiagnose ? "" : "";
+		const tab2 = "";
+		const tab3 = "";
+		const tab4 = "";
+		const tab5 = "";
+		const tab6 = "";
 		const tabLogin = 'tabindex="0"';
-		const tabList = list ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true"';
-		const tabChart = withChart ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true"';
-		const tabDevice = dev ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true"';
-		const tabConfig = (dev && this.enableConfig) ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true"';
-		const tabDiagnose = this.enableDiagnose ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true" aria-hidden="true"';
+		const tabList = 'tabindex="-1" aria-disabled="true"';
+		const tabChart = 'tabindex="-1" aria-disabled="true"';
+		const tabDevice = 'tabindex="-1" aria-disabled="true"';
+		const tabConfig = 'tabindex="-1" aria-disabled="true"';
+		const tabDiagnose = 'tabindex="-1" aria-disabled="true" aria-hidden="true"';
 
 		const page =
 			`<div>
@@ -3991,7 +3999,7 @@ class UiManager {
 		tabs.addEventListener('click', this.clickHandler.bind(this));
 		tabs.addEventListener('keypress', this.keyHandler.bind(this));
 		this.addChartInputHandler(elem);
-		this.selectDefaultTab(elem, dev);
+		this.selectDefaultTab(elem);
 		return elem;
 	}
 
