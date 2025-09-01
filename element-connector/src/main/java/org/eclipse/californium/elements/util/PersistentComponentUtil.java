@@ -260,19 +260,23 @@ public class PersistentComponentUtil {
 			String label;
 			while ((label = SerializationUtil.readString(new DataStreamReader(in), Short.SIZE)) != null) {
 				PersistentComponent component = all.get(label);
-				if (component != null) {
-					int loaded = component.load(in, deltaNanos);
-					LOGGER.info("loading {}, {} items, {} components.", label, loaded, all.size());
-					count += loaded;
-				} else {
-					int skip = SerializationUtil.skipItems(new DataStreamReader(in), Short.SIZE);
-					LOGGER.warn("loading {} failed, {} items skipped, no component found!", label, skip);
-					failed.add(label);
+				try {
+					if (component != null) {
+						int loaded = component.load(in, deltaNanos);
+						LOGGER.info("loading {}, {} items, {} components.", label, loaded, all.size());
+						count += loaded;
+					} else {
+						int skip = SerializationUtil.skipItems(new DataStreamReader(in), Short.SIZE);
+						LOGGER.warn("loading {} failed, {} items skipped, no component found!", label, skip);
+						failed.add(label);
+					}
+				} catch (IllegalArgumentException e) {
+					LOGGER.warn("loading {} failed:", label, e);
+				} catch (IOException e) {
+					LOGGER.warn("loading {} failed:", label, e);
 				}
 			}
 		} catch (IllegalArgumentException e) {
-			LOGGER.warn("loading failed:", e);
-		} catch (IOException e) {
 			LOGGER.warn("loading failed:", e);
 		}
 		if (!failed.isEmpty()) {
