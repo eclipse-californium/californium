@@ -128,6 +128,7 @@ public class PrincipalInfo {
 	 * @param group group of principal
 	 * @param name name of principal
 	 * @param type type of principal
+	 * @throws NullPointerException if one of the arguments is {@code null}
 	 */
 	public PrincipalInfo(String group, String name, Type type) {
 		if (group == null) {
@@ -146,7 +147,16 @@ public class PrincipalInfo {
 
 	@Override
 	public String toString() {
-		return name + " (" + group + "," + type.getShortName() + ")";
+		return name;
+	}
+
+	/**
+	 * Gets description including {@link #group} and {@link #type}.
+	 * 
+	 * @return description
+	 */
+	public String toDescription() {
+		return toString() + " (" + group + "," + type.getShortName() + ")";
 	}
 
 	@Override

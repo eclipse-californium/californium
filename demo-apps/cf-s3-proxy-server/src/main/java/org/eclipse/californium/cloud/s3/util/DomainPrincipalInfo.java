@@ -41,22 +41,20 @@ public class DomainPrincipalInfo extends PrincipalInfo {
 	/**
 	 * Creates domain principal info.
 	 * 
-	 * @param domain domain name of principal
+	 * @param domain domain name of principal. If {@code null},
+	 *            {@link DomainDeviceManager#DEFAULT_DOMAIN} is used.
 	 * @param group group of principal
 	 * @param name name of principal
 	 * @param type type of principal
 	 */
 	public DomainPrincipalInfo(String domain, String group, String name, Type type) {
 		super(group, name, type);
-		if (domain == null) {
-			domain = DomainDeviceManager.DEFAULT_DOMAIN;
-		}
-		this.domain = domain;
+		this.domain = domain == null ? DomainDeviceManager.DEFAULT_DOMAIN : domain;
 	}
 
 	@Override
 	public String toString() {
-		return name + "@" + domain + " (" + group + "," + type.getShortName() + ")";
+		return name + "@" + domain;
 	}
 
 	@Override
@@ -100,8 +98,8 @@ public class DomainPrincipalInfo extends PrincipalInfo {
 	 * @param principal the principal
 	 * @return principal info, or {@code null}, if not available.
 	 * @see EndpointContext#getPeerIdentity()
-	 * @since 4.0 (supports {@link DomainApplicationAnonymous#ANONYMOUS_INFO}, if {@code null} is provided as
-	 *        principal.)
+	 * @since 4.0 (supports {@link DomainApplicationAnonymous#ANONYMOUS_INFO},
+	 *        if {@code null} is provided as principal.)
 	 */
 	public static DomainPrincipalInfo getPrincipalInfo(Principal principal) {
 		if (principal == null) {
