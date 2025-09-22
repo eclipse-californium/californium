@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -26,6 +27,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +44,17 @@ public interface HttpForwardService {
 	 * @return name of service
 	 */
 	String getName();
+
+	/**
+	 * Creates health statistics for http forward services.
+	 * 
+	 * @param tag service tag for logging
+	 * @param domains set of domains
+	 * @return health statistics
+	 */
+	default CounterStatisticManager createHealthStatistic(String tag, Set<String> domains) {
+		return null;
+	}
 
 	/**
 	 * Gets list with device configuration fields.
