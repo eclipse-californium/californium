@@ -83,6 +83,8 @@ messages.
 
 The `MessageInterceptorAdapter` has been replaced by default implementations in `MessageInterceptor`.
 
+The handling of of error responses for multicast requests and responses for requests with `NoResponseOption` has been moved from `Exchange.sendResponse(Response)` to `Endpoint.sendResponse(Exchange, Response)` in order to include them in the diagnose statistic. 
+
 ### Californium-Proxy2:
 
 The apache http libraries haven been update to http-client 5.4 and http-core 5.3. The previous version used a pre-processing filter to implement a generic proxy (catch all), which added the path "proxy" to the incoming request. With this update the `RequestRouter` is used and so the routing may have changed slightly according the details. The proxy handler is now called with the original path without additional "proxy".

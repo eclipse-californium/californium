@@ -98,6 +98,7 @@ import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.NoResponseOption;
 import org.eclipse.californium.core.coap.option.OptionRegistry;
 import org.eclipse.californium.core.coap.option.StandardOptionRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
@@ -106,6 +107,7 @@ import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.deduplication.NoDeduplicator;
 import org.eclipse.californium.core.network.interceptors.MalformedMessageInterceptor;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
+import org.eclipse.californium.core.network.interceptors.NoResponseInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.core.network.serialization.TcpDataParser;
@@ -298,8 +300,11 @@ public class CoapEndpoint implements Endpoint, Executor {
 	/** The list of post process interceptors */
 	private List<MalformedMessageInterceptor> malformedMessageCounters = new CopyOnWriteArrayList<>();
 
+	/** The list of post process interceptors */
+	private List<NoResponseInterceptor> noResponseCounters = new CopyOnWriteArrayList<>();
+
 	/** The list of Notification listener (use for CoAP observer relations) */
-	private List<BiConsumer<Request, Response> > notificationListeners = new CopyOnWriteArrayList<>();
+	private List<BiConsumer<Request, Response>> notificationListeners = new CopyOnWriteArrayList<>();
 
 	private ScheduledFuture<?> statusLogger;
 
@@ -423,8 +428,8 @@ public class CoapEndpoint implements Endpoint, Executor {
 		LOGGER.info("{}{} uses {}", tag, getClass().getSimpleName(), endpointContextMatcher.getName());
 
 		// use the new factory to pass in the matcher (since 3.1)
-		this.coapstack = ((CoapStackFactory) coapStackFactory).createCoapStack(connector.getProtocol(),
-				this.tag, config, endpointContextMatcher, new OutboxImpl(), customStackArgument);
+		this.coapstack = ((CoapStackFactory) coapStackFactory).createCoapStack(connector.getProtocol(), this.tag,
+				config, endpointContextMatcher, new OutboxImpl(), customStackArgument);
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.useRequestOffloading = false; // no deduplication
@@ -565,12 +570,12 @@ public class CoapEndpoint implements Endpoint, Executor {
 	}
 
 	@Override
-	public void addNotificationListener(final BiConsumer<Request, Response>  listener) {
+	public void addNotificationListener(final BiConsumer<Request, Response> listener) {
 		notificationListeners.add(listener);
 	}
 
 	@Override
-	public void removeNotificationListener(final BiConsumer<Request, Response>  listener) {
+	public void removeNotificationListener(final BiConsumer<Request, Response> listener) {
 		notificationListeners.remove(listener);
 	}
 
@@ -608,6 +613,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 		if (interceptor instanceof MalformedMessageInterceptor) {
 			malformedMessageCounters.add((MalformedMessageInterceptor) interceptor);
 		}
+		if (interceptor instanceof NoResponseInterceptor) {
+			noResponseCounters.add((NoResponseInterceptor) interceptor);
+		}
 	}
 
 	@Override
@@ -615,6 +623,9 @@ public class CoapEndpoint implements Endpoint, Executor {
 		postProcessInterceptors.remove(interceptor);
 		if (interceptor instanceof MalformedMessageInterceptor) {
 			malformedMessageCounters.remove((MalformedMessageInterceptor) interceptor);
+		}
+		if (interceptor instanceof NoResponseInterceptor) {
+			noResponseCounters.remove((NoResponseInterceptor) interceptor);
 		}
 	}
 
@@ -707,6 +718,22 @@ public class CoapEndpoint implements Endpoint, Executor {
 			response.setSendError(exception);
 			return;
 		}
+
+		Request current = exchange.getCurrentRequest();
+		NoResponseOption noResponse = current.getOptions().getNoResponse();
+		if (noResponse != null) {
+			if (noResponse.suppress(response.getCode())) {
+				if (!current.acknowledge()) {
+					notifyNoResponse(response);
+					exchange.executeComplete();
+					return;
+				}
+			}
+		} else if (current.isMulticast() && response.isError()) {
+			exchange.executeComplete();
+			return;
+		}
+
 		if (exchange.checkOwner()) {
 			// send response while processing exchange.
 			coapstack.sendResponse(exchange, response);
@@ -796,7 +823,7 @@ public class CoapEndpoint implements Endpoint, Executor {
 			// we can rely on the fact that the CopyOnWriteArrayList just
 			// provides a
 			// "snapshot" iterator over the notification listeners
-			for (BiConsumer<Request, Response>  notificationListener : notificationListeners) {
+			for (BiConsumer<Request, Response> notificationListener : notificationListeners) {
 				notificationListener.accept(request, response);
 			}
 		}
@@ -841,6 +868,12 @@ public class CoapEndpoint implements Endpoint, Executor {
 	private void notifyReceiveMalformedMessage(RawData message) {
 		for (MalformedMessageInterceptor counter : malformedMessageCounters) {
 			counter.receivedMalformedMessage(message);
+		}
+	}
+
+	private void notifyNoResponse(Response response) {
+		for (NoResponseInterceptor counter : noResponseCounters) {
+			counter.dropForNoResponse(response);
 		}
 	}
 
@@ -1765,8 +1798,8 @@ public class CoapEndpoint implements Endpoint, Executor {
 	 * default factory is used, this one may be used to build a standard
 	 * coap-stack on demand.
 	 * 
-	 * Note: since 3.1 this is a {@link CoapStackFactory} in order to
-	 * support to match blockwise follow-up requests.
+	 * Note: since 3.1 this is a {@link CoapStackFactory} in order to support to
+	 * match blockwise follow-up requests.
 	 */
 	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new CoapStackFactory() {
 

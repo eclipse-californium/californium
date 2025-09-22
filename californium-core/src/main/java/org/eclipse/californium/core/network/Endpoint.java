@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.coap.option.NoResponseOption;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -229,6 +230,13 @@ public interface Endpoint {
 	 * <p>
 	 * <b>Note:</b> since 3.5 sending a response instance twice causes a send
 	 * error.
+	 * <p>
+	 * <b>Note:</b> since 4.0, error responses for multicast requests are not
+	 * sent. (Moved from {@link Exchange}.)
+	 * <p>
+	 * <b>Note:</b> since 4.0, {@link NoResponseOption} is considered. That may
+	 * cause to send error responses also for multicast requests. (Moved from
+	 * {@link Exchange}.)
 	 * 
 	 * @param exchange the exchange
 	 * @param response the response

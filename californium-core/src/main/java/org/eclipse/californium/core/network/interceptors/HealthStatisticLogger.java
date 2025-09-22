@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 2.1
  */
-public class HealthStatisticLogger extends CounterStatisticManager implements MalformedMessageInterceptor {
+public class HealthStatisticLogger extends CounterStatisticManager implements MalformedMessageInterceptor, NoResponseInterceptor {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(HealthStatisticLogger.class);
@@ -59,6 +59,12 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Ma
 	 */
 	private final SimpleCounterStatistic malformedMessages = new SimpleCounterStatistic("malformed", align);
 	private final SimpleCounterStatistic offloadedMessages = new SimpleCounterStatistic("offloaded", align);
+	/**
+	 * Counter for dropped responses for no-response requests.
+	 * 
+	 * @since 4.0
+	 */
+	private final SimpleCounterStatistic droppedNoResponses = new SimpleCounterStatistic("no-responses", align);
 
 	/**
 	 * {@code true} dump statistic for udp, {@code false}, dump statistic for
@@ -93,6 +99,7 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Ma
 			add("send-", resentResponses);
 		}
 		add("send-", sendErrors);
+		add("send-", droppedNoResponses);
 
 		add("recv-", receivedRequests);
 		add("recv-", receivedResponses);
@@ -246,5 +253,11 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Ma
 	public void receivedMalformedMessage(RawData message) {
 		used = true;
 		malformedMessages.increment();
+	}
+
+	@Override
+	public void dropForNoResponse(Response response) {
+		used = true;
+		droppedNoResponses.increment();
 	}
 }

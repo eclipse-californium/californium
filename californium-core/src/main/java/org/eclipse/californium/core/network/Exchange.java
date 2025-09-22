@@ -514,37 +514,22 @@ public class Exchange {
 	/**
 	 * Sends the specified response over the same endpoint as the request has
 	 * arrived.
-	 * 
+	 * <p>
 	 * If no destination context is provided, use the source context of the
 	 * request.
-	 * 
-	 * Note: since 2.3, error responses for multicast requests are not sent.
-	 * (See {@link UdpMulticastConnector} for receiving multicast requests).
-	 * 
-	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
-	 * to send error responses also for multicast requests.
+	 * <p>
+	 * <b>Note:</b> since 4.0 the handling of error responses for multicast requests and 
+	 * {@link NoResponseOption} is moved to {@link Endpoint}.
 	 * 
 	 * @param response the response
-	 * @since 2.3 error responses for multicast requests are not sent
-	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void sendResponse(Response response) {
 		if (response.getType() == Type.RST) {
 			throw new IllegalArgumentException("Response must not use type RST!");
 		}
 		Request current = currentRequest;
-		if (current.getOptions().hasNoResponse()) {
-			NoResponseOption noResponse = current.getOptions().getNoResponse();
-			if (noResponse.suppress(response.getCode())) {
-				if (!current.acknowledge()) {
-					return;
-				}
-			}
-		} else if (current.isMulticast() && response.isError()) {
-			return;
-		}
 		if (response.getDestinationContext() == null) {
-			response.setDestinationContext(currentRequest.getSourceContext());
+			response.setDestinationContext(current.getSourceContext());
 		}
 		endpoint.sendResponse(this, response);
 	}
