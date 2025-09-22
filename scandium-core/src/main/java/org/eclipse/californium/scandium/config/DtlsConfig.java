@@ -967,7 +967,7 @@ public final class DtlsConfig {
 	 */
 	public static final StringDefinition DTLS_TLSKEYLOG_FILE = new StringDefinition(
 			MODULE + "TLSKEYLOG_FILE", 
-			"Fiel to write TLSKEYLOG. The file contains sensitive keys for encryption!\n" +
+			"File to write TLSKEYLOG. The file contains sensitive keys for encryption!\n" +
 			"!!! Use it with reasonable care !!!", null);
 
 	public static final ModuleDefinitionsProvider DEFINITIONS = new ModuleDefinitionsProvider() {
