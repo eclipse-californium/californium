@@ -790,66 +790,90 @@ public class HttpService {
 		 */
 		@Override
 		public void handle(final HttpExchange httpExchange) throws IOException {
-			final URI uri = httpExchange.getRequestURI();
-			final String method = httpExchange.getRequestMethod();
-			final Headers headers = httpExchange.getRequestHeaders();
-			Request request = null;
-			Principal principal = httpExchange.getPrincipal();
-			Object attribute = httpExchange.getAttribute(ATTRIBUTE_PRINCIPAL);
-			if (attribute instanceof Principal) {
-				principal = (Principal) attribute;
-			}
-			if (principal == null) {
-				principal = anonymous;
-			}
-			LOGGER.info("http-request: {} {} {}", method, uri, principal);
-			logHeaders("request", headers);
+			try {
+				final URI uri = httpExchange.getRequestURI();
+				final String method = httpExchange.getRequestMethod();
+				final Headers headers = httpExchange.getRequestHeaders();
+				Request request = null;
+				Principal principal = httpExchange.getPrincipal();
+				Object attribute = httpExchange.getAttribute(ATTRIBUTE_PRINCIPAL);
+				if (attribute instanceof Principal) {
+					principal = (Principal) attribute;
+				}
+				if (principal == null) {
+					principal = anonymous;
+				}
+				LOGGER.info("http-request: {} {} {}", method, uri, principal);
+				logHeaders("request", headers);
 
-			if (method.equals("GET") || method.equals("HEAD")) {
-				request = Request.newGet();
+				if (method.equals("GET") || method.equals("HEAD")) {
+					request = Request.newGet();
+				} else if (method.equals("POST")) {
+					request = Request.newPost();
+				} else {
+					int httpCode = 405;
+					respond(httpExchange, httpCode, null, null);
+					updateBan(httpExchange);
+					return;
+				}
 				AddressEndpointContext context = new AddressEndpointContext(httpExchange.getRemoteAddress(), principal);
 				request.setSourceContext(context);
-			} else {
-				// use ping to fail ...
-				request = Request.newPing();
-			}
-			fillUri(request.getOptions(), uri.getPath());
-			String coapPath = "/" + request.getOptions().getUriPathString();
-			if (checkResourcePath(coapPath)) {
-				Exchange coapExchange = new Exchange(request, httpExchange.getRemoteAddress(), Origin.REMOTE,
-						executor) {
+				fillUri(request.getOptions(), uri.getPath());
+				String query = uri.getQuery();
+				if (query != null) {
+					request.getOptions().setUriQuery(query);
+				}
+				String coapPath = "/" + request.getOptions().getUriPathString();
+				LOGGER.info("http-request: {} {}", method, coapPath);
+				if (checkResourcePath(coapPath)) {
+					try {
+						Exchange coapExchange = new Exchange(request, httpExchange.getRemoteAddress(), Origin.REMOTE,
+								executor) {
 
-					@Override
-					public void sendAccept() {
-						// has no meaning for HTTP: do nothing
-					}
-
-					@Override
-					public void sendReject() {
-						Response response = Response.createResponse(getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
-						sendResponse(response);
-					}
-
-					@Override
-					public void sendResponse(Response response) {
-						Request request = getRequest();
-						if (response.getType() == null) {
-							Type reqType = request.getType();
-							if (request.acknowledge()) {
-								response.setType(Type.ACK);
-							} else {
-								response.setType(reqType);
+							@Override
+							public void sendAccept() {
+								// has no meaning for HTTP: do nothing
 							}
-						}
-						request.setResponse(response);
-						respond(httpExchange, response);
+
+							@Override
+							public void sendReject() {
+								LOGGER.info("rst");
+								Response response = Response.createResponse(getRequest(),
+										ResponseCode.INTERNAL_SERVER_ERROR);
+								sendResponse(response);
+							}
+
+							@Override
+							public void sendResponse(Response response) {
+								Request request = getRequest();
+								if (response.getType() == null) {
+									Type reqType = request.getType();
+									if (request.acknowledge()) {
+										response.setType(Type.ACK);
+									} else {
+										response.setType(reqType);
+									}
+								}
+								request.setResponse(response);
+								respond(httpExchange, response);
+							}
+						};
+						LOGGER.info("proxy {}", request.getURI());
+						messageDeliverer.deliverRequest(coapExchange);
+					} catch (RuntimeException ex) {
+						LOGGER.warn("http-proxy: ", ex);
+						int httpCode = 500;
+						respond(httpExchange, httpCode, null, null);
+						updateBan(httpExchange);
 					}
-				};
-				messageDeliverer.deliverRequest(coapExchange);
-			} else {
-				int httpCode = 404;
-				respond(httpExchange, httpCode, null, null);
-				updateBan(httpExchange);
+				} else {
+					LOGGER.info("404");
+					int httpCode = 404;
+					respond(httpExchange, httpCode, null, null);
+					updateBan(httpExchange);
+				}
+			} catch (RuntimeException ex) {
+				LOGGER.warn("http-proxy: ", ex);
 			}
 		}
 
