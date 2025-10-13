@@ -146,7 +146,7 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	 * @since 2.5
 	 */
 	protected boolean isUsed() {
-		return receivedRecords.isUsed() || sentRecords.isUsed();
+		return connections.isUsed() || receivedRecords.isUsed() || sentRecords.isUsed();
 	}
 
 	/**

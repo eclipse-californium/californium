@@ -60,20 +60,22 @@ public class EtagGenerator {
 	 *         otherwise.
 	 */
 	public static boolean setEtag(HttpExchange exchange, byte[] payload) {
-		MessageDigest md = ETAG.current();
-		md.reset();
-		String etag = StringUtil.byteArray2Hex(md.digest(payload)).toLowerCase();
-		exchange.getResponseHeaders().set(ETAG_HEADER, etag);
-		List<String> etags = exchange.getRequestHeaders().get(IF_NONE_MATCH_HEADER);
-		if (etags != null) {
-			if (etags.contains(etag)) {
-				LOGGER.info("ETAG matching");
-				return true;
+		if (payload != null) {
+			MessageDigest md = ETAG.current();
+			md.reset();
+			String etag = StringUtil.byteArray2Hex(md.digest(payload)).toLowerCase();
+			exchange.getResponseHeaders().set(ETAG_HEADER, etag);
+			List<String> etags = exchange.getRequestHeaders().get(IF_NONE_MATCH_HEADER);
+			if (etags != null) {
+				if (etags.contains(etag)) {
+					LOGGER.info("ETAG matching");
+					return true;
+				} else {
+					LOGGER.info("ETAG not matching");
+				}
 			} else {
-				LOGGER.info("ETAG not matching");
+				LOGGER.info("ETAG not provided");
 			}
-		} else {
-			LOGGER.info("ETAG not provided");
 		}
 		return false;
 	}

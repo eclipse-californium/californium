@@ -177,13 +177,15 @@ public class AuthorizedCoapProxyHandler extends CoapProxyHandler {
 	@Override
 	public void respond(HttpExchange httpExchange, int httpCode, String contentType, byte[] payload)
 			throws IOException {
-		String dateTime = DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.now(ZoneId.of("GMT")));
-		httpExchange.getResponseHeaders().set("last-modified", dateTime);
-		if (EtagGenerator.setEtag(httpExchange, payload)) {
-			HttpService.respond(httpExchange, 304, contentType, null);
-		} else {
-			HttpService.respond(httpExchange, httpCode, contentType, payload);
+		if (httpCode < 400) {
+			String dateTime = DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.now(ZoneId.of("GMT")));
+			httpExchange.getResponseHeaders().set("last-modified", dateTime);
+			if (EtagGenerator.setEtag(httpExchange, payload)) {
+				HttpService.respond(httpExchange, 304, contentType, null);
+				return;
+			}
 		}
+		HttpService.respond(httpExchange, httpCode, contentType, payload);
 	}
 
 	@Override

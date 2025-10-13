@@ -14,6 +14,7 @@
  ********************************************************************************/
 package org.eclipse.californium.cloud.resources;
 
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
@@ -26,6 +27,7 @@ import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +43,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
@@ -76,6 +79,12 @@ public class Diagnose extends ProtectedCoapResource {
 	 * Resource name.
 	 */
 	public static final String RESOURCE_NAME = "diagnose";
+
+	public static final String URI_QUERY_OPTION_RESET = "reset";
+	/**
+	 * Supported query parameter.
+	 */
+	private static final List<String> SUPPORTED = Arrays.asList(URI_QUERY_OPTION_RESET);
 
 	/**
 	 * the logger.
@@ -509,4 +518,34 @@ public class Diagnose extends ProtectedCoapResource {
 		exchange.respond(new Response(ResponseCode.NOT_ACCEPTABLE, true));
 	}
 
+	@Override
+	public void handlePOST(CoapExchange exchange) {
+		LOGGER.info("POST: {}", exchange.advanced().getRequest());
+		try {
+			UriQueryParameter helper = exchange.getRequestOptions().getUriQueryParameter(SUPPORTED);
+			LOGGER.info("URI-Query: {}", exchange.getRequestOptions().getUriQuery());
+			if (helper.hasParameter(URI_QUERY_OPTION_RESET)) {
+				for (Resource child : getChildren()) {
+					if (child instanceof EndpointDiagnose) {
+						EndpointDiagnose diagnose = (EndpointDiagnose) child;
+						for (CounterStatisticManager statistic : diagnose.endpointHealth) {
+							statistic.reset();
+						}
+					}
+				}
+				Response response = new Response(ResponseCode.CHANGED);
+				response.setPayload("statistics reseted.");
+				exchange.respond(response);
+				return;
+			}
+		} catch (IllegalArgumentException ex) {
+			Response response = new Response(BAD_OPTION);
+			response.setPayload(ex.getMessage());
+			exchange.respond(response);
+			return;
+		}
+		Response response = new Response(ResponseCode.BAD_REQUEST);
+		response.setPayload("Requires uri-query \"reset\".");
+		exchange.respond(response);
+	}
 }

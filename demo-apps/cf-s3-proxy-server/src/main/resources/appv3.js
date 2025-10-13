@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.32.3, 16. August 2025";
+const version = "Version 3 0.36.0, 13. October 2025";
 
 /**
  * Timeshift relative to server time.
@@ -584,12 +584,15 @@ class S3Request {
 			const s3Request = await this.signedRequest(request);
 			return await fetch(s3Request);
 		} catch (error) {
-			if (error.message == "NetworkError when attempting to fetch resource." && this.id) {
-				error = new TypeError(`NetworkError when attempting to fetch resource with user ${this.id.slice(0, 6)}...`);
-			}
-			console.error(error);
-			const id = this.id.length > 9 ? this.id.slice(0, 6) + "..." : this.id
-			const msg = `${id}@/${url}: ${error.message}`;
+			/*			
+						if (error.message == "NetworkError when attempting to fetch resource." && this.id) {
+							error = new TypeError(`NetworkError when attempting to fetch resource with user ${this.id.slice(0, 6)}...`);
+						}
+						console.error(error);
+						const id = this.id.length > 9 ? this.id.slice(0, 6) + "..." : this.id
+						const msg = `${id}@/${url}: ${error.message}`;
+						*/
+			const msg = error.message;
 			if (stateHandler) {
 				stateHandler(false, 0, 1, 0, msg, error.login);
 			}
@@ -711,6 +714,35 @@ class S3Request {
 			return result;
 		}
 		return null;
+	}
+
+	async postUrl(url, body, now) {
+		const stateHandler = this.stateHandler;
+		if (stateHandler) stateHandler(false, 1, 0, 0);
+		try {
+			if (!(now)) {
+				now = new Date(Date.now() - timeShift).toISOString().replaceAll(/[-:]/g, '').replace(/\.\d+/, '');
+			}
+			const request = new Request(url, {
+				method: 'POST',
+				headers: {
+					"x-amz-date": now,
+					"content-type": "text/plain; charset=UTF-8",
+				},
+				mode: 'cors',
+				cache: 'no-cache',
+				body: body,
+			});
+			const s3Request = await this.signedRequest(request, body);
+			const response = await fetch(s3Request);
+			return response;
+		} catch (error) {
+			console.error(error);
+			if (stateHandler) {
+				stateHandler(false, 0, 1, 0, error, error.login);
+			}
+			throw error;
+		}
 	}
 
 	allStarted() {
@@ -847,12 +879,13 @@ class Earfcn {
 		if (earfcn) {
 			if (this.in(earfcn)) {
 				return this.frequence + 0.1 * (earfcn - this.start);
+			} else {
+				return undefined;
 			}
 		} else {
 			// middle of band
 			return this.frequence + 0.1 * (this.end - this.start) / 2;
 		}
-		return undefined;
 	}
 }
 
@@ -886,19 +919,22 @@ const earfcnTab = [
 	new Earfcn(26, 859, 8690, 9039),
 	new Earfcn(27, 852, 9040, 9209),
 	new Earfcn(28, 758, 9210, 9659),
+	// https://itecspec.com/band/nr-band-n255/
+	new Earfcn(255, 1525, 305000, 311800),
+	// https://itecspec.com/band/nr-band-n256/
+	new Earfcn(256, 2170, 434000, 440000),
 ];
 
 function earfcn2frequency(band, earfcn) {
+	let calc = null;
 	if (band) {
-		const calc = earfcnTab[band - 1];
-		if (calc) {
-			return calc.calculateFrequnecy(earfcn);
-		}
-	} else if (earfcn) {
-		const calc = earfcnTab.find((e) => e.in(earfcn));
-		if (calc) {
-			return calc.calculateFrequnecy(earfcn);
-		}
+		calc = earfcnTab.find((e) => e.band == band);
+	}
+	if (earfcn && !calc) {
+		calc = earfcnTab.find((e) => e.in(earfcn));
+	}
+	if (calc) {
+		return calc.calculateFrequnecy(earfcn);
 	}
 	return undefined;
 }
@@ -1166,7 +1202,10 @@ class DeviceMessage {
 
 				lines.forEach((line) => {
 					const l2 = strip(line, "!") ?? line;
-					const net = strip(l2, "Network: ");
+					let net = strip(l2, "Network: ");
+					if (!net) {
+						net = strip(l2, "Net: ");
+					}
 					if (net) {
 						const nets = net.split(/,/);
 						status.network = {
@@ -1176,6 +1215,13 @@ class DeviceMessage {
 							plmn: "",
 							tac: "",
 							cell: ""
+						}
+						if (status.network.mode) {
+							let value = strip(status.network.mode, "Band ");
+							if (value) {
+								status.network.band = conv(value);
+								status.network.mode = null;
+							}
 						}
 						nets.forEach((f) => {
 							let value = strip(f, "Band ");
@@ -2148,8 +2194,8 @@ class DeviceData {
 					csv = appendCsv(csv, network.type);
 					csv = appendCsv(csv, network.plmn);
 
-					csv = appendCsv(csv, formatInt(network.tac, 1, 4));
-					csv = appendCsv(csv, formatInt(network.cell, 1, 8));
+					csv = appendCsv(csv, formatInt(network.tac, 2, 4));
+					csv = appendCsv(csv, formatInt(network.cell, 2, 8));
 					csv = appendCsv(csv, network.band);
 					csv += ","
 					if (network.earfcn > 0) {
@@ -3150,7 +3196,6 @@ class UiDiagnose {
 	reset(all) {
 		this.list = [];
 		this.item = "";
-		this.etag = null;
 		this.diagnose = "";
 		this.lines = 0;
 		if (all && this.s3diagnose) {
@@ -3168,23 +3213,14 @@ class UiDiagnose {
 		}
 	}
 
-	async fetch(init, item) {
-		item = item ?? this.item;
+	async fetch(init, item = this.item) {
 		this.reset();
 		const listRequest = this.s3diagnose.fetchXmlList("diagnose/");
 		if (item) {
-			if (item != this.item) {
-				this.etag = null;
-			}
-			const request = this.s3diagnose.fetchContent(item, this.etag);
+			const request = this.s3diagnose.fetchContent(item);
 			this.s3diagnose.allStarted();
 			const response = await request;
-			if (response.status == 304) {
-				// no refresh
-			} else {
-				this.diagnose = response.text;
-				this.etag = response.headers.get("etag");
-			}
+			this.diagnose = response.text;
 			let lines = 0;
 			for (let c of this.diagnose) {
 				if (c == '\n') ++lines;
@@ -3198,6 +3234,21 @@ class UiDiagnose {
 		if (response) {
 			response.xml.querySelectorAll("Contents>Key").forEach((e) => insertItem(this.list, e.textContent));
 		}
+	}
+
+	async resetStatistics() {
+		try {
+			const url = this.s3diagnose.endpoint + "diagnose?reset";
+			const response = await this.s3diagnose.postUrl(url, new TextEncoder().encode(""));
+			this.s3diagnose.allStarted();
+			const result = new Object();
+			if (await this.s3diagnose.getContent(response, url, false, result)) {
+				return result;
+			}
+		} catch (error) {
+			console.error(error);
+		}
+		return null;
 	}
 
 	view() {
@@ -3215,7 +3266,9 @@ class UiDiagnose {
 			page += `<tr ${cls}><td><button class='tb1' onclick='ui.loadDiagnose("${item}")'>${label}</button></td></tr>\n`;
 		}
 		page += `<tr><td></td></tr>`;
-		page += `<tr><td><button class='tb1' onclick='ui.loadDiagnose()'>refresh</button></td></tr>`;
+		page += `<tr><td><button class='tb1' onclick='ui.loadDiagnose()'>refresh</button>`;
+		page += `<span style='display: inline-block; width: 4em;'></span>`;
+		page += `<button class='tb1' onclick='ui.resetDiagnose()'>reset</button></td></tr>`;
 		page += `<tr><td></td></tr>`;
 		page += `<tr><td><textarea tabindex="-1" readOnly rows='${rows}' cols='${cols}'>${this.diagnose}</textarea></td></tr>\n`;
 		page += `</tbody></table></div>\n`;
@@ -3277,7 +3330,7 @@ class UiLoadProgress {
 
 class UiManager {
 
-	width = 630;
+	width = 635;
 
 	constructor(devices) {
 		this.state = {
@@ -3356,11 +3409,17 @@ class UiManager {
 			this.state[field] = state[field];
 		}
 		if ('deviceList' in state) {
-			this.uiList.setDeviceList(state.deviceList)
-			if (state.deviceList && state.deviceList.length == 1) {
-				const device = state.deviceList[0];
-				this.loadDeviceData(device.key);
-				return;
+			let loadList = true;
+			if ('error' in state && state.error) {
+				loadList = state.deviceList != null;
+			}
+			if (loadList) {
+				this.uiList.setDeviceList(state.deviceList)
+				if (state.deviceList && state.deviceList.length == 1) {
+					const device = state.deviceList[0];
+					this.loadDeviceData(device.key);
+					return;
+				}
 			}
 		}
 		this.render();
@@ -3419,17 +3478,25 @@ class UiManager {
 	}
 
 	async loadDeviceData(key, refresh) {
-		this.resetProgress("Load");
-		const dev = this.state.deviceList.find((dev) => dev.key == key);
-		const days = this.uiChart.getDays();
-		const center = this.uiChart.getCenter(refresh);
-		const result = await dev.loadDataArch(center, days, this.enableConfig);
-		if (result.device) {
-			this.uiChart.render(result.device);
-			this.showDeviceList = false;
-			this.showDiagnose = false;
+		if (this.loadingDevice) {
+			return;
 		}
-		this.setState({ currentDevice: result.device, error: result.error });
+		this.loadingDevice = true;
+		try {
+			this.resetProgress("Load");
+			const dev = this.state.deviceList.find((dev) => dev.key == key);
+			const days = this.uiChart.getDays();
+			const center = this.uiChart.getCenter(refresh);
+			const result = await dev.loadDataArch(center, days, this.enableConfig);
+			if (result.device) {
+				this.uiChart.render(result.device);
+				this.showDeviceList = false;
+				this.showDiagnose = false;
+			}
+			this.setState({ currentDevice: result.device, error: result.error });
+		} finally {
+			this.loadingDevice = false;
+		}
 	}
 
 	loadCurrentDeviceData() {
@@ -3440,34 +3507,51 @@ class UiManager {
 	}
 
 	async loadDeviceList() {
-		this.resetProgress("Load");
-		this.uiChart.getCenter(true)
-		const groups = this.deviceGroups;
-		let allDevices = this.state.allDevicesList;
-		if (groups) {
-			allDevices.forEach((dev) => dev.fit = false);
+		if (this.loadingDeviceList) {
+			return;
 		}
-		const result = await DeviceData.loadDeviceList(allDevices, groups, this.details);
-		if (groups) {
-			if (await groups.refresh(result.newDevice)) {
-				groups.update(allDevices);
+		this.loadingDeviceList = true;
+		try {
+			this.resetProgress("Load");
+			this.uiChart.getCenter(true)
+			const groups = this.deviceGroups;
+			let allDevices = this.state.allDevicesList;
+			if (groups) {
+				allDevices.forEach((dev) => dev.fit = false);
 			}
-			if (groups.filter) {
-				allDevices = allDevices.filter((dev) => dev.fit);
+			const result = await DeviceData.loadDeviceList(allDevices, groups, this.details);
+			if (groups) {
+				if (await groups.refresh(result.newDevice)) {
+					groups.update(allDevices);
+				}
+				if (groups.filter) {
+					allDevices = allDevices.filter((dev) => dev.fit);
+				}
 			}
+			if (allDevices === this.state.allDevicesList) {
+				// copy for sorting in view
+				allDevices = Array.from(allDevices);
+			}
+			this.showDiagnose = false;
+			this.showDeviceList = true;
+			this.setState({ currentDevice: null, deviceList: allDevices, error: result.error });
+		} finally {
+			this.loadingDeviceList = false;
 		}
-		if (allDevices === this.state.allDevicesList) {
-			// copy for sorting in view
-			allDevices = Array.from(allDevices);
-		}
-		this.showDiagnose = false;
-		this.showDeviceList = true;
-		this.setState({ currentDevice: null, deviceList: allDevices, error: result.error });
 	}
 
 	async loadDiagnose(item) {
 		this.resetProgress("Load");
 		await this.diagnoseUi.fetch(false, item);
+		this.showDeviceList = false;
+		this.showDiagnose = true;
+		this.render();
+	}
+
+	async resetDiagnose() {
+		this.resetProgress("reset");
+		await this.diagnoseUi.resetStatistics();
+		await this.diagnoseUi.fetch(false);
 		this.showDeviceList = false;
 		this.showDiagnose = true;
 		this.render();
@@ -3940,20 +4024,19 @@ class UiManager {
 		return page;
 	}
 
-	createTabView(list, dev) {
-		const withChart = dev && dev.starts[0] && dev.ends[0];
+	createTabView() {
 		const tab1 = this.loginView();
-		const tab2 = list ? this.listView(list) : "";
-		const tab3 = withChart ? this.deviceView(dev, 0) : "";
-		const tab4 = dev ? this.deviceView(dev, 1) : "";
-		const tab5 = (dev && this.enableConfig) ? this.deviceView(dev, 2) : "";
-		const tab6 = this.enableDiagnose ? "" : "";
+		const tab2 = "";
+		const tab3 = "";
+		const tab4 = "";
+		const tab5 = "";
+		const tab6 = "";
 		const tabLogin = 'tabindex="0"';
-		const tabList = list ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true"';
-		const tabChart = withChart ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true"';
-		const tabDevice = dev ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true"';
-		const tabConfig = (dev && this.enableConfig) ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true"';
-		const tabDiagnose = this.enableDiagnose ? 'tabindex="0"' : 'tabindex="-1" aria-disabled="true" aria-hidden="true"';
+		const tabList = 'tabindex="-1" aria-disabled="true"';
+		const tabChart = 'tabindex="-1" aria-disabled="true"';
+		const tabDevice = 'tabindex="-1" aria-disabled="true"';
+		const tabConfig = 'tabindex="-1" aria-disabled="true"';
+		const tabDiagnose = 'tabindex="-1" aria-disabled="true" aria-hidden="true"';
 
 		const page =
 			`<div>
@@ -3991,7 +4074,7 @@ class UiManager {
 		tabs.addEventListener('click', this.clickHandler.bind(this));
 		tabs.addEventListener('keypress', this.keyHandler.bind(this));
 		this.addChartInputHandler(elem);
-		this.selectDefaultTab(elem, dev);
+		this.selectDefaultTab(elem);
 		return elem;
 	}
 
