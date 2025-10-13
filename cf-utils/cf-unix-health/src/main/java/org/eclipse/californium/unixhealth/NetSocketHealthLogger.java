@@ -312,6 +312,8 @@ public class NetSocketHealthLogger extends CounterStatisticManager {
 
 	/**
 	 * Parser to add a new local address.
+	 * <p>
+	 * Used only temporary to check for existence.
 	 */
 	private class UdpAddParser extends UdpParser {
 
@@ -358,8 +360,8 @@ public class NetSocketHealthLogger extends CounterStatisticManager {
 				addByKey(key, statistic);
 				LOGGER.trace("added {}", key);
 				if (externalStatistic != null) {
-					externalStatistic.set(value);
-					externalStatistic.reset();
+					// exists => prepare and add
+					externalStatistic.setStart(value);
 					externalStatistics.put(key, externalStatistic);
 				} else {
 					externalStatistics.remove(key);

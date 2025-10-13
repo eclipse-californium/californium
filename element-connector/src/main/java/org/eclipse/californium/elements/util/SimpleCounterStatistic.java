@@ -154,6 +154,8 @@ public class SimpleCounterStatistic {
 
 	/**
 	 * Set start value.
+	 * <p>
+	 * Resets {@link #currentCounter} and {@link #overallCounter}.
 	 * 
 	 * @param value start value
 	 * @see #set(long)
@@ -166,6 +168,8 @@ public class SimpleCounterStatistic {
 		}
 		synchronized (overallCounter) {
 			startCounter.set(value);
+			overallCounter.set(0);
+			currentCounter.set(0);
 		}
 	}
 
@@ -182,9 +186,9 @@ public class SimpleCounterStatistic {
 	public void set(long value) {
 		synchronized (overallCounter) {
 			long start = startCounter.get();
-			if (start < 0) {
+			if (start == -1) {
+				// disabled
 				start = 0;
-				startCounter.set(0);
 			}
 			currentCounter.set(value - overallCounter.get() - start);
 		}
@@ -258,10 +262,8 @@ public class SimpleCounterStatistic {
 			overallCounter.addAndGet(current);
 			current = overallCounter.getAndSet(0);
 			long start = startCounter.get();
-			if (start > 0) {
+			if (start >= 0) {
 				startCounter.set(current + start);
-			} else {
-				startCounter.set(current);
 			}
 			return current;
 		}
