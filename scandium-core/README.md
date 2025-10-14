@@ -31,7 +31,7 @@ builder.setAddress(new InetSocketAddress(5684));
 
 ## PSK
 
-PSK credentials are provided using a implementation of the [dPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/PskStore.java) interface.
+PSK credentials are provided using a implementation of the [PskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/PskStore.java) interface.
 
 For demonstration, two implementations for server- and client-usage are available ([MultiPskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/MultiPskStore.java) and [SinglePskStore](src/main/java/org/eclipse/californium/scandium/dtls/pskstore/SinglePskStore.java)).
 
