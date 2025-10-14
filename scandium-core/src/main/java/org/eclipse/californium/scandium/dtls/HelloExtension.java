@@ -224,93 +224,141 @@ public abstract class HelloExtension {
 	 */
 	public enum ExtensionType {
 
-		// See https://tools.ietf.org/html/rfc6066
-		SERVER_NAME(0, "server_name"), MAX_FRAGMENT_LENGTH(1, "max_fragment_length"), CLIENT_CERTIFICATE_URL(2,
-				"client_certificate_url"), TRUSTED_CA_KEYS(3,
-						"trusted_ca_keys"), TRUNCATED_HMAC(4, "truncated_hmac"), STATUS_REQUEST(5, "status_request"),
+		/**
+		 * See <a href="https://tools.ietf.org/html/rfc6066#section-3" target=
+		 * "_blank">RFC 6066 - 3. Server Name Indication</a>.
+		 */
+		SERVER_NAME(0, "server_name"),
+		/**
+		 * See <a href="https://tools.ietf.org/html/rfc6066#section-4" target=
+		 * "_blank">RFC 6066 - 4. Maximum Fragment Length Negotiation</a>.
+		 */
+		MAX_FRAGMENT_LENGTH(1, "max_fragment_length"),
+		/**
+		 * Not supported, see
+		 * <a href="https://tools.ietf.org/html/rfc6066#section-5" target=
+		 * "_blank">RFC 6066 - 5. Client Certificate URLs</a>.
+		 */
+		CLIENT_CERTIFICATE_URL(2, "client_certificate_url"),
+		/**
+		 * Not supported, see
+		 * <a href="https://tools.ietf.org/html/rfc6066#section-6" target=
+		 * "_blank">RFC 6066 - 6. Trusted CA Indication</a>.
+		 */
+		TRUSTED_CA_KEYS(3, "trusted_ca_keys"),
+		/**
+		 * Not supported, see
+		 * <a href="https://tools.ietf.org/html/rfc6066#section-7" target=
+		 * "_blank">RFC 6066 - 7. Truncated HMAC</a>.
+		 */
+		TRUNCATED_HMAC(4, "truncated_hmac"),
+		/**
+		 * Not supported, see
+		 * <a href="https://tools.ietf.org/html/rfc6066#section-8" target=
+		 * "_blank">RFC 6066 - 8. Certificate Status Request</a>.
+		 */
+		STATUS_REQUEST(5, "status_request"),
 
 		/**
-		 * See <a href="https://tools.ietf.org/html/rfc4681" target="_blank">RFC
-		 * 4681</a>
+		 * Not supported, see
+		 * <a href="https://tools.ietf.org/html/rfc4681" target="_blank">RFC
+		 * 4681</a>.
 		 */
 		USER_MAPPING(6, "user_mapping"),
 
 		/**
-		 * See <a href="https://www.iana.org/go/rfc5878" target="_blank">RFC
-		 * 5878</a>
+		 * Not supported, see
+		 * <a href="https://www.iana.org/go/rfc5878" target="_blank">RFC
+		 * 5878</a>.
 		 */
 		CLIENT_AUTHZ(7, "client_authz"), SERVER_AUTHZ(8, "server_authz"),
 
 		/**
-		 * See <a href=
+		 * Not supported, see <a href=
 		 * "https://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-03#section-3.1"
-		 * >TLS Out-of-Band Public Key Validation</a>
+		 * >TLS Out-of-Band Public Key Validation</a>.
 		 */
 		CERT_TYPE(9, "cert_type"),
 
 		/**
 		 * See <a href="https://tools.ietf.org/html/rfc4492#section-5.1" target=
-		 * "_blank">RFC 4492</a>
+		 * "_blank">RFC 4492</a>.
 		 */
-		ELLIPTIC_CURVES(10, "elliptic_curves"), EC_POINT_FORMATS(11, "ec_point_formats"),
+		ELLIPTIC_CURVES(10, "elliptic_curves"), 
+		/**
+		 * See <a href="https://tools.ietf.org/html/rfc4492#section-5.1" target=
+		 * "_blank">RFC 4492</a>. Only {@code uncompressed/0} is supported.
+		 */
+		EC_POINT_FORMATS(11, "ec_point_formats"),
 
 		/**
-		 * See <a href="https://www.iana.org/go/rfc5054" target="_blank">RFC
-		 * 5054</a>
+		 * Not supported, see
+		 * <a href="https://www.iana.org/go/rfc5054" target="_blank">RFC
+		 * 5054</a>.
 		 */
 		SRP(12, "srp"),
 
-		/** See <a href="https://www.iana.org/go/rfc5246">RFC 5246</a> */
+		/**
+		 * See <a href="https://www.iana.org/go/rfc5246">RFC 5246</a>.
+		 */
 		SIGNATURE_ALGORITHMS(13, "signature_algorithms"),
 
 		/**
-		 * See <a href="https://www.iana.org/go/rfc5764" target="_blank">RFC
-		 * 5764</a>
+		 * Not supported, see
+		 * <a href="https://www.iana.org/go/rfc5764" target="_blank">RFC
+		 * 5764</a>.
 		 */
 		USE_SRTP(14, "use_srtp"),
 
 		/**
-		 * See <a href="https://www.iana.org/go/rfc6520" target="_blank">RFC
-		 * 6520</a>
+		 * Not supported, see
+		 * <a href="https://www.iana.org/go/rfc6520" target="_blank">RFC
+		 * 6520</a>.
 		 */
 		HEARTBEAT(15, "heartbeat"),
 
 		/**
-		 * See
+		 * Not supported, see
 		 * <a href="https://www.iana.org/go/draft-friedl-tls-applayerprotoneg"
-		 * target="_blank">draft-friedl-tls-applayerprotoneg</a>
+		 * target="_blank">draft-friedl-tls-applayerprotoneg</a>.
 		 */
 		APPLICATION_LAYER_PROTOCOL_NEGOTIATION(16, "application_layer_protocol_negotiation"),
 
 		/**
-		 * See <a href=
+		 * Not supported, see <a href=
 		 * "https://www.iana.org/go/draft-ietf-tls-multiple-cert-status-extension-08"
-		 * target="_blank">draft-ietf-tls-multiple-cert-status-extension-08</a>
+		 * target="_blank">draft-ietf-tls-multiple-cert-status-extension-08</a>.
 		 */
 		STATUS_REQUEST_V2(17, "status_request_v2"),
 
 		/**
-		 * See
+		 * Not supported, see
 		 * <a href="https://www.iana.org/go/draft-laurie-pki-sunlight-12" target
-		 * ="_blank">draft-laurie-pki-sunlight-12</a>
+		 * ="_blank">draft-laurie-pki-sunlight-12</a>.
 		 */
 		SIGNED_CERTIFICATE_TIMESTAMP(18, "signed_certificate_timestamp"),
 
 		/**
 		 * See <a href="https://tools.ietf.org/html/rfc7250" target="_blank">RFC
-		 * 7250</a>
+		 * 7250</a>.
 		 */
-		CLIENT_CERT_TYPE(19, "client_certificate_type"), SERVER_CERT_TYPE(20, "server_certificate_type"),
+		CLIENT_CERT_TYPE(19, "client_certificate_type"),
+		/**
+		 * See <a href="https://tools.ietf.org/html/rfc7250" target="_blank">RFC
+		 * 7250</a>.
+		 */
+		SERVER_CERT_TYPE(20, "server_certificate_type"),
 
 		/**
-		 * See <a href="https://www.iana.org/go/rfc7366" target="_blank">RFC
-		 * 7366</a>
+		 * Not supported, see
+		 * <a href="https://www.iana.org/go/rfc7366" target="_blank">RFC
+		 * 7366</a>.
 		 **/
 		ENCRYPT_THEN_MAC(22, "encrypt_then_mac"),
 
 		/**
 		 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC
-		 * 7627</a>
+		 * 7627</a>.
 		 * 
 		 * @since 3.0
 		 **/
@@ -318,15 +366,16 @@ public abstract class HelloExtension {
 
 		/**
 		 * See <a href="https://tools.ietf.org/html/rfc8449" target="_blank">RFC
-		 * 8449</a>
+		 * 8449</a>.
 		 * 
 		 * @since 2.4
 		 **/
 		RECORD_SIZE_LIMIT(28, "record_size_limit"),
 
 		/**
-		 * See <a href="https://www.iana.org/go/rfc4507" target="_blank">RFC
-		 * 4507</a>
+		 * Not supported, see
+		 * <a href="https://www.iana.org/go/rfc4507" target="_blank">RFC
+		 * 4507</a>.
 		 **/
 		SESSION_TICKET_TLS(35, "SessionTicket TLS"),
 
@@ -335,7 +384,7 @@ public abstract class HelloExtension {
 		 * ="_blank">RFC 9146, Connection Identifier for DTLS 1.2</a> and
 		 * <a href=
 		 * "https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-1"
-		 * target="_blank">IANA TLS ExtensionType Values</a>
+		 * target="_blank">IANA TLS ExtensionType Values</a>.
 		 * 
 		 * @since 3.0
 		 **/
@@ -343,7 +392,9 @@ public abstract class HelloExtension {
 
 		/**
 		 * See <a href="https://www.iana.org/go/rfc5746" target="_blank">RFC
-		 * 5746</a>
+		 * 5746</a>.
+		 * 
+		 * @since 3.8
 		 **/
 		RENEGOTIATION_INFO(65281, "renegotiation_info");
 
