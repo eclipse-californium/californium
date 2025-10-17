@@ -53,6 +53,7 @@ import org.eclipse.californium.core.observe.ObserveStatisticLogger;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.PersistentComponentProvider;
 import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.config.Configuration.DefinitionsProvider;
@@ -520,6 +521,8 @@ public class BaseServer extends CoapServer {
 	 */
 	protected List<CounterStatisticManager> diagnoseStatistics = new ArrayList<>();
 
+	protected List<PersistentComponentProvider> persistentComponentProvider = new ArrayList<>();
+
 	protected boolean noCoap;
 
 	public BaseServer(Configuration config) {
@@ -835,6 +838,7 @@ public class BaseServer extends CoapServer {
 		char[] password64 = store.password64 == null ? null : store.password64.toCharArray();
 		EncryptedPersistentComponentUtil serialization = new EncryptedPersistentComponentUtil();
 		serialization.addProvider(this);
+		persistentComponentProvider.forEach((provider) -> serialization.addProvider(provider));
 		serialization.loadAndRegisterShutdown(store.file, password64, TimeUnit.HOURS.toSeconds(store.maxAge), hook);
 	}
 
