@@ -248,7 +248,7 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 				localAddressResolverSocket = new DatagramSocket();
 			}
 		} catch (SocketException e) {
-			LOGGER.warn("");
+			LOGGER.warn("{}", e.getMessage());
 		}
 		return localAddressResolverSocket != null;
 	}
