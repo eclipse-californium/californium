@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.36.0, 13. October 2025";
+const version = "Version 3 0.37.0, 21. November 2025";
 
 /**
  * Timeshift relative to server time.
@@ -2486,9 +2486,9 @@ class UiChart {
 
 	zoomRange(starts, ends, i) {
 		const range = ends[i] - starts[i];
-		const factor = range ? range : (Math.abs(starts[i]));
-		starts[i] -= (factor / 20);
-		ends[i] += (factor / 20);
+		const extraRange = (range ? range : (Math.abs(starts[i]))) / 20;
+		starts[i] -= extraRange;
+		ends[i] += extraRange;
 	}
 
 	alignChannels(cha, chb, starts, ends) {
@@ -2529,6 +2529,8 @@ class UiChart {
 		const coordinates = Array(numberOfSensors);
 		const paths = Array(numberOfSensors);
 		let transform = null;
+
+		const cha = getChartConfigIndex("kg A") + 1;
 
 		paths.fill("");
 
@@ -2600,7 +2602,8 @@ class UiChart {
 							} else {
 								let sum = ySum[i][0];
 								let n = nSum[i][0];
-								const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 2);
+								//								const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 2);
+								const m = ySum[i].length;
 								for (let index = 1; index < m; ++index) {
 									sum += ySum[i][index];
 									n += nSum[i][index];
@@ -2621,6 +2624,7 @@ class UiChart {
 					}
 				}
 			});
+
 			if (hist > 1) {
 				const chartTimeShift = Math.floor(hist / 2);
 				for (let i = 1; i < numberOfSensors; ++i) {
@@ -2633,13 +2637,16 @@ class UiChart {
 						point[1] = 0;
 						let sum = ySum[i][1];
 						let n = nSum[i][1];
-						const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 3);
+						//						const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 3);
+						const m = ySum[i].length;
 						for (let index = 2; index < m; ++index) {
 							sum += ySum[i][index];
 							n += nSum[i][index];
 						}
 						const avg = sum / n;
 						point[2] = avg;
+						starts[i] = minOr(avg, starts[i]);
+						ends[i] = maxOr(avg, ends[i]);
 						coordinates[i].push(point);
 						// shift times
 						for (let j = coordinates[i].length - 1; j >= chartTimeShift; --j) {
@@ -2681,13 +2688,39 @@ class UiChart {
 						if (v < 0.01) {
 							v = 0.01;
 						}
-						starts[i] -= (v / 2);
-						ends[i] += (v / 2);
+						starts[i] -= v;
+						ends[i] += v;
 						deltaValues[i] = ends[i] - starts[i];
 					}
-					const start = starts[i];
+					const start1 = starts[i];
 					const delta = deltaValues[i];
-					transform = function(x) { return (offY + h) - Math.round((x - start) * h / delta); };
+					const deltaPoint = delta / h;
+					const start2 = start1 - deltaPoint / 2;
+					const delta2 = ends[i] - start2;
+					const transform1 = function(x) { return (offY + h) - Math.round((x - start1) * h / delta); };
+					const transform2 = function(x) { return (offY + h) - Math.round((x - start2) * h / delta2); };
+					let dither1 = 0;
+					let dither2 = 0;
+					let lastY = coordinates[i][0];
+					let lastY1 = transform1(lastY);
+					let lastY2 = transform2(lastY);
+					coordinates[i].forEach((p) => {
+						const y = p[2];
+						const y1 = transform1(y);
+						const y2 = transform2(y);
+						if (y != lastY && Math.abs(y - lastY) < deltaPoint) {
+							if (Math.abs(y1 - lastY1) == 1) {
+								++dither1;
+							}
+							if (Math.abs(y2 - lastY2) == 1) {
+								++dither2;
+							}
+						}
+						lastY = y;
+						lastY1 = y1;
+						lastY2 = y2;
+					});
+					transform = dither1 <= dither2 ? transform1 : transform2;
 					let m = 1;
 					coordinates[i].forEach((p) => {
 						const cmd = p[1] ? " M " : m ? " L " : " ";
