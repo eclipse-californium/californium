@@ -334,7 +334,6 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		super.receiveRequest(exchange, request);
 	}
 
-	//Always accepts unprotected responses, which is needed for reception of error messages
 	@Override
 	public void receiveResponse(Exchange exchange, Response response) {
 		Request request = exchange.getCurrentRequest();
@@ -344,11 +343,16 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		}
 
 		try {
-			//Printing of status information.
-			//Warns when expecting OSCORE response but unprotected response is received
 			boolean expectProtectedResponse = responseShouldBeProtected(exchange, response);
 			if (!isProtected(response) && expectProtectedResponse) {
-				LOGGER.info("Incoming response is NOT OSCORE protected but is expected to be!");
+				if (hasValidResponseCode(response.getCode(), exchange.getRequest())) {
+					LOGGER.info("Incoming response is NOT OSCORE protected but has expected response code");
+				} else {
+					LOGGER.warn(
+							"Dropping incoming response that is NOT OSCORE protected and has unexpected response code");
+					response.cancel();
+					return;
+				}
 			} else if (isProtected(response) && expectProtectedResponse) {
 				LOGGER.debug("Incoming response is OSCORE protected");
 			} else if (isProtected(response)) {
@@ -492,4 +496,37 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		return getIncomingMaxUnfragSize(message, ctx);
 	}
 
+	/**
+	 * Check if an unprotected response has a valid response code for OSCORE.
+	 * Only unprotected responses with one of these response codes should be
+	 * accepted. Additional codes are allowed if the request used a proxy.
+	 *
+	 * @param response the response
+	 * @return if the response code is valid for an unprotected response
+	 */
+	private boolean hasValidResponseCode(ResponseCode responseCode, Request request) {
+
+		boolean requestUsedProxy = request != null
+				&& (request.getOptions().getProxyUri() != null || request.getOptions().getProxyScheme() != null);
+
+		switch (responseCode) {
+		// Always allowed
+		case BAD_REQUEST: // 4.00
+		case UNAUTHORIZED: // 4.01
+		case BAD_OPTION: // 4.02
+		case SERVICE_UNAVAILABLE: // 5.03
+			return true;
+
+		// Only allow these if a proxy was used
+		case NOT_FOUND: // 4.04
+		case REQUEST_ENTITY_TOO_LARGE: // 4.13
+		case BAD_GATEWAY: // 5.02
+		case GATEWAY_TIMEOUT: // 5.04
+		case PROXY_NOT_SUPPORTED: // 5.05
+			return requestUsedProxy;
+
+		default:
+			return false;
+		}
+	}
 }
