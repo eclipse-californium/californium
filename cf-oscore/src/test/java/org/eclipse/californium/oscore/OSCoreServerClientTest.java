@@ -47,11 +47,9 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
 
 /**
  * Tests working OSCORE confirmable request and response.
@@ -68,6 +66,7 @@ public class OSCoreServerClientTest {
 	private CoapServer server;
 
 	private Endpoint serverEndpoint;
+	private Endpoint clientEndpoint;
 
 	//OSCORE context information shared between server and client
 	private final static HashMapCtxDB dbServer = new HashMapCtxDB();
@@ -86,17 +85,16 @@ public class OSCoreServerClientTest {
 		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 		EndpointManager.clear();
 	}
-	
-	//Use the OSCORE stack factory
-	@BeforeClass
-	public static void setStackFactory() {
-		OSCoreCoapStackFactory.useAsDefault(dbClient);
-	}
 
 	@After
 	public void after() {
-		if (null != server) {
+		if (clientEndpoint != null) {
+			clientEndpoint.destroy();
+			clientEndpoint = null;
+		}
+		if (server != null) {
 			server.destroy();
+			server = null;
 		}
 		System.out.println("End " + getClass().getSimpleName());
 	}
@@ -107,8 +105,9 @@ public class OSCoreServerClientTest {
 	 * @throws Exception on test failure
 	 */
 	@Test
-	public void testConfirmable() throws Exception {	
-		createSimpleServer();
+	public void testConfirmable() throws Exception {
+		createSimpleServer(true);
+		createOscoreClient();
 
 		//Set up OSCORE context information for request (client)
 		byte[] sid = new byte[0];
@@ -124,7 +123,7 @@ public class OSCoreServerClientTest {
 		request.setConfirmable(true);
 		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
 		request.setPayload("client says hi");
-		request.send();
+		clientEndpoint.sendRequest(request);
 		System.out.println("client sent request");
 
 		// receive response and check
@@ -144,15 +143,16 @@ public class OSCoreServerClientTest {
 	 * @throws Exception on test failure
 	 */
 	@Test
-	public void testErrorResponse() throws Exception {	
-		createSimpleServer();
+	public void testErrorResponse() throws Exception {
+		createSimpleServer(true);
+		createOscoreClient();
 
 		//Set up OSCORE context information for request (client)
 		byte[] sid = new byte[] { 0x77 }; //Modified sender ID to be incorrect
 		byte[] rid = new byte[] { 0x01 };
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
-		
+
 		// send request
 		Request request = new Request(CoAP.Code.POST);
 		request.getOptions().setOscore(new byte[0]); //Use OSCORE
@@ -161,7 +161,7 @@ public class OSCoreServerClientTest {
 		request.setConfirmable(true);
 		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
 		request.setPayload("client says hi");
-		request.send();
+		clientEndpoint.sendRequest(request);
 		System.out.println("client sent request");
 
 		// receive response and check
@@ -173,7 +173,42 @@ public class OSCoreServerClientTest {
 		assertEquals(response.getPayloadString(), ErrorDescriptions.CONTEXT_NOT_FOUND); //Response error payload
 		assertEquals(response.getMID(), requestMID); //Response MID matches Request MID
 	}
-	
+
+	/**
+	 * Tests OSCORE functionality when the server replies with a non-OSCORE CoAP
+	 * error message, where this error message has a CoAP response code that is
+	 * not acceptable. In such case the response should be dropped.
+	 * 
+	 * @throws Exception on test failure
+	 */
+	@Test
+	public void testBadErrorResponse() throws Exception {
+		createSimpleServer(false); // plain CoAP server
+		createOscoreClient(); // OSCORE client
+
+		// Set up OSCORE context information for request (client)
+		byte[] sid = new byte[0];
+		byte[] rid = new byte[] { 0x01 };
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
+		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
+
+		// send request
+		Request request = new Request(CoAP.Code.POST);
+		request.getOptions().setOscore(new byte[0]); //Use OSCORE
+		int requestMID = 10000;
+		request.setMID(requestMID);
+		request.setConfirmable(true);
+		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
+		request.setPayload("client says hi");
+		clientEndpoint.sendRequest(request);
+		System.out.println("client sent request");
+
+		// wait for response and check that none arrives
+		Response response = request.waitForResponse(1000);
+		assertNull("Client received response", response);
+		System.out.println("client received no response (as expected)");
+	}
+
 	/**
 	 * Tests OSCORE functionality when the server cannot find the correct
 	 * context due to the ID Context not being included in the request (since
@@ -184,8 +219,9 @@ public class OSCoreServerClientTest {
 	 * @throws Exception on test failure
 	 */
 	@Test
-	public void testIncludeContextIDResponse() throws Exception {	
-		createSimpleServer();
+	public void testIncludeContextIDResponse() throws Exception {
+		createSimpleServer(true);
+		createOscoreClient();
 
 		// Add one more context to the server context DB with duplicate RID.
 		// But different ID Context.
@@ -199,7 +235,7 @@ public class OSCoreServerClientTest {
 		rid = new byte[] { 0x01 };
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
 		dbClient.addContext(TestTools.getUri(serverEndpoint, ""), ctx);
-		
+
 		// send request
 		Request request = new Request(CoAP.Code.POST);
 		request.getOptions().setOscore(new byte[0]); //Use OSCORE
@@ -208,7 +244,7 @@ public class OSCoreServerClientTest {
 		request.setConfirmable(true);
 		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
 		request.setPayload("client says hi");
-		request.send();
+		clientEndpoint.sendRequest(request);
 		System.out.println("client sent request");
 
 		// receive response and check (expect specific error message)
@@ -218,7 +254,7 @@ public class OSCoreServerClientTest {
 		assertEquals(ErrorDescriptions.CONTEXT_NOT_FOUND_IDCONTEXT, response.getPayloadString());
 		assertEquals(response.getMID(), requestMID); //Response MID matches Request MID
 		assertNull(response.getOptions().getOscore()); // No OSCORE
-		
+
 		// Now resend with ID Context included
 		ctx.setIncludeContextId(true);
 		request = new Request(CoAP.Code.POST);
@@ -228,7 +264,7 @@ public class OSCoreServerClientTest {
 		request.setConfirmable(true);
 		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
 		request.setPayload("client says hi");
-		request.send();
+		clientEndpoint.sendRequest(request);
 		System.out.println("client sent request");
 
 		// receive response and check (server should respond correctly)
@@ -240,9 +276,9 @@ public class OSCoreServerClientTest {
 		assertNotNull(response.getOptions().getOscore()); // OSCORE
 		ctx.setIncludeContextId(false);
 		dbServer.removeContext(serverCtxDup);
-		
+
 	}
-	
+
 	/**
 	 * Build a simple OSCORE request.
 	 * 
@@ -267,7 +303,8 @@ public class OSCoreServerClientTest {
 	 */
 	@Test
 	public void testRestartReplay() throws Exception {
-		createSimpleServer();
+		createSimpleServer(true);
+		createOscoreClient();
 
 		// Set up OSCORE context information for request (client)
 		byte[] sid = new byte[0];
@@ -278,7 +315,7 @@ public class OSCoreServerClientTest {
 
 		// send first request
 		Request request = buildOscoreRequest(CoAP.Code.POST);
-		request.send();
+		clientEndpoint.sendRequest(request);
 
 		// receive first response and check
 		Response response = request.waitForResponse(1000);
@@ -287,7 +324,7 @@ public class OSCoreServerClientTest {
 
 		// send second request
 		request = buildOscoreRequest(CoAP.Code.POST);
-		request.send();
+		clientEndpoint.sendRequest(request);
 
 		// receive second response and check
 		response = request.waitForResponse(1000);
@@ -299,7 +336,7 @@ public class OSCoreServerClientTest {
 
 		// send third request (replay)
 		request = buildOscoreRequest(CoAP.Code.POST);
-		request.send();
+		clientEndpoint.sendRequest(request);
 
 		// receive second response and check
 		response = request.waitForResponse(1000);
@@ -317,7 +354,8 @@ public class OSCoreServerClientTest {
 	 */
 	@Test
 	public void testReplayWindow() throws Exception {
-		createSimpleServer();
+		createSimpleServer(true);
+		createOscoreClient();
 
 		// Set up OSCORE context information for request (client)
 		byte[] sid = new byte[0];
@@ -331,7 +369,7 @@ public class OSCoreServerClientTest {
 
 		// send first request
 		Request request = buildOscoreRequest(CoAP.Code.POST);
-		request.send();
+		clientEndpoint.sendRequest(request);
 
 		// receive first response and check
 		Response response = request.waitForResponse(1000);
@@ -343,7 +381,7 @@ public class OSCoreServerClientTest {
 
 		// send second request
 		request = buildOscoreRequest(CoAP.Code.POST);
-		request.send();
+		clientEndpoint.sendRequest(request);
 
 		// receive second response and check
 		response = request.waitForResponse(1000);
@@ -359,7 +397,8 @@ public class OSCoreServerClientTest {
 	 */
 	@Test
 	public void testManyRequests() throws Exception {
-		createSimpleServer();
+		createSimpleServer(true);
+		createOscoreClient();
 
 		// Set up OSCORE context information for request (client)
 		byte[] sid = new byte[0];
@@ -373,7 +412,7 @@ public class OSCoreServerClientTest {
 		for (int i = 0; i < requestsToSend; i++) {
 			// send request
 			Request request = buildOscoreRequest(CoAP.Code.POST);
-			request.send();
+			clientEndpoint.sendRequest(request);
 
 			// receive response and check
 			Response response = request.waitForResponse(1000);
@@ -391,7 +430,8 @@ public class OSCoreServerClientTest {
 	 */
 	@Test
 	public void testVaryingSsn() throws Exception {
-		createSimpleServer();
+		createSimpleServer(true);
+		createOscoreClient();
 
 		// Set up OSCORE context information for request (client)
 		byte[] sid = new byte[0];
@@ -408,7 +448,7 @@ public class OSCoreServerClientTest {
 
 			// send request
 			Request request = buildOscoreRequest(CoAP.Code.POST);
-			request.send();
+			clientEndpoint.sendRequest(request);
 
 			// receive response and check
 			Response response = request.waitForResponse(1000);
@@ -427,7 +467,8 @@ public class OSCoreServerClientTest {
 	 */
 	@Test
 	public void testReplayWindowTooOld() throws Exception {
-		createSimpleServer();
+		createSimpleServer(true);
+		createOscoreClient();
 
 		// Set up OSCORE context information for request (client)
 		byte[] sid = new byte[0];
@@ -442,7 +483,7 @@ public class OSCoreServerClientTest {
 
 		// send first request
 		Request request = buildOscoreRequest(CoAP.Code.POST);
-		request.send();
+		clientEndpoint.sendRequest(request);
 
 		// receive first response and check
 		Response response = request.waitForResponse(1000);
@@ -455,7 +496,7 @@ public class OSCoreServerClientTest {
 
 		// send second request
 		request = buildOscoreRequest(CoAP.Code.POST);
-		request.send();
+		clientEndpoint.sendRequest(request);
 
 		// receive second response and check
 		response = request.waitForResponse(1000);
@@ -463,22 +504,43 @@ public class OSCoreServerClientTest {
 		assertEquals(ErrorDescriptions.REPLAY_DETECT, response.getPayloadString());
 	}
 
-	private void createSimpleServer() throws Exception {
-
-		// Don't start server if it is already running
-		if (server != null) {
-			return;
+	private void createOscoreClient() throws Exception {
+		if (clientEndpoint != null) {
+			clientEndpoint.destroy();
 		}
 
-		// Set up OSCORE context information for response (server)
-		byte[] sid = new byte[] { 0x01 };
-		byte[] rid = new byte[0];
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id, MAX_UNFRAGMENTED_SIZE);
-		dbServer.addContext(ctx);
-
-		// Create server
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCustomCoapStackArgument(dbServer);
+		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+		builder.setCustomCoapStackArgument(dbClient);
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		clientEndpoint = builder.build();
+		clientEndpoint.start();
+	}
+
+	private void createSimpleServer(boolean useOscore) throws Exception {
+
+		// Restart server if it is already running
+		if (server != null) {
+			server.destroy();
+		}
+
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+
+		if (useOscore) {
+			// Set up OSCORE context information for response (server)
+			byte[] sid = new byte[] { 0x01 };
+			byte[] rid = new byte[0];
+			OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id,
+					MAX_UNFRAGMENTED_SIZE);
+			dbServer.addContext(ctx);
+
+			builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+			builder.setCustomCoapStackArgument(dbServer);
+		} else {
+			builder.setCoapStackFactory(CoapEndpoint.STANDARD_COAP_STACK_FACTORY);
+			builder.setCustomCoapStackArgument(null);
+		}
+
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		serverEndpoint = builder.build();
 		server = new CoapServer();
