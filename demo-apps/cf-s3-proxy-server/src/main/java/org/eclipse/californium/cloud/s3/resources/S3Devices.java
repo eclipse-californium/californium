@@ -30,6 +30,8 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -44,6 +46,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -88,12 +91,25 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.UriQueryParameter;
 import org.eclipse.californium.core.coap.option.OpaqueOption;
 import org.eclipse.californium.core.coap.option.StringOption;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.PersistentComponent;
+import org.eclipse.californium.elements.PersistentComponentProvider;
+import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.ApplicationAuthorizer;
 import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DataStreamReader;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache;
+import org.eclipse.californium.elements.util.LeastRecentlyUpdatedCache.Timestamped;
+import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -200,9 +216,11 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 3.12
  */
-public class S3Devices extends ProtectedCoapResource {
+public class S3Devices extends ProtectedCoapResource implements PersistentComponentProvider {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(S3Devices.class);
+	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER.getName(), 3,
+			TimeUnit.SECONDS.toNanos(10));
 
 	public static final int SERIES_MAX_SIZE = 32 * 1024;
 
@@ -437,38 +455,27 @@ public class S3Devices extends ProtectedCoapResource {
 		String acl = S3ProxyRequest.getAcl(request, s3Client.getAcl());
 		boolean visible = acl != null && acl.startsWith("public-");
 
-		Resource deviceDomain = domains.get(info.domain);
-		if (!(deviceDomain instanceof DeviceDomain)) {
-			deviceDomain = new DeviceDomain(info.domain, minutes, maxDevices);
-			Resource previous = domains.putIfAbsent(info.domain, deviceDomain);
-			if (previous != null) {
-				deviceDomain = previous;
+		DeviceDomain deviceDomain = getDeviceDomain(info.domain);
+		LeastRecentlyUpdatedCache<String, Resource> keptPosts = ((DeviceDomain) deviceDomain).keptPosts;
+		WriteLock lock = keptPosts.writeLock();
+		lock.lock();
+		try {
+			Device device;
+			Resource child = keptPosts.update(info.name);
+			if (child instanceof Device) {
+				device = (Device) child;
 			} else {
-				deviceDomain.setParent(this);
+				device = new Device(info.name, info.domain);
 			}
-		}
-		if (deviceDomain instanceof DeviceDomain) {
-			LeastRecentlyUpdatedCache<String, Resource> keptPosts = ((DeviceDomain) deviceDomain).keptPosts;
-			WriteLock lock = keptPosts.writeLock();
-			lock.lock();
-			try {
-				Device device;
-				Resource child = keptPosts.update(info.name);
-				if (child instanceof Device) {
-					device = (Device) child;
-				} else {
-					device = new Device(info.name);
-				}
-				device.setVisible(visible);
-				device.setPost(request, position, time, writeExpanded);
-				if (device.getParent() == null) {
-					device.setParent(deviceDomain);
-					keptPosts.put(info.name, device);
-				}
-				LOGGER.info("Domain: {}, {} devices", info.domain, keptPosts.size());
-			} finally {
-				lock.unlock();
+			device.setVisible(visible);
+			device.setPost(exchange.advanced().getEndpoint(), request, position, time, writeExpanded);
+			if (device.getParent() == null) {
+				device.setParent(deviceDomain);
+				keptPosts.put(info.name, device);
 			}
+			LOGGER.info("Domain: {}, {} devices", info.domain, keptPosts.size());
+		} finally {
+			lock.unlock();
 		}
 
 		MultiConsumer<Response> multi = new MultiConsumer<Response>() {
@@ -569,6 +576,20 @@ public class S3Devices extends ProtectedCoapResource {
 		exchange.respond(response);
 	}
 
+	private DeviceDomain getDeviceDomain(String domain) {
+		Resource deviceDomain = domains.get(domain);
+		if (!(deviceDomain instanceof DeviceDomain)) {
+			deviceDomain = new DeviceDomain(domain, minutes, maxDevices);
+			Resource previous = domains.putIfAbsent(domain, deviceDomain);
+			if (previous != null) {
+				deviceDomain = previous;
+			} else {
+				deviceDomain.setParent(this);
+			}
+		}
+		return (DeviceDomain) deviceDomain;
+	}
+
 	/**
 	 * Resource representing a device domain
 	 */
@@ -611,21 +632,38 @@ public class S3Devices extends ProtectedCoapResource {
 	 */
 	public static class Device extends ProtectedCoapResource {
 
+		private volatile Endpoint endpoint;
 		private volatile Request post;
 		private volatile long time;
+		private volatile String destination;
 
-		private Device(String name) {
+		private final String domain;
+
+		/**
+		 * Creates device twin.
+		 * 
+		 * @param name name of device
+		 * @param domain name of domain
+		 * @throws NullPointerException if one of the arguments is {@code null}
+		 */
+		private Device(String name, String domain) {
 			super(name);
+			if (domain == null) {
+				throw new NullPointerException("domain must not be null!");
+			}
 			setObservable(true);
+			this.domain = domain;
+			this.destination = "";
 		}
 
-		private void setPost(Request post, String position, long time, String write) {
+		private void setPost(Endpoint endpoint, Request post, String position, long time, String write) {
 			synchronized (this) {
 				long previousTime = this.time;
-
+				this.endpoint = endpoint;
 				this.post = post;
 				this.time = time;
-
+				StringOption dest = post.getOptions().getOtherOption(S3ProxyCustomOptions.RECV_ADDRESS);
+				this.destination = (dest != null) ? dest.getStringValue() : "";
 				ResourceAttributes attributes = new ResourceAttributes(getAttributes());
 				attributes.clearContentType();
 				if (post.getOptions().hasContentFormat()) {
@@ -666,10 +704,6 @@ public class S3Devices extends ProtectedCoapResource {
 			return null;
 		}
 
-		protected synchronized Request getPost() {
-			return post;
-		}
-
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			Request devicePost = post;
@@ -696,6 +730,43 @@ public class S3Devices extends ProtectedCoapResource {
 		public String toString() {
 			return getName();
 		}
+
+		/**
+		 * Version number for serialization.
+		 */
+		private static final int VERSION = 1;
+
+		public boolean writeTo(long uptime, DatagramWriter writer) {
+			int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
+			writer.writeLong(uptime, Long.SIZE);
+			writer.writeVarBytes(domain.getBytes(StandardCharsets.UTF_8), Byte.SIZE);
+			writer.writeVarBytes(getName().getBytes(StandardCharsets.UTF_8), Byte.SIZE);
+			writer.writeVarBytes(destination.getBytes(StandardCharsets.UTF_8), Byte.SIZE);
+			writer.writeLong(time, Long.SIZE);
+
+			SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
+			return true;
+		}
+
+		public static Timestamped<Device> fromReader(DataStreamReader reader, long nanoShift) {
+			int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
+			if (0 < length) {
+				DatagramReader rangeReader = reader.createRangeReader(length);
+				long uptime = rangeReader.readLong(Long.SIZE) + nanoShift;
+				byte[] domain = rangeReader.readVarBytes(Byte.SIZE);
+				byte[] name = rangeReader.readVarBytes(Byte.SIZE);
+				byte[] destination = rangeReader.readVarBytes(Byte.SIZE);
+				long time = rangeReader.readLong(Long.SIZE);
+				Device device = new Device(new String(name, StandardCharsets.UTF_8),
+						new String(domain, StandardCharsets.UTF_8));
+				device.destination = new String(destination, StandardCharsets.UTF_8);
+				device.time = time;
+				return new Timestamped<Device>(device, uptime);
+			} else {
+				return null;
+			}
+		}
+
 	}
 
 	private static String format(long millis, ChronoUnit unit) {
@@ -753,47 +824,150 @@ public class S3Devices extends ProtectedCoapResource {
 	 */
 	public BiConsumer<String, DeviceIdentifier> getDeviceNotifier() {
 		return (domain, device) -> {
-			LOGGER.debug("Wakeup {}@{}", device.getName(), domain);
+			String label = device.getLabel();
+			if (label == null) {
+				label = "";
+			} else {
+				label = " (" + label + ")";
+			}
+			LOGGER.debug("Wakeup {}@{}{}", device.getName(), domain, label);
 			Resource resource = domains.get(domain);
 			if (resource == null) {
-				LOGGER.info("Wakeup {}@{} failed, domain missing!", device.getName(), domain);
+				LOGGER.info("Wakeup {}@{}{} failed, domain missing!", device.getName(), domain, label);
 				return;
 			}
 			resource = resource.getChild(device.getName());
 			if (!(resource instanceof Device)) {
-				LOGGER.info("Wakeup {}@{} failed, device missing!", device.getName(), domain);
+				LOGGER.info("Wakeup {}@{}{} failed, device missing!", device.getName(), domain, label);
 				return;
 			}
-			Request post = ((Device) resource).getPost();
-			if (post == null) {
-				LOGGER.info("Wakeup {}@{} failed, post missing!", device.getName(), domain);
+			final String destination = ((Device) resource).destination;
+			if (destination.isEmpty()) {
+				LOGGER.info("Wakeup {}@{}{} failed, recv. address missing!", device.getName(), domain, label);
 				return;
 			}
-			StringOption dest = post.getOptions().getOtherOption(S3ProxyCustomOptions.RECV_ADDRESS);
-			if (dest == null) {
-				LOGGER.info("Wakeup {}@{} failed, recv. address missing!", device.getName(), domain);
-				return;
-			}
-			String destination = dest.getStringValue();
-			if (!destination.contains("://")) {
-				destination = "w://" + destination;
-			}
-			try {
-				URI uri = new URI(destination);
-				InetSocketAddress destAddr = new InetSocketAddress(uri.getHost(), uri.getPort());
-				DatagramPacket msg = new DatagramPacket(notifyMessage, notifyMessage.length, destAddr);
-				try {
-					notifySocket.send(msg);
-					LOGGER.info("Sent wakeup to {} for {}@{} ({})", StringUtil.toLog(destAddr), device.getName(),
-							domain, device.getLabel());
-				} catch (IOException e) {
-					LOGGER.info("Sent wakeup to {} for {}@{} failed", StringUtil.toLog(destAddr), device.getName(),
-							domain);
+			if (destination.equals(".")) {
+				Connector connector = null;
+				Endpoint endpoint = ((Device) resource).endpoint;
+				if (endpoint instanceof CoapEndpoint) {
+					connector = ((CoapEndpoint) endpoint).getConnector();
 				}
-			} catch (URISyntaxException e) {
-				LOGGER.info("Wakeup {}@{} failed, recv. address {} malformed!", device.getName(), domain,
-						dest.getStringValue(), e.getCause());
+				if (connector == null) {
+					LOGGER.info("Wakeup {}@{}{} failed, connector missing!", device.getName(), domain, label);
+					return;
+				}
+				Request request = ((Device) resource).post;
+				if (request == null) {
+					LOGGER.info("Wakeup {}@{}{} failed, request missing!", device.getName(), domain, label);
+					return;
+				}
+				RawData out = RawData.outbound(notifyMessage, request.getSourceContext(), null, false);
+				connector.send(out);
+				LOGGER.info("Sent wake.up to {} for {}@{}{}",
+						StringUtil.toLog(request.getSourceContext().getPeerAddress()), device.getName(), domain, label);
+			} else {
+				String uriDestination = destination;
+				if (!uriDestination.contains("://")) {
+					uriDestination = "w://" + uriDestination;
+				}
+				try {
+					URI uri = new URI(uriDestination);
+					InetSocketAddress destAddr = new InetSocketAddress(uri.getHost(), uri.getPort());
+					DatagramPacket msg = new DatagramPacket(notifyMessage, notifyMessage.length, destAddr);
+					try {
+						notifySocket.send(msg);
+						LOGGER.info("Sent wakeup to {} for {}@{}{}", StringUtil.toLog(destAddr), device.getName(),
+								domain, label);
+					} catch (IOException e) {
+						LOGGER.info("Sent wakeup to {} for {}@{}{} failed", StringUtil.toLog(destAddr),
+								device.getName(), domain, label);
+					}
+				} catch (URISyntaxException e) {
+					LOGGER.info("Wakeup {}@{}{} failed, recv. address {} malformed!", device.getName(), domain, label,
+							destination, e.getCause());
+				}
 			}
 		};
+	}
+
+	@Override
+	public Collection<PersistentComponent> getComponents() {
+		List<PersistentComponent> components = new ArrayList<>(2);
+		components.add(new PersistentComponent() {
+
+			@Override
+			public int save(OutputStream out, long staleThresholdInSeconds) throws IOException {
+				int count = 0;
+				DatagramWriter writer = new DatagramWriter(4096);
+				for (Map.Entry<String, Resource> domain : domains.entrySet()) {
+					DeviceDomain deviceDomain = (DeviceDomain) domain.getValue();
+					long maxQuietPeriodInSeconds = deviceDomain.keptPosts.getExpirationThreshold(TimeUnit.SECONDS);
+					long startNanos = ClockUtil.nanoRealtime();
+					Iterator<Timestamped<Resource>> iterator = deviceDomain.keptPosts.timestampedIterator();
+					while (iterator.hasNext()) {
+						Timestamped<Resource> message = iterator.next();
+						long updateNanos = message.getLastUpdate();
+						long quiet = TimeUnit.NANOSECONDS.toSeconds(startNanos - updateNanos);
+						Device device = (Device) message.getValue();
+						if (quiet > maxQuietPeriodInSeconds) {
+							LOGGER.trace("{}skip {} ts, {}s too quiet! {}", getName(), updateNanos, quiet,
+									device.getName());
+							++count;
+						} else if (device.destination.isEmpty()) {
+							LOGGER.trace("{}skip missing destination! {}", getName(), device.getName());
+							++count;
+						} else {
+							LOGGER.trace("{}write {} ts, {}s {}", getName(), updateNanos, quiet, device.getName());
+							if (device.writeTo(updateNanos, writer)) {
+								writer.writeTo(out);
+								++count;
+							} else {
+								writer.reset();
+							}
+						}
+					}
+				}
+				SerializationUtil.writeNoItem(out);
+				out.flush();
+				writer.close();
+				return count;
+			}
+
+			@Override
+			public int load(InputStream in, long deltaNanos) throws IOException {
+				int count = 0;
+				long startNanos = ClockUtil.nanoRealtime();
+				DataStreamReader reader = new DataStreamReader(in);
+				try {
+					Timestamped<Device> message;
+					while ((message = Device.fromReader(reader, deltaNanos)) != null) {
+						boolean restore = true;
+						long lastUpdate = message.getLastUpdate();
+						if (lastUpdate - startNanos > 0) {
+							WARN_FILTER.warn("{}read {} ts is after {} (future)", getName(), lastUpdate, startNanos);
+						}
+						if (restore) {
+							Device device = message.getValue();
+							LOGGER.trace("{}read {} ts, {}s {}", getName(), lastUpdate,
+									TimeUnit.NANOSECONDS.toSeconds(startNanos - lastUpdate), device.getName());
+							DeviceDomain deviceDomain = getDeviceDomain(device.domain);
+							device.setParent(deviceDomain);
+							deviceDomain.keptPosts.put(device.getName(), device, lastUpdate);
+							++count;
+						}
+					}
+				} catch (IllegalArgumentException ex) {
+					LOGGER.warn("{}reading failed after {} messages", getName(), count, ex);
+					throw ex;
+				}
+				return count;
+			}
+
+			@Override
+			public String getLabel() {
+				return "devices";
+			}
+		});
+		return components;
 	}
 }
