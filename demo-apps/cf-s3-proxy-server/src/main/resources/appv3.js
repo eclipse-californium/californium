@@ -15,12 +15,55 @@
 
 'use strict';
 
-const version = "Version 3 0.37.0, 21. November 2025";
+const version = "Version 3 0.40.0, 29. May 2026";
 
 /**
  * Timeshift relative to server time.
  */
 let timeShift = 0;
+
+const dateTimeOptions = {
+  weekday: "short",
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "UTC",
+  timeZoneName: "short",
+};
+
+const timeOptions = {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "UTC",
+};
+
+const dateOptions = {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "UTC",
+};
+
+const locals = undefined; // new Intl.Locale(navigator.locals);
+// const locals = "en-UK";
+
+let dateTimeFormat = new Intl.DateTimeFormat(locals, dateTimeOptions);
+let dateFormat = new Intl.DateTimeFormat(locals, dateOptions);
+let timeFormat = new Intl.DateTimeFormat(locals, timeOptions);
+
+function formatDateTime(time) {
+	const date = new Date(time);
+	return dateTimeFormat.format(date);
+}
+
+function splitDateTime(time) {
+	const date = new Date(time);
+	return [dateFormat.format(date), timeFormat.format(date)];
+}
 
 /**
  * Remove head from value's begin.
@@ -1267,15 +1310,11 @@ class DeviceMessage {
 						}
 						return;
 					}
-					if (this.values == undefined) {
-						const bat = l2.match(/mV\s+(\d+(\.\d+)?)%/);
-						if (bat && bat.length > 1) {
-							this.batteryLevel = conv(bat[1]);
-						}
-					}
 				});
 				if (this.values) {
 					status.batteryLevel = this.values.at(DeviceMessage.levelIndex + 1);
+					status.weight = this.values.at(DeviceMessage.scaleAIndex + 1);
+					status.temperature = this.values.at(DeviceMessage.tempIndex + 1);
 				}
 				this.status = status;
 			}
@@ -1297,6 +1336,8 @@ class DeviceMessage {
 			details.uptime = status.uptime;
 			details.pdn = status.pdn ?? "";
 			details.batteryLevel = status.batteryLevel;
+			details.weight = status.weight;
+			details.temperature = status.temperature;
 			details.net = "";
 			details.band = "";
 			if (status.network) {
@@ -2369,9 +2410,9 @@ class UiChart {
 		const timeInMillis = this.startTime + (this.endTime - this.startTime) *
 			(offsetX - this.chartX) / this.chartW;
 
-		const markerDateTime = new Date(timeInMillis).toISOString();
-		const markerDate = markerDateTime.slice(0, 10);
-		const markerTime = markerDateTime.slice(11, -8);
+		const markerDateTime = splitDateTime(timeInMillis)
+		const markerDate = markerDateTime[0];
+		const markerTime = markerDateTime[1];
 
 		const display = [markerDate, markerTime, ""];
 		const message = dev.findNearestMessage(timeInMillis);
@@ -2768,7 +2809,7 @@ class UiChart {
 		const tab = [null, left, right, left, right];
 
 		const statusTime = dev.statusMessage.time;
-		const statusDateTime = new Date(statusTime).toUTCString();
+		const statusDateTime = formatDateTime(statusTime);
 		const interval = dev.getStatusIntervalDescription();
 		for (let i = 1; i < dev.paths.length; ++i) {
 			if (dev.paths[i].length > 0) {
@@ -2923,9 +2964,9 @@ class UiChart {
 	}
 
 	mark(dateTimeMillis, x, y) {
-		const dateTime = new Date(dateTimeMillis).toISOString();
-		const date = dateTime.slice(0, 10);
-		const time = dateTime.slice(11, -8);
+   		const dateTimeParts = splitDateTime(dateTimeMillis);
+		const date = dateTimeParts[0];
+		const time = dateTimeParts[1];
 		return `
 <path d='M ${x},${y} l 0,5' stroke='grey'></path>
 <text x='${x}' y='${y + 15}' text-anchor='middle'>${time}</text>
@@ -3040,6 +3081,14 @@ class UiList {
 		return compareItem(dev1.getDetail("batteryLevel"), dev2.getDetail("batteryLevel"));
 	}
 
+	cmpWeight(dev1, dev2) {
+		return compareItem(dev1.getDetail("weight"), dev2.getDetail("weight"));
+	}
+
+	cmpTemperature(dev1, dev2) {
+		return compareItem(dev1.getDetail("temperature"), dev2.getDetail("temperature"));
+	}
+
 	getSortDirection(mode) {
 		const dir = !(this.sortDirection.get(mode) ?? false);
 		this.sortDirection.set(mode, dir);
@@ -3080,7 +3129,7 @@ class UiList {
 	view(groups, details) {
 		const list = this.currentList;
 		const now = Date.now() - timeShift;
-		const nowDateTime = new Date(now).toUTCString();
+		const nowDateTime = formatDateTime(now);
 		const sort = this.position ? "tb1d" : "tb1";
 		let cols = 5;
 
@@ -3116,6 +3165,14 @@ class UiList {
 				++cols;
 				page += button("cmpBattery", "Bat.")
 			}
+			if (details.weight) {
+				++cols;
+				page += button("cmpWeight", "Weight")
+			}
+			if (details.temperature) {
+				++cols;
+				page += button("cmpTemperature", "Temp.")
+			}
 		}
 		page += `</tr></thead>
 <tbody>
@@ -3129,8 +3186,18 @@ class UiList {
 			const viewState = this.getViewState(device);
 			page += `<tr ${viewState.cls}><td colspan='2'><button class='tb1' onclick='ui.loadDeviceData("${device.key}")'>${device.label}</button></td>`;
 			const time = device.getLastModifiedTime();
-			const lm = time ? new Date(time).toISOString().replace(/\.\d+/, '') : "";
-			page += `<td colspan='2'>${lm}</td><td>${viewState.mark}</td>`;
+			let ts = "";
+			let al = "";
+			if (time) {
+				const tsp = splitDateTime(time);
+				if ((now - time) > 1000 * 3600 * 24) {
+					ts = tsp[0] + "&nbsp;";
+				} else {
+					ts = tsp[1];
+					al = " align=right";
+				}
+			}
+			page += `<td colspan='2'${al}>${ts}</td><td>${viewState.mark}</td>`;
 			if (details && info) {
 				if (details.provider) {
 					page += `<td>${info.pdn}</td>`;
@@ -3143,11 +3210,19 @@ class UiList {
 				}
 				if (details.uptime) {
 					const uptime = info.uptime ? info.uptime + " [d]" : "";
-					page += `<td>${uptime}</td>`;
+					page += `<td align=right>${uptime}</td>`;
 				}
 				if (details.battery) {
 					const level = info.batteryLevel != null ? info.batteryLevel + "%" : "";
-					page += `<td>${level}</td>`;
+					page += `<td align=right>${level}</td>`;
+				}
+				if (details.weight) {
+					const weight = info.weight != null ? info.weight + " kg" : "";
+					page += `<td align=right>&nbsp;${weight}</td>`;
+				}
+				if (details.temperature) {
+					const temperature = info.temperature != null ? info.temperature + " °C" : "";
+					page += `<td align=right>&nbsp;${temperature}</td>`;
 				}
 			}
 			page += `</tr>\n`;
@@ -3427,6 +3502,12 @@ class UiManager {
 		}
 		this.showDiagnose = false;
 		this.showDeviceList = false;
+		dateTimeOptions.timeZone = "UTC";
+		dateOptions.timeZone = "UTC";
+		timeOptions.timeZone = "UTC";
+		dateTimeFormat = new Intl.DateTimeFormat(locals, dateTimeOptions);
+		dateFormat = new Intl.DateTimeFormat(locals, dateOptions);
+		timeFormat = new Intl.DateTimeFormat(locals, timeOptions);
 		if (s3) {
 			s3.reset();
 			s3 = null;
@@ -3680,11 +3761,13 @@ class UiManager {
 			details.operator = true;
 			details.uptime = true;
 		} else if (lower == "all") {
+			// admin view
 			details.provider = true;
 			details.operator = true;
 			details.band = true;
 			details.uptime = true;
 			details.battery = true;
+			details.weight = false;
 		} else {
 			value.split(/,/).forEach((d) => details[d] = true);
 		}
@@ -3770,6 +3853,14 @@ class UiManager {
 						let details = this.loginValue(json.config, "details", false);
 						if (details) {
 							this.details = this.parseLoginDetails(details);
+						}
+						if (this.loginValue(json.config, "localeDateTime", false)) {
+							delete dateTimeOptions.timeZone;
+							delete dateOptions.timeZone;
+							delete timeOptions.timeZone;
+							dateTimeFormat = new Intl.DateTimeFormat(locals, dateTimeOptions);
+							dateFormat = new Intl.DateTimeFormat(locals, dateOptions);
+							timeFormat = new Intl.DateTimeFormat(locals, timeOptions);
 						}
 					}
 					if (json.defs) {
@@ -3967,7 +4058,7 @@ class UiManager {
 			page += `<tbody id='devicestatuspage'>`;
 			const statusMsg = dev.statusMessage;
 			if (statusMsg.time) {
-				const statusDateTime = new Date(statusMsg.time).toUTCString();
+				const statusDateTime = formatDateTime(statusMsg.time);
 				const interval = dev.getStatusIntervalDescription();
 				page += `<tr><td colspan='3'>${statusDateTime}</td><td>${interval}</td></tr>\n`;
 			}
@@ -4029,7 +4120,7 @@ class UiManager {
 			page += `<tbody id='deviceconfigpage'>`;
 			const configTime = dev.config.time;
 			if (configTime) {
-				const configDate = new Date(configTime).toUTCString();
+				const configDate = formatDateTime(configTime);
 				const lastTime = dev.getLastModifiedTime();
 				let cls = "";
 				let mark = "";
