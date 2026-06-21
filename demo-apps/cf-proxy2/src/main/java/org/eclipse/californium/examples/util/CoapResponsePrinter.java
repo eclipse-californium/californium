@@ -37,16 +37,18 @@ public class CoapResponsePrinter {
 	public static void printResponse(CoapResponse response) {
 		if (response != null) {
 			byte[] etag = response.getOptions().getResponseEtag();
-			try {
-				for (byte e : etag) {
-					if (' ' > e) {
-						throw new Error("no ascii!");
+			if (etag != null) {
+				try {
+					for (byte e : etag) {
+						if (' ' > e) {
+							throw new Error("no ascii!");
+						}
 					}
+					String text = new String(etag, ISO_8859_1);
+					System.out.println("etag: '" + text + "', 0x" + StringUtil.byteArray2Hex(etag));
+				} catch (Error e) {
+					System.out.println("etag: 0x" + StringUtil.byteArray2Hex(etag));
 				}
-				String text = new String(etag, ISO_8859_1);
-				System.out.println("etag: '" + text + "', 0x" + StringUtil.byteArray2Hex(etag));
-			} catch (Error e) {
-				System.out.println("etag: 0x" + StringUtil.byteArray2Hex(etag));
 			}
 			int format = response.getOptions().getContentFormat();
 			if (format != MediaTypeRegistry.TEXT_PLAIN && format != MediaTypeRegistry.UNDEFINED) {
