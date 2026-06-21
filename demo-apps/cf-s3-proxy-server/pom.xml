@@ -20,7 +20,7 @@
 		<skipStaging>false</skipStaging>
 		<skipPublishing>false</skipPublishing>
 		<maven.javadoc.skip>false</maven.javadoc.skip>
-		<aws.sdk.version>2.30.33</aws.sdk.version>
+		<aws.sdk.version>2.46.15</aws.sdk.version>
 	</properties>
 
 	<dependencies>
