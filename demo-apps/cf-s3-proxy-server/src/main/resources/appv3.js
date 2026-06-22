@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.40.0, 29. May 2026";
+const version = "Version 3 0.41.0, 23. June 2026";
 
 /**
  * Timeshift relative to server time.
@@ -1065,6 +1065,8 @@ class DeviceMessage {
 	static scaleBIndex = getChartConfigIndex("kg B");
 	static retransIndex = getChartConfigIndex("Retr.");
 
+	static rsrpIndex = getChartConfigIndex("dBm");
+
 	static parseValueSet(line, values, time) {
 		let foundValues = 0;
 		for (let i = 0; i < chartConfig.length; ++i) {
@@ -1315,6 +1317,7 @@ class DeviceMessage {
 					status.batteryLevel = this.values.at(DeviceMessage.levelIndex + 1);
 					status.weight = this.values.at(DeviceMessage.scaleAIndex + 1);
 					status.temperature = this.values.at(DeviceMessage.tempIndex + 1);
+					status.rsrp = this.values.at(DeviceMessage.rsrpIndex + 1);
 				}
 				this.status = status;
 			}
@@ -1338,6 +1341,7 @@ class DeviceMessage {
 			details.batteryLevel = status.batteryLevel;
 			details.weight = status.weight;
 			details.temperature = status.temperature;
+			details.rsrp = status.rsrp;
 			details.net = "";
 			details.band = "";
 			if (status.network) {
@@ -3073,6 +3077,10 @@ class UiList {
 		return compareItem(dev1.getDetail("band"), dev2.getDetail("band"));
 	}
 
+	cmpRsrp(dev1, dev2) {
+		return compareItem(dev1.getDetail("rsrp"), dev2.getDetail("rsrp"));
+	}
+
 	cmpUptime(dev1, dev2) {
 		return compareItem(dev1.getDetail("uptime"), dev2.getDetail("uptime"));
 	}
@@ -3161,6 +3169,10 @@ class UiList {
 				++cols;
 				page += button("cmpUptime", "Uptime")
 			}
+			if (details.rsrp) {
+				++cols;
+				page += button("cmpRsrp", "RSRP")
+			}
 			if (details.battery) {
 				++cols;
 				page += button("cmpBattery", "Bat.")
@@ -3211,6 +3223,10 @@ class UiList {
 				if (details.uptime) {
 					const uptime = info.uptime ? info.uptime + " [d]" : "";
 					page += `<td align=right>${uptime}</td>`;
+				}
+				if (details.rsrp) {
+					const rsrp = info.rsrp != null ? info.rsrp + " dBm" : "";
+					page += `<td align=right>&nbsp;${rsrp}</td>`;
 				}
 				if (details.battery) {
 					const level = info.batteryLevel != null ? info.batteryLevel + "%" : "";
@@ -3765,6 +3781,7 @@ class UiManager {
 			details.provider = true;
 			details.operator = true;
 			details.band = true;
+			details.rsrp = true;
 			details.uptime = true;
 			details.battery = true;
 			details.weight = false;
