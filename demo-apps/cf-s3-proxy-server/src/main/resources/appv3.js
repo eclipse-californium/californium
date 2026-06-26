@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.41.0, 23. June 2026";
+const version = "Version 3 0.43.0, 25. June 2026";
 
 /**
  * Timeshift relative to server time.
@@ -23,29 +23,29 @@ const version = "Version 3 0.41.0, 23. June 2026";
 let timeShift = 0;
 
 const dateTimeOptions = {
-  weekday: "short",
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  timeZone: "UTC",
-  timeZoneName: "short",
+	weekday: "short",
+	year: "numeric",
+	month: "short",
+	day: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit",
+	timeZone: "UTC",
+	timeZoneName: "short",
 };
 
 const timeOptions = {
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  timeZone: "UTC",
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit",
+	timeZone: "UTC",
 };
 
 const dateOptions = {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "UTC",
+	year: "numeric",
+	month: "2-digit",
+	day: "2-digit",
+	timeZone: "UTC",
 };
 
 const locals = undefined; // new Intl.Locale(navigator.locals);
@@ -823,13 +823,14 @@ const regexDateEnding = /-([0-9]{2,4}-[0-1][0-9]-[0-3][0-9])(Z(.gz)?|\+[0-9]+(.g
  * sides[3] : both
  */
 class ChartConfig {
-	constructor(regex, label, units, color, min, max, sides, scale = 1, text) {
+	constructor(regex, label, units, color, min, max, center, sides, scale = 1, text) {
 		this.regex = regex;
 		this.label = label;
 		this.units = units;
 		this.color = color;
 		this.min = min;
 		this.max = max;
+		this.center = center;
 		this.sides = sides;
 		this.scale = scale;
 		this.text = text;
@@ -841,22 +842,22 @@ class ChartConfig {
 }
 
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", "blue", 3400, 4300, [1, 3, 0, 1], 1000),
-	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", "navy", 20, 100, [1, 1, 0, 1]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", "red", 10, 40, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", "green", 10, 80, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", "SkyBlue", 900, 1100, [4, 0, 3, 4]),
-	new ChartConfig(null, "dew point in °C", "°C dp", "steelblue", 10, 40, [0, 0, 4, 0], 1, "dew point"),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "IAQ", "lightblue", 0, 500, [1, 0, 2, 2]),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", "orange", -125, -75, [0, 4, 0, 1]),
-	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "SNR in dB", "dB", "gold", -15, 15, [0, 4, 0, 1]),
-	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "energy in mAs", "mAs", "DarkGoldenrod", 50, 400, [1, 3, 0, 1]),
-	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "quiescent energy in mAs", "mAs0", "tomato", 50, 400, [0, 3, 0, 1]),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", "olive", 0, 50, [4, 0, 4, 4]),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", "teal", 0, 50, [4, 0, 4, 4]),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", "lime", 8000, 16000, [4, 0, 4, 4], 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", "red", 0, 3, [0, 3, 0, 1], 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", "salmon", 0, 60000, [2, 4, 0, 1], 1000),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", "blue", 3400, 4300, false, [1, 3, 0, 1], 1000),
+	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", "navy", 20, 100, false, [1, 1, 0, 1]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", "red", 10, 40, false, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", "green", 10, 80, false, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", "SkyBlue", 900, 1100, false, [4, 0, 3, 4]),
+	new ChartConfig(null, "dew point in °C", "°C dp", "steelblue", 10, 40, false, [0, 0, 4, 0], 1, "dew point"),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "IAQ", "lightblue", 0, 500, false, [1, 0, 2, 2]),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", "orange", -125, -75, true, [0, 4, 0, 1]),
+	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "SNR in dB", "dB", "gold", -15, 15, false, [0, 4, 0, 1]),
+	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "energy in mAs", "mAs", "DarkGoldenrod", 50, 400, false, [1, 3, 0, 1]),
+	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "quiescent energy in mAs", "mAs0", "tomato", 50, 400, false, [0, 3, 0, 1]),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", "olive", 25, 50, true, [4, 0, 4, 4]),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", "teal", 25, 50, true, [4, 0, 4, 4]),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", "lime", 8000, 16000, false, [4, 0, 4, 4], 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", "red", 0, 3, false, [0, 3, 0, 1], 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", "salmon", 0, 60000, false, [2, 4, 0, 1], 1000),
 ];
 
 function getChartConfigIndex(units) {
@@ -2523,17 +2524,33 @@ class UiChart {
 		return 10;
 	}
 
-	normalizeRange(starts, ends, i) {
-		const cfg = chartConfig[i - 1];
-		starts[i] = minOr(cfg.min, starts[i]);
-		ends[i] = maxOr(cfg.max, ends[i]);
-	}
 
 	zoomRange(starts, ends, i) {
 		const range = ends[i] - starts[i];
 		const extraRange = (range ? range : (Math.abs(starts[i]))) / 20;
 		starts[i] -= extraRange;
 		ends[i] += extraRange;
+	}
+
+	normalizeRange(starts, ends, i) {
+		this.zoomRange(starts, ends, i);
+		if (!this.zoom) {
+			const cfg = chartConfig[i - 1];
+			if (cfg.center) {
+				const cfgRange = cfg.max - cfg.min;
+				const range = ends[i] - starts[i];
+
+				if (cfgRange > range) {
+					if (cfg.min > starts[i] || ends[i] > cfg.max) {
+						starts[i] -= (cfgRange - range) / 2;
+						ends[i] = starts[i] + cfgRange;
+						return;
+					}
+				}
+			}
+			starts[i] = minOr(cfg.min, starts[i]);
+			ends[i] = maxOr(cfg.max, ends[i]);
+		}
 	}
 
 	alignChannels(cha, chb, starts, ends) {
@@ -2547,7 +2564,7 @@ class UiChart {
 			let delta10 = Math.abs(ends[b] - starts[b]);
 			let threshold = Math.min(delta11, delta10) * 8;
 			if (deltaStart < threshold && deltaEnd < threshold) {
-				/* align weights */
+				/* align channels */
 				console.log("Align " + cha + "/" + chb + ": " + threshold + ": " + deltaStart + " ... " + deltaEnd);
 				starts[a] = (starts[b] = Math.min(starts[a], starts[b]));
 				ends[a] = (ends[b] = Math.max(ends[a], ends[b]));
@@ -2574,8 +2591,6 @@ class UiChart {
 		const coordinates = Array(numberOfSensors);
 		const paths = Array(numberOfSensors);
 		let transform = null;
-
-		const cha = getChartConfigIndex("kg A") + 1;
 
 		paths.fill("");
 
@@ -2712,14 +2727,8 @@ class UiChart {
 		this.alignChannels("kg A", "kg B", starts, ends);
 		this.alignChannels("°C", "°C dp", starts, ends);
 
-		if (this.zoom) {
-			for (let i = 1; i < numberOfSensors; ++i) {
-				this.zoomRange(starts, ends, i);
-			}
-		} else {
-			for (let i = 1; i < numberOfSensors; ++i) {
-				this.normalizeRange(starts, ends, i);
-			}
+		for (let i = 1; i < numberOfSensors; ++i) {
+			this.normalizeRange(starts, ends, i);
 		}
 		device.starts = starts;
 		device.ends = ends;
@@ -2968,7 +2977,7 @@ class UiChart {
 	}
 
 	mark(dateTimeMillis, x, y) {
-   		const dateTimeParts = splitDateTime(dateTimeMillis);
+		const dateTimeParts = splitDateTime(dateTimeMillis);
 		const date = dateTimeParts[0];
 		const time = dateTimeParts[1];
 		return `
