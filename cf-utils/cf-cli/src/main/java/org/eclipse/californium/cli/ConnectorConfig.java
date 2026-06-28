@@ -36,6 +36,7 @@ import org.eclipse.californium.elements.util.SslContextUtil.IncompleteCredential
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsSecureRenegotiation;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
@@ -159,6 +160,14 @@ public class ConnectorConfig implements Cloneable {
 	 */
 	@Option(names = "--extended-master-secret", description = "Specify usage of extended master secret.")
 	public ExtendedMasterSecretMode extendedMasterSecretMode;
+
+	/**
+	 * Specify extended master secret mode.
+	 * 
+	 * @since 4.0
+	 */
+	@Option(names = "--secure-renegotiation", description = "Specify usage of secure renegotiation.")
+	public DtlsSecureRenegotiation secureRenegotiationMode;
 
 	/**
 	 * Use CID .

@@ -359,6 +359,9 @@ public class ClientInitializer {
 			if (clientConfig.extendedMasterSecretMode != null) {
 				config.set(DtlsConfig.DTLS_EXTENDED_MASTER_SECRET_MODE, clientConfig.extendedMasterSecretMode);
 			}
+			if (clientConfig.secureRenegotiationMode != null) {
+				config.set(DtlsConfig.DTLS_SECURE_RENEGOTIATION, clientConfig.secureRenegotiationMode);
+			}
 
 			DtlsConnectorConfig.Builder dtlsConfig = DtlsConnectorConfig.builder(config);
 			StaticCertificateVerifier.Builder verifierBuilder = StaticCertificateVerifier
