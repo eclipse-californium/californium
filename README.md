@@ -157,7 +157,7 @@ More information can be found at [http://coap.me/](http://coap.me/).
 
 ## Interop Server - (D)TLS Support
 
-The server uses the [x509 Demo Certificates](/demo_certs), which are usually recreated and replaced once a year.
+The server uses the [x509 Demo Certificates](/demo-certs), which are usually recreated and replaced once a year.
 And the PSK credentials:
 
 | Identity | Secret | Remark |
@@ -171,23 +171,23 @@ And the PSK credentials:
 
 ```
 Bag Attributes
-    friendlyName: C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-ca
+    friendlyName: ca
+    localKeyID: 54 69 6D 65 20 31 37 36 32 36 32 33 37 37 30 34 37 35 
 subject=CN = cf-ca, OU = Californium, O = Eclipse IoT, L = Ottawa, C = CA
-
 issuer=CN = cf-root, OU = Californium, O = Eclipse IoT, L = Ottawa, C = CA
-
 -----BEGIN CERTIFICATE-----
-MIICDDCCAbKgAwIBAgIIPKO8L7vZoqAwCgYIKoZIzj0EAwIwXDEQMA4GA1UEAxMH
-Y2Ytcm9vdDEUMBIGA1UECxMLQ2FsaWZvcm5pdW0xFDASBgNVBAoTC0VjbGlwc2Ug
-SW9UMQ8wDQYDVQQHEwZPdHRhd2ExCzAJBgNVBAYTAkNBMB4XDTIzMTAyNjA4MDgx
-NVoXDTI1MTAyNTA4MDgxNVowWjEOMAwGA1UEAxMFY2YtY2ExFDASBgNVBAsTC0Nh
-bGlmb3JuaXVtMRQwEgYDVQQKEwtFY2xpcHNlIElvVDEPMA0GA1UEBxMGT3R0YXdh
-MQswCQYDVQQGEwJDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLCbJjxIS4hI
-AnRFTlx23gkd4zyFd50zdpTnoUPz19oQ1o1youavC5Go9vrYoWxyx+zpph8T4brB
-C/mZGIgPVMOjYDBeMB0GA1UdDgQWBBSxVzoI1TL87++hsUb9vQwqODzgUTALBgNV
-HQ8EBAMCAQYwDwYDVR0TBAgwBgEB/wIBATAfBgNVHSMEGDAWgBTqNhC1fqOTsHRn
-IVZ9OabfWsxpcTAKBggqhkjOPQQDAgNIADBFAiBSEn3egc31JhhHTVYi5uhl0t4d
-ewujkEmwzBuruzf/xAIhAK/fXy2tsNoyLitFQ97x6LYV25jKmLKUlhL2mC/PwQdO
+MIICDTCCAbOgAwIBAgIJAN/xNdMmyGosMAoGCCqGSM49BAMCMFwxEDAOBgNVBAMT
+B2NmLXJvb3QxFDASBgNVBAsTC0NhbGlmb3JuaXVtMRQwEgYDVQQKEwtFY2xpcHNl
+IElvVDEPMA0GA1UEBxMGT3R0YXdhMQswCQYDVQQGEwJDQTAeFw0yNTExMDgxNzQy
+MzJaFw0yNzExMDgxNzQyMzJaMFoxDjAMBgNVBAMTBWNmLWNhMRQwEgYDVQQLEwtD
+YWxpZm9ybml1bTEUMBIGA1UEChMLRWNsaXBzZSBJb1QxDzANBgNVBAcTBk90dGF3
+YTELMAkGA1UEBhMCQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASGDRSaAwqw
+YbHFINVtW6KBlTzDKaqAHkht+uUSNbxSJ0knZWGryN6Yh9Yr9hVWuLISU+wgRGeQ
+VkbqLayYeblho2AwXjAdBgNVHQ4EFgQUACnG3s0PBolKWtvNau95f+FS82wwCwYD
+VR0PBAQDAgEGMA8GA1UdEwQIMAYBAf8CAQEwHwYDVR0jBBgwFoAUposv5N2Gh2sc
+WrTeq+rnyLQFqswwCgYIKoZIzj0EAwIDSAAwRQIgXFArni5Cl9gH/buJJ1g2shRn
+iBc6EzTkuU8sp1lN1msCIQDmczdlYL9UuBRjOzR5Yj8l86g47AeDlXwQiTicj+B2
+cg==
 -----END CERTIFICATE-----
 ```
 
