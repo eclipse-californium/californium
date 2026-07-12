@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.43.0, 25. June 2026";
+const version = "Version 3 0.45.0, 3. July 2026";
 
 /**
  * Timeshift relative to server time.
@@ -823,10 +823,11 @@ const regexDateEnding = /-([0-9]{2,4}-[0-1][0-9]-[0-3][0-9])(Z(.gz)?|\+[0-9]+(.g
  * sides[3] : both
  */
 class ChartConfig {
-	constructor(regex, label, units, color, min, max, center, sides, scale = 1, text) {
+	constructor(regex, label, units, digits, color, min, max, center, sides, scale = 1, text) {
 		this.regex = regex;
 		this.label = label;
 		this.units = units;
+		this.digits = digits;
 		this.color = color;
 		this.min = min;
 		this.max = max;
@@ -842,27 +843,41 @@ class ChartConfig {
 }
 
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", "blue", 3400, 4300, false, [1, 3, 0, 1], 1000),
-	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", "navy", 20, 100, false, [1, 1, 0, 1]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", "red", 10, 40, false, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", "green", 10, 80, false, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", "SkyBlue", 900, 1100, false, [4, 0, 3, 4]),
-	new ChartConfig(null, "dew point in °C", "°C dp", "steelblue", 10, 40, false, [0, 0, 4, 0], 1, "dew point"),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "IAQ", "lightblue", 0, 500, false, [1, 0, 2, 2]),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", "orange", -125, -75, true, [0, 4, 0, 1]),
-	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "SNR in dB", "dB", "gold", -15, 15, false, [0, 4, 0, 1]),
-	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "energy in mAs", "mAs", "DarkGoldenrod", 50, 400, false, [1, 3, 0, 1]),
-	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "quiescent energy in mAs", "mAs0", "tomato", 50, 400, false, [0, 3, 0, 1]),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", "olive", 25, 50, true, [4, 0, 4, 4]),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", "teal", 25, 50, true, [4, 0, 4, 4]),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", "lime", 8000, 16000, false, [4, 0, 4, 4], 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", "red", 0, 3, false, [0, 3, 0, 1], 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", "salmon", 0, 60000, false, [2, 4, 0, 1], 1000),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", 2, "blue", 3400, 4300, false, [1, 3, 0, 1], 1000),
+	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", 0, "navy", 20, 100, false, [1, 1, 0, 1]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", 1, "red", 10, 40, false, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", 1, "green", 10, 80, false, [4, 0, 3, 4]),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", 0, "SkyBlue", 900, 1100, false, [4, 0, 3, 4]),
+	new ChartConfig(null, "dew point in °C", "°C dp", 1, "steelblue", 10, 40, false, [0, 0, 4, 0], 1, "dew point"),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "IAQ", 0, "lightblue", 0, 500, false, [1, 0, 2, 2]),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", 0, "orange", -125, -75, true, [0, 4, 0, 1]),
+	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "SNR in dB", "dB", 1, "gold", -15, 15, false, [0, 4, 0, 1]),
+	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "energy in mAs", "mAs", 0, "DarkGoldenrod", 50, 400, false, [1, 3, 0, 1]),
+	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "quiescent energy in mAs", "mAs0", 0, "tomato", 50, 400, false, [0, 3, 0, 1]),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", 2, "olive", 25, 50, true, [4, 0, 4, 4]),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", 2, "teal", 25, 50, true, [4, 0, 4, 4]),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", 1, "lime", 8000, 16000, false, [4, 0, 4, 4], 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", 0, "red", 0, 3, false, [0, 3, 0, 1], 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", 0, "salmon", 0, 60000, false, [2, 4, 0, 1], 1000),
 ];
 
 function getChartConfigIndex(units) {
 	return chartConfig.findIndex((cfg) => cfg.units == units);
 }
+
+const voltageIndex = getChartConfigIndex("mV");
+const levelIndex = getChartConfigIndex("%");
+const tempIndex = getChartConfigIndex("°C");
+const humIndex = getChartConfigIndex("%H");
+const presIndex = getChartConfigIndex("hPa");
+const dewPointIndex = getChartConfigIndex("°C dp");
+
+const scaleAIndex = getChartConfigIndex("kg A");
+const scaleBIndex = getChartConfigIndex("kg B");
+const retransIndex = getChartConfigIndex("Retr.");
+
+const rsrpIndex = getChartConfigIndex("dBm");
+
 
 const defaultProviderMap = new Map();
 defaultProviderMap.set("em", "EMnify");
@@ -875,6 +890,7 @@ defaultProviderMap.set("ibasis.iot", "iBASIS");
 defaultProviderMap.set("internet.m2mportal.de", "DTAG");
 defaultProviderMap.set("iot.1nce.net", "1nce");
 defaultProviderMap.set("iot.melita.io", "Melita");
+defaultProviderMap.set("iotsim.melita.io", "sMelita");
 defaultProviderMap.set("iot.truphone.com", "TruPhone");
 defaultProviderMap.set("onomondo", "Ono");
 defaultProviderMap.set("public4.m2minternet.com", "Spider");
@@ -1035,6 +1051,10 @@ class DeviceMessage {
 		return value != null && 1000 <= value && value <= 30000;
 	}
 
+	static isBatteryLevelValue(value) {
+		return value != null && 0 <= value && value <= 100;
+	}
+
 	static isTempValue(value) {
 		return value != null && -40.0 <= value && value <= 85.0;
 	}
@@ -1055,19 +1075,6 @@ class DeviceMessage {
 		return value != null && 0 <= value && value < 10;
 	}
 
-	static voltageIndex = getChartConfigIndex("mV");
-	static levelIndex = getChartConfigIndex("%");
-	static tempIndex = getChartConfigIndex("°C");
-	static humIndex = getChartConfigIndex("%H");
-	static presIndex = getChartConfigIndex("hPa");
-	static dewPointIndex = getChartConfigIndex("°C dp");
-
-	static scaleAIndex = getChartConfigIndex("kg A");
-	static scaleBIndex = getChartConfigIndex("kg B");
-	static retransIndex = getChartConfigIndex("Retr.");
-
-	static rsrpIndex = getChartConfigIndex("dBm");
-
 	static parseValueSet(line, values, time) {
 		let foundValues = 0;
 		for (let i = 0; i < chartConfig.length; ++i) {
@@ -1078,7 +1085,7 @@ class DeviceMessage {
 					if (n !== undefined) {
 						values[i] = n;
 						++foundValues;
-						if (i == DeviceMessage.tempIndex && n > 40) {
+						if (i == tempIndex && n > 40) {
 							console.warn("Temp " + n);
 							console.warn("'" + line + "'");
 							console.warn(new Date(time).toISOString());
@@ -1104,54 +1111,59 @@ class DeviceMessage {
 		let hum = null;
 		let sensors = 0;
 
-		if (DeviceMessage.isValue(line[DeviceMessage.humIndex])) {
+		if (DeviceMessage.isValue(line[humIndex])) {
 			++sensors;
-			hum = line[DeviceMessage.humIndex];
+			hum = line[humIndex];
 		} else {
-			if (DeviceMessage.removeSensor(line, DeviceMessage.humIndex)) {
+			if (DeviceMessage.removeSensor(line, humIndex)) {
 				++removed;
 			}
 		}
-		if (DeviceMessage.isAirPressureValue(line[DeviceMessage.presIndex])) {
+		if (DeviceMessage.isAirPressureValue(line[presIndex])) {
 			++sensors;
 		} else {
-			if (DeviceMessage.removeSensor(line, DeviceMessage.presIndex)) {
+			if (DeviceMessage.removeSensor(line, presIndex)) {
 				++removed;
 			}
 		}
-		if (DeviceMessage.isTempValue(line[DeviceMessage.tempIndex])) {
+		if (DeviceMessage.isTempValue(line[tempIndex])) {
 			++sensors;
-			temp = line[DeviceMessage.tempIndex];
+			temp = line[tempIndex];
 		} else {
-			if (DeviceMessage.removeSensor(line, DeviceMessage.tempIndex)) {
+			if (DeviceMessage.removeSensor(line, tempIndex)) {
 				++removed;
 			}
 		}
 
 		if (temp != null && hum != null) {
-			line[DeviceMessage.dewPointIndex] = calcDewPoint(temp, hum);
+			line[dewPointIndex] = calcDewPoint(temp, hum);
 		}
 
-		if (!DeviceMessage.isScaleValue(line[DeviceMessage.scaleAIndex])) {
-			if (DeviceMessage.removeSensor(line, DeviceMessage.scaleAIndex)) {
+		if (!DeviceMessage.isScaleValue(line[scaleAIndex])) {
+			if (DeviceMessage.removeSensor(line, scaleAIndex)) {
 				++removed;
 			}
 		}
-		if (!DeviceMessage.isScaleValue(line[DeviceMessage.scaleBIndex])) {
-			if (DeviceMessage.removeSensor(line, DeviceMessage.scaleBIndex)) {
+		if (!DeviceMessage.isScaleValue(line[scaleBIndex])) {
+			if (DeviceMessage.removeSensor(line, scaleBIndex)) {
 				++removed;
 			}
 		}
-		if (!DeviceMessage.isRetransValue(line[DeviceMessage.retransIndex])) {
-			if (DeviceMessage.removeSensor(line, DeviceMessage.retransIndex)) {
+		if (!DeviceMessage.isRetransValue(line[retransIndex])) {
+			if (DeviceMessage.removeSensor(line, retransIndex)) {
 				++removed;
 			}
 		}
-		if (!DeviceMessage.isVoltageValue(line[DeviceMessage.voltageIndex])) {
-			if (DeviceMessage.removeSensor(line, DeviceMessage.voltageIndex)) {
+		if (!DeviceMessage.isVoltageValue(line[voltageIndex])) {
+			if (DeviceMessage.removeSensor(line, voltageIndex)) {
 				++removed;
 			}
-			if (DeviceMessage.removeSensor(line, DeviceMessage.levelIndex)) {
+			if (DeviceMessage.removeSensor(line, levelIndex)) {
+				++removed;
+			}
+		}
+		if (!DeviceMessage.isBatteryLevelValue(line[levelIndex])) {
+			if (DeviceMessage.removeSensor(line, levelIndex)) {
 				++removed;
 			}
 		}
@@ -1315,10 +1327,10 @@ class DeviceMessage {
 					}
 				});
 				if (this.values) {
-					status.batteryLevel = this.values.at(DeviceMessage.levelIndex + 1);
-					status.weight = this.values.at(DeviceMessage.scaleAIndex + 1);
-					status.temperature = this.values.at(DeviceMessage.tempIndex + 1);
-					status.rsrp = this.values.at(DeviceMessage.rsrpIndex + 1);
+					status.batteryLevel = this.values.at(levelIndex + 1);
+					status.weight = this.values.at(scaleAIndex + 1);
+					status.temperature = this.values.at(tempIndex + 1);
+					status.rsrp = this.values.at(rsrpIndex + 1);
 				}
 				this.status = status;
 			}
@@ -2525,31 +2537,37 @@ class UiChart {
 	}
 
 
-	zoomRange(starts, ends, i) {
-		const range = ends[i] - starts[i];
-		const extraRange = (range ? range : (Math.abs(starts[i]))) / 20;
-		starts[i] -= extraRange;
-		ends[i] += extraRange;
-	}
-
 	normalizeRange(starts, ends, i) {
-		this.zoomRange(starts, ends, i);
-		if (!this.zoom) {
+		if (starts[i] != null && ends[i] != null) {
 			const cfg = chartConfig[i - 1];
-			if (cfg.center) {
-				const cfgRange = cfg.max - cfg.min;
-				const range = ends[i] - starts[i];
-
-				if (cfgRange > range) {
-					if (cfg.min > starts[i] || ends[i] > cfg.max) {
-						starts[i] -= (cfgRange - range) / 2;
-						ends[i] = starts[i] + cfgRange;
-						return;
-					}
+			let range = ends[i] - starts[i];
+			if (ends[i] == starts[i]) {
+				if (starts[i]) {
+					range = starts[i];
+				} else {
+					range = cfg.min ? cfg.min : cfg.max;
 				}
 			}
-			starts[i] = minOr(cfg.min, starts[i]);
-			ends[i] = maxOr(cfg.max, ends[i]);
+			const extraRange = range / 20;
+			console.log(`range ${range}, ${extraRange} ${cfg.units} ${starts[i]} ${ends[i]}`);
+			starts[i] -= extraRange;
+			ends[i] += extraRange;
+			if (!this.zoom) {
+				if (cfg.center) {
+					const cfgRange = cfg.max - cfg.min;
+					const valueRange = ends[i] - starts[i];
+
+					if (cfgRange > valueRange) {
+						if (cfg.min > starts[i] || ends[i] > cfg.max) {
+							starts[i] -= (cfgRange - valueRange) / 2;
+							ends[i] = starts[i] + cfgRange;
+							return;
+						}
+					}
+				}
+				starts[i] = minOr(cfg.min, starts[i]);
+				ends[i] = maxOr(cfg.max, ends[i]);
+			}
 		}
 	}
 
@@ -2571,7 +2589,8 @@ class UiChart {
 			} else {
 				console.log("No Align " + cha + "/" + chb + ": " + threshold + ": " + deltaStart + " ... " + deltaEnd);
 			}
-		} else {
+		} else if (starts[a] != null || starts[b] != null ||
+			ends[a] != null || ends[b] != null) {
 			console.log("No Align " + cha + "/" + chb);
 		}
 	}
@@ -2616,6 +2635,7 @@ class UiChart {
 			const yMax = Array(numberOfSensors);
 			const ySum = Array(numberOfSensors);
 			const nSum = Array(numberOfSensors);
+			const sideIndex = (this.signals ? 1 : 0) + (this.sensors ? 2 : 0);
 
 			gap.fill(1);
 			times.fill(0);
@@ -2631,55 +2651,58 @@ class UiChart {
 				const values = msg.values;
 				for (let i = 1; i < values.length; ++i) {
 					const cfg = chartConfig[i - 1];
-					const minmax = this.minmax && cfg.scale;
-					const valueHist = cfg.scale ? hist : 1
-					const t = values[i];
-					if (t != null) {
-						if (minmax) {
-							yMin[i] = minOr(t, yMin[i]);
-							yMax[i] = maxOr(t, yMax[i]);
-						} else {
-							ySum[i][0] += t;
-							nSum[i][0]++;
-						}
-						if (gap[i] == 0) {
-							gap[i] = (time - times[i]) > (dayInMillis + 600000) ? 1 : 0;
-						}
-						times[i] = time;
+					if (cfg.side(sideIndex)) {
 
-						if (coordinates[i].length == 0 || coordinates[i].at(-1)[0] < x) {
-							const point = Array(minmax ? 4 : 3);
-							point[0] = x;
-							point[1] = gap[i];
-							gap[i] = 0;
+						const minmax = this.minmax && cfg.scale;
+						const valueHist = cfg.scale ? hist : 1
+						const t = values[i];
+						if (t != null) {
 							if (minmax) {
-								starts[i] = minOr(yMin[i], starts[i]);
-								ends[i] = maxOr(yMax[i], ends[i]);
-								point[2] = yMin[i];
-								point[3] = yMax[i];
-								yMin[i] = null;
-								yMax[i] = null;
+								yMin[i] = minOr(t, yMin[i]);
+								yMax[i] = maxOr(t, yMax[i]);
 							} else {
-								let sum = ySum[i][0];
-								let n = nSum[i][0];
-								//								const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 2);
-								const m = ySum[i].length;
-								for (let index = 1; index < m; ++index) {
-									sum += ySum[i][index];
-									n += nSum[i][index];
-								}
-								const avg = sum / n;
-								starts[i] = minOr(avg, starts[i]);
-								ends[i] = maxOr(avg, ends[i]);
-								point[2] = avg;
-								ySum[i].unshift(0);
-								nSum[i].unshift(0);
-								if (ySum[i].length > valueHist) {
-									ySum[i].pop();
-									nSum[i].pop();
-								}
+								ySum[i][0] += t;
+								nSum[i][0]++;
 							}
-							coordinates[i].push(point);
+							if (gap[i] == 0) {
+								gap[i] = (time - times[i]) > (dayInMillis + 600000) ? 1 : 0;
+							}
+							times[i] = time;
+
+							if (coordinates[i].length == 0 || coordinates[i].at(-1)[0] < x) {
+								const point = Array(minmax ? 4 : 3);
+								point[0] = x;
+								point[1] = gap[i];
+								gap[i] = 0;
+								if (minmax) {
+									starts[i] = minOr(yMin[i], starts[i]);
+									ends[i] = maxOr(yMax[i], ends[i]);
+									point[2] = yMin[i];
+									point[3] = yMax[i];
+									yMin[i] = null;
+									yMax[i] = null;
+								} else {
+									let sum = ySum[i][0];
+									let n = nSum[i][0];
+									//								const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 2);
+									const m = ySum[i].length;
+									for (let index = 1; index < m; ++index) {
+										sum += ySum[i][index];
+										n += nSum[i][index];
+									}
+									const avg = sum / n;
+									starts[i] = minOr(avg, starts[i]);
+									ends[i] = maxOr(avg, ends[i]);
+									point[2] = avg;
+									ySum[i].unshift(0);
+									nSum[i].unshift(0);
+									if (ySum[i].length > valueHist) {
+										ySum[i].pop();
+										nSum[i].pop();
+									}
+								}
+								coordinates[i].push(point);
+							}
 						}
 					}
 				}
@@ -2689,7 +2712,7 @@ class UiChart {
 				const chartTimeShift = Math.floor(hist / 2);
 				for (let i = 1; i < numberOfSensors; ++i) {
 					const cfg = chartConfig[i - 1];
-					if (cfg.scale && coordinates[i].length > chartTimeShift) {
+					if (cfg.side(sideIndex) && cfg.scale && coordinates[i].length > chartTimeShift) {
 						// new end point
 						const point = Array(3);
 						const last = coordinates[i].at(-1);
@@ -2839,8 +2862,8 @@ class UiChart {
 
 		let page =
 			`<tr><td colspan='4'>${statusDateTime}</td><td>${interval}</td></tr>
-<tr><td><input type='checkbox' id='cbsignals' onClick='ui.onClick("signals", false)' ${this.signals ? 'checked' : ''}><label for='cbsignals'>Signals</label></td>
-<td><input type='checkbox' id='cbsensors' onClick='ui.onClick("sensors", false)' ${this.sensors ? 'checked' : ''}><label for='cbsensors'>Sensors</label></td>
+<tr><td><input type='checkbox' id='cbsignals' onClick='ui.onClick("signals", true)' ${this.signals ? 'checked' : ''}><label for='cbsignals'>Signals</label></td>
+<td><input type='checkbox' id='cbsensors' onClick='ui.onClick("sensors", true)' ${this.sensors ? 'checked' : ''}><label for='cbsensors'>Sensors</label></td>
 <td><input type='checkbox' id='cbrange1' onClick='ui.onClick("average", true)' ${this.average ? 'checked' : ''}><label for='cbrange1'>Average</label></td>
 <td><input type='checkbox' id='cbrange2' onClick='ui.onClick("minmax", true)' ${this.minmax ? 'checked' : ''}><label for='cbrange2'>Min/Max</label></td>
 <td><input type='checkbox' id='cbzoom' onClick='ui.onClick("zoom", true)' ${this.zoom ? 'checked' : ''}><label for='cbzomm'>Zoom</label></td></tr>`;
@@ -2899,37 +2922,23 @@ class UiChart {
 					const d = (dev.ends[i] - dev.starts[i]);
 					const labels = side[0];
 					const labelIndex = ++side[1];
+					const u = cfg.scale == 1000 ? strip(cfg.units, "m") : cfg.units;
 					let hl = (labels == 1) ? gh / 2 : (labels > 3) ? gh * 2 : gh;
 					let yn = labelIndex * (hl / labels);
-					if (cfg.scale) {
-						function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]) / cfg.scale; };
-						let digits = dev.starts[i] >= 100 ? 0 : 1;
-						if (d > 0) {
-							const diffDigits = Math.ceil(-Math.log10(d / cfg.scale)) + 1;
-							digits = Math.max(digits, isFinite(diffDigits) ? diffDigits : 0);
+					function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]) / cfg.scale; };
+					let digits = cfg.digits;
+					if (d > 0) {
+						const diffDigits = Math.ceil(-Math.log10(d / cfg.scale)) + 1;
+						if (isFinite(diffDigits) && diffDigits > 0) {
+							digits = Math.min(digits, diffDigits);
 						}
-						const u = cfg.scale == 1000 ? strip(cfg.units, "m") : cfg.units;
-						for (; yn < ch; yn += hl) {
-							let value = calc(yn);
-							value = value.toFixed(digits);
-							const v = value + " " + u;
-							const l = side == left;
-							page += this.scala(l, color, l ? x : x + cw, l ? 0 : w, yn, v)
-						}
-					} else {
-						if (d < cols) {
-							hl = (ch / d);
-							yn = hl;
-						}
-						function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]); };
-						const u = cfg.units;
-						for (; yn < ch; yn += hl) {
-							let value = calc(yn);
-							value = value.toFixed(0);
-							const v = value + " " + u;
-							const l = side == left;
-							page += this.scala(l, color, l ? x : x + cw, l ? 0 : w, yn, v)
-						}
+					}
+					for (; yn < ch; yn += hl) {
+						let value = calc(yn);
+						value = value.toFixed(digits);
+						const v = value + " " + u;
+						const l = side == left;
+						page += this.scala(l, color, l ? x : x + cw, l ? 0 : w, yn, v)
 					}
 				}
 			}
@@ -3234,19 +3243,19 @@ class UiList {
 					page += `<td align=right>${uptime}</td>`;
 				}
 				if (details.rsrp) {
-					const rsrp = info.rsrp != null ? info.rsrp + " dBm" : "";
+					const rsrp = info.rsrp != null ? info.rsrp.toFixed(chartConfig[rsrpIndex].digits) + " dBm" : "";
 					page += `<td align=right>&nbsp;${rsrp}</td>`;
 				}
 				if (details.battery) {
-					const level = info.batteryLevel != null ? info.batteryLevel + "%" : "";
+					const level = info.batteryLevel != null ? info.batteryLevel.toFixed(chartConfig[levelIndex].digits) + "%" : "";
 					page += `<td align=right>${level}</td>`;
 				}
 				if (details.weight) {
-					const weight = info.weight != null ? info.weight + " kg" : "";
+					const weight = info.weight != null ? info.weight.toFixed(chartConfig[scaleAIndex].digits) + " kg" : "";
 					page += `<td align=right>&nbsp;${weight}</td>`;
 				}
 				if (details.temperature) {
-					const temperature = info.temperature != null ? info.temperature + " °C" : "";
+					const temperature = info.temperature != null ? info.temperature.toFixed(chartConfig[tempIndex].digits) + " °C" : "";
 					page += `<td align=right>&nbsp;${temperature}</td>`;
 				}
 			}
