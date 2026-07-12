@@ -1,14 +1,33 @@
 # Security Policy
 
-## Reporting a Vulnerability
+This Eclipse Foundation Project adheres to the [Eclipse Foundation Vulnerability Reporting Policy](https://www.eclipse.org/security/policy/).
 
-Californium supports the use of [GitHub security advisories](https://help.github.com/en/articles/managing-security-vulnerabilities-in-your-project) as pilot for [eclipse](https://www.eclipse.org/) projects.
+## How To Report a Vulnerability
 
-To report a vulnerability, [go directly to the form](https://github.com/eclipse-californium/californium/security/advisories/new). Alternatively, switch to the [Security tab](https://github.com/eclipse-californium/californium/security), then click "Report a vulnerability" and another "Report a vulnerability" button again.
+If you think you have found a vulnerability in this repository, please report it to us through coordinated disclosure.
 
-You may also report a vulnerability opening a [bugzilla ticket](https://bugs.eclipse.org/bugs/enter_bug.cgi?product=Community&component=Vulnerability+Reports&keywords=security&groups=Security_Advisories).
+**Please do not report security vulnerabilities through public issues, discussions, or change requests.**
 
-For more details, please look at [https://www.eclipse.org/security](https://www.eclipse.org/security).
+Instead, report it using one of the following ways:
+
+* Create a [confidential issue](https://gitlab.eclipse.org/security/vulnerability-reports/-/issues/new?issuable_template=new_vulnerability) in the Eclipse Foundation Vulnerability Reporting Tracker (requires Eclipse account)
+* Report a [vulnerability](https://github.com/eclipse-californium/californium/security/advisories/new) directly via private vulnerability reporting on GitHub
+
+You can find more information about reporting and disclosure at the [Eclipse Foundation Security page](https://www.eclipse.org/security/).
+
+Please include as much of the information listed below as you can to help us better understand and resolve the issue:
+
+* The type of issue (e.g., buffer overflow, SQL injection, or cross-site scripting)
+* Affected version(s)
+* Impact of the issue, including how an attacker might exploit the issue
+* Step-by-step instructions to reproduce the issue
+* The location of the affected source code (tag/branch/commit or direct URL)
+* Full paths of source file(s) related to the manifestation of the issue
+* Configuration required to reproduce the issue
+* Log files that are related to this issue (if possible)
+* Proof-of-concept or exploit code (if possible)
+
+This information will help us triage your report more quickly.
 
 ## Supported Versions
 
