@@ -24,11 +24,9 @@ import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
@@ -95,24 +93,22 @@ public class JdkHttpClient {
 			if (sslContext != null && con instanceof HttpsURLConnection) {
 				HttpsURLConnection httpsCon = (HttpsURLConnection) con;
 				httpsCon.setSSLSocketFactory(sslContext.getSocketFactory());
-				httpsCon.setHostnameVerifier(new HostnameVerifier() {
-
-					@Override
-					public boolean verify(String hostname, SSLSession session) {
-						if (verifyHostname) {
-							String cn = "???";
-							try {
-								Principal principal = session.getPeerPrincipal();
-								if (principal instanceof X500Principal) {
-									cn = Asn1DerDecoder.readCNFromDN(((X500Principal) principal).getEncoded());
-								}
-							} catch (SSLPeerUnverifiedException e) {
+				httpsCon.setHostnameVerifier((hostname, session) -> {
+					if (verifyHostname) {
+						// the custom hostname verifier is only called,
+						// when the standard verifier failed
+						String cn = "???";
+						try {
+							Principal principal = session.getPeerPrincipal();
+							if (principal instanceof X500Principal) {
+								cn = Asn1DerDecoder.readCNFromDN(((X500Principal) principal).getEncoded());
 							}
-							LOGGER.warn("Hostname: {} for {} suspicious!", hostname, cn);
-							return false;
-						} else {
-							return true;
+						} catch (SSLPeerUnverifiedException e) {
 						}
+						LOGGER.warn("Hostname: {} for {} suspicious!", hostname, cn);
+						return false;
+					} else {
+						return true;
 					}
 				});
 			}
