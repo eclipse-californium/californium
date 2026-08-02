@@ -501,7 +501,8 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 * Only unprotected responses with one of these response codes should be
 	 * accepted. Additional codes are allowed if the request used a proxy.
 	 *
-	 * @param response the response
+	 * @param responseCode the response code
+	 * @param request the request
 	 * @return if the response code is valid for an unprotected response
 	 */
 	private boolean hasValidResponseCode(ResponseCode responseCode, Request request) {
