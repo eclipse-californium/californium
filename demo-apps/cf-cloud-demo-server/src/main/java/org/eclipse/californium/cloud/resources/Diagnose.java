@@ -220,7 +220,7 @@ public class Diagnose extends ProtectedCoapResource {
 				CounterStatisticManager first = healths.get(0);
 				long lastTransfer = ClockUtil.nanoRealtime() - first.getLastTransferTime();
 				builder.append("since: ").append(TimeUnit.NANOSECONDS.toSeconds(lastTransfer)).append("s").append(eol);
-				int counter = 0;
+				int dummyTag = 0;
 				for (CounterStatisticManager manager : healths) {
 					boolean counts = !FILTER_EMPTY_STATISTICS;
 					int mark = builder.length();
@@ -228,7 +228,7 @@ public class Diagnose extends ProtectedCoapResource {
 					if (tag != null && !tag.isEmpty()) {
 						builder.append(tag).append(eol);
 					} else {
-						builder.append(++counter).append(eol);
+						builder.append(++dummyTag).append(eol);
 					}
 					String head = "   ";
 					String head2 = head;
@@ -249,7 +249,7 @@ public class Diagnose extends ProtectedCoapResource {
 							}
 							builder.append(head2).append(name).append(",").append(pair[0]).append(",").append(pair[1])
 									.append(eol);
-							if (pair[1] > 0 || pair[0] > 0) {
+							if (statistic.isUsed()) {
 								counts = true;
 							}
 						}

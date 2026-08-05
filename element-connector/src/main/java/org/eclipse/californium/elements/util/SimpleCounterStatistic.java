@@ -39,6 +39,12 @@ public class SimpleCounterStatistic {
 	 */
 	private final AlignGroup group;
 	/**
+	 * Enables {@link #isUsed()} even with 0 counter values.
+	 * 
+	 * @since 4.0
+	 */
+	private final boolean used;
+	/**
 	 * Current counter.
 	 * 
 	 * Transferred to {@link #overallCounter} on {@link #dump(int)} and indirect
@@ -72,6 +78,7 @@ public class SimpleCounterStatistic {
 		this.name = name;
 		this.align = 0;
 		this.group = null;
+		this.used = false;
 	}
 
 	/**
@@ -85,6 +92,23 @@ public class SimpleCounterStatistic {
 		this.name = name;
 		this.align = align;
 		this.group = null;
+		this.used = false;
+	}
+
+	/**
+	 * Create statistic.
+	 * 
+	 * @param name name of statistic
+	 * @param align align passed to width of
+	 *            {@link String#format(String, Object...)}.
+	 * @param used enable statistic as used even with 0 counter values
+	 * @since 4.0
+	 */
+	public SimpleCounterStatistic(String name, int align, boolean used) {
+		this.name = name;
+		this.align = align;
+		this.group = null;
+		this.used = used;
 	}
 
 	/**
@@ -98,6 +122,23 @@ public class SimpleCounterStatistic {
 		this.name = name;
 		this.align = 0;
 		this.group = group.add(this);
+		this.used = false;
+	}
+
+	/**
+	 * Create statistic.
+	 * 
+	 * @param name name of statistic
+	 * @param group group to determine alignment based on the longest name of
+	 *            the group.
+	 * @param used enable statistic as used even with 0 counter values
+	 * @since 4.0
+	 */
+	public SimpleCounterStatistic(String name, AlignGroup group, boolean used) {
+		this.name = name;
+		this.align = 0;
+		this.group = group.add(this);
+		this.used = used;
 	}
 
 	/**
@@ -277,7 +318,7 @@ public class SimpleCounterStatistic {
 	 */
 	public boolean isUsed() {
 		synchronized (overallCounter) {
-			return currentCounter.get() > 0 || overallCounter.get() > 0;
+			return used || currentCounter.get() > 0 || overallCounter.get() > 0;
 		}
 	}
 
@@ -365,4 +406,5 @@ public class SimpleCounterStatistic {
 			return -(align + 1);
 		}
 	}
+
 }
