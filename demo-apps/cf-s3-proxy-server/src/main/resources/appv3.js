@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.45.0, 12. July 2026";
+const version = "Version 3 0.48.0, 14. September 2026";
 
 /**
  * Timeshift relative to server time.
@@ -51,6 +51,7 @@ const dateOptions = {
 const locals = undefined; // new Intl.Locale(navigator.locals);
 // const locals = "en-UK";
 
+let localeDateTime = false;
 let dateTimeFormat = new Intl.DateTimeFormat(locals, dateTimeOptions);
 let dateFormat = new Intl.DateTimeFormat(locals, dateOptions);
 let timeFormat = new Intl.DateTimeFormat(locals, timeOptions);
@@ -823,7 +824,7 @@ const regexDateEnding = /-([0-9]{2,4}-[0-1][0-9]-[0-3][0-9])(Z(.gz)?|\+[0-9]+(.g
  * sides[3] : both
  */
 class ChartConfig {
-	constructor(regex, label, units, digits, color, min, max, center, sides, limiter, scale = 1, text) {
+	constructor(regex, label, units, digits, color, min, max, center, sides, block, limiter, scale = 1, text) {
 		if (limiter && !(limiter instanceof Function)) {
 			console.log(`limiter ${this.label} invalid, ${limiter}`);
 		}
@@ -836,6 +837,7 @@ class ChartConfig {
 		this.max = max;
 		this.center = center;
 		this.sides = sides;
+		this.block = block;
 		this.limiter = limiter;
 		this.scale = scale;
 		this.text = text;
@@ -962,24 +964,25 @@ function longitudeLimiter(value) {
 }
 
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", 2, "blue", 3400, 4300, false, [1, 3, 0, 1], voltageLimiter, 1000),
-	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", 0, "navy", 20, 100, false, [1, 1, 0, 1], percentLimiter),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", 1, "red", 10, 40, false, [4, 0, 3, 4], temperatureLimiter),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", 1, "green", 10, 80, false, [4, 0, 3, 4], percentLimiter),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", 0, "SkyBlue", 900, 1100, false, [4, 0, 3, 4], presureLimiter),
-	new ChartConfig(null, "dew point in °C", "°C dp", 1, "steelblue", 10, 40, false, [0, 0, 4, 0], temperatureLimiter, 1, "dew point"),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", 2, "blue", 3400, 4300, false, [1, 3, 0, 1], false, voltageLimiter, 1000),
+	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", 0, "navy", 20, 100, false, [1, 1, 0, 1], false, percentLimiter),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", 1, "red", 10, 40, false, [4, 0, 3, 4], false, temperatureLimiter),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", 1, "green", 10, 80, false, [4, 0, 3, 4], false, percentLimiter),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", 0, "SkyBlue", 900, 1100, false, [4, 0, 3, 4], false, presureLimiter),
+	new ChartConfig(null, "dew point in °C", "°C dp", 1, "steelblue", 10, 40, false, [0, 0, 4, 0], false, temperatureLimiter, 1, "dew point"),
 	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "IAQ", 0, "lightblue", 0, 500, false, [1, 0, 2, 2]),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", 0, "orange", -125, -75, true, [0, 4, 0, 1], rsrpLimiter),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", 0, "orange", -125, -75, true, [0, 4, 0, 1], false, rsrpLimiter),
 	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "SNR in dB", "dB", 1, "gold", -15, 15, false, [0, 4, 0, 1]),
 	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "energy in mAs", "mAs", 0, "DarkGoldenrod", 50, 400, false, [1, 3, 0, 1]),
 	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "quiescent energy in mAs", "mAs0", 0, "tomato", 50, 400, false, [0, 3, 0, 1]),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", 2, "olive", 25, 50, true, [4, 0, 4, 4], scaleLimiter),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", 2, "teal", 25, 50, true, [4, 0, 4, 4], scaleLimiter),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", 1, "lime", 8000, 16000, false, [4, 0, 4, 4], extVoltageLimiter, 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", 0, "red", 0, 3, false, [0, 3, 0, 1], retransLimiter, 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", 1, "salmon", 0, 60000, false, [2, 4, 0, 1], rttLimiter, 1000),
-	new ChartConfig(/\s*GNSS\.3=\s*([+-]?\d+(\.\d+)?)/, "latitude", "°N", 6, "black", -90, 90, false, [0, 0, 0, 0], latitudeLimiter),
-	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,([+-]?\d+(\.\d+)?)/, "longitude", "°E", 6, "black", -180, 180, false, [0, 0, 0, 0], longitudeLimiter),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", 2, "olive", 25, 50, true, [4, 0, 4, 4], false, scaleLimiter),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", 2, "teal", 25, 50, true, [4, 0, 4, 4], false, scaleLimiter),
+	new ChartConfig(null, "weight delta in kg", "kg &Delta;", 2, "teal", -5, 5, false, [4, 0, 4, 4], true),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", 1, "lime", 8000, 16000, false, [4, 0, 4, 4], false, extVoltageLimiter, 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", 0, "red", 0, 3, false, [0, 3, 0, 1], false, retransLimiter, 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", 1, "salmon", 0, 60000, false, [2, 4, 0, 1], false, rttLimiter, 1000),
+	new ChartConfig(/\s*GNSS\.3=\s*([+-]?\d+(\.\d+)?)/, "latitude", "°N", 6, "black", -90, 90, false, [0, 0, 0, 0], false, latitudeLimiter),
+	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,([+-]?\d+(\.\d+)?)/, "longitude", "°E", 6, "black", -180, 180, false, [0, 0, 0, 0], false, longitudeLimiter),
 	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,[^,]+,([+-]?\d+(\.\d+)?)/, "accuracy", "m", 1, "black", 0, 100, false, [0, 0, 0, 0]),
 	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,[^,]+,[^,]+,([+-]?\d+(\.\d+)?)/, "height", "m", 1, "black", 0, 1000, false, [0, 0, 0, 0]),
 	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,[^,]+,[^,]+,[^,]+,([+-]?\d+(\.\d+)?)/, "height_acc", "m", 1, "black", 0, 100, false, [0, 0, 0, 0]),
@@ -998,6 +1001,7 @@ const dewPointIndex = getChartConfigIndex("°C dp");
 
 const scaleAIndex = getChartConfigIndex("kg A");
 const scaleBIndex = getChartConfigIndex("kg B");
+const scaleDeltaIndex = getChartConfigIndex("kg &Delta;");
 const rsrpIndex = getChartConfigIndex("dBm");
 const retransIndex = getChartConfigIndex("Retr.");
 
@@ -2179,6 +2183,54 @@ class DeviceData {
 			} else {
 				this.statusLastInterval = null;
 			}
+
+			if (this.allMessages.length > 0) {
+				let currentDay = splitDateTime(this.allMessages[0].time)[0];
+				let lastDayMax = null;
+				let firstMessageIndex = 0;
+				let lastMessageIndex = 0;
+				let messageIndex = 0;
+				const scaleDelta = function(allMessages) {
+					// maximum from last 4 hours of day
+					const time = allMessages[lastMessageIndex].time - (1000 * 3600 * 4);
+					let currentDayMax = null;
+					for (let index = lastMessageIndex; index >= firstMessageIndex; --index) {
+						const cmsg = allMessages[index];
+						if (cmsg.time < time) {
+							break;
+						}
+						const value = cmsg.values[scaleAIndex + 1];
+						if (value && (currentDayMax == null || currentDayMax < value)) {
+							currentDayMax = value;
+						}
+					}
+					if (lastDayMax != null && currentDayMax != null) {
+						const fact = Math.pow(10, chartConfig[scaleDeltaIndex].digits);
+						const delta = Math.round((currentDayMax - lastDayMax) * fact) / fact;
+						for (let index = firstMessageIndex; index <= lastMessageIndex; ++index) {
+							allMessages[index].values[scaleDeltaIndex + 1] = delta;
+						}
+					}
+					return currentDayMax;
+				}
+				this.allMessages.forEach((msg) => {
+					const day = splitDateTime(msg.time)[0];
+					if (day == currentDay) {
+						lastMessageIndex = messageIndex;
+					} else {
+						const max = scaleDelta(this.allMessages);
+						currentDay = day;
+						lastDayMax = max;
+						firstMessageIndex = messageIndex;
+						lastMessageIndex = messageIndex;
+					}
+					++messageIndex;
+				});
+				if (lastDayMax != null && firstMessageIndex < lastMessageIndex) {
+					scaleDelta(this.allMessages);
+				}
+			}
+
 			console.log("Filter from " + range);
 			let rangeValues = range.filterMessages(this.allMessages);
 			if (rangeValues.length > 0) {
@@ -2696,7 +2748,8 @@ class UiChart {
 	}
 
 	render(device) {
-		const hist = this.average ? 3 : 1;
+		const hist = this.average && !this.minmax ? 3 : 1;
+		const chartTimeShift = Math.floor(hist / 2);
 
 		const w = this.chartW;
 		const h = this.chartH;
@@ -2744,7 +2797,6 @@ class UiChart {
 				ySum[i] = [0];
 				nSum[i] = [0];
 			}
-
 			device.rangeValues.forEach((msg) => {
 				const time = msg.time;
 				const x = Math.round(transform(time));
@@ -2754,10 +2806,15 @@ class UiChart {
 					if (cfg.side(sideIndex)) {
 
 						const minmax = this.minmax && cfg.scale;
-						const valueHist = cfg.scale ? hist : 1
+						const valueHist = cfg.scale && !cfg.block ? hist : 1
 						const t = values[i];
 						if (t != null) {
-							if (minmax) {
+							if (cfg.block) {
+								if (nSum[i][0] == 0) {
+									ySum[i][0] = t;
+									nSum[i][0] = 1;
+								}
+							} else if (minmax) {
 								yMin[i] = minOr(t, yMin[i]);
 								yMax[i] = maxOr(t, yMax[i]);
 							} else {
@@ -2768,13 +2825,18 @@ class UiChart {
 								gap[i] = (time - times[i]) > (dayInMillis + 600000) ? 1 : 0;
 							}
 							times[i] = time;
-
 							if (coordinates[i].length == 0 || coordinates[i].at(-1)[0] < x) {
 								const point = Array(minmax ? 4 : 3);
 								point[0] = x;
 								point[1] = gap[i];
 								gap[i] = 0;
-								if (minmax) {
+								if (cfg.block) {
+									const val = ySum[i][0];
+									point[2] = val;
+									starts[i] = minOr(val, starts[i]);
+									ends[i] = maxOr(val, ends[i]);
+									nSum[i][0] = 0;
+								} else if (minmax) {
 									starts[i] = minOr(yMin[i], starts[i]);
 									ends[i] = maxOr(yMax[i], ends[i]);
 									point[2] = yMin[i];
@@ -2784,7 +2846,7 @@ class UiChart {
 								} else {
 									let sum = ySum[i][0];
 									let n = nSum[i][0];
-									//								const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 2);
+									//	const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 2);
 									const m = ySum[i].length;
 									for (let index = 1; index < m; ++index) {
 										sum += ySum[i][index];
@@ -2794,9 +2856,11 @@ class UiChart {
 									starts[i] = minOr(avg, starts[i]);
 									ends[i] = maxOr(avg, ends[i]);
 									point[2] = avg;
+									// reset first
 									ySum[i].unshift(0);
 									nSum[i].unshift(0);
 									if (ySum[i].length > valueHist) {
+										// remove last
 										ySum[i].pop();
 										nSum[i].pop();
 									}
@@ -2809,38 +2873,31 @@ class UiChart {
 			});
 
 			if (hist > 1) {
-				const chartTimeShift = Math.floor(hist / 2);
 				for (let i = 1; i < numberOfSensors; ++i) {
 					const cfg = chartConfig[i - 1];
-					if (cfg.side(sideIndex) && cfg.scale && coordinates[i].length > chartTimeShift) {
-						// new end point
-						const point = Array(3);
-						const last = coordinates[i].at(-1);
-						point[0] = last[0];
-						point[1] = 0;
-						let sum = ySum[i][1];
-						let n = nSum[i][1];
-						//						const m = n > 4 ? ySum[i].length : minOr(ySum[i].length, 3);
-						const m = ySum[i].length;
-						for (let index = 2; index < m; ++index) {
-							sum += ySum[i][index];
-							n += nSum[i][index];
-						}
-						const avg = sum / n;
-						point[2] = avg;
-						starts[i] = minOr(avg, starts[i]);
-						ends[i] = maxOr(avg, ends[i]);
-						coordinates[i].push(point);
-						// shift times
-						for (let j = coordinates[i].length - 1; j >= chartTimeShift; --j) {
+					if (cfg.side(sideIndex) && cfg.scale && !cfg.minmax && !cfg.block && coordinates[i].length > chartTimeShift) {
+						// shift values
+						let j = 0;
+						for (; j < coordinates[i].length - chartTimeShift; ++j) {
 							const point1 = coordinates[i][j];
-							const point2 = coordinates[i][j - chartTimeShift];
-							point1[0] = point2[0];
-							point1[1] = point2[1];
+							const point2 = coordinates[i][j + chartTimeShift];
+							point1[2] = point2[2];
 						}
-						// remove first
-						coordinates[i].shift();
-						coordinates[i][0][1] = 1;
+						for (; j < coordinates[i].length; ++j) {
+							let sum = ySum[i][0];
+							let n = nSum[i][0];
+							const m = ySum[i].length;
+							for (let index = 1; index < m; ++index) {
+								sum += ySum[i][index];
+								n += nSum[i][index];
+							}
+							const avg = sum / n;
+							coordinates[i][j][2] = avg;
+							starts[i] = minOr(avg, starts[i]);
+							ends[i] = maxOr(avg, ends[i]);
+							ySum[i].pop();
+							nSum[i].pop();
+						}
 					}
 				}
 			}
@@ -2872,9 +2929,34 @@ class UiChart {
 					const start1 = starts[i];
 					const delta = deltaValues[i];
 					const deltaPoint = delta / h;
+					const transform1 = function(x) { return (offY + h) - Math.round((x - start1) * h / delta); };
+					if (chartConfig[i - 1].block) {
+						let y = null;
+						let x = null;
+						coordinates[i].forEach((p) => {
+							if (y != p[2]) {
+								console.log(`N ${y} ${p[2]} `);
+								if (x) {
+									paths[i] += " " + x + "," + transform1(y);
+									paths[i] += " " + x + "," + transform1(0);
+								}
+								x = p[0];
+								y = p[2];
+								paths[i] += " M " + x + "," + transform1(0);
+								paths[i] += " L " + x + "," + transform1(y);
+							} else {
+								x = p[0];
+							}
+						});
+						if (x) {
+							paths[i] += " " + x + "," + transform1(y);
+							paths[i] += " " + x + "," + transform1(0);
+						}
+						console.log(paths[i]);
+						continue;
+					}
 					const start2 = start1 - deltaPoint / 2;
 					const delta2 = ends[i] - start2;
-					const transform1 = function(x) { return (offY + h) - Math.round((x - start1) * h / delta); };
 					const transform2 = function(x) { return (offY + h) - Math.round((x - start2) * h / delta2); };
 					let dither1 = 0;
 					let dither2 = 0;
@@ -2915,10 +2997,17 @@ class UiChart {
 		device.paths = paths;
 		if (starts[0] && deltaValues[0] > 0) {
 			const startDate = new Date(starts[0]);
-			startDate.setUTCHours(0);
-			startDate.setUTCMinutes(0);
-			startDate.setUTCSeconds(0);
-			startDate.setUTCMilliseconds(0);
+			if (localeDateTime) {
+				startDate.setHours(0);
+				startDate.setMinutes(0);
+				startDate.setSeconds(0);
+				startDate.setMilliseconds(0);
+			} else {
+				startDate.setUTCHours(0);
+				startDate.setUTCMinutes(0);
+				startDate.setUTCSeconds(0);
+				startDate.setUTCMilliseconds(0);
+			}
 			const offset = dayInMillis - starts[0] + startDate.getTime();
 			device.offsetTime = offset;
 			device.offsetX = offset * w / deltaValues[0];
@@ -2935,7 +3024,7 @@ class UiChart {
 		const y = this.chartY;
 		const cw = this.chartW;
 		const ch = this.chartH;
-		const gw = Math.round(cw / cols);
+		const gw = cw / cols;
 		const gh = gw;
 		/* [0] total number, [1] current index */
 		const left = [0, 0, []];
@@ -3014,10 +3103,14 @@ class UiChart {
 						cha = i;
 						chaColor = color;
 					}
-					page += `<path d='${dev.paths[i]}' fill='transparent' stroke='${color}'></path>\n`;
-					if (cha && cfg.units == "kg B") {
-						// cha with dashs over chb
-						page += `<path d='${dev.paths[cha]}' fill='transparent' stroke='${chaColor}' stroke-dasharray='2'></path>\n`;
+					if (cfg.block) {
+						page += `<path id='devicechartfill' d='${dev.paths[i]}' fill='${color}' stroke='transparent'></path>\n`;
+					} else {
+						page += `<path d='${dev.paths[i]}' fill='transparent' stroke='${color}'></path>\n`;
+						if (cha && cfg.units == "kg B") {
+							// cha with dashs over chb
+							page += `<path d='${dev.paths[cha]}' fill='transparent' stroke='${chaColor}' stroke-dasharray='2'></path>\n`;
+						}
 					}
 					const d = (dev.ends[i] - dev.starts[i]);
 					const labels = side[0];
@@ -3649,6 +3742,7 @@ class UiManager {
 		dateTimeOptions.timeZone = "UTC";
 		dateOptions.timeZone = "UTC";
 		timeOptions.timeZone = "UTC";
+		localeDateTime = false;
 		dateTimeFormat = new Intl.DateTimeFormat(locals, dateTimeOptions);
 		dateFormat = new Intl.DateTimeFormat(locals, dateOptions);
 		timeFormat = new Intl.DateTimeFormat(locals, timeOptions);
@@ -4003,6 +4097,7 @@ class UiManager {
 							delete dateTimeOptions.timeZone;
 							delete dateOptions.timeZone;
 							delete timeOptions.timeZone;
+							localeDateTime = true;
 							dateTimeFormat = new Intl.DateTimeFormat(locals, dateTimeOptions);
 							dateFormat = new Intl.DateTimeFormat(locals, dateOptions);
 							timeFormat = new Intl.DateTimeFormat(locals, timeOptions);

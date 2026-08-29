@@ -57,6 +57,10 @@
 	font-size: x-small;
 }
 
+#devicechartfill {
+	fill-opacity: .2;
+}
+
 #diagnose {
 	font-size: x-small;
 }
