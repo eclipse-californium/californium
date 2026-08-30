@@ -15,7 +15,7 @@
 
 'use strict';
 
-const version = "Version 3 0.45.0, 3. July 2026";
+const version = "Version 3 0.45.0, 12. July 2026";
 
 /**
  * Timeshift relative to server time.
@@ -823,7 +823,10 @@ const regexDateEnding = /-([0-9]{2,4}-[0-1][0-9]-[0-3][0-9])(Z(.gz)?|\+[0-9]+(.g
  * sides[3] : both
  */
 class ChartConfig {
-	constructor(regex, label, units, digits, color, min, max, center, sides, scale = 1, text) {
+	constructor(regex, label, units, digits, color, min, max, center, sides, limiter, scale = 1, text) {
+		if (limiter && !(limiter instanceof Function)) {
+			console.log(`limiter ${this.label} invalid, ${limiter}`);
+		}
 		this.regex = regex;
 		this.label = label;
 		this.units = units;
@@ -833,6 +836,7 @@ class ChartConfig {
 		this.max = max;
 		this.center = center;
 		this.sides = sides;
+		this.limiter = limiter;
 		this.scale = scale;
 		this.text = text;
 	}
@@ -840,25 +844,145 @@ class ChartConfig {
 	side(index) {
 		return this.sides ? this.sides[index] : 0;
 	}
+
+	isValid(value) {
+		let valid = value != null;
+		if (valid) {
+			valid = value == this.limit(value);
+		}
+		return valid;
+	}
+
+	limit(value) {
+		try {
+			return value != null && this.limiter ? this.limiter(value) : value;
+		} catch (error) {
+			console.log(`limit ${this.label} ${this.limiter} ` + error);
+		}
+	}
+}
+
+function voltageLimiter(value) {
+	if (value < 1000) {
+		return 1000;
+	} else if (value > 30000) {
+		return 30000;
+	}
+	return value;
+}
+
+function extVoltageLimiter(value) {
+	if (value < 0) {
+		return 0;
+	} else if (value > 30000) {
+		return 30000;
+	}
+	return value;
+}
+
+function percentLimiter(value) {
+	if (value < 0) {
+		return 0;
+	} else if (value > 100) {
+		return 100;
+	}
+	return value;
+}
+
+function temperatureLimiter(value) {
+	if (value < -40) {
+		return 40;
+	} else if (value > 85) {
+		return 85;
+	}
+	return value;
+}
+
+function presureLimiter(value) {
+	if (value < 300) {
+		return 300;
+	} else if (value > 1200) {
+		return 1200;
+	}
+	return value;
+}
+
+function scaleLimiter(value) {
+	if (value < -10) {
+		return -10;
+	} else if (value > 250) {
+		return 250;
+	}
+	return value;
+}
+
+function rsrpLimiter(value) {
+	if (value < -150) {
+		return -150;
+	} else if (value > -20) {
+		return -20;
+	}
+	return value;
+}
+
+function retransLimiter(value) {
+	if (value < 0) {
+		return 0;
+	} else if (value > 10) {
+		return 10;
+	}
+	return value;
+}
+
+function rttLimiter(value) {
+	if (value < 0) {
+		return 0;
+	} else if (value > 600000) {
+		return 600000;
+	}
+	return value;
+}
+
+function latitudeLimiter(value) {
+	if (value < -90) {
+		return -90;
+	} else if (value > 90) {
+		return 90;
+	}
+	return value;
+}
+
+function longitudeLimiter(value) {
+	if (value < -180) {
+		return -180;
+	} else if (value > 180) {
+		return 180;
+	}
+	return value;
 }
 
 const chartConfig = [
-	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", 2, "blue", 3400, 4300, false, [1, 3, 0, 1], 1000),
-	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", 0, "navy", 20, 100, false, [1, 1, 0, 1]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", 1, "red", 10, 40, false, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", 1, "green", 10, 80, false, [4, 0, 3, 4]),
-	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", 0, "SkyBlue", 900, 1100, false, [4, 0, 3, 4]),
-	new ChartConfig(null, "dew point in °C", "°C dp", 1, "steelblue", 10, 40, false, [0, 0, 4, 0], 1, "dew point"),
+	new ChartConfig(/\s*([+-]?\d+)\smV/, "voltage in mV", "mV", 2, "blue", 3400, 4300, false, [1, 3, 0, 1], voltageLimiter, 1000),
+	new ChartConfig(/mV\s+([+-]?\d+(\.\d+)?)\%/, "bat. level in %", "%", 0, "navy", 20, 100, false, [1, 1, 0, 1], percentLimiter),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sC/, "temp. in °C", "°C", 1, "red", 10, 40, false, [4, 0, 3, 4], temperatureLimiter),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\s%H/, "hum. in %H", "%H", 1, "green", 10, 80, false, [4, 0, 3, 4], percentLimiter),
+	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\shPa/, "bar. pressure in hPa", "hPa", 0, "SkyBlue", 900, 1100, false, [4, 0, 3, 4], presureLimiter),
+	new ChartConfig(null, "dew point in °C", "°C dp", 1, "steelblue", 10, 40, false, [0, 0, 4, 0], temperatureLimiter, 1, "dew point"),
 	new ChartConfig(/\s*([+-]?\d+(\.\d+)?)(,([+-]?\d+(\.\d+)?))*\sQ/, "IAQ", "IAQ", 0, "lightblue", 0, 500, false, [1, 0, 2, 2]),
-	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", 0, "orange", -125, -75, true, [0, 4, 0, 1]),
+	new ChartConfig(/\s*RSRP:\s*([+-]?\d+(\.\d+)?)\sdBm/, "RSRP in dBm", "dBm", 0, "orange", -125, -75, true, [0, 4, 0, 1], rsrpLimiter),
 	new ChartConfig(/\s*SNR:\s*([+-]?\d+(\.\d+)?)\sdB/, "SNR in dB", "dB", 1, "gold", -15, 15, false, [0, 4, 0, 1]),
 	new ChartConfig(/\s*ENY:\s*([+-]?\d+(\.\d+)?)(\/([+-]?\d+(\.\d+)?))?\sm(As|C)/, "energy in mAs", "mAs", 0, "DarkGoldenrod", 50, 400, false, [1, 3, 0, 1]),
 	new ChartConfig(/\s*ENY0:\s*([+-]?\d+(\.\d+)?)\smAs/, "quiescent energy in mAs", "mAs0", 0, "tomato", 50, 400, false, [0, 3, 0, 1]),
-	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", 2, "olive", 25, 50, true, [4, 0, 4, 4]),
-	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", 2, "teal", 25, 50, true, [4, 0, 4, 4]),
-	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", 1, "lime", 8000, 16000, false, [4, 0, 4, 4], 1000),
-	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", 0, "red", 0, 3, false, [0, 3, 0, 1], 0),
-	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", 0, "salmon", 0, 60000, false, [2, 4, 0, 1], 1000),
+	new ChartConfig(/\s*CHA\s*([+-]?\d+(\.\d+)?)\skg/, "weight A in kg", "kg A", 2, "olive", 25, 50, true, [4, 0, 4, 4], scaleLimiter),
+	new ChartConfig(/\s*CHB\s*([+-]?\d+(\.\d+)?)\skg/, "weight B in kg", "kg B", 2, "teal", 25, 50, true, [4, 0, 4, 4], scaleLimiter),
+	new ChartConfig(/\s*Ext\.Bat\.:\s*([+-]?\d+(\.\d+)?)\smV/, "ext. vol. in mV", "mV Ext.", 1, "lime", 8000, 16000, false, [4, 0, 4, 4], extVoltageLimiter, 1000),
+	new ChartConfig(/\s*RETRANS:\s*(\d+)/, "retr.", "Retr.", 0, "red", 0, 3, false, [0, 3, 0, 1], retransLimiter, 0),
+	new ChartConfig(/\s*RTT:\s*([+-]?\d+)\sms/, "RTT in ms", "ms", 1, "salmon", 0, 60000, false, [2, 4, 0, 1], rttLimiter, 1000),
+	new ChartConfig(/\s*GNSS\.3=\s*([+-]?\d+(\.\d+)?)/, "latitude", "°N", 6, "black", -90, 90, false, [0, 0, 0, 0], latitudeLimiter),
+	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,([+-]?\d+(\.\d+)?)/, "longitude", "°E", 6, "black", -180, 180, false, [0, 0, 0, 0], longitudeLimiter),
+	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,[^,]+,([+-]?\d+(\.\d+)?)/, "accuracy", "m", 1, "black", 0, 100, false, [0, 0, 0, 0]),
+	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,[^,]+,[^,]+,([+-]?\d+(\.\d+)?)/, "height", "m", 1, "black", 0, 1000, false, [0, 0, 0, 0]),
+	new ChartConfig(/\s*GNSS\.3=\s*[^,]+,[^,]+,[^,]+,[^,]+,([+-]?\d+(\.\d+)?)/, "height_acc", "m", 1, "black", 0, 100, false, [0, 0, 0, 0]),
 ];
 
 function getChartConfigIndex(units) {
@@ -874,10 +998,10 @@ const dewPointIndex = getChartConfigIndex("°C dp");
 
 const scaleAIndex = getChartConfigIndex("kg A");
 const scaleBIndex = getChartConfigIndex("kg B");
+const rsrpIndex = getChartConfigIndex("dBm");
 const retransIndex = getChartConfigIndex("Retr.");
 
-const rsrpIndex = getChartConfigIndex("dBm");
-
+const extVoltageIndex = getChartConfigIndex("mV Ext.");
 
 const defaultProviderMap = new Map();
 defaultProviderMap.set("em", "EMnify");
@@ -1047,34 +1171,6 @@ class DeviceMessage {
 		return value != null && value != 0;
 	}
 
-	static isVoltageValue(value) {
-		return value != null && 1000 <= value && value <= 30000;
-	}
-
-	static isBatteryLevelValue(value) {
-		return value != null && 0 <= value && value <= 100;
-	}
-
-	static isTempValue(value) {
-		return value != null && -40.0 <= value && value <= 85.0;
-	}
-
-	static isAirPressureValue(value) {
-		return value != null && 300.0 <= value && value <= 1100.0;
-	}
-
-	static isHumidityValue(value) {
-		return value != null && 0.0 < value && value <= 100.0;
-	}
-
-	static isScaleValue(value) {
-		return value != null && -10 < value && value < 250;
-	}
-
-	static isRetransValue(value) {
-		return value != null && 0 <= value && value < 10;
-	}
-
 	static parseValueSet(line, values, time) {
 		let foundValues = 0;
 		for (let i = 0; i < chartConfig.length; ++i) {
@@ -1085,11 +1181,6 @@ class DeviceMessage {
 					if (n !== undefined) {
 						values[i] = n;
 						++foundValues;
-						if (i == tempIndex && n > 40) {
-							console.warn("Temp " + n);
-							console.warn("'" + line + "'");
-							console.warn(new Date(time).toISOString());
-						}
 					}
 				}
 			}
@@ -1105,13 +1196,20 @@ class DeviceMessage {
 		return false;
 	}
 
+	static checkSensorAndRemoveInvalids(index, line) {
+		if (chartConfig[index].isValid(line[index])) {
+			return true;
+		}
+		return !DeviceMessage.removeSensor(line, index);
+	}
+
 	static checkSensors(line) {
 		let removed = 0;
 		let temp = null;
 		let hum = null;
 		let sensors = 0;
 
-		if (DeviceMessage.isValue(line[humIndex])) {
+		if (chartConfig[humIndex].isValid(line[humIndex])) {
 			++sensors;
 			hum = line[humIndex];
 		} else {
@@ -1119,14 +1217,14 @@ class DeviceMessage {
 				++removed;
 			}
 		}
-		if (DeviceMessage.isAirPressureValue(line[presIndex])) {
+		if (chartConfig[presIndex].isValid(line[presIndex])) {
 			++sensors;
 		} else {
 			if (DeviceMessage.removeSensor(line, presIndex)) {
 				++removed;
 			}
 		}
-		if (DeviceMessage.isTempValue(line[tempIndex])) {
+		if (chartConfig[tempIndex].isValid(line[tempIndex])) {
 			++sensors;
 			temp = line[tempIndex];
 		} else {
@@ -1139,33 +1237,26 @@ class DeviceMessage {
 			line[dewPointIndex] = calcDewPoint(temp, hum);
 		}
 
-		if (!DeviceMessage.isScaleValue(line[scaleAIndex])) {
-			if (DeviceMessage.removeSensor(line, scaleAIndex)) {
-				++removed;
-			}
+		if (!DeviceMessage.checkSensorAndRemoveInvalids(scaleAIndex, line)) {
+			++removed;
 		}
-		if (!DeviceMessage.isScaleValue(line[scaleBIndex])) {
-			if (DeviceMessage.removeSensor(line, scaleBIndex)) {
-				++removed;
-			}
+		if (!DeviceMessage.checkSensorAndRemoveInvalids(scaleBIndex, line)) {
+			++removed;
 		}
-		if (!DeviceMessage.isRetransValue(line[retransIndex])) {
-			if (DeviceMessage.removeSensor(line, retransIndex)) {
-				++removed;
-			}
+		if (!DeviceMessage.checkSensorAndRemoveInvalids(retransIndex, line)) {
+			++removed;
 		}
-		if (!DeviceMessage.isVoltageValue(line[voltageIndex])) {
-			if (DeviceMessage.removeSensor(line, voltageIndex)) {
-				++removed;
-			}
+		if (!DeviceMessage.checkSensorAndRemoveInvalids(voltageIndex, line)) {
+			++removed;
 			if (DeviceMessage.removeSensor(line, levelIndex)) {
 				++removed;
 			}
 		}
-		if (!DeviceMessage.isBatteryLevelValue(line[levelIndex])) {
-			if (DeviceMessage.removeSensor(line, levelIndex)) {
-				++removed;
-			}
+		if (!DeviceMessage.checkSensorAndRemoveInvalids(levelIndex, line)) {
+			++removed;
+		}
+		if (!DeviceMessage.checkSensorAndRemoveInvalids(extVoltageIndex, line)) {
+			++removed;
 		}
 
 		return removed;
@@ -2231,9 +2322,12 @@ class DeviceData {
 		const available = new Array(numberOfSensors);
 		const values = this.rangeValues;
 		for (let i = 1; i < numberOfSensors; ++i) {
+			const cfg = chartConfig[i - 1];
 			if (this.rawStarts[i] != undefined) {
-				available[i] = chartConfig[i - 1].label;
+				available[i] = cfg.label;
 				csv = appendCsv(csv, available[i]);
+			} else {
+				console.log(`no ${cfg.label} data`);
 			}
 		}
 		csv += ",type,PLMN,TAC,cell,band,earfcn,f in MHz,apn\n";
@@ -2542,16 +2636,21 @@ class UiChart {
 			const cfg = chartConfig[i - 1];
 			let range = ends[i] - starts[i];
 			if (ends[i] == starts[i]) {
+				// no delta, horizontal line
 				if (starts[i]) {
 					range = starts[i];
 				} else {
-					range = cfg.min ? cfg.min : cfg.max;
+					// horizontal line at 0
+					range = (cfg.max - cfg.min) / 10;
 				}
 			}
 			const extraRange = range / 20;
 			console.log(`range ${range}, ${extraRange} ${cfg.units} ${starts[i]} ${ends[i]}`);
 			starts[i] -= extraRange;
 			ends[i] += extraRange;
+			starts[i] = cfg.limit(starts[i]);
+			ends[i] = cfg.limit(ends[i]);
+			console.log(`range => ${cfg.units} ${starts[i]} ${ends[i]}`);
 			if (!this.zoom) {
 				if (cfg.center) {
 					const cfgRange = cfg.max - cfg.min;
@@ -2567,6 +2666,7 @@ class UiChart {
 				}
 				starts[i] = minOr(cfg.min, starts[i]);
 				ends[i] = maxOr(cfg.max, ends[i]);
+				console.log(`range ==> ${cfg.units} ${starts[i]} ${ends[i]}`);
 			}
 		}
 	}
@@ -2922,18 +3022,28 @@ class UiChart {
 					const d = (dev.ends[i] - dev.starts[i]);
 					const labels = side[0];
 					const labelIndex = ++side[1];
-					const u = cfg.scale == 1000 ? strip(cfg.units, "m") : cfg.units;
-					let hl = (labels == 1) ? gh / 2 : (labels > 3) ? gh * 2 : gh;
-					let yn = labelIndex * (hl / labels);
-					function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]) / cfg.scale; };
+					const scale = cfg.scale ? cfg.scale : 1;
+					const u = scale == 1000 ? strip(cfg.units, "m") : cfg.units;
 					let digits = cfg.digits;
-					if (d > 0) {
-						const diffDigits = Math.ceil(-Math.log10(d / cfg.scale)) + 1;
+					if (d > 0 && cfg.scale != 0) {
+						const diffDigits = Math.ceil(-Math.log10(d / scale)) + 1;
 						if (isFinite(diffDigits) && diffDigits > 0) {
-							digits = Math.min(digits, diffDigits);
+							digits = Math.max(digits, diffDigits);
 						}
 					}
-					for (; yn < ch; yn += hl) {
+					let hl = (labels == 1) ? gh / 2 : (labels > 3) ? gh * 2 : gh;
+					let yn = labelIndex * (hl / labels);
+					if (cfg.scale == 0) {
+						if (d > 1) {
+							hl = ch / d;
+						} else {
+							hl = ch;
+						}
+						yn = hl;
+						console.log(`scala ${cfg.units} ${d} ${hl}`);
+					}
+					function calc(x) { return (((y + ch - x) * d / ch) + dev.starts[i]) / scale; };
+					for (; yn <= ch; yn += hl) {
 						let value = calc(yn);
 						value = value.toFixed(digits);
 						const v = value + " " + u;
