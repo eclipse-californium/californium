@@ -232,9 +232,10 @@ public class ConfigHandler extends S3Login {
 			Object info = httpExchange.getAttribute(ATTRIBUTE_DEVICE_INFO);
 			Object domain = httpExchange.getAttribute(ATTRIBUTE_DOMAIN);
 			if (deviceNotifier != null && info instanceof DeviceIdentifier && domain instanceof String) {
+				LOGGER.debug("Wakeup ...");
 				deviceNotifier.accept((String) domain, (DeviceIdentifier) info);
 			} else {
-				LOGGER.info("No wakeup");
+				LOGGER.debug("No wakeup");
 			}
 		} catch (IOException e) {
 			LOGGER.info("Config send response", e);
