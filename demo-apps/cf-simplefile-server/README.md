@@ -25,6 +25,8 @@ to the largest file size you want to support. Make sure, this "Californium3.prop
 
 Create a folder ("data" by default), and place the file(s) in that folder.
 
+**Note:** Please always use the protection mechanisms of you OS (e.g. chown/chmod on unix) to protect other files from being accessible via this file-server.
+
 ## RUN
 
 ```sh
