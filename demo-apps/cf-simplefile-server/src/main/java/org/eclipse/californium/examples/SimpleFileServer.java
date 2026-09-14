@@ -299,7 +299,11 @@ public class SimpleFileServer extends AbstractTestServer {
 		 */
 		private boolean checkFileLocation(File file, File root) {
 			try {
-				return file.getCanonicalPath().startsWith(root.getCanonicalPath());
+				String rootPath = root.getCanonicalPath();
+				if (!rootPath.endsWith("/")) {
+					rootPath += "/";
+				}
+				return file.getCanonicalPath().startsWith(rootPath);
 			} catch (IOException ex) {
 				LOG.warn("File {}:", file.getAbsolutePath(), ex);
 				return false;
