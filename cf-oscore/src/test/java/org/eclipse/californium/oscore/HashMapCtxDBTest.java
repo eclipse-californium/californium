@@ -18,7 +18,9 @@
 package org.eclipse.californium.oscore;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.cose.AlgorithmID;
@@ -224,6 +226,23 @@ public class HashMapCtxDBTest {
 		assertNull(db.getContext(uri));
 		assertEquals(ctx, db.getContextByToken(token));
 		assertNull(db.getContextByToken(modifiedToken));
+	}
+
+	@Test
+	public void testRemoveTokenAssociation() throws OSException {
+		HashMapCtxDB db = new HashMapCtxDB();
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				null, MAX_UNFRAGMENTED_SIZE);
+
+		assertFalse(db.tokenExist(token));
+		db.addContext(token, ctx);
+		assertTrue(db.tokenExist(token));
+
+		db.removeToken(token);
+
+		assertFalse(db.tokenExist(token));
+		assertNull(db.getContextByToken(token));
+		assertEquals(ctx, db.getContext(rid));
 	}
 
 }
