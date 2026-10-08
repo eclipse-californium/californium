@@ -24,7 +24,6 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -55,8 +54,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	private HashMap<Token, OSCoreCtx> tokenMap;
 	private HashMap<String, OSCoreCtx> uriMap;
 
-	private ArrayList<Token> allTokens;
-
 	/**
 	 * Create the database
 	 */
@@ -65,7 +62,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		this.tokenMap = new HashMap<>();
 		this.contextMap = new HashMap<>();
 		this.uriMap = new HashMap<>();
-		this.allTokens = new ArrayList<Token>();
 	}
 
 	/**
@@ -147,9 +143,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	@Override
 	public synchronized void addContext(Token token, OSCoreCtx ctx) {
 		if (token != null) {
-			if (!tokenExist(token)) {
-				allTokens.add(token);
-			}
 			tokenMap.put(token, ctx);
 		}
 		addContext(ctx);
@@ -230,7 +223,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	@Override
 	public synchronized boolean tokenExist(Token token) {
 		if (token != null) {
-			return allTokens.contains(token);
+			return tokenMap.containsKey(token);
 		} else {
 			LOGGER.error(ErrorDescriptions.TOKEN_NULL);
 			throw new NullPointerException(ErrorDescriptions.TOKEN_NULL);
@@ -311,7 +304,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	}
 
 	/**
-	 * Removes associations for this token, except for the generator
+	 * Removes the context association for this token.
 	 * 
 	 * @param token the token to remove
 	 */
@@ -328,6 +321,5 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		contextMap.clear();
 		tokenMap.clear();
 		uriMap.clear();
-		allTokens = new ArrayList<Token>();
 	}
 }
