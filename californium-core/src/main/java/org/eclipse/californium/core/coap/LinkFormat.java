@@ -75,6 +75,8 @@ public class LinkFormat {
 
 	public static final Pattern SPACE = Pattern.compile("\\s");
 	public static final Pattern NUMBER = Pattern.compile("^\\d+$");
+	// RFC 6690, section 2: ptokenchar, excluding attribute/link delimiters.
+	private static final Pattern PTOKEN = Pattern.compile("\\G[!#$%&'()*+\\-./0-9:<=>?@A-Z\\[\\]^_`a-z{|}~]+");
 
 	/**
 	 * Sort collection of resources by name.
@@ -563,14 +565,15 @@ public class LinkFormat {
 						if ((value = scanner.findInLine(QUOTED_STRING)) != null) {
 							// trim " "
 							value = value.substring(1, value.length() - 1);
-							if (attr.equals(TITLE)) {
-								link.getAttributes().addAttribute(attr, value);
-							} else {
+							if (attr.equals(RESOURCE_TYPE) || attr.equals(INTERFACE_DESCRIPTION)
+									|| attr.equals(RELATION) || attr.equals("rev") || attr.equals(CONTENT_TYPE)) {
 								for (String part : SPACE.split(value)) {
 									link.getAttributes().addAttribute(attr, part);
 								}
+							} else {
+								link.getAttributes().addAttribute(attr, value);
 							}
-						} else if ((value = scanner.findInLine(WORD)) != null) {
+						} else if ((value = scanner.findInLine(PTOKEN)) != null) {
 							link.getAttributes().setAttribute(attr, value);
 						} else if ((value = scanner.findInLine(CARDINAL)) != null) {
 							link.getAttributes().setAttribute(attr, value);

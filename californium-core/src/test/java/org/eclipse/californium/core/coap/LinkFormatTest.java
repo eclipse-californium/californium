@@ -177,6 +177,46 @@ public class LinkFormatTest {
 	}
 
 	@Test
+	public void testParseUnquotedAttributeValues() {
+		Set<WebLink> links = LinkFormat.parse("</sensor>;rt=some.resource-type;if=urn:example:sensor;sz=4096,</next>");
+		ResourceAttributes attributes = WebLink.findByUri(links, "/sensor").getAttributes();
+		assertThat(attributes.getResourceTypes(), is(Arrays.asList("some.resource-type")));
+		assertThat(attributes.getInterfaceDescriptions(), is(Arrays.asList("urn:example:sensor")));
+		assertThat(attributes.getMaximumSizeEstimate(), is("4096"));
+		assertThat(WebLink.findByUri(links, "/next"), is(notNullValue()));
+	}
+
+	@Test
+	public void testParseExtensionTokenCharacters() {
+		String value = "!#$%&'()*+-./0123456789:<=>?@AZ[]^_`az{|}~";
+		Set<WebLink> links = LinkFormat.parse("</sensor>;x=" + value + ";obs,</next>");
+		ResourceAttributes attributes = WebLink.findByUri(links, "/sensor").getAttributes();
+		assertThat(attributes.getAttributeValues("x"), is(Arrays.asList(value)));
+		assertThat(attributes.getAttributeValues(LinkFormat.OBSERVABLE), is(Arrays.asList("")));
+		assertThat(WebLink.findByUri(links, "/next"), is(notNullValue()));
+	}
+
+	@Test
+	public void testParseQuotedExtensionValue() {
+		Set<WebLink> links = LinkFormat
+				.parse("</sensor>;b=\"abc def;ghi,jkl\";title=\"Sensor name\";empty=\"\",</next>");
+		ResourceAttributes attributes = WebLink.findByUri(links, "/sensor").getAttributes();
+		assertThat(attributes.getAttributeValues("b"), is(Arrays.asList("abc def;ghi,jkl")));
+		assertThat(attributes.getTitle(), is("Sensor name"));
+		assertThat(attributes.getAttributeValues("empty"), is(Arrays.asList("")));
+		assertThat(WebLink.findByUri(links, "/next"), is(notNullValue()));
+	}
+
+	@Test
+	public void testParseQuotedAttributeLists() {
+		for (String name : Arrays.asList("rel", "rev", "rt", "if", "ct")) {
+			Set<WebLink> links = LinkFormat.parse("</sensor>;" + name + "=\"first second\"");
+			ResourceAttributes attributes = WebLink.findByUri(links, "/sensor").getAttributes();
+			assertThat(name, attributes.getAttributeValues(name), is(Arrays.asList("first", "second")));
+		}
+	}
+
+	@Test
 	public void testSerializeResourceWithMatchingLink() {
 		CoapResource node = new CoapResource("node");
 		CoapResource child = new CoapResource("child1");
