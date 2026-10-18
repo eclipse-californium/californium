@@ -73,7 +73,9 @@ public class EndpointContextUtil {
 	 * 
 	 * Using {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE} requires to adjust
 	 * the reuse of the endpoint context in case of blockwise transfers or
-	 * retransmissions.
+	 * retransmissions. Also
+	 * {@link DtlsEndpointContext#KEY_RETURN_ROUTABILITY_CHECK} must be removed
+	 * in case of blockwise transfers or retransmissions.
 	 * 
 	 * @param messageContext messages's endpoint context.
 	 * @param connectionContext the connection's endpoint context. Either
@@ -85,14 +87,17 @@ public class EndpointContextUtil {
 	 */
 	public static EndpointContext getFollowUpEndpointContext(EndpointContext messageContext,
 			EndpointContext connectionContext) {
-		EndpointContext followUpEndpointContext;
+		EndpointContext followUpEndpointContext = connectionContext;
 		String mode = messageContext.getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
 		if (mode != null && mode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
 			// restore handshake-mode "none"
 			followUpEndpointContext = MapBasedEndpointContext.addEntries(connectionContext,
 					DtlsEndpointContext.ATTRIBUTE_HANDSHAKE_MODE_NONE);
-		} else {
-			followUpEndpointContext = connectionContext;
+		}
+		Boolean rrc = followUpEndpointContext.get(DtlsEndpointContext.KEY_RETURN_ROUTABILITY_CHECK);
+		if (rrc != null) {
+			followUpEndpointContext = MapBasedEndpointContext.removeEntries(followUpEndpointContext,
+					DtlsEndpointContext.KEY_RETURN_ROUTABILITY_CHECK);
 		}
 		return followUpEndpointContext;
 	}

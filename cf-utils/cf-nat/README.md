@@ -60,6 +60,7 @@ Additionally these commands are supported:
 - clear ``[n]``- drop all NAT entries, or  or drop `n` NAT entries
 - reassign - reassign incoming addresses
 - rebalance - reassign outgoing addresses
+- spoof - emulate spoofing, assign ephemeral outgoing address
 - add ``<host:port>`` - add new destination to load-balancer, e.g. "add node1.coaps.cluster:5684"
 - remove ``<host:port>`` - remove destination from load-balancer
 - reverse ``(on|off)`` - enable/disable reverse address updates.
@@ -78,3 +79,54 @@ Additionally these commands are supported:
 
     use -f and/or -b, if you want to test with different probabilities.
 
+## RRC - Return Routability Check
+
+###
+
+In order to execute the RRC samples locally, a java runtime is required. Please follow the instructions in the [WiKi - Californium running the sandbox locally for integration tests](https://github.com/eclipse-californium/californium/wiki/Californium---running-the-sandbox-locally-for-integration-tests#requirements) how to install and test it.
+
+If you want to run the `PlugtestServer` locally, that wiki also contains the instructions.
+
+Once the java runtime is available, the [cf-nat - instructions](https://github.com/eclipse-californium/californium/tree/main/cf-utils/cf-nat) could be used. For testing the [Path Validation Procedure - Basic](https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html#section-7.1) start it with:
+
+```
+java -jar cf-nat-<version>.jar :6684 localhost:5684 -tnat=5000
+```
+
+when running the `PlugtestServer` locally, or
+
+```
+java -jar cf-nat-<version>.jar -tnat=5000  :6684 californium.eclipseprojects.io:5684
+```
+
+when the [Interop-Server](https://github.com/eclipse-californium/californium/blob/main/README.md#interop-server) should be used.
+
+The NAT will timeout the ip-routes after 5s without traffic. Therefore, if you wait a little longer before sending the next message, the server will receive the message via the new ip-endpoint mapping and will detect that as ip-endpoint change.
+
+To use the `Cf-Browser` requires to install [javafx](https://gluonhq.com/products/javafx/) additionally. Please follow the [Cf-Browser - instruction](https://github.com/eclipse-californium/californium.tools/tree/main/cf-browser) for installation.
+
+(In short: download the javafx SDK for your platform, uncompress it and copy the path to the contained `lib` folder in order to use it for the CLI below.)
+
+To use it, please start it with:
+
+```
+java --module-path <path-to>/javafx-sdk-???/lib --add-modules javafx.controls,javafx.fxml -jar cf-browser-<version>.jar --cid-length=4 coaps://localhost:6684/rrc
+```
+
+(`<path-to>` according your local path of the `javafx-sdk-???/lib` folder.)
+
+That will send the messages via the NAT (`localhost:6684`) to the `PlugtestServer`, which is used as destination for the NAT, either `localhost:5684` or `californium.eclipseprojects.io:5684`.
+
+The resource `rrc` will force a return routability check even for small responses. The `PlugtestServer` uses a small blocksize of 64 bytes and with that the default amplification threshold of 3.0 is hard to reach.
+
+## Simulate Spoof Attack (Amplification Attack)
+
+One possible [attack scenario](https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html#section-6.1) considered is based on manipulating the source address. Without using [RFC 9146, Connection Identifier for DTLS 1.2](https://www.rfc-editor.org/info/rfc9146) this causes a MAC violation and is filtered out on receiving and processing that message within the DTLS layer. With CID the still valid content of the message could be processed, but the wrong address can not be distinguished from an usual address change caused by a NAT or something similar. If the processing of the message results in a large response message, then this maybe misused for DDoS attacks. Therefore [Path Validation Procedure - Basic](https://tlswg.org/dtls-rrc/draft-ietf-tls-dtls-rrc.html#section-7.1) checks with a small message, if the new route is valid.
+
+If the tool from the section before are still running, then just type
+
+```
+spoof
+```
+
+into the CLI of the NAT. The next message will be send with an ephemeral outgoing address. When the server then sends the "path-challenge" it doesn't receive an answer and times out the check without sending the (large) application response.

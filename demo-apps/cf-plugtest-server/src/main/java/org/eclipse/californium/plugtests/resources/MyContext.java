@@ -167,6 +167,10 @@ public class MyContext extends CoapResource {
 			formatter.add("prev-ip", StringUtil.toString(previous.getAddress()));
 			formatter.add("prev-port", new Long(previous.getPort()));
 		}
+		Boolean rrc = context.get(DtlsEndpointContext.KEY_RETURN_ROUTABILITY_CHECK);
+		if (rrc != null) {
+			formatter.add("rrc", rrc);
+		}
 		if (version != null) {
 			formatter.add("server", "Cf " + version);
 		}
