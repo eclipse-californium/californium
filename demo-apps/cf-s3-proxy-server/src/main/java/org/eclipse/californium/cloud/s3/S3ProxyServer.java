@@ -669,6 +669,7 @@ public class S3ProxyServer extends BaseServer {
 			add(new MyContext(MyContext.RESOURCE_NAME, CALIFORNIUM_BUILD_VERSION, false));
 			S3Devices s3Devices = new S3Devices(getConfig(), s3clients, provider);
 			add(s3Devices);
+			persistentComponentProvider.add(s3Devices);
 			this.deviceNotifier = s3Devices.getDeviceNotifier();
 			add(new S3ProxyResource("fw", 0, getConfig(), s3clients));
 			if (cliArguments.provisioning != null && cliArguments.provisioning.provisioning
