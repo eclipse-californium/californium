@@ -22,6 +22,8 @@ import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
+import java.security.spec.AlgorithmParameterSpec;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +49,11 @@ public final class AeadBlockCipher {
 	 * @since 3.3
 	 */
 	public static final String AES_CCM_NO_PADDING = "AES/CCM/NoPadding";
+	/**
+	 * ChaCha20-Poly1305 (RFC 8439), JCE transformation available since Java
+	 * 11. The 16 bytes tag is appended to the cipher text.
+	 */
+	public static final String CHACHA20_POLY1305 = "ChaCha20-Poly1305";
 
 	/**
 	 * Test, if transformation is "AES/CCM/???".
@@ -151,7 +158,7 @@ public final class AeadBlockCipher {
 			byte[] crypted, int cryptedOffset, int cryptedLength) throws GeneralSecurityException {
 
 		Cipher cipher = suite.getThreadLocalCipher();
-		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
+		AlgorithmParameterSpec parameterSpec = parameterSpec(suite, nonce);
 		cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(additionalData);
 		try {
@@ -178,12 +185,20 @@ public final class AeadBlockCipher {
 	private final static byte[] jreEncrypt(int outputOffset, CipherSuite suite, SecretKey key, byte[] nonce,
 			byte[] additionalData, byte[] message) throws GeneralSecurityException {
 		Cipher cipher = suite.getThreadLocalCipher();
-		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
+		AlgorithmParameterSpec parameterSpec = parameterSpec(suite, nonce);
 		cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(additionalData);
 		int length = cipher.getOutputSize(message.length);
 		byte[] result = new byte[length + outputOffset];
 		cipher.doFinal(message, 0, message.length, result, outputOffset);
 		return result;
+	}
+
+	private static AlgorithmParameterSpec parameterSpec(CipherSuite suite, byte[] nonce) {
+		if (CHACHA20_POLY1305.equalsIgnoreCase(suite.getTransformation())) {
+			// tag length is fixed to 16 bytes
+			return new IvParameterSpec(nonce);
+		}
+		return new GCMParameterSpec(suite.getMacLength() * 8, nonce);
 	}
 }
