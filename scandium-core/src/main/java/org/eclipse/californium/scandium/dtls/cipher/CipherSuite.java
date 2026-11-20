@@ -107,6 +107,21 @@ public enum CipherSuite {
 	TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA384(0xD002, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_256_GCM, true, PRFAlgorithm.TLS_PRF_SHA384),
 	TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256(0xD003, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CCM_8, true),
 	TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256(0xD005, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CCM, true),
+	/**
+	 * See <a href="https://www.rfc-editor.org/rfc/rfc7905" target="_blank">RFC
+	 * 7905</a> for details. Requires a JCE implementation of
+	 * ChaCha20-Poly1305 (Java 11+).
+	 * <p>
+	 * Mbed TLS has no ECDHE_PSK cipher suite with AES-GCM or AES-CCM for
+	 * (D)TLS 1.2, so constrained devices using Mbed TLS often offer this
+	 * cipher suite as the only one with an AEAD cipher and forward secrecy.
+	 * <p>
+	 * <a href="https://www.rfc-editor.org/rfc/rfc10015" target="_blank">RFC
+	 * 10015</a> deprecates the RFC 7905 cipher suites with finite field DHE
+	 * or RSA key exchange for (D)TLS 1.2. The ECDHE_PSK, ECDHE_ECDSA and PSK
+	 * variants supported here are not affected.
+	 */
+	TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256(0xCCAC, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.CHACHA20_POLY1305, true),
 
 	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_GCM, true),
 	/**
@@ -117,6 +132,11 @@ public enum CipherSuite {
 	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM_8, true),
 	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, true),
 	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, true),
+	/**
+	 * See <a href="https://www.rfc-editor.org/rfc/rfc7905" target="_blank">RFC
+	 * 7905</a> for details.
+	 */
+	TLS_PSK_WITH_CHACHA20_POLY1305_SHA256(0xCCAB, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.CHACHA20_POLY1305, true),
 
 	/**
 	 * See <a href="https://www.rfc-editor.org/rfc/rfc6209#section-2.3" target=
@@ -168,6 +188,11 @@ public enum CipherSuite {
 	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, true),
 	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, true),
 	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, true),
+	/**
+	 * See <a href="https://www.rfc-editor.org/rfc/rfc7905" target="_blank">RFC
+	 * 7905</a> for details.
+	 */
+	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256(0xCCA9, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.CHACHA20_POLY1305, true),
 
 	/**
 	 * See <a href="https://www.rfc-editor.org/rfc/rfc6209#section-2.2" target=
@@ -603,6 +628,17 @@ public enum CipherSuite {
 	 */
 	public int getFixedIvLength() {
 		return cipher.getFixedIvLength();
+	}
+
+	/**
+	 * Checks whether the AEAD nonce is built by XORing the record sequence
+	 * number into the fixed IV (RFC 7905), instead of concatenating the fixed
+	 * IV and an explicit nonce (RFC 5288, RFC 6655).
+	 *
+	 * @return {@code true} for XOR nonces (ChaCha20-Poly1305)
+	 */
+	public boolean isXorNonce() {
+		return cipher.getType() == CipherType.AEAD && cipher.getRecordIvLength() == 0;
 	}
 
 	/**
@@ -1248,7 +1284,9 @@ public enum CipherSuite {
 		ARIA_128_CBC("ARIA/CBC/NoPadding", CipherType.BLOCK, 16, 0, 16), // requires jce implementation of ARIA/CBC
 		ARIA_256_CBC("ARIA/CBC/NoPadding", CipherType.BLOCK, 32, 0, 16), // requires jce implementation of ARIA/CBC
 		ARIA_128_GCM("ARIA/GCM/NoPadding", CipherType.AEAD, 16, 4, 8, 16), // requires jce implementation of ARIA/GCM
-		ARIA_256_GCM("ARIA/GCM/NoPadding", CipherType.AEAD, 32, 4, 8, 16); // requires jce implementation of ARIA/GCM
+		ARIA_256_GCM("ARIA/GCM/NoPadding", CipherType.AEAD, 32, 4, 8, 16), // requires jce implementation of ARIA/GCM
+		// RFC 7905: 12 bytes fixed IV, no explicit nonce, nonce = IV XOR (epoch || seq_num)
+		CHACHA20_POLY1305(AeadBlockCipher.CHACHA20_POLY1305, CipherType.AEAD, 32, 12, 0, 16); // requires jce implementation of ChaCha20-Poly1305
 
 		/**
 		 * The <em>transformation</em> string of the corresponding Java Cryptography Architecture

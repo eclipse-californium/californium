@@ -101,10 +101,15 @@ public class DtlsAeadConnectionState extends DTLSConnectionState {
 		 * 
 		 * @return the 12 bytes nonce.
 		 */
-		DatagramWriter writer = new DatagramWriter(12, true);
-		iv.writeTo(writer);
-		record.writeExplicitNonce(writer);
-		byte[] nonce = writer.toByteArray();
+		byte[] nonce;
+		if (cipherSuite.isXorNonce()) {
+			nonce = xorNonce(record);
+		} else {
+			DatagramWriter writer = new DatagramWriter(12, true);
+			iv.writeTo(writer);
+			record.writeExplicitNonce(writer);
+			nonce = writer.toByteArray();
+		}
 		byte[] additionalData = record.generateAdditionalData(fragment.length);
 
 		if (LOGGER.isTraceEnabled()) {
@@ -147,9 +152,15 @@ public class DtlsAeadConnectionState extends DTLSConnectionState {
 		byte[] additionalData = record.generateAdditionalData(applicationDataLength);
 
 		DatagramWriter writer = new DatagramWriter(12, true);
-		iv.writeTo(writer);
-		writer.writeBytes(ciphertextFragment, 0, recordIvLength);
-		byte[] nonce = writer.toByteArray();
+		byte[] nonce;
+		if (cipherSuite.isXorNonce()) {
+			// no explicit nonce, recordIvLength is 0
+			nonce = xorNonce(record);
+		} else {
+			iv.writeTo(writer);
+			writer.writeBytes(ciphertextFragment, 0, recordIvLength);
+			nonce = writer.toByteArray();
+		}
 
 		if (LOGGER.isTraceEnabled()) {
 			LOGGER.trace("decrypt: {} bytes", applicationDataLength);
@@ -177,6 +188,32 @@ public class DtlsAeadConnectionState extends DTLSConnectionState {
 				recordIvLength, ciphertextFragment.length - recordIvLength);
 		Bytes.clear(nonce);
 		return payload;
+	}
+
+	/**
+	 * Create the per-record nonce for ChaCha20-Poly1305.
+	 * <p>
+	 * See <a href="https://www.rfc-editor.org/rfc/rfc7905#section-2" target=
+	 * "_blank">RFC 7905, Section 2</a>: the 64-bit record sequence number (for
+	 * DTLS the epoch and the 48-bit sequence number) is padded on the left by
+	 * four zero bytes and XORed with the 12 bytes write IV.
+	 * 
+	 * @param record the record providing epoch and sequence number
+	 * @return the 12 bytes nonce. Must be cleared by the caller.
+	 */
+	private byte[] xorNonce(Record record) {
+		DatagramWriter writer = new DatagramWriter(12, true);
+		iv.writeTo(writer);
+		// toByteArray() resets the writer
+		byte[] nonce = writer.toByteArray();
+		record.writeExplicitNonce(writer);
+		byte[] sequence = writer.toByteArray();
+		int offset = nonce.length - sequence.length;
+		for (int index = 0; index < sequence.length; ++index) {
+			nonce[offset + index] ^= sequence[index];
+		}
+		Bytes.clear(sequence);
+		return nonce;
 	}
 
 	@Override
