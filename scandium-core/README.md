@@ -249,6 +249,11 @@ ARIA cipher suites since 3.9.0, requires support by JCE, e.g. BouncyCastle 1.72:
 - TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256
 - TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384
 
+ChaCha20-Poly1305 cipher suites since 4.0.0, requires support by JCE (java 11 or newer):
+- TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
+- TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
+- TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+
 **Note:** the *CBC* cipher suites are not longer recommended for new deployments!
 
 ## Supported Signature- and Hash-Algorithms
@@ -286,6 +291,7 @@ Supported extensions:
      - [RFC 6066 - Maximum Fragment Length Negotiation](https://tools.ietf.org/html/rfc6066#section-4)
 - [RFC 6209 - ARIA Cipher Suites](https://tools.ietf.org/html/rfc6209) (since 3.9.0)
 - [RFC 7250 - Raw Public Keys](https://tools.ietf.org/html/rfc7250)
+- [RFC 7905 - ChaCha20-Poly1305 Cipher Suites for Transport Layer Security (TLS)](https://www.rfc-editor.org/rfc/rfc7905) (since 4.0.0, requires java 11)
 - [RFC 7627 - Extended Master Secret Extension](https://tools.ietf.org/html/rfc7627)
 - [RFC 7748 - Elliptic Curves for Security](https://tools.ietf.org/html/rfc7748)
 - [RFC 8422 - Elliptic Curve Cryptography (ECC) Update](https://tools.ietf.org/html/rfc8422)
