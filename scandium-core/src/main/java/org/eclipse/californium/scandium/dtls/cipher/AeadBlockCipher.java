@@ -16,7 +16,9 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
@@ -152,7 +154,18 @@ public final class AeadBlockCipher {
 
 		Cipher cipher = suite.getThreadLocalCipher();
 		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
-		cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
+		try {
+			cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
+		} catch (InvalidKeyException ex) {
+			// some cipher in some JCE versions seems to force using different
+			// key or nonce on init. Assuming using UDP someone may be able to
+			// forge records, that may cause a InvalidKeyException on receiving
+			// the original record with the same nonce later.
+			byte[] nonceModified = Arrays.copyOf(nonce,  nonce.length);
+			nonceModified[0] ^= 0x1;
+			cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(suite.getMacLength() * 8, nonceModified));
+			cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
+		}
 		cipher.updateAAD(additionalData);
 		try {
 			return cipher.doFinal(crypted, cryptedOffset, cryptedLength);
