@@ -18,12 +18,14 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.AlgorithmParameterSpec;
 import java.util.Arrays;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +51,13 @@ public final class AeadBlockCipher {
 	 * @since 3.3
 	 */
 	public static final String AES_CCM_NO_PADDING = "AES/CCM/NoPadding";
+	/**
+	 * ChaCha20-Poly1305 (RFC 8439), JCE transformation available since Java
+	 * 11. The 16 bytes tag is appended to the cipher text.
+	 * 
+	 * @since 4.0
+	 */
+	public static final String CHACHA20_POLY1305 = "ChaCha20-Poly1305";
 
 	/**
 	 * Test, if transformation is "AES/CCM/???".
@@ -153,7 +162,7 @@ public final class AeadBlockCipher {
 			byte[] crypted, int cryptedOffset, int cryptedLength) throws GeneralSecurityException {
 
 		Cipher cipher = suite.getThreadLocalCipher();
-		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
+		AlgorithmParameterSpec parameterSpec = parameterSpec(suite, nonce);
 		try {
 			cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 		} catch (InvalidKeyException ex) {
@@ -163,7 +172,7 @@ public final class AeadBlockCipher {
 			// the original record with the same nonce later.
 			byte[] nonceModified = Arrays.copyOf(nonce,  nonce.length);
 			nonceModified[0] ^= 0x1;
-			cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(suite.getMacLength() * 8, nonceModified));
+			cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec(suite, nonceModified));
 			cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 		}
 		cipher.updateAAD(additionalData);
@@ -191,12 +200,30 @@ public final class AeadBlockCipher {
 	private final static byte[] jreEncrypt(int outputOffset, CipherSuite suite, SecretKey key, byte[] nonce,
 			byte[] additionalData, byte[] message) throws GeneralSecurityException {
 		Cipher cipher = suite.getThreadLocalCipher();
-		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
+		AlgorithmParameterSpec parameterSpec = parameterSpec(suite, nonce);
 		cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(additionalData);
 		int length = cipher.getOutputSize(message.length);
 		byte[] result = new byte[length + outputOffset];
 		cipher.doFinal(message, 0, message.length, result, outputOffset);
 		return result;
+	}
+
+	/**
+	 * Create the parameter specification for the cipher of the suite.
+	 * 
+	 * @param suite the cipher suite
+	 * @param nonce the nonce N.
+	 * @return {@link IvParameterSpec} for ChaCha20-Poly1305,
+	 *         {@link GCMParameterSpec} with the tag length of the suite
+	 *         otherwise.
+	 * @since 4.0
+	 */
+	private static AlgorithmParameterSpec parameterSpec(CipherSuite suite, byte[] nonce) {
+		if (CHACHA20_POLY1305.equalsIgnoreCase(suite.getTransformation())) {
+			// tag length is fixed to 16 bytes
+			return new IvParameterSpec(nonce);
+		}
+		return new GCMParameterSpec(suite.getMacLength() * 8, nonce);
 	}
 }

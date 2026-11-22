@@ -17,6 +17,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 import java.security.GeneralSecurityException;
@@ -77,7 +78,9 @@ public class RecordDecryptTest {
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384);
+				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,
+				CipherSuite.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+				CipherSuite.TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256);
 	}
 
 	@Before
@@ -136,6 +139,37 @@ public class RecordDecryptTest {
 			DTLSMessage message = recv.getFragment();
 			assertArrayEquals("decrypted payload differs", payload, message.toByteArray());
 		}
+	}
+
+	/**
+	 * Test, if a record is decrypted after a forged one with the same sequence
+	 * number failed.
+	 *
+	 * @throws GeneralSecurityException if a crypto error occurs
+	 * @throws HandshakeException if a handshake error occurs
+	 * @since 4.0
+	 */
+	@Test
+	public void testDecryptAfterForgedRecord() throws GeneralSecurityException, HandshakeException {
+		byte[] payload = Arrays.copyOf(payloadData, 32);
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, new ApplicationMessage(payload), context,
+				true, 0);
+		byte[] raw = record.toByteArray();
+		byte[] forged = raw.clone();
+		forged[forged.length - 1] ^= 0x55;
+		List<Record> list = DtlsTestTools.fromByteArray(forged, null, ClockUtil.nanoRealtime());
+		assertFalse("failed to decode forged message", list.isEmpty());
+		try {
+			list.get(0).decodeFragment(context.getReadState());
+			fail("forged record must not be decrypted");
+		} catch (GeneralSecurityException ex) {
+			// expected, invalid MAC
+		}
+		list = DtlsTestTools.fromByteArray(raw, null, ClockUtil.nanoRealtime());
+		assertFalse("failed to decode raw message", list.isEmpty());
+		Record recv = list.get(0);
+		recv.decodeFragment(context.getReadState());
+		assertArrayEquals("decrypted payload differs", payload, recv.getFragment().toByteArray());
 	}
 
 	/**
