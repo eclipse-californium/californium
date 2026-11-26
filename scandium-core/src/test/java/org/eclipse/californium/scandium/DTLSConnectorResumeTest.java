@@ -875,6 +875,7 @@ public class DTLSConnectorResumeTest {
 		assertThat(serverSessions2, is(serverSessions + 1));
 	}
 
+	@Test
 	public void testConnectorResumesSessionFromClosedConnection() throws Exception {
 		// Do a first handshake
 		TestContext clientTestContext = serverHelper.givenAnEstablishedSession(client, false);
