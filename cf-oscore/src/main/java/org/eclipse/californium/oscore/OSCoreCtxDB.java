@@ -97,7 +97,7 @@ public interface OSCoreCtxDB {
 	public void purge();
 
 	/**
-	 * Removes associations for this token, except for the generator
+	 * Removes the context association for this token.
 	 * 
 	 * @param token token to be removed
 	 */
