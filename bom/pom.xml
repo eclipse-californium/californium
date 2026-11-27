@@ -18,11 +18,11 @@
 
 	<properties>
 		<picocli.version>4.7.7</picocli.version>
-		<gson.version>2.13.1</gson.version>
+		<gson.version>2.15.0</gson.version>
 		<cbor.version>4.5.6</cbor.version>
-		<slf4j.version>2.0.17</slf4j.version>
+		<slf4j.version>2.0.20</slf4j.version>
 		<!-- last logback for jdk 8 -->
-		<logback.version>1.3.15</logback.version>
+		<logback.version>1.3.16</logback.version>
 		<junit.version>4.13.2</junit.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<mockito.version>2.28.2</mockito.version>
